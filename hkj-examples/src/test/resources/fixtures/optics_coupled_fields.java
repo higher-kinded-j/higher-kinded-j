@@ -10,7 +10,10 @@
 // (see build.gradle.kts).
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.UnaryOperator;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.optics.Lens;
@@ -30,13 +33,6 @@ record Range(int lo, int hi) {
 record Transaction(String id, int min, int max, String note) {}
 
 record Packet(byte[] data, long checksum) {}
-
-record Line(String id, BigDecimal price) {
-
-  Line withPrice(BigDecimal newPrice) {
-    return new Line(id, newPrice);
-  }
-}
 
 record Point(int x, int y) {
 
@@ -116,9 +112,9 @@ class Fixture {
 
   static final Lens<Trade, Integer> precisionLens = sample();
 
-  static final Order order = sample();
+  static final Quotation quotation = sample();
 
-  static final String lineId = "L-1";
+  static final String sku = "LAMP";
 
   static final BigDecimal newPrice = BigDecimal.ONE;
 
@@ -127,11 +123,12 @@ class Fixture {
   }
 }
 
-// The order the page contrasts pairing with: its own operation keeps the total consistent, so it
-// exposes no lens onto the derived field.
-record Order(String id, java.util.List<Line> lines, BigDecimal totalPrice) {
+// The quotation the page contrasts pairing with, beside the chapter's Order: it states the total
+// its lines add up to, which an order does not store, so its own operation keeps the two consistent
+// and it exposes no lens onto the derived field. Its lines are the chapter cast's LineItem.
+record Quotation(List<LineItem> lines, BigDecimal total) {
 
-  Order withLine(String lineId, java.util.function.UnaryOperator<Line> change) {
+  Quotation withLine(String sku, UnaryOperator<LineItem> change) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }

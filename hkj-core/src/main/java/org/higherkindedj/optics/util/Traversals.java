@@ -70,8 +70,8 @@ public final class Traversals {
   /**
    * Extracts all targets of a {@link Traversal} from a source structure into a {@link List}.
    *
-   * <p>This method traverses the structure, collecting each focused part into a list. It uses the
-   * {@link Id} monad internally as a trivial context for the traversal.
+   * <p>This method reads the structure through {@link Traversal#asFold()}, which runs the traversal
+   * in a constant applicative: it collects each focused part without rebuilding the source.
    *
    * @param traversal The {@code Traversal} to use.
    * @param source The source structure.
@@ -81,15 +81,7 @@ public final class Traversals {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
       final Traversal<S, A> traversal, final S source) {
-    final List<A> results = new ArrayList<>();
-    traversal.modifyF(
-        a -> {
-          results.add(a);
-          return Id.of(a); // Return original value in an Id context
-        },
-        source,
-        IdMonad.instance());
-    return results;
+    return traversal.asFold().getAll(source);
   }
 
   /**

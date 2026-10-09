@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/filtered_optics.md
 //
-// The page narrows one platform of users and customers with `filtered` and `filterBy`. The model
-// is declared here with the generators the snippets' companions come from; the snippet that shows
-// it shadows this copy.
+// The page narrows one platform of users and billing accounts with `filtered` and `filterBy`. The
+// model is declared here with the generators the snippets' companions come from; the snippet that
+// shows it shadows this copy. An account holds the chapter cast's own Customer, which hkj-examples'
+// main sources put on the gate's classpath.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
@@ -44,14 +46,15 @@ record User(String name, boolean active, int score, SubscriptionTier tier) {
 @GenerateFolds
 record Invoice(String id, BigDecimal amount, boolean overdue) {}
 
+// A customer's billing account, beside the cast's Customer
 @GenerateLenses
 @GenerateFolds
-record Customer(String name, List<Invoice> invoices, SubscriptionTier tier) {}
+record BillingAccount(Customer customer, List<Invoice> invoices, SubscriptionTier tier) {}
 
 @GenerateLenses
 @GenerateFolds
 @GenerateTraversals
-record Platform(List<User> users, List<Customer> customers) {}
+record Platform(List<User> users, List<BillingAccount> accounts) {}
 
 class Fixture {
 
@@ -68,9 +71,9 @@ class Fixture {
 
   static final List<User> users = List.of();
 
-  static final Customer customer = sample();
+  static final BillingAccount account = sample();
 
-  static final List<Customer> customers = List.of();
+  static final List<BillingAccount> accounts = List.of();
 
   static final Platform platform = sample();
 

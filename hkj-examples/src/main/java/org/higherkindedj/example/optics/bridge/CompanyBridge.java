@@ -74,10 +74,6 @@ public final class CompanyBridge {
   public static final Lens<Company, String> HEADQUARTERS_POSTCODE =
       CompanyFocus.headquarters().toLens().andThen(AddressOptics.postcode());
 
-  /** Lens from Company to headquarters country. */
-  public static final Lens<Company, String> HEADQUARTERS_COUNTRY =
-      CompanyFocus.headquarters().toLens().andThen(AddressOptics.country());
-
   // ========================================================================
   // Department → Address (location) bridging
   // ========================================================================
@@ -85,11 +81,6 @@ public final class CompanyBridge {
   /** Lens from Department to location city. */
   public static Lens<Department, String> departmentCity() {
     return DepartmentFocus.location().toLens().andThen(AddressOptics.city());
-  }
-
-  /** Lens from Department to location country. */
-  public static Lens<Department, String> departmentCountry() {
-    return DepartmentFocus.location().toLens().andThen(AddressOptics.country());
   }
 
   // ========================================================================

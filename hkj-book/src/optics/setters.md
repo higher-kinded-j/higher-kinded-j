@@ -271,7 +271,7 @@ User updated = usernameLens.set("new_name", user); // Write
 <!-- verify -->
 ```java
 // Use Traversal when you need to extract values too
-List<Product> all = Traversals.getAll(productTraversal, order); // Read
+List<Product> all = Traversals.getAll(productTraversal, inventory); // Read
 ```
 
 ### Use Direct Mutation When

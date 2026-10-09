@@ -417,7 +417,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
             .addField(absentContextField(context, contextName, packageName));
 
     for (Variant variant : variants) {
-      outer.addMethod(convenienceFactory(variant, packageName));
+      outer.addMethod(convenienceFactory(variant, companion, packageName));
       outer.addMethod(timedFactory(variant, contextName, packageName));
     }
     outer.addMethod(
@@ -459,8 +459,12 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
         .build();
   }
 
-  /** The {@code TimeSource.system()} convenience factory, delegating to the timed overload. */
-  private MethodSpec convenienceFactory(Variant variant, String packageName) {
+  /**
+   * The {@code TimeSource.system()} convenience factory, delegating to the timed overload. The call
+   * is qualified with the companion, since a variant named {@code Yield} names a method {@code
+   * yield}, which Java does not let an unqualified call name.
+   */
+  private MethodSpec convenienceFactory(Variant variant, ClassName companion, String packageName) {
     ClassName variantName = ClassName.get(variant.record());
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(factoryName(variant))
@@ -480,7 +484,9 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
       method.addParameter(ProcessorUtils.typeNameOf(component.asType(), packageName), name);
       args.add(", $N", name);
     }
-    return method.addStatement("return $L($L)", factoryName(variant), args.build()).build();
+    return method
+        .addStatement("return $T.$L($L)", companion, factoryName(variant), args.build())
+        .build();
   }
 
   /** The explicit-{@code TimeSource} factory that actually fills the envelope. */
@@ -621,7 +627,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
   }
 
   private static String factoryName(Variant variant) {
-    return ProcessorUtils.toCamelCase(variant.record().getSimpleName().toString());
+    return ProcessorUtils.toMethodName(variant.record().getSimpleName().toString());
   }
 
   private List<RecordComponentElement> domainComponents(Variant variant) {

@@ -275,15 +275,17 @@ public class Tutorial19_NavigatorGeneration_Solution {
   }
 
   /**
-   * Why this is idiomatic: the navigator generator can be told to stop at a given depth. Composing
-   * the lenses by hand to the depth you actually need keeps the API surface small and prevents
-   * callers from drilling into private layers.
+   * Why this is idiomatic: once a navigator chain ends, as it does at a navigator's own navigation
+   * methods under {@code maxNavigatorDepth = 1}, at a record without navigators, or where a hop
+   * widens the path, composing the lenses with {@code .via()} reaches the same field, and each hop
+   * names the lens it uses.
    *
-   * <p>Alternative: generate every possible navigator and rely on access modifiers. The generated
-   * surface is smaller when the depth limit matches the public contract.
+   * <p>Alternative: keep the default, under which depth ends no chain: each hop into a navigable
+   * record returns a navigator. Each navigator class is generated once per record, so a long chain
+   * generates no extra code.
    *
-   * <p>Common wrong attempt: assume the depth limit silently truncates deeper paths. Past the
-   * limit, the helper stops generating; the navigator does not magically extend.
+   * <p>Common wrong attempt: expect a value such as 2 or 3 to end a chain after that many hops.
+   * Only {@code 1}, or a value below it, ends a chain early; no larger value ends one.
    */
   @Test
   void exercise7_depthLimiting() {

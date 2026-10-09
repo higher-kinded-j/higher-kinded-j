@@ -20,7 +20,6 @@ import org.higherkindedj.optics.annotations.Wither;
  *     .street("123 Main St")
  *     .city("Boston")
  *     .postcode("02101")
- *     .country("USA")
  *     .build();
  *
  * // Get city
@@ -42,8 +41,5 @@ public interface AddressOpticsSpec extends OpticsSpec<Address> {
 
   @Wither(value = "withPostcode", getter = "postcode")
   Lens<Address, String> postcode();
-
-  @Wither(value = "withCountry", getter = "country")
-  Lens<Address, String> country();
 }
 // ANCHOR_END: spec

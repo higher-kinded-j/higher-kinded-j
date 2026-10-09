@@ -46,12 +46,12 @@ Focus covers the types you own. Spec interfaces cover the types you do not. The 
 `Address` and `ContactInfo` come from an Immutables-generated module: accessor methods with no `get` prefix, and wither methods for modification.
 
 ```java
+// An Immutables module's Address, with the chapter's Address components
 @Value.Immutable
 public interface Address {
   String street();
   String city();
   String postcode();
-  String country();
 
   // Immutables generates withStreet(...), withCity(...), and a builder
 }

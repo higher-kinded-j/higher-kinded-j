@@ -103,15 +103,25 @@ public @interface GenerateFocus {
   boolean generateNavigators() default false;
 
   /**
-   * Maximum depth for generated navigator chains.
+   * Whether a navigator's own navigation methods return navigators.
    *
-   * <p>This limits code generation for deeply nested structures. When the depth limit is reached,
-   * navigation methods return plain {@code FocusPath}/{@code AffinePath}/{@code TraversalPath}
-   * instances instead of navigators.
+   * <p>A value of {@code 1} or less changes the generated code: the navigation methods of this
+   * record's navigators return plain {@code FocusPath}, {@code AffinePath} or {@code TraversalPath}
+   * instances. So in {@code OrderFocus.customer().email()}, {@code customer()} still returns a
+   * navigator, {@code email()} returns a plain path, and any further hop composes with {@code
+   * .via()}.
    *
-   * <p>Valid range: 1-10. Default: 3.
+   * <p>A value of {@code 2} or more, the default included, ends no chain. A hop into another
+   * navigable record returns the navigator that the {@code Focus} class of the record it leaves
+   * declares for that field, and that navigator is generated once per record, so a longer chain
+   * generates no more code. A chain still ends where a hop widens the path: a navigator over an
+   * {@code Optional} or a collection that hops into a record field returns the composed {@code
+   * AffinePath} or {@code TraversalPath}.
    *
-   * @return the maximum navigator chain depth
+   * <p>Default: 3.
+   *
+   * @return {@code 1} or less to end each chain at a navigator's own navigation methods; {@code 2}
+   *     or more to end none by depth
    */
   int maxNavigatorDepth() default 3;
 

@@ -572,8 +572,8 @@ class ThroughFieldAutoDetectTest {
                   + " 'ArrayList<String>' rather than as the List interface. The standard List"
                   + " traversal promises no more than a List, so what it rebuilds is not"
                   + " guaranteed to be an ArrayList, and a field it cannot be handed back to would"
-                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
-                  + " example @ThroughField(field = \"items\", traversal ="
+                  + " throw ClassCastException on its first write. Name a traversal that rebuilds"
+                  + " it, for example @ThroughField(field = \"items\", traversal ="
                   + " \"com.example.MyTraversals.forArrayList()\") built with"
                   + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
                   + " where the type is yours, declare the field as List.");
@@ -624,11 +624,11 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("the interface traversal over an ArrayList field throws on first use")
+    @DisplayName("the interface traversal over an ArrayList field throws on its first write")
     void interfaceTraversalOverArrayListFieldThrowsAtRuntime() throws Exception {
       // The premise of the refusal, pinned through the explicit route that bypasses it: the
-      // unmodifiable List forList() hands back cannot be handed to an ArrayList field, and the
-      // read reaches the setter too.
+      // unmodifiable List forList() hands back cannot be handed to an ArrayList field. A read
+      // never reaches the setter, so it is the first write that throws.
       var compiled =
           RuntimeCompilationHelper.compile(
               ARRAY_LIST_CONTAINER,
@@ -642,7 +642,8 @@ class ThroughFieldAutoDetectTest {
       Traversal<Object, Object> eachItem =
           (Traversal<Object, Object>) compiled.invokeStatic("com.test.Crate", "eachItem");
 
-      Assertions.assertThatThrownBy(() -> Traversals.getAll(eachItem, crate))
+      Assertions.assertThat(Traversals.getAll(eachItem, crate)).containsExactly("a");
+      Assertions.assertThatThrownBy(() -> Traversals.modify(eachItem, item -> item, crate))
           .isInstanceOf(ClassCastException.class);
     }
 
@@ -792,8 +793,8 @@ class ThroughFieldAutoDetectTest {
                   + " 'HashSet<String>' rather than as the Set interface. The standard Set"
                   + " traversal promises no more than a Set, so what it rebuilds is not"
                   + " guaranteed to be a HashSet, and a field it cannot be handed back to would"
-                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
-                  + " example @ThroughField(field = \"items\", traversal ="
+                  + " throw ClassCastException on its first write. Name a traversal that rebuilds"
+                  + " it, for example @ThroughField(field = \"items\", traversal ="
                   + " \"com.example.MyTraversals.forHashSet()\") built with"
                   + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
                   + " where the type is yours, declare the field as Set.");
@@ -909,8 +910,8 @@ class ThroughFieldAutoDetectTest {
                   + " 'Deque<String>' rather than as the Collection interface. The standard"
                   + " Collection traversal promises no more than a Collection, so what it rebuilds"
                   + " is not guaranteed to be a Deque, and a field it cannot be handed back to"
-                  + " would throw ClassCastException on first use. Name a traversal that rebuilds"
-                  + " it, for example @ThroughField(field = \"values\", traversal ="
+                  + " would throw ClassCastException on its first write. Name a traversal that"
+                  + " rebuilds it, for example @ThroughField(field = \"values\", traversal ="
                   + " \"com.example.MyTraversals.forDeque()\") built with"
                   + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
                   + " where the type is yours, declare the field as Collection.");
@@ -1080,8 +1081,8 @@ class ThroughFieldAutoDetectTest {
                   + " 'HashMap<String, Integer>' rather than as the Map interface. The standard Map"
                   + " traversal promises no more than a Map, so what it rebuilds is not"
                   + " guaranteed to be a HashMap, and a field it cannot be handed back to would"
-                  + " throw ClassCastException on first use. Name a traversal that rebuilds it, for"
-                  + " example @ThroughField(field = \"values\", traversal ="
+                  + " throw ClassCastException on its first write. Name a traversal that rebuilds"
+                  + " it, for example @ThroughField(field = \"values\", traversal ="
                   + " \"com.example.MyTraversals.forHashMap()\") built with"
                   + " Traversals.forIterableCollecting or Traversals.forMapValuesCollecting, or,"
                   + " where the type is yours, declare the field as Map.");

@@ -2,7 +2,9 @@
 //
 // The page runs one program under each interpreter in turn - direct, logging, validating, and two
 // the reader writes. The models are declared here, along with the profiling and mock interpreters
-// the page builds and then reuses further down; the snippet that shows one shadows this copy.
+// the page builds and then reuses further down; the snippet that shows one shadows this copy. Its
+// order processing runs over the chapter cast's Order, which hkj-examples' main sources put on the
+// gate's classpath.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -18,7 +20,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
@@ -73,14 +78,6 @@ record Player(String name, int score) {}
 @GenerateLenses
 @GenerateTraversals
 record Team(String name, List<Player> players) {}
-
-enum OrderStatus {
-  PENDING,
-  COMPLETED
-}
-
-@GenerateLenses
-record Order(String id, OrderStatus status) {}
 
 record Dataset(String name, List<String> rows) {}
 
@@ -157,7 +154,7 @@ class AuditService {
 
 class AuditRepository {
 
-  void save(String key, String entry) {
+  void save(UUID orderId, String entry) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 

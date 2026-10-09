@@ -42,8 +42,6 @@ record Inventory(List<Product> products, String warehouseId) {}
 
 record Person(String name, int age) {}
 
-record Order(String orderId, List<Product> products) {}
-
 record Company(String name, List<Person> employees, List<Product> products) {}
 
 class Fixture {
@@ -60,7 +58,7 @@ class Fixture {
 
   static final List<Product> usdProducts = List.of(laptop);
 
-  static final Order order = new Order("ORD-1", usdProducts);
+  static final Inventory inventory = new Inventory(usdProducts, "WH-1");
 
   static final Company company = new Company("Initech", List.of(person), usdProducts);
 
@@ -109,8 +107,9 @@ class Fixture {
       Setter.fromGetSet(
           Company::products, (c, p) -> new Company(c.name(), c.employees(), p));
 
-  static final Traversal<Order, Product> productTraversal =
-      Lens.<Order, List<Product>>of(Order::products, (o, p) -> new Order(o.orderId(), p))
+  static final Traversal<Inventory, Product> productTraversal =
+      Lens.<Inventory, List<Product>>of(
+              Inventory::products, (i, p) -> new Inventory(p, i.warehouseId()))
           .asTraversal()
           .andThen(Traversals.forList());
 

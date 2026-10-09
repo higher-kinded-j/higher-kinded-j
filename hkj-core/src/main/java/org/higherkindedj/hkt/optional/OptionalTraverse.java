@@ -128,11 +128,10 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
 
     Validation.function().validateTraverse(applicative, f, ta);
 
-    return OPTIONAL
-        .narrow(ta)
-        .map(f)
-        .map(gb -> applicative.map(b -> OPTIONAL.widen(Optional.ofNullable(b)), gb))
-        .orElse(applicative.of(OPTIONAL.widen(Optional.empty())));
+    Optional<A> value = OPTIONAL.narrow(ta);
+    return value.isPresent()
+        ? applicative.map(b -> OPTIONAL.widen(Optional.ofNullable(b)), f.apply(value.get()))
+        : applicative.of(OPTIONAL.widen(Optional.empty()));
   }
 
   /**

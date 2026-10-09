@@ -4,7 +4,17 @@ package org.higherkindedj.example.book.optics.filtered;
 
 // ANCHOR: imports
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
@@ -23,17 +33,32 @@ import org.higherkindedj.optics.util.Traversals;
 // ANCHOR: customer_analytics
 public class CustomerAnalytics {
 
-  public record Item(String name, BigDecimal price, String category, boolean premium) {}
+  // The dashboard's view of one customer: their orders, and the VIP mark the dashboard sets
+  public record CustomerHistory(Customer customer, List<Order> orders, boolean vip) {}
 
-  public record Order(String id, List<Item> items, BigDecimal total) {}
+  // What the catalogue knows that a line does not: each SKU's category, and which are premium
+  public record SkuCatalogue(Map<String, String> categories, Set<String> premiumSkus) {
+    boolean premium(LineItem line) {
+      return premiumSkus.contains(line.sku());
+    }
 
-  public record Customer(String name, List<Order> orders, boolean vip) {}
+    String category(LineItem line) {
+      return categories.getOrDefault(line.sku(), "Uncategorised");
+    }
+  }
 
-  // Reusable optics
-  private static final Fold<Customer, Order> CUSTOMER_ORDERS = Fold.of(Customer::orders);
-  private static final Fold<Order, Item> ORDER_ITEMS = Fold.of(Order::items);
-  private static final Fold<Customer, Item> ALL_CUSTOMER_ITEMS =
-      CUSTOMER_ORDERS.andThen(ORDER_ITEMS);
+  private static final SkuCatalogue CATALOGUE =
+      new SkuCatalogue(
+          Map.of(
+              "LAPTOP", "Electronics",
+              "MOUSE", "Electronics",
+              "DESK", "Furniture",
+              "BOOK", "Books",
+              "PEN", "Stationery",
+              "PHONE", "Electronics",
+              "CASE", "Accessories",
+              "HEADPHONES", "Electronics"),
+          Set.of("LAPTOP", "PHONE", "HEADPHONES"));
 
   // Monoids has no BigDecimal sum, so the dashboard writes its own
   private static final Monoid<BigDecimal> MONEY =
@@ -49,50 +74,69 @@ public class CustomerAnalytics {
         }
       };
 
+  // Reusable optics
+  private static final Fold<CustomerHistory, Order> HISTORY_ORDERS =
+      Fold.of(CustomerHistory::orders);
+  private static final Fold<Order, LineItem> ORDER_LINES = Fold.of(Order::lines);
+  private static final Fold<CustomerHistory, LineItem> ALL_HISTORY_LINES =
+      HISTORY_ORDERS.andThen(ORDER_LINES);
+
+  // An order stores no total, so a getter computes one from its lines
+  private static final Getter<Order, BigDecimal> ORDER_TOTAL =
+      Getter.of(order -> ORDER_LINES.foldMap(MONEY, CustomerAnalytics::lineTotal, order));
+
+  private static BigDecimal lineTotal(LineItem line) {
+    return line.price().multiply(BigDecimal.valueOf(line.quantity()));
+  }
+
   public static void main(String[] args) {
-    List<Customer> customers = createSampleData();
+    List<CustomerHistory> histories = createSampleData();
 
     System.out.println("=== CUSTOMER ANALYTICS WITH FILTERED OPTICS ===\n");
 
     // --- Analysis 1: High-Value Customer Identification ---
     System.out.println("--- Analysis 1: High-Value Customers ---");
 
-    Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
-    Fold<Customer, BigDecimal> orderTotals =
-        CUSTOMER_ORDERS.andThen(Getter.of(Order::total).asFold());
+    Traversal<List<CustomerHistory>, CustomerHistory> allHistories = Traversals.forList();
+    Fold<CustomerHistory, BigDecimal> orderTotals = HISTORY_ORDERS.andThen(ORDER_TOTAL.asFold());
 
     // Customers with any order over £500
-    Traversal<List<Customer>, Customer> bigSpenders =
-        allCustomers.filterBy(orderTotals, total -> total.compareTo(new BigDecimal("500")) > 0);
+    Traversal<List<CustomerHistory>, CustomerHistory> bigSpenders =
+        allHistories.filterBy(orderTotals, total -> total.compareTo(new BigDecimal("500")) > 0);
 
-    List<Customer> highValue = Traversals.getAll(bigSpenders, customers);
+    List<CustomerHistory> highValue = Traversals.getAll(bigSpenders, histories);
     System.out.println(
-        "Customers with orders over £500: " + highValue.stream().map(Customer::name).toList());
+        "Customers with orders over £500: "
+            + highValue.stream().map(h -> h.customer().name()).toList());
 
     // --- Analysis 2: Premium Product Buyers ---
     System.out.println("\n--- Analysis 2: Premium Product Buyers ---");
 
-    Fold<Customer, Item> premiumItems = ALL_CUSTOMER_ITEMS.filtered(Item::premium);
+    Fold<CustomerHistory, LineItem> premiumLines = ALL_HISTORY_LINES.filtered(CATALOGUE::premium);
 
-    for (Customer customer : customers) {
-      int premiumCount = premiumItems.length(customer);
+    for (CustomerHistory history : histories) {
+      int premiumCount = premiumLines.length(history);
       if (premiumCount > 0) {
-        BigDecimal premiumSpend = premiumItems.foldMap(MONEY, Item::price, customer);
+        BigDecimal premiumSpend =
+            premiumLines.foldMap(MONEY, CustomerAnalytics::lineTotal, history);
         System.out.printf(
-            "%s: %d premium items, £%.2f total%n", customer.name(), premiumCount, premiumSpend);
+            "%s: %d premium items, £%.2f total%n",
+            history.customer().name(), premiumCount, premiumSpend);
       }
     }
 
     // --- Analysis 3: Category-Specific Queries ---
     System.out.println("\n--- Analysis 3: Electronics Spending ---");
 
-    Fold<Customer, Item> electronicsItems =
-        ALL_CUSTOMER_ITEMS.filtered(item -> "Electronics".equals(item.category()));
+    Fold<CustomerHistory, LineItem> electronicsLines =
+        ALL_HISTORY_LINES.filtered(line -> "Electronics".equals(CATALOGUE.category(line)));
 
-    for (Customer customer : customers) {
-      BigDecimal electronicsSpend = electronicsItems.foldMap(MONEY, Item::price, customer);
+    for (CustomerHistory history : histories) {
+      BigDecimal electronicsSpend =
+          electronicsLines.foldMap(MONEY, CustomerAnalytics::lineTotal, history);
       if (electronicsSpend.signum() > 0) {
-        System.out.printf("%s spent £%.2f on Electronics%n", customer.name(), electronicsSpend);
+        System.out.printf(
+            "%s spent £%.2f on Electronics%n", history.customer().name(), electronicsSpend);
       }
     }
 
@@ -100,38 +144,39 @@ public class CustomerAnalytics {
     System.out.println("\n--- Analysis 4: Auto-Mark VIP Customers ---");
 
     // Customers who bought premium items AND have any order over £300
-    Traversal<List<Customer>, Customer> potentialVIPs =
-        allCustomers
-            .filterBy(ALL_CUSTOMER_ITEMS, Item::premium) // Has premium items
+    Traversal<List<CustomerHistory>, CustomerHistory> potentialVIPs =
+        allHistories
+            .filterBy(ALL_HISTORY_LINES, CATALOGUE::premium) // Has premium items
             .filterBy(orderTotals, total -> total.compareTo(new BigDecimal("300")) > 0);
 
-    Lens<Customer, Boolean> vipLens =
-        Lens.of(Customer::vip, (c, v) -> new Customer(c.name(), c.orders(), v));
+    Lens<CustomerHistory, Boolean> vipLens =
+        Lens.of(CustomerHistory::vip, (h, v) -> new CustomerHistory(h.customer(), h.orders(), v));
 
-    List<Customer> updatedCustomers =
-        Traversals.modify(potentialVIPs.andThen(vipLens), _ -> true, customers);
+    List<CustomerHistory> updatedHistories =
+        Traversals.modify(potentialVIPs.andThen(vipLens), _ -> true, histories);
 
-    for (Customer c : updatedCustomers) {
-      if (c.vip()) {
-        System.out.println(c.name() + " is now VIP");
+    for (CustomerHistory h : updatedHistories) {
+      if (h.vip()) {
+        System.out.println(h.customer().name() + " is now VIP");
       }
     }
 
     // --- Analysis 5: Aggregated Statistics ---
     System.out.println("\n--- Analysis 5: Platform Statistics ---");
 
-    Fold<List<Customer>, Customer> customerFold = Fold.of(list -> list);
-    Fold<List<Customer>, Item> allItems = customerFold.andThen(ALL_CUSTOMER_ITEMS);
+    Fold<List<CustomerHistory>, CustomerHistory> historyFold = Fold.of(list -> list);
+    Fold<List<CustomerHistory>, LineItem> allLines = historyFold.andThen(ALL_HISTORY_LINES);
 
     BigDecimal threshold = new BigDecimal("100");
-    Fold<List<Customer>, Item> expensiveItems =
-        allItems.filtered(i -> i.price().compareTo(threshold) > 0);
-    Fold<List<Customer>, Item> cheapItems =
-        allItems.filtered(i -> i.price().compareTo(threshold) <= 0);
+    Fold<List<CustomerHistory>, LineItem> expensiveLines =
+        allLines.filtered(line -> line.price().compareTo(threshold) > 0);
+    Fold<List<CustomerHistory>, LineItem> cheapLines =
+        allLines.filtered(line -> line.price().compareTo(threshold) <= 0);
 
-    int totalExpensive = expensiveItems.length(customers);
-    int totalCheap = cheapItems.length(customers);
-    BigDecimal expensiveRevenue = expensiveItems.foldMap(MONEY, Item::price, customers);
+    int totalExpensive = expensiveLines.length(histories);
+    int totalCheap = cheapLines.length(histories);
+    BigDecimal expensiveRevenue =
+        expensiveLines.foldMap(MONEY, CustomerAnalytics::lineTotal, histories);
 
     System.out.printf(
         "Expensive items (>£100): %d items, £%.2f revenue%n", totalExpensive, expensiveRevenue);
@@ -140,45 +185,38 @@ public class CustomerAnalytics {
     System.out.println("\n=== END OF ANALYTICS ===");
   }
 
-  private static List<Customer> createSampleData() {
+  private static final UUID ORDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+  private static final Instant PLACED_AT = Instant.parse("2026-10-01T09:00:00Z");
+
+  private static final Currency GBP = Currency.getInstance("GBP");
+
+  private static Order order(Customer customer, LineItem... lines) {
+    return new Order(ORDER_ID, customer, List.of(lines), PLACED_AT, GBP, OrderStatus.PAID);
+  }
+
+  private static LineItem line(String sku, String price) {
+    return new LineItem(sku, 1, new BigDecimal(price));
+  }
+
+  private static List<CustomerHistory> createSampleData() {
+    Customer alice = new Customer("Alice", new EmailAddress("alice@example.com"));
+    Customer bob = new Customer("Bob", new EmailAddress("bob@example.com"));
+    Customer charlie = new Customer("Charlie", new EmailAddress("charlie@example.com"));
     return List.of(
-        new Customer(
-            "Alice",
+        new CustomerHistory(
+            alice,
             List.of(
-                new Order(
-                    "A1",
-                    List.of(
-                        new Item("Laptop", new BigDecimal("999.00"), "Electronics", true),
-                        new Item("Mouse", new BigDecimal("25.00"), "Electronics", false)),
-                    new BigDecimal("1024.00")),
-                new Order(
-                    "A2",
-                    List.of(new Item("Desk", new BigDecimal("350.00"), "Furniture", false)),
-                    new BigDecimal("350.00"))),
+                order(alice, line("LAPTOP", "999.00"), line("MOUSE", "25.00")),
+                order(alice, line("DESK", "350.00"))),
             false),
-        new Customer(
-            "Bob",
+        new CustomerHistory(
+            bob, List.of(order(bob, line("BOOK", "20.00"), line("PEN", "5.00"))), false),
+        new CustomerHistory(
+            charlie,
             List.of(
-                new Order(
-                    "B1",
-                    List.of(
-                        new Item("Book", new BigDecimal("20.00"), "Books", false),
-                        new Item("Pen", new BigDecimal("5.00"), "Stationery", false)),
-                    new BigDecimal("25.00"))),
-            false),
-        new Customer(
-            "Charlie",
-            List.of(
-                new Order(
-                    "C1",
-                    List.of(
-                        new Item("Phone", new BigDecimal("800.00"), "Electronics", true),
-                        new Item("Case", new BigDecimal("50.00"), "Accessories", false)),
-                    new BigDecimal("850.00")),
-                new Order(
-                    "C2",
-                    List.of(new Item("Headphones", new BigDecimal("250.00"), "Electronics", true)),
-                    new BigDecimal("250.00"))),
+                order(charlie, line("PHONE", "800.00"), line("CASE", "50.00")),
+                order(charlie, line("HEADPHONES", "250.00"))),
             false));
   }
 }

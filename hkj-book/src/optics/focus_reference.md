@@ -116,7 +116,7 @@ record Config(Settings main, Settings backup) {}
 record Warehouse(Map<String, Integer> inventory) {}
 ```
 
-Only `maxNavigatorDepth = 1` changes the generated code; [Controlling navigator generation](focus_navigation.md#controlling-navigator-generation) says what each of these attributes does. A `targetPackage` moves the generated class into another package:
+Only a `maxNavigatorDepth` of 1 or less changes the generated code; [Controlling navigator generation](focus_navigation.md#controlling-navigator-generation) says what each of these attributes does. A `targetPackage` moves the generated class into another package:
 
 ```java
 // Where the generated class lands

@@ -3,7 +3,6 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -122,15 +121,15 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * Extracts the first focused value if any.
    *
    * <p>An {@link Optional} cannot hold {@code null}, so a null first focus reads as absent. For the
-   * first focus that is not null, use {@code find(Objects::nonNull, source)}.
+   * first focus that is not null, use {@code find(Objects::nonNull, source)}. The read stops at the
+   * first focus.
    *
    * @param source the source structure
    * @return Optional containing the first value, or empty if no elements are focused or the first
    *     is null
    */
   default Optional<@NonNull A> preview(S source) {
-    List<A> all = getAll(source);
-    return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
+    return asFold().preview(source);
   }
 
   /**
@@ -158,55 +157,58 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return the number of focused elements
    */
   default int count(S source) {
-    return getAll(source).size();
+    return asFold().length(source);
   }
 
   /**
-   * Checks if the traversal focuses on no elements.
+   * Checks if the traversal focuses on no elements. The read stops at the first focus.
    *
    * @param source the source structure
    * @return true if no elements are focused
    */
   default boolean isEmpty(S source) {
-    return getAll(source).isEmpty();
+    return asFold().isEmpty(source);
   }
 
   /**
-   * Checks if any focused element matches the predicate.
+   * Checks if any focused element matches the predicate. The read stops at the first match, so the
+   * predicate is not called on any element after it.
    *
    * @param predicate the condition to test
    * @param source the source structure
    * @return true if any element matches
    */
   default boolean exists(Predicate<A> predicate, S source) {
-    return getAll(source).stream().anyMatch(predicate);
+    return asFold().exists(predicate, source);
   }
 
   /**
    * Checks if all focused elements match the predicate.
    *
-   * <p>Returns true if there are no focused elements (vacuously true).
+   * <p>Returns true if there are no focused elements (vacuously true). The read stops at the first
+   * element that does not match, so the predicate is not called on any element after it.
    *
    * @param predicate the condition to test
    * @param source the source structure
    * @return true if all elements match (or there are no elements)
    */
   default boolean all(Predicate<A> predicate, S source) {
-    return getAll(source).stream().allMatch(predicate);
+    return asFold().all(predicate, source);
   }
 
   /**
    * Finds the first focused element matching the predicate.
    *
    * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over even when the
-   * predicate accepts it: the result is the first match that is not null.
+   * predicate accepts it: the result is the first match that is not null. The read stops at that
+   * match, so the predicate is not called on any element after it.
    *
    * @param predicate the condition to test
    * @param source the source structure
    * @return Optional containing the first matching element, or empty
    */
   default Optional<@NonNull A> find(Predicate<A> predicate, S source) {
-    return getAll(source).stream().filter(predicate).filter(Objects::nonNull).findFirst();
+    return asFold().find(predicate, source);
   }
 
   // ===== Filtering =====
@@ -493,14 +495,10 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * <pre>{@code
    * // Sum all salaries
    * TraversalPath<Company, Integer> salariesPath = CompanyFocus.employees().salary();
-   * int total = salariesPath.foldMap(Monoids.intSum(), s -> s, company);
+   * int total = salariesPath.foldMap(Monoids.integerAddition(), s -> s, company);
    *
-   * // Concatenate all names with separator
-   * String names = namesPath.foldMap(
-   *     Monoid.of("", (a, b) -> a.isEmpty() ? b : a + ", " + b),
-   *     Function.identity(),
-   *     source
-   * );
+   * // Collect every name, in order
+   * List<String> names = namesPath.foldMap(Monoids.list(), List::of, source);
    *
    * // Check if any element matches
    * boolean hasAdmin = rolesPath.foldMap(
@@ -856,7 +854,10 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * Creates a new TraversalPath that invokes an observer during get operations.
    *
    * <p>This method is useful for debugging complex path navigations by logging or inspecting values
-   * as they are accessed. The observer receives the source and the list of all focused values.
+   * as they are accessed. The observer receives the source and the list of all focused values, on
+   * {@code getAll} and on the queries {@code preview}, {@code count}, {@code isEmpty}, {@code
+   * exists}, {@code all} and {@code find}. On a traced path those queries read through {@code
+   * getAll}, so they collect every focus rather than stopping at their answer.
    *
    * <h2>Example Usage</h2>
    *

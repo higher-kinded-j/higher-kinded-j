@@ -61,15 +61,15 @@ class AffineBookTest {
   }
 
   @Test
-  @DisplayName("four composed optics read, miss and write a doubly optional postcode")
+  @DisplayName("four composed optics read, miss and write a doubly optional nickname")
   void deepOptional() {
     List<String> printed = AffineBook.deepOptional().stream().map(String::valueOf).toList();
 
     assertThat(printed)
         .containsExactly(
-            "Optional[SW1A 1AA]",
+            "Optional[Countess]",
             "Optional.empty",
-            "User[name=Alice, address=Optional[Address[street=123 Main St, postcode=Optional[EC1A"
-                + " 1BB]]]]");
+            "Review[sku=LAMP, author=Optional[CustomerProfile[name=Ada,"
+                + " nickname=Optional[Lady Lovelace], altEmail=Optional.empty]]]");
   }
 }

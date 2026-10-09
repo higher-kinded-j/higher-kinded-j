@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/composition_rules.md
 //
 // The page is a table of what composes with what, and each row is worked against whichever model
-// makes the point - a configuration, a shape, an order. All of them are declared here; a row that
-// shows its model shadows this copy.
+// makes the point: a configuration, a shape, an order. The order, its customer and lines, the
+// customer profile, the payment and the consignment are the chapter's cast; the others are
+// declared here, and a row that shows its model shadows this copy.
 //
 // The fixture is generic: the page's two summaries state each composition over free A, B, C and
 // D, and the wrapper each snippet compiles in passes those on, so the optics they name are
@@ -15,48 +16,36 @@
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.CardFocus;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Returned;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.CustomerLenses;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
+import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.example.book.optics.cast.OrderTraversals;
+import org.higherkindedj.example.book.optics.cast.Payment;
+import org.higherkindedj.example.book.optics.cast.PaymentPrisms;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
 record DatabaseSettings(String host, int port) {}
 
 record Config(Optional<DatabaseSettings> database) {}
-
-@GenerateLenses
-record Money(BigDecimal amount) {}
-
-@GenerateLenses
-record LineItem(String sku, Money price) {}
-
-@GenerateLenses
-record ContactInfo(String email, String phone) {}
-
-@GeneratePrisms
-sealed interface Customer permits ActiveCustomer, InactiveCustomer {}
-
-@GenerateLenses
-record ActiveCustomer(String email, ContactInfo contact) implements Customer {}
-
-record InactiveCustomer(String reason) implements Customer {}
-
-@GenerateLenses
-@GenerateTraversals
-record Order(String id, Customer customer, List<LineItem> lineItems) {
-
-  boolean isActive() {
-    return true;
-  }
-}
-
-record Item(String sku) {}
 
 record Person(String firstName, String lastName) {}
 
@@ -81,15 +70,15 @@ class Fixture<A, B, C, D> {
 
   static final Lens<DatabaseSettings, String> hostLens = sample();
 
-  static final Lens<Order, Customer> orderCustomerLens = sample();
+  static final Lens<Consignment, ConsignmentState> consignmentStateLens = sample();
 
-  static final Prism<Customer, ContactInfo> customerContactPrism = sample();
+  static final Prism<ConsignmentState, Returned> returnedPrism = sample();
 
-  static final Lens<ContactInfo, String> contactEmailLens = sample();
+  static final Lens<Returned, String> reasonLens = sample();
 
-  static final Fold<Customer, Order> ordersFold = sample();
+  static final Fold<Order, LineItem> linesFold = sample();
 
-  static final Fold<Order, Item> itemsFold = sample();
+  static final Fold<LineItem, String> skuFold = sample();
 
   static final Fold<Person, String> firstNameFold = sample();
 

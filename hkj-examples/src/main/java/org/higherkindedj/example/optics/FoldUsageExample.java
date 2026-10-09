@@ -6,15 +6,22 @@ package org.higherkindedj.example.optics;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.Comparator;
+import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.example.book.optics.cast.OrderTraversals;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -29,7 +36,7 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li>Basic query operations: getAll, preview, find, exists, all, isEmpty, length
  *   <li>Composing folds for deep queries across nested structures
  *   <li>Monoid-based aggregation for calculating sums, checking conditions, etc.
- *   <li>Real-world analytics on e-commerce purchase data
+ *   <li>Real-world analytics on a customer's order history
  * </ul>
  *
  * <p>Fold is a read-only optic designed specifically for querying without modification, making code
@@ -37,86 +44,92 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class FoldUsageExample {
 
+  // A customer's past orders, beside the chapter's Order
   @GenerateLenses
   @GenerateFolds
-  public record ProductItem(String name, BigDecimal price, String category, boolean inStock) {}
+  public record OrderHistory(List<Order> orders) {}
 
-  @GenerateLenses
-  @GenerateFolds
-  public record Purchase(String purchaseId, List<ProductItem> items, String customerName) {}
+  // An order of the customer's, placed on the same day, in pounds
+  private static Order order(String id, Customer customer, LineItem... lines) {
+    return new Order(
+        UUID.fromString(id),
+        customer,
+        List.of(lines),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
+  }
 
-  @GenerateLenses
-  @GenerateFolds
-  public record PurchaseHistory(List<Purchase> purchases) {}
+  // A line's total: its price times its quantity
+  private static BigDecimal lineTotal(LineItem line) {
+    return line.price().multiply(BigDecimal.valueOf(line.quantity()));
+  }
 
   public static void main(String[] args) {
-    // Create sample data
-    var purchase1 =
-        new Purchase(
-            "ORD-001",
-            List.of(
-                new ProductItem("Laptop", new BigDecimal("999.99"), "Electronics", true),
-                new ProductItem("Mouse", new BigDecimal("25.00"), "Electronics", true),
-                new ProductItem("Desk", new BigDecimal("350.00"), "Furniture", false)),
-            "Alice");
+    // Create sample data: two of Ada's orders
+    Customer ada = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-    var purchase2 =
-        new Purchase(
-            "ORD-002",
-            List.of(
-                new ProductItem("Keyboard", new BigDecimal("75.00"), "Electronics", true),
-                new ProductItem("Monitor", new BigDecimal("450.00"), "Electronics", true),
-                new ProductItem("Chair", new BigDecimal("200.00"), "Furniture", true)),
-            "Bob");
+    var order1 =
+        order(
+            "00000000-0000-0000-0000-000000000001",
+            ada,
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("12.50")),
+            new LineItem("DESK", 1, new BigDecimal("350.00")));
 
-    var history = new PurchaseHistory(List.of(purchase1, purchase2));
+    var order2 =
+        order(
+            "00000000-0000-0000-0000-000000000002",
+            ada,
+            new LineItem("KEYBOARD", 1, new BigDecimal("75.00")),
+            new LineItem("MONITOR", 1, new BigDecimal("450.00")),
+            new LineItem("CHAIR", 1, new BigDecimal("200.00")));
+
+    var history = new OrderHistory(List.of(order1, order2));
 
     System.out.println("=== FOLD USAGE EXAMPLE ===\n");
 
     // --- SCENARIO 1: Basic Query Operations ---
     System.out.println("--- Scenario 1: Basic Query Operations ---");
-    Fold<Purchase, ProductItem> itemsFold = PurchaseFolds.items();
+    Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
-    List<ProductItem> allItems = itemsFold.getAll(purchase1);
-    System.out.println("All items: " + allItems.size() + " products");
+    List<LineItem> allLines = linesFold.getAll(order1);
+    System.out.println("All lines: " + allLines.size() + " line items");
 
-    Optional<ProductItem> firstItem = itemsFold.preview(purchase1);
-    System.out.println("First item: " + firstItem.map(ProductItem::name).orElse("none"));
+    Optional<LineItem> firstLine = linesFold.preview(order1);
+    System.out.println("First line: " + firstLine.map(LineItem::sku).orElse("none"));
 
-    int count = itemsFold.length(purchase1);
-    System.out.println("Item count: " + count);
+    int count = linesFold.length(order1);
+    System.out.println("Line count: " + count);
 
-    boolean isEmpty = itemsFold.isEmpty(purchase1);
+    boolean isEmpty = linesFold.isEmpty(order1);
     System.out.println("Is empty: " + isEmpty + "\n");
 
     // --- SCENARIO 2: Conditional Queries ---
     System.out.println("--- Scenario 2: Conditional Queries ---");
 
-    boolean hasOutOfStock = itemsFold.exists(p -> !p.inStock(), purchase1);
-    System.out.println("Has out of stock items: " + hasOutOfStock);
+    boolean hasMultiUnit = linesFold.exists(line -> line.quantity() > 1, order1);
+    System.out.println("Has a line for more than one unit: " + hasMultiUnit);
 
-    boolean allInStock = itemsFold.all(ProductItem::inStock, purchase1);
-    System.out.println("All items in stock: " + allInStock);
+    boolean allSingleUnits = linesFold.all(line -> line.quantity() == 1, order1);
+    System.out.println("All lines for a single unit: " + allSingleUnits);
 
-    Optional<ProductItem> expensiveItem =
-        itemsFold.find(p -> p.price().compareTo(new BigDecimal("500")) > 0, purchase1);
+    Optional<LineItem> expensiveLine =
+        linesFold.find(line -> line.price().compareTo(new BigDecimal("500")) > 0, order1);
     System.out.println(
-        "First expensive item: " + expensiveItem.map(ProductItem::name).orElse("none") + "\n");
+        "First line over £500: " + expensiveLine.map(LineItem::sku).orElse("none") + "\n");
 
     // --- SCENARIO 3: Composition ---
     System.out.println("--- Scenario 3: Composed Folds ---");
 
-    Fold<PurchaseHistory, ProductItem> allProducts =
-        PurchaseHistoryFolds.purchases().andThen(PurchaseFolds.items());
+    Fold<OrderHistory, LineItem> allHistoryLines = OrderHistoryFolds.orders().andThen(linesFold);
 
-    List<ProductItem> allProductsFromHistory = allProducts.getAll(history);
-    System.out.println("Total products across all purchases: " + allProductsFromHistory.size());
+    List<LineItem> linesFromHistory = allHistoryLines.getAll(history);
+    System.out.println("Total lines across all orders: " + linesFromHistory.size());
 
-    Fold<PurchaseHistory, String> allCategories =
-        allProducts.andThen(ProductItemLenses.category().asFold());
+    Fold<OrderHistory, String> allSkus = allHistoryLines.andThen(LineItemLenses.sku().asFold());
 
-    Set<String> uniqueCategories = new TreeSet<>(allCategories.getAll(history));
-    System.out.println("Unique categories: " + uniqueCategories + "\n");
+    System.out.println("Every SKU: " + allSkus.getAll(history) + "\n");
 
     // --- SCENARIO 4: Monoid Aggregation ---
     System.out.println("--- Scenario 4: Monoid-Based Aggregation ---");
@@ -135,85 +148,85 @@ public class FoldUsageExample {
           }
         };
 
-    BigDecimal purchaseTotal = itemsFold.foldMap(sumMonoid, ProductItem::price, purchase1);
-    System.out.println("Purchase 1 total: £" + purchaseTotal);
+    BigDecimal orderTotal = linesFold.foldMap(sumMonoid, FoldUsageExample::lineTotal, order1);
+    System.out.println("Order 1 total: £" + orderTotal);
 
-    BigDecimal historyTotal = allProducts.foldMap(sumMonoid, ProductItem::price, history);
-    System.out.println("All purchases total: £" + historyTotal);
+    BigDecimal historyTotal =
+        allHistoryLines.foldMap(sumMonoid, FoldUsageExample::lineTotal, history);
+    System.out.println("All orders total: £" + historyTotal);
 
     // Standard monoids from the Monoids utility class: Boolean AND for checking conditions
     Monoid<Boolean> andMonoid = Monoids.booleanAnd();
 
     boolean allAffordable =
-        itemsFold.foldMap(
-            andMonoid, p -> p.price().compareTo(new BigDecimal("1000")) < 0, purchase1);
-    System.out.println("All items under £1000: " + allAffordable);
+        linesFold.foldMap(
+            andMonoid, line -> line.price().compareTo(new BigDecimal("1000")) < 0, order1);
+    System.out.println("All lines under £1000: " + allAffordable);
 
     // Boolean OR monoid for checking any condition
     Monoid<Boolean> orMonoid = Monoids.booleanOr();
 
-    boolean hasElectronics =
-        allProducts.foldMap(orMonoid, p -> "Electronics".equals(p.category()), history);
-    System.out.println("Has electronics: " + hasElectronics + "\n");
+    boolean hasOverFourHundred =
+        allHistoryLines.foldMap(
+            orMonoid, line -> line.price().compareTo(new BigDecimal("400")) > 0, history);
+    System.out.println("Has a line over £400: " + hasOverFourHundred + "\n");
 
     // --- SCENARIO 5: Analytics ---
     System.out.println("--- Scenario 5: Real-World Analytics ---");
 
-    // Most expensive product
-    Optional<ProductItem> mostExpensive =
-        allProducts.getAll(history).stream().max(Comparator.comparing(ProductItem::price));
+    // Most expensive line
+    Optional<LineItem> mostExpensive =
+        allHistoryLines.getAll(history).stream().max(Comparator.comparing(LineItem::price));
     System.out.println(
-        "Most expensive product: "
-            + mostExpensive.map(p -> p.name() + " (£" + p.price() + ")").orElse("none"));
+        "Most expensive line: "
+            + mostExpensive.map(line -> line.sku() + " (£" + line.price() + ")").orElse("none"));
 
-    // Average price
-    List<ProductItem> allProds = allProducts.getAll(history);
-    BigDecimal avgPrice =
-        allProds.isEmpty()
+    // Average line total
+    List<LineItem> everyLine = allHistoryLines.getAll(history);
+    BigDecimal averageLine =
+        everyLine.isEmpty()
             ? BigDecimal.ZERO
-            : historyTotal.divide(BigDecimal.valueOf(allProds.size()), 2, RoundingMode.HALF_EVEN);
-    System.out.println("Average product price: £" + avgPrice);
+            : historyTotal.divide(BigDecimal.valueOf(everyLine.size()), 2, RoundingMode.HALF_EVEN);
+    System.out.println("Average line total: £" + averageLine);
 
-    // Count by category
-    long electronicsCount =
-        allProducts.getAll(history).stream()
-            .filter(p -> "Electronics".equals(p.category()))
+    // Count the lines priced over £100
+    long overHundredCount =
+        allHistoryLines.getAll(history).stream()
+            .filter(line -> line.price().compareTo(new BigDecimal("100")) > 0)
             .count();
-    System.out.println("Electronics count: " + electronicsCount + "\n");
+    System.out.println("Lines priced over £100: " + overHundredCount + "\n");
 
     // --- SCENARIO 6: Traversal-Derived Folds ---
     System.out.println("--- Scenario 6: Traversal-Derived Folds via asFold() ---");
 
-    // Build a Traversal for all items across all purchases, then convert to Fold
-    Lens<PurchaseHistory, List<Purchase>> purchasesLens =
-        Lens.of(PurchaseHistory::purchases, (h, os) -> new PurchaseHistory(os));
-    Lens<Purchase, List<ProductItem>> itemsLens =
-        Lens.of(Purchase::items, (o, is) -> new Purchase(o.purchaseId(), is, o.customerName()));
+    // Build a Traversal for every line across all orders, then convert to Fold
+    Traversal<OrderHistory, LineItem> allLinesTraversal =
+        OrderHistoryLenses.orders()
+            .andThen(Traversals.<Order>forList())
+            .andThen(OrderTraversals.lines());
 
-    Traversal<PurchaseHistory, ProductItem> allItemsTraversal =
-        purchasesLens
-            .andThen(Traversals.<Purchase>forList())
-            .andThen(itemsLens)
-            .andThen(Traversals.forList());
+    // Convert to Fold: the same query power as the folds above
+    Fold<OrderHistory, LineItem> traversalDerivedFold = allLinesTraversal.asFold();
 
-    // Convert to Fold — now we have the same query power as generated folds
-    Fold<PurchaseHistory, ProductItem> traversalDerivedFold = allItemsTraversal.asFold();
+    // These produce the same results as the folds above
+    List<LineItem> allLines2 = traversalDerivedFold.getAll(history);
+    System.out.println("Lines via traversal-derived fold: " + allLines2.size());
 
-    // These produce the same results as using the generated folds
-    List<ProductItem> allItems2 = traversalDerivedFold.getAll(history);
-    System.out.println("Products via traversal-derived fold: " + allItems2.size());
-
-    BigDecimal total = traversalDerivedFold.foldMap(sumMonoid, ProductItem::price, history);
+    BigDecimal total =
+        traversalDerivedFold.foldMap(sumMonoid, FoldUsageExample::lineTotal, history);
     System.out.println("Total via traversal-derived fold: £" + total);
 
     // Filter the traversal, then convert to Fold for targeted queries
-    Fold<PurchaseHistory, ProductItem> electronicsFold =
-        allItemsTraversal.filtered(p -> "Electronics".equals(p.category())).asFold();
+    Fold<OrderHistory, LineItem> overHundredFold =
+        allLinesTraversal
+            .filtered(line -> line.price().compareTo(new BigDecimal("100")) > 0)
+            .asFold();
 
-    int electronicsCount2 = electronicsFold.length(history);
-    BigDecimal electronicsTotal = electronicsFold.foldMap(sumMonoid, ProductItem::price, history);
-    System.out.println("Electronics count: " + electronicsCount2);
-    System.out.println("Electronics total: £" + electronicsTotal);
+    int overHundredCount2 = overHundredFold.length(history);
+    BigDecimal overHundredTotal =
+        overHundredFold.foldMap(sumMonoid, FoldUsageExample::lineTotal, history);
+    System.out.println("Lines priced over £100: " + overHundredCount2);
+    System.out.println("Total of lines priced over £100: £" + overHundredTotal);
 
     System.out.println("\n=== END OF EXAMPLE ===");
   }

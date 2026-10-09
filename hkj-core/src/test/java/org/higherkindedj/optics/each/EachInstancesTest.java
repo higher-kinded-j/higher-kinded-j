@@ -630,6 +630,18 @@ class EachInstancesTest {
     }
 
     @Test
+    @DisplayName("indexedTraversal() should modify characters by their index")
+    void indexedTraversalModifiesByIndex() {
+      IndexedTraversal<Integer, String, Character> indexed = stringEach.indexedTraversal();
+
+      String modified =
+          IndexedTraversals.imodify(
+              indexed, (i, c) -> i % 2 == 0 ? Character.toUpperCase(c) : c, "abcd");
+
+      assertThat(modified).isEqualTo("AbCd");
+    }
+
+    @Test
     @DisplayName("indexedTraversal() should handle empty string")
     void indexedTraversalHandlesEmptyString() {
       String str = "";

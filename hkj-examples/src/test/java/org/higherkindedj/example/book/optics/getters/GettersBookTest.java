@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,15 +15,15 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the Getters page: what each getter reads")
 class GettersBookTest {
 
-  private static final Address ADDRESS = new Address("123 Main St", "London", "NW1", "UK");
+  private static final Address ADDRESS = new Address("123 Main St", "London", "NW1 4AB");
 
   private static final Person JANE = new Person("Jane", "Smith", 45, ADDRESS);
 
   private static final List<Person> EMPLOYEES =
       List.of(
-          new Person("John", "Doe", 30, new Address("456 Oak St", "Manchester", "M1", "UK")),
-          new Person("Alice", "Johnson", 28, new Address("789 Elm Ave", "Birmingham", "B1", "UK")),
-          new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1", "UK")));
+          new Person("John", "Doe", 30, new Address("456 Oak St", "Manchester", "M1 1AE")),
+          new Person("Alice", "Johnson", 28, new Address("789 Elm Ave", "Birmingham", "B1 1BB")),
+          new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1 4AP")));
 
   @Test
   @DisplayName("get reads a computed full name and a stored age")

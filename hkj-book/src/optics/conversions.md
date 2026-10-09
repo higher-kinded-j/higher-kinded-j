@@ -39,11 +39,11 @@ You cannot widen the other direction: a `Traversal` does not become a `Lens`, be
 
 <!-- verify -->
 ```java
-Lens<User, List<Order>> ordersLens = UserLenses.orders();
-Traversal<List<Order>, Order> listTraversal = Traversals.forList();
+Lens<Order, List<LineItem>> linesLens = OrderLenses.lines();
+Traversal<List<LineItem>, LineItem> listTraversal = Traversals.forList();
 
 // No conversion required; the result is a Traversal because the rules say so.
-Traversal<User, Order> userOrders = ordersLens.andThen(listTraversal);
+Traversal<Order, LineItem> orderLines = linesLens.andThen(listTraversal);
 ```
 
 You only need an explicit `asTraversal()` when the API you are calling requires a `Traversal` parameter and you have a `Lens` value not in a composition context, for example when storing the optic in a `Traversal`-typed field.

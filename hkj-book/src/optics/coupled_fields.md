@@ -245,13 +245,14 @@ Lens<Packet, byte[]> dataLens = Lens.of(
 // No checksumLens - it's always recomputed
 ```
 
-**Cross-structure invariants:** When invariants span parent and child objects, use domain methods:
+**Cross-structure invariants:** When invariants span parent and child objects, use domain methods. A `Quotation`, unlike the chapter's `Order`, stores the total its lines add up to:
 
 <!-- verify -->
 ```java
 // Don't use lenses - use domain operations
-Order updated = order.withLine(lineId, line -> line.withPrice(newPrice));
-// The withLine method recalculates totalPrice internally
+Quotation updated = quotation.withLine(
+    sku, line -> new LineItem(line.sku(), line.quantity(), newPrice));
+// The withLine method recalculates the quotation's total internally
 ```
 
 ---

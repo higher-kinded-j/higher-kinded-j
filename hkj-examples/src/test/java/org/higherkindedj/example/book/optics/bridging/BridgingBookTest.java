@@ -19,12 +19,7 @@ import org.junit.jupiter.api.Test;
 class BridgingBookTest {
 
   private static final Address HEADQUARTERS =
-      Address.builder()
-          .street("1 Corporate Plaza")
-          .city("New York")
-          .postcode("10001")
-          .country("USA")
-          .build();
+      Address.builder().street("1 Corporate Plaza").city("New York").postcode("10001").build();
 
   /** The page's sample: New York headquarters, and departments in Boston and Chicago. */
   private static Company acme() {
@@ -51,23 +46,13 @@ class BridgingBookTest {
             "Engineering",
             alice,
             List.of(alice, bob),
-            Address.builder()
-                .street("100 Tech Drive")
-                .city("Boston")
-                .postcode("02101")
-                .country("USA")
-                .build());
+            Address.builder().street("100 Tech Drive").city("Boston").postcode("02101").build());
     Department sales =
         new Department(
             "Sales",
             carol,
             List.of(carol),
-            Address.builder()
-                .street("200 Commerce St")
-                .city("Chicago")
-                .postcode("60601")
-                .country("USA")
-                .build());
+            Address.builder().street("200 Commerce St").city("Chicago").postcode("60601").build());
     return new Company("Acme Corp", HEADQUARTERS, List.of(engineering, sales));
   }
 

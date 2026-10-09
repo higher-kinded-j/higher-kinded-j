@@ -77,11 +77,12 @@ record ContactEmail(String value) {}
 // Lombok's also return `this` when the new value is the one already held, which no claim here
 // depends on.
 
-// The page's own model: this Address is not the chapter cast's Address(street, city, postcode).
+// The chapter cast's Address, redeclared with the wither Lombok's @With generates for the page's
+// "before" half; its components are the cast's.
 @GenerateLenses
-record Address(String street, String city) {
+record Address(String street, String city, String postcode) {
   Address withStreet(String street) {
-    return new Address(street, city);
+    return new Address(street, city, postcode);
   }
 }
 

@@ -24,15 +24,16 @@ A **`Getter`** is the simplest read-only optic: it extracts precisely one value 
 
 Consider a corporate reporting system where you need to extract various pieces of information from employee records:
 
-**The Data Model:**
+**The Data Model:** a person and a company, each with the chapter's `Address`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Address.java:address}}
+```
 
 <!-- verify -->
 ```java
 @GenerateGetters
 public record Person(String firstName, String lastName, int age, Address address) {}
-
-@GenerateGetters
-public record Address(String street, String city, String zipCode, String country) {}
 
 @GenerateGetters
 public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
@@ -466,8 +467,8 @@ Person updated = firstName.set("Janet", person);
 <!-- verify -->
 ```java
 // Use Fold for collections
-Fold<Order, Product> itemsFold = Fold.of(Order::items);
-List<Product> all = itemsFold.getAll(order);
+Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
+List<LineItem> all = linesFold.getAll(order);
 ```
 
 ### Use Direct Field Access When
@@ -519,9 +520,9 @@ int totalAge = allEmployees.andThen(age.asFold())
 double averageAge = (double) totalAge / company.employees().size();
 
 // Check conditions
-boolean allFromUK = allEmployees.andThen(addressGetter.asFold())
-    .andThen(countryGetter.asFold())
-    .all(c -> c.equals("UK"), company);
+boolean allInLondon = allEmployees.andThen(addressGetter.asFold())
+    .andThen(cityGetter.asFold())
+    .all(c -> c.equals("London"), company);
 ```
 
 ### API Response Mapping
@@ -529,15 +530,15 @@ boolean allFromUK = allEmployees.andThen(addressGetter.asFold())
 <!-- verify -->
 ```java
 // Extract specific fields from nested API responses
-Getter<ApiResponse, User> userGetter = Getter.of(ApiResponse::user);
-Getter<User, Profile> profileGetter = Getter.of(User::profile);
-Getter<Profile, String> displayName = Getter.of(Profile::displayName);
+Getter<OrderLookup, Order> orderGetter = Getter.of(OrderLookup::order);
+Getter<Order, Customer> customerGetter = Getter.of(Order::customer);
+Getter<Customer, String> customerName = Getter.of(Customer::name);
 
-Getter<ApiResponse, String> userName = userGetter
-    .andThen(profileGetter)
-    .andThen(displayName);
+Getter<OrderLookup, String> buyerName = orderGetter
+    .andThen(customerGetter)
+    .andThen(customerName);
 
-String name = userName.get(response);
+String name = buyerName.get(response);
 ```
 
 ---

@@ -11,10 +11,19 @@
 // (see build.gradle.kts).
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.UUID;
 import org.higherkindedj.example.book.optics.Audited;
 import org.higherkindedj.example.book.optics.BaseEndpoint;
 import org.higherkindedj.example.book.optics.Endpoint;
+import org.higherkindedj.example.book.optics.cast.CastFixtures;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.ImportOptics;
@@ -34,44 +43,47 @@ import org.jooq.impl.CustomTable;
 import org.jooq.impl.DSL;
 import org.jooq.impl.SQLDataType;
 
-/** Stands in for a builder-based generated type (JOOQ POJO, Lombok @Builder, Immutables). */
+/**
+ * The chapter cast's Customer, with the cast's components, in the form a builder-based generated
+ * type takes (JOOQ POJO, Lombok @Builder, Immutables).
+ */
 final class Customer {
   private final String name;
-  private final BigDecimal creditLimit;
+  private final EmailAddress email;
 
-  Customer(String name, BigDecimal creditLimit) {
+  Customer(String name, EmailAddress email) {
     this.name = name;
-    this.creditLimit = creditLimit;
+    this.email = email;
   }
 
   public String name() {
     return name;
   }
 
-  public BigDecimal creditLimit() {
-    return creditLimit;
+  public EmailAddress email() {
+    return email;
   }
 
   public Builder toBuilder() {
-    return new Builder().name(name).creditLimit(creditLimit);
+    return new Builder().name(name).email(email);
   }
 
   static final class Builder {
     private String name;
-    private BigDecimal creditLimit;
+    private EmailAddress email;
 
     public Builder name(String name) {
       this.name = name;
       return this;
     }
 
-    public Builder creditLimit(BigDecimal creditLimit) {
-      this.creditLimit = creditLimit;
+    public Builder email(EmailAddress email) {
+      this.email = email;
       return this;
     }
 
     public Customer build() {
-      return new Customer(name, creditLimit);
+      return new Customer(name, email);
     }
   }
 }
@@ -139,40 +151,116 @@ final class Config {
   }
 }
 
-/** Stands in for an order type with a collection field. */
+/**
+ * The chapter cast's Order, with the cast's components, in the same builder-based form; its lines
+ * are the cast's LineItem records. getId and withId are the JavaBean getter and prefixed builder
+ * setter the page's Lombok naming example names.
+ */
 final class Order {
-  private final List<Customer> customers;
+  private final UUID id;
+  private final Customer customer;
+  private final List<LineItem> lines;
+  private final Instant placedAt;
+  private final Currency currency;
+  private final OrderStatus status;
 
-  Order(List<Customer> customers) {
-    this.customers = customers;
+  Order(
+      UUID id,
+      Customer customer,
+      List<LineItem> lines,
+      Instant placedAt,
+      Currency currency,
+      OrderStatus status) {
+    this.id = id;
+    this.customer = customer;
+    this.lines = lines;
+    this.placedAt = placedAt;
+    this.currency = currency;
+    this.status = status;
   }
 
-  public String getOrderId() {
-    return "ORD-1";
+  public UUID id() {
+    return id;
   }
 
-  public List<Customer> customers() {
-    return customers;
+  public UUID getId() {
+    return id;
+  }
+
+  public Customer customer() {
+    return customer;
+  }
+
+  public List<LineItem> lines() {
+    return lines;
+  }
+
+  public Instant placedAt() {
+    return placedAt;
+  }
+
+  public Currency currency() {
+    return currency;
+  }
+
+  public OrderStatus status() {
+    return status;
   }
 
   public Builder toBuilder() {
-    return new Builder().customers(customers);
+    return new Builder()
+        .id(id)
+        .customer(customer)
+        .lines(lines)
+        .placedAt(placedAt)
+        .currency(currency)
+        .status(status);
   }
 
   static final class Builder {
-    private List<Customer> customers;
+    private UUID id;
+    private Customer customer;
+    private List<LineItem> lines;
+    private Instant placedAt;
+    private Currency currency;
+    private OrderStatus status;
 
-    public Builder customers(List<Customer> customers) {
-      this.customers = customers;
+    public Builder id(UUID id) {
+      this.id = id;
       return this;
     }
 
-    public Builder withOrderId(String orderId) {
+    public Builder withId(UUID id) {
+      return id(id);
+    }
+
+    public Builder customer(Customer customer) {
+      this.customer = customer;
+      return this;
+    }
+
+    public Builder lines(List<LineItem> lines) {
+      this.lines = lines;
+      return this;
+    }
+
+    public Builder placedAt(Instant placedAt) {
+      this.placedAt = placedAt;
+      return this;
+    }
+
+    public Builder currency(Currency currency) {
+      this.currency = currency;
+      return this;
+    }
+
+    public Builder status(OrderStatus status) {
+      this.status = status;
       return this;
     }
 
     public Order build() {
-      return new Order(customers);
+      return new Order(id, customer, lines, placedAt, currency, status);
     }
   }
 }
@@ -220,7 +308,7 @@ interface CustomerOpticsSpec extends OpticsSpec<Customer> {
   Lens<Customer, String> name();
 
   @ViaBuilder
-  Lens<Customer, BigDecimal> creditLimit();
+  Lens<Customer, EmailAddress> email();
 }
 
 @ImportOptics
@@ -251,10 +339,10 @@ interface ConfigOpticsSpec extends OpticsSpec<Config> {
 interface OrderOpticsSpec extends OpticsSpec<Order> {
 
   @ViaBuilder
-  Lens<Order, List<Customer>> customers();
+  Lens<Order, List<LineItem>> lines();
 
-  @ThroughField(field = "customers")
-  Traversal<Order, Customer> eachCustomer();
+  @ThroughField(field = "lines")
+  Traversal<Order, LineItem> eachLine();
 }
 
 /**
@@ -278,7 +366,10 @@ final class CustomerTable extends CustomTable<CustomerRecord> {
   }
 }
 
-/** Stands in for the record jOOQ generates for that table. */
+/**
+ * Stands in for the record jOOQ generates for that table, a guest from jOOQ: a row of the table,
+ * named as jOOQ names a table's record, rather than the chapter's Customer.
+ */
 final class CustomerRecord extends CustomRecord<CustomerRecord> {
 
   CustomerRecord() {
@@ -291,9 +382,16 @@ class Fixture {
 
   static final DSLContext ctx = DSL.using(SQLDialect.DEFAULT);
 
-  static final Customer alice = new Customer("Alice", new BigDecimal("1000"));
+  static final Customer ada = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-  static final Order order = new Order(List.of(alice, new Customer("Bob", new BigDecimal("500"))));
+  static final Order order =
+      new Order(
+          CastFixtures.ORDER_ID,
+          ada,
+          List.of(CastFixtures.LAMP, CastFixtures.BULB),
+          CastFixtures.PLACED_AT,
+          CastFixtures.GBP,
+          OrderStatus.NEW);
 
   static final Money money = new Money("GBP", 2500L);
 

@@ -19,7 +19,8 @@ import org.junit.jupiter.api.Test;
 class LensesBookTest {
 
   private static final Employee EMPLOYEE =
-      new Employee("Alice", new Company("Initech Inc.", new Address("123 Fake St", "Anytown")));
+      new Employee(
+          "Alice", new Company("Initech Inc.", new Address("123 Fake St", "Anytown", "AN1 1AA")));
 
   private static final Range RANGE = new Range(1, 3);
 

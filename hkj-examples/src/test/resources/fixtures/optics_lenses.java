@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/lenses.md
 //
-// The page builds one nested model - employee, company, address - and then composes lenses through
-// it. The records are declared here with `@GenerateLenses`, so the page's snippets name genuinely
-// generated optics; a snippet that shows the declarations shadows this copy.
+// The page builds one nested model - employee, company, and the chapter cast's address, with the
+// cast's components - and then composes lenses through it. The records are declared here with
+// `@GenerateLenses`, so the page's snippets name genuinely generated optics; a snippet that shows
+// the declarations shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -27,7 +28,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.util.Prisms;
 
 @GenerateLenses
-record Address(String street, String city) {}
+record Address(String street, String city, String postcode) {}
 
 @GenerateLenses
 record Company(String name, Address address) {}
@@ -42,7 +43,7 @@ record User(Optional<Settings> settings) {}
 
 class Fixture {
 
-  static final Address initialAddress = new Address("123 Fake St", "Anytown");
+  static final Address initialAddress = new Address("123 Fake St", "Anytown", "AN1 1AA");
 
   static final Company initialCompany = new Company("Initech Inc.", initialAddress);
 
@@ -64,7 +65,7 @@ class Fixture {
       Lens.of(Company::address, (c, v) -> new Company(c.name(), v));
 
   static final Lens<Address, String> addressToStreet =
-      Lens.of(Address::street, (a, v) -> new Address(v, a.city()));
+      Lens.of(Address::street, (a, v) -> new Address(v, a.city(), a.postcode()));
 
   static final Lens<Employee, String> employeeToStreet =
       employeeToCompany.andThen(companyToAddress).andThen(addressToStreet);

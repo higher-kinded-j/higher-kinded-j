@@ -1,9 +1,10 @@
 // Fixture for hkj-book/src/optics/affine.md
 //
-// The page reaches through optional fields of a configuration and of a user, and shows each model
-// where it first needs it. The models are declared here so the later snippets have something to
-// name; a snippet that shows one shadows this copy, which is why the values below are `sample()`
-// stand-ins rather than constructor calls - a shadowing snippet may declare a different shape.
+// The page reaches through optional fields of a configuration and of a product review, and shows
+// each model where it first needs it. The review's author is the chapter cast's CustomerProfile.
+// The other models are declared here so the later snippets have something to name; a snippet that
+// shows one shadows this copy, which is why the values below are `sample()` stand-ins rather than
+// constructor calls - a shadowing snippet may declare a different shape.
 //
 // The fixture is generic: the page states its composition table and its factory methods over free
 // S, A, B and C, and the wrapper each snippet compiles in passes those on, so the optics those
@@ -16,6 +17,8 @@
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
@@ -38,14 +41,15 @@ record Config(Optional<DatabaseSettings> database) {
   static final Config DEFAULT = new Config(Optional.empty());
 }
 
-record Address(String street, Optional<String> postcode) {}
+// A product review, a supporting type beside the cast: an anonymous review has no author.
+record Review(String sku, Optional<CustomerProfile> author) {}
 
-record User(String name, Optional<Address> address) {}
+// The legacy model the page's anti-pattern reads with null checks. LegacyContact is Focus
+// Navigation's contact from an older system, whose nickname may be null and nothing says so; the
+// review that older system stored may have no author.
+record LegacyContact(String name, String nickname) {}
 
-// The legacy model the page's anti-pattern reads with null checks: its fields may be null.
-record LegacyAddress(String street, @Nullable String postcode) {}
-
-record LegacyUser(String name, @Nullable LegacyAddress address) {}
+record LegacyReview(String sku, @Nullable LegacyContact author) {}
 
 @GeneratePrisms
 sealed interface Shape permits Circle, Rectangle {}
@@ -54,16 +58,13 @@ record Circle(double radius, String colour) implements Shape {}
 
 record Rectangle(double width, double height, String colour) implements Shape {}
 
-class UserOptics {
+class ReviewOptics {
 
-  static final Affine<User, String> STREET =
-      Fixture.addressLens.andThen(Fixture.addressPrism).andThen(Fixture.streetLens);
-
-  static final Affine<User, String> POSTCODE =
-      Fixture.addressLens
-          .andThen(Fixture.addressPrism)
-          .andThen(Fixture.postcodeLens)
-          .andThen(Fixture.postcodePrism);
+  static final Affine<Review, String> AUTHOR_NICKNAME =
+      Fixture.authorLens
+          .andThen(Fixture.authorPrism)
+          .andThen(CustomerProfileLenses.nickname())
+          .andThen(Fixture.nicknamePrism);
 }
 
 class Fixture<S, A, B, C> {
@@ -85,7 +86,7 @@ class Fixture<S, A, B, C> {
 
   static final DatabaseSettings newSettings = sample();
 
-  static final User user = sample();
+  static final Review review = sample();
 
   static final List<String> names = List.of("alice", "bob");
 
@@ -93,15 +94,11 @@ class Fixture<S, A, B, C> {
 
   static final Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-  static final Lens<User, Optional<Address>> addressLens = sample();
+  static final Lens<Review, Optional<CustomerProfile>> authorLens = sample();
 
-  static final Prism<Optional<Address>, Address> addressPrism = Prisms.some();
+  static final Prism<Optional<CustomerProfile>, CustomerProfile> authorPrism = Prisms.some();
 
-  static final Lens<Address, String> streetLens = sample();
-
-  static final Lens<Address, Optional<String>> postcodeLens = sample();
-
-  static final Prism<Optional<String>, String> postcodePrism = Prisms.some();
+  static final Prism<Optional<String>, String> nicknamePrism = Prisms.some();
 
   static final Affine<Config, DatabaseSettings> databaseAffine = sample();
 

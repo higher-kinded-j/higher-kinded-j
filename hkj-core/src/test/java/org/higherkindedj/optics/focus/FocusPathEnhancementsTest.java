@@ -1195,6 +1195,27 @@ class FocusPathEnhancementsTest {
     }
 
     @Test
+    @DisplayName("TraversalPath.traced() should observe every query, with every focus")
+    void traversalPathTracedObservesQueries() {
+      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      Person alice = new Person("Alice", 30, new Address("A", "X"));
+      Person bob = new Person("Bob", 25, new Address("B", "Y"));
+      Team team = new Team("Dev", List.of(alice, bob));
+      List<Integer> observedCounts = new ArrayList<>();
+
+      TraversalPath<Team, Person> tracedPath =
+          membersPath.traced((source, values) -> observedCounts.add(values.size()));
+
+      assertThat(tracedPath.preview(team)).contains(alice);
+      assertThat(tracedPath.count(team)).isEqualTo(2);
+      assertThat(tracedPath.isEmpty(team)).isFalse();
+      assertThat(tracedPath.exists(p -> p.age() > 28, team)).isTrue();
+      assertThat(tracedPath.all(p -> p.age() > 28, team)).isFalse();
+      assertThat(tracedPath.find(p -> p.age() < 28, team)).contains(bob);
+      assertThat(observedCounts).containsExactly(2, 2, 2, 2, 2, 2);
+    }
+
+    @Test
     @DisplayName("TraversalPath.traced() should still allow modify operations")
     void traversalPathTracedAllowsModify() {
       TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();

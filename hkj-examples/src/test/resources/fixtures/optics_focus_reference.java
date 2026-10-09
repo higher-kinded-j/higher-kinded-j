@@ -16,6 +16,7 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.instances.Instances;
@@ -50,10 +51,7 @@ record Department(String name, List<Employee> employees) {}
 @GenerateFocus
 record Company(String name, List<Department> departments) {}
 
-// The records the generated-code settings point at
-@GenerateFocus
-record Address(String street, String city) {}
-
+// The records the generated-code settings point at, beside the chapter cast's Address
 @GenerateFocus
 record Settings(String theme, int fontSize) {}
 

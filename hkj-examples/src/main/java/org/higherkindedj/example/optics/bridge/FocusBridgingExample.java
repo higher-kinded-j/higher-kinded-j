@@ -203,12 +203,7 @@ public class FocusBridgingExample {
             "Engineering",
             alice,
             List.of(alice, bob),
-            Address.builder()
-                .street("100 Tech Drive")
-                .city("Boston")
-                .postcode("02101")
-                .country("USA")
-                .build());
+            Address.builder().street("100 Tech Drive").city("Boston").postcode("02101").build());
 
     // Sales department in Chicago
     Employee carol =
@@ -223,22 +218,12 @@ public class FocusBridgingExample {
             "Sales",
             carol,
             List.of(carol),
-            Address.builder()
-                .street("200 Commerce St")
-                .city("Chicago")
-                .postcode("60601")
-                .country("USA")
-                .build());
+            Address.builder().street("200 Commerce St").city("Chicago").postcode("60601").build());
 
     // Company with headquarters in New York
     return new Company(
         "Acme Corp",
-        Address.builder()
-            .street("1 Corporate Plaza")
-            .city("New York")
-            .postcode("10001")
-            .country("USA")
-            .build(),
+        Address.builder().street("1 Corporate Plaza").city("New York").postcode("10001").build(),
         List.of(engineering, sales));
   }
 }

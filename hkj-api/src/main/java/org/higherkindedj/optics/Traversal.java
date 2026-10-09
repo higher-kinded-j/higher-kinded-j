@@ -173,11 +173,7 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
-        // For each A in the traversal, use the prism to optionally modify B
-        return self.modifyF(
-            a -> prism.getOptional(a).map(b -> app.map(prism::build, f.apply(b))).orElse(app.of(a)),
-            source,
-            app);
+        return self.modifyF(a -> prism.modifyF(f, a, app), source, app);
       }
     };
   }

@@ -235,15 +235,7 @@ public final class IndexedTraversals {
    */
   public static <I, S extends @Nullable Object, A extends @Nullable Object>
       List<Pair<I, A>> toIndexedList(final IndexedTraversal<I, S, A> traversal, final S source) {
-    final List<Pair<I, A>> results = new ArrayList<>();
-    traversal.imodifyF(
-        (i, a) -> {
-          results.add(new Pair<>(i, a));
-          return Id.of(a);
-        },
-        source,
-        IdMonad.instance());
-    return results;
+    return traversal.asIndexedFold().toIndexedList(source);
   }
 
   /**
@@ -258,15 +250,7 @@ public final class IndexedTraversals {
    */
   public static <I, S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
       final IndexedTraversal<I, S, A> traversal, final S source) {
-    final List<A> results = new ArrayList<>();
-    traversal.imodifyF(
-        (i, a) -> {
-          results.add(a);
-          return Id.of(a);
-        },
-        source,
-        IdMonad.instance());
-    return results;
+    return traversal.asIndexedFold().getAll(source);
   }
 
   /**
@@ -281,7 +265,7 @@ public final class IndexedTraversals {
    */
   public static <I, S extends @Nullable Object, A extends @Nullable Object> int length(
       final IndexedTraversal<I, S, A> traversal, final S source) {
-    return toIndexedList(traversal, source).size();
+    return traversal.asIndexedFold().length(source);
   }
 
   /**

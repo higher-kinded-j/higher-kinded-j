@@ -6,6 +6,7 @@ import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
@@ -46,7 +47,7 @@ public final class GettersBook {
     Getter<Person, String> personCity = addressGetter.andThen(cityGetter);
 
     Person person =
-        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "EC1A", "UK"));
+        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "EC1A 1BB"));
 
     String city = personCity.get(person);
     // "London"
@@ -136,7 +137,7 @@ public final class GettersBook {
     Getter<Person, Address> addressGetter = Getter.of(Person::address);
 
     Person person =
-        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB", "UK"));
+        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB"));
 
     // Extract non-null value
     Maybe<String> name = getMaybe(firstNameGetter, person);
@@ -157,7 +158,7 @@ public final class GettersBook {
 
     // Safe navigation: Person → Maybe<Address> → Maybe<String>
     Person personWithAddress =
-        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB", "UK"));
+        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB"));
 
     Maybe<String> city =
         getMaybe(addressGetter, personWithAddress).flatMap(addr -> getMaybe(cityGetter, addr));
@@ -179,7 +180,7 @@ public final class GettersBook {
     Getter<Address, String> cityGetter = Getter.of(Address::city);
 
     Person person =
-        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB", "UK"));
+        new Person("Jane", "Smith", 45, new Address("123 Main St", "London", "NW1 4AB"));
 
     // Extract and transform
     Maybe<String> uppercaseCity =
@@ -232,5 +233,5 @@ public final class GettersBook {
   }
 }
 
-/** The page's company, around the package's {@code Person} and {@code Address}. */
+/** The page's company, around the package's {@code Person} and the cast's {@code Address}. */
 record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}

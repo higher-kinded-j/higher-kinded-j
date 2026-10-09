@@ -6,6 +6,7 @@ package org.higherkindedj.example.book.optics.getters;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
@@ -23,23 +24,20 @@ public class GetterExample {
 
   public record Person(String firstName, String lastName, int age, Address address) {}
 
-  public record Address(String street, String city, String zipCode, String country) {}
-
   public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
 
   public static void main(String[] args) {
     // Create sample data
-    Address ceoAddress = new Address("123 Executive Blvd", "London", "EC1A", "UK");
+    Address ceoAddress = new Address("123 Executive Blvd", "London", "EC1A 1BB");
     Person ceo = new Person("Jane", "Smith", 45, ceoAddress);
 
     List<Person> employees =
         List.of(
-            new Person("John", "Doe", 30, new Address("456 Oak St", "Manchester", "M1", "UK")),
-            new Person(
-                "Alice", "Johnson", 28, new Address("789 Elm Ave", "Birmingham", "B1", "UK")),
-            new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1", "UK")));
+            new Person("John", "Doe", 30, new Address("456 Oak St", "Manchester", "M1 1AE")),
+            new Person("Alice", "Johnson", 28, new Address("789 Elm Ave", "Birmingham", "B1 1BB")),
+            new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1 4AP")));
 
-    Address hqAddress = new Address("1000 Corporate Way", "London", "EC2A", "UK");
+    Address hqAddress = new Address("1000 Corporate Way", "London", "EC2A 4NE");
     Company company = new Company("TechCorp", ceo, employees, hqAddress);
 
     // === Basic Getters ===
@@ -94,14 +92,13 @@ public class GetterExample {
     double avgAge = (double) totalAge / employees.size();
     System.out.println("Average Employee Age: " + String.format("%.1f", avgAge));
 
-    // Check if all from UK
-    Getter<Address, String> countryGetter = Getter.of(Address::country);
-    boolean allUK =
+    // Check if all are in London
+    boolean allInLondon =
         listFold
             .andThen(addressGetter.asFold())
-            .andThen(countryGetter.asFold())
-            .all(c -> c.equals("UK"), employees);
-    System.out.println("All Employees from UK: " + allUK);
+            .andThen(cityGetter.asFold())
+            .all(c -> c.equals("London"), employees);
+    System.out.println("All Employees in London: " + allInLondon);
   }
 
   private static Monoid<Integer> sumMonoid() {

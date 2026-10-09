@@ -77,7 +77,7 @@
  *
  * // Aggregate with Monoid
  * int totalSalary = employeesPath.via(salaryLens).foldMap(
- *     Monoids.intSum(),
+ *     Monoids.integerAddition(),
  *     salary -> salary,
  *     company
  * );

@@ -23,14 +23,15 @@ The problem is not "how do I update a field in a JOOQ record". It is "how do I e
 JOOQ generates immutable POJOs that copy through a builder, and it is far from alone: Lombok's `@Builder`, Immutables, AutoValue, Protocol Buffers and most hand-written immutable classes do the same.
 
 ```java
+// The chapter's Customer, as a POJO that copies through a builder
 public final class Customer {
   public String name() { ... }
-  public BigDecimal creditLimit() { ... }
+  public EmailAddress email() { ... }
   public Builder toBuilder() { ... }
 
   public static final class Builder {
     public Builder name(String name) { ... }
-    public Builder creditLimit(BigDecimal limit) { ... }
+    public Builder email(EmailAddress email) { ... }
     public Customer build() { ... }
   }
 }
@@ -47,7 +48,7 @@ interface CustomerOpticsSpec extends OpticsSpec<Customer> {
   Lens<Customer, String> name();
 
   @ViaBuilder
-  Lens<Customer, BigDecimal> creditLimit();
+  Lens<Customer, EmailAddress> email();
 }
 ```
 
@@ -55,15 +56,15 @@ interface CustomerOpticsSpec extends OpticsSpec<Customer> {
 
 <!-- verify -->
 ```java
-Customer promoted =
-    CustomerOptics.creditLimit().modify(limit -> limit.multiply(new BigDecimal("1.1")), alice);
-// a copy of alice with her credit limit raised by a tenth; alice itself is unchanged
+Customer updated =
+    CustomerOptics.email().set(new EmailAddress("ada@work.example"), ada);
+// a copy of ada with her new email; ada itself is unchanged
 
-String name = CustomerOptics.name().get(alice);
+String name = CustomerOptics.name().get(ada);
 ```
 
 ~~~admonish tip title="Why this matters"
-Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. `OrderOptics.customer().andThen(CustomerOptics.creditLimit())` is a lens from an order to a credit limit. It obeys the lens laws as long as the builder round-trips faithfully: `toBuilder()`, the setter and `build()` have to give back the value they were handed and leave every other component alone. A builder that normalises, defaults or drops a field breaks that, and no annotation can detect it for you.
+Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. With a `customer()` lens declared the same way, `OrderOptics.customer().andThen(CustomerOptics.email())` is a lens from an order to its customer's email. It obeys the lens laws as long as the builder round-trips faithfully: `toBuilder()`, the setter and `build()` have to give back the value they were handed and leave every other component alone. A builder that normalises, defaults or drops a field breaks that, and no annotation can detect it for you.
 ~~~
 
 ---
@@ -75,8 +76,8 @@ Conventions vary, so every part of the interaction is nameable:
 <!-- verify -->
 ```java
 // Lombok: @Builder(toBuilder = true, setterPrefix = "with"), JavaBean getters
-@ViaBuilder(getter = "getOrderId", setter = "withOrderId")
-Lens<Order, String> orderId();
+@ViaBuilder(getter = "getId", setter = "withId")
+Lens<Order, UUID> id();
 
 // A legacy type that spells all four differently
 @ViaBuilder(
@@ -91,7 +92,7 @@ Lens<LegacyType, String> name();
 
 ## Reaching Into Collections with `@ThroughField`
 
-A lens to a `List` field is rarely what you want; you want a traversal into its elements. `@ThroughField` composes the two, detecting the right element traversal from the field's type:
+The chapter's `Order`, as the same kind of builder POJO, holds its lines in a `List`. A lens to a `List` field is rarely what you want; you want a traversal into its elements. `@ThroughField` composes the two, detecting the right element traversal from the field's type:
 
 <!-- verify -->
 ```java
@@ -99,35 +100,35 @@ A lens to a `List` field is rarely what you want; you want a traversal into its 
 interface OrderOpticsSpec extends OpticsSpec<Order> {
 
   @ViaBuilder
-  Lens<Order, List<Customer>> customers();
+  Lens<Order, List<LineItem>> lines();
 
-  @ThroughField(field = "customers")
-  Traversal<Order, Customer> eachCustomer();
+  @ThroughField(field = "lines")
+  Traversal<Order, LineItem> eachLine();
 }
 ```
 
 <!-- verify -->
 ```java
-// Read every customer's credit limit
-List<BigDecimal> limits =
+// Read every line's price
+List<BigDecimal> prices =
     Traversals.getAll(
-        OrderOptics.eachCustomer().andThen(CustomerOptics.creditLimit()), order);
-// one limit per customer, in the order's list order
+        OrderOptics.eachLine().andThen(LineItemLenses.price()), order);
+// one price per line, in the order's line order
 
 // Raise all of them by 5%
 Order raised =
     Traversals.modify(
-        OrderOptics.eachCustomer().andThen(CustomerOptics.creditLimit()),
-        limit -> limit.multiply(new BigDecimal("1.05")),
+        OrderOptics.eachLine().andThen(LineItemLenses.price()),
+        price -> price.multiply(new BigDecimal("1.05")).setScale(2, RoundingMode.HALF_EVEN),
         order);
 
 // Only the ones already above a threshold
-Order topUp =
+Order discounted =
     Traversals.modify(
-        OrderOptics.eachCustomer()
-            .andThen(CustomerOptics.creditLimit())
-            .filtered(limit -> limit.compareTo(new BigDecimal("750")) > 0),
-        limit -> limit.add(new BigDecimal("100")),
+        OrderOptics.eachLine()
+            .andThen(LineItemLenses.price())
+            .filtered(price -> price.compareTo(new BigDecimal("20")) > 0),
+        price -> price.subtract(new BigDecimal("5")),
         order);
 ```
 
@@ -258,9 +259,9 @@ Result<CustomerRecord> rows = ctx.selectFrom(CUSTOMER).where(CUSTOMER.ACTIVE.isT
 List<Customer> customers = rows.into(Customer.class);
 
 // Read straight through the list traversal
-List<BigDecimal> limits =
+List<EmailAddress> emails =
     Traversals.getAll(
-        Traversals.<Customer>forList().andThen(CustomerOptics.creditLimit()), customers);
+        Traversals.<Customer>forList().andThen(CustomerOptics.email()), customers);
 ```
 
 Writing through the same traversal gives back a new `List<Customer>`. To write into the `Result` itself, traverse its `CustomerRecord`s with `Traversals.forIterableCollecting(rebuild)`, which takes the rebuild as a function from the new list to the container.

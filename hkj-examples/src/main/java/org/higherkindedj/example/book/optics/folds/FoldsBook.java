@@ -7,20 +7,32 @@ import static org.higherkindedj.optics.extensions.FoldExtensions.getAllMaybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.previewMaybe;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFolds;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/folds.html">Folds</a> page. The page {@code
  * {{#include}}}s the anchored regions, and {@code FoldsBookTest} holds the claims the page makes
  * about this code.
+ *
+ * <p>The order and its lines are the chapter's cast, imported from its package.
  */
 public final class FoldsBook {
 
@@ -34,114 +46,118 @@ public final class FoldsBook {
 
   private FoldsBook() {}
 
-  /** The purchase the page builds in Step 2, and queries in the steps after it. */
-  static Purchase purchase() {
-    // ANCHOR: purchase
-    Purchase purchase =
-        new Purchase(
-            "ORD-123",
+  /** The order the page builds in Step 2, and queries in the steps after it. */
+  static Order order() {
+    // ANCHOR: order
+    Order order =
+        new Order(
+            UUID.fromString("00000000-0000-0000-0000-000000000123"),
+            new Customer("Ada", new EmailAddress("ada@example.com")),
             List.of(
-                new Product("Laptop", new BigDecimal("999.99"), "Electronics", true),
-                new Product("Mouse", new BigDecimal("25.00"), "Electronics", true),
-                new Product("Desk", new BigDecimal("350.00"), "Furniture", false)),
-            "Alice");
-    // ANCHOR_END: purchase
-    return purchase;
+                new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+                new LineItem("MOUSE", 2, new BigDecimal("12.50")),
+                new LineItem("DESK", 1, new BigDecimal("350.00"))),
+            Instant.parse("2026-10-01T09:00:00Z"),
+            Currency.getInstance("GBP"),
+            OrderStatus.NEW);
+    // ANCHOR_END: order
+    return order;
   }
 
-  static List<Product> getAll(Purchase purchase) {
+  static List<LineItem> getAll(Order order) {
     // ANCHOR: get_all
-    Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+    Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
-    List<Product> allProducts = itemsFold.getAll(purchase);
-    // [Product[name=Laptop, price=999.99, ...], Product[name=Mouse, ...], Product[name=Desk, ...]]
+    List<LineItem> allLines = linesFold.getAll(order);
+    // [LineItem[sku=LAPTOP, ...], LineItem[sku=MOUSE, ...], LineItem[sku=DESK, ...]]
     // ANCHOR_END: get_all
-    return allProducts;
+    return allLines;
   }
 
-  static List<Optional<Product>> preview(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static List<Optional<LineItem>> preview(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: preview
-    Optional<Product> firstProduct = itemsFold.preview(purchase);
-    // Optional[Product[name=Laptop, price=999.99, ...]]
+    Optional<LineItem> firstLine = linesFold.preview(order);
+    // Optional[LineItem[sku=LAPTOP, quantity=1, price=999.99]]
 
-    Purchase emptyPurchase = new Purchase("ORD-456", List.of(), "Bob");
-    Optional<Product> noProduct = itemsFold.preview(emptyPurchase);
+    Order emptyOrder = OrderLenses.withLines(order, List.of());
+    Optional<LineItem> noLine = linesFold.preview(emptyOrder);
     // Optional.empty
     // ANCHOR_END: preview
-    return List.of(firstProduct, noProduct);
+    return List.of(firstLine, noLine);
   }
 
-  static Optional<Product> find(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static Optional<LineItem> find(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: find
-    Optional<Product> expensiveProduct =
-        itemsFold.find(product -> product.price().compareTo(new BigDecimal("500")) > 0, purchase);
-    // Optional[Product[name=Laptop, price=999.99, ...]]
+    Optional<LineItem> expensiveLine =
+        linesFold.find(line -> line.price().compareTo(new BigDecimal("500")) > 0, order);
+    // Optional[LineItem[sku=LAPTOP, quantity=1, price=999.99]]
     // ANCHOR_END: find
-    return expensiveProduct;
+    return expensiveLine;
   }
 
-  static boolean exists(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static boolean exists(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: exists
-    boolean hasOutOfStock = itemsFold.exists(product -> !product.inStock(), purchase);
-    // true: the desk is out of stock
+    boolean hasMultiUnitLine = linesFold.exists(line -> line.quantity() > 1, order);
+    // true: the mouse line is for two
     // ANCHOR_END: exists
-    return hasOutOfStock;
+    return hasMultiUnitLine;
   }
 
-  static boolean all(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static boolean all(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: all
-    boolean allInStock = itemsFold.all(product -> product.inStock(), purchase);
-    // false: the desk is out of stock
+    boolean allSingleUnits = linesFold.all(line -> line.quantity() == 1, order);
+    // false: the mouse line is for two
     // ANCHOR_END: all
-    return allInStock;
+    return allSingleUnits;
   }
 
-  static boolean hasItems(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static boolean hasLines(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: is_empty
-    boolean hasItems = !itemsFold.isEmpty(purchase);
+    boolean hasLines = !linesFold.isEmpty(order);
     // true
     // ANCHOR_END: is_empty
-    return hasItems;
+    return hasLines;
   }
 
-  static int length(Fold<Purchase, Product> itemsFold, Purchase purchase) {
+  static int length(Fold<Order, LineItem> linesFold, Order order) {
     // ANCHOR: length
-    int itemCount = itemsFold.length(purchase);
+    int lineCount = linesFold.length(order);
     // 3
     // ANCHOR_END: length
-    return itemCount;
+    return lineCount;
   }
 
-  static List<String> allProductNames(Purchase purchase) {
+  static List<String> allSkus(Order order) {
     // ANCHOR: compose
-    // Get all product names from all purchases in history
-    Fold<PurchaseHistory, Purchase> historyToPurchases = PurchaseHistoryFolds.purchases();
-    Fold<Purchase, Product> purchaseToProducts = PurchaseFolds.items();
-    Lens<Product, String> productToName = ProductLenses.name();
+    // Get every SKU from every order in a history
+    Fold<OrderHistory, Order> historyToOrders = OrderHistoryFolds.orders();
+    Fold<Order, LineItem> orderToLines = Fold.of(Order::lines);
+    Lens<LineItem, String> lineToSku = LineItemLenses.sku();
 
-    Fold<PurchaseHistory, String> historyToAllProductNames =
-        historyToPurchases.andThen(purchaseToProducts).andThen(productToName.asFold());
+    Fold<OrderHistory, String> historyToAllSkus =
+        historyToOrders.andThen(orderToLines).andThen(lineToSku.asFold());
 
-    Purchase secondPurchase =
-        new Purchase(
-            "ORD-124",
-            List.of(
-                new Product("Keyboard", new BigDecimal("75.00"), "Electronics", true),
-                new Product("Monitor", new BigDecimal("450.00"), "Electronics", true)),
-            "Bob");
-    PurchaseHistory history = new PurchaseHistory(List.of(purchase, secondPurchase));
+    Order secondOrder =
+        OrderLenses.withId(
+            OrderLenses.withLines(
+                order,
+                List.of(
+                    new LineItem("KEYBOARD", 1, new BigDecimal("75.00")),
+                    new LineItem("MONITOR", 1, new BigDecimal("450.00")))),
+            UUID.fromString("00000000-0000-0000-0000-000000000124"));
+    OrderHistory history = new OrderHistory(List.of(order, secondOrder));
 
-    List<String> allProductNames = historyToAllProductNames.getAll(history);
-    // [Laptop, Mouse, Desk, Keyboard, Monitor]
+    List<String> allSkus = historyToAllSkus.getAll(history);
+    // [LAPTOP, MOUSE, DESK, KEYBOARD, MONITOR]
     // ANCHOR_END: compose
-    return allProductNames;
+    return allSkus;
   }
 
-  static BigDecimal totalPrice(Purchase purchase) {
+  static BigDecimal orderTotal(Order order) {
     // ANCHOR: total
-    Fold<Purchase, Product> products = PurchaseFolds.items();
+    Fold<Order, LineItem> lines = Fold.of(Order::lines);
 
-    // Define how to combine prices (addition)
+    // Define how to combine amounts (addition)
     Monoid<BigDecimal> sumMonoid =
         new Monoid<>() {
           @Override
@@ -155,60 +171,58 @@ public final class FoldsBook {
           }
         };
 
-    // Extract each product's price and sum them all
-    BigDecimal totalPrice =
-        products.foldMap(
-            sumMonoid,
-            product -> product.price(), // Extract price from each product
-            purchase);
+    // A line's total is its price times its quantity
+    Function<LineItem, BigDecimal> lineTotal =
+        line -> line.price().multiply(BigDecimal.valueOf(line.quantity()));
+
+    // Work out each line's total and sum them all
+    BigDecimal orderTotal = lines.foldMap(sumMonoid, lineTotal, order);
     // 1374.99, which is 999.99 + 25.00 + 350.00
     // ANCHOR_END: total
-    return totalPrice;
+    return orderTotal;
   }
 
-  static List<Maybe<Product>> previewMaybeExample(Purchase purchase) {
+  static List<Maybe<LineItem>> previewMaybeExample(Order order) {
     // ANCHOR: preview_maybe
-    Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+    Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
-    Maybe<Product> firstProduct = previewMaybe(itemsFold, purchase);
-    // Just(Product[name=Laptop, price=999.99, ...])
+    Maybe<LineItem> firstLine = previewMaybe(linesFold, order);
+    // Just(LineItem[sku=LAPTOP, quantity=1, price=999.99])
 
-    Purchase emptyPurchase = new Purchase("ORD-456", List.of(), "Bob");
-    Maybe<Product> noProduct = previewMaybe(itemsFold, emptyPurchase);
+    Order emptyOrder = OrderLenses.withLines(order, List.of());
+    Maybe<LineItem> noLine = previewMaybe(linesFold, emptyOrder);
     // Nothing
     // ANCHOR_END: preview_maybe
-    return List.of(firstProduct, noProduct);
+    return List.of(firstLine, noLine);
   }
 
-  static List<Maybe<Product>> findMaybeExample(Purchase purchase) {
+  static List<Maybe<LineItem>> findMaybeExample(Order order) {
     // ANCHOR: find_maybe
-    Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+    Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
-    Maybe<Product> expensiveProduct =
-        findMaybe(
-            itemsFold, product -> product.price().compareTo(new BigDecimal("500")) > 0, purchase);
-    // Just(Product[name=Laptop, price=999.99, ...])
+    Maybe<LineItem> expensiveLine =
+        findMaybe(linesFold, line -> line.price().compareTo(new BigDecimal("500")) > 0, order);
+    // Just(LineItem[sku=LAPTOP, quantity=1, price=999.99])
 
-    Maybe<Product> luxuryProduct =
-        findMaybe(
-            itemsFold, product -> product.price().compareTo(new BigDecimal("5000")) > 0, purchase);
+    Maybe<LineItem> luxuryLine =
+        findMaybe(linesFold, line -> line.price().compareTo(new BigDecimal("5000")) > 0, order);
     // Nothing
     // ANCHOR_END: find_maybe
-    return List.of(expensiveProduct, luxuryProduct);
+    return List.of(expensiveLine, luxuryLine);
   }
 
-  static List<Maybe<List<Product>>> getAllMaybeExample(Purchase purchase) {
+  static List<Maybe<List<LineItem>>> getAllMaybeExample(Order order) {
     // ANCHOR: get_all_maybe
-    Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+    Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
-    Maybe<List<Product>> allProducts = getAllMaybe(itemsFold, purchase);
-    // Just([Product[name=Laptop, ...], Product[name=Mouse, ...], Product[name=Desk, ...]])
+    Maybe<List<LineItem>> allLines = getAllMaybe(linesFold, order);
+    // Just([LineItem[sku=LAPTOP, ...], LineItem[sku=MOUSE, ...], LineItem[sku=DESK, ...]])
 
-    Purchase emptyPurchase = new Purchase("ORD-456", List.of(), "Bob");
-    Maybe<List<Product>> noProducts = getAllMaybe(itemsFold, emptyPurchase);
+    Order emptyOrder = OrderLenses.withLines(order, List.of());
+    Maybe<List<LineItem>> noLines = getAllMaybe(linesFold, emptyOrder);
     // Nothing
     // ANCHOR_END: get_all_maybe
-    return List.of(allProducts, noProducts);
+    return List.of(allLines, noLines);
   }
 
   static List<Object> emptyFold(Team team) {
@@ -240,17 +254,12 @@ public final class FoldsBook {
   }
 }
 
-@GenerateLenses
+// ANCHOR: order_history
+// A customer's past orders, beside the chapter's Order
 @GenerateFolds
-record Product(String name, BigDecimal price, String category, boolean inStock) {}
+record OrderHistory(List<Order> orders) {}
 
-@GenerateLenses
-@GenerateFolds
-record Purchase(String purchaseId, List<Product> items, String customerName) {}
-
-@GenerateLenses
-@GenerateFolds
-record PurchaseHistory(List<Purchase> purchases) {}
+// ANCHOR_END: order_history
 
 record Employee(String name, String email) {}
 

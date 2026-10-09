@@ -1,0 +1,10 @@
+Original Employee: Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown, postcode=AN1 1AA]]]
+------------------------------------------
+After `withName`:    Employee[name=Bob, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown, postcode=AN1 1AA]]]
+After chaining `with*`: Employee[name=Alice, company=Company[name=Megacorp, address=Address[street=123 Fake St, city=Anytown, postcode=AN1 1AA]]]
+------------------------------------------
+After deep `set`:       Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=456 Main St, city=Anytown, postcode=AN1 1AA]]]
+Original is unchanged:  Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown, postcode=AN1 1AA]]]
+------------------------------------------
+After deep `modify`:    Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 FAKE ST, city=Anytown, postcode=AN1 1AA]]]
+Original is unchanged:  Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown, postcode=AN1 1AA]]]

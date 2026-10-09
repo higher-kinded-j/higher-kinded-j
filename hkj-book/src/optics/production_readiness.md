@@ -28,8 +28,9 @@ In short, with the method that decides each named in its own subsection:
 | You call | It costs |
 |---|---|
 | A lens `set` or `modify` | What a hand-written `with*` cascade allocates |
-| A traversal `modify`, or a read through `Traversals.getAll` | A rebuilt container, on every call |
-| A read through `asFold()` | No rebuild |
+| A traversal `modify` | A rebuilt container, on every call |
+| A read through `Traversals.getAll` or `asFold()` | No rebuild |
+| A query such as `find`, `exists` or `preview` | Stops at the focus that answers it |
 | An `At` edit | A copy of the whole map or list |
 | A prism or affine `modify` that misses | Nothing: no allocation and no rebuild |
 
@@ -59,33 +60,33 @@ Each collection optic rebuilds its container in its own way, and several return 
 |---|---|---|---|
 | `Traversals.forMapValues()` | Copies the keys and values into two lists, traverses the values, then builds one new `LinkedHashMap` in the source's order. | An empty map still gets a new, empty map. | `Traversals.traverseMapValues` |
 | `Traversals.forMap(key)` | Copies the whole map to replace one value. | An absent key returns the source itself. | `Traversals.forMap` |
-| `filtered(p)`, `filterBy(query, p)` | Tests each element once, in the same pass as the update; `filterBy`'s test is a `Fold.exists`, which visits every queried focus. | A rejected element passes through with `of`, keeping its reference. | `Traversal.filtered`, `Traversal.filterBy` |
+| `filtered(p)`, `filterBy(query, p)` | Tests each element once, in the same pass as the update; `filterBy`'s test is a `Fold.exists`, which stops at the first queried focus that matches. | A rejected element passes through with `of`, keeping its reference. | `Traversal.filtered`, `Traversal.filterBy` |
 | `ListTraversals.taking(n)`, `slicing(from, to)` and the other limits | Run the function on the slice only, then copy the elements outside it by reference into one new list; `takingWhile` and `droppingWhile` first scan for the split point. | An empty slice returns the source itself. | `ListTraversals.slicing` |
 | `StringTraversals.chars()`, `worded()`, `lined()` | Split the string into a list, one boxed `Character` per character or a regular-expression split into words or lines, then join one new string. | A new string is joined anyway. | `StringTraversals.chars`, `StringTraversals.worded` |
 | `Traversals.partsOf(t)` | `get` collects the foci into one list through `getAll`, and `set` walks the traversal again, so a `modify` walks it twice. `sorted` and `reversed` copy that list once more, and `distinct` twice. | The traversal is still walked twice. | `Traversals.partsOf` |
 | `IndexedTraversals.forList()`, `forMap()` | Pass the index and the value to your function as two arguments, so no `Pair` is built per focus. | An empty list or map returns the source itself. | `IndexedTraversals.forList`, `IndexedTraversals.forMap` |
-| `IndexedTraversals.toIndexedList`, `IndexedTraversals.length`, `asIndexedFold()`, `iandThen` | Build one `Pair` per focus: the first three to collect or count the foci, and `iandThen` because its index is a pair. `asIndexedFold()` also runs the traversal in an identity applicative, so unlike `asFold()` it rebuilds the structure before it folds. | Not applicable: these read. | `IndexedTraversals.toIndexedList`, `IndexedTraversal.asIndexedFold`, `IndexedTraversal.iandThen` |
+| `IndexedTraversals.toIndexedList`, `IndexedTraversals.length`, `asIndexedFold()`, `iandThen` | `toIndexedList` builds one `Pair` per focus to collect the foci, and `iandThen` one per focus because its index is a pair. `length` and `asIndexedFold()` build none: like `asFold()`, they run the traversal in a constant applicative, which skips every rebuild. | Not applicable: these read. | `IndexedTraversals.toIndexedList`, `IndexedTraversal.asIndexedFold`, `IndexedTraversal.iandThen` |
 | `Setter.forList()`, `Setter.forMapValues()` | `modify` maps straight into a new list or `LinkedHashMap`, with no applicative. `modifyF` collects the effects, sequences them from the right onto an immutable cons list, and builds the result once. | The collection is rebuilt anyway. | `Setter.forList`, `ConsList.sequence` |
 | `At`: `AtInstances.mapAt()`, `listAt()` | Every `set`, `insertOrUpdate`, `remove` and `modify` copies the whole map or list. | Copies anyway, even when the index is absent. | `AtInstances.mapAt`, `AtInstances.listAt` |
-| `Ixed`: `IxedInstances.mapIx()`, `listIx()` | Copies only when the index is present, even for a read through `IxedInstances.get`. | An absent index returns the source itself. | `IxedInstances.fromAt` |
+| `Ixed`: `IxedInstances.mapIx()`, `listIx()` | An edit copies only when the index is present, and a read through `IxedInstances.get` copies nothing. | An absent index returns the source itself. | `IxedInstances.fromAt` |
 
 A run of `At` edits therefore copies the map once per edit. To make many edits at once, copy the map into a `LinkedHashMap` once, change that copy, and carry on with the result.
 
 ### Prisms and affines on a miss {#prisms-and-affines}
 
-A generated prism tests its case with `instanceof` for a sealed subtype, `==` for an enum constant, or your predicate for `@MatchWhen`. It answers a miss with the JDK's shared `Optional.empty()`, so a miss allocates no `Optional`. On a miss, `Prism.modify` and `Affine.modify` return the source itself, so nothing is rebuilt. `Affine.andThen` chains the two reads with `Optional.flatMap`, or `map` for a lens step, so a composed affine's `getOptional` stops at the first absent step. Inside a traversal, `Traversal.andThen(Prism)` passes a non-matching element through with `of`, so the rest of the chain never runs for it.
+A generated prism tests its case with `instanceof` for a sealed subtype, `==` for an enum constant, or your predicate for `@MatchWhen`. It answers a miss with the JDK's shared `Optional.empty()`, so a miss allocates no `Optional`. On a miss, `Prism.modify` and `Affine.modify` return the source itself, so nothing is rebuilt. `Prism.modifyF` and `Affine.modifyF` wrap the source with `of` only on a miss, so a match allocates nothing for the branch it does not take. `Affine.andThen` chains the two reads with `Optional.flatMap`, or `map` for a lens step, so a composed affine's `getOptional` stops at the first absent step. Inside a traversal, `Traversal.andThen(Prism)` passes a non-matching element through with `of`, so the rest of the chain never runs for it.
 
 ### What reads cost {#read-cost}
 
-A read through a traversal or a fold visits every focus, and some reads also rebuild what they visit.
+A read through a traversal or a fold rebuilds nothing, and a query that looks for an answer stops at the focus that settles it.
 
 | Read | What it visits and builds | Implemented in |
 |---|---|---|
-| `Traversals.getAll(t, s)`, and a `TraversalPath`'s `getAll(s)` | Run `modifyF` in the `Id` applicative, so they rebuild the structure as a `modify` would, then discard the copy. | `Traversals.getAll`, `TraversalFocusPath.getAll` |
-| A `TraversalPath`'s `preview`, `count`, `exists`, `all` and `find` | Call `getAll` first, so each collects every focus, rebuild included, before its test runs. | `TraversalPath.exists` |
-| `t.asFold().getAll(s)` | Runs the same `modifyF` in a constant applicative, which skips every rebuild, though a traversal's own set-up, such as a map's key and value lists or a split string, still runs. | `Traversal.asFold` |
-| A `Fold`'s `preview`, `find`, `exists` and `all` | Fold a monoid over every focus, so none of them stops at the first match. | `Fold.preview`, `Fold.exists` |
-| `IxedInstances.get`, `IxedInstances.contains` | Read through `Traversals.getAll`, so a present index copies the whole map or list, as an edit would. `At.get` reads without copying. | `IxedInstances.get` |
+| `Traversals.getAll(t, s)`, `t.asFold().getAll(s)`, and a `TraversalPath`'s `getAll(s)` | Run `modifyF` in a constant applicative, which skips every rebuild, though a traversal's own set-up, such as a map's key and value lists or a split string, still runs. | `Traversal.asFold`, `Traversals.getAll` |
+| A `Fold`'s `preview`, `find`, `exists`, `all` and `isEmpty` | Stop the fold at the focus that settles the answer, so no later focus is visited and the predicate is not called on one. `getAll` and `length` visit every focus. | `Fold.find`, `FoldSearch.first` |
+| An `IndexedFold`'s `findWithIndex`, `existsWithIndex`, `allWithIndex`, their value-only forms, and `isEmpty` | Stop at the answer, as a `Fold`'s queries do. The forms that take an index, and `find`, build one `Pair` per focus they visit. | `IndexedFold.findWithIndex` |
+| A `TraversalPath`'s `preview`, `count`, `exists`, `all`, `find` and `isEmpty` | Read through the path's `asFold()`: `preview`, `exists`, `all`, `find` and `isEmpty` stop at their answer as a `Fold`'s queries do, and `count` visits every focus. A path from `traced` reads them through `getAll`, so its observer sees every focus. | `TraversalPath.exists` |
+| `IxedInstances.get`, `IxedInstances.contains` | Read through `Traversals.getAll`, so they copy nothing, and neither does `At.get`. | `IxedInstances.get` |
 | A fold from `@GenerateFolds` | Loops over an iterable component directly, or applies the function to a single one, with no intermediate list. | `FoldProcessor` |
 | `getMaybe`, `previewMaybe`, `findMaybe`, `getAllMaybe` | Make the plain read, then convert it: a new `Just` for a value, the shared `Nothing` for none. | `GetterExtensions.getMaybe`, `FoldExtensions` |
 
@@ -107,7 +108,7 @@ private static final Lens<Company, String> COMPANY_NAME =
     CompanyLenses.name();
 
 private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
-    OrderFocus.items().via(ItemFocus.price());
+    OrderFocus.lines().via(LineItemFocus.price());
 ```
 
 This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.

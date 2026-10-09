@@ -11,8 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-import org.higherkindedj.example.book.optics.indexed.IndexedOpticsBook.Customer;
-import org.higherkindedj.example.book.optics.indexed.IndexedOpticsBook.LineItem;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -56,32 +57,32 @@ class IndexedOpticsBookTest {
     return buffer.toString(StandardCharsets.UTF_8).lines().toList();
   }
 
-  private static List<String> namesAt(List<Pair<Integer, LineItem>> pairs) {
-    return pairs.stream().map(p -> p.first() + " " + p.second().productName()).toList();
+  private static List<String> skusAt(List<Pair<Integer, LineItem>> pairs) {
+    return pairs.stream().map(p -> p.first() + " " + p.second().sku()).toList();
   }
 
   @Test
   @DisplayName("toIndexedList pairs each item with its zero-based position")
   void positions() {
     assertThat(printed(() -> IndexedOpticsBook.positions(ITEMS_WITH_INDEX)))
-        .containsExactly("Position 0: Laptop", "Position 1: Mouse", "Position 2: Keyboard");
+        .containsExactly("Position 0: LAPTOP", "Position 1: MOUSE", "Position 2: KEYBOARD");
   }
 
   @Test
   @DisplayName("the indexed fold finds the item at index 1, and an expensive even-positioned one")
   void foldQueries() {
     assertThat(printed(() -> IndexedOpticsBook.foldQueries(ITEMS_WITH_INDEX, ITEMS)))
-        .containsExactly("Item at index 1: Mouse");
+        .containsExactly("Item at index 1: MOUSE");
     IndexedOpticsBook.FoldQueries queries = IndexedOpticsBook.foldQueries(ITEMS_WITH_INDEX, ITEMS);
-    assertThat(queries.found().second().productName()).isEqualTo("Mouse");
+    assertThat(queries.found().second().sku()).isEqualTo("MOUSE");
     assertThat(queries.hasExpensiveEven()).as("the laptop, at index 0, costs over 500").isTrue();
   }
 
   @Test
   @DisplayName("imodify numbers each item from its index")
   void numbering() {
-    assertThat(printed(() -> IndexedOpticsBook.numbered(ITEMS_WITH_INDEX, ITEMS)))
-        .containsExactly("Item 1: Laptop", "Item 2: Mouse", "Item 3: Keyboard");
+    assertThat(printed(() -> IndexedOpticsBook.numbered(ITEMS)))
+        .containsExactly("Item 1: LAPTOP", "Item 2: MOUSE", "Item 3: KEYBOARD");
   }
 
   @Test
@@ -100,16 +101,16 @@ class IndexedOpticsBookTest {
   void evenPositions() {
     IndexedOpticsBook.Filtered even = IndexedOpticsBook.evenPositions(ITEMS_WITH_INDEX, ITEMS);
 
-    assertThat(namesAt(even.focused())).containsExactly("0 Laptop", "2 Keyboard");
-    assertThat(even.result().stream().map(LineItem::productName))
-        .containsExactly("Laptop [SALE]", "Mouse", "Keyboard [SALE]");
+    assertThat(skusAt(even.focused())).containsExactly("0 LAPTOP", "2 KEYBOARD");
+    assertThat(even.result().stream().map(line -> line.sku() + " " + line.price()))
+        .containsExactly("LAPTOP 989.99", "MOUSE 24.99", "KEYBOARD 69.99");
   }
 
   @Test
   @DisplayName("filteredWithIndex keeps the original indices rather than renumbering them")
   void expensive() {
-    assertThat(namesAt(IndexedOpticsBook.expensive(ITEMS_WITH_INDEX, ITEMS)))
-        .containsExactly("0 Laptop", "2 Keyboard");
+    assertThat(skusAt(IndexedOpticsBook.expensive(ITEMS_WITH_INDEX, ITEMS)))
+        .containsExactly("0 LAPTOP", "2 KEYBOARD");
   }
 
   @Test
@@ -131,11 +132,12 @@ class IndexedOpticsBookTest {
     assertThat(printed(IndexedOpticsBook::fieldTracking))
         .containsExactly(
             "Field: email",
-            "Value: alice@example.com",
-            "Updating field 'email' from alice@example.com");
+            "Value: ada@example.com",
+            "Updating field 'email' from ada@example.com");
     IndexedOpticsBook.LensRead read = IndexedOpticsBook.fieldTracking();
-    assertThat(read.fieldInfo()).isEqualTo(Pair.of("email", "alice@example.com"));
-    assertThat(read.updated()).isEqualTo(new Customer("Alice", "alice.smith@example.com"));
+    assertThat(read.fieldInfo()).isEqualTo(Pair.of("email", new EmailAddress("ada@example.com")));
+    assertThat(read.updated())
+        .isEqualTo(new Customer("Ada", new EmailAddress("ada.lovelace@example.com")));
   }
 
   @Test

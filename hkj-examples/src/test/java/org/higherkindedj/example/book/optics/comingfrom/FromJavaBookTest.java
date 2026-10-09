@@ -135,8 +135,8 @@ class FromJavaBookTest {
     }
 
     @Test
-    @DisplayName("exists visits every element, where a loop could stop at the first match")
-    void existsVisitsEveryElement() {
+    @DisplayName("exists stops at the first match, as a loop would")
+    void existsStopsAtTheFirstMatch() {
       AtomicInteger visits = new AtomicInteger();
       Lens<LineItem, Integer> countingQuantity =
           Lens.of(
@@ -149,7 +149,7 @@ class FromJavaBookTest {
       boolean any = OrderFocus.lines().via(countingQuantity).exists(q -> q >= 1, ORDER);
 
       assertThat(any).isTrue();
-      assertThat(visits).hasValue(2);
+      assertThat(visits).hasValue(1);
     }
 
     @Test

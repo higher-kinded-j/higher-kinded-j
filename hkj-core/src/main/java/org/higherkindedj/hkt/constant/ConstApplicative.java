@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <pre>{@code
  * // Sum all integers in a structure
- * Monoid<Integer> sumMonoid = Monoid.of(0, Integer::sum);
+ * Monoid<Integer> sumMonoid = Monoids.integerAddition();
  * ConstApplicative<Integer> constApp = new ConstApplicative<>(sumMonoid);
  *
  * // Accumulate values

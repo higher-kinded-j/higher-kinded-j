@@ -150,9 +150,10 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
                           MaybeT<F, B> resultT = MAYBE_T.narrow(resultKind);
                           return resultT.value();
                         })
-                    .orElse(
-                        outerMonad.of(
-                            Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
+                    .orElseGet(
+                        () ->
+                            outerMonad.of(
+                                Maybe.nothing())), // If Maybe<A> is Nothing, result is F<Nothing>
             maybeT.value());
     return MAYBE_T.widen(MaybeT.fromKind(newValue));
   }

@@ -169,7 +169,7 @@ public class PrismProcessor extends AbstractProcessor {
    * @return A complete {@code MethodSpec} for the prism factory method.
    */
   private MethodSpec createPrismMethodForEnum(TypeElement enumType, VariableElement enumConstant) {
-    String methodName = ProcessorUtils.toCamelCase(enumConstant.getSimpleName().toString());
+    String methodName = ProcessorUtils.toMethodName(enumConstant.getSimpleName().toString());
     ClassName enumClassName = ClassName.get(enumType);
 
     ParameterizedTypeName prismTypeName =

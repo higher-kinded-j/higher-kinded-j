@@ -1,36 +1,13 @@
 // Fixture for hkj-book/src/optics/indexed_optics_advanced.md
 //
-// The page pairs indices through nested orders and audits a customer's field changes. The line item
-// and the customer are declared here; each snippet shows the nesting it works on.
+// The page includes its examples from IndexedAdvancedBook and OrderFulfilmentDashboard, which take
+// the chapter's cast from its package. The one fence left converts a Pair to a Tuple2 and back, and
+// needs only these imports.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.higherkindedj.hkt.tuple.Tuple2;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.indexed.IndexedLens;
-import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.IndexedTraversals;
-
-record LineItem(String productName, int quantity, BigDecimal price) {}
-
-record Customer(String name, String email) {}
-
-class Fixture {
-
-  static final List<LineItem> items =
-      List.of(
-          new LineItem("Laptop", 1, new BigDecimal("999.99")),
-          new LineItem("Mouse", 1, new BigDecimal("24.99")),
-          new LineItem("Keyboard", 1, new BigDecimal("79.99")));
-}

@@ -349,7 +349,7 @@ A path reads fewer values than you expected, and you want to see what it finds.
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:trace}}
 ```
 
-On a `TraversalPath`, the observer runs on every read built on `getAll`, such as `count` and `exists`. A write such as `modifyAll` does not call it, and nor does `foldMap`, which reads through the traversal. A `via` or `filter` after `traced` returns a path without the observer, so trace last. Tracing belongs to the Focus paths, and has no raw-optics form.
+On a `TraversalPath`, the observer runs on `getAll` and on the queries, such as `count` and `exists`, which on a traced path read through `getAll`. A write such as `modifyAll` does not call it, and nor does `foldMap`, which reads through the traversal. A `via` or `filter` after `traced` returns a path without the observer, so trace last. Tracing belongs to the Focus paths, and has no raw-optics form.
 
 ---
 

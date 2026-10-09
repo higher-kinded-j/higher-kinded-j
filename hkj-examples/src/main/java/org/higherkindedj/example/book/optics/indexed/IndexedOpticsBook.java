@@ -6,6 +6,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.optics.indexed.IndexedFold;
 import org.higherkindedj.optics.indexed.IndexedLens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -19,18 +22,11 @@ import org.higherkindedj.optics.util.IndexedTraversals;
  * {{#include}}}s the anchored regions, and {@code IndexedOpticsBookTest} holds the claims the page
  * makes about this code.
  *
- * <p>The records are nested here, as {@code OrderFulfilmentDashboard}'s are, so the two files can
- * each keep the names their page uses.
+ * <p>The records are the chapter's cast, imported from its package.
  */
 public final class IndexedOpticsBook {
 
   private IndexedOpticsBook() {}
-
-  /** An order line, as the page's data model declares it. */
-  record LineItem(String productName, int quantity, BigDecimal price) {}
-
-  /** A customer, as the page's data model declares it. */
-  record Customer(String name, String email) {}
 
   /** The page's sample items, and each paired with its index. */
   record Positions(List<LineItem> items, List<Pair<Integer, LineItem>> indexedItems) {}
@@ -42,15 +38,15 @@ public final class IndexedOpticsBook {
   record Filtered(List<Pair<Integer, LineItem>> focused, List<LineItem> result) {}
 
   /** The indexed lens's read, and the customer its {@code imodify} returns. */
-  record LensRead(Pair<String, String> fieldInfo, Customer updated) {}
+  record LensRead(Pair<String, EmailAddress> fieldInfo, Customer updated) {}
 
   static Positions positions(IndexedTraversal<Integer, List<LineItem>, LineItem> itemsWithIndex) {
     // ANCHOR: pairs
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, new BigDecimal("999.99")),
-            new LineItem("Mouse", 2, new BigDecimal("24.99")),
-            new LineItem("Keyboard", 1, new BigDecimal("79.99")));
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("24.99")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")));
 
     // Get list of (index, item) pairs - optic meets data
     List<Pair<Integer, LineItem>> indexedItems =
@@ -59,12 +55,12 @@ public final class IndexedOpticsBook {
     for (Pair<Integer, LineItem> pair : indexedItems) {
       int position = pair.first();
       LineItem item = pair.second();
-      System.out.println("Position " + position + ": " + item.productName());
+      System.out.println("Position " + position + ": " + item.sku());
     }
     // Output:
-    // Position 0: Laptop
-    // Position 1: Mouse
-    // Position 2: Keyboard
+    // Position 0: LAPTOP
+    // Position 1: MOUSE
+    // Position 2: KEYBOARD
     // ANCHOR_END: pairs
     return new Positions(items, indexedItems);
   }
@@ -79,8 +75,8 @@ public final class IndexedOpticsBook {
     Pair<Integer, LineItem> found =
         itemsFold.findWithIndex((index, item) -> index == 1, items).orElseThrow();
 
-    System.out.println("Item at index 1: " + found.second().productName());
-    // Output: Item at index 1: Mouse
+    System.out.println("Item at index 1: " + found.second().sku());
+    // Output: Item at index 1: MOUSE
 
     // Check if any even-positioned item is expensive
     boolean hasExpensiveEven =
@@ -91,27 +87,23 @@ public final class IndexedOpticsBook {
     return new FoldQueries(found, hasExpensiveEven);
   }
 
-  static List<LineItem> numbered(
-      IndexedTraversal<Integer, List<LineItem>, LineItem> itemsWithIndex, List<LineItem> items) {
+  static List<String> numbered(List<LineItem> items) {
     // ANCHOR: numbering
-    // Modify product names to include position numbers
-    List<LineItem> numbered =
-        IndexedTraversals.imodify(
-            itemsWithIndex,
-            (index, item) ->
-                new LineItem(
-                    "Item " + (index + 1) + ": " + item.productName(),
-                    item.quantity(),
-                    item.price()),
-            items);
+    // Number each line of a packing slip by its position
+    IndexedTraversal<Integer, List<String>, String> slipLines = IndexedTraversals.forList();
+    List<String> skus = items.stream().map(LineItem::sku).toList();
 
-    for (LineItem item : numbered) {
-      System.out.println(item.productName());
+    List<String> numbered =
+        IndexedTraversals.imodify(
+            slipLines, (index, sku) -> "Item " + (index + 1) + ": " + sku, skus);
+
+    for (String line : numbered) {
+      System.out.println(line);
     }
     // Output:
-    // Item 1: Laptop
-    // Item 2: Mouse
-    // Item 3: Keyboard
+    // Item 1: LAPTOP
+    // Item 2: MOUSE
+    // Item 3: KEYBOARD
     // ANCHOR_END: numbering
     return numbered;
   }
@@ -152,16 +144,16 @@ public final class IndexedOpticsBook {
         itemsWithIndex.filterIndex(index -> index % 2 == 0);
 
     List<Pair<Integer, LineItem>> evenItems = IndexedTraversals.toIndexedList(evenPositions, items);
-    // Laptop at index 0 and Keyboard at index 2
+    // LAPTOP at index 0 and KEYBOARD at index 2
 
     // Modify only even-positioned items
     List<LineItem> result =
         IndexedTraversals.imodify(
             evenPositions,
             (index, item) ->
-                new LineItem(item.productName() + " [SALE]", item.quantity(), item.price()),
+                new LineItem(item.sku(), item.quantity(), item.price().subtract(BigDecimal.TEN)),
             items);
-    // Laptop and Keyboard get "[SALE]" suffix, Mouse unchanged
+    // LAPTOP and KEYBOARD are £10 off, MOUSE unchanged
     // ANCHOR_END: filter_index
     return new Filtered(evenItems, result);
   }
@@ -176,7 +168,7 @@ public final class IndexedOpticsBook {
 
     List<Pair<Integer, LineItem>> expensive =
         IndexedTraversals.toIndexedList(expensiveItems, items);
-    // Laptop at index 0 and Keyboard at index 2
+    // LAPTOP at index 0 and KEYBOARD at index 2
     // Notice: indices are preserved (0 and 2), not renumbered
     // ANCHOR_END: filtered_with_index
     return expensive;
@@ -200,31 +192,31 @@ public final class IndexedOpticsBook {
   static LensRead fieldTracking() {
     // ANCHOR: indexed_lens
     // Create an indexed lens for the customer email field
-    IndexedLens<String, Customer, String> emailLens =
+    IndexedLens<String, Customer, EmailAddress> emailLens =
         IndexedLens.of(
             "email", // The index: field name
             Customer::email, // Getter
             (customer, newEmail) -> new Customer(customer.name(), newEmail)); // Setter
 
-    Customer customer = new Customer("Alice", "alice@example.com");
+    Customer customer = new Customer("Ada", new EmailAddress("ada@example.com"));
 
     // Get both field name and value
-    Pair<String, String> fieldInfo = emailLens.iget(customer);
+    Pair<String, EmailAddress> fieldInfo = emailLens.iget(customer);
     System.out.println("Field: " + fieldInfo.first());
-    System.out.println("Value: " + fieldInfo.second());
+    System.out.println("Value: " + fieldInfo.second().value());
     // Output:
     // Field: email
-    // Value: alice@example.com
+    // Value: ada@example.com
 
     // Modify with field name awareness
     Customer updated =
         emailLens.imodify(
             (fieldName, oldValue) -> {
-              System.out.println("Updating field '" + fieldName + "' from " + oldValue);
-              return "alice.smith@example.com";
+              System.out.println("Updating field '" + fieldName + "' from " + oldValue.value());
+              return new EmailAddress("ada.lovelace@example.com");
             },
             customer);
-    // Output: Updating field 'email' from alice@example.com
+    // Output: Updating field 'email' from ada@example.com
     // ANCHOR_END: indexed_lens
     return new LensRead(fieldInfo, updated);
   }

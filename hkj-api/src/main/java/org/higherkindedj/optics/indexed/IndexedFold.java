@@ -35,6 +35,10 @@ import org.jspecify.annotations.Nullable;
  *   <li>Debugging: tracking which positions contain certain values
  * </ul>
  *
+ * <p>The queries that look for an answer, {@code findWithIndex}, {@code find}, {@code
+ * existsWithIndex}, {@code exists}, {@code allWithIndex}, {@code all} and {@code isEmpty}, stop the
+ * fold at the focus that settles it, as {@link Fold}'s do, so no later focus is visited.
+ *
  * @param <I> The index type (e.g., Integer for lists, K for Map&lt;K, V&gt;)
  * @param <S> The source structure type
  * @param <A> The focused element type
@@ -55,9 +59,8 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    *
    * <pre>{@code
    * // Weight prices by position (earlier items cost more)
-   * Monoid<Double> sumMonoid = Monoid.of(0.0, Double::sum);
    * double weightedTotal = itemsFold.ifoldMap(
-   *     sumMonoid,
+   *     Monoids.doubleAddition(),
    *     (index, item) -> item.price() * (1.0 - index * 0.1),
    *     order
    * );
@@ -184,16 +187,15 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * );
    * }</pre>
    *
+   * <p>The fold stops at the first match, so the predicate is not called on any focus after it.
+   *
    * @param predicate Predicate that takes both index and value
    * @param source The source structure
    * @return The first matching index-value pair, or empty if none found
    */
   default Optional<Pair<I, A>> findWithIndex(
       BiPredicate<? super I, ? super A> predicate, S source) {
-    return ifoldMap(
-        firstOptionalMonoid(),
-        (i, a) -> predicate.test(i, a) ? Optional.of(new Pair<>(i, a)) : Optional.empty(),
-        source);
+    return withIndices().find(pair -> predicate.test(pair.first(), pair.second()), source);
   }
 
   /**
@@ -218,7 +220,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * @return true if any element matches, false otherwise
    */
   default boolean existsWithIndex(BiPredicate<? super I, ? super A> predicate, S source) {
-    return ifoldMap(anyBooleanMonoid(), (i, a) -> predicate.test(i, a), source);
+    return withIndices().exists(pair -> predicate.test(pair.first(), pair.second()), source);
   }
 
   /**
@@ -229,7 +231,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * @return true if any element matches, false otherwise
    */
   default boolean exists(Predicate<? super A> predicate, S source) {
-    return existsWithIndex((i, a) -> predicate.test(a), source);
+    return asFold().exists(predicate, source);
   }
 
   /**
@@ -240,7 +242,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * @return true if all elements match (or if empty), false otherwise
    */
   default boolean allWithIndex(BiPredicate<? super I, ? super A> predicate, S source) {
-    return ifoldMap(allBooleanMonoid(), (i, a) -> predicate.test(i, a), source);
+    return withIndices().all(pair -> predicate.test(pair.first(), pair.second()), source);
   }
 
   /**
@@ -251,7 +253,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * @return true if all elements match (or if empty), false otherwise
    */
   default boolean all(Predicate<? super A> predicate, S source) {
-    return allWithIndex((i, a) -> predicate.test(a), source);
+    return asFold().all(predicate, source);
   }
 
   /**
@@ -271,7 +273,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    * @return true if no focused parts, false otherwise
    */
   default boolean isEmpty(S source) {
-    return length(source) == 0;
+    return asFold().isEmpty(source);
   }
 
   /**
@@ -369,21 +371,24 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
     };
   }
 
-  // Private helper monoids
-
-  private static <T> Monoid<Optional<T>> firstOptionalMonoid() {
-    return new Monoid<>() {
+  /**
+   * This fold as a plain {@link Fold} over index-value pairs, so a query that needs the index can
+   * use {@link Fold}'s queries, which stop at their answer.
+   *
+   * @return a {@link Fold} whose focus is each index paired with its value
+   */
+  private Fold<S, Pair<I, A>> withIndices() {
+    IndexedFold<I, S, A> self = this;
+    return new Fold<>() {
       @Override
-      public Optional<T> empty() {
-        return Optional.empty();
-      }
-
-      @Override
-      public Optional<T> combine(Optional<T> a, Optional<T> b) {
-        return a.isPresent() ? a : b;
+      public <M> M foldMap(
+          Monoid<M> monoid, Function<? super Pair<I, A>, ? extends M> f, S source) {
+        return self.ifoldMap(monoid, (i, a) -> f.apply(new Pair<>(i, a)), source);
       }
     };
   }
+
+  // Private helper monoids
 
   private static Monoid<Integer> sumIntMonoid() {
     return new Monoid<>() {
@@ -395,34 +400,6 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
       @Override
       public Integer combine(Integer a, Integer b) {
         return a + b;
-      }
-    };
-  }
-
-  private static Monoid<Boolean> anyBooleanMonoid() {
-    return new Monoid<>() {
-      @Override
-      public Boolean empty() {
-        return false;
-      }
-
-      @Override
-      public Boolean combine(Boolean a, Boolean b) {
-        return a || b;
-      }
-    };
-  }
-
-  private static Monoid<Boolean> allBooleanMonoid() {
-    return new Monoid<>() {
-      @Override
-      public Boolean empty() {
-        return true;
-      }
-
-      @Override
-      public Boolean combine(Boolean a, Boolean b) {
-        return a && b;
       }
     };
   }

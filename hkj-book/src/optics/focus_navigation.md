@@ -294,7 +294,7 @@ Three things can keep such a navigator from being generated in full, and the pro
 
 ### Controlling navigator generation {#controlling-navigator-generation}
 
-**Depth limiting**: only `maxNavigatorDepth = 1` changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
+**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path, from a navigator over an `Optional` or a collection into a record, still does. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
 
 <!-- verify -->
 ```java
@@ -321,7 +321,7 @@ record Contacts(Address billing, Address delivery, Address returns) {}
 
 // All but these do
 @GenerateFocus(generateNavigators = true, excludeFields = {"referrer"})
-record Referral(Customer referrer, Customer referred) {}
+record CustomerReferral(Customer referrer, Customer referred) {}
 ```
 
 ### A target with type parameters {#a-target-with-type-parameters}

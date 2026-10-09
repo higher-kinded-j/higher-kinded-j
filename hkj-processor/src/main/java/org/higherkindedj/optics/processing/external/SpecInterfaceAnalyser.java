@@ -1151,7 +1151,7 @@ public class SpecInterfaceAnalyser {
                 + ", so what it rebuilds is not guaranteed to be "
                 + withArticle(ProcessorUtils.simpleTypeName(typeUtils.erasure(fieldType)))
                 + ", and a field it cannot be handed back to would throw ClassCastException on"
-                + " first use",
+                + " its first write",
             "Name a traversal that rebuilds it, for example @ThroughField(field = \""
                 + fieldName
                 + "\", traversal = \"com.example.MyTraversals.for"

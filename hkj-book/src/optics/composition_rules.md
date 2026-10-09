@@ -200,10 +200,10 @@ Affine<Config, String> host =
 <!-- verify -->
 ```java
 // Multiple compositions
-Affine<Order, String> customerEmail =
-    orderCustomerLens                    // Lens<Order, Customer>
-        .andThen(customerContactPrism)   // Prism<Customer, ContactInfo>
-        .andThen(contactEmailLens);      // Lens<ContactInfo, String>
+Affine<Consignment, String> returnReason =
+    consignmentStateLens                 // Lens<Consignment, ConsignmentState>
+        .andThen(returnedPrism)          // Prism<ConsignmentState, Returned>
+        .andThen(reasonLens);            // Lens<Returned, String>
 ```
 
 ### 3. Store Complex Compositions as Constants
@@ -212,13 +212,13 @@ Affine<Order, String> customerEmail =
 ```java
 public final class OrderOptics {
     // Reusable compositions
-    public static final Affine<Order, String> CUSTOMER_EMAIL =
+    public static final Lens<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
-            .andThen(CustomerPrisms.activeCustomer())
-            .andThen(ActiveCustomerLenses.email());
+            .andThen(CustomerLenses.email())
+            .andThen(EmailAddressLenses.value());
 
-    public static final Traversal<Order, Money> LINE_ITEM_PRICES =
-        OrderTraversals.lineItems()
+    public static final Traversal<Order, BigDecimal> LINE_ITEM_PRICES =
+        OrderTraversals.lines()
             .andThen(LineItemLenses.price());
 }
 ```
@@ -237,7 +237,7 @@ The [composition rules](#composition-rules-table) describe **sequential** compos
 <!-- verify -->
 ```java
 // Sequential: navigate deeper into the structure
-Fold<Customer, Item> items = ordersFold.andThen(itemsFold);
+Fold<Order, String> skus = linesFold.andThen(skuFold);
 
 // Parallel: combine results from different paths
 Fold<Person, String> allNames = firstNameFold.plus(lastNameFold);
@@ -257,34 +257,39 @@ Fold<Team, String> allEmails = Fold.sum(
 
 ### Pattern 1: Optional Field Access
 
-Navigate to an optional field that may not exist:
+Navigate to an optional field that may not exist, such as the second email on the cast's `CustomerProfile`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/CustomerProfile.java:customer_profile}}
+```
 
 <!-- verify -->
 ```java
-@GenerateLenses record User(String name, Optional<Address> address) {}
-@GenerateLenses record Address(String street, String city) {}
-
 // Lens to Optional, Prism to extract, Lens to field
-Affine<User, String> userCity =
-    UserLenses.address()           // Lens<User, Optional<Address>>
-        .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
-        .andThen(AddressLenses.city()); // Lens<Address, String>
+Affine<CustomerProfile, String> altEmail =
+    CustomerProfileLenses.altEmail()     // Lens<CustomerProfile, Optional<EmailAddress>>
+        .andThen(Prisms.some())          // Prism<Optional<EmailAddress>, EmailAddress>
+        .andThen(EmailAddressLenses.value()); // Lens<EmailAddress, String>
 ```
 
 ### Pattern 2: Sum Type Field Access
 
-Navigate into a specific case of a sealed interface:
+Navigate into a specific case of a sealed interface, such as the card in the cast's `Payment`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Payment.java:payment}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Card.java:card}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Bank.java:bank}}
+```
 
 <!-- verify -->
 ```java
-@GeneratePrisms sealed interface Payment permits CreditCard, BankTransfer {}
-@GenerateLenses record CreditCard(String number, String expiry) implements Payment {}
-record BankTransfer(String iban, String bic) implements Payment {}
-
 // Prism to case, Lens to field
-Affine<Payment, String> creditCardNumber =
-    PaymentPrisms.creditCard()     // Prism<Payment, CreditCard>
-        .andThen(CreditCardLenses.number()); // Lens<CreditCard, String>
+Affine<Payment, String> cardPan =
+    PaymentPrisms.card()                  // Prism<Payment, Card>
+        .andThen(CardFocus.pan().toLens()); // Lens<Card, String>
 ```
 
 ### Pattern 3: Conditional Collection Access
@@ -294,9 +299,9 @@ Navigate into items that match a condition:
 <!-- verify -->
 ```java
 // Traversal over list, filter by predicate
-Traversal<List<Order>, Order> activeOrders =
+Traversal<List<Order>, Order> newOrders =
     Traversals.<Order>forList()
-        .andThen(Traversals.filtered(Order::isActive));
+        .andThen(Traversals.filtered(order -> order.status() == OrderStatus.NEW));
 ```
 
 ---

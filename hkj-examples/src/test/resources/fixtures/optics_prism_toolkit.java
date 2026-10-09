@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/prism_toolkit.md
 //
 // The page is a tour of the prism toolkit, and each section reaches for whichever sum type suits
-// the method it is showing - a JSON value, a domain event, an order status. All of them are
-// declared here; a section that shows one shadows this copy.
+// the method it is showing: a JSON value, a domain event, a quote's status. All of them are
+// declared here; a section that shows one shadows this copy. The customer and the order lines the
+// events carry are the chapter's cast.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -16,6 +17,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Affine;
@@ -51,10 +55,6 @@ record CsvRow(Map<String, String> columns) implements SourceData {
 
 record XmlNode(String tag) implements SourceData {}
 
-record CustomerRecord(String id, String name, String email) {}
-
-record LineItem(String sku, BigDecimal totalPrice) {}
-
 @GeneratePrisms
 sealed interface DomainEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
 
@@ -64,7 +64,7 @@ record OrderEvent(String orderId) implements DomainEvent {}
 
 record PaymentEvent(String paymentId, BigDecimal amount) implements DomainEvent {}
 
-record OrderCompleted(String orderId, List<LineItem> lineItems) implements DomainEvent {}
+record OrderCompleted(String orderId, List<LineItem> lines) implements DomainEvent {}
 
 @GeneratePrisms
 sealed interface ApiResponse permits SuccessResponse, ValidationError, ServerError {}
@@ -104,23 +104,22 @@ record StringConfig(String value) implements ConfigValue {}
 
 record IntConfig(int value) implements ConfigValue {}
 
+// A quote's progress towards becoming an order, which the cast's OrderStatus then takes up.
 @GeneratePrisms
-sealed interface OrderStatus permits Draft, Submitted, Approved, Rejected {}
+sealed interface QuoteStatus permits Draft, Submitted, Approved, Rejected {}
 
-record Draft(BigDecimal discount) implements OrderStatus {
+record Draft(BigDecimal discount) implements QuoteStatus {
 
   Draft withDiscount(double rate) {
     return new Draft(BigDecimal.valueOf(rate));
   }
 }
 
-record Submitted(Instant at) implements OrderStatus {}
+record Submitted(Instant at) implements QuoteStatus {}
 
-record Approved(Instant at, String reason) implements OrderStatus {}
+record Approved(Instant at, String reason) implements QuoteStatus {}
 
-record Rejected(String reason) implements OrderStatus {}
-
-record Order(BigDecimal totalValue) {}
+record Rejected(String reason) implements QuoteStatus {}
 
 record Data(String value) {}
 

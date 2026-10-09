@@ -3,14 +3,17 @@
 package org.higherkindedj.example.book.optics.indexed;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.order;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import org.higherkindedj.example.book.optics.indexed.IndexedAdvancedBook.Customer;
-import org.higherkindedj.example.book.optics.indexed.IndexedAdvancedBook.LineItem;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.optics.indexed.Pair;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,16 +38,29 @@ class IndexedAdvancedBookTest {
     return buffer.toString(StandardCharsets.UTF_8).lines().toList();
   }
 
+  private static LineItem line(String sku, int quantity, String price) {
+    return new LineItem(sku, quantity, new BigDecimal(price));
+  }
+
   @Test
   @DisplayName("iandThen pairs the order index with the item index, outer first")
   void pairedIndices() {
-    assertThat(printed(IndexedAdvancedBook::pairedIndices))
+    List<Order> orders =
+        List.of(
+            order(List.of(line("LAPTOP", 1, "999.99"), line("MOUSE", 1, "24.99"))),
+            order(
+                List.of(
+                    line("KEYBOARD", 1, "79.99"),
+                    line("MONITOR", 1, "299.99"),
+                    line("CABLE", 2, "9.99"))));
+
+    assertThat(printed(() -> IndexedAdvancedBook.pairedIndices(orders)))
         .containsExactly(
-            "Order 0, Item 0: Laptop",
-            "Order 0, Item 1: Mouse",
-            "Order 1, Item 0: Keyboard",
-            "Order 1, Item 1: Monitor",
-            "Order 1, Item 2: Cable");
+            "Order 0, Item 0: LAPTOP",
+            "Order 0, Item 1: MOUSE",
+            "Order 1, Item 0: KEYBOARD",
+            "Order 1, Item 1: MONITOR",
+            "Order 1, Item 2: CABLE");
   }
 
   @Test
@@ -52,12 +68,10 @@ class IndexedAdvancedBookTest {
   void oneBased() {
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, new BigDecimal("999.99")),
-            new LineItem("Mouse", 1, new BigDecimal("24.99")),
-            new LineItem("Keyboard", 1, new BigDecimal("79.99")));
+            line("LAPTOP", 1, "999.99"), line("MOUSE", 1, "24.99"), line("KEYBOARD", 1, "79.99"));
 
-    assertThat(IndexedAdvancedBook.oneBased(items).stream().map(LineItem::productName))
-        .containsExactly("Item 1: Laptop", "Item 2: Mouse", "Item 3: Keyboard");
+    assertThat(IndexedAdvancedBook.oneBased(items))
+        .containsExactly("Item 1: LAPTOP", "Item 2: MOUSE", "Item 3: KEYBOARD");
   }
 
   @Test
@@ -65,8 +79,8 @@ class IndexedAdvancedBookTest {
   void layeredFilters() {
     assertThat(
             IndexedAdvancedBook.layeredFilters().stream()
-                .map(p -> p.first() + " " + p.second().productName()))
-        .containsExactly("0 Laptop", "2 Keyboard", "4 Monitor");
+                .map(p -> p.first() + " " + p.second().sku()))
+        .containsExactly("0 LAPTOP", "2 KEYBOARD", "4 MONITOR");
   }
 
   @Test
@@ -74,29 +88,34 @@ class IndexedAdvancedBookTest {
   void auditTrail() {
     List<String> lines = printed(IndexedAdvancedBook::auditTrail);
     assertThat(lines).hasSize(1);
-    assertThat(lines.getFirst())
-        .matches("Field 'email' changed from alice@old\\.com to alice@new\\.com at \\S+Z");
+    assertThat(lines.getFirst()).matches("Field 'name' changed from Ada to Ada Lovelace at \\S+Z");
 
     IndexedAdvancedBook.Audited audited = IndexedAdvancedBook.auditTrail();
-    assertThat(audited.updated()).isEqualTo(new Customer("Alice", "alice@new.com"));
+    assertThat(audited.updated())
+        .isEqualTo(new Customer("Ada Lovelace", new EmailAddress("ada@example.com")));
     assertThat(audited.audit())
         .singleElement()
         .satisfies(
             change -> {
-              assertThat(change.fieldName()).isEqualTo("email");
-              assertThat(change.oldValue()).isEqualTo("alice@old.com");
-              assertThat(change.newValue()).isEqualTo("alice@new.com");
+              assertThat(change.fieldName()).isEqualTo("name");
+              assertThat(change.oldValue()).isEqualTo("Ada");
+              assertThat(change.newValue()).isEqualTo("Ada Lovelace");
             });
   }
 
   @Test
-  @DisplayName("the full indexed path prints buyer, order and item for every price it raises")
+  @DisplayName("the full indexed path prints customer, order and item for every price it raises")
   void pathTracking() {
-    assertThat(printed(IndexedAdvancedBook::pathTracking))
+    List<Order> adasOrders =
+        List.of(
+            order(List.of(line("LAPTOP", 1, "999.99"), line("MOUSE", 1, "24.99"))),
+            order(List.of(line("KEYBOARD", 1, "79.99"))));
+
+    assertThat(printed(() -> IndexedAdvancedBook.pathTracking(adasOrders)))
         .containsExactly(
-            "Updating price at [buyer=0, order=0, item=0]: 999.99 -> 1099.99",
-            "Updating price at [buyer=0, order=0, item=1]: 24.99 -> 27.49",
-            "Updating price at [buyer=0, order=1, item=0]: 79.99 -> 87.99");
+            "Updating price at [history=0, order=0, item=0]: 999.99 -> 1099.99",
+            "Updating price at [history=0, order=0, item=1]: 24.99 -> 27.49",
+            "Updating price at [history=0, order=1, item=0]: 79.99 -> 87.99");
   }
 
   @Test

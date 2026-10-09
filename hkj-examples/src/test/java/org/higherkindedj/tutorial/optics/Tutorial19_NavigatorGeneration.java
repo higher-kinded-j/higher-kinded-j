@@ -50,7 +50,8 @@ import org.junit.jupiter.api.Test;
  *   <li><b>SPI-aware widening</b>: The {@code TraversableGenerator} SPI with {@code Cardinality}
  *       determines correct widening for types like Map, Either, Try, and Validated
  *   <li><b>Compound widening</b>: AFFINE + TRAVERSAL = TRAVERSAL; widening only increases
- *   <li><b>Depth limiting</b>: {@code maxNavigatorDepth} controls how deep navigation goes
+ *   <li><b>Ending a chain early</b>: {@code maxNavigatorDepth = 1} makes a navigator's own hops
+ *       return plain paths
  * </ul>
  *
  * <p>Prerequisites: Complete Tutorial 12 (Focus DSL) before this one.
@@ -318,29 +319,31 @@ public class Tutorial19_NavigatorGeneration {
   }
 
   /**
-   * Exercise 7: Navigator depth limiting
+   * Exercise 7: Ending a navigator chain after its first hop
    *
-   * <p>The {@code maxNavigatorDepth} annotation attribute controls how many levels of navigator
-   * classes are generated. Beyond this depth, navigation falls back to explicit {@code .via()}
-   * composition.
+   * <p>The {@code maxNavigatorDepth} annotation attribute is a switch. Set to {@code 1}, it makes a
+   * navigator's own navigation methods return plain paths. Any value from 2, the default 3
+   * included, ends no chain: each hop into a navigable record returns a navigator.
    *
-   * <p>For example, with {@code maxNavigatorDepth = 1}:
+   * <p>For example, with {@code maxNavigatorDepth = 1} on {@code University}:
    *
    * <pre>{@code
-   * CompanyFocus.headquarters()           // → HeadquartersNavigator (depth 1)
-   * CompanyFocus.headquarters().street()   // → FocusPath (plain path, no deeper navigator)
+   * UniversityFocus.campus()                  // → a navigator over the Campus
+   * UniversityFocus.campus().mainBuilding()   // → FocusPath (plain path, no navigator)
+   * UniversityFocus.campus().mainBuilding().via(BuildingFocus.address())  // compose on
    * }</pre>
    *
-   * <p>Beyond the limit, you compose manually using {@code .via()}.
+   * <p>Under the default, {@code mainBuilding()} returns a navigator too. Once a chain has ended,
+   * you compose manually using {@code .via()}.
    *
-   * <p>Task: Compose a three-level path manually (simulating beyond-depth navigation)
+   * <p>Task: Compose a three-level path manually, as you would once a chain has ended
    *
    * <pre>
    *   // Strategy: FocusPath.of(campusLens).via(buildingLens).via(addressLens).via(addressCityLens)
    * </pre>
    */
   @Test
-  @DisplayName("Exercise 7: depth limiting")
+  @DisplayName("Exercise 7: ending a navigator chain after its first hop")
   void exercise7_depthLimiting() {
     record Building(String buildingName, Address address) {}
 
@@ -438,7 +441,7 @@ public class Tutorial19_NavigatorGeneration {
    *   <li>How path widening works: FocusPath → AffinePath → TraversalPath
    *   <li>That the SPI determines correct widening for Map, Either, Try, and Validated
    *   <li>That compound widening only increases (AFFINE + TRAVERSAL = TRAVERSAL)
-   *   <li>How maxNavigatorDepth controls generation depth, with .via() as a fallback
+   *   <li>How maxNavigatorDepth = 1 ends a chain after its first hop, with .via() for the rest
    *   <li>How {@code widenCollections = true} auto-widens SPI ZERO_OR_MORE types
    *   <li>How SPI generator priority resolves conflicts between overlapping generators
    * </ul>

@@ -5,6 +5,8 @@ package org.higherkindedj.example.book.optics.affine;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -19,9 +21,10 @@ import org.higherkindedj.optics.util.Prisms;
  * Rules</a> page shows too. The pages include the anchored regions, and {@code AffineBookTest}
  * holds the values their comments claim.
  *
- * <p>Each region declares its model as local records, so a page shows the model and its use in one
- * block. Their values come back to the test as plain objects, and the test compares what they print
- * with what the page shows.
+ * <p>Each region declares its model as local records, beside the chapter cast's {@code
+ * CustomerProfile} where it needs one, so a page shows the model and its use in one block. Their
+ * values come back to the test as plain objects, and the test compares what they print with what
+ * the page shows.
  */
 public final class AffineBook {
 
@@ -146,41 +149,41 @@ public final class AffineBook {
   /** The three values the deep-access example computes, in the order the page shows them. */
   static List<Object> deepOptional() {
     // ANCHOR: deep_optional
-    record Address(String street, Optional<String> postcode) {}
-    record User(String name, Optional<Address> address) {}
+    // A product review, whose author is absent when it is anonymous
+    record Review(String sku, Optional<CustomerProfile> author) {}
 
     // Build affines for each optional field
-    Lens<User, Optional<Address>> addressLens =
-        Lens.of(User::address, (u, a) -> new User(u.name(), a));
+    Lens<Review, Optional<CustomerProfile>> authorLens =
+        Lens.of(Review::author, (r, a) -> new Review(r.sku(), a));
 
-    Lens<Address, Optional<String>> postcodeLens =
-        Lens.of(Address::postcode, (a, p) -> new Address(a.street(), p));
+    Lens<CustomerProfile, Optional<String>> nicknameLens = CustomerProfileLenses.nickname();
 
-    Prism<Optional<Address>, Address> addressPrism = Prisms.some();
-    Prism<Optional<String>, String> postcodePrism = Prisms.some();
+    Prism<Optional<CustomerProfile>, CustomerProfile> authorPrism = Prisms.some();
+    Prism<Optional<String>, String> nicknamePrism = Prisms.some();
 
     // Compose to access nested optional
-    Affine<User, String> userPostcode =
-        addressLens
-            .andThen(addressPrism) // Lens.andThen(Prism) = Affine
-            .andThen(postcodeLens) // Affine.andThen(Lens) = Affine
-            .andThen(postcodePrism); // Affine.andThen(Prism) = Affine
+    Affine<Review, String> authorNickname =
+        authorLens
+            .andThen(authorPrism) // Lens.andThen(Prism) = Affine
+            .andThen(nicknameLens) // Affine.andThen(Lens) = Affine
+            .andThen(nicknamePrism); // Affine.andThen(Prism) = Affine
 
     // Usage
-    User user1 =
-        new User("Alice", Optional.of(new Address("123 Main St", Optional.of("SW1A 1AA"))));
-    User user2 = new User("Bob", Optional.empty());
+    CustomerProfile ada = new CustomerProfile("Ada", Optional.of("Countess"), Optional.empty());
+    Review signed = new Review("LAMP", Optional.of(ada));
+    Review anonymous = new Review("BULB", Optional.empty());
 
-    Optional<String> postcode1 = userPostcode.getOptional(user1);
-    // Optional.of("SW1A 1AA")
+    Optional<String> nickname1 = authorNickname.getOptional(signed);
+    // Optional.of("Countess")
 
-    Optional<String> postcode2 = userPostcode.getOptional(user2);
+    Optional<String> nickname2 = authorNickname.getOptional(anonymous);
     // Optional.empty()
 
     // Update deeply nested optional
-    User updated = userPostcode.set("EC1A 1BB", user1);
-    // User[name=Alice, address=Optional[Address[street=123 Main St, postcode=Optional[EC1A 1BB]]]]
+    Review updated = authorNickname.set("Lady Lovelace", signed);
+    // Review[sku=LAMP, author=Optional[CustomerProfile[name=Ada,
+    //   nickname=Optional[Lady Lovelace], altEmail=Optional.empty]]]
     // ANCHOR_END: deep_optional
-    return List.of(postcode1, postcode2, updated);
+    return List.of(nickname1, nickname2, updated);
   }
 }

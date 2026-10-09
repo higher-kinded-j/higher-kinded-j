@@ -5,9 +5,18 @@ package org.higherkindedj.example.book.optics.indexed;
 // ANCHOR: imports
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.optics.indexed.IndexedFold;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
@@ -25,10 +34,6 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 // ANCHOR: dashboard
 public class OrderFulfilmentDashboard {
 
-  public record LineItem(String productName, int quantity, BigDecimal price) {}
-
-  public record Order(String orderId, List<LineItem> items, Map<String, String> metadata) {}
-
   private static Map<String, String> metadataInOrder() {
     Map<String, String> metadata = new LinkedHashMap<>();
     metadata.put("priority", "express");
@@ -40,15 +45,20 @@ public class OrderFulfilmentDashboard {
   public static void main(String[] args) {
     Order order =
         new Order(
-            "ORD-12345",
+            UUID.fromString("00000000-0000-0000-0000-000000012345"),
+            new Customer("Ada", new EmailAddress("ada@example.com")),
             List.of(
-                new LineItem("Laptop", 1, new BigDecimal("999.99")),
-                new LineItem("Mouse", 2, new BigDecimal("24.99")),
-                new LineItem("Keyboard", 1, new BigDecimal("79.99")),
-                new LineItem("Monitor", 1, new BigDecimal("299.99"))),
-            // Insertion order matters for the output, so put() in order:
-            // wrapping Map.of would inherit its randomised iteration order.
-            metadataInOrder());
+                new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+                new LineItem("MOUSE", 2, new BigDecimal("24.99")),
+                new LineItem("KEYBOARD", 1, new BigDecimal("79.99")),
+                new LineItem("MONITOR", 1, new BigDecimal("299.99"))),
+            Instant.parse("2026-10-01T09:00:00Z"),
+            Currency.getInstance("GBP"),
+            OrderStatus.NEW);
+
+    // The order's metadata, kept beside it. Insertion order matters for the output, so put() in
+    // order: wrapping Map.of would inherit its randomised iteration order.
+    Map<String, String> metadata = metadataInOrder();
 
     System.out.println("=== ORDER FULFILMENT DASHBOARD ===\n");
 
@@ -64,7 +74,7 @@ public class OrderFulfilmentDashboard {
 
     // --- Task 3: Process Metadata with Key Awareness ---
     System.out.println("\n--- Metadata Processing ---");
-    processMetadata(order);
+    processMetadata(metadata);
 
     // --- Task 4: Identify High-Value Positions ---
     System.out.println("\n--- High-Value Items ---");
@@ -77,15 +87,15 @@ public class OrderFulfilmentDashboard {
     IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
 
     List<Pair<Integer, LineItem>> indexedItems =
-        IndexedTraversals.toIndexedList(itemsIndexed, order.items());
+        IndexedTraversals.toIndexedList(itemsIndexed, order.lines());
 
-    System.out.println("Order: " + order.orderId());
+    System.out.println("Order: " + order.id());
     for (Pair<Integer, LineItem> pair : indexedItems) {
       int position = pair.first() + 1; // 1-based for display
       LineItem item = pair.second();
       System.out.printf(
           "  Item %d: %s (Qty: %d) - £%.2f%n",
-          position, item.productName(), item.quantity(), lineTotal(item));
+          position, item.sku(), item.quantity(), lineTotal(item));
     }
   }
 
@@ -104,23 +114,23 @@ public class OrderFulfilmentDashboard {
                         .setScale(2, RoundingMode.HALF_EVEN);
                 System.out.printf(
                     "  Position %d (%s): £%.2f → £%.2f (15%% off)%n",
-                    index + 1, item.productName(), item.price(), newPrice);
-                return new LineItem(item.productName(), item.quantity(), newPrice);
+                    index + 1, item.sku(), item.price(), newPrice);
+                return new LineItem(item.sku(), item.quantity(), newPrice);
               }
               return item;
             },
-            order.items());
+            order.lines());
 
-    return new Order(order.orderId(), discounted, order.metadata());
+    return OrderLenses.lines().set(discounted, order);
   }
 
-  private static void processMetadata(Order order) {
+  private static void processMetadata(Map<String, String> metadata) {
     IndexedTraversal<String, Map<String, String>, String> metadataIndexed =
         IndexedTraversals.forMap();
 
     IndexedFold<String, Map<String, String>, String> fold = metadataIndexed.asIndexedFold();
 
-    List<Pair<String, String>> entries = fold.toIndexedList(order.metadata());
+    List<Pair<String, String>> entries = fold.toIndexedList(metadata);
 
     for (Pair<String, String> entry : entries) {
       String key = entry.first();
@@ -147,13 +157,13 @@ public class OrderFulfilmentDashboard {
             (index, item) -> item.price().compareTo(new BigDecimal("100")) > 0);
 
     List<Pair<Integer, LineItem>> expensive =
-        IndexedTraversals.toIndexedList(highValue, order.items());
+        IndexedTraversals.toIndexedList(highValue, order.lines());
 
     System.out.println("  Items over £100 (require special handling):");
     for (Pair<Integer, LineItem> pair : expensive) {
       System.out.printf(
           "    Position %d: %s (£%.2f)%n",
-          pair.first() + 1, pair.second().productName(), pair.second().price());
+          pair.first() + 1, pair.second().sku(), pair.second().price());
     }
   }
 
@@ -162,7 +172,7 @@ public class OrderFulfilmentDashboard {
   }
 
   private static BigDecimal calculateTotal(Order order) {
-    return order.items().stream()
+    return order.lines().stream()
         .map(OrderFulfilmentDashboard::lineTotal)
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
