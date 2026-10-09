@@ -24,6 +24,8 @@ import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link Validated} values with error accumulation support.
@@ -552,6 +554,10 @@ public final class ValidationPath<E, A>
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside a Validated context.
    *
+   * <p>A ValidationPath holds no null value, so this form takes a focus that is never null and
+   * throws on a null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath, Object)}, which says what a null focus becomes.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new ValidationPath containing the focused value if Valid
@@ -569,19 +575,22 @@ public final class ValidationPath<E, A>
    * an Invalid is returned with the provided error value. This allows converting partial optics
    * failures to validation errors.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param errorIfAbsent the error to use if the path doesn't match; must not be null
    * @param <B> the focused type
    * @return a new ValidationPath containing the focused value or error
    * @throws NullPointerException if path or errorIfAbsent is null
    */
-  public <B> ValidationPath<E, B> focus(AffinePath<A, B> path, E errorIfAbsent) {
+  public <B extends @Nullable Object> ValidationPath<E, @NonNull B> focus(
+      AffinePath<A, B> path, E errorIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
-                .<ValidationPath<E, B>>map(b -> Path.valid(b, semigroup))
+                .<ValidationPath<E, @NonNull B>>map(b -> Path.valid(b, semigroup))
                 .orElseGet(() -> Path.invalid(errorIfAbsent, semigroup)));
   }
 

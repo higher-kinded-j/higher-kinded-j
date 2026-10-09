@@ -77,7 +77,8 @@ public final class LensExtensions {
    * @param <A> The type of the focused part
    * @return {@code Either.right(value)} if non-null, {@code Either.left(errorValue)} otherwise
    */
-  public static <E, S, A> Either<E, A> getEither(Lens<S, A> lens, E errorValue, S source) {
+  public static <E, S extends @Nullable Object, A extends @Nullable Object>
+      Either<E, @NonNull A> getEither(Lens<S, A> lens, E errorValue, S source) {
     A value = lens.get(source);
     return value != null ? Either.right(value) : Either.left(errorValue);
   }
@@ -96,7 +97,8 @@ public final class LensExtensions {
    * @return {@code Validated.valid(value)} if non-null, {@code Validated.invalid(errorValue)}
    *     otherwise
    */
-  public static <E, S, A> Validated<E, A> getValidated(Lens<S, A> lens, E errorValue, S source) {
+  public static <E, S extends @Nullable Object, A extends @Nullable Object>
+      Validated<E, @NonNull A> getValidated(Lens<S, A> lens, E errorValue, S source) {
     A value = lens.get(source);
     return value != null ? Validated.valid(value) : Validated.invalid(errorValue);
   }
@@ -108,6 +110,9 @@ public final class LensExtensions {
    * Maybe.nothing()}, indicating that the modification failed. The original source is not preserved
    * in the result and must be handled by the caller if needed (e.g., via {@code orElse(source)}).
    *
+   * <p>The function sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param lens The lens to modify through
    * @param f The modification function returning {@code Maybe}
    * @param source The source structure
@@ -116,7 +121,8 @@ public final class LensExtensions {
    * @return {@code Maybe.just(updatedSource)} if successful, {@code Maybe.nothing()} if the
    *     function returned nothing
    */
-  public static <S, A> Maybe<S> modifyMaybe(Lens<S, A> lens, Function<A, Maybe<A>> f, S source) {
+  public static <S, A extends @Nullable Object> Maybe<S> modifyMaybe(
+      Lens<S, A> lens, Function<A, Maybe<@NonNull A>> f, S source) {
     return f.apply(lens.get(source)).map(newValue -> lens.set(newValue, source));
   }
 
@@ -126,6 +132,9 @@ public final class LensExtensions {
    * <p>If the function returns {@code Either.left(error)}, that error is returned. Otherwise, the
    * source is updated with the new value.
    *
+   * <p>The function sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param lens The lens to modify through
    * @param f The modification function returning {@code Either}
    * @param source The source structure
@@ -134,8 +143,8 @@ public final class LensExtensions {
    * @param <A> The type of the focused part
    * @return {@code Either.right(updatedSource)} if successful, {@code Either.left(error)} otherwise
    */
-  public static <E, S, A> Either<E, S> modifyEither(
-      Lens<S, A> lens, Function<A, Either<E, A>> f, S source) {
+  public static <E, S, A extends @Nullable Object> Either<E, S> modifyEither(
+      Lens<S, A> lens, Function<A, Either<E, @NonNull A>> f, S source) {
     return f.apply(lens.get(source))
         .fold(Either::left, newValue -> Either.right(lens.set(newValue, source)));
   }
@@ -146,6 +155,9 @@ public final class LensExtensions {
    * <p>If the function returns {@code Validated.invalid(error)}, that error is returned. Otherwise,
    * the source is updated with the new value.
    *
+   * <p>The function sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param lens The lens to modify through
    * @param f The modification function returning {@code Validated}
    * @param source The source structure
@@ -155,8 +167,8 @@ public final class LensExtensions {
    * @return {@code Validated.valid(updatedSource)} if successful, {@code Validated.invalid(error)}
    *     otherwise
    */
-  public static <E, S, A> Validated<E, S> modifyValidated(
-      Lens<S, A> lens, Function<A, Validated<E, A>> f, S source) {
+  public static <E, S, A extends @Nullable Object> Validated<E, S> modifyValidated(
+      Lens<S, A> lens, Function<A, Validated<E, @NonNull A>> f, S source) {
     return f.apply(lens.get(source))
         .fold(Validated::invalid, newValue -> Validated.valid(lens.set(newValue, source)));
   }
@@ -167,6 +179,9 @@ public final class LensExtensions {
    * <p>If the function throws an exception, it is caught and returned as {@code Try.failure}.
    * Otherwise, the source is updated with the new value.
    *
+   * <p>The function sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param lens The lens to modify through
    * @param f The modification function that may throw
    * @param source The source structure
@@ -175,7 +190,8 @@ public final class LensExtensions {
    * @return {@code Try.success(updatedSource)} if successful, {@code Try.failure(exception)} if an
    *     exception was thrown
    */
-  public static <S, A> Try<S> modifyTry(Lens<S, A> lens, Function<A, Try<A>> f, S source) {
+  public static <S, A extends @Nullable Object> Try<S> modifyTry(
+      Lens<S, A> lens, Function<A, Try<@NonNull A>> f, S source) {
     return f.apply(lens.get(source))
         .foldFailureFirst(Try::failure, newValue -> Try.success(lens.set(newValue, source)));
   }
@@ -184,6 +200,9 @@ public final class LensExtensions {
    * Sets a value if it passes a validation function.
    *
    * <p>This is useful for conditional updates based on business rules.
+   *
+   * <p>The validator sees the new value as it is, a null one included, and must give back a
+   * non-null value to write.
    *
    * @param lens The lens to set through
    * @param validator Validation function that returns error message if invalid
@@ -194,8 +213,8 @@ public final class LensExtensions {
    * @return {@code Either.right(updatedSource)} if valid, {@code Either.left(errorMessage)}
    *     otherwise
    */
-  public static <S, A> Either<String, S> setIfValid(
-      Lens<S, A> lens, Function<A, Either<String, A>> validator, A newValue, S source) {
+  public static <S, A extends @Nullable Object> Either<String, S> setIfValid(
+      Lens<S, A> lens, Function<A, Either<String, @NonNull A>> validator, A newValue, S source) {
     return validator
         .apply(newValue)
         .fold(Either::left, validValue -> Either.right(lens.set(validValue, source)));

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -521,14 +522,16 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
   /**
    * Reduces all focused elements using a monoid.
    *
-   * <p>This is equivalent to {@code foldMap(monoid, Function.identity(), source)}.
+   * <p>A null focus reads as absent and contributes the monoid's {@link Monoid#empty() empty}
+   * value, so the monoid never sees a null. Use {@link #foldMap(Monoid, Function, Object)} to say
+   * what a null focus becomes instead.
    *
    * @param monoid the monoid for combining elements
    * @param source the source structure
-   * @return the combined result of all focused elements
+   * @return the combined result of all non-null focused elements
    */
-  default A fold(Monoid<A> monoid, S source) {
-    return foldMap(monoid, Function.identity(), source);
+  default @NonNull A fold(Monoid<@NonNull A> monoid, S source) {
+    return foldMap(monoid, a -> a != null ? a : monoid.empty(), source);
   }
 
   // ===== Collection Navigation =====
@@ -891,6 +894,9 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * VTaskPath}, providing parallel effectful traversal of focused elements with structured
    * concurrency.
    *
+   * <p>The function is applied to every focus, a null one included, so it decides what a null focus
+   * becomes.
+   *
    * <h2>Example Usage</h2>
    *
    * <pre>{@code
@@ -911,18 +917,29 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @param <B> the result type of the effectful function
    * @return a VTaskPath that produces a list of all results in order
    * @see Par#traverse
-   * @see #toVStreamPath for lazy streaming alternative
+   * @see #toVStreamPath for a lazy streaming alternative, which leaves a null focus out
    */
   default <B> VTaskPath<List<B>> traverseWith(Function<A, VTaskPath<B>> f, S source) {
     return Path.vtaskPath(Par.traverse(getAll(source), a -> f.apply(a).run()));
   }
 
   /**
-   * Extracts all focused values and wraps them in a {@link ListPath}.
+   * The focused values that are not null, in order. The bridges below hand them to an effect path,
+   * whose value type is non-null, so a null focus reads as absent there and is left out.
+   */
+  private List<@NonNull A> nonNullFocuses(S source) {
+    return getAll(source).stream().filter(Objects::nonNull).toList();
+  }
+
+  /**
+   * Extracts all non-null focused values and wraps them in a {@link ListPath}.
    *
    * <p>This bridges from the optics domain to the effect domain, allowing all focused values to be
    * processed using effect-based operations. ListPath uses positional zipWith semantics where
    * elements are combined index-by-index.
+   *
+   * <p>A ListPath holds no null value, so a null focus reads as absent and is left out. {@link
+   * #getAll(Object)} keeps every focus, a null one included, where its position matters.
    *
    * <h2>Example Usage</h2>
    *
@@ -937,17 +954,19 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * }</pre>
    *
    * @param source the source structure
-   * @return a ListPath containing all focused values
+   * @return a ListPath containing all non-null focused values
    */
-  default ListPath<A> toListPath(S source) {
-    return Path.listPath(getAll(source));
+  default ListPath<@NonNull A> toListPath(S source) {
+    return Path.listPath(nonNullFocuses(source));
   }
 
   /**
-   * Extracts all focused values and wraps them in a {@link NonDetPath}.
+   * Extracts all non-null focused values and wraps them in a {@link NonDetPath}.
    *
    * <p>This bridges from the optics domain to the effect domain using non-deterministic semantics.
    * NonDetPath uses Cartesian product for zipWith, producing all combinations of values.
+   *
+   * <p>A NonDetPath holds no null value, so a null focus reads as absent and is left out.
    *
    * <h2>Example Usage</h2>
    *
@@ -962,17 +981,19 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * }</pre>
    *
    * @param source the source structure
-   * @return a NonDetPath containing all focused values
+   * @return a NonDetPath containing all non-null focused values
    */
-  default NonDetPath<A> toNonDetPath(S source) {
-    return Path.list(getAll(source));
+  default NonDetPath<@NonNull A> toNonDetPath(S source) {
+    return Path.list(nonNullFocuses(source));
   }
 
   /**
-   * Extracts all focused values and wraps them in a {@link StreamPath}.
+   * Extracts all non-null focused values and wraps them in a {@link StreamPath}.
    *
    * <p>This bridges from the optics domain to the effect domain using lazy stream semantics. This
    * is useful for large collections where eager evaluation would be inefficient.
+   *
+   * <p>As in {@link #toListPath(Object)}, a null focus reads as absent and is left out.
    *
    * <h2>Example Usage</h2>
    *
@@ -987,18 +1008,20 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * }</pre>
    *
    * @param source the source structure
-   * @return a StreamPath streaming all focused values
+   * @return a StreamPath streaming all non-null focused values
    */
-  default StreamPath<A> toStreamPath(S source) {
-    return Path.streamFromList(getAll(source));
+  default StreamPath<@NonNull A> toStreamPath(S source) {
+    return Path.streamFromList(nonNullFocuses(source));
   }
 
   /**
-   * Extracts all focused values and wraps them in a {@link VStreamPath}.
+   * Extracts all non-null focused values and wraps them in a {@link VStreamPath}.
    *
    * <p>This bridges from the optics domain to the effect domain using lazy, pull-based streaming
    * semantics with virtual thread execution. The focused values are materialised into a list and
    * then wrapped in a VStream.
+   *
+   * <p>As in {@link #toListPath(Object)}, a null focus reads as absent and is left out.
    *
    * <h2>Example Usage</h2>
    *
@@ -1013,10 +1036,10 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * }</pre>
    *
    * @param source the source structure
-   * @return a VStreamPath streaming all focused values
+   * @return a VStreamPath streaming all non-null focused values
    */
-  default VStreamPath<A> toVStreamPath(S source) {
-    return Path.vstreamFromList(getAll(source));
+  default VStreamPath<@NonNull A> toVStreamPath(S source) {
+    return Path.vstreamFromList(nonNullFocuses(source));
   }
 
   /**

@@ -23,6 +23,8 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link Maybe} values.
@@ -462,11 +464,13 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * // Equivalent to: userPath.map(namePath::get)
    * }</pre>
    *
+   * <p>A null focus gives Nothing, as {@link #map(Function)} reads a null result.
+   *
    * @param path the FocusPath to apply
    * @param <B> the focused type
    * @return a new MaybePath containing the focused value
    */
-  public <B> MaybePath<B> focus(FocusPath<A, B> path) {
+  public <B extends @Nullable Object> MaybePath<@NonNull B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return map(path::get);
   }
@@ -488,11 +492,13 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * // Returns Nothing if user has no email
    * }</pre>
    *
+   * <p>A null focus reads as absent, so it gives Nothing too.
+   *
    * @param path the AffinePath to apply
    * @param <B> the focused type
    * @return a new MaybePath containing the focused value if both succeed
    */
-  public <B> MaybePath<B> focus(AffinePath<A, B> path) {
+  public <B extends @Nullable Object> MaybePath<@NonNull B> focus(AffinePath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return via(a -> path.getOptional(a).map(Path::just).orElseGet(Path::nothing));
   }

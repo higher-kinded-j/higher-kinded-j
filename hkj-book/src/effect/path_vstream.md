@@ -350,6 +350,8 @@ VStreamPath<String> elements = VStreamPath.fromEach(data, listEach);
 // Lazy stream: ["alpha", "beta", "gamma"]
 ```
 
+A null element is left out, since the stream's element type is non-null; a `TraversalPath`'s `toVStreamPath` leaves one out the same way.
+
 ---
 
 ## Choosing the Right Path Type

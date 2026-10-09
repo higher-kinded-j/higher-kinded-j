@@ -10,7 +10,9 @@ import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Instruction set for optic operations in the Free monad DSL.
@@ -32,7 +34,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The result type of the operation
  */
 @NullMarked
-public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
+public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKind<A> {
 
   /**
    * Get operation - reads a single value through a Getter or Lens.
@@ -40,7 +42,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Get<S, A>(S source, Getter<S, A> optic) implements OpticOp<S, A> {}
+  record Get<S extends @Nullable Object, A>(S source, Getter<S, A> optic)
+      implements OpticOp<S, A> {}
 
   /**
    * Preview operation - reads an optional value through a Fold (first element).
@@ -48,7 +51,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Preview<S, A>(S source, Fold<S, A> optic) implements OpticOp<S, Optional<A>> {}
+  record Preview<S extends @Nullable Object, A extends @Nullable Object>(S source, Fold<S, A> optic)
+      implements OpticOp<S, Optional<@NonNull A>> {}
 
   /**
    * GetAll operation - reads all values through a Fold or Traversal.
@@ -56,7 +60,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record GetAll<S, A>(S source, Fold<S, A> optic) implements OpticOp<S, List<A>> {}
+  record GetAll<S extends @Nullable Object, A extends @Nullable Object>(S source, Fold<S, A> optic)
+      implements OpticOp<S, List<A>> {}
 
   /**
    * Set operation - writes a value through a Lens.
@@ -64,7 +69,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Set<S, A>(S source, Lens<S, A> optic, A newValue) implements OpticOp<S, S> {}
+  record Set<S, A extends @Nullable Object>(S source, Lens<S, A> optic, A newValue)
+      implements OpticOp<S, S> {}
 
   /**
    * SetAll operation - writes the same value to all focuses of a Traversal.
@@ -72,7 +78,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record SetAll<S, A>(S source, Traversal<S, A> optic, A newValue) implements OpticOp<S, S> {}
+  record SetAll<S, A extends @Nullable Object>(S source, Traversal<S, A> optic, A newValue)
+      implements OpticOp<S, S> {}
 
   /**
    * Modify operation - transforms a value through a Lens.
@@ -80,7 +87,7 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Modify<S, A>(S source, Lens<S, A> optic, Function<A, A> modifier)
+  record Modify<S, A extends @Nullable Object>(S source, Lens<S, A> optic, Function<A, A> modifier)
       implements OpticOp<S, S> {}
 
   /**
@@ -89,8 +96,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record ModifyAll<S, A>(S source, Traversal<S, A> optic, Function<A, A> modifier)
-      implements OpticOp<S, S> {}
+  record ModifyAll<S, A extends @Nullable Object>(
+      S source, Traversal<S, A> optic, Function<A, A> modifier) implements OpticOp<S, S> {}
 
   /**
    * Query operation - checks if any focused element matches a predicate.
@@ -98,8 +105,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Exists<S, A>(S source, Fold<S, A> optic, Predicate<A> predicate)
-      implements OpticOp<S, Boolean> {}
+  record Exists<S extends @Nullable Object, A extends @Nullable Object>(
+      S source, Fold<S, A> optic, Predicate<A> predicate) implements OpticOp<S, Boolean> {}
 
   /**
    * Query operation - checks if all focused elements match a predicate.
@@ -107,8 +114,8 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record All<S, A>(S source, Fold<S, A> optic, Predicate<A> predicate)
-      implements OpticOp<S, Boolean> {}
+  record All<S extends @Nullable Object, A extends @Nullable Object>(
+      S source, Fold<S, A> optic, Predicate<A> predicate) implements OpticOp<S, Boolean> {}
 
   /**
    * Query operation - counts the number of focused elements.
@@ -116,5 +123,6 @@ public sealed interface OpticOp<S, A> extends OpticOpKind<A> {
    * @param <S> The source type
    * @param <A> The value type
    */
-  record Count<S, A>(S source, Fold<S, A> optic) implements OpticOp<S, Integer> {}
+  record Count<S extends @Nullable Object, A extends @Nullable Object>(S source, Fold<S, A> optic)
+      implements OpticOp<S, Integer> {}
 }

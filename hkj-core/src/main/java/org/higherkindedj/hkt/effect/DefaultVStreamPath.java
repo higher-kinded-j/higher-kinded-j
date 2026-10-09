@@ -27,6 +27,8 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Default implementation of {@link VStreamPath}.
@@ -342,7 +344,7 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   }
 
   @Override
-  public <B> VStreamPath<B> focus(AffinePath<A, B> path) {
+  public <B extends @Nullable Object> VStreamPath<@NonNull B> focus(AffinePath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return new DefaultVStreamPath<>(
         stream.map(a -> path.getOptional(a)).filter(Optional::isPresent).map(Optional::get));

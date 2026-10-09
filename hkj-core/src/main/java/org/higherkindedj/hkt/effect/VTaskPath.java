@@ -24,6 +24,8 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link VTask} values.
@@ -229,6 +231,10 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside a VTask context. The lens operation is deferred along with the VTask computation.
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
+   * null focus becomes.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new VTaskPath containing the focused value
@@ -242,6 +248,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * <p>This bridges from the effect domain to the optics domain. If the AffinePath does not match,
    * a runtime exception is thrown when the VTask is executed.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param exceptionIfAbsent supplies the exception if the path does not match; must not be null,
    *     and must not return null; a null result fails the path with a NullPointerException when it
@@ -250,7 +258,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * @return a new VTaskPath containing the focused value
    * @throws NullPointerException if path or exceptionIfAbsent is null
    */
-  <B> VTaskPath<B> focus(
+  <B extends @Nullable Object> VTaskPath<@NonNull B> focus(
       AffinePath<A, B> path, Supplier<? extends RuntimeException> exceptionIfAbsent);
 
   // ===== Conversion Methods =====

@@ -22,10 +22,11 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Each;
-import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
-import org.higherkindedj.optics.util.Traversals;
+import org.higherkindedj.optics.focus.TraversalPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link VStream} values.
@@ -412,6 +413,10 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * Applies a {@link FocusPath} to each element, extracting a focused value. Since FocusPath always
    * succeeds, every element produces a result.
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath)}, which leaves an element with a
+   * null focus out.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new VStreamPath with focused values
@@ -423,12 +428,14 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * Applies an {@link AffinePath} to each element, keeping only elements where the affine matches.
    * Elements where the affine does not match are excluded from the result stream.
    *
+   * <p>A null focus reads as absent, so its element is excluded too.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param <B> the focused type
    * @return a new VStreamPath with focused values (non-matching elements filtered out)
    * @throws NullPointerException if path is null
    */
-  <B> VStreamPath<B> focus(AffinePath<A, B> path);
+  <B extends @Nullable Object> VStreamPath<@NonNull B> focus(AffinePath<A, B> path);
 
   // ===== Conversions =====
 
@@ -588,6 +595,9 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * <p>This factory method bridges from the optics domain to the effect domain by extracting all
    * elements targeted by the Each instance's traversal and wrapping them in a VStreamPath.
    *
+   * <p>A null element reads as absent and is left out, as {@link
+   * org.higherkindedj.optics.focus.TraversalPath#toVStreamPath(Object)} leaves one out.
+   *
    * <h2>Example Usage</h2>
    *
    * <pre>{@code
@@ -603,14 +613,13 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * @param each the Each instance providing the traversal; must not be null
    * @param <S> the type of the source structure
    * @param <A> the element type within the structure
-   * @return a VStreamPath containing all traversed elements
+   * @return a VStreamPath containing all non-null traversed elements
    * @throws NullPointerException if source or each is null
    */
-  static <S, A> VStreamPath<A> fromEach(S source, Each<S, A> each) {
+  static <S, A extends @Nullable Object> VStreamPath<@NonNull A> fromEach(
+      S source, Each<S, A> each) {
     Objects.requireNonNull(source, "source must not be null");
     Objects.requireNonNull(each, "each must not be null");
-    Traversal<S, A> traversal = each.each();
-    List<A> elements = Traversals.getAll(traversal, source);
-    return Path.vstreamFromList(elements);
+    return TraversalPath.of(each.each()).toVStreamPath(source);
   }
 }

@@ -3,12 +3,14 @@
 package org.higherkindedj.hkt.vtask;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.function.Function3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility class providing parallel combinators for {@link VTask} computations.
@@ -240,7 +242,7 @@ public final class Par {
    *
    * @param <A> The type of the tasks' results.
    * @param tasks The list of tasks to execute. Must not be null or contain nulls.
-   * @return A {@code VTask} that produces a list of all results. Never null.
+   * @return A {@code VTask} that produces an unmodifiable list of all results. Never null.
    * @throws NullPointerException if {@code tasks} is null or contains null.
    */
   @SuppressWarnings("preview")
@@ -265,7 +267,7 @@ public final class Par {
         for (var subtask : subtasks) {
           results.add(subtask.get());
         }
-        return results;
+        return Collections.unmodifiableList(results);
       } catch (StructuredTaskScope.FailedException e) {
         throw e.getCause();
       }
@@ -283,11 +285,12 @@ public final class Par {
    * @param <B> The type of results from the tasks.
    * @param items The list of items to process. Must not be null.
    * @param f The function that creates a task for each item. Must not be null.
-   * @return A {@code VTask} that produces a list of all results. Never null.
+   * @return A {@code VTask} that produces an unmodifiable list of all results. Never null.
    * @throws NullPointerException if any argument is null.
    */
   @SuppressWarnings("preview")
-  public static <A, B> VTask<List<B>> traverse(List<A> items, Function<A, VTask<B>> f) {
+  public static <A extends @Nullable Object, B> VTask<List<B>> traverse(
+      List<A> items, Function<A, VTask<B>> f) {
     Objects.requireNonNull(items, "items cannot be null");
     Objects.requireNonNull(f, "f cannot be null");
     List<A> processing = new ArrayList<>(items);
@@ -312,7 +315,7 @@ public final class Par {
         for (var subtask : subtasks) {
           results.add(subtask.get());
         }
-        return results;
+        return Collections.unmodifiableList(results);
       } catch (StructuredTaskScope.FailedException e) {
         throw e.getCause();
       }

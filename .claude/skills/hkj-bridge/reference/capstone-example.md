@@ -58,7 +58,7 @@ sealed interface DirectoryError {
 | `ContactInfoFocus.phone()` | `FocusPath<ContactInfo, String>` | Yes |
 
 Key distinction:
-- `FocusPath` = guaranteed field, always succeeds
+- `FocusPath` = guaranteed field, always succeeds (a `@Nullable` field is generated as an `AffinePath`)
 - `AffinePath` = optional field, may be absent (needs error argument in effect pipeline)
 - `TraversalPath` = zero-or-more targets (list traversal)
 

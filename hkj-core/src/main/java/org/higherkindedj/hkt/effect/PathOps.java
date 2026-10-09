@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -23,6 +24,8 @@ import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Utility operations for working with Path types.
@@ -68,6 +71,8 @@ import org.higherkindedj.optics.util.Traversals;
  *       parallel
  * </ul>
  *
+ * <p>Every list these methods hand back is unmodifiable: copy it into a new list to change it.
+ *
  * @see MaybePath
  * @see EitherPath
  * @see ValidationPath
@@ -104,7 +109,7 @@ public final class PathOps {
       }
       results.add(maybe.get());
     }
-    return new MaybePath<>(Maybe.just(results));
+    return new MaybePath<>(Maybe.just(Collections.unmodifiableList(results)));
   }
 
   /**
@@ -120,7 +125,7 @@ public final class PathOps {
    * @return a MaybePath containing a list, or Nothing if any application fails
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> MaybePath<List<B>> traverseMaybe(
+  public static <A extends @Nullable Object, B> MaybePath<List<B>> traverseMaybe(
       List<A> items, Function<A, MaybePath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -134,7 +139,7 @@ public final class PathOps {
       }
       results.add(maybe.get());
     }
-    return new MaybePath<>(Maybe.just(results));
+    return new MaybePath<>(Maybe.just(Collections.unmodifiableList(results)));
   }
 
   // ===== EitherPath Operations =====
@@ -162,7 +167,7 @@ public final class PathOps {
       }
       results.add(either.getRight());
     }
-    return new EitherPath<>(Either.right(results));
+    return new EitherPath<>(Either.right(Collections.unmodifiableList(results)));
   }
 
   /**
@@ -176,7 +181,7 @@ public final class PathOps {
    * @return an EitherPath containing a list, or the first error
    * @throws NullPointerException if items or f is null
    */
-  public static <E, A, B> EitherPath<E, List<B>> traverseEither(
+  public static <E, A extends @Nullable Object, B> EitherPath<E, List<B>> traverseEither(
       List<A> items, Function<A, EitherPath<E, B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -190,7 +195,7 @@ public final class PathOps {
       }
       results.add(either.getRight());
     }
-    return new EitherPath<>(Either.right(results));
+    return new EitherPath<>(Either.right(Collections.unmodifiableList(results)));
   }
 
   // ===== ValidationPath Operations =====
@@ -231,7 +236,7 @@ public final class PathOps {
     if (!errors.isEmpty()) {
       return new ValidationPath<>(Validated.invalid(combinePairwise(errors, semigroup)), semigroup);
     }
-    return new ValidationPath<>(Validated.valid(results), semigroup);
+    return new ValidationPath<>(Validated.valid(Collections.unmodifiableList(results)), semigroup);
   }
 
   /**
@@ -247,7 +252,7 @@ public final class PathOps {
    * @return a ValidationPath containing a list, or all accumulated errors
    * @throws NullPointerException if any argument is null
    */
-  public static <E, A, B> ValidationPath<E, List<B>> traverseValidated(
+  public static <E, A extends @Nullable Object, B> ValidationPath<E, List<B>> traverseValidated(
       List<A> items, Function<A, ValidationPath<E, B>> f, Semigroup<E> semigroup) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -269,7 +274,7 @@ public final class PathOps {
     if (!errors.isEmpty()) {
       return new ValidationPath<>(Validated.invalid(combinePairwise(errors, semigroup)), semigroup);
     }
-    return new ValidationPath<>(Validated.valid(results), semigroup);
+    return new ValidationPath<>(Validated.valid(Collections.unmodifiableList(results)), semigroup);
   }
 
   /**
@@ -323,7 +328,7 @@ public final class PathOps {
         return maybeFailure;
       }
     }
-    return new TryPath<>(Try.success(results));
+    return new TryPath<>(Try.success(Collections.unmodifiableList(results)));
   }
 
   /**
@@ -336,7 +341,8 @@ public final class PathOps {
    * @return a TryPath containing a list, or the first failure
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> TryPath<List<B>> traverseTry(List<A> items, Function<A, TryPath<B>> f) {
+  public static <A extends @Nullable Object, B> TryPath<List<B>> traverseTry(
+      List<A> items, Function<A, TryPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
 
@@ -355,7 +361,7 @@ public final class PathOps {
         return maybeFailure;
       }
     }
-    return new TryPath<>(Try.success(results));
+    return new TryPath<>(Try.success(Collections.unmodifiableList(results)));
   }
 
   /**
@@ -445,7 +451,7 @@ public final class PathOps {
               for (VTaskPath<A> path : sequenced) {
                 results.add(path.unsafeRun());
               }
-              return results;
+              return Collections.unmodifiableList(results);
             }));
   }
 
@@ -464,7 +470,7 @@ public final class PathOps {
    * @return a VTaskPath containing a list, or the first failure
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> VTaskPath<List<B>> traverseVTask(
+  public static <A extends @Nullable Object, B> VTaskPath<List<B>> traverseVTask(
       List<A> items, Function<A, VTaskPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -482,7 +488,7 @@ public final class PathOps {
                 VTaskPath<B> path = f.apply(item);
                 results.add(path.unsafeRun());
               }
-              return results;
+              return Collections.unmodifiableList(results);
             }));
   }
 
@@ -525,7 +531,7 @@ public final class PathOps {
    * @return a VTaskPath containing a list, or the first failure
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> VTaskPath<List<B>> traverseVTaskPar(
+  public static <A extends @Nullable Object, B> VTaskPath<List<B>> traverseVTaskPar(
       List<A> items, Function<A, VTaskPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -692,7 +698,7 @@ public final class PathOps {
       }
       results.add(optional.get());
     }
-    return new OptionalPath<>(Optional.of(results));
+    return new OptionalPath<>(Optional.of(Collections.unmodifiableList(results)));
   }
 
   /**
@@ -705,7 +711,7 @@ public final class PathOps {
    * @return an OptionalPath containing a list, or empty if any application returns empty
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> OptionalPath<List<B>> traverseOptional(
+  public static <A extends @Nullable Object, B> OptionalPath<List<B>> traverseOptional(
       List<A> items, Function<A, OptionalPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -719,7 +725,7 @@ public final class PathOps {
       }
       results.add(optional.get());
     }
-    return new OptionalPath<>(Optional.of(results));
+    return new OptionalPath<>(Optional.of(Collections.unmodifiableList(results)));
   }
 
   // ===== NonDetPath Operations =====
@@ -762,7 +768,7 @@ public final class PathOps {
                       a -> {
                         List<A> newAcc = new ArrayList<>(acc);
                         newAcc.add(a);
-                        return newAcc;
+                        return Collections.unmodifiableList(newAcc);
                       }));
     }
 
@@ -781,7 +787,7 @@ public final class PathOps {
    * @return a NonDetPath containing all combinations
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> NonDetPath<List<B>> traverseNonDet(
+  public static <A extends @Nullable Object, B> NonDetPath<List<B>> traverseNonDet(
       List<A> items, Function<A, NonDetPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -801,7 +807,7 @@ public final class PathOps {
                       b -> {
                         List<B> newAcc = new ArrayList<>(acc);
                         newAcc.add(b);
-                        return newAcc;
+                        return Collections.unmodifiableList(newAcc);
                       }));
     }
 
@@ -889,7 +895,7 @@ public final class PathOps {
    * @return a ListPath of lists containing corresponding transformed elements
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> ListPath<List<B>> traverseListPath(
+  public static <A extends @Nullable Object, B> ListPath<List<B>> traverseListPath(
       List<A> items, Function<A, ListPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -977,7 +983,7 @@ public final class PathOps {
    * @return a CompletableFuturePath containing a list of all results
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> CompletableFuturePath<List<B>> traverseFuture(
+  public static <A extends @Nullable Object, B> CompletableFuturePath<List<B>> traverseFuture(
       List<A> items, Function<A, CompletableFuturePath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -1364,6 +1370,9 @@ public final class PathOps {
    * );
    * }</pre>
    *
+   * <p>The function sees each element as it is, a null one included, and must give back a non-null
+   * result.
+   *
    * @param structure the structure to traverse; must not be null
    * @param each the Each instance for extracting elements; must not be null
    * @param f the function to apply to each element; must not be null
@@ -1372,8 +1381,8 @@ public final class PathOps {
    * @return a MaybePath containing a list of results, or Nothing if any element fails
    * @throws NullPointerException if any argument is null
    */
-  public static <S, A> MaybePath<List<A>> traverseEachMaybe(
-      S structure, Each<S, A> each, Function<A, MaybePath<A>> f) {
+  public static <S, A extends @Nullable Object> MaybePath<List<@NonNull A>> traverseEachMaybe(
+      S structure, Each<S, A> each, Function<A, MaybePath<@NonNull A>> f) {
     Objects.requireNonNull(structure, "structure must not be null");
     Objects.requireNonNull(each, "each must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -1403,6 +1412,9 @@ public final class PathOps {
    * );
    * }</pre>
    *
+   * <p>The function sees each element as it is, a null one included, and must give back a non-null
+   * result.
+   *
    * @param structure the structure to traverse; must not be null
    * @param each the Each instance for extracting elements; must not be null
    * @param f the function to apply to each element; must not be null
@@ -1412,8 +1424,9 @@ public final class PathOps {
    * @return an EitherPath containing a list of results, or the first error
    * @throws NullPointerException if any argument is null
    */
-  public static <E, S, A> EitherPath<E, List<A>> traverseEachEither(
-      S structure, Each<S, A> each, Function<A, EitherPath<E, A>> f) {
+  public static <E, S, A extends @Nullable Object>
+      EitherPath<E, List<@NonNull A>> traverseEachEither(
+          S structure, Each<S, A> each, Function<A, EitherPath<E, @NonNull A>> f) {
     Objects.requireNonNull(structure, "structure must not be null");
     Objects.requireNonNull(each, "each must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -1447,6 +1460,9 @@ public final class PathOps {
    * // Result contains all validation errors if any, or all valid orders
    * }</pre>
    *
+   * <p>The function sees each element as it is, a null one included, and must give back a non-null
+   * result.
+   *
    * @param structure the structure to traverse; must not be null
    * @param each the Each instance for extracting elements; must not be null
    * @param f the function to apply to each element; must not be null
@@ -1457,8 +1473,12 @@ public final class PathOps {
    * @return a ValidationPath containing a list of results, or all accumulated errors
    * @throws NullPointerException if any argument is null
    */
-  public static <E, S, A> ValidationPath<E, List<A>> traverseEachValidated(
-      S structure, Each<S, A> each, Function<A, ValidationPath<E, A>> f, Semigroup<E> semigroup) {
+  public static <E, S, A extends @Nullable Object>
+      ValidationPath<E, List<@NonNull A>> traverseEachValidated(
+          S structure,
+          Each<S, A> each,
+          Function<A, ValidationPath<E, @NonNull A>> f,
+          Semigroup<E> semigroup) {
     Objects.requireNonNull(structure, "structure must not be null");
     Objects.requireNonNull(each, "each must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -1488,6 +1508,9 @@ public final class PathOps {
    * );
    * }</pre>
    *
+   * <p>The function sees each element as it is, a null one included, and must give back a non-null
+   * result.
+   *
    * @param structure the structure to traverse; must not be null
    * @param each the Each instance for extracting elements; must not be null
    * @param f the function to apply to each element; must not be null
@@ -1496,8 +1519,8 @@ public final class PathOps {
    * @return a TryPath containing a list of results, or the first failure
    * @throws NullPointerException if any argument is null
    */
-  public static <S, A> TryPath<List<A>> traverseEachTry(
-      S structure, Each<S, A> each, Function<A, TryPath<A>> f) {
+  public static <S, A extends @Nullable Object> TryPath<List<@NonNull A>> traverseEachTry(
+      S structure, Each<S, A> each, Function<A, TryPath<@NonNull A>> f) {
     Objects.requireNonNull(structure, "structure must not be null");
     Objects.requireNonNull(each, "each must not be null");
     Objects.requireNonNull(f, "f must not be null");
@@ -1540,7 +1563,7 @@ public final class PathOps {
    * @return a VStreamPath containing all elements from all mapped streams
    * @throws NullPointerException if items or f is null
    */
-  public static <A, B> VStreamPath<B> traverseVStream(
+  public static <A extends @Nullable Object, B> VStreamPath<B> traverseVStream(
       List<A> items, Function<A, VStreamPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");

@@ -39,7 +39,7 @@ You are helping a developer combine HKJ's Effect Path API with the Focus DSL / O
 
 Use `toXxxPath()` methods on Focus paths to start an effect pipeline from data navigation.
 
-### FocusPath (always has a value -> always successful)
+### FocusPath (always one focus -> toEitherPath, toTryPath and toIdPath succeed; toMaybePath gives Nothing for a null focus)
 
 ```java
 FocusPath<User, String> namePath = UserFocus.name();
@@ -49,6 +49,11 @@ EitherPath<E, String> name = namePath.toEitherPath(user);     // Right("Alice")
 TryPath<String> name       = namePath.toTryPath(user);        // Success("Alice")
 IdPath<String> name        = namePath.toIdPath(user);         // Id("Alice")
 ```
+
+A `FocusPath` built with `FocusPath.of` over a lens to a `@Nullable` field has a focus that may be
+null. An Effect Path's value type is non-null, so use a form that says what a null becomes:
+`toEitherPath(user, error)` (or its `Supplier` form), `toTryPath(user, exceptionSupplier)`, or
+`toMaybePath`. A generated Focus class already widens such a field to an `AffinePath`.
 
 ### AffinePath (may not have a value -> may fail)
 
@@ -72,7 +77,7 @@ emailPath.toTryPath(user, () -> new MissingEmailException()); // Success or Fail
 ```java
 TraversalPath<Company, User> employees = CompanyFocus.employees();
 
-ListPath<User> all    = employees.toListPath(company);    // All values as list
+ListPath<User> all    = employees.toListPath(company);    // Non-null values as list
 StreamPath<User> lazy = employees.toStreamPath(company);  // Lazy stream
 MaybePath<User> first = employees.toMaybePath(company);   // First value or Nothing
 ```
@@ -83,16 +88,19 @@ MaybePath<User> first = employees.toMaybePath(company);   // First value or Noth
 |-------------|--------|--------|
 | `FocusPath<S, A>` | `.toMaybePath(S)` | `Just(a)`, or `Nothing` for a null focus |
 | `FocusPath<S, A>` | `.toEitherPath(S)` | Always `Right(a)` |
+| `FocusPath<S, A>` | `.toEitherPath(S, E)` | `Right(a)`, or `Left(e)` for a null focus |
+| `FocusPath<S, A>` | `.toEitherPath(S, Supplier)` | As above, error built only for a null focus |
 | `FocusPath<S, A>` | `.toTryPath(S)` | Always `Success(a)` |
+| `FocusPath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)`, or `Failure` for a null focus |
 | `FocusPath<S, A>` | `.toIdPath(S)` | Always `Id(a)` |
 | `AffinePath<S, A>` | `.toMaybePath(S)` | `Just(a)` or `Nothing` |
 | `AffinePath<S, A>` | `.toEitherPath(S, E)` | `Right(a)` or `Left(e)` |
 | `AffinePath<S, A>` | `.toEitherPath(S, Supplier)` | `Right(a)` or `Left(e)`, error built only when absent |
 | `AffinePath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)` or `Failure` |
 | `AffinePath<S, A>` | `.toOptionalPath(S)` | `Optional.of(a)` or empty |
-| `TraversalPath<S, A>` | `.toListPath(S)` | All values as list |
-| `TraversalPath<S, A>` | `.toStreamPath(S)` | Lazy stream |
-| `TraversalPath<S, A>` | `.toMaybePath(S)` | First value or `Nothing` |
+| `TraversalPath<S, A>` | `.toListPath(S)` | Non-null values as list |
+| `TraversalPath<S, A>` | `.toStreamPath(S)` | Lazy stream of non-null values |
+| `TraversalPath<S, A>` | `.toMaybePath(S)` | First value, or `Nothing` if none or null |
 
 ---
 
@@ -138,6 +146,10 @@ TryPath<String> email =
 | `TryPath<S>` | `.focus(fp)` -> `TryPath<A>` | `.focus(ap, exSupplier)` -> `TryPath<A>` |
 | `IOPath<S>` | `.focus(fp)` -> `IOPath<A>` | `.focus(ap, exSupplier)` -> `IOPath<A>` |
 | `ValidationPath<E, S>` | `.focus(fp)` -> `ValidationPath<E, A>` | `.focus(ap, error)` -> `ValidationPath<E, A>` |
+
+A null focus reads as absent in the AffinePath column, and in the FocusPath column for `MaybePath`.
+The other FocusPath rows take only a non-null focus, so give a focus that may be null to the
+AffinePath column as `fp.nullable()`, with that row's error or exception supplier.
 
 ---
 

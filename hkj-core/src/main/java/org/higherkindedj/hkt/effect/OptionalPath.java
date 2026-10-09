@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link java.util.Optional} values.
@@ -410,12 +412,14 @@ public final class OptionalPath<A> implements Chainable<A> {
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside an Optional context.
    *
+   * <p>A null focus gives an empty OptionalPath, as {@link #map(Function)} reads a null result.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new OptionalPath containing the focused value if present
    * @throws NullPointerException if path is null
    */
-  public <B> OptionalPath<B> focus(FocusPath<A, B> path) {
+  public <B extends @Nullable Object> OptionalPath<@NonNull B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return map(path::get);
   }
@@ -427,12 +431,14 @@ public final class OptionalPath<A> implements Chainable<A> {
    * optional layers: if either the OptionalPath is empty or the AffinePath doesn't match, the
    * result is empty.
    *
+   * <p>A null focus reads as absent, so it gives an empty OptionalPath too.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param <B> the focused type
    * @return a new OptionalPath containing the focused value if both succeed
    * @throws NullPointerException if path is null
    */
-  public <B> OptionalPath<B> focus(AffinePath<A, B> path) {
+  public <B extends @Nullable Object> OptionalPath<@NonNull B> focus(AffinePath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return via(a -> Path.optional(path.getOptional(a)));
   }

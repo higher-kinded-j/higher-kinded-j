@@ -74,7 +74,7 @@ on Focus paths.
 
 ### FocusPath Bridge Methods
 
-`FocusPath` always has a value, so these methods always produce successful effects:
+`FocusPath` always has one focus, so these methods produce a success, except that `toMaybePath` gives `Nothing` for a null focus:
 
 <!-- verify -->
 ```java
@@ -121,7 +121,7 @@ emailPath.toTryPath(withoutEmail, () -> new MissingEmailException()); // → Fai
 TraversalPath<Company, User> employeesPath = CompanyFocus.employees();
 Company company = new Company("TechCorp", List.of(alice, bob, charlie));
 
-// ListPath: all values as a list
+// ListPath: the non-null values as a list
 ListPath<User> allEmployees = employeesPath.toListPath(company);
 
 // StreamPath: lazy stream
@@ -137,15 +137,21 @@ MaybePath<User> firstEmployee = employeesPath.toMaybePath(company);
 |-----------|--------|--------|
 | `FocusPath<S, A>` | `toMaybePath(S)` | `Just(a)`, or `Nothing` for a null focus |
 | `FocusPath<S, A>` | `toEitherPath(S)` | Always `Right(a)` |
+| `FocusPath<S, A>` | `toEitherPath(S, E)` | `Right(a)`, or `Left(e)` for a null focus |
+| `FocusPath<S, A>` | `toEitherPath(S, Supplier)` | `Right(a)`, or `Left(e)` built only for a null focus |
 | `FocusPath<S, A>` | `toTryPath(S)` | Always `Success(a)` |
+| `FocusPath<S, A>` | `toTryPath(S, Supplier)` | `Success(a)`, or `Failure` for a null focus |
 | `FocusPath<S, A>` | `toIdPath(S)` | Always `Id(a)` |
 | `AffinePath<S, A>` | `toMaybePath(S)` | `Just(a)` or `Nothing` |
 | `AffinePath<S, A>` | `toEitherPath(S, E)` | `Right(a)` or `Left(e)` |
+| `AffinePath<S, A>` | `toEitherPath(S, Supplier)` | `Right(a)`, or `Left(e)` built only when absent |
 | `AffinePath<S, A>` | `toTryPath(S, Supplier)` | `Success(a)` or `Failure` |
 | `AffinePath<S, A>` | `toOptionalPath(S)` | `Optional.of(a)` or `Optional.empty()` |
-| `TraversalPath<S, A>` | `toListPath(S)` | All values as list |
-| `TraversalPath<S, A>` | `toStreamPath(S)` | Lazy stream of values |
-| `TraversalPath<S, A>` | `toMaybePath(S)` | First value or `Nothing` |
+| `TraversalPath<S, A>` | `toListPath(S)` | The non-null values as a list |
+| `TraversalPath<S, A>` | `toStreamPath(S)` | Lazy stream of the non-null values |
+| `TraversalPath<S, A>` | `toMaybePath(S)` | First value, or `Nothing` if there is none or it is null |
+
+An Effect Path's value type is non-null, so a bridge from a focus that may be null says what the null becomes, as [A focus that may be null](../optics/focus_effects.md#a-focus-that-may-be-null) shows.
 
 ---
 
@@ -200,6 +206,8 @@ MaybePath<String> emailMaybe = userMaybePath.focus(emailPath);
 | `IOPath<A>` | `IOPath<B>` | `IOPath<B>` (throws on run) |
 | `ValidationPath<E, A>` | `ValidationPath<E, B>` (Valid) | `ValidationPath<E, B>` (Invalid with error) |
 | `IdPath<A>` | `IdPath<B>` | `MaybePath<B>` (path type changes) |
+
+A focus that may be null needs care in the FocusPath column, as [Direction 2: `EffectPath.focus()`](../optics/focus_effects.md#direction-2-effectpathfocus) shows.
 
 ---
 

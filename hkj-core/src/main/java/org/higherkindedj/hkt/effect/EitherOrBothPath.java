@@ -20,6 +20,8 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link EitherOrBoth} values: a success track that can also carry
@@ -466,6 +468,10 @@ public final class EitherOrBothPath<L, A>
   /**
    * Applies a {@link FocusPath} to navigate within the success value, preserving the case.
    *
+   * <p>An EitherOrBothPath holds no null value, so this form takes a focus that is never null and
+   * throws on a null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath, Object)}, which says what a null focus becomes.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new path containing the focused value
@@ -481,19 +487,22 @@ public final class EitherOrBothPath<L, A>
    * a {@code Left} with {@code errorIfAbsent} is produced; warnings carried by a {@code Both} are
    * preserved through the navigation.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param errorIfAbsent the warning value to use if the path does not match; must not be null
    * @param <B> the focused type
    * @return a new path containing the focused value or the error
    * @throws NullPointerException if path or errorIfAbsent is null
    */
-  public <B> EitherOrBothPath<L, B> focus(AffinePath<A, B> path, L errorIfAbsent) {
+  public <B extends @Nullable Object> EitherOrBothPath<L, @NonNull B> focus(
+      AffinePath<A, B> path, L errorIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
-                .<EitherOrBothPath<L, B>>map(b -> Path.right(b, semigroup))
+                .<EitherOrBothPath<L, @NonNull B>>map(b -> Path.right(b, semigroup))
                 .orElseGet(() -> Path.left(errorIfAbsent, semigroup)));
   }
 

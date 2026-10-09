@@ -395,7 +395,7 @@ public final class FocusPaths {
    * record LegacyUser(String name, @Nullable String nickname) {}
    *
    * // Create a path to the nullable nickname field
-   * FocusPath<LegacyUser, @Nullable String> nicknamePath = LegacyUserFocus.nickname();
+   * FocusPath<LegacyUser, @Nullable String> nicknamePath = FocusPath.of(LegacyUserLenses.nickname());
    *
    * // Chain with nullable() to get an AffinePath that handles null safely
    * AffinePath<LegacyUser, String> safeNickname = nicknamePath.nullable();

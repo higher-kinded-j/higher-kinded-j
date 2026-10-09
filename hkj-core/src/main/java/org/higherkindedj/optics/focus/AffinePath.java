@@ -502,13 +502,13 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * Optional<String> result = safeApiKey.getOptional(config);
    * }</pre>
    *
-   * @param <E> the non-null element type
+   * <p>The result's focus is the same type without the null, so it needs no type argument.
+   *
    * @return an AffinePath that treats null as absent
    * @see FocusPaths#nullable()
    */
-  @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> nullable() {
-    return via((Affine<A, E>) FocusPaths.nullable());
+  default AffinePath<S, @NonNull A> nullable() {
+    return via(FocusPaths.<@NonNull A>nullable());
   }
 
   /**
@@ -720,7 +720,8 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * <p>This method bridges from the optics domain to the concurrent effect domain. If this affine
    * path matches, the focused element is passed to the provided function and the resulting {@link
    * VTaskPath} is returned (wrapped in an Optional). If this path does not match, a VTaskPath
-   * producing {@link Optional#empty()} is returned immediately without executing any task.
+   * producing {@link Optional#empty()} is returned immediately without executing any task. A null
+   * focus reads as absent, so the function never sees one.
    *
    * <h2>Example Usage</h2>
    *
@@ -744,7 +745,7 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * @see TraversalPath#traverseWith for parallel traversal over multiple elements
    * @see FocusPath#traverseWith for guaranteed single-element traversal
    */
-  default <B> VTaskPath<Optional<B>> traverseWith(Function<A, VTaskPath<B>> f, S source) {
+  default <B> VTaskPath<Optional<B>> traverseWith(Function<@NonNull A, VTaskPath<B>> f, S source) {
     return getOptional(source)
         .<VTaskPath<Optional<B>>>map(a -> f.apply(a).map(Optional::of))
         .orElseGet(() -> Path.vtaskPure(Optional.empty()));
@@ -816,10 +817,10 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * #toEitherPath(Object, Object)} when building the error is not free - it formats a message,
    * reads a resource bundle, or captures a stack trace.
    *
-   * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
-   * overload; every other argument selects {@link #toEitherPath(Object, Object)}, an error whose
-   * own type is a functional interface included. Neither overload takes a null error: a bare {@code
-   * null} selects this one and is rejected as a null supplier.
+   * <p>A lambda, a method reference, or an argument whose type is or implements {@link Supplier}
+   * selects this overload; every other argument selects {@link #toEitherPath(Object, Object)}, an
+   * error whose own type is another functional interface included. Neither overload takes a null
+   * error: a bare {@code null} selects this one and is rejected as a null supplier.
    *
    * <h2>Example Usage</h2>
    *
@@ -867,7 +868,7 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * // Extract with exception on absence
    * TryPath<URI> result = urlPath.toTryPath(config,
    *         () -> new IllegalStateException("URL is required"))
-   *     .via(url -> Path.tryOf(() -> new URI(url)));
+   *     .via(url -> Path.tryOf(() -> URI.create(url)));
    * }</pre>
    *
    * @param source the source structure
