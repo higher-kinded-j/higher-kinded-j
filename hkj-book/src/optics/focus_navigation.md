@@ -152,11 +152,11 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart LR
     accTitle: Which fields get a navigator
-    accDescr: A non-generic record annotated with GenerateFocus, whose Focus class was generated, gets a navigator, and so does an SPI container whose element is such a record. Optional, List, Set and Collection fields are widened to a path chained with via. A generic record, or anything else, keeps a plain path chained with via.
+    accDescr: A non-generic record annotated with GenerateFocus, whose Focus class was generated, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record, or anything else, keeps a plain path chained with via.
     F{"The field's<br/>type is..."}
     F --- R1["a non-generic record<br/>with @GenerateFocus and<br/>its Focus class generated"]
     F --- R2["an SPI container<br/>whose element is<br/>such a record"]
-    F --- R3["Optional, List,<br/>Set, Collection"]
+    F --- R3["Optional, Maybe, List,<br/>Set, Collection"]
     F --- R4["a generic record<br/>with @GenerateFocus"]
     F --- R5["anything else"]
     R1 --> N["Navigator<br/>chain with<br/>a method call"]
@@ -173,7 +173,7 @@ flowchart LR
     class N,W,P tier
 ```
 
-The middle branch is the one that surprises people. `Optional`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own never gets one, as [A target with type parameters](#a-target-with-type-parameters) explains.
+The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own never gets one, as [A target with type parameters](#a-target-with-type-parameters) explains.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_or_via}}
@@ -248,7 +248,7 @@ Container types registered through the `TraversableGenerator` service-provider i
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:spi_either}}
 ```
 
-The following `Affine` instances cover the built-in SPI types:
+The following `Affine` instances cover HKJ's containers that hold zero or one value:
 
 | Container type | Affine instance | Focuses on |
 |----------------|-----------------|------------|
@@ -344,7 +344,7 @@ Each SPI generator declares a `Cardinality`, the number of values its container 
 
 | Cardinality | Path | Types |
 |-------------|------|-------|
-| `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>`, `Optional<A>`, `Maybe<A>` |
+| `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>` |
 | `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections` or when the element is itself navigable | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
 
 ``` java
@@ -384,7 +384,7 @@ A field whose type nests containers gets a composed chain, up to three levels de
 | `Either<E, Map<K, V>>` | `.some(Affines.eitherRight())` | `AffinePath` to the `Map` |
 | `Either<E, Map<K, V>>` with `widenCollections = true` | `.some(Affines.eitherRight()).each(EachInstances.mapValuesEach())` | `TraversalPath` |
 
-The last two rows are the rule in miniature. `Optional`, `List`, `Set` and `Collection` nest unconditionally, but an inner container that arrives through the SPI is stepped into only when it is `ZERO_OR_ONE`, or `ZERO_OR_MORE` with `widenCollections` on. Otherwise the path stops at the container.
+The last two rows are the rule in miniature. `Optional`, `Maybe`, `List`, `Set` and `Collection` nest unconditionally, but an inner container that arrives through the SPI is stepped into only when it is `ZERO_OR_ONE`, or `ZERO_OR_MORE` with `widenCollections` on. Otherwise the path stops at the container.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:nested}}

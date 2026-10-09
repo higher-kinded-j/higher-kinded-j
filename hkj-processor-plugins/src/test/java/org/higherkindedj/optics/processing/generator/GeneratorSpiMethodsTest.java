@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.generator;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.stream.Stream;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
@@ -37,13 +38,38 @@ import org.higherkindedj.optics.processing.generator.pcollections.PVectorGenerat
 import org.higherkindedj.optics.processing.generator.vavr.VavrListGenerator;
 import org.higherkindedj.optics.processing.generator.vavr.VavrSetGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /** Tests that all plugin generators return correct cardinality, optic expression, and imports. */
 @DisplayName("Generator SPI Methods")
 class GeneratorSpiMethodsTest {
+
+  static Stream<Named<TraversableGenerator>> recognisedByName() {
+    return Stream.<TraversableGenerator>of(
+            new OptionalGenerator(),
+            new MaybeGenerator(),
+            new ListGenerator(),
+            new SetGenerator(),
+            new CollectionGenerator())
+        .map(gen -> Named.of(gen.getClass().getSimpleName(), gen));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("recognisedByName")
+  @DisplayName(
+      "a container @GenerateFocus recognises by name has no optic expression in its generator")
+  void recognisedContainerHasNoOpticExpression(TraversableGenerator gen) {
+    // WideningAnalysis writes the Focus expression for these types itself and never asks the SPI,
+    // so a copy here would go unread and could drift from it unnoticed.
+    assertEquals("", gen.generateOpticExpression());
+    assertEquals(Set.of(), gen.getRequiredImports());
+  }
 
   @Nested
   @DisplayName("ZERO_OR_ONE generators")
@@ -84,8 +110,6 @@ class GeneratorSpiMethodsTest {
     void maybeCardinality() {
       var gen = new MaybeGenerator();
       assertEquals(Cardinality.ZERO_OR_ONE, gen.getCardinality());
-      assertEquals("Affines.just()", gen.generateOpticExpression());
-      assertEquals(Set.of("org.higherkindedj.optics.util.Affines"), gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
     }
 
@@ -94,8 +118,6 @@ class GeneratorSpiMethodsTest {
     void optionalCardinality() {
       var gen = new OptionalGenerator();
       assertEquals(Cardinality.ZERO_OR_ONE, gen.getCardinality());
-      assertEquals("Affines.some()", gen.generateOpticExpression());
-      assertEquals(Set.of("org.higherkindedj.optics.util.Affines"), gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
     }
   }
@@ -109,8 +131,6 @@ class GeneratorSpiMethodsTest {
     void listCardinality() {
       var gen = new ListGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
-      assertEquals("EachInstances.listEach()", gen.generateOpticExpression());
-      assertEquals(Set.of("org.higherkindedj.optics.each.EachInstances"), gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
     }
 
@@ -119,8 +139,6 @@ class GeneratorSpiMethodsTest {
     void setCardinality() {
       var gen = new SetGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
-      assertEquals("EachInstances.setEach()", gen.generateOpticExpression());
-      assertEquals(Set.of("org.higherkindedj.optics.each.EachInstances"), gen.getRequiredImports());
     }
 
     @Test
@@ -128,8 +146,6 @@ class GeneratorSpiMethodsTest {
     void collectionCardinality() {
       var gen = new CollectionGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
-      assertEquals("EachInstances.collectionEach()", gen.generateOpticExpression());
-      assertEquals(Set.of("org.higherkindedj.optics.each.EachInstances"), gen.getRequiredImports());
     }
 
     @Test

@@ -24,6 +24,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * widening. When these methods are overridden, the FocusProcessor and NavigatorClassGenerator will
  * automatically select the correct path type ({@code AffinePath} or {@code TraversalPath}) and
  * generate the appropriate composition call ({@code .some(affine)} or {@code .each(each)}).
+ * {@code @GenerateFocus} recognises {@code Optional}, {@code Maybe}, {@code List}, {@code Set} and
+ * {@code Collection} by name and widens them without asking any generator, so these methods are not
+ * read for those types.
  *
  * @since 0.3.8
  */

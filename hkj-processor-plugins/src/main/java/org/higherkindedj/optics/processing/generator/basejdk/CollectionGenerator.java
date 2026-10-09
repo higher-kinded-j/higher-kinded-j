@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -27,6 +26,10 @@ import org.higherkindedj.optics.util.Traversals;
  * whichever annotation reads it. The limits that policy carries — a sorted set keeps its elements
  * but not its comparator, and a source that is neither list nor set comes back a list — are
  * documented on {@code Traversals.forCollection()}.
+ *
+ * <p>{@code @GenerateFocus} recognises {@code Collection} by name and widens it through the
+ * expression {@code WideningAnalysis} writes for it, so this generator supplies no optic expression
+ * of its own.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class CollectionGenerator extends BaseTraversableGenerator {
@@ -41,16 +44,6 @@ public class CollectionGenerator extends BaseTraversableGenerator {
     if (!(type instanceof DeclaredType declaredType)) return false;
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_COLLECTION);
-  }
-
-  @Override
-  public String generateOpticExpression() {
-    return "EachInstances.collectionEach()";
-  }
-
-  @Override
-  public Set<String> getRequiredImports() {
-    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   @Override

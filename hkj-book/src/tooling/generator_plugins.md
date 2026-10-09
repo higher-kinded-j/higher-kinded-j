@@ -28,7 +28,7 @@ These generators are always active. No additional dependencies are required.
 | Type | Focus | Behaviour |
 |------|-------|-----------|
 | `List<A>` | Each element | Traverses all elements via `Traversals.traverseList()` |
-| `Set<A>` | Each element | Converts to list, traverses, converts back |
+| `Set<A>` | Each element | Traverses all elements in iteration order via `Traversals.traverseSet()` |
 | `Collection<A>` | Each element | Rebuilds a set source as a set and any other source as a list, via `Traversals.traverseCollection()` |
 | `Optional<A>` | 0 or 1 element | Applies function if present; returns unchanged if empty |
 | `Map<K, V>` | Each value | Traverses values whilst preserving keys |
@@ -178,7 +178,7 @@ ServiceLoader.load(TraversableGenerator.class)
     └── ... 26 more generators
 ```
 
-For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type.
+For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type. The one exception is the five types `@GenerateFocus` recognises by name, which it widens without asking a generator.
 
 A component that holds elements but reaches no generator is not passed over silently. A `java.util.Collection` or `java.util.Map` subtype that no loaded generator supports — a `Deque`, a `SortedMap`, a Guava, Apache Commons or PCollections type whose plugin is not on the processor path — draws a compile-time **note** on the component, naming the unsupported type and the remedy: declare the component as a supported container, or put a `TraversableGenerator` for it on the annotation processor path. A container that is not a `java.util.Collection` or `Map` at all — Vavr's collections and Eclipse Collections' `Immutable*` types are `Iterable` only — is passed over silently, as is a `String` or an `int`, for the same reason a bare `Iterable` is not the bar: `java.nio.file.Path` implements it.
 
@@ -260,6 +260,8 @@ The `getCardinality()` method influences both `@GenerateTraversals` and `@Genera
 
 ~~~admonish tip title="Replacing a Built-in Generator"
 To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed.
+
+`@GenerateFocus` asks no generator about `Optional`, `Maybe`, `List`, `Set` or `Collection`: it recognises them by name and widens them itself, so a build without the plugins widens them too. An override for one of those changes what `@GenerateTraversals` and `@ImportOptics` generate, not its Focus path.
 ~~~
 
 ### Step-by-Step Example

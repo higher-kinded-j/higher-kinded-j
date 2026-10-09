@@ -66,7 +66,7 @@ public abstract class GuavaBaseSingleIterableTraversableGenerator extends BaseTr
         generateConstructorArgs(componentName, "converted", allComponents);
 
     return CodeBlock.builder()
-        // 1. Convert to Java ArrayList (like the `basejdk/SetGenerator.java` does)
+        // 1. Convert to Java ArrayList
         .addStatement(
             "final var sourceList = new $T<>(source.$L())", ArrayList.class, componentName)
 

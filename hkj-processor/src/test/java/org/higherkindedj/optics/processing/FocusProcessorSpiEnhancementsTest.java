@@ -417,9 +417,12 @@ public class FocusProcessorSpiEnhancementsTest {
           javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
       assertThat(compilation).succeeded();
 
-      // Maybe<Address> should also produce AffinePath via .some()
+      // Maybe<Address> produces an AffinePath through the Affine that reads a Maybe, not the
+      // Optional-only no-argument .some()
       final String expectedAffinePath = "AffinePath<Company, Address>";
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedAffinePath);
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "\"backup\").some(Affines.just());");
     }
 
     @Test

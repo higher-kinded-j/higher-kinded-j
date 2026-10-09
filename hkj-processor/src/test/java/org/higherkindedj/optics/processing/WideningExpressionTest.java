@@ -31,6 +31,12 @@ class WideningExpressionTest {
   private static final ClassName EACH_INSTANCES =
       ClassName.get("org.higherkindedj.optics.each", "EachInstances");
 
+  /**
+   * The class the stock {@code Affine} factories are read from, which a step collects as an import.
+   */
+  private static final ClassName AFFINES =
+      ClassName.get("org.higherkindedj.optics.util", "Affines");
+
   private static Step step(StepKind kind) {
     return new Step(kind, null, null, null);
   }
@@ -85,6 +91,18 @@ class WideningExpressionTest {
             step(StepKind.LIST), kindStep(StepKind.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
 
     assertThat(expression).isEqualTo(".each().<W, java.lang.String>traverseOver(T.INSTANCE)");
+  }
+
+  @Test
+  @DisplayName("should append the Affine that reads a Maybe for a MAYBE step")
+  void shouldAppendJustForMaybeStep() {
+    List<Object> args = new ArrayList<>();
+
+    String expression =
+        WideningAnalysis.expression(List.of(step(StepKind.MAYBE)), args, "com.example");
+
+    assertThat(expression).isEqualTo(".some($T.just())");
+    assertThat(args).containsExactly(AFFINES);
   }
 
   @Test
