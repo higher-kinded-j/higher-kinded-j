@@ -321,7 +321,7 @@ interface MoneyOpticsSpec extends OpticsSpec<Money> {
 @ImportOptics
 interface PointOpticsSpec extends OpticsSpec<Point> {
 
-  @ViaConstructor(parameterOrder = {"x", "y"})
+  @ViaConstructor
   Lens<Point, Integer> x();
 
   @ViaConstructor(parameterOrder = {"x", "y"})

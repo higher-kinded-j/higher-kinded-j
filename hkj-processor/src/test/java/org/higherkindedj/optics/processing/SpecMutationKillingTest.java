@@ -82,34 +82,6 @@ class SpecMutationKillingTest {
     }
 
     @Test
-    @DisplayName("VIA_CONSTRUCTOR with empty parameter order throws UnsupportedOperationException")
-    void viaConstructorWithEmptyParameterOrder() {
-      var source =
-          JavaFileObjects.forSourceString(
-              "com.test.Empty",
-              """
-              package com.test;
-              public record Empty(String field) {}
-              """);
-
-      String result =
-          runGeneratorInProcessor(
-              "com.test.Empty",
-              proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[0], null);
-                return generator
-                    .generateSetterLambda(
-                        CopyStrategyKind.VIA_CONSTRUCTOR, info, "field", proc.getTypeMirror(), null)
-                    .toString();
-              },
-              source);
-
-      // Empty parameter order generates a TODO placeholder
-      assertThat(result).contains("UnsupportedOperationException");
-      assertThat(result).contains("parameterOrder");
-    }
-
-    @Test
     @DisplayName("VIA_CONSTRUCTOR with single parameter generates correct code")
     void viaConstructorWithSingleParameter() {
       var source =

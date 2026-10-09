@@ -1378,9 +1378,8 @@ public class SpecInterfaceAnalyser {
       }
     }
 
-    // Look for accessor method (record-style: fieldName() or JavaBean-style: getFieldName())
-    String getterName = "get" + ProcessorUtils.capitalise(fieldName);
-    String isGetterName = "is" + ProcessorUtils.capitalise(fieldName); // For booleans
+    // Look for an accessor under any of its spellings: players(), getPlayers() or isPlayers()
+    List<String> spellings = ProcessorUtils.getterSpellings(fieldName);
 
     for (var enclosed : typeElement.getEnclosedElements()) {
       if (enclosed.getKind() != ElementKind.METHOD) {
@@ -1390,11 +1389,7 @@ public class SpecInterfaceAnalyser {
       ExecutableElement method = (ExecutableElement) enclosed;
       String methodName = method.getSimpleName().toString();
 
-      // Check for record-style accessor (e.g., players())
-      // or JavaBean-style getter (e.g., getPlayers())
-      if ((methodName.equals(fieldName)
-              || methodName.equals(getterName)
-              || methodName.equals(isGetterName))
+      if (spellings.contains(methodName)
           && method.getParameters().isEmpty()
           && method.getModifiers().contains(Modifier.PUBLIC)
           && !method.getModifiers().contains(Modifier.STATIC)) {

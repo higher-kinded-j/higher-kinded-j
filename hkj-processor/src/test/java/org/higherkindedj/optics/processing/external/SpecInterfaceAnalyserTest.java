@@ -1046,8 +1046,8 @@ class SpecInterfaceAnalyserTest {
     }
 
     @Test
-    @DisplayName("should return empty parameter order for default @ViaConstructor")
-    void shouldReturnEmptyParameterOrderForDefaultViaConstructor() {
+    @DisplayName("a default @ViaConstructor reads its order from the constructor's parameter names")
+    void defaultViaConstructorReadsItsOrderFromTheParameterNames() {
       var coord =
           JavaFileObjects.forSourceString(
               "com.test.Coord",
@@ -1077,7 +1077,7 @@ class SpecInterfaceAnalyserTest {
       assertThat(result).isPresent();
       var method = result.get().opticMethods().get(0);
       assertThat(method.copyStrategy()).isEqualTo(CopyStrategyKind.VIA_CONSTRUCTOR);
-      assertThat(method.copyStrategyInfo().parameterOrder()).isEmpty();
+      assertThat(method.copyStrategyInfo().parameterOrder()).containsExactly("x");
     }
   }
 

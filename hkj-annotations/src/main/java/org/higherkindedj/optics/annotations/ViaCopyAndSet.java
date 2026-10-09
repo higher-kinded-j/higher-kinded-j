@@ -69,7 +69,9 @@ import java.lang.annotation.Target;
  *
  * <p>A lens focuses a primitive boxed, so where the setter is overloaded, the focus is unboxed to
  * its getter's type wherever one of the overloads takes exactly that type; where none does, it is
- * passed as it is, and one taking a supertype of the wrapper can take the call.
+ * passed as it is, and one taking a supertype of the wrapper can take the call. A focus wider than
+ * the wrapper, {@code Number} over an {@code int} getter, is never unboxed, since it may hold a
+ * value of another kind; declare the focus as the wrapper for an overload that takes the primitive.
  *
  * @see OpticsSpec
  * @see ViaBuilder

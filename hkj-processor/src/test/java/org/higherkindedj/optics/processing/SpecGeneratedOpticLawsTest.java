@@ -348,6 +348,64 @@ class SpecGeneratedOpticLawsTest {
           }
           """);
 
+  // ==================== @ViaConstructor SOURCES ====================
+
+  // Two parameters of one type, so an order that swapped them would still compile, and only the
+  // laws would show it.
+  private static final JavaFileObject EXTERNAL_RANGE =
+      JavaFileObjects.forSourceString(
+          "com.external.Range",
+          """
+          package com.external;
+
+          public final class Range {
+              private final int low;
+              private final int high;
+
+              public Range(int low, int high) {
+                  this.low = low;
+                  this.high = high;
+              }
+
+              public int low() { return low; }
+              public int high() { return high; }
+
+              @Override
+              public boolean equals(Object o) {
+                  return o instanceof Range r && low == r.low && high == r.high;
+              }
+
+              @Override
+              public int hashCode() {
+                  return 31 * low + high;
+              }
+          }
+          """);
+
+  // One order written out, and one read from the constructor's parameter names.
+  private static final JavaFileObject RANGE_SPEC =
+      JavaFileObjects.forSourceString(
+          "com.test.RangeSpec",
+          """
+          package com.test;
+
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ViaConstructor;
+          import com.external.Range;
+
+          @ImportOptics
+          public interface RangeSpec extends OpticsSpec<Range> {
+
+              @ViaConstructor(parameterOrder = {"low", "high"})
+              Lens<Range, Integer> low();
+
+              @ViaConstructor
+              Lens<Range, Integer> high();
+          }
+          """);
+
   // ==================== @ViaCopyAndSet SOURCES ====================
 
   // All the state lives on the base, so both copy constructors are full copies and it does not
@@ -478,12 +536,14 @@ class SpecGeneratedOpticLawsTest {
                 EXTERNAL_FULL,
                 EXTERNAL_NARROW_BASE,
                 EXTERNAL_NARROW,
+                EXTERNAL_RANGE,
                 PERSON_SPEC,
                 POINT_SPEC,
                 SHAPE_SPEC,
                 RESULT_SPEC,
                 FULL_SPEC,
-                NARROW_SPEC);
+                NARROW_SPEC,
+                RANGE_SPEC);
 
     assertThat(compilation.status())
         .as("Compilation should succeed")
@@ -552,6 +612,26 @@ class SpecGeneratedOpticLawsTest {
       assertThat(compiled.invokeLensGet(lens, updated)).isEqualTo("Grace");
       assertThat(source.getClass().getMethod("balance").invoke(source)).isEqualTo(100);
       assertThat(updated.getClass().getMethod("balance").invoke(updated)).isEqualTo(0);
+    }
+  }
+
+  // ==================== @ViaConstructor LENS LAWS ====================
+
+  @Nested
+  @DisplayName("@ViaConstructor Generated Lens Laws")
+  class ViaConstructorLensLaws {
+
+    @TestFactory
+    @DisplayName(
+        "@ViaConstructor lenses satisfy the lens laws, whether the order is written or read")
+    Stream<DynamicTest> viaConstructorLensesSatisfyLaws() {
+      return Stream.of(
+          lensGetPutTest("Range.low", "com.test.Range", "low", 1, 9),
+          lensPutGetTest("Range.low", "com.test.Range", "low", 4, 1, 9),
+          lensPutPutTest("Range.low", "com.test.Range", "low", 3, 5, 1, 9),
+          lensGetPutTest("Range.high", "com.test.Range", "high", 1, 9),
+          lensPutGetTest("Range.high", "com.test.Range", "high", 7, 1, 9),
+          lensPutPutTest("Range.high", "com.test.Range", "high", 6, 8, 1, 9));
     }
   }
 
@@ -946,6 +1026,7 @@ class SpecGeneratedOpticLawsTest {
       case "com.test.Result" -> "com.external.Result";
       case "com.test.Full" -> "com.external.Full";
       case "com.test.Narrow" -> "com.external.Narrow";
+      case "com.test.Range" -> "com.external.Range";
       default -> throw new IllegalArgumentException("Unknown spec class: " + specClass);
     };
   }

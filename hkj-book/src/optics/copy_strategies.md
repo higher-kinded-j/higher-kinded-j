@@ -166,9 +166,9 @@ Reads and writes through a bare `Traversal` go through the `Traversals` utility:
 ## The Other Three Strategies
 
 ~~~admonish warning title="Overloaded constructors, withers and setters"
-Every strategy writes the focus through something that can be overloaded: the constructor `parameterOrder` describes, the `@Wither` method, the builder's setter, the setter `@ViaCopyAndSet` calls. A lens focuses a primitive boxed, and Java offers an overloaded call the candidates needing no unboxing first, so a `Long` reaches a `withAmount(Number)` before a `withAmount(long)`.
+Every strategy writes the focus through something that can be overloaded: the constructor `@ViaConstructor` rebuilds through, the `@Wither` method, the builder's setter, the setter `@ViaCopyAndSet` calls. A lens focuses a primitive boxed, and Java offers an overloaded call the candidates needing no unboxing first, so a `Long` reaches a `withAmount(Number)` before a `withAmount(long)`.
 
-The focus is therefore unboxed to its getter's type wherever one of the candidates takes exactly that type. The call then binds where `new Money(source.amount(), source.currency())` would, every argument the type its own getter hands back. Where no candidate takes that type, as when the constructor takes the wrapper, unboxing could move the call somewhere the boxed focus never reached, so it is passed as it is.
+The focus is therefore unboxed to its getter's type wherever one of the candidates takes exactly that type. The call then binds where `new Money(source.amount(), source.currency())` would, every argument the type its own getter hands back. Where no candidate takes that type, as when the constructor takes the wrapper, unboxing could move the call somewhere the boxed focus never reached, so it is passed as it is. A focus wider than the wrapper, `Number` over an `int` getter, is never unboxed, since it may hold a value of another kind. Declare the focus as the wrapper where only the primitive is taken.
 
 That leaves one shape to watch: a getter returning `Long` where the constructor or method takes `long`, beside one taking `Number`, reaches the `Number` one and sets whatever it computes. Have the getters return the types the constructor and methods take, and run `LensLaws` over the lens.
 ~~~
@@ -187,7 +187,7 @@ interface MoneyOpticsSpec extends OpticsSpec<Money> {
 
 Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use. The wither still has to hand back the source type, read under the arguments the spec gives it: on a `Draft<T>`, a `Draft<String> withId(String)` serves an `OpticsSpec<Draft<String>>`, and a wither that returns the type raw, or as a supertype, is refused at the spec method. Where the wither is overloaded, the one checked is the one the call binds: the lens passes the new value typed by its focus, `Long` here, and javac chooses among the overloads by that type. A name the type does not have, or that the generated class cannot call, one none of whose overloads takes the focus, a choice javac could not make, and a `static` method are each refused at the spec method too. See the [wither entries](compiler_errors.md#wither--has-no-method--for-the-generated-lens-to-call) in Compiler Errors.
 
-Every other method name a strategy carries is checked the same way, at the spec method rather than in the generated file: the `getter` each one reads through, which for `@ViaCopyAndSet` and `@ViaConstructor` is the lens method's own name; `@ViaBuilder`'s `toBuilder`, `setter` and `build`, each read on what the step before it hands back; and each accessor a `@ViaConstructor` `parameterOrder` names. An accessor that reads a type the lens cannot hand back as its focus is refused too, which is the [`LocalDate.getMonth()` pairing](importing_optics.md#wither-classes-to-lenses) a spec interface exists to sort out.
+Every other method name a strategy carries is checked the same way, at the spec method rather than in the generated file: the `getter` each one reads through, which for `@ViaCopyAndSet` and `@ViaConstructor` is the lens method's own name; `@ViaBuilder`'s `toBuilder`, `setter` and `build`, each read on what the step before it hands back; and each accessor a `@ViaConstructor` `parameterOrder` names, along with the constructor that order rebuilds through. An accessor that reads a type the lens cannot hand back as its focus is refused too, which is the [`LocalDate.getMonth()` pairing](importing_optics.md#wither-classes-to-lenses) a spec interface exists to sort out.
 
 ### `@ViaConstructor`: constructor-only value types
 
@@ -196,7 +196,7 @@ Every other method name a strategy carries is checked the same way, at the spec 
 @ImportOptics
 interface PointOpticsSpec extends OpticsSpec<Point> {
 
-  @ViaConstructor(parameterOrder = {"x", "y"})
+  @ViaConstructor
   Lens<Point, Integer> x();
 
   @ViaConstructor(parameterOrder = {"x", "y"})
@@ -204,7 +204,11 @@ interface PointOpticsSpec extends OpticsSpec<Point> {
 }
 ```
 
-`parameterOrder` names the getters to call, in the order the constructor takes them. It has an empty default in the annotation, but the generated code needs it: without it the optic throws `UnsupportedOperationException` when invoked, so treat it as required.
+The `x()` lens rebuilds through `new Point(newValue, source.y())`. `parameterOrder` names the accessors it reads each argument through, in the order the constructor takes them, with the lens method's own name where the new value goes.
+
+Leave it out, as `x()` does, and the order is read from the constructor's parameter names. `Point(int x, int y)` gives `{"x", "y"}`, because each parameter is named after an accessor that reads a value it takes: `x()`, `getX()` or `isX()` for a parameter `x`. Write the order when no constructor's names give one, as for a class compiled with neither `-parameters` nor `-g`, or when two constructors give different orders. Write it too when a longer constructor than the one the names describe might hold more. A record's canonical constructor holds every value the record has, so for a record only that constructor counts as the longer one. A lens no constructor takes a parameter for, such as one reading a value the class works out, cannot be rebuilt through a constructor at all, and needs another strategy.
+
+Either way, the order is held to the constructor the generated call binds. An order of the wrong length is refused at the spec method. So is one that passes `y()` where the parameter named `x` stands, which would otherwise compile and write each value into the other's field. A parameter named after nothing the type reads leaves its place to the order. See the [`@ViaConstructor` entry](compiler_errors.md#viaconstructor-order) in Compiler Errors.
 
 ### `@ViaCopyAndSet`: legacy types with a copy constructor and setters
 
@@ -308,7 +312,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
     getter = "")              // default: the optic method's name
 
 @ViaConstructor(
-    parameterOrder = {"x", "y"})   // effectively required, see above
+    parameterOrder = {"x", "y"})   // default: read from the constructor's parameter names
 
 @ViaCopyAndSet(
     copyConstructor = "",     // default: pass the source unchanged; else a fully qualified supertype of S

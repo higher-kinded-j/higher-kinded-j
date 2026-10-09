@@ -252,18 +252,6 @@ class CopyStrategyCodeGeneratorTest {
       assertThat(code.setter())
           .isEqualTo("(source, newValue) -> new com.test.Person(newValue, source.age())");
     }
-
-    @Test
-    @DisplayName("should throw error when parameter order not specified")
-    void shouldRequireParameterOrder() {
-      CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {}, null);
-
-      GeneratedCode code =
-          generateCode(CopyStrategyKind.VIA_CONSTRUCTOR, info, "name", PERSON_SOURCE);
-
-      // Should generate a TODO comment indicating parameterOrder is needed
-      assertThat(code.setter()).contains("@ViaConstructor requires parameterOrder");
-    }
   }
 
   @Nested

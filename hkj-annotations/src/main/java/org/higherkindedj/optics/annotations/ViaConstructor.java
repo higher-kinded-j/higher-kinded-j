@@ -27,15 +27,17 @@ import java.lang.annotation.Target;
  * )
  * }</pre>
  *
- * <p>This strategy works well for simple immutable classes with a canonical constructor. The
- * processor will attempt to match constructor parameters with getter methods to determine the
- * correct argument order.
+ * <p>This strategy works well for simple immutable classes with a canonical constructor. The order
+ * of the arguments is {@link #parameterOrder}, or, where that is left empty, the order the
+ * constructor's parameter names give.
  *
  * <p>Where the class declares more than one constructor taking as many arguments, the call binds by
  * the types the getters hand back. A lens focuses a primitive boxed, so the focus is unboxed to its
  * getter's type wherever one of those constructors takes exactly that type; where none does, it is
  * passed as it is, and a getter that hands back a wrapper where the constructor takes the primitive
- * can reach an overload taking a supertype.
+ * can reach an overload taking a supertype. A focus wider than the wrapper, {@code Number} over an
+ * {@code int} getter, is never unboxed, since it may hold a value of another kind; declare the
+ * focus as the wrapper for a constructor that takes the primitive.
  *
  * <p>Example:
  *
@@ -54,11 +56,13 @@ import java.lang.annotation.Target;
  * interface PointOptics extends OpticsSpec<Point> {
  *
  *     // The lens method is named after the accessor it reads, since this strategy names no
- *     // getter of its own.
+ *     // getter of its own. Point(int x, int y) names its parameters after getX() and getY(),
+ *     // so the order is read from it: new Point(newValue, source.getY()).
  *     @ViaConstructor
  *     Lens<Point, Integer> getX();
  *
- *     @ViaConstructor
+ *     // The same order, written out.
+ *     @ViaConstructor(parameterOrder = {"getX", "getY"})
  *     Lens<Point, Integer> getY();
  * }
  * }</pre>
@@ -72,17 +76,29 @@ import java.lang.annotation.Target;
 public @interface ViaConstructor {
 
   /**
-   * The order of parameters in the constructor.
+   * The accessors the constructor's arguments are read through, in the order it takes them, with
+   * the lens method's own name where it takes the new value.
    *
-   * <p>If empty (the default), the processor attempts to auto-detect the parameter order by
-   * matching constructor parameters with getter methods based on name and type.
+   * <p>The generated lens rebuilds through {@code new S(source.x(), newValue, source.z())}, and the
+   * order is held to the constructor that call binds: one no constructor takes is refused at the
+   * spec method, and so is one that passes an accessor's value where a parameter named after
+   * another accessor stands. Those names are known for a constructor compiled from source, and for
+   * one read from a class file compiled with {@code -parameters} or {@code -g}; a parameter named
+   * after nothing the type reads leaves its place to the order.
    *
-   * <p>Specify this explicitly when auto-detection fails or when the constructor parameter names
-   * differ from the getter method names.
+   * <p>If empty (the default), the order is read from the parameter names: from the one constructor
+   * each of whose parameters is named after an accessor that reads a value it takes, as {@code
+   * x()}, {@code getX()} or {@code isX()} for a parameter {@code x}, and one of them the lens
+   * method's own. Where no constructor gives such an order, more than one gives a different one, or
+   * a longer constructor than the one that gives it might hold more, the order has to be written; a
+   * record's canonical constructor holds every value, and is read by its components' names. Where
+   * every parameter is named after another accessor, no order can pass the lens's value, and the
+   * lens needs another strategy.
    *
    * <p>Example: {@code @ViaConstructor(parameterOrder = {"x", "y", "z"})}
    *
-   * @return array of field names in constructor parameter order, or empty for auto-detection
+   * @return the accessors in the constructor's parameter order, or empty to read the order from the
+   *     parameter names
    */
   String[] parameterOrder() default {};
 }
