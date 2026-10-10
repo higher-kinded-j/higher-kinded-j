@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -30,6 +31,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * nothing: every instantiation passes the same test, so the only type the test earns is {@code
  * Circle<?>}.
  *
+ * <p>An inner class of a generic class is answered under its enclosing class's arguments, by the
+ * same rule: {@code Outer.Inner.class} names a raw {@code Outer.Inner}, and narrowed from a source
+ * that pins nothing of {@code Outer}'s the test earns {@code Outer<?>.Inner}, a test javac checks.
+ * {@code SubtypePrismGenerator} names a permitted subtype of a sealed interface the same way, from
+ * what the subtype's clause binds rather than from a match against the source.
+ *
  * <p>This class answers with that type and says which parameters it had to leave free. Whether the
  * answer is the type the prism promised is {@link SpecInterfaceAnalyser}'s question to ask: a
  * {@code Prism<Shape, Circle<T>>} asks for a {@code T} the test cannot deliver, and is rejected at
@@ -53,53 +60,30 @@ final class InstanceOfNarrowing {
    *
    * @param testedType the type the generated {@code instanceof} names: the target under the
    *     arguments the source pins down, with an unbounded wildcard in every position it pins none
-   * @param freeParameters the simple names of the target's own type parameters that reached that
-   *     wildcard, in declaration order; empty when the test is as precise as the target's
+   * @param freeParameters the names of the type parameters that reached that wildcard, those of the
+   *     classes the target is an inner class of first, each qualified by its class as {@code
+   *     Outer's X}, then the target's own; empty when the test is as precise as the target's
    *     declaration allows
+   * @param unwritableBounds the parameters the test pins whose bound is one it leaves free, in
+   *     declaration order; the tested type cannot be written for any of them, because the wildcard
+   *     leaves the bound nothing to name
    */
-  record Narrowing(TypeMirror testedType, List<String> freeParameters) {}
+  record Narrowing(
+      TypeMirror testedType, List<String> freeParameters, List<UnwritableBound> unwritableBounds) {}
 
   /**
-   * The element of {@code targetType} that no test could name with type arguments of its own, or
-   * null when every layer of it can be named.
+   * A parameter the test pins whose bound is a parameter it leaves free.
    *
-   * <p>A parameterised member of a generic type is the one shape with no rendering: {@code
-   * Outer<X>.Inner<Y>} can only carry its own arguments alongside the enclosing type's, and an
-   * {@code instanceof} names neither. The remaining raw {@code Outer.Inner} checks nothing about
-   * {@code Y} and is a {@code rawtypes} warning in the consuming build besides, so the caller
-   * rejects this rather than narrowing it. An array of one is the same type one layer out, and
-   * {@link #narrow} would reach the component regardless.
-   *
-   * <p>The element is answered rather than a yes or no because it is the element, not the array
-   * wrapped around it, that the diagnostic has to name.
-   *
-   * @param targetType the type the annotation's class constant resolves to; must not be null
-   * @return the offending element, or null when the target can be named
+   * @param declaration the parameter as declared, such as {@code Y extends X}
+   * @param free the free parameters that bound it, as {@link Narrowing#freeParameters} names them
    */
-  static TypeElement unnameableElement(TypeMirror targetType) {
-    if (targetType instanceof ArrayType array) {
-      return unnameableElement(array.getComponentType());
-    }
-    if (!(targetType instanceof DeclaredType declared)) {
-      return null;
-    }
-    // A declared type's element is a TypeElement, and it is that element's own prototype - not the
-    // annotation's mirror - that carries the enclosing type's arguments.
-    TypeElement element = (TypeElement) declared.asElement();
-    DeclaredType prototype = (DeclaredType) element.asType();
-    boolean unnameable =
-        !element.getTypeParameters().isEmpty()
-            && prototype.getEnclosingType() instanceof DeclaredType enclosing
-            && !enclosing.getTypeArguments().isEmpty();
-    return unnameable ? element : null;
-  }
+  record UnwritableBound(String declaration, List<String> free) {}
 
   /**
    * Narrows the {@code @InstanceOf} target as far as the source type allows.
    *
-   * @param targetType the type the annotation's class constant resolves to, which {@link
-   *     #unnameableElement} has already cleared; an array is narrowed through its component; must
-   *     not be null
+   * @param targetType the type the annotation's class constant resolves to; an array is narrowed
+   *     through its component; must not be null
    * @param sourceType the source type {@code S} the prism starts from; must not be null
    * @param sourceTypeElement the element {@code sourceType} instantiates; must not be null
    * @return the narrowing (non-null)
@@ -111,38 +95,127 @@ final class InstanceOfNarrowing {
     if (targetType instanceof ArrayType targetArray) {
       Narrowing component = narrow(targetArray.getComponentType(), sourceType, sourceTypeElement);
       return new Narrowing(
-          typeUtils.getArrayType(component.testedType()), component.freeParameters());
+          typeUtils.getArrayType(component.testedType()),
+          component.freeParameters(),
+          component.unwritableBounds());
     }
     // A primitive component, or anything else a class constant can name that carries no arguments.
     if (!(targetType instanceof DeclaredType declaredTarget)) {
-      return new Narrowing(targetType, List.of());
+      return new Narrowing(targetType, List.of(), List.of());
     }
+    // The element's own prototype, not the annotation's raw mirror, is what carries the enclosing
+    // class's parameters as well as the target's: Outer<X>.Inner<Y> for Outer.Inner.class.
     TypeElement targetElement = (TypeElement) declaredTarget.asElement();
-    List<? extends TypeParameterElement> parameters = targetElement.getTypeParameters();
-    if (parameters.isEmpty()) {
-      return new Narrowing(targetType, List.of());
+    DeclaredType prototype = (DeclaredType) targetElement.asType();
+    if (!ProcessorUtils.carriesInstantiation(prototype)) {
+      return new Narrowing(targetType, List.of(), List.of());
     }
 
     Map<Element, List<TypeMirror>> matched = new HashMap<>();
     // The target's own declaration, instantiated as the source type's element sees it: Circle<X>
-    // reaches Shape as Shape<X>, and matching that against Shape<U> is what pins X.
-    TypeMirror asSource =
-        ProcessorUtils.supertypeOf(typeUtils, targetElement.asType(), sourceTypeElement);
+    // reaches Shape as Shape<X>, and matching that against Shape<U> is what pins X. An enclosing
+    // class's parameter is pinned the same way, where the target's supertype names it.
+    TypeMirror asSource = ProcessorUtils.supertypeOf(typeUtils, prototype, sourceTypeElement);
     match(asSource, sourceType, matched);
 
-    List<String> free = new ArrayList<>();
+    List<TypeParameterElement> free = new ArrayList<>();
+    DeclaredType tested = instantiate(prototype, matched, free);
+    return new Narrowing(
+        tested,
+        free.stream().map(parameter -> nameOf(parameter, targetElement)).toList(),
+        unwritableBounds(targetElement, free));
+  }
+
+  /**
+   * Each parameter the test pins whose bound is one it leaves free.
+   *
+   * <p>The bound itself, not one that merely names it. A free parameter is written as a wildcard,
+   * so {@code Y extends X} becomes a bound of the wildcard's capture, which no argument the test
+   * could write is within; javac refuses {@code Outer<?>.Inner<U>}. A bound that only names it,
+   * {@code Y extends List<X>}, becomes {@code List<?>}, which javac checks the argument against as
+   * usual. A permitted subtype on the sealed route is refused for either, because its prism
+   * redeclares the parameter with a bound that has to name {@code X}.
+   *
+   * @param targetElement the target class
+   * @param free the parameters left as wildcards
+   * @return the offending parameters, in declaration order, enclosing classes' first
+   */
+  private static List<UnwritableBound> unwritableBounds(
+      TypeElement targetElement, List<TypeParameterElement> free) {
+    List<UnwritableBound> unwritable = new ArrayList<>();
+    for (TypeParameterElement parameter : ProcessorUtils.typeParametersInScope(targetElement)) {
+      if (free.contains(parameter)) {
+        continue;
+      }
+      List<String> named =
+          parameter.getBounds().stream()
+              .filter(
+                  bound ->
+                      bound instanceof TypeVariable variable && free.contains(variable.asElement()))
+              .map(
+                  bound ->
+                      nameOf(
+                          (TypeParameterElement) ((TypeVariable) bound).asElement(), targetElement))
+              .toList();
+      if (!named.isEmpty()) {
+        unwritable.add(
+            new UnwritableBound(
+                parameter.getSimpleName()
+                    + " extends "
+                    + parameter.getBounds().stream()
+                        .map(ProcessorUtils::simpleTypeName)
+                        .collect(Collectors.joining(" & ")),
+                named));
+      }
+    }
+    return List.copyOf(unwritable);
+  }
+
+  /**
+   * A parameter's name as a diagnostic gives it: bare for the target's own, and qualified by its
+   * class for an enclosing class's, which may share a name with the target's or the source's.
+   */
+  private static String nameOf(TypeParameterElement parameter, TypeElement targetElement) {
+    return parameter.getGenericElement().equals(targetElement)
+        ? parameter.getSimpleName().toString()
+        : parameter.getGenericElement().getSimpleName() + "'s " + parameter.getSimpleName();
+  }
+
+  /**
+   * The prototype under what the match pinned, through each class it is an inner class of,
+   * outermost first: a parameter at the one type it was matched to, and an unbounded wildcard where
+   * it was matched to none or to two that disagree.
+   *
+   * @param prototype the target's prototype, or one of its enclosing types
+   * @param matched the positions each type variable was matched against
+   * @param free the parameters left as wildcards, added to in place
+   * @return the instantiated type
+   */
+  private DeclaredType instantiate(
+      DeclaredType prototype,
+      Map<Element, List<TypeMirror>> matched,
+      List<TypeParameterElement> free) {
+    // A link that carries no instantiation, a static member's NoType included, contributes nothing
+    // to write: the element alone names it.
+    DeclaredType containing =
+        prototype.getEnclosingType() instanceof DeclaredType enclosing
+                && ProcessorUtils.carriesInstantiation(enclosing)
+            ? instantiate(enclosing, matched, free)
+            : null;
+    List<? extends TypeMirror> parameters = prototype.getTypeArguments();
     TypeMirror[] arguments = new TypeMirror[parameters.size()];
     for (int index = 0; index < parameters.size(); index++) {
-      TypeParameterElement parameter = parameters.get(index);
+      TypeParameterElement parameter =
+          (TypeParameterElement) ((TypeVariable) parameters.get(index)).asElement();
       List<TypeMirror> bindings = matched.get(parameter);
       if (bindings == null || !agree(bindings)) {
-        free.add(parameter.getSimpleName().toString());
+        free.add(parameter);
         arguments[index] = typeUtils.getWildcardType(null, null);
       } else {
         arguments[index] = bindings.getFirst();
       }
     }
-    return new Narrowing(typeUtils.getDeclaredType(targetElement, arguments), List.copyOf(free));
+    return typeUtils.getDeclaredType(containing, (TypeElement) prototype.asElement(), arguments);
   }
 
   /**
@@ -187,6 +260,9 @@ final class InstanceOfNarrowing {
                 actualDeclared.getTypeArguments().get(index),
                 matched);
           }
+          // An inner class's enclosing instantiation is part of its type: Outer<X>.Base matched
+          // against Outer<String>.Base pins X as surely as an argument would.
+          match(declared.getEnclosingType(), actualDeclared.getEnclosingType(), matched);
         }
       }
       case ArrayType array when actual instanceof ArrayType actualArray ->

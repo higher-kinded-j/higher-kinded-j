@@ -444,6 +444,104 @@ class ImportOpticsProcessorTest {
       assertGeneratedCodeContains(
           compilation, "com.myapp.optics.ShapePrisms", expectedRectanglePrism);
     }
+
+    @Test
+    @DisplayName(
+        "a permitted inner class of a generic class is named under its enclosing arguments")
+    void innerClassOfAGenericClassIsNamedUnderItsEnclosingArguments() {
+      // Shape is a member interface, so it is static and binds no X: a Circle of some Shapes is
+      // all the instanceof establishes.
+      final var shapes =
+          JavaFileObjects.forSourceString(
+              "com.external.Shapes",
+              """
+              package com.external;
+
+              public class Shapes<X> {
+                  public sealed interface Shape permits Shapes.Circle, Shapes.Square {}
+
+                  public final class Circle implements Shape {}
+
+                  public static final class Square implements Shape {}
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Shapes.Shape.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(shapes, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.ShapePrisms",
+          "public static Prism<Shapes.Shape, Shapes<?>.Circle> circle()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.ShapePrisms",
+          "public static Prism<Shapes.Shape, Shapes.Square> square()");
+    }
+
+    @Test
+    @DisplayName("an inner subtype read from a jar keeps its own parameter apart from a hidden one")
+    void innerSubtypeReadFromAJarKeepsItsOwnParameterApartFromAHiddenOne(@TempDir Path tmp)
+        throws IOException {
+      // Box's T hides Hide's, so Box's clause binds its own T and leaves the enclosing one free;
+      // Wrap's clause names the enclosing T and pins it.
+      final var library =
+          javac()
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.external.Hide",
+                      """
+                      package com.external;
+
+                      public class Hide<T> {
+                          public sealed interface Shape<U> permits Hide.Box, Hide.Wrap {}
+
+                          public final class Box<T> implements Shape<T> {}
+
+                          public final class Wrap implements Shape<T> {}
+                      }
+                      """));
+      assertThat(library).succeeded();
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Hide.Shape.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withClasspath(classpathWith(classDirectory(library, tmp)))
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.ShapePrisms",
+          "public static <T> Prism<Hide.Shape<T>, Hide<?>.Box<T>> box()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.ShapePrisms",
+          "public static <T> Prism<Hide.Shape<T>, Hide<T>.Wrap> wrap()");
+    }
   }
 
   @Nested
@@ -1201,6 +1299,46 @@ class ImportOpticsProcessorTest {
   @Nested
   @DisplayName("Error Cases")
   class ErrorCases {
+
+    @Test
+    @DisplayName("an enclosing parameter the prism declares cannot be bounded by a free one")
+    void anEnclosingParameterThePrismDeclaresCannotBeBoundedByAFreeOne() {
+      // The clause binds Z, so the prism declares it, but Z's bound names X, which nothing binds.
+      final var shapes =
+          JavaFileObjects.forSourceString(
+              "com.external.Shapes",
+              """
+              package com.external;
+
+              import java.util.List;
+
+              public class Shapes<X, Z extends List<X>> {
+                  public sealed interface Shape<T> permits Shapes.Pinned {}
+
+                  public final class Pinned implements Shape<Z> {}
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Shapes.Shape.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(shapes, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "The prism for 'Pinned' declares Z extends List<X>, and 'Shape' does not bind"
+                  + " [X].");
+      assertThat(compilation).hadErrorContaining("as 'Shape<Z, X>'");
+    }
 
     @Test
     @DisplayName("an inner class under a type parameter hiding an enclosing one is refused")

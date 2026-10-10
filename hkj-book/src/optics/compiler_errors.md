@@ -23,6 +23,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`cannot find symbol: class XLenses`](#cannot-find-symbol-class-xlenses) | The processor has not run, or the IDE has not indexed the generated sources |
 | [`can only be applied to records`](#generatelenses-can-only-be-applied-to-records-but-foo-is-a-class) | `@GenerateLenses` or a sibling is on a class |
 | [`can only be applied to sealed interfaces or enums`](#the-generateprisms-annotation-can-only-be-applied-to-sealed-interfaces-or-enums) | `@GeneratePrisms` is on something else |
+| [`does not bind`](#generateprisms-does-not-bind) | A subtype needs a parameter its clause leaves free |
 | [`names a type variable`](#generateisos-the-iso-returned-by-x-names-a-type-variable) | The `@GenerateIsos` method's `Iso` type is not fully concrete |
 | [`'x' is not static`](#generateisos-x-is-not-static) | The `@GenerateIsos` method is an instance method |
 | [`'x' takes parameters`](#generateisos-x-takes-parameters) | The `@GenerateIsos` method takes arguments |
@@ -55,8 +56,8 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`which the spec declares static` or `private`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
 | [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
+| [`where Y extends X and`](#instanceof-unwritable-bound) | A pinned parameter is bounded by one the source leaves free |
 | [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
-| [`carries type parameters of its own`](#instanceof--names--which-carries-type-parameters-of-its-own-and-is-a-member-of-a-generic-type) | `@InstanceOf` names an `Outer<X>.Inner<Y>`, which `instanceof` cannot write |
 | [`narrows to '...', which is not a '...'`](#instanceof--narrows-to--which-is-not-a-) | The `@InstanceOf` class is not assignable to the declared focus |
 | [`does not resolve to a type`](#viacopyandset-copyconstructor-names--which-does-not-resolve-to-a-type) | `copyConstructor` is not a fully qualified class name |
 | [`which 'S' does not extend or implement`](#viacopyandset-copyconstructor-names--which-s-does-not-extend-or-implement) | `copyConstructor` names a type that is not a supertype |
@@ -198,6 +199,44 @@ A non-sealed *interface* passes the processor's guard and produces an **empty** 
 ```java
 @GeneratePrisms
 abstract class Payment {}
+```
+~~~
+
+### "@GeneratePrisms: 'Pair' declares [B], which 'Shape' does not bind" {#generateprisms-does-not-bind}
+
+A permitted subtype needs a type parameter that its `implements` clause leaves free. `@ImportOptics` reports the same for an imported sealed interface. The message takes one of two forms:
+
+| The message says | The shape |
+|---|---|
+| `'Pair' declares [B], which 'Shape' does not bind` | `Pair<A, B> implements Shape<A>`: the subtype's own `B` appears nowhere in its clause |
+| `The prism for 'Box' declares Y extends X, and 'Shape' does not bind [X]` | `Box<Y extends X> implements Shape<Y>`, an inner class of `Shapes<X>`: a bound names the enclosing class's `X`, which the clause leaves free |
+
+**Fix.** Bind the free parameter in the clause, as the message shows, giving the sealed interface a type parameter for it if it has none to spare. Where you cannot change the clause, as for a sealed interface from a library, write the prism by hand with `Prism.of`.
+
+~~~admonish note title="Why" collapsible=true
+A prism narrows by `instanceof`, which tests an erasure. A parameter the clause binds is pinned by the hierarchy: under `Tagged<T> implements Shape<T>`, a `Shape<T>` that is a `Tagged` can only be a `Tagged<T>`. A parameter it leaves free is pinned by nothing, so two callers could read one value at different types, and the second would get a `ClassCastException` from a call site that compiled cleanly.
+
+An enclosing class's parameter the clause leaves free is written as a wildcard, as [Generating the Prisms](prisms.md#step-1-generating-the-prisms) shows. A bound that names it then has nothing to name: the prism has no `X` to write in `<Y extends X>`, and javac refuses `Shapes<?>.Box<Y>` for such a `Y`.
+~~~
+
+~~~admonish example title="Declarations that produce it" collapsible=true
+<!-- verify:rejects "'Pair' declares [B], which 'Shape' does not bind" -->
+```java
+@GeneratePrisms
+sealed interface Shape<T> permits Pair {}
+
+record Pair<A, B>(A a, B b) implements Shape<A> {}
+```
+
+<!-- verify:rejects "The prism for 'Box' declares Y extends X, and 'Shape' does not bind [X]" -->
+```java
+class Shapes<X> {
+
+    @GeneratePrisms
+    sealed interface Shape<T> permits Shapes.Box {}
+
+    final class Box<Y extends X> implements Shape<Y> {}
+}
 ```
 ~~~
 
@@ -839,6 +878,8 @@ The prism promises a type argument the test cannot check.
 
 ~~~admonish note title="Why" collapsible=true
 `@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
+
+An inner class of a generic class is narrowed the same way, its enclosing class's arguments included. From a source that pins nothing of `Outer`'s, `Outer.Plain.class` earns `Outer<?>.Plain`, so a focus of `Outer<String>.Plain` draws this message.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -857,31 +898,31 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 ```
 ~~~
 
-### "@InstanceOf: '...' names '...', which carries type parameters of its own and is a member of a generic type"
+### "@InstanceOf: '...' tests 'Outer.Inner', where Y extends X and '...' pins nothing to Outer's X" {#instanceof-unwritable-bound}
 
-The test has to name the type it checks, and an `instanceof` cannot write `Outer<X>.Inner<Y>`. Naming `Inner`'s type arguments would mean naming the enclosing type's as well, which `instanceof` does not allow.
+A parameter the test pins is bounded by a parameter the source pins nothing to. A bound that only names it, such as `Y extends List<X>`, is fine.
 
-**Fix.** Declare the member `static`, so it can be named on its own, or narrow through a predicate and getter with `@MatchWhen`.
+**Fix.** Narrow through a predicate and getter of the source type with `@MatchWhen`, or write the prism by hand with `Prism.of`. Where you can change the classes, a source that pins `X` as well lets the test name it.
 
 ~~~admonish note title="Why" collapsible=true
-The remaining `Outer.Inner` is raw: it checks nothing about `Y`, and it is a `rawtypes` warning in the consuming build besides. A member of a *non-generic* type is unaffected, since `Outer.Inner<Y>` names itself perfectly well.
+The test writes a wildcard wherever the source pins nothing, so `Outer.Inner.class` narrowed from a `Node<U>` is tested as `Outer<?>.Inner<U>`. A bound of `X` on `Inner`'s parameter then has nothing to name, and javac refuses that type: `U` is not within the bound of a wildcard it cannot see. A permitted subtype of a sealed interface draws the same refusal from `@GeneratePrisms`, as [does not bind](#generateprisms-does-not-bind) shows.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "carries type parameters of its own and is a member of a generic type" -->
+<!-- verify:rejects "tests 'Outer.Inner', where Y extends X and" -->
 ```java
 class Node<U> {}
 
 class Outer<X> {
 
-    class Inner<Y> extends Node<Y> {}
+    class Inner<Y extends X> extends Node<Y> {}
 }
 
 @ImportOptics
 interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
 
     @InstanceOf(Outer.Inner.class)
-    Prism<Node<U>, Outer<?>.Inner<U>> inner();
+    Prism<Node<U>, Node<U>> inner();
 }
 ```
 ~~~

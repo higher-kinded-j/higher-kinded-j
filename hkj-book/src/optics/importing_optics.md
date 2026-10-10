@@ -120,6 +120,8 @@ Prism<PaymentInstrument, BankAccount> bankAccount = PaymentInstrumentPrisms.bank
 Prism<PaymentInstrument, CryptoWallet> wallet = PaymentInstrumentPrisms.cryptoWallet();
 ```
 
+These are the prisms `@GeneratePrisms` writes, so a permitted subtype that is an inner class of a generic class is named as [Generating the Prisms](prisms.md#step-1-generating-the-prisms) describes.
+
 ### Enums to Prisms
 
 <!-- verify -->

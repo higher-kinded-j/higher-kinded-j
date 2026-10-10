@@ -6,13 +6,17 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
+import com.palantir.javapoet.WildcardTypeName;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeVariable;
 import org.higherkindedj.optics.Prism;
 
 /**
@@ -33,7 +37,8 @@ public final class SubtypePrismGenerator {
    *
    * <p>The prism is written in the subtype's vocabulary: its own type parameters, and the sum type
    * as the subtype's own extends/implements clause instantiates it. Reading the sum type's
-   * declaration instead would name variables the method never declares.
+   * declaration instead would name variables the method never declares. An inner class of a generic
+   * class is named under its enclosing class's arguments as well, as {@link #nameUnder} explains.
    *
    * @param messager the round's messager, for a rejection
    * @param tag the annotation tag naming the caller, for the diagnostic
@@ -56,14 +61,19 @@ public final class SubtypePrismGenerator {
       return null;
     }
 
-    TypeName subTypeName =
-        subtype.getTypeParameters().isEmpty()
-            ? ClassName.get(subtype)
-            : ParameterizedTypeName.get(
-                ClassName.get(subtype),
-                subtype.getTypeParameters().stream()
-                    .map(parameter -> ProcessorUtils.typeVariableOf(parameter, targetPackage))
-                    .toArray(TypeName[]::new));
+    // Every parameter a use of the subtype supplies, its enclosing classes' first. The method
+    // declares those the clause binds, which takes in all of the subtype's own, since a free one
+    // was rejected above.
+    List<TypeParameterElement> inScope = ProcessorUtils.typeParametersInScope(subtype);
+    List<TypeParameterElement> declared =
+        inScope.stream()
+            .filter(parameter -> ProcessorUtils.mentions(namedSumType, parameter))
+            .toList();
+    if (rejectsBoundOnAFreeParameter(
+        messager, tag, sumType, subtype, namedSumType, inScope, declared)) {
+      return null;
+    }
+    TypeName subTypeName = nameUnder((DeclaredType) subtype.asType(), declared, targetPackage);
 
     ParameterizedTypeName prismTypeName =
         ParameterizedTypeName.get(ClassName.get(Prism.class), sourceTypeName, subTypeName);
@@ -80,12 +90,12 @@ public final class SubtypePrismGenerator {
                 sourceTypeName,
                 subTypeName)
             // The prism type is written in the subtype's vocabulary, and the method redeclares the
-            // subtype's type parameters with their bounds.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(namedSumType, subtype))
+            // type parameters it names with their bounds.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(namedSumType, declared))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(prismTypeName);
 
-    for (TypeParameterElement typeParameter : subtype.getTypeParameters()) {
+    for (TypeParameterElement typeParameter : declared) {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter, targetPackage));
     }
 
@@ -99,6 +109,49 @@ public final class SubtypePrismGenerator {
             subTypeName,
             Optional.class)
         .build();
+  }
+
+  /**
+   * The subtype's type as the prism names it: each parameter in {@code declared} by name, and every
+   * other an unbounded wildcard, through each class it is an inner class of.
+   *
+   * <p>An inner class of a generic class is written under its enclosing class's arguments, and left
+   * without them it is raw (JLS 4.8) even where it declares no parameters of its own. A permitted
+   * subtype's clause binds an enclosing class's parameter only through the sum type's arguments, as
+   * {@code Pinned implements Shape<X>} does, and then the prism declares it: {@code <X>
+   * Prism<Shape<X>, Shapes<X>.Pinned>}. Where the clause does not, a value of the sum type carries
+   * nothing that says which instantiation of the enclosing class it belongs to, so the prism names
+   * what the {@code instanceof} establishes, a {@code Circle} of some {@code Shapes}: {@code
+   * Prism<Shape, Shapes<?>.Circle>}. javac proves both casts, so neither draws a warning. An
+   * {@code @InstanceOf} target is named the same way, by {@code InstanceOfNarrowing}.
+   *
+   * @param type the subtype's own type, or one of its enclosing types, as {@code asType()} gives
+   *     it, so that every argument is a type variable of the class it belongs to
+   * @param declared the type parameters the prism method declares
+   * @param targetPackage the package the prism is written into
+   * @return the name, with a wildcard wherever the clause binds nothing
+   */
+  private static TypeName nameUnder(
+      DeclaredType type, List<TypeParameterElement> declared, String targetPackage) {
+    ClassName rawType = ClassName.get((TypeElement) type.asElement());
+    List<TypeName> arguments =
+        type.getTypeArguments().stream()
+            .map(argument -> (TypeParameterElement) ((TypeVariable) argument).asElement())
+            .map(
+                parameter ->
+                    declared.contains(parameter)
+                        ? ProcessorUtils.typeVariableOf(parameter, targetPackage)
+                        : WildcardTypeName.subtypeOf(Object.class))
+            .toList();
+    // A static member, like a top-level type, has no enclosing instance type: javac reports a
+    // NoType for it, and the element's own name is the whole of it.
+    if (type.getEnclosingType() instanceof DeclaredType enclosing
+        && nameUnder(enclosing, declared, targetPackage) instanceof ParameterizedTypeName outer) {
+      return outer.nestedClass(rawType.simpleName(), arguments);
+    }
+    return arguments.isEmpty()
+        ? rawType
+        : ParameterizedTypeName.get(rawType, arguments.toArray(TypeName[]::new));
   }
 
   /**
@@ -146,13 +199,103 @@ public final class SubtypePrismGenerator {
         "A prism narrows by instanceof, which tests an erasure, so only what the clause pins is"
             + " checked; a free parameter lets two callers read one value at different types, and"
             + " the second gets a ClassCastException from a call site that compiled cleanly.",
-        "Bind it in the clause, as '"
-            + subtype.getSimpleName()
-            + " implements "
-            + sumType.getSimpleName()
-            + "<"
-            + String.join(", ", unbound)
-            + ">', or write the prism by hand where the unsoundness is visible.");
+        bindingFix(sumType, namedSumType, unbound));
     return true;
+  }
+
+  /**
+   * Reports a parameter the prism declares whose bound names an enclosing class's parameter the
+   * clause leaves free, and returns whether it did.
+   *
+   * <p>The free parameter is written as a wildcard, so there is nothing for the bound to name. In
+   * {@code Shapes<X>}, {@code Box<Y extends X> implements Shape<Y>} would need {@code <Y extends
+   * X>} on a method that declares no {@code X}, and javac refuses {@code Shapes<?>.Box<Y>} for a
+   * {@code Y} bounded by anything other than that wildcard's capture.
+   *
+   * @param messager the round's messager
+   * @param tag the annotation tag, for the diagnostic
+   * @param sumType the sealed type
+   * @param subtype the permitted subtype
+   * @param namedSumType the sum type as the subtype's clause names it
+   * @param inScope every type parameter a use of the subtype supplies
+   * @param declared those the prism method declares
+   * @return true when the subtype was rejected and an error reported
+   */
+  private static boolean rejectsBoundOnAFreeParameter(
+      Messager messager,
+      String tag,
+      TypeElement sumType,
+      TypeElement subtype,
+      DeclaredType namedSumType,
+      List<TypeParameterElement> inScope,
+      List<TypeParameterElement> declared) {
+
+    List<TypeParameterElement> free =
+        inScope.stream().filter(parameter -> !declared.contains(parameter)).toList();
+    for (TypeParameterElement parameter : declared) {
+      List<String> named =
+          free.stream()
+              .filter(
+                  other ->
+                      parameter.getBounds().stream()
+                          .anyMatch(bound -> ProcessorUtils.mentions(bound, other)))
+              .map(other -> other.getSimpleName().toString())
+              .toList();
+      if (!named.isEmpty()) {
+        Diagnostics.error(
+            messager,
+            subtype,
+            tag,
+            // The bound is rendered as javac reads it: an inner class named in it carries its
+            // enclosing class's arguments, which is where an X the source never spelt comes from.
+            "The prism for '"
+                + subtype.getSimpleName()
+                + "' declares "
+                + parameter.getSimpleName()
+                + " extends "
+                + parameter.getBounds().stream()
+                    .map(ProcessorUtils::simpleTypeName)
+                    .collect(Collectors.joining(" & "))
+                + ", and '"
+                + sumType.getSimpleName()
+                + "' does not bind "
+                + named
+                + ".",
+            "The prism writes a wildcard wherever the clause leaves a parameter free, so "
+                + parameter.getSimpleName()
+                + "'s bound has nothing to name.",
+            bindingFix(sumType, namedSumType, named));
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The fix line both refusals share: bind each parameter left free in the clause, shown as the
+   * clause's own arguments with the free ones after them. A raw clause has room for them already,
+   * so adding a parameter to the sum type is offered only for those it has no room for.
+   *
+   * @param sumType the sealed type
+   * @param namedSumType the sum type as the subtype's clause names it
+   * @param free the names the clause leaves free
+   * @return the fix sentence
+   */
+  private static String bindingFix(
+      TypeElement sumType, DeclaredType namedSumType, List<String> free) {
+    String arguments =
+        Stream.concat(
+                namedSumType.getTypeArguments().stream().map(ProcessorUtils::simpleTypeName),
+                free.stream())
+            .collect(Collectors.joining(", "));
+    return "Bind "
+        + free
+        + " in the clause, as '"
+        + sumType.getSimpleName()
+        + "<"
+        + arguments
+        + ">', giving '"
+        + sumType.getSimpleName()
+        + "' a type parameter for each one it has no room for, or write the prism by hand.";
   }
 }

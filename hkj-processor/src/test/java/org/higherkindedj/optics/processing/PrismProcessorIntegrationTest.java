@@ -159,7 +159,10 @@ public class PrismProcessorIntegrationTest {
     assertThat(compilation).failed();
     assertThat(compilation)
         .hadErrorContaining("'UPair' declares [B], which 'UShape' does not bind");
-    assertThat(compilation).hadErrorContaining("implements UShape<B>");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "Bind [B] in the clause, as 'UShape<A, B>', giving 'UShape' a type parameter for each"
+                + " one it has no room for, or write the prism by hand.");
   }
 
   @Test
@@ -193,5 +196,121 @@ public class PrismProcessorIntegrationTest {
         compilation,
         "com.example.ShapePrisms",
         "@SuppressWarnings(\"rawtypes\") public static <T extends List> Prism<Shape<T>, Shape.Tagged<T>> tagged()");
+  }
+
+  @Test
+  @DisplayName("a permitted inner class of a generic class is named under its enclosing arguments")
+  void innerClassOfAGenericClassIsNamedUnderItsEnclosingArguments() {
+    // Left without the enclosing class's arguments an inner class is raw, even where it declares
+    // none of its own. An enclosing parameter the clause binds is declared, as Pinned's X is, and
+    // one it leaves free is a wildcard: a Circle of some Shapes is all the instanceof establishes.
+    var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Shapes",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+            @SuppressWarnings("rawtypes")
+            public class Shapes<X extends List, Z> {
+              @GeneratePrisms
+              public sealed interface Shape
+                  permits Shapes.Circle, Shapes.Square, Shapes.Mid.Deep, Shapes.Plain.Leaf {}
+
+              public final class Circle implements Shape {}
+
+              public static final class Square implements Shape {}
+
+              public class Mid {
+                public final class Deep implements Shape {}
+              }
+
+              public static class Plain {
+                public final class Leaf implements Shape {}
+              }
+
+              @GeneratePrisms
+              public sealed interface Tagged<T> permits Shapes.Pinned, Shapes.Box {}
+
+              public final class Pinned implements Tagged<X> {}
+
+              public final class Box<Y> implements Tagged<Y> {}
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new PrismProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(sourceFile);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ShapePrisms",
+        "public static Prism<Shapes.Shape, Shapes<?, ?>.Circle> circle() { return Prism.of(source"
+            + " -> source instanceof Shapes.Circle ? Optional.of((Shapes<?, ?>.Circle) source) :"
+            + " Optional.empty(), value -> value); }");
+    // A static member has no enclosing instance type, so it is named as it was before.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ShapePrisms",
+        "public static Prism<Shapes.Shape, Shapes.Square> square()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ShapePrisms",
+        "public static Prism<Shapes.Shape, Shapes<?, ?>.Mid.Deep> deep()");
+    // Leaf is an inner class too, but of a static class, so no link of its chain takes arguments.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ShapePrisms",
+        "public static Prism<Shapes.Shape, Shapes.Plain.Leaf> leaf()");
+    // X is declared with its bound, so the bound's raw List is answered on the factory.
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.TaggedPrisms",
+        "@SuppressWarnings(\"rawtypes\") public static <X extends List> Prism<Shapes.Tagged<X>,"
+            + " Shapes<X, ?>.Pinned> pinned()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.TaggedPrisms",
+        "public static <Y> Prism<Shapes.Tagged<Y>, Shapes<?, ?>.Box<Y>> box()");
+  }
+
+  @Test
+  @DisplayName("should refuse an inner subtype bounded by an enclosing parameter nothing binds")
+  void shouldRefuseAnInnerSubtypeBoundedByAnEnclosingParameterNothingBinds() {
+    // X is written as a wildcard, so the prism has no X for Y's bound to name. Self's bound names X
+    // too, though the source never spells it: an inner class is read under its enclosing arguments.
+    // The refusals are the only errors, so no prism naming the missing X was written.
+    var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Shapes",
+            """
+            package com.example;
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+            public class Shapes<X> {
+              @GeneratePrisms
+              public sealed interface Shape<T> permits Shapes.Box, Shapes.Self, Shapes.Ok {}
+
+              public final class Box<Y extends X> implements Shape<Y> {}
+
+              public final class Self<Y extends Self<Y>> implements Shape<Y> {}
+
+              public final class Ok<Y> implements Shape<Y> {}
+            }
+            """);
+
+    var compilation = javac().withProcessors(new PrismProcessor()).compile(sourceFile);
+
+    assertThat(compilation).failed();
+    assertThat(compilation).hadErrorCount(2);
+    assertThat(compilation)
+        .hadErrorContaining(
+            "The prism for 'Box' declares Y extends X, and 'Shape' does not bind [X].");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "The prism for 'Self' declares Y extends Shapes<X>.Self<Y>, and 'Shape' does not bind"
+                + " [X].");
+    assertThat(compilation).hadErrorContaining("Bind [X] in the clause, as 'Shape<Y, X>'");
   }
 }
