@@ -41,7 +41,8 @@ import org.higherkindedj.optics.processing.util.Reachability;
  *
  * <ul>
  *   <li><b>Standard fields</b> - Generate {@code FocusPath}
- *   <li><b>Optional/Maybe fields</b> - Generate {@code AffinePath} via {@code .some()}
+ *   <li><b>Optional/Maybe fields</b> - Generate {@code AffinePath}, an {@code Optional} via {@code
+ *       .some()} and a {@code Maybe} via {@code .some(Affines.just())}
  *   <li><b>Collection fields</b> (List, Set, Collection) - Generate {@code TraversalPath}, each
  *       through the {@code Each} that rebuilds it
  *   <li><b>Kind&lt;F, A&gt; fields</b> - Generate appropriate path via {@code .traverseOver()}
@@ -410,8 +411,14 @@ public class FocusProcessor extends AbstractProcessor {
                 : "a wildcard has no ground instantiation to infer it from."),
         "Declare the component with concrete type arguments, such as "
             + concreteAlternative(declaredType)
-            + ", or drop @GenerateFocus from the record: @GenerateLenses and @GenerateTraversals"
-            + " compose no optic instance and take the component as written.");
+            + (raw
+                // A raw container has no element type for @GenerateTraversals to focus either, so
+                // it draws a note and no traversal there; only the lens takes it as written.
+                ? ", or drop @GenerateFocus from the record: @GenerateLenses composes no optic"
+                    + " instance and takes the component as written."
+                : ", or drop @GenerateFocus from the record: @GenerateLenses and"
+                    + " @GenerateTraversals compose no optic instance and take the component as"
+                    + " written."));
   }
 
   /**

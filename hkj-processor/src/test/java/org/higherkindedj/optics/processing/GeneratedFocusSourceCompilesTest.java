@@ -116,6 +116,7 @@ class GeneratedFocusSourceCompilesTest {
                   "Either<String, ? super Leaf>",
                   "Map<String, ? super Leaf>",
                   "List<? super Leaf>",
+                  "Maybe<? super Leaf>",
                   "Set<? super Leaf>",
                   "Collection<? super Leaf>",
                   "Optional<? super Leaf>",
@@ -243,9 +244,9 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<StillCompiles> CORPUS =
       List.of(
-          // The no-argument widenings take a wildcard: .some() and .each() unify nothing. A Set or
-          // a Collection is not among them -- each names the Each that rebuilds it, which a
-          // wildcard leaves uninstantiable, so those are rejected rather than left alone (#725).
+          // The no-argument widenings take a wildcard: .some() and .each() unify nothing. A Maybe,
+          // a Set or a Collection is not among them -- each names the optic that rebuilds it, which
+          // a wildcard leaves uninstantiable, so those are rejected rather than left alone.
           new StillCompiles("List<? extends Leaf> f", ""),
           new StillCompiles("Optional<? extends Leaf> f", ""),
           new StillCompiles("Optional<? super Leaf> f", ""),
@@ -308,7 +309,10 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<Rejected> REJECTED =
       List.of(
-          // A Set or a Collection names its own Each, so a wildcard or raw one has none to write.
+          // A Maybe, a Set or a Collection names its own optic, so a wildcard or raw one has none
+          // to write.
+          new Rejected("Maybe<?> f", "", "Maybe<?>"),
+          new Rejected("Maybe f", "", "Maybe"),
           new Rejected("Set<?> f", "", "Set<?>"),
           new Rejected("Collection<? extends Leaf> f", "", "Collection<? extends Leaf>"),
           new Rejected("Set f", "", "Set"),
@@ -331,6 +335,7 @@ class GeneratedFocusSourceCompilesTest {
           new Rejected(
               "Optional<Either<String, ? extends Leaf>> f", "", "Either<String, ? extends Leaf>"),
           new Rejected("List<Set<?>> f", "", "Set<?>"),
+          new Rejected("List<Maybe<? extends Leaf>> f", "", "Maybe<? extends Leaf>"),
           new Rejected(
               "Either<String, Map<String, ?>> f", "widenCollections = true", "Map<String, ?>"),
           new Rejected("Optional<Optional<Either<String, ?>>> f", "", "Either<String, ?>"),

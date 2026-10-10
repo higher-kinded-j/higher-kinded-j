@@ -16,7 +16,7 @@ Every container type has a **cardinality** that determines the generated Focus p
 | `Either<L, R>`    | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.eitherRight()`          |
 | `Try<A>`          | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.trySuccess()`           |
 | `Validated<E, A>` | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.validatedValid()`       |
-| `Maybe<A>`        | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.just()`                 |
+| `Maybe<A>`        | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.just()` (built-in)      |
 | `Optional<A>`     | Zero or one    | `AffinePath`     | `AffinePath`        | `.some()` (built-in)             |
 | `Map<K, V>`       | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.mapValuesEach()`  |
 | `T[]` (arrays)    | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
@@ -134,10 +134,10 @@ record Holder(Either<String, Leaf> either) {}
 
 - Both of the container's own type arguments count, focused or not: `Either<?, Leaf>` is rejected too.
 - A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
-- The built-in `Optional`, `Maybe` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify.
-- `Set` and `Collection` are built in too, but each widens by naming an `Each` instance, so the rule applies to them as it does to an SPI container: `Set<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
+- The built-in `Optional` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify.
+- `Maybe`, `Set` and `Collection` are built in too, but each widens by naming an optic instance (`Affines.just()` or an `Each`). So the rule applies to them as it does to an SPI container: `Maybe<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
 - A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator reaching a navigable element inside it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
-- A custom generator that names no optic expression is exempt: it widens through `.nullable()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator shipped with HKJ names one.
+- A custom generator that names no optic expression is exempt: it widens through the no-argument `.some()` or `.each()`, whose free type variable takes a raw or wildcard argument without complaint. Every generator HKJ ships for a type the SPI widens names one.
 - This is a rule about composing an optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: `? extends T` is `T`, and `?` or `? super T` is `Object`.
 
 ## ZERO_OR_MORE Manual Widening

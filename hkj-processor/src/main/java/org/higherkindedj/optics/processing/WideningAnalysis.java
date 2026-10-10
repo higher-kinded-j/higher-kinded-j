@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
@@ -31,18 +30,24 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * navigator method on a record that holds an {@code X} — and both must report the same path type
  * for the same declaration. They do because there is one analysis: this one. {@link FocusProcessor}
  * asks it what to emit, and {@link NavigatorClassGenerator} asks it what the emitted method returns
- * so that it can compose that method rather than re-derive the widening (issue #719).
+ * so that it can compose that method rather than re-derive the widening.
  *
  * <p>What is recognised, and what is not:
  *
  * <ul>
- *   <li>{@code Optional} and {@code Maybe} widen to an {@code AffinePath} through {@code .some()}.
+ *   <li>{@code Optional} and {@code Maybe} widen to an {@code AffinePath}, each through the {@code
+ *       Affine} that reads and rebuilds it: {@code Optional} through the no-argument {@code
+ *       .some()}, which is {@code Optional}-only, and {@code Maybe} through {@code
+ *       .some(Affines.just())}.
  *   <li>{@code List}, {@code Set} and {@code Collection} widen to a {@code TraversalPath}, each
  *       through the {@code Each} that rebuilds it: {@code List} through the no-argument {@code
  *       .each()}, which is {@code List}-only, and the other two through an instance that rebuilds
- *       their own shape (issue #725). A <em>subtype</em> — {@code ArrayList}, {@code TreeSet} —
- *       does not widen here: none of those three rebuilds it. Concrete containers widen through a
- *       {@link TraversableGenerator}, which knows how to rebuild the one it supports.
+ *       their own shape. A <em>subtype</em> — {@code ArrayList}, {@code TreeSet} — does not widen
+ *       here: none of those three rebuilds it. Concrete containers widen through a {@link
+ *       TraversableGenerator}, which knows how to rebuild the one it supports.
+ *   <li>These five are recognised by name, so a plugin-free annotation processor path widens them
+ *       too, and the SPI is never asked about them: the expression each one widens through is
+ *       written here and nowhere else, even where a generator on the path supports the same type.
  *   <li>A {@code Kind<F, A>} component widens through {@code .traverseOver()}, at the outermost
  *       layer only, because the analysis reads it from the component's own declaration.
  *   <li>Every other container arrives through the SPI. A {@code ZERO_OR_ONE} generator always
@@ -50,11 +55,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>A widening that names an optic instance cannot be written for a raw or wildcard-carrying
  *       container. The walk turns such a container away and the widening {@linkplain
  *       Widening#declined() names it}, so that the declaration is rejected where it is written
- *       rather than inside generated source (issue #718). {@code Set} and {@code Collection} fall
- *       under that rule; {@code List} deliberately does not, and keeps the no-argument {@code
- *       .each()} whose free type variable takes either without complaint. Routing {@code List}
- *       through an instance too would drag {@code List<?>} and raw {@code List} into the rejection
- *       for no runtime gain, since that traversal is the one they already work with.
+ *       rather than inside generated source. {@code Maybe}, {@code Set} and {@code Collection} fall
+ *       under that rule; {@code Optional} and {@code List} deliberately do not, and keep the
+ *       no-argument {@code .some()} and {@code .each()} whose free type variable takes either
+ *       without complaint. Routing them through an instance too would drag {@code Optional<?>},
+ *       {@code List<?>} and their raw forms into the rejection for no runtime gain, since those
+ *       optics are the ones they already work with.
  *   <li>{@code @Nullable} widens a component the containers leave alone, and nothing else.
  * </ul>
  *
@@ -76,24 +82,26 @@ public final class WideningAnalysis {
   static final ClassName TRAVERSAL_PATH_CLASS =
       ClassName.get("org.higherkindedj.optics.focus", "TraversalPath");
 
-  /** Optional types that widen to AffinePath via .some(). */
-  private static final Set<String> OPTIONAL_TYPES =
-      Set.of("java.util.Optional", "org.higherkindedj.hkt.maybe.Maybe");
+  /** ClassName for Affines, which supplies the {@code Affine} a {@code Maybe} widens through. */
+  private static final ClassName AFFINES_CLASS =
+      ClassName.get("org.higherkindedj.optics.util", "Affines");
 
   /** ClassName for EachInstances, which supplies the {@code Each} a collection widens through. */
   private static final ClassName EACH_INSTANCES_CLASS =
       ClassName.get("org.higherkindedj.optics.each", "EachInstances");
 
   /**
-   * Collection types that widen to TraversalPath, and the step each one widens through.
+   * The containers recognised by name, and the step each one widens through.
    *
-   * <p>The three do not share an expression. {@code List} widens through the no-argument {@code
-   * .each()}, whose traversal is a {@code List} one; a {@code Set} or a {@code Collection} put
-   * through that traversal fails its first cast, so each names the {@code Each} that rebuilds its
-   * own shape instead (issue #725).
+   * <p>None of them shares an expression with another. The no-argument {@code .some()} and {@code
+   * .each()} carry an {@code Optional} affine and a {@code List} traversal behind an unchecked
+   * cast, so a {@code Maybe}, a {@code Set} or a {@code Collection} put through either fails its
+   * first cast; each names the optic that reads and rebuilds its own shape instead.
    */
-  private static final Map<String, StepKind> COLLECTION_TYPES =
+  private static final Map<String, StepKind> RECOGNISED_CONTAINERS =
       Map.of(
+          "java.util.Optional", StepKind.OPTIONAL,
+          "org.higherkindedj.hkt.maybe.Maybe", StepKind.MAYBE,
           "java.util.List", StepKind.LIST,
           "java.util.Set", StepKind.SET,
           "java.util.Collection", StepKind.COLLECTION);
@@ -152,8 +160,10 @@ public final class WideningAnalysis {
 
   /** How one peeled container layer widens the path. */
   public enum StepKind {
-    /** Optional/Maybe - AffinePath via {@code .some()}. */
+    /** Optional - AffinePath via the {@code Optional}-only no-argument {@code .some()}. */
     OPTIONAL(Tier.AFFINE),
+    /** Maybe - AffinePath via {@code .some(Affines.just())}. */
+    MAYBE(Tier.AFFINE),
     /** List - TraversalPath via the {@code List}-only no-argument {@code .each()}. */
     LIST(Tier.TRAVERSAL),
     /** Set - TraversalPath via {@code .each(EachInstances.setEach())}. */
@@ -306,18 +316,13 @@ public final class WideningAnalysis {
     TypeElement typeElement = (TypeElement) declaredType.asElement();
     String qualifiedName = typeElement.getQualifiedName().toString();
 
-    if (OPTIONAL_TYPES.contains(qualifiedName)) {
-      return descend(
-          component, declaredType, StepKind.OPTIONAL, null, 0, widenCollections, depth, steps);
-    }
-    StepKind collectionStep = COLLECTION_TYPES.get(qualifiedName);
-    if (collectionStep != null) {
-      // A Set or a Collection names an Each whose type arguments come from the field type, so a
-      // raw or wildcard-carrying one has no widening that can be written (issues #718, #725).
-      return namesOpticInstance(collectionStep) && ProcessorUtils.hasUndenotableTypeArguments(type)
+    StepKind recognised = RECOGNISED_CONTAINERS.get(qualifiedName);
+    if (recognised != null) {
+      // A Maybe, a Set or a Collection names an optic whose type arguments come from the field
+      // type, so a raw or wildcard-carrying one has no widening that can be written.
+      return namesOpticInstance(recognised) && ProcessorUtils.hasUndenotableTypeArguments(type)
           ? declaredType
-          : descend(
-              component, declaredType, collectionStep, null, 0, widenCollections, depth, steps);
+          : descend(component, declaredType, recognised, null, 0, widenCollections, depth, steps);
     }
 
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
@@ -441,7 +446,7 @@ public final class WideningAnalysis {
       // @Nullable on it would describe a value the affine never yields.
       case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType, targetPackage).box());
       case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE, KIND_ZERO_OR_MORE -> last.kindInfo().elementType();
-      case OPTIONAL, LIST, SET, COLLECTION, SPI_ZERO_OR_ONE, SPI_ZERO_OR_MORE ->
+      case OPTIONAL, MAYBE, LIST, SET, COLLECTION, SPI_ZERO_OR_ONE, SPI_ZERO_OR_MORE ->
           last.innerType() == null
               ? ClassName.get(Object.class)
               : ProcessorUtils.typeNameOf(last.innerType(), targetPackage).box();
@@ -489,14 +494,15 @@ public final class WideningAnalysis {
       // the argument type to unify the instance against. A next step only exists because the walk
       // descended into a non-null inner type, so innerType() is non-null wherever this is read.
       boolean witness = i + 1 < steps.size() && isParameterised(steps.get(i + 1));
-      // Rendered as a value rather than appended arm by arm: the ten kinds are the whole enum,
+      // Rendered as a value rather than appended arm by arm: the kinds are the whole enum,
       // and a switch expression says so without a default arm nothing can reach.
       expression.append(
           switch (step.kind()) {
             case OPTIONAL -> witnessed("some", step, witness, args, targetPackage);
+            case MAYBE -> stockInstance("some", AFFINES_CLASS, "just", args);
             case LIST -> witnessed("each", step, witness, args, targetPackage);
-            case SET -> eachInstance("setEach", args);
-            case COLLECTION -> eachInstance("collectionEach", args);
+            case SET -> stockInstance("each", EACH_INSTANCES_CLASS, "setEach", args);
+            case COLLECTION -> stockInstance("each", EACH_INSTANCES_CLASS, "collectionEach", args);
             case NULLABLE -> ".nullable()";
             case SPI_ZERO_OR_ONE -> ".some(" + opticExpression(step, args) + ")";
             case SPI_ZERO_OR_MORE -> ".each(" + opticExpression(step, args) + ")";
@@ -521,10 +527,11 @@ public final class WideningAnalysis {
     return ".<$T>" + method + "()";
   }
 
-  /** A widening through one of the stock {@code EachInstances} factories. */
-  private static String eachInstance(String factory, List<Object> args) {
-    args.add(EACH_INSTANCES_CLASS);
-    return ".each($T." + factory + "())";
+  /** A widening through one of the stock {@code Affines} or {@code EachInstances} factories. */
+  private static String stockInstance(
+      String method, ClassName factories, String factory, List<Object> args) {
+    args.add(factories);
+    return "." + method + "($T." + factory + "())";
   }
 
   /** Resolves a generator's optic expression, collecting the imports it names into {@code args}. */
@@ -547,7 +554,8 @@ public final class WideningAnalysis {
    * container of its own unwritable.
    */
   private static boolean namesOpticInstance(StepKind kind) {
-    return kind == StepKind.SET
+    return kind == StepKind.MAYBE
+        || kind == StepKind.SET
         || kind == StepKind.COLLECTION
         || kind == StepKind.SPI_ZERO_OR_ONE
         || kind == StepKind.SPI_ZERO_OR_MORE;
@@ -577,8 +585,7 @@ public final class WideningAnalysis {
    * @return true for Optional, Maybe, List, Set and Collection
    */
   public boolean recognisedContainer(TypeMirror type) {
-    String qualifiedName = qualifiedNameOf(type);
-    return OPTIONAL_TYPES.contains(qualifiedName) || COLLECTION_TYPES.containsKey(qualifiedName);
+    return RECOGNISED_CONTAINERS.containsKey(qualifiedNameOf(type));
   }
 
   /** The qualified name of a declared type's element. */
@@ -621,11 +628,11 @@ public final class WideningAnalysis {
      * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
      * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
      * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
-     * with no optic expression widens through {@code .nullable()} or {@code .each()} instead, whose
-     * free type variable takes either without complaint, and is admitted.
+     * with no optic expression widens through the no-argument {@code .some()} or {@code .each()}
+     * instead, whose free type variable takes either without complaint, and is admitted.
      *
      * <p>Such a container is left un-widened, and its declaration is rejected where it is written
-     * rather than inside generated source (issue #718).
+     * rather than inside generated source.
      *
      * @param generator the generator that supports the type
      */

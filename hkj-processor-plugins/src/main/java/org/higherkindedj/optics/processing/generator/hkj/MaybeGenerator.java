@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -22,6 +21,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>This class is discovered by the {@code TraversalProcessor} using the Java ServiceLoader
  * mechanism.
+ *
+ * <p>{@code @GenerateFocus} recognises {@code Maybe} by name and widens it through the expression
+ * {@code WideningAnalysis} writes for it, so this generator supplies no optic expression of its
+ * own.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class MaybeGenerator extends BaseTraversableGenerator {
@@ -43,16 +46,6 @@ public class MaybeGenerator extends BaseTraversableGenerator {
   @Override
   public Cardinality getCardinality() {
     return Cardinality.ZERO_OR_ONE;
-  }
-
-  @Override
-  public String generateOpticExpression() {
-    return "Affines.just()";
-  }
-
-  @Override
-  public Set<String> getRequiredImports() {
-    return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
   @Override

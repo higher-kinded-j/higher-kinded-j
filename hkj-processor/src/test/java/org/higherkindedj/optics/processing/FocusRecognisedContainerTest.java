@@ -20,6 +20,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.processing.RuntimeCompilationHelper.CompiledResult;
 import org.junit.jupiter.api.DisplayName;
@@ -29,13 +31,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Each collection {@code @GenerateFocus} recognises by name reaches a traversal that rebuilds it.
+ * Each container {@code @GenerateFocus} recognises by name reaches an optic that reads and rebuilds
+ * it.
  *
- * <p>The three do not share one: the no-argument {@code .each()} carries a {@code List} traversal
- * and casts the focused value to a {@code List} unchecked, so a {@code Set} or a {@code Collection}
- * routed through it compiled and then threw on its first traversal (issue #725). A compile-testing
- * assertion cannot see that, which is why the modifications below run the generated path and read
- * the component back rather than only reading the emitted source.
+ * <p>They do not share one: the no-argument {@code .each()} and {@code .some()} carry a {@code
+ * List} traversal and an {@code Optional} affine, and cast the focused value to that type
+ * unchecked, so a {@code Set}, a {@code Collection} or a {@code Maybe} routed through either
+ * compiles and then throws on first use. A compile-testing assertion cannot see that, which is why
+ * the reads and modifications below run the generated path and read the component back rather than
+ * only reading the emitted source.
  */
 @DisplayName("Recognised container widening")
 class FocusRecognisedContainerTest {
@@ -245,8 +249,116 @@ class FocusRecognisedContainerTest {
   }
 
   @Nested
-  @DisplayName("A container whose Each cannot be instantiated")
-  class AContainerWhoseEachCannotBeInstantiated {
+  @DisplayName("A Maybe component")
+  class AMaybeComponent {
+
+    private static final JavaFileObject SAVED =
+        JavaFileObjects.forSourceString(
+            "com.example.Saved",
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.hkt.maybe.Maybe;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus
+            public record Saved(Maybe<String> item, List<Maybe<String>> drafts) {}
+            """);
+
+    private final CompiledResult result =
+        RuntimeCompilationHelper.compileWith(new FocusProcessor(), SAVED);
+
+    private Object saved(Maybe<String> item, List<Maybe<String>> drafts) {
+      try {
+        Constructor<?> constructor =
+            result.loadClass("com.example.Saved").getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        return constructor.newInstance(item, drafts);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not build com.example.Saved", e);
+      }
+    }
+
+    private Object path(String component) {
+      try {
+        return result.invokeStatic("com.example.SavedFocus", component);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not read com.example.SavedFocus." + component, e);
+      }
+    }
+
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    private AffinePath<Object, String> item() {
+      return (AffinePath<Object, String>) path("item");
+    }
+
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    private TraversalPath<Object, String> drafts() {
+      return (TraversalPath<Object, String>) path("drafts");
+    }
+
+    @Test
+    @DisplayName("widens through the Affine that reads a Maybe")
+    void widensThroughTheAffineThatReadsAMaybe() {
+      assertGeneratedCodeContains(
+          result.compilation(), "com.example.SavedFocus", "\"item\").some(Affines.just());");
+    }
+
+    @Test
+    @DisplayName("a no-argument step before a Maybe spells out the element it hands on")
+    void aNoArgumentStepBeforeAMaybeSpellsOutTheElementItHandsOn() {
+      assertGeneratedCodeContains(
+          result.compilation(),
+          "com.example.SavedFocus",
+          "\"drafts\").<Maybe<String>>each().some(Affines.just());");
+    }
+
+    @Test
+    @DisplayName("a Just reads back its value")
+    void aJustReadsBackItsValue() {
+      assertThat(item().getOptional(saved(Maybe.just("alice"), List.of()))).contains("alice");
+    }
+
+    @Test
+    @DisplayName("Nothing reads back as empty")
+    void nothingReadsBackAsEmpty() {
+      assertThat(item().getOptional(saved(Maybe.nothing(), List.of()))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modifying a Just rebuilds a Just")
+    void modifyingAJustRebuildsAJust() {
+      Object modified =
+          item().modify(FocusRecognisedContainerTest::upper, saved(Maybe.just("alice"), List.of()));
+
+      assertThat(invoke(modified, "item")).isEqualTo(Maybe.just("ALICE"));
+    }
+
+    @Test
+    @DisplayName("modifying Nothing leaves the record as it was")
+    void modifyingNothingLeavesTheRecordAsItWas() {
+      Object source = saved(Maybe.nothing(), List.of());
+
+      assertThat(item().modify(FocusRecognisedContainerTest::upper, source)).isEqualTo(source);
+    }
+
+    @Test
+    @DisplayName("a Maybe nested in a List is reached through it")
+    void aMaybeNestedInAListIsReachedThroughIt() {
+      Object source = saved(Maybe.nothing(), List.of(Maybe.just("alice"), Maybe.nothing()));
+
+      Object modified = drafts().modifyAll(FocusRecognisedContainerTest::upper, source);
+
+      assertThat(drafts().getAll(source)).containsExactly("alice");
+      assertThat(invoke(modified, "drafts"))
+          .isEqualTo(List.of(Maybe.just("ALICE"), Maybe.nothing()));
+    }
+  }
+
+  @Nested
+  @DisplayName("A container whose optic cannot be instantiated")
+  class AContainerWhoseOpticCannotBeInstantiated {
 
     private Compilation compile(String component) {
       return javac()
@@ -259,6 +371,7 @@ class FocusRecognisedContainerTest {
 
                   import java.util.Collection;
                   import java.util.Set;
+                  import org.higherkindedj.hkt.maybe.Maybe;
                   import org.higherkindedj.optics.annotations.GenerateFocus;
 
                   @GenerateFocus
@@ -269,7 +382,14 @@ class FocusRecognisedContainerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Set<?>", "Set<? extends CharSequence>", "Collection<?>"})
+    @ValueSource(
+        strings = {
+          "Set<?>",
+          "Set<? extends CharSequence>",
+          "Collection<?>",
+          "Maybe<?>",
+          "Maybe<? extends CharSequence>"
+        })
     @DisplayName("a wildcard is reported against the declaration")
     void aWildcardIsReportedAgainstTheDeclaration(String component) {
       assertThat(compile(component))
@@ -319,40 +439,76 @@ class FocusRecognisedContainerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Set", "Collection"})
+    @ValueSource(strings = {"Set", "Collection", "Maybe"})
     @DisplayName("a raw container is reported against the declaration")
     void aRawContainerIsReportedAgainstTheDeclaration(String component) {
       assertThat(compile(component))
           .hadErrorContaining("record component 'Holder.f' has a raw " + component + ".");
     }
 
+    /** Holder over {@code component}, under the annotations the diagnostic's remedy names. */
+    private Compilation compileWithSiblings(String component, String annotations) {
+      return javac()
+          .withProcessors(new LensProcessor(), new TraversalProcessor())
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Holder",
+                  """
+                  package com.example;
+
+                  import java.util.Collection;
+                  import java.util.Set;
+                  import org.higherkindedj.hkt.maybe.Maybe;
+                  import org.higherkindedj.optics.annotations.GenerateLenses;
+                  import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+                  %s
+                  @SuppressWarnings("rawtypes")
+                  public record Holder(%s f) {}
+                  """
+                      .formatted(annotations, component)));
+    }
+
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Set<?>", "Set<? extends CharSequence>", "Collection<?>", "Set"})
+    @ValueSource(
+        strings = {
+          "Set<?>",
+          "Set<? extends CharSequence>",
+          "Collection<?>",
+          "Maybe<?>",
+          "Maybe<? extends CharSequence>"
+        })
     @DisplayName(
-        "the remedy the diagnostic offers compiles: the sibling annotations take it as written")
-    void theRemedyTheDiagnosticOffersCompiles(String component) {
+        "for a wildcard, the remedy names both sibling annotations, and both take it as written")
+    void theWildcardRemedyNamesBothSiblingsAndBothTakeItAsWritten(String component) {
+      assertThat(compile(component))
+          .hadErrorContaining(
+              "@GenerateLenses and @GenerateTraversals compose no optic instance and take the"
+                  + " component as written.");
+
       Compilation compilation =
-          javac()
-              .withProcessors(new LensProcessor(), new TraversalProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.Holder",
-                      """
-                      package com.example;
-
-                      import java.util.Collection;
-                      import java.util.Set;
-                      import org.higherkindedj.optics.annotations.GenerateLenses;
-                      import org.higherkindedj.optics.annotations.GenerateTraversals;
-
-                      @GenerateLenses
-                      @GenerateTraversals
-                      @SuppressWarnings("rawtypes")
-                      public record Holder(%s f) {}
-                      """
-                          .formatted(component)));
+          compileWithSiblings(component, "@GenerateLenses\n@GenerateTraversals");
 
       assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderTraversals");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Set", "Collection", "Maybe"})
+    @DisplayName("for a raw container, the remedy names the lens alone, which takes it as written")
+    void theRawRemedyNamesTheLensAlone(String component) {
+      assertThat(compile(component))
+          .hadErrorContaining(
+              "@GenerateLenses composes no optic instance and takes the component as written.");
+      // @GenerateTraversals has no element type to focus in a raw container either: it compiles,
+      // but with a note and no traversal, which is why the remedy leaves it out.
+      assertThat(compileWithSiblings(component, "@GenerateTraversals"))
+          .hadNoteContaining("no traversal was generated for component");
+
+      Compilation compilation = compileWithSiblings(component, "@GenerateLenses");
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderLenses");
     }
   }
 }

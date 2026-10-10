@@ -329,12 +329,12 @@ class Shop {
 
 ### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Set<? extends T>"
 
-A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
+A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Maybe`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
 
-**Fix.** Name the type argument, `Set<Leaf>` rather than `Set<? extends Leaf>`, or drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. See [Custom Containers](focus_containers.md#supported-container-types).
+**Fix.** Name the type argument, `Set<Leaf>` rather than `Set<? extends Leaf>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
 
 ~~~admonish note title="Why" collapsible=true
-That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional`, `Maybe` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose element type is free to be whatever the field says.
+That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose element type is free to be whatever the field says.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true

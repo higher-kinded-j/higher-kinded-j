@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -18,6 +17,10 @@ import org.higherkindedj.optics.util.Traversals;
 /**
  * A {@link org.higherkindedj.optics.processing.spi.TraversableGenerator} that adds support for
  * traversing fields of type {@link java.util.Set}.
+ *
+ * <p>{@code @GenerateFocus} recognises {@code Set} by name and widens it through the expression
+ * {@code WideningAnalysis} writes for it, so this generator supplies no optic expression of its
+ * own.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class SetGenerator extends BaseTraversableGenerator {
@@ -35,16 +38,6 @@ public class SetGenerator extends BaseTraversableGenerator {
   }
 
   @Override
-  public String generateOpticExpression() {
-    return "EachInstances.setEach()";
-  }
-
-  @Override
-  public Set<String> getRequiredImports() {
-    return Set.of("org.higherkindedj.optics.each.EachInstances");
-  }
-
-  @Override
   public CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,
@@ -58,7 +51,7 @@ public class SetGenerator extends BaseTraversableGenerator {
         // preserved, nulls carried through, and the result unmodifiable. Every other route to a
         // Set traversal -- @GenerateFocus through EachInstances.setEach(), @ImportOptics and
         // @ThroughField through Traversals.forSet() -- bottoms out here too, so a Set component
-        // rebuilds the same way whichever annotation reads it (issue #725).
+        // rebuilds the same way whichever annotation reads it.
         .addStatement(
             "final var effectOfSet = $T.traverseSet(source.$L(), f, applicative)",
             Traversals.class,

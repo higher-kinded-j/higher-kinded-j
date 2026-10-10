@@ -110,10 +110,12 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | Container | Source | Optic used |
 |-----------|--------|------------|
 | `Optional<A>` | JDK | `.some()` (recognised directly) |
-| `Maybe<A>` | HKJ | `Affines.just()` |
+| `Maybe<A>` | HKJ | `Affines.just()` (recognised directly) |
 | `Either<L, R>` | HKJ | `Affines.eitherRight()` |
 | `Try<A>` | HKJ | `Affines.trySuccess()` |
 | `Validated<E, A>` | HKJ | `Affines.validatedValid()` |
+
+`Optional` and `Maybe` are recognised by name rather than by the SPI, and they do not share an optic. The no-argument `.some()` reads an `Optional` only, so a `Maybe` field widens through `.some(Affines.just())`.
 
 `ZERO_OR_MORE` containers, which produce a `TraversalPath` (at the static method for the first three rows, which are recognised by name, and for the rest only under `widenCollections = true`):
 
@@ -182,8 +184,8 @@ Which fields the rule reaches follows from how each one widens:
 
 | Field | Widens by | Raw or wildcard argument |
 |-------|-----------|--------------------------|
-| `Optional`, `Maybe`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` |
-| `Set`, `Collection` | naming an `Each` instance | ❌ Rejected, the same as an SPI container |
+| `Optional`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` |
+| `Maybe`, `Set`, `Collection` | naming an optic instance: `Affines.just()` or an `Each` | ❌ Rejected, the same as an SPI container |
 | `Either`, `Try`, `Validated`, `Map`, arrays, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
 | `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Leaf>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
 
@@ -193,7 +195,7 @@ Three things narrow the rule further.
 
 **A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
-**A generator that names no optic expression is exempt.** It widens through `.nullable()` or `.each()`, whose element type is free to be whatever the field says, so a raw or wildcard argument costs it nothing. Every generator shipped with HKJ names an optic, so this only applies to one of your own.
+**A generator that names no optic expression is exempt.** It widens through the no-argument `.some()` or `.each()`, whose element type is free to be whatever the field says, so a raw or wildcard argument costs it nothing. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
 The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
@@ -260,7 +262,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 
 ~~~admonish info title="Key Takeaways"
 * **The field type picks the path type, through cardinality.** Zero or one gives an `AffinePath`, `List`/`Set`/`Collection` a `TraversalPath`, anything else a `FocusPath`. Every other zero-or-more container stops at the container until `widenCollections` says otherwise.
-* **`List`, `Set`, `Collection` and `Optional` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
+* **`Optional`, `Maybe`, `List`, `Set` and `Collection` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
 * **`widenCollections = true` removes the asymmetry.** Without it, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike; a container holding a navigable element is stepped into either way, because that is how its navigator reaches the element.
 * **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type.
 * **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`; register with `@ServiceProvider`, and your container becomes a first-class Focus field.

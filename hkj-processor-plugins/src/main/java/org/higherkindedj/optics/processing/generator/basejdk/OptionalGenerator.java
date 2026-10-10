@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -23,6 +22,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>This class is discovered by the {@code TraversalProcessor} using the Java ServiceLoader
  * mechanism. It is responsible for generating the logic to traverse an {@code Optional} field
  * within a record, applying an effectful function only if the {@code Optional} is present.
+ *
+ * <p>{@code @GenerateFocus} recognises {@code Optional} by name and widens it through the
+ * expression {@code WideningAnalysis} writes for it, so this generator supplies no optic expression
+ * of its own.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class OptionalGenerator extends BaseTraversableGenerator {
@@ -42,16 +45,6 @@ public class OptionalGenerator extends BaseTraversableGenerator {
   @Override
   public Cardinality getCardinality() {
     return Cardinality.ZERO_OR_ONE;
-  }
-
-  @Override
-  public String generateOpticExpression() {
-    return "Affines.some()";
-  }
-
-  @Override
-  public Set<String> getRequiredImports() {
-    return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
   @Override

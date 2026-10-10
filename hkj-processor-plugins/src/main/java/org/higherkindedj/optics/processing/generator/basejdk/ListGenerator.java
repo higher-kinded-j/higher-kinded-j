@@ -6,7 +6,6 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -19,8 +18,11 @@ import org.higherkindedj.optics.util.Traversals;
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link
  * java.util.List}.
  *
- * <p>This implementation has been refactored to delegate its complex HKT logic to the {@link
- * Traversals#traverseList} helper method, which greatly simplifies the generated code.
+ * <p>The generated body delegates to the {@link Traversals#traverseList} helper.
+ *
+ * <p>{@code @GenerateFocus} recognises {@code List} by name and widens it through the expression
+ * {@code WideningAnalysis} writes for it, so this generator supplies no optic expression of its
+ * own.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class ListGenerator extends BaseTraversableGenerator {
@@ -35,16 +37,6 @@ public class ListGenerator extends BaseTraversableGenerator {
     if (!(type instanceof DeclaredType declaredType)) return false;
     final Element element = declaredType.asElement();
     return element.toString().equals(FQN_LIST);
-  }
-
-  @Override
-  public String generateOpticExpression() {
-    return "EachInstances.listEach()";
-  }
-
-  @Override
-  public Set<String> getRequiredImports() {
-    return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
   @Override

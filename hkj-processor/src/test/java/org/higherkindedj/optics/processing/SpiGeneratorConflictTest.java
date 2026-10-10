@@ -139,7 +139,7 @@ class SpiGeneratorConflictTest {
       // Dup (ZERO_OR_MORE, no optic expression) falls back to .each() inside the navigator.
       assertGeneratedCodeContains(
           compilation, "com.example.NavRootFocus", "TraversalPath<S, String> d()");
-      // Solo (ZERO_OR_ONE, no optic expression) falls back to .nullable().
+      // Solo (ZERO_OR_ONE, no optic expression) falls back to the no-argument .some().
       assertGeneratedCodeContains(
           compilation, "com.example.NavRootFocus", "AffinePath<S, String> s()");
     }
