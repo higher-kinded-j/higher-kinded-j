@@ -235,7 +235,7 @@ class GenericImportedTypeAxisTest {
     assertThat(compilation).failed();
     assertThat(compilation)
         .hadErrorContaining("'MixPair' declares [B], which 'MixShape' does not bind");
-    assertThat(compilation).hadErrorContaining("implements MixShape<B>");
+    assertThat(compilation).hadErrorContaining("as 'MixShape<A, B>'");
   }
 
   @Test

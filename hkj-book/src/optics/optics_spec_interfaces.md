@@ -175,7 +175,7 @@ interface ValueOpticsSpec extends OpticsSpec<Value> {
 There is nothing the processor could rebuild a `Value` from a bare `String` with. Focus the variant that carries it, such as `StringValue` or `TextNode`, and read the payload with a lens or a further optic. Where the value type really is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
 ~~~
 
-### Parameterised Targets
+### Parameterised Targets {#parameterised-targets}
 
 `@InstanceOf` takes a class constant, which is always raw, and the generated test runs after erasure. A parameterised target may therefore only be narrowed to the type arguments the source type *pins down*: the ones a value of that source type must already have had to reach the test at all.
 
@@ -244,6 +244,28 @@ interface ShapeOpticsSpec extends OpticsSpec<Shape> {
 ~~~admonish info title="Where the argument matters"
 Widening to `Circle<?>` keeps the prism, at the cost of the argument. Where you need the argument, `@MatchWhen` is the sound alternative: it narrows through a predicate and getter of the source type, so the argument is the source's to honour rather than the test's to invent.
 ~~~
+
+An inner class of a generic class is narrowed by the same rule, its enclosing class's arguments included. A source that pins nothing of `Outer`'s earns a `Plain` of some `Outer`:
+
+<!-- verify -->
+```java
+class Node<U> {}
+
+class Outer<X> {
+
+    class Plain extends Node<String> {}
+}
+
+@ImportOptics
+interface NodeOpticsSpec extends OpticsSpec<Node<String>> {
+
+    @InstanceOf(Outer.Plain.class)
+    Prism<Node<String>, Outer<?>.Plain> plain();
+    // generates: source instanceof Outer<?>.Plain t ? Optional.of(t) : Optional.empty()
+}
+```
+
+Where the source pins `Outer`'s argument, through `Node<X>` in the class's own clause or through a source that is an inner class of `Outer` too, the test names it, as in `Outer<String>.Sub`. An inner class whose parameter's bound is one the source leaves free, as in `Inner<Y extends X>`, has no test that can be written, and is [refused](compiler_errors.md#instanceof-unwritable-bound).
 
 ---
 

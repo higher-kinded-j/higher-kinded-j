@@ -112,6 +112,46 @@ class InstanceOfNarrowingTest {
           public class Twin<X> extends Node<Pair<X, X>> {}
           """);
 
+  /** A generic class whose inner classes reach the base in each way a member can. */
+  private static final JavaFileObject OUTER =
+      JavaFileObjects.forSourceString(
+          "com.external.Outer",
+          """
+          package com.external;
+
+          public class Outer<X> {
+              public class Plain extends Node<String> {}
+
+              public class Inner<Y> extends Node<Y> {}
+
+              public class Pin extends Node<X> {}
+
+              public class Base {}
+
+              public class Sub extends Base {}
+
+              public class Bounded<Y extends X> extends Node<Y> {}
+          }
+          """);
+
+  /** A generic class with a parameter whose bound names another, and one bounded by it. */
+  private static final JavaFileObject DEPENDENT =
+      JavaFileObjects.forSourceString(
+          "com.external.Dependent",
+          """
+          package com.external;
+
+          import java.util.List;
+
+          public class Dependent<X, Z extends List<X>, W extends X> {
+              public class InZ extends Node<Z> {}
+
+              public class InW extends Node<W> {}
+
+              public class Both extends Node<Pair<X, W>> {}
+          }
+          """);
+
   /**
    * Compiles a spec interface body, with the generated source held to the lints a consuming build
    * turns on: a narrowing the processor could not justify must not reach the user as a warning it
@@ -125,13 +165,16 @@ class InstanceOfNarrowingTest {
             package com.myapp;
 
             import com.external.Circle;
+            import com.external.Dependent;
             import com.external.Grid;
             import com.external.Leaf;
             import com.external.Node;
+            import com.external.Outer;
             import com.external.Pair;
             import com.external.Shape;
             import com.external.Twin;
             import com.external.Wedge;
+            import java.util.List;
             import org.higherkindedj.optics.Prism;
             import org.higherkindedj.optics.annotations.ImportOptics;
             import org.higherkindedj.optics.annotations.InstanceOf;
@@ -145,7 +188,8 @@ class InstanceOfNarrowingTest {
     return javac()
         .withProcessors(new ImportOpticsProcessor())
         .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
-        .compile(SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, specInterface);
+        .compile(
+            SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, OUTER, DEPENDENT, specInterface);
   }
 
   @Nested
@@ -584,97 +628,176 @@ class InstanceOfNarrowingTest {
   }
 
   @Nested
-  @DisplayName("the test cannot name the target")
-  class Unnameable {
+  @DisplayName("the target is an inner class of another class")
+  class Members {
 
     @Test
-    @DisplayName("rejects a parameterised member of a generic type")
-    void rejectsAParameterisedMemberOfAGenericType() {
-      var outer =
-          JavaFileObjects.forSourceString(
-              "com.external.Outer",
+    @DisplayName("names an inner class of a generic class under its enclosing arguments")
+    void namesAnInnerClassUnderItsEnclosingArguments() {
+      // The class constant names a raw Outer.Plain. Node<String> pins nothing of Outer's, so a
+      // Plain of some Outer is what the test earns, and the pattern names it so.
+      var compilation =
+          compile(
               """
-              package com.external;
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<String>> {
+                  @InstanceOf(Outer.Plain.class)
+                  Prism<Node<String>, Outer<?>.Plain> plain();
+              }""");
 
-              public class Outer<X> {
-                  public class Inner<Y> extends Node<Y> {}
-              }
-              """);
-      var specInterface =
-          JavaFileObjects.forSourceString(
-              "com.myapp.SubjectOpticsSpec",
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<?>.Plain t");
+    }
+
+    @Test
+    @DisplayName("pins an inner class's own argument and its enclosing class's alike")
+    void pinsOwnAndEnclosingArgumentsAlike() {
+      // Inner's own Y is pinned through Node<Y>, and Pin's clause pins Outer's X the same way.
+      var compilation =
+          compile(
               """
-              package com.myapp;
-
-              import com.external.Node;
-              import com.external.Outer;
-              import org.higherkindedj.optics.Prism;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.InstanceOf;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-
-              @ImportOptics
               public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
                   @InstanceOf(Outer.Inner.class)
                   Prism<Node<U>, Outer<?>.Inner<U>> inner();
+
+                  @InstanceOf(Outer.Pin.class)
+                  Prism<Node<U>, Outer<U>.Pin> pin();
               }""");
 
-      // Node pins Inner's Y perfectly well. It is the enclosing Outer<X> that has nowhere to be
-      // written, and 'Outer.Inner<U>' is not a type - so there is no test to generate.
-      var compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(NODE, outer, specInterface);
-
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("names 'Outer.Inner', which carries type parameters of its own");
-      assertThat(compilation).hadErrorContaining("Declare 'Inner' static");
-      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<?>.Inner<U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<U>.Pin t");
     }
 
     @Test
-    @DisplayName("sees a parameterised member of a generic type through an array")
-    void seesThroughAnArrayToAMemberOfAGenericType() {
-      var outer =
-          JavaFileObjects.forSourceString(
-              "com.external.Outer",
+    @DisplayName("narrows an array of inner classes through its component")
+    void narrowsAnArrayOfInnerClasses() {
+      var compilation =
+          compile(
               """
-              package com.external;
-
-              public class Outer<X> {
-                  public class Inner<Y> {}
-              }
-              """);
-      var specInterface =
-          JavaFileObjects.forSourceString(
-              "com.myapp.SubjectOpticsSpec",
-              """
-              package com.myapp;
-
-              import com.external.Outer;
-              import org.higherkindedj.optics.Prism;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.InstanceOf;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-
-              @ImportOptics
-              public interface SubjectOpticsSpec<U> extends OpticsSpec<Object> {
+              public interface SubjectOpticsSpec extends OpticsSpec<Object> {
                   @InstanceOf(Outer.Inner[].class)
-                  Prism<Object, Outer<?>.Inner<U>[]> inners();
+                  Prism<Object, Outer<?>.Inner<?>[]> inners();
               }""");
 
-      // Narrowing an array reaches its component, so a component with nowhere to write its own
-      // arguments has to be turned away before the walk gets there.
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<?>.Inner<?>[] t");
+    }
+
+    @Test
+    @DisplayName("rejects a focus asking for an enclosing argument the source does not pin")
+    void rejectsAnEnclosingArgumentTheSourceDoesNotPin() {
       var compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(outer, specInterface);
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<String>> {
+                  @InstanceOf(Outer.Plain.class)
+                  Prism<Node<String>, Outer<String>.Plain> plain();
+              }""");
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("which carries type parameters of its own");
+      // X is named with its class, since the source's own parameter may share the name.
+      assertThat(compilation).hadErrorContaining("'Node<String>' pins nothing to Outer's X");
+      assertThat(compilation).hadErrorContaining("declare the focus as 'Outer<?>.Plain'");
       assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
-    @DisplayName("leaves a member of a non-generic type alone, which can be named")
-    void leavesAMemberOfANonGenericTypeAlone() {
+    @DisplayName("pins an enclosing argument through a source that is an inner class too")
+    void pinsAnEnclosingArgumentThroughAnInnerSource() {
+      // Outer<X>.Sub reaches the source as Outer<X>.Base, and matching that against
+      // Outer<String>.Base pins X through the enclosing type alone.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Outer<String>.Base> {
+                  @InstanceOf(Outer.Sub.class)
+                  Prism<Outer<String>.Base, Outer<String>.Sub> sub();
+              }""");
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<String>.Sub t");
+    }
+
+    @Test
+    @DisplayName("names a pinned parameter whose bound only names a free one")
+    void namesAPinnedParameterWhoseBoundNamesAFreeOne() {
+      // Z extends List<X> becomes List<?> once X is a wildcard, and U is within that.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U extends List<String>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Dependent.InZ.class)
+                  Prism<Node<U>, Node<U>> inZ();
+              }""");
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Dependent<?, U, ?>.InZ t");
+    }
+
+    @Test
+    @DisplayName("names a pinned parameter bounded by another it pins")
+    void namesAPinnedParameterBoundedByAnotherItPins() {
+      // W extends X, and the source pins both, so the bound is written as the argument X took.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<Pair<Number, Integer>>> {
+                  @InstanceOf(Dependent.Both.class)
+                  Prism<Node<Pair<Number, Integer>>, Node<Pair<Number, Integer>>> both();
+              }""");
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.SubjectOptics",
+          "source instanceof Dependent<Number, ?, Integer>.Both t");
+    }
+
+    @Test
+    @DisplayName("rejects a pinned parameter bounded by one the source leaves free")
+    void rejectsAPinnedParameterBoundedByAFreeOne() {
+      // Each test would write a wildcard for X, and a bound that is that wildcard leaves nothing an
+      // argument could be within: javac refuses Outer<?>.Bounded<U>, whatever the focus declares.
+      var ownBound =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Outer.Bounded.class)
+                  Prism<Node<U>, Node<U>> bounded();
+              }""");
+      var enclosingBound =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Dependent.InW.class)
+                  Prism<Node<U>, Node<U>> inW();
+              }""");
+
+      assertThat(ownBound).failed();
+      assertThat(ownBound)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.bounded' tests 'Outer.Bounded', where Y extends X and 'Node<U>'"
+                  + " pins nothing to Outer's X.");
+      assertThat(ownBound).hadErrorContaining("with @MatchWhen, or write the prism by hand.");
+      assertThat(ownBound).hadErrorCount(1);
+      assertThat(enclosingBound).failed();
+      assertThat(enclosingBound)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.inW' tests 'Dependent.InW', where W extends X and 'Node<U>'"
+                  + " pins nothing to Dependent's X.");
+      assertThat(enclosingBound).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("names a member of a non-generic class without enclosing arguments")
+    void namesAMemberOfANonGenericClassWithoutEnclosingArguments() {
       var outer =
           JavaFileObjects.forSourceString(
               "com.external.Outer",
@@ -710,7 +833,7 @@ class InstanceOfNarrowingTest {
               .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
               .compile(NODE, outer, specInterface);
 
-      assertThat(compilation).succeeded();
+      assertThat(compilation).succeededWithoutWarnings();
       assertGeneratedCodeContains(
           compilation, "com.myapp.SubjectOptics", "source instanceof Outer.Inner<U>");
     }

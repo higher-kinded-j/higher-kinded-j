@@ -58,7 +58,7 @@ public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
 ## A Step-by-Step Walkthrough
 
-### Step 1: Generating the Prisms
+### Step 1: Generating the Prisms {#step-1-generating-the-prisms}
 
 Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`**. This automatically creates a companion class (e.g., `JsonValuePrisms`) with a `Prism` for each permitted subtype.
 
@@ -72,6 +72,28 @@ Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`
 ```
 
 Each method takes the camelCase form of the subtype's name, or of the constant's name on an `enum`. A form that would be a Java keyword or literal (`true`, `false`, `null`) takes a trailing underscore: `@GeneratePrisms` on an enum like the cast's `OrderStatus` would give `OrderStatusPrisms.new_()` for its `NEW` constant.
+
+~~~admonish note title="A subtype that is an inner class of a generic class" collapsible=true
+An inner class of a generic class is named under that class's arguments, since without them it is raw. Where the subtype's clause leaves them free, the prism focuses a `Circle` of some `Shapes`, which is all an `instanceof` can check:
+
+<!-- verify -->
+```java
+class Shapes<X> {
+
+    @GeneratePrisms
+    sealed interface Shape permits Shapes.Circle {}
+
+    final class Circle implements Shape {}
+}
+
+class ReadsACircle {
+
+    Prism<Shapes.Shape, Shapes<?>.Circle> circle = ShapePrisms.circle();
+}
+```
+
+Where the sealed interface is generic and the clause binds the enclosing parameter, as `Pinned implements Tagged<X>` does, the prism declares it: `<X> Prism<Tagged<X>, Shapes<X>.Pinned>`. A static nested class has no enclosing arguments, so it is named as written.
+~~~
 
 #### Customising the Generated Package
 

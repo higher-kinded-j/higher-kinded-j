@@ -757,14 +757,14 @@ public class SpecInterfaceAnalyser {
             method);
         return Optional.empty();
       }
-      TypeElement unnameable = InstanceOfNarrowing.unnameableElement(targetType);
-      if (unnameable != null) {
-        reportUnnameableInstanceOfTarget(method, specInterface, sourceType, targetType, unnameable);
-        return Optional.empty();
-      }
       // The class constant is raw, so the arguments of the type handed back are only ever the
       // ones the source pins down. What the test earns is what the prism may promise.
       var narrowing = instanceOfNarrowing.narrow(targetType, sourceType, sourceTypeElement);
+      if (!narrowing.unwritableBounds().isEmpty()) {
+        reportUnwritableBound(
+            method, specInterface, sourceType, targetType, narrowing.unwritableBounds().getFirst());
+        return Optional.empty();
+      }
       if (!typeUtils.isAssignable(narrowing.testedType(), focusType)) {
         reportUntestableInstanceOf(method, specInterface, sourceType, focusType, narrowing);
         return Optional.empty();
@@ -849,22 +849,24 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Reports an {@code @InstanceOf} target the generated test could not name.
+   * Reports an {@code @InstanceOf} target the test cannot be written for: a parameter it pins is
+   * bounded by one the source leaves free, and the wildcard written for that one leaves the bound
+   * nothing to name.
    *
    * @param method the offending optic method
    * @param specInterface the spec declaring it, for the name the user reads
    * @param sourceType the source type {@code S}
    * @param targetType the class the annotation names
-   * @param unnameable the element within it that cannot be named, which an array target holds one
-   *     layer down
+   * @param bound the first parameter whose bound names a free one
    */
-  private void reportUnnameableInstanceOfTarget(
+  private void reportUnwritableBound(
       ExecutableElement method,
       TypeElement specInterface,
       TypeMirror sourceType,
       TypeMirror targetType,
-      TypeElement unnameable) {
+      InstanceOfNarrowing.UnwritableBound bound) {
 
+    String source = ProcessorUtils.simpleTypeName(sourceType);
     Diagnostics.error(
         messager,
         method,
@@ -873,18 +875,20 @@ public class SpecInterfaceAnalyser {
             + specInterface.getSimpleName()
             + "."
             + method.getSimpleName()
-            + "' names '"
+            + "' tests '"
             + ProcessorUtils.simpleTypeName(targetType)
-            + "', which carries type parameters of its own and is a member of a generic type.",
-        "The test names the type it checks, and a member of a generic type cannot be written with"
-            + " its own type arguments unless the enclosing type is written with its, which an"
-            + " instanceof cannot do.",
-        "Declare '"
-            + unnameable.getSimpleName()
-            + "' static, so that it can be named on its own, or narrow through a predicate and"
-            + " getter of '"
-            + ProcessorUtils.simpleTypeName(sourceType)
-            + "' with @MatchWhen.");
+            + "', where "
+            + bound.declaration()
+            + " and '"
+            + source
+            + "' pins nothing to "
+            + String.join(", ", bound.free())
+            + ".",
+        "The test writes a wildcard wherever the source pins nothing, so the bound has nothing to"
+            + " name and no instanceof can be written for it.",
+        "Narrow through a predicate and getter of '"
+            + source
+            + "' with @MatchWhen, or write the prism by hand.");
   }
 
   /**

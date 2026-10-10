@@ -19,6 +19,7 @@
   "use strict";
 
   var MOVED = {
+    "optics/compiler_errors.html#instanceof--names--which-carries-type-parameters-of-its-own-and-is-a-member-of-a-generic-type": "optics/optics_spec_interfaces.html#parameterised-targets",
     "transformers/common_errors.html#3-method-mapt-cannot-be-applied-on-statet": "transformers/statet_transformer.html#transforming-the-outer-monad-with-mapt",
     "transformers/common_errors.html#4-the-phantom-l-on-eithertfromeither--eitherright": "transformers/common_errors.html#3-the-phantom-l-on-eithertfromeither--eitherright",
     "transformers/common_errors.html#5-cannot-find-symbol-value-on-a-kind": "transformers/common_errors.html#4-cannot-find-symbol-value-on-a-kind",
