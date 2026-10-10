@@ -260,14 +260,50 @@ public final class WideningAnalysis {
   /**
    * Analyses a record component's declared type and annotations.
    *
+   * <p>It reports nothing, so any route may ask it, as often as it needs. The equal-priority
+   * generator conflicts a walk can meet are reported by {@link #analyseDeclaration}, which the
+   * processor asks once for each component.
+   *
    * @param component the component to analyse
    * @param widenCollections whether {@code ZERO_OR_MORE} SPI containers widen
    * @return the widening its generated method carries
    */
   public Widening analyse(RecordComponentElement component, boolean widenCollections) {
+    return walk(component, widenCollections, false);
+  }
+
+  /**
+   * {@link #analyse}, reporting against the component each equal-priority generator conflict the
+   * walk meets.
+   *
+   * <p>This is for the declaration pass: the processor asks it once for each component of the
+   * record it is generating, with the settings the component's method is generated under. A
+   * navigator walks into the same component again, on that record or on one that navigates into it,
+   * but asks {@link #analyse} with the declaring record's settings, under which this walk goes at
+   * least as deep. So a conflict is reported once however many navigators reach the component.
+   *
+   * @param component the component to analyse
+   * @param widenCollections whether {@code ZERO_OR_MORE} SPI containers widen
+   * @return the widening its generated method carries
+   */
+  public Widening analyseDeclaration(RecordComponentElement component, boolean widenCollections) {
+    return walk(component, widenCollections, true);
+  }
+
+  /**
+   * Walks a component's declared type into the widening its method carries.
+   *
+   * @param component the component to walk
+   * @param widenCollections whether {@code ZERO_OR_MORE} SPI containers widen
+   * @param report whether an equal-priority conflict the walk meets is reported against the
+   *     component
+   * @return the widening the component's method carries
+   */
+  private Widening walk(
+      RecordComponentElement component, boolean widenCollections, boolean report) {
     TypeMirror componentType = component.asType();
     List<Step> steps = new ArrayList<>();
-    DeclaredType declined = collect(component, componentType, widenCollections, 0, steps);
+    DeclaredType declined = collect(component, report, componentType, widenCollections, 0, steps);
     // A container turned away at the outermost layer leaves no step behind, so a @Nullable one
     // still widens through .nullable(): the method that yields compiles, and the declaration is
     // rejected all the same.
@@ -282,9 +318,9 @@ public final class WideningAnalysis {
    * Says, once, what the Kind analysis passed over on the component without acting on it: a
    * {@code @TraverseField} it could not apply, or a library witness it does not know.
    *
-   * <p>Reported from the processor's one pass over a record's components rather than from {@link
-   * #analyse}, which a navigator runs again for every route into the component and which never
-   * reaches the Kind analyser for a recognised container or a primitive.
+   * <p>Reported from the processor's one pass over a record's components rather than from the walk,
+   * which a navigator runs again ({@link #analyse}) for every route into the component and which
+   * never reaches the Kind analyser for a recognised container or a primitive.
    *
    * @param component the record component to inspect
    */
@@ -304,6 +340,7 @@ public final class WideningAnalysis {
    */
   private DeclaredType collect(
       RecordComponentElement component,
+      boolean report,
       TypeMirror type,
       boolean widenCollections,
       int depth,
@@ -322,7 +359,8 @@ public final class WideningAnalysis {
       // type, so a raw or wildcard-carrying one has no widening that can be written.
       return namesOpticInstance(recognised) && ProcessorUtils.hasUndenotableTypeArguments(type)
           ? declaredType
-          : descend(component, declaredType, recognised, null, 0, widenCollections, depth, steps);
+          : descend(
+              component, report, declaredType, recognised, null, 0, widenCollections, depth, steps);
     }
 
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
@@ -334,7 +372,7 @@ public final class WideningAnalysis {
         return null;
       }
     }
-    return collectSpi(component, declaredType, widenCollections, depth, steps);
+    return collectSpi(component, report, declaredType, widenCollections, depth, steps);
   }
 
   /**
@@ -348,14 +386,16 @@ public final class WideningAnalysis {
    */
   private DeclaredType collectSpi(
       RecordComponentElement component,
+      boolean report,
       DeclaredType declaredType,
       boolean widenCollections,
       int depth,
       List<Step> steps) {
 
-    // The component rides along at every layer, so an equal-priority conflict on a type reached
-    // only inside a container is still reported against the declaration that reaches it.
-    return switch (spiLookup(declaredType, component)) {
+    // The component rides along at every layer, so on the reporting walk an equal-priority conflict
+    // on a type reached only inside a container is reported against the declaration that reaches
+    // it.
+    return switch (spiLookup(declaredType, report ? component : null)) {
       case SpiLookup.None _ -> null;
       case SpiLookup.Refused refused ->
           stepsInto(refused.generator(), widenCollections) ? declaredType : null;
@@ -363,6 +403,7 @@ public final class WideningAnalysis {
           stepsInto(admitted.generator(), widenCollections)
               ? descend(
                   component,
+                  report,
                   declaredType,
                   spiStep(admitted.generator()),
                   admitted.generator(),
@@ -399,6 +440,7 @@ public final class WideningAnalysis {
    */
   private DeclaredType descend(
       RecordComponentElement component,
+      boolean report,
       DeclaredType declaredType,
       StepKind kind,
       TraversableGenerator generator,
@@ -411,7 +453,7 @@ public final class WideningAnalysis {
     steps.add(new Step(kind, null, generator, innerType));
     return innerType == null
         ? null
-        : collect(component, innerType, widenCollections, depth + 1, steps);
+        : collect(component, report, innerType, widenCollections, depth + 1, steps);
   }
 
   /** The step a Kind field's cardinality semantics call for. */
@@ -650,11 +692,25 @@ public final class WideningAnalysis {
    * Classifies what the SPI has to say about {@code type}, reading the highest-priority generator
    * from the {@link GeneratorRegistry} every generator-choosing site reads.
    *
+   * <p>It reports nothing: an equal-priority conflict on the type is reported by the declaration
+   * pass's walk, {@link #analyseDeclaration}, against the component that reaches it.
+   *
    * @param type the type to look up
-   * @param component the record component to report an equal-priority conflict against, or null
    * @return none, a refused generator, or an admitted one
    */
-  public SpiLookup spiLookup(TypeMirror type, Element component) {
+  public SpiLookup spiLookup(TypeMirror type) {
+    return spiLookup(type, null);
+  }
+
+  /**
+   * {@link #spiLookup(TypeMirror)}, reporting an equal-priority conflict against {@code component}.
+   *
+   * @param type the type to look up
+   * @param component the record component to report an equal-priority conflict against, or null to
+   *     report nothing
+   * @return none, a refused generator, or an admitted one
+   */
+  private SpiLookup spiLookup(TypeMirror type, Element component) {
     TraversableGenerator generator = generatorRegistry.generatorFor(type, component);
     if (generator == null) {
       return new SpiLookup.None();
