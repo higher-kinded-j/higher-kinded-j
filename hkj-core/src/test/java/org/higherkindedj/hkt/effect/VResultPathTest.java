@@ -1996,9 +1996,8 @@ class VResultPathTest {
     }
 
     /**
-     * Runs a booking whose use returns {@code returned} with the interrupt status set, as {@code
-     * withBulkhead} and {@code withTimeout} do when they type an interrupt, and whose release
-     * blocks.
+     * Runs a booking whose use returns {@code returned} with an interrupt left pending, as {@code
+     * withBulkhead} and {@code withTimeout} can leave one, and whose release blocks.
      */
     private void assertBlockingReleaseFinishesAfterReturning(Either<String, String> returned) {
       AtomicBoolean released = new AtomicBoolean();
@@ -2045,33 +2044,66 @@ class VResultPathTest {
       assertBlockingReleaseFinishesAfterReturning(Either.right("booked"));
     }
 
+    /** A booking whose use throws an {@link InterruptedException}, as a blocking call does. */
+    private VResultPath<String, String> interruptedBooking(
+        BiFunction<String, Either<String, String>, VTask<?>> release,
+        Function<Throwable, String> onDefect) {
+      return VResultPath.bracketOutcome(
+          VResultPath.<String, String>pure("seat"),
+          seat ->
+              VResultPath.<String, String>fromVTask(
+                  VTask.of(
+                      () -> {
+                        throw new InterruptedException("sleep interrupted");
+                      })),
+          release,
+          onDefect);
+    }
+
     @Test
-    @DisplayName("an InterruptedException from use is typed, and the status is set again")
-    void interruptedExceptionFromUseSetsTheStatusAgain() {
+    @DisplayName("an InterruptedException from use is typed, and the status is set after release")
+    void interruptedExceptionFromUseSetsTheStatusAfterRelease() {
+      AtomicBoolean interruptedDuringOnDefect = new AtomicBoolean(true);
       AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
 
       try {
         Either<String, String> result =
-            VResultPath.bracketOutcome(
-                    VResultPath.<String, String>pure("seat"),
-                    seat ->
-                        VResultPath.<String, String>fromVTask(
-                            VTask.of(
-                                () -> {
-                                  throw new InterruptedException("sleep interrupted");
-                                })),
+            interruptedBooking(
                     (seat, outcome) ->
                         VTask.delay(
                             () -> {
                               interruptedDuringRelease.set(Thread.currentThread().isInterrupted());
                               return "released";
                             }),
-                    defect -> "defect: " + defect.getMessage())
+                    defect -> {
+                      interruptedDuringOnDefect.set(Thread.currentThread().isInterrupted());
+                      return "defect: " + defect.getMessage();
+                    })
                 .run()
                 .run();
 
         assertThatEither(result).isLeft().hasLeft("defect: sleep interrupted");
+        assertThat(interruptedDuringOnDefect).isFalse();
         assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("after an InterruptedException from use, a failing release still sets the status")
+    void failingReleaseAfterInterruptedExceptionSetsTheStatus() {
+      IllegalStateException cleanup = new IllegalStateException("cleanup broke");
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    interruptedBooking(
+                            (seat, outcome) -> VTask.fail(cleanup), Throwable::getMessage)
+                        .run()
+                        .run())
+            .isSameAs(cleanup);
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {
         Thread.interrupted();
