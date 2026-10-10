@@ -4574,8 +4574,9 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("the warning offers only an order that passes what it names")
-    void warningOffersOnlyAnOrderThatPassesWhatItNames() {
+    @DisplayName(
+        "values two longer constructors each take are named, and no order is offered for them")
+    void valuesTwoLongerConstructorsEachTakeAreNamed() {
       var compilation =
           compileReporting(
               external(
@@ -4601,10 +4602,19 @@ class SpecCopyStrategyChecksTest {
                   }
                   """));
 
-      // {"label", "parts"} leaves nothing longer out, but it does not pass 'note()' either.
+      // {"label", "note"} resets 'parts()', and {"label", "parts"} resets 'note()': no
+      // constructor takes both, so no order is offered.
       assertThat(compilation)
           .hadWarningContaining(
-              "Pass it: @ViaConstructor(parameterOrder = {\"label\", \"note\"}).");
+              "@ViaConstructor: 'parameterOrder' {\"label\"} passes nothing for 'note()' and"
+                  + " 'parts()', which 'Pin(String label, String note)' and 'Pin(String label,"
+                  + " String... parts)' take.");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "No one constructor takes 'note()' and 'parts()', so any order leaves one out. If"
+                  + " the constructor the order rebuilds through derives them on purpose, annotate"
+                  + " 'label()' @SuppressWarnings(\"shorter-constructor\"); otherwise rebuild 'Pin'"
+                  + " with @Wither, @ViaBuilder or @ViaCopyAndSet.");
       assertThat(compilation).hadWarningCount(1);
     }
 
@@ -4651,6 +4661,48 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
+    @DisplayName("an order is offered where one constructor takes every value the others take")
+    void orderIsOfferedWhereOneConstructorTakesEveryValueTheOthersTake() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Knot",
+                  """
+                  public final class Knot {
+                      private final int x;
+                      private final int y;
+                      private final int z;
+                      public Knot(int x) { this(x, 0, 0); }
+                      public Knot(int x, int y) { this(x, y, 0); }
+                      public Knot(int x, long z) { this(x, 0, (int) z); }
+                      public Knot(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+                      public int x() { return x; }
+                      public int y() { return y; }
+                      public int z() { return z; }
+                  }
+                  """),
+              spec(
+                  "KnotOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface KnotOpticsSpec extends OpticsSpec<Knot> {
+                      @ViaConstructor(parameterOrder = {"x"})
+                      Lens<Knot, Integer> x();
+                  }
+                  """));
+
+      // The three-parameter constructor names both, so the two shorter ones add nothing to it.
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"x\"} passes nothing for 'y()' and 'z()', which"
+                  + " 'Knot(int x, int y, int z)' takes.");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "Pass them: @ViaConstructor(parameterOrder = {\"x\", \"y\", \"z\"}).");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
     @DisplayName("a longer constructor that takes no parameter for the lens may be another view")
     void longerConstructorThatTakesNoParameterForTheLensMayBeAnotherView() {
       var compilation =
@@ -4680,8 +4732,8 @@ class SpecCopyStrategyChecksTest {
       assertThat(compilation)
           .hadWarningContaining(
               "No order passes them with the new value, since 'Price(long pounds, int pence)'"
-                  + " takes no parameter named after 'cents()'. If it reads the same value another"
-                  + " way, annotate 'cents()' @SuppressWarnings(\"shorter-constructor\");"
+                  + " takes no parameter named after 'cents()'. Where that is the same value read"
+                  + " another way, annotate 'cents()' @SuppressWarnings(\"shorter-constructor\");"
                   + " otherwise rebuild 'Price' with @Wither, @ViaBuilder or @ViaCopyAndSet.");
       assertThat(compilation).hadWarningCount(1);
     }

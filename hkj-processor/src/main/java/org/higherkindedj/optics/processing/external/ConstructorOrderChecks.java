@@ -105,12 +105,13 @@ final class ConstructorOrderChecks {
   static final String SHORTER_CONSTRUCTOR = "shorter-constructor";
 
   /**
-   * The values an order passes nothing for that a longer constructor takes.
+   * The values an order passes nothing for that the longer constructors take.
    *
-   * @param constructor the longer constructor, as the warning names it
+   * @param constructors the longer constructors that take them, as the warning names them: each one
+   *     that takes a value no longer one does
    * @param accessors the accessors that read them, each spelt as an offer spells it
    */
-  private record LeftOut(ExecutableElement constructor, List<String> accessors) {}
+  private record LeftOut(List<ExecutableElement> constructors, List<String> accessors) {}
 
   private final Types typeUtils;
   private final Elements elementUtils;
@@ -355,7 +356,7 @@ final class ConstructorOrderChecks {
       return;
     }
     List<String> accessors = leftOut.get().accessors();
-    ExecutableElement longer = leftOut.get().constructor();
+    List<ExecutableElement> longer = leftOut.get().constructors();
     String named = listed(accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
     String them = accessors.size() == 1 ? "it" : "them";
     List<List<String>> offers =
@@ -372,9 +373,9 @@ final class ConstructorOrderChecks {
             + literal(order)
             + " passes nothing for "
             + named
-            + ", which '"
-            + constructorSignature(longer)
-            + "' takes.",
+            + ", which "
+            + signaturesThat(longer, "take")
+            + ".",
         "The generated lens rebuilds through '"
             + callOf(rebuild, order)
             + "', so after every set "
@@ -396,29 +397,65 @@ final class ConstructorOrderChecks {
                 + " on purpose, "
                 + annotateToSuppress(rebuild)
                 + "."
-            : takesNoParameterForTheLens(rebuild, List.of(longer))
+            : takesNoParameterForTheLens(rebuild, longer)
                 // A longer constructor that takes no parameter for the lens may read the same value
                 // another way, as pounds and pence beside cents, so no order can pass it all.
                 ? "No order passes "
                     + them
-                    + " with the new value, since '"
-                    + constructorSignature(longer)
-                    + "' takes no parameter named after '"
+                    + " with the new value, since "
+                    + signaturesThat(longer, "take")
+                    + " no parameter named after '"
                     + rebuild.fieldName()
-                    + "()'. If it reads the same value another way, "
+                    + "()'. Where that is the same value read another way, "
                     + annotateToSuppress(rebuild)
                     + "; otherwise "
                     + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
                     + "."
-                : "Write an order that passes "
-                    + them
-                    + ", or "
-                    + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
-                    + ". If the constructor derives "
-                    + them
-                    + " on purpose, "
-                    + annotateToSuppress(rebuild)
-                    + ".");
+                : oneTakesThemAll(rebuild, accessors)
+                    ? "Write an order that passes "
+                        + them
+                        + ", or "
+                        + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                        + ". If the constructor derives "
+                        + them
+                        + " on purpose, "
+                        + annotateToSuppress(rebuild)
+                        + "."
+                    // Each longer constructor takes some of them and none takes all, so whichever
+                    // the lens rebuilds through, another value comes back reset.
+                    : "No one constructor takes "
+                        + named
+                        + ", so any order leaves one out. If the constructor the order rebuilds"
+                        + " through derives them on purpose, "
+                        + annotateToSuppress(rebuild)
+                        + "; otherwise "
+                        + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                        + ".");
+  }
+
+  /** Whether one constructor takes a parameter named after each of the accessors. */
+  private boolean oneTakesThemAll(Rebuild rebuild, List<String> accessors) {
+    return rebuild.constructors().stream()
+        .anyMatch(
+            constructor ->
+                namedReaders(rebuild, constructor).stream()
+                    .flatMap(List::stream)
+                    .toList()
+                    .containsAll(accessors));
+  }
+
+  /**
+   * Constructors as a sentence names them, with a verb that agrees: {@code 'A(int a)' takes}, or
+   * {@code 'A(int a)' and 'A(long a)' take}.
+   */
+  private static String signaturesThat(List<ExecutableElement> constructors, String verb) {
+    return listed(
+            constructors.stream()
+                .map(constructor -> "'" + constructorSignature(constructor) + "'")
+                .toList())
+        + " "
+        + verb
+        + (constructors.size() == 1 ? "s" : "");
   }
 
   /** The way to keep the warning of a value an order leaves out quiet, as a fix line words it. */
@@ -431,12 +468,12 @@ final class ConstructorOrderChecks {
   }
 
   /**
-   * The values an order passes nothing for that a longer constructor takes, read from the longest
-   * that takes any: each parameter named after an accessor that reads a value it takes, none of
-   * whose spellings the order passes. A parameter named after nothing that reads holds nothing the
-   * lens could pass, so it is never one. Of a record's constructors only the canonical one counts,
-   * as for an order read from the names; a variable-arity constructor the order passes nothing into
-   * the array of is longer than the order too.
+   * The values an order passes nothing for that the longer constructors take, read from each of
+   * them, the longest first: each parameter named after an accessor that reads a value it takes,
+   * none of whose spellings the order passes. A parameter named after nothing that reads holds
+   * nothing the lens could pass, so it is never one. Of a record's constructors only the canonical
+   * one counts, as for an order read from the names; a variable-arity constructor the order passes
+   * nothing into the array of is longer than the order too.
    */
   private Optional<LeftOut> leftOut(Rebuild rebuild, List<String> order) {
     boolean record = rebuild.source().asElement().getKind() == ElementKind.RECORD;
@@ -446,28 +483,36 @@ final class ConstructorOrderChecks {
             .filter(constructor -> passesIntoArray(rebuild, constructor, order))
             .map(constructor -> Math.min(order.size(), constructor.getParameters().size()))
             .orElse(order.size());
-    return rebuild.constructors().stream()
-        .filter(
-            constructor ->
-                record ? isCanonical(constructor) : constructor.getParameters().size() > places)
-        .sorted(
-            Comparator.comparingInt(
-                    (ExecutableElement constructor) -> constructor.getParameters().size())
-                .reversed())
-        .map(
-            constructor ->
-                new LeftOut(
-                    constructor,
-                    namedReaders(rebuild, constructor).stream()
-                        .filter(
-                            spellings ->
-                                !spellings.isEmpty()
-                                    && spellings.stream().noneMatch(order::contains))
-                        .map(spellings -> spelling(spellings, rebuild.fieldName(), order))
-                        .distinct()
-                        .toList()))
-        .filter(left -> !left.accessors().isEmpty())
-        .findFirst();
+    List<ExecutableElement> longer =
+        rebuild.constructors().stream()
+            .filter(
+                constructor ->
+                    record ? isCanonical(constructor) : constructor.getParameters().size() > places)
+            .sorted(
+                Comparator.comparingInt(
+                        (ExecutableElement constructor) -> constructor.getParameters().size())
+                    .reversed())
+            .toList();
+    List<ExecutableElement> takers = new ArrayList<>();
+    List<String> accessors = new ArrayList<>();
+    for (ExecutableElement constructor : longer) {
+      List<String> more =
+          namedReaders(rebuild, constructor).stream()
+              .filter(
+                  spellings ->
+                      !spellings.isEmpty() && spellings.stream().noneMatch(order::contains))
+              .map(spellings -> spelling(spellings, rebuild.fieldName(), order))
+              .filter(accessor -> !accessors.contains(accessor))
+              .distinct()
+              .toList();
+      if (!more.isEmpty()) {
+        takers.add(constructor);
+        accessors.addAll(more);
+      }
+    }
+    return accessors.isEmpty()
+        ? Optional.empty()
+        : Optional.of(new LeftOut(List.copyOf(takers), List.copyOf(accessors)));
   }
 
   /**
