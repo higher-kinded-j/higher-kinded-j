@@ -86,9 +86,12 @@ public @interface GenerateFocus {
    *
    * <p>This enables patterns like {@code PersonFocus.address().city()} without explicit {@code
    * .via()} calls. Navigator classes are generated for fields whose types are also annotated with
-   * {@code @GenerateFocus} and declare no type parameters of their own. A record from another
-   * module qualifies once that module has generated its {@code Focus} class. A field whose type is
-   * generic keeps its plain {@code FocusPath} method, composed with {@code .via()}.
+   * {@code @GenerateFocus}. A record from another module qualifies once that module has generated
+   * its {@code Focus} class. A navigator into a generic record declares the record's type
+   * parameters, instantiated with the arguments the field gives it: {@code Box<String> parcel} gets
+   * a {@code ParcelNavigator<S, String>}. A field naming no single type for one of them, a wildcard
+   * such as {@code Box<?>} or a raw {@code Box}, keeps the path method it would have without
+   * navigators.
    *
    * <p>The navigator classes:
    *

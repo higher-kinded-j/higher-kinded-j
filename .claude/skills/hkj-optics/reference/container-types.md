@@ -156,8 +156,10 @@ TraversalPath<AssetClass, Position> traversal = positions.each(
 
 A navigator method reports the same path type as the static method for the same component, so
 widening it is the same decision either way. The exception is a container whose element is
-itself a `@GenerateFocus` record: that one is always stepped into, because the navigator it
-hands back has to reach the element.
+itself a `@GenerateFocus` record that gets a navigator: that one is always stepped into, because
+the navigator it hands back has to reach the element. A generic element gets a navigator when the
+container names a type for each of its parameters, so `Map<String, Box<String>>` is stepped into
+and `Map<String, Box<?>>` is not.
 
 ## Registering Custom Container Types (TraversableGenerator SPI)
 

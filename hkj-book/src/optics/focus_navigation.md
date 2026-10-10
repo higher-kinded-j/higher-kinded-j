@@ -152,28 +152,28 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart LR
     accTitle: Which fields get a navigator
-    accDescr: A non-generic record annotated with GenerateFocus, whose Focus class was generated, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record, or anything else, keeps a plain path chained with via.
+    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments keeps a plain path to the whole value. Anything else keeps a plain path chained with via.
     F{"The field's<br/>type is..."}
-    F --- R1["a non-generic record<br/>with @GenerateFocus and<br/>its Focus class generated"]
+    F --- R1["a record with<br/>@GenerateFocus, its Focus<br/>class generated and each<br/>type parameter named"]
     F --- R2["an SPI container<br/>whose element is<br/>such a record"]
     F --- R3["Optional, Maybe, List,<br/>Set, Collection"]
-    F --- R4["a generic record<br/>with @GenerateFocus"]
+    F --- R4["a generic record<br/>given a wildcard or<br/>no type arguments"]
     F --- R5["anything else"]
     R1 --> N["Navigator<br/>chain with<br/>a method call"]
     R2 --> N
     R3 --> W["Widened path<br/>chain with .via()"]
-    R4 --> P["Plain path<br/>chain with .via()"]
-    R5 --> P
+    R4 --> Q["Plain path<br/>to the whole value"]
+    R5 --> P["Plain path<br/>chain with .via()"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class F decision
     class R1,R2,R3,R4,R5 step
-    class N,W,P tier
+    class N,W,Q,P tier
 ```
 
-The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own never gets one, as [A target with type parameters](#a-target-with-type-parameters) explains.
+The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_or_via}}
@@ -326,7 +326,38 @@ record CustomerReferral(Customer referrer, Customer referred) {}
 
 ### A target with type parameters {#a-target-with-type-parameters}
 
-A navigator is an inner class parameterised by the source type alone, so it has no way to name a target's own type parameters. `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case. That chain compiles when the field names `Inner`'s type argument, as `Inner<String>` does. For a wildcard one, such as `Inner<? extends CharSequence>`, javac reports "no suitable method found for via", so write the lens that [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows instead.
+A navigator into a generic record declares that record's type parameters after its source type. The field supplies their type arguments as it declares them, so `Revision<EmailAddress> email` gets an `EmailNavigator<ContactHistory, EmailAddress>`:
+
+<!-- verify -->
+```java
+// A value kept with the time it last changed, generic so that it can hold any of the cast's values
+@GenerateFocus(generateNavigators = true)
+record Revision<T>(T current, Instant changedAt) {}
+
+@GenerateFocus(generateNavigators = true)
+record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instant openedAt) {}
+
+FocusPath<ContactHistory, EmailAddress> current = ContactHistoryFocus.email().current();
+```
+
+A type variable of the declaring record is passed on the same way, and so is an argument that carries a wildcard of its own, such as `List<?>`. An SPI container's element follows the same rule.
+
+A field that names no single type for one of those parameters keeps its plain path. That is a wildcard such as `lastEdit`'s `Revision<?>` or `Revision<? extends EmailAddress>`, or a raw `Revision`. No chain through `RevisionFocus` reaches inside it either, because each of its paths is over one instantiation of `Revision`. The processor says so in a note against the field. Where the parameter's bound is a type it can write, the note names a type to use instead:
+
+<!-- verify:reports "which Revision<?> does not" -->
+```java
+@GenerateFocus(generateNavigators = true)
+record Revision<T>(T current, Instant changedAt) {}
+
+@GenerateFocus(generateNavigators = true)
+record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instant openedAt) {}
+```
+
+```
+Note: Navigator for field 'lastEdit' is not generated: a navigator into Revision has to name one type for each of its type parameters, which Revision<?> does not. ContactHistoryFocus.lastEdit() keeps its plain path, and a path over one instantiation of Revision does not compose with it either. Write Revision<Object>, or another concrete instantiation, in place of Revision<?> to get a navigator.
+```
+
+To reach inside the field as declared, wildcard included, write a lens over its type, as [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows.
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 

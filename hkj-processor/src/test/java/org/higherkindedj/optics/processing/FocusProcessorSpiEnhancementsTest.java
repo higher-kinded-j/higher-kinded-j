@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for the SPI widening enhancements:
@@ -471,7 +471,7 @@ public class FocusProcessorSpiEnhancementsTest {
             public record Leaf(String name) {}
             """);
 
-    /** A generic navigable element: no navigator can name its type parameter. */
+    /** A generic navigable element, which a container instantiates or leaves to a wildcard. */
     private static final JavaFileObject BOX =
         JavaFileObjects.forSourceString(
             "com.example.Box",
@@ -507,10 +507,13 @@ public class FocusProcessorSpiEnhancementsTest {
               .formatted(attributes, component));
     }
 
-    private static Compilation compile(String attributes, String component) {
+    private static Compilation compile(
+        String attributes, String component, JavaFileObject... others) {
       return javac()
           .withProcessors(new FocusProcessor())
-          .compile(holder(attributes, component), LEAF);
+          .compile(
+              Stream.concat(Stream.of(holder(attributes, component), LEAF), Stream.of(others))
+                  .toList());
     }
 
     @Test
@@ -585,8 +588,8 @@ public class FocusProcessorSpiEnhancementsTest {
     void shouldKeepWildcardInsideGenericElementAsWritten(String attributes, String map) {
       // Only a container's own type arguments are resolved or checked. Box<? extends Leaf> is a
       // complete type, so every container focuses on it whole and the wildcard stays inside it.
-      // Box is generic, so no setting generates a navigator for it, and a Map is stepped into only
-      // when the record's own flag asks.
+      // Box<? extends Leaf> names no single type for Box's parameter, so no setting generates a
+      // navigator for it, and a Map is stepped into only when the record's own flag asks.
       Compilation compilation =
           javac()
               .withProcessors(new FocusProcessor())
@@ -706,23 +709,48 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation).succeeded();
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Map<String, Box<String>>", "Map<String, ? extends Box<String>>"})
-    @DisplayName("should leave a container alone whose navigable element is generic")
-    void shouldLeaveContainerOfGenericNavigableElementAlone(String component) {
-      // A generic element gets no navigator, so the container is never stepped into to reach it
-      // and stays a plain FocusPath; a wildcard it carries is then never asked for an optic, any
-      // more than its concrete twin's arguments are.
+    @Test
+    @DisplayName("should step into a container whose generic element it instantiates")
+    void shouldStepIntoContainerOfInstantiatedGenericElement() {
+      // The element gets a navigator instantiated with the container's argument, so the container
+      // is stepped into to reach it, as it is for a non-generic element.
       Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .compile(holder("generateNavigators = true", component + " boxes"), BOX);
+          compile("generateNavigators = true", "Map<String, Box<String>> boxes", BOX);
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation,
           "com.example.HolderFocus",
-          "public static FocusPath<Holder, " + component + "> boxes()");
+          "public static BoxesNavigator<Holder, String> boxes()");
+    }
+
+    @Test
+    @DisplayName("should reject a wildcard container once its generic element gets a navigator")
+    void shouldRejectWildcardContainerOfInstantiatedGenericElement() {
+      // The element gets a navigator, so a navigator takes the container, and its wildcard is
+      // rejected as the non-generic twin's is.
+      Compilation compilation =
+          compile("generateNavigators = true", "Map<String, ? extends Box<String>> boxes", BOX);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "has a wildcard type argument in Map<String, ? extends Box<String>>.");
+      assertThat(compilation).hadErrorContaining("such as Map<String, Box<String>>,");
+    }
+
+    @Test
+    @DisplayName("should leave a wildcard container alone when its element gets no navigator")
+    void shouldLeaveWildcardContainerOfUninstantiableElementAlone() {
+      // Box<?> names no type for Box's own parameter, so no navigator is offered for it, the
+      // container is never stepped into, and its wildcard is never asked for an optic.
+      Compilation compilation =
+          compile("generateNavigators = true", "Map<String, ? extends Box<?>> boxes", BOX);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static FocusPath<Holder, Map<String, ? extends Box<?>>> boxes()");
     }
 
     @Test

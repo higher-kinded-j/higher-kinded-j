@@ -6,6 +6,8 @@ import com.palantir.javapoet.*;
 import java.util.*;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -27,7 +29,6 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.WideningAnalysis.SpiLookup;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
-import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -68,6 +69,12 @@ import org.higherkindedj.optics.processing.util.Reachability;
  * for the same declaration by construction (issue #719). For a target annotated in this round,
  * {@link WideningAnalysis} says what that method is about to return; for any other target, the
  * return type is read from the method its companion actually published.
+ *
+ * <p>A target with type parameters of its own gets a navigator that declares them after the source,
+ * {@code InnerNavigator<S, T>}, and a component reaching it passes the type arguments it was
+ * declared with: {@code Inner<String> inner} gives {@code InnerNavigator<Outer, String>}. A
+ * component with none it can pass, a wildcard ({@code Inner<?>}) or a raw {@code Inner}, keeps its
+ * plain path.
  */
 public class NavigatorClassGenerator {
 
@@ -122,8 +129,8 @@ public class NavigatorClassGenerator {
    * <p>The question is the one {@link #navigatorTarget} answers, not merely whether the element is
    * navigable. A container the widening steps into but no navigator is offered for would leave the
    * navigation method declaring a traversal and returning a focus, and every reason a navigator is
-   * declined — the element is generic, the record turned navigators off, the field is filtered out
-   * — reaches that same disagreement.
+   * declined — the element is given a wildcard, the record turned navigators off, the field is
+   * filtered out — reaches that same disagreement.
    */
   private boolean widensContainers(TypeElement record, RecordComponentElement component) {
     return (spiNavigable(component.asType(), companionPackage(record)) != null
@@ -176,31 +183,29 @@ public class NavigatorClassGenerator {
       TypeSpec.Builder focusClassBuilder, TypeElement recordElement, int currentDepth) {
 
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
-      // The reasons a candidate gets no navigator are told apart here, because only some of them
+      // The reasons a component gets no navigator are told apart here, because only some of them
       // show in the declaration; navigatorTarget conflates them by design.
-      TypeElement candidate = navigatorCandidate(recordElement, component);
-      if (candidate == null) {
-        Reach skipped = skippedTarget(recordElement, component);
-        if (skipped instanceof Reach.Unpublished unpublished) {
-          reportUnpublishedTargetSkipped(recordElement, component, unpublished.record());
-        } else if (skipped instanceof Reach.Hidden hidden) {
-          reportHiddenTargetSkipped(recordElement, component, hidden);
+      Target target = navigatorTarget(recordElement, component);
+      if (target == null) {
+        switch (skippedTarget(recordElement, component)) {
+          case Reach.Uninstantiable(Target uninstantiable) ->
+              reportUninstantiableTargetSkipped(recordElement, component, uninstantiable);
+          case Reach.Unpublished(TypeElement unpublished) ->
+              reportUnpublishedTargetSkipped(recordElement, component, unpublished);
+          case Reach.Hidden hidden -> reportHiddenTargetSkipped(recordElement, component, hidden);
+          default -> {}
         }
-        continue;
-      }
-      if (declaresTypeParameters(candidate)) {
-        reportGenericTargetSkipped(recordElement, component, candidate);
         continue;
       }
       focusClassBuilder.addType(
           generateNavigatorClass(
-              component, candidate, currentDepth, widening(recordElement, component).tier()));
+              component, target.record(), currentDepth, widening(recordElement, component).tier()));
     }
   }
 
   /**
-   * Says why a component asking for a navigator did not get one, when the reason is that its target
-   * is generic.
+   * Says why a component asking for a navigator did not get one, when the reason is that it reaches
+   * a generic target through a wildcard or a raw type.
    *
    * <p>The declaring record asked for navigators and gets one fewer than the components suggest,
    * which is the same surprise a delegate-name collision produces and is reported the same way.
@@ -208,36 +213,50 @@ public class NavigatorClassGenerator {
    * filtered out by the record's own include/exclude. The one that is not, a target with no
    * companion to compose, is reported the same way.
    *
+   * <p>This reason is given ahead of a missing or unreachable companion, because it shows in the
+   * declaration and holds however the target's module was built. No chain is offered in place of
+   * the navigator, because none compiles: a path into the target is over one instantiation of it,
+   * which a wildcard or a raw type is not.
+   *
    * @param recordElement the record declaring the component
    * @param component the component whose navigator was not generated
-   * @param navigable the generic target it reaches, already established by the caller
+   * @param target the target as the component reaches it, already found uninstantiable
    */
-  private void reportGenericTargetSkipped(
-      TypeElement recordElement, RecordComponentElement component, TypeElement navigable) {
+  private void reportUninstantiableTargetSkipped(
+      TypeElement recordElement, RecordComponentElement component, Target target) {
 
     String componentName = component.getSimpleName().toString();
-    String chain =
-        focusClassOf(recordElement).simpleName()
-            + "."
-            + componentName
-            + "().via("
-            + focusClassOf(navigable).simpleName()
-            + ".…())";
+    String name = target.record().getSimpleName().toString();
+    String written =
+        ProcessorUtils.isRaw(target.type())
+            ? "the raw " + name
+            : ProcessorUtils.simpleTypeName(target.type());
     processingEnv
         .getMessager()
         .printMessage(
             Diagnostic.Kind.NOTE,
             "Navigator for field '"
                 + componentName
-                + "' is not generated: "
-                + navigable.getSimpleName()
-                + " declares type parameters, which a navigator has no way to name. "
-                + (keepsContainerInFocus(recordElement, component)
-                    ? "Its Focus method keeps the container itself in focus, so add"
-                        + " widenCollections = true to step into it, then chain "
-                        + chain
-                        + " through the element."
-                    : "Use " + chain + " to chain through it."),
+                + "' is not generated: a navigator into "
+                + name
+                + " has to name one type for each of its type parameters, which "
+                + written
+                + " does not. "
+                + focusClassOf(recordElement).simpleName()
+                + "."
+                + componentName
+                + "() keeps its plain path, and a path over one instantiation of "
+                + name
+                + " does not compose with it either. "
+                + ProcessorUtils.concreteAlternative(target.type())
+                    .map(
+                        alternative ->
+                            "Write " + alternative + ", or another concrete instantiation,")
+                    .orElse(
+                        "Write " + name + " with a concrete type argument for each type parameter")
+                + " in place of "
+                + written
+                + " to get a navigator.",
             component);
   }
 
@@ -320,14 +339,19 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Why a component that reaches a record has no navigator into it, where the reason does not show
-   * in the declaration: the record, directly or as an SPI container's element, is a non-generic one
-   * from a dependency with no companion this module can compose, or its navigator would name a type
-   * this Focus class's package cannot reach.
+   * Why a component that reaches an annotated record has no navigator into it: the component gives
+   * the record a wildcard or no type arguments, or, where the reason does not show in the
+   * declaration, the record is one from a dependency with no companion this module can compose, or
+   * its navigator would name a type this Focus class's package cannot reach.
+   *
+   * <p>A wildcard or a raw type is the reason given whenever it applies. It shows in the
+   * declaration and holds however the record's module was built, so naming a missing or unreachable
+   * companion instead would promise a navigator that fixing it could not deliver.
    *
    * @param record the record that declares the component
    * @param component the component, which has no navigator
-   * @return an {@code Unpublished} or {@code Hidden} reach, or {@code None} when neither applies
+   * @return an {@code Uninstantiable}, {@code Unpublished} or {@code Hidden} reach, or {@code None}
+   *     when none applies
    */
   private Reach skippedTarget(TypeElement record, RecordComponentElement component) {
     if (!shouldGenerateNavigator(record, component)) {
@@ -343,105 +367,84 @@ public class NavigatorClassGenerator {
     if (reached == null) {
       return new Reach.None();
     }
-    return switch (reach(reached, companionPackage(record))) {
-      case Reach.Unpublished unpublished when !declaresTypeParameters(unpublished.record()) ->
-          unpublished;
-      case Reach.Hidden hidden -> hidden;
-      default -> new Reach.None();
+    Reach reach = reach(reached, companionPackage(record));
+    if (Target.instantiable(reached)) {
+      return reach;
+    }
+    return switch (reach) {
+      case Reach.Navigable(TypeElement navigable) ->
+          new Reach.Uninstantiable(new Target(navigable, (DeclaredType) reached));
+      case Reach.Unpublished(TypeElement unpublished) ->
+          new Reach.Uninstantiable(new Target(unpublished, (DeclaredType) reached));
+      case Reach.Hidden(TypeElement hidden, TypeElement _) ->
+          new Reach.Uninstantiable(new Target(hidden, (DeclaredType) reached));
+      default -> reach;
     };
   }
 
   /**
-   * Whether a component's Focus method stops at its container rather than the element inside it.
+   * A navigable record, as a component reaches it: the component's own type, or the element of the
+   * SPI container the component is.
    *
-   * <p>A {@code ZERO_OR_MORE} SPI container is left un-widened unless the record asks for it, so
-   * its path is focused on the container and composes with nothing the element declares. Every
-   * other navigable shape — a direct field, a built-in collection, an {@code Optional}, a {@code
-   * ZERO_OR_ONE} container — is already stepped into by the time the note is written, and chains
-   * through the element as written.
-   *
-   * @param record the record that declares the component
-   * @param component the component
-   * @return true when the container is still in focus, so the element is a step further on
+   * @param record the navigable record
+   * @param type the record as the component instantiates it, whose type arguments a navigator into
+   *     it is instantiated with
    */
-  private boolean keepsContainerInFocus(TypeElement record, RecordComponentElement component) {
-    SpiNavigable spiNavigable = spiNavigable(component.asType(), companionPackage(record));
-    return spiNavigable != null
-        && spiNavigable.generator().getCardinality() == Cardinality.ZERO_OR_MORE
-        && !focusSettings(record).widenCollections();
+  private record Target(TypeElement record, DeclaredType type) {
+
+    /** Whether a navigator into the record can be instantiated as the component reaches it. */
+    boolean instantiable() {
+      return instantiable(type);
+    }
+
+    /**
+     * Whether a navigator into a record can be instantiated with the type arguments a type gives
+     * it: one type for each of its type parameters, which a wildcard among them or a raw type does
+     * not supply. A non-generic record has none to supply and always can.
+     */
+    static boolean instantiable(TypeMirror type) {
+      return !ProcessorUtils.hasUndenotableTypeArguments(type);
+    }
   }
 
   /**
-   * The navigable type a component reaches, generic or not, before the navigator question is asked
-   * of it.
+   * The navigable record a component reaches, instantiable or not, before the navigator question is
+   * asked of it.
    *
    * @param component the component to read
    * @param fromPackage the package of the companion whose navigator is in question
-   * @return the navigable type it reaches, or null when it reaches none
+   * @return the navigable record it reaches, or null when it reaches none
    */
-  private TypeElement navigableTarget(RecordComponentElement component, String fromPackage) {
+  private Target navigableTarget(RecordComponentElement component, String fromPackage) {
     TypeMirror fieldType = component.asType();
     TypeElement direct = navigableTypeElement(fieldType, fromPackage);
     if (direct != null) {
-      return direct;
+      return new Target(direct, (DeclaredType) fieldType);
     }
-    SpiNavigable spiNavigable = spiNavigable(fieldType, fromPackage);
-    return spiNavigable == null ? null : spiNavigable.element();
+    return spiNavigable(fieldType, fromPackage);
   }
 
   /**
-   * The type a record's Focus method for this component navigates to, or null when that method
+   * The record a record's Focus method for this component navigates to, or null when that method
    * hands back a path instead.
    *
    * <p>A component reaches a navigator by being a navigable type itself, or by being an SPI
-   * container of one, and in either case only when that type declares no type parameters of its
-   * own. Every site that asks — the navigator class, the method that returns it, and a navigation
-   * method composing it from another record — reads the answer from here, so they cannot disagree
-   * about which components have one.
+   * container of one, and in either case only when it gives that type a navigator can be
+   * instantiated with. Every site that asks — the navigator class, the method that returns it, and
+   * a navigation method composing it from another record — reads the answer from here, so they
+   * cannot disagree about which components have one.
    *
    * @param record the record that declares the component
    * @param component the component
-   * @return the navigable type its Focus method reaches, or null
+   * @return the navigable record its Focus method reaches, or null
    */
-  private TypeElement navigatorTarget(TypeElement record, RecordComponentElement component) {
-    TypeElement candidate = navigatorCandidate(record, component);
-    return candidate == null || declaresTypeParameters(candidate) ? null : candidate;
-  }
-
-  /**
-   * The navigable type a component would get a navigator for, before its own type parameters are
-   * considered.
-   *
-   * <p>Split from {@link #navigatorTarget} so that the note explaining a generic target and the
-   * gate declining it read one answer rather than two. Re-deriving it would report the target's
-   * genericity as the reason a field the record itself filtered out has no navigator, which is a
-   * reason its author cannot act on.
-   *
-   * @param record the record that declares the component
-   * @param component the component
-   * @return the navigable type it reaches while asking for a navigator, or null
-   */
-  private TypeElement navigatorCandidate(TypeElement record, RecordComponentElement component) {
+  private Target navigatorTarget(TypeElement record, RecordComponentElement component) {
     if (!focusSettings(record).generateNavigators()
         || !shouldGenerateNavigator(record, component)) {
       return null;
     }
-    return navigableTarget(component, companionPackage(record));
-  }
-
-  /**
-   * Whether a navigable type declares type parameters of its own.
-   *
-   * <p>A navigator is an inner class parameterised by the source type alone, and its navigation
-   * methods read the target's components from the target's own declaration. Both would name the
-   * target's variables, which are in scope on neither. The component keeps its plain path method,
-   * which carries the instantiation and composes the same way.
-   *
-   * @param navigable the navigable type the component reaches
-   * @return true when it declares type parameters
-   */
-  private static boolean declaresTypeParameters(TypeElement navigable) {
-    return !navigable.getTypeParameters().isEmpty();
+    Target target = navigableTarget(component, companionPackage(record));
+    return target == null || !target.instantiable() ? null : target;
   }
 
   /**
@@ -460,8 +463,15 @@ public class NavigatorClassGenerator {
     String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     TypeName targetTypeName = TypeName.get(targetRecord.asType());
 
-    // Type parameter S for the source type in the navigator
-    TypeVariableName sourceTypeVar = TypeVariableName.get("S");
+    // The source comes first, then the target's own type parameters under their own names: the
+    // navigation methods read the target's components, which are written in those names. The
+    // source takes another name where the target has claimed S.
+    TypeVariableName sourceTypeVar =
+        TypeVariableName.get(ProcessorUtils.freeTypeVariableName("S", targetRecord));
+    List<TypeVariableName> targetTypeVars =
+        targetRecord.getTypeParameters().stream()
+            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, analysis.targetPackage()))
+            .toList();
 
     // The delegate type depends on the path kind
     ClassName pathClass = tier.pathClass();
@@ -475,22 +485,34 @@ public class NavigatorClassGenerator {
           case TRAVERSAL -> "TraversalPath (collection navigation)";
         };
 
-    // A nested type is its own class file, and a coverage tool reads the marker there.
+    // A nested type is its own class file, and a coverage tool reads the marker there. The class
+    // redeclares the target's type parameters, so a raw bound among them is answered here, the one
+    // place a member's suppression cannot reach.
     TypeSpec.Builder navigatorBuilder =
         TypeSpec.classBuilder(navigatorClassName)
             .addAnnotation(GENERATED)
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(targetRecord.asType(), targetRecord))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(sourceTypeVar)
+            .addTypeVariables(targetTypeVars)
             .addJavadoc(
                 "Navigator for fluent access to {@code $L} fields.\n\n"
                     + "<p>This navigator wraps a {@link $T} and provides direct navigation methods\n"
                     + "for all fields of {@link $T}.\n\n"
                     + "<p>Path type: $L\n\n"
-                    + "@param <S> the source type at the root of the navigation",
+                    + "@param <$L> the source type at the root of the navigation",
                 componentName,
                 pathClass,
-                targetTypeName,
-                tierDescription);
+                ClassName.get(targetRecord),
+                tierDescription,
+                sourceTypeVar.name());
+    for (TypeVariableName targetTypeVar : targetTypeVars) {
+      navigatorBuilder.addJavadoc(
+          "\n@param <$L> the {@code $L} of the {@code $L} navigated to",
+          targetTypeVar.name(),
+          targetTypeVar.name(),
+          targetRecord.getSimpleName());
+    }
 
     // Add delegate field
     navigatorBuilder.addField(
@@ -512,6 +534,24 @@ public class NavigatorClassGenerator {
         navigatorBuilder, component, targetRecord, sourceTypeVar, currentDepth + 1, tier);
 
     return navigatorBuilder.build();
+  }
+
+  /**
+   * A navigator class instantiated as every navigator is: over a source first, then with the type
+   * arguments its target is given, in the order the target declares its parameters.
+   */
+  private static ParameterizedTypeName navigatorType(
+      ClassName navigatorClass, TypeName source, List<TypeName> typeArguments) {
+    return ParameterizedTypeName.get(
+        navigatorClass,
+        Stream.concat(Stream.of(source), typeArguments.stream()).toArray(TypeName[]::new));
+  }
+
+  /** Type arguments as the generated Focus class writes them. */
+  private List<TypeName> typeNamesOf(List<? extends TypeMirror> arguments) {
+    return arguments.stream()
+        .map(argument -> ProcessorUtils.typeNameOf(argument, analysis.targetPackage()))
+        .toList();
   }
 
   /** Adds the delegate methods one path kind's navigator forwards to its underlying path. */
@@ -839,6 +879,7 @@ public class NavigatorClassGenerator {
         continue;
       }
 
+      CodeBlock focusMethod = focusMethodCall(targetFocusClass, targetRecord, fieldName);
       switch (fieldShape(targetRecord, targetFocusClass, component)) {
         case FieldShape.Unresolvable unresolvable ->
             reportUnresolvableField(owner, targetFocusClass, fieldName, unresolvable.type());
@@ -852,7 +893,7 @@ public class NavigatorClassGenerator {
                         sourceTypeVar,
                         currentTier.widen(path.tier()),
                         path.focusType())
-                    .addStatement("return delegate.via($T.$L())", targetFocusClass, fieldName)
+                    .addStatement("return delegate.via($L)", focusMethod)
                     .build());
         case FieldShape.Navigator navigator -> {
           Tier composed = currentTier.widen(navigator.tier());
@@ -860,18 +901,30 @@ public class NavigatorClassGenerator {
               navigationMethod(
                   component, fieldName, sourceTypeVar, composed, navigator.focusType());
           addNavigatorComposition(
-              methodBuilder,
-              navigator.navigatorClass(),
-              targetFocusClass,
-              fieldName,
-              sourceTypeVar,
-              currentDepth,
-              composed,
-              navigator.tier());
+              methodBuilder, navigator, focusMethod, sourceTypeVar, currentDepth, composed);
           navigatorBuilder.addMethod(methodBuilder.build());
         }
       }
     }
+  }
+
+  /**
+   * A call to the static Focus method a target's companion generated for one field.
+   *
+   * <p>A generic target's method declares the target's type parameters, and they are passed
+   * explicitly: under the navigator's own, which carry the same names. A call whose result is
+   * composed further, {@code InnerFocus.deeper().toPath()}, has nothing else to infer them from.
+   */
+  private static CodeBlock focusMethodCall(
+      ClassName targetFocusClass, TypeElement targetRecord, String fieldName) {
+    if (targetRecord.getTypeParameters().isEmpty()) {
+      return CodeBlock.of("$T.$L()", targetFocusClass, fieldName);
+    }
+    CodeBlock typeArguments =
+        targetRecord.getTypeParameters().stream()
+            .map(parameter -> CodeBlock.of("$L", parameter.getSimpleName()))
+            .collect(CodeBlock.joining(", "));
+    return CodeBlock.of("$T.<$L>$L()", targetFocusClass, typeArguments, fieldName);
   }
 
   /** A navigation method's declaration: its name, the path it returns, and its javadoc. */
@@ -882,8 +935,8 @@ public class NavigatorClassGenerator {
       Tier composed,
       TypeName focusType) {
     return MethodSpec.methodBuilder(fieldName)
-        // The method writes the target's field type out. A navigator class is parameterised by its
-        // source alone, so no type-parameter bound arrives here.
+        // The method writes the target's field type out. The target's type-parameter bounds are
+        // the navigator class's, and answered there.
         .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(component.asType())))
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(composed.pathClass(), sourceTypeVar, focusType))
@@ -964,28 +1017,26 @@ public class NavigatorClassGenerator {
    * composing with this navigator's delegate lands on that same tier. A wider composition has no
    * navigator to wrap the result in, so the composed path is the answer and navigation stops there;
    * so it does at the depth limit.
+   *
+   * <p>The navigator handed on is instantiated with the type arguments the field gives its own
+   * target, after this navigator's source.
    */
   private void addNavigatorComposition(
       MethodSpec.Builder methodBuilder,
-      ClassName navigatorClass,
-      ClassName targetFocusClass,
-      String fieldName,
+      FieldShape.Navigator navigator,
+      CodeBlock focusMethod,
       TypeVariableName sourceTypeVar,
       int currentDepth,
-      Tier composed,
-      Tier fieldTier) {
+      Tier composed) {
 
-    if (currentDepth < maxDepth && composed == fieldTier) {
-      methodBuilder.returns(ParameterizedTypeName.get(navigatorClass, sourceTypeVar));
+    if (currentDepth < maxDepth && composed == navigator.tier()) {
+      methodBuilder.returns(
+          navigatorType(navigator.navigatorClass(), sourceTypeVar, navigator.typeArguments()));
       methodBuilder.addStatement(
-          "return new $T<>(delegate.via($T.$L().toPath()))",
-          navigatorClass,
-          targetFocusClass,
-          fieldName);
+          "return new $T<>(delegate.via($L.toPath()))", navigator.navigatorClass(), focusMethod);
       return;
     }
-    methodBuilder.addStatement(
-        "return delegate.via($T.$L().toPath())", targetFocusClass, fieldName);
+    methodBuilder.addStatement("return delegate.via($L.toPath())", focusMethod);
   }
 
   /**
@@ -997,9 +1048,18 @@ public class NavigatorClassGenerator {
     /** A method returning a plain path of this tier and focus. */
     record Path(Tier tier, TypeName focusType) implements FieldShape {}
 
-    /** A method returning a navigator that wraps a path of this tier and focus. */
-    record Navigator(Tier tier, TypeName focusType, ClassName navigatorClass)
-        implements FieldShape {}
+    /**
+     * A method returning a navigator that wraps a path of this tier and focus, instantiated with
+     * these type arguments after its source.
+     */
+    record Navigator(
+        Tier tier, TypeName focusType, ClassName navigatorClass, List<TypeName> typeArguments)
+        implements FieldShape {
+
+      public Navigator {
+        typeArguments = List.copyOf(typeArguments);
+      }
+    }
 
     /** A published method naming a type this compilation cannot resolve. */
     record Unresolvable(TypeMirror type) implements FieldShape {}
@@ -1022,13 +1082,15 @@ public class NavigatorClassGenerator {
       TypeElement targetRecord, ClassName targetFocusClass, RecordComponentElement component) {
     if (navigableTypes.contains(targetRecord.getQualifiedName().toString())) {
       Widening widening = widening(targetRecord, component);
-      return navigatorTarget(targetRecord, component) == null
+      Target target = navigatorTarget(targetRecord, component);
+      return target == null
           ? new FieldShape.Path(widening.tier(), widening.focusType())
           : new FieldShape.Navigator(
               widening.tier(),
               widening.focusType(),
               targetFocusClass.nestedClass(
-                  ProcessorUtils.capitalise(component.getSimpleName().toString()) + "Navigator"));
+                  ProcessorUtils.capitalise(component.getSimpleName().toString()) + "Navigator"),
+              typeNamesOf(target.type().getTypeArguments()));
     }
     return publishedShape(targetRecord, targetFocusClass, component.getSimpleName().toString());
   }
@@ -1037,6 +1099,11 @@ public class NavigatorClassGenerator {
    * Reads the shape of a target's published static Focus method for one field. The companion is
    * known to exist and to be public: a target outside this round is navigable only once {@link
    * #reach} has found it so.
+   *
+   * <p>A generic target's method declares the target's type parameters, under the target's names,
+   * and is read over the target instantiated with them. A navigator into it passes its own as the
+   * method's type arguments and writes what the method returns in their names, so it composes only
+   * a method whose type parameters carry those names, bounded no more tightly than its own.
    */
   private FieldShape publishedShape(
       TypeElement targetRecord, ClassName targetFocusClass, String fieldName) {
@@ -1048,27 +1115,71 @@ public class NavigatorClassGenerator {
                 method.getSimpleName().contentEquals(fieldName)
                     && publicStatic(method)
                     && method.getParameters().isEmpty()
-                    && method.getTypeParameters().isEmpty())
+                    && declaresTargetParameters(method, targetRecord))
         .findFirst()
-        .map(method -> shapeOf(focus, targetRecord, method.getReturnType()))
+        .map(method -> shapeOf(focus, sourceOf(targetRecord, method), method.getReturnType()))
         .orElseGet(FieldShape.Unrecognised::new);
+  }
+
+  /**
+   * Whether a published method declares the target's type parameters: the same names in the same
+   * order, each bounded no more tightly than the target's own, so that the navigator's variables,
+   * which carry the target's names and bounds, can be passed as its type arguments.
+   */
+  private boolean declaresTargetParameters(ExecutableElement method, TypeElement targetRecord) {
+    Types types = processingEnv.getTypeUtils();
+    List<? extends TypeParameterElement> declared = method.getTypeParameters();
+    List<? extends TypeParameterElement> own = targetRecord.getTypeParameters();
+    return namesOf(declared).equals(namesOf(own))
+        && IntStream.range(0, own.size())
+            .allMatch(
+                i ->
+                    declared.get(i).getBounds().stream()
+                        .allMatch(
+                            bound ->
+                                own.get(i).getBounds().stream()
+                                    .anyMatch(
+                                        ownBound ->
+                                            types.isSubtype(
+                                                types.erasure(ownBound), types.erasure(bound)))));
+  }
+
+  /** The simple names of a list of type parameters, in order. */
+  private static List<String> namesOf(List<? extends TypeParameterElement> parameters) {
+    return parameters.stream().map(parameter -> parameter.getSimpleName().toString()).toList();
+  }
+
+  /**
+   * The target a published method is over: the target instantiated with the method's own type
+   * variables, which the caller has matched to the target's parameters one for one.
+   */
+  private DeclaredType sourceOf(TypeElement targetRecord, ExecutableElement method) {
+    return processingEnv
+        .getTypeUtils()
+        .getDeclaredType(
+            targetRecord,
+            method.getTypeParameters().stream().map(Element::asType).toArray(TypeMirror[]::new));
   }
 
   /**
    * The shape a published method's return type describes: a path over the target, or a navigator
    * nested in its companion that generated code in another package can name and construct.
+   *
+   * @param focus the target's companion
+   * @param source the target, as the method is over it
+   * @param returned the method's return type
    */
-  private FieldShape shapeOf(TypeElement focus, TypeElement targetRecord, TypeMirror returned) {
+  private FieldShape shapeOf(TypeElement focus, DeclaredType source, TypeMirror returned) {
     Optional<TypeMirror> unresolved = unresolvedPart(returned);
     if (unresolved.isPresent()) {
       return new FieldShape.Unresolvable(unresolved.orElseThrow());
     }
     if (!(returned instanceof DeclaredType declared)
         || !declared.asElement().getEnclosingElement().equals(focus)) {
-      return pathShape(targetRecord.asType(), returned);
+      return pathShape(source, returned);
     }
     TypeElement navigator = (TypeElement) declared.asElement();
-    if (!nameableNavigator(navigator, declared, targetRecord)) {
+    if (!nameableNavigator(navigator, declared, source)) {
       return new FieldShape.Unrecognised();
     }
     // A navigator says which path it wraps through its own toPath(), and is composed as
@@ -1084,29 +1195,43 @@ public class NavigatorClassGenerator {
     if (toPath.isEmpty()) {
       return new FieldShape.Unrecognised();
     }
+    // The path it wraps is over its own first type parameter, so a navigator constructed from a
+    // path over this navigator's source is over that source too. Any parameter it declares after
+    // that one takes the type the composing method's return type names for it.
     TypeMirror wraps = toPath.orElseThrow().getReturnType();
     FieldShape wrapped = pathShape(navigator.getTypeParameters().getFirst().asType(), wraps);
     if (!(wrapped instanceof FieldShape.Path path)) {
       return wrapped;
     }
+    // The focus is read under the instantiation the method returns, which writes it in the names
+    // the navigator composing it declares.
+    TypeMirror declaredFocus = ((DeclaredType) wraps).getTypeArguments().getLast();
+    TypeMirror focusType =
+        ((DeclaredType)
+                ProcessorUtils.returnTypeIn(
+                    processingEnv.getTypeUtils(), declared, toPath.orElseThrow()))
+            .getTypeArguments()
+            .getLast();
+    List<? extends TypeMirror> arguments = declared.getTypeArguments();
     return constructibleFrom(navigator, wraps)
-        ? new FieldShape.Navigator(path.tier(), path.focusType(), ClassName.get(navigator))
+        ? new FieldShape.Navigator(
+            path.tier(),
+            ProcessorUtils.typeNameOf(focusType, declaredFocus, declared, analysis.targetPackage()),
+            ClassName.get(navigator),
+            typeNamesOf(arguments.subList(1, arguments.size())))
         : new FieldShape.Unrecognised();
   }
 
   /**
-   * Whether a navigator class nested in a companion can be named as {@code Navigator<S>} from
+   * Whether a navigator class nested in a companion can be named as {@code Navigator<S, ...>} from
    * generated code in another package, and was published over the target.
    */
   private boolean nameableNavigator(
-      TypeElement navigator, DeclaredType returned, TypeElement targetRecord) {
+      TypeElement navigator, DeclaredType returned, DeclaredType source) {
     return navigator.getKind() == ElementKind.CLASS
         && publicStatic(navigator)
-        && navigator.getTypeParameters().size() == 1
-        && returned.getTypeArguments().size() == 1
-        && processingEnv
-            .getTypeUtils()
-            .isSameType(returned.getTypeArguments().getFirst(), targetRecord.asType());
+        && !returned.getTypeArguments().isEmpty()
+        && processingEnv.getTypeUtils().isSameType(returned.getTypeArguments().getFirst(), source);
   }
 
   /**
@@ -1183,19 +1308,16 @@ public class NavigatorClassGenerator {
     };
   }
 
-  /** An SPI container's generator, paired with the navigable element it focuses on. */
-  private record SpiNavigable(TraversableGenerator generator, TypeElement element) {}
-
   /**
-   * Returns the generator and navigable element of an SPI container focused on a navigable type, or
-   * {@code null} when the field is not one.
+   * Returns the navigable element of an SPI container focused on a navigable type, or {@code null}
+   * when the field is not one.
    *
    * <p>Every site that asks reads the answer from here, so the navigator class, the method's return
    * type and the wrapping decision cannot disagree about which fields have one. Hardcoded
    * Optional/Collection fields are excluded because they widen through their own path and never get
    * a navigator class.
    */
-  private SpiNavigable spiNavigable(TypeMirror fieldType, String fromPackage) {
+  private Target spiNavigable(TypeMirror fieldType, String fromPackage) {
     if (fieldType.getKind() != TypeKind.DECLARED || analysis.recognisedContainer(fieldType)) {
       return null;
     }
@@ -1213,11 +1335,11 @@ public class NavigatorClassGenerator {
    * <p>Split from {@link #spiNavigable} so that {@link #widensUndenotableSpiContainer} can ask the
    * same question of a generator the lookup refused.
    */
-  private SpiNavigable spiNavigableUnder(
+  private Target spiNavigableUnder(
       TypeMirror fieldType, TraversableGenerator generator, String fromPackage) {
     TypeMirror innerType = spiElement(fieldType, generator);
     TypeElement element = innerType == null ? null : navigableTypeElement(innerType, fromPackage);
-    return element == null ? null : new SpiNavigable(generator, element);
+    return element == null ? null : new Target(element, (DeclaredType) innerType);
   }
 
   /**
@@ -1263,6 +1385,12 @@ public class NavigatorClassGenerator {
 
     /** A record whose navigator would name {@code hidden}, which this package cannot reach. */
     record Hidden(TypeElement record, TypeElement hidden) implements Reach {}
+
+    /**
+     * An annotated record a component gives a wildcard or no type arguments, so that no navigator
+     * into it can be instantiated. Only {@code skippedTarget} answers this, never {@code reach}.
+     */
+    record Uninstantiable(Target target) implements Reach {}
 
     /** Anything else. */
     record None() implements Reach {}
@@ -1365,11 +1493,11 @@ public class NavigatorClassGenerator {
     if (!(analysis.spiLookup(fieldType, null) instanceof SpiLookup.Refused refused)) {
       return false;
     }
-    // The element must be one a navigator is offered for. A generic element gets none whatever
-    // the container's arguments, so that container is left alone as it would have been anyway.
-    SpiNavigable navigable =
-        spiNavigableUnder(fieldType, refused.generator(), companionPackage(record));
-    return navigable != null && !declaresTypeParameters(navigable.element());
+    // The element must be one a navigator is offered for. One the container gives a wildcard or
+    // a raw type gets none whatever the container's own arguments, so that container is left
+    // alone as it would have been anyway.
+    Target navigable = spiNavigableUnder(fieldType, refused.generator(), companionPackage(record));
+    return navigable != null && navigable.instantiable();
   }
 
   /**
@@ -1386,19 +1514,21 @@ public class NavigatorClassGenerator {
 
     String componentName = component.getSimpleName().toString();
 
-    // A component whose type reaches a non-generic navigable one — directly, or as the element of
-    // an SPI container — gets this navigator method in place of the plain path method. Hardcoded
-    // Optional/Collection fields are not among them: createFocusPathMethod widens those through
-    // .some()/.each() instead.
-    TypeElement target = navigatorTarget(recordElement, component);
+    // A component whose type reaches a navigable one it can instantiate a navigator for — directly,
+    // or as the element of an SPI container — gets this navigator method in place of the plain path
+    // method. Hardcoded Optional/Collection fields are not among them: createFocusPathMethod widens
+    // those through .some()/.each() instead.
+    Target target = navigatorTarget(recordElement, component);
     if (target == null) {
       return null; // Not navigable, or filtered out: use the standard method
     }
 
     String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     ClassName navigatorClass = focusClassOf(recordElement).nestedClass(navigatorClassName);
-    ParameterizedTypeName returnType = ParameterizedTypeName.get(navigatorClass, recordTypeName);
-    TypeName javadocTargetType = TypeName.get(target.asType());
+    ParameterizedTypeName returnType =
+        navigatorType(
+            navigatorClass, recordTypeName, typeNamesOf(target.type().getTypeArguments()));
+    TypeName javadocTargetType = ClassName.get(target.record());
 
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)

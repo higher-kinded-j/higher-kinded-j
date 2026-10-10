@@ -61,7 +61,13 @@ class NavigatorAgreesWithStaticFocusTest {
           new Shape("List<Leaf> leaves", "leaves"),
           new Shape("Map<String, Leaf> leafMap", "leafMap"),
           new Shape("ArrayList<Leaf> leafArrayList", "leafArrayList"),
-          new Shape("Either<String, Leaf> eitherLeaf", "eitherLeaf"));
+          new Shape("Either<String, Leaf> eitherLeaf", "eitherLeaf"),
+          new Shape("Box<String> box", "box"),
+          new Shape("Map<String, Box<String>> boxMap", "boxMap"),
+          new Shape("Either<String, Box<String>> eitherBox", "eitherBox"),
+          new Shape("Box<?> looseBox", "looseBox"),
+          new Shape("@SuppressWarnings(\"rawtypes\") Box rawBox", "rawBox"),
+          new Shape("Map<String, Box<?>> looseBoxMap", "looseBoxMap"));
 
   private static final JavaFileObject LEAF =
       JavaFileObjects.forSourceString(
@@ -73,6 +79,21 @@ class NavigatorAgreesWithStaticFocusTest {
 
           @GenerateFocus(generateNavigators = true)
           public record Leaf(String name) {}
+          """);
+
+  /**
+   * A generic navigable record, which a component instantiates, leaves to a wildcard or leaves raw.
+   */
+  private static final JavaFileObject BOX =
+      JavaFileObjects.forSourceString(
+          "com.example.Box",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+
+          @GenerateFocus(generateNavigators = true)
+          public record Box<T>(T value) {}
           """);
 
   private static final JavaFileObject OUTER =
@@ -122,7 +143,9 @@ class NavigatorAgreesWithStaticFocusTest {
       throws Exception {
 
     Compilation compilation =
-        javac().withProcessors(new FocusProcessor()).compile(shapes(widenCollections), OUTER, LEAF);
+        javac()
+            .withProcessors(new FocusProcessor())
+            .compile(shapes(widenCollections), OUTER, LEAF, BOX);
 
     assertThat(compilation.status())
         .as("the corpus compiles, generated source included")
@@ -150,6 +173,9 @@ class NavigatorAgreesWithStaticFocusTest {
         .containsEntry("deep", "TraversalPath<_, String>")
         .containsEntry("members", "TraversalPath<_, String>")
         .containsEntry("eitherLeaf", "EitherLeafNavigator<_>")
+        .containsEntry("box", "BoxNavigator<_, String>")
+        .containsEntry("boxMap", "BoxMapNavigator<_, String>")
+        .containsEntry("looseBox", "FocusPath<_, Box<?>>")
         .containsEntry(
             "map",
             widenCollections ? "TraversalPath<_, String>" : "FocusPath<_, Map<String, String>>");
@@ -238,7 +264,7 @@ class NavigatorAgreesWithStaticFocusTest {
   @DisplayName("should label a navigated path's segments the way a static path labels them")
   void shouldLabelNavigatedPathSegments() {
     Compilation compilation =
-        javac().withProcessors(new FocusProcessor()).compile(shapes(false), OUTER, LEAF);
+        javac().withProcessors(new FocusProcessor()).compile(shapes(false), OUTER, LEAF, BOX);
 
     String outerFocus = generated(compilation, "com.example.OuterFocus");
     // The navigator's own path carries the field name, and via() concatenates the segment the
