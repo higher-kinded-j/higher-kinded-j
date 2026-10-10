@@ -164,6 +164,68 @@ class CleanupTest {
   }
 
   @Nested
+  @DisplayName("withInterruptCleared()")
+  class WithInterruptClearedTests {
+
+    @Test
+    @DisplayName("runs the cleanup with the interrupt status cleared, then restores it")
+    void clearsThenRestoresInterruptStatus() throws Throwable {
+      AtomicBoolean interruptedDuringCleanup = new AtomicBoolean(true);
+      Thread.currentThread().interrupt();
+
+      try {
+        Cleanup.withInterruptCleared(
+            () -> interruptedDuringCleanup.set(Thread.currentThread().isInterrupted()));
+
+        assertThat(interruptedDuringCleanup).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("throws the cleanup's checked exception as thrown, with the status restored")
+    void throwsCleanupFailureUnchanged() {
+      IOException cleanupFailure = new IOException("close failed");
+      Thread.currentThread().interrupt();
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    Cleanup.withInterruptCleared(
+                        () -> {
+                          throw cleanupFailure;
+                        }))
+            .isSameAs(cleanupFailure);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("throws an InterruptedException from the cleanup without setting a clear status")
+    void interruptedCleanupLeavesClearStatusClear() {
+      InterruptedException interrupted = new InterruptedException("close interrupted");
+      Thread.interrupted();
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    Cleanup.withInterruptCleared(
+                        () -> {
+                          throw interrupted;
+                        }))
+            .isSameAs(interrupted);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("keep()")
   class KeepTests {
 

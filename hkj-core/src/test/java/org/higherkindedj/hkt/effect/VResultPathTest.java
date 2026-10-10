@@ -9,8 +9,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -21,7 +23,9 @@ import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1854,6 +1858,318 @@ class VResultPathTest {
           .satisfies(
               pending ->
                   assertThat(pending).hasMessage("onDefect must not return null").hasCause(defect));
+    }
+
+    /**
+     * A booking whose use is cancelled while it blocks: it restores the interrupt status, as Java's
+     * guidance asks of code that catches an {@link InterruptedException}, and fails.
+     */
+    private VResultPath<String, String> cancelledBooking(
+        BiFunction<String, Either<String, String>, VTask<?>> release) {
+      return VResultPath.bracketOutcome(
+          VResultPath.<String, String>pure("seat"),
+          seat ->
+              VResultPath.<String, String>fromVTask(
+                  VTask.of(
+                      () -> {
+                        Thread.currentThread().interrupt(); // the cancellation
+                        try {
+                          Thread.sleep(Duration.ofSeconds(10));
+                        } catch (InterruptedException e) {
+                          Thread.currentThread().interrupt();
+                          throw new IllegalStateException("cancelled", e);
+                        }
+                        return Either.right("booked");
+                      })),
+          release,
+          defect -> "defect: " + defect.getMessage());
+    }
+
+    @Test
+    @DisplayName("after a cancelled use, release runs with the interrupt status cleared")
+    void releaseAfterCancelledUseRunsWithInterruptCleared() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+
+      try {
+        Either<String, String> result =
+            cancelledBooking(
+                    (seat, outcome) ->
+                        VTask.delay(
+                            () -> {
+                              interruptedDuringRelease.set(Thread.currentThread().isInterrupted());
+                              return "released";
+                            }))
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("defect: cancelled");
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("after a cancelled use, a release that blocks finishes")
+    void blockingReleaseFinishesAfterCancelledUse() {
+      AtomicBoolean released = new AtomicBoolean();
+
+      try {
+        Either<String, String> result =
+            cancelledBooking(
+                    (seat, outcome) ->
+                        VTask.of(
+                            () -> {
+                              Thread.sleep(1);
+                              released.set(true);
+                              return "released";
+                            }))
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("defect: cancelled");
+        assertThat(released).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("a release interrupted in its turn reports its defect, and the status is restored")
+    void interruptedReleaseReportsItsDefect() {
+      try {
+        Throwable thrown =
+            catchThrowable(
+                () ->
+                    cancelledBooking(
+                            (seat, outcome) ->
+                                VTask.of(
+                                    () -> {
+                                      Thread.currentThread().interrupt();
+                                      Thread.sleep(1);
+                                      return "released";
+                                    }))
+                        .run()
+                        .run());
+
+        assertThat(thrown)
+            .isInstanceOf(VTaskExecutionException.class)
+            .cause()
+            .isInstanceOf(InterruptedException.class)
+            .hasNoSuppressedExceptions();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("a use cancelled while it builds its path is released with the status cleared")
+    void useCancelledDuringConstructionIsReleasedWithInterruptCleared() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+
+      try {
+        Either<String, String> result =
+            VResultPath.<String, String, String>bracketOutcome(
+                    VResultPath.<String, String>pure("seat"),
+                    seat -> {
+                      Thread.currentThread().interrupt();
+                      throw new IllegalStateException("cancelled");
+                    },
+                    (seat, outcome) ->
+                        VTask.delay(
+                            () -> {
+                              interruptedDuringRelease.set(Thread.currentThread().isInterrupted());
+                              return "released";
+                            }),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("cancelled");
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    /**
+     * Runs a booking whose use returns {@code returned} with an interrupt left pending, as {@code
+     * withBulkhead} and {@code withTimeout} can leave one, and whose release blocks.
+     */
+    private void assertBlockingReleaseFinishesAfterReturning(Either<String, String> returned) {
+      AtomicBoolean released = new AtomicBoolean();
+
+      try {
+        Either<String, String> result =
+            VResultPath.bracketOutcome(
+                    VResultPath.<String, String>pure("seat"),
+                    seat ->
+                        VResultPath.<String, String>fromVTask(
+                            VTask.delay(
+                                () -> {
+                                  Thread.currentThread().interrupt();
+                                  return returned;
+                                })),
+                    (seat, outcome) ->
+                        VTask.of(
+                            () -> {
+                              Thread.sleep(1);
+                              released.set(true);
+                              return "released";
+                            }),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThat(result).isEqualTo(returned);
+        assertThat(released).isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("after a use returns Left with the status set, a release that blocks finishes")
+    void blockingReleaseFinishesAfterReturnedLeft() {
+      assertBlockingReleaseFinishesAfterReturning(Either.left("timed out"));
+    }
+
+    @Test
+    @DisplayName("after a use returns Right with the status set, a release that blocks finishes")
+    void blockingReleaseFinishesAfterReturnedRight() {
+      assertBlockingReleaseFinishesAfterReturning(Either.right("booked"));
+    }
+
+    /** A booking whose use throws an {@link InterruptedException}, as a blocking call does. */
+    private VResultPath<String, String> interruptedBooking(
+        BiFunction<String, Either<String, String>, VTask<?>> release,
+        Function<Throwable, String> onDefect) {
+      return VResultPath.bracketOutcome(
+          VResultPath.<String, String>pure("seat"),
+          seat ->
+              VResultPath.<String, String>fromVTask(
+                  VTask.of(
+                      () -> {
+                        throw new InterruptedException("sleep interrupted");
+                      })),
+          release,
+          onDefect);
+    }
+
+    @Test
+    @DisplayName("an InterruptedException from use is typed, and the status is set after release")
+    void interruptedExceptionFromUseSetsTheStatusAfterRelease() {
+      AtomicBoolean interruptedDuringOnDefect = new AtomicBoolean(true);
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+
+      try {
+        Either<String, String> result =
+            interruptedBooking(
+                    (seat, outcome) ->
+                        VTask.delay(
+                            () -> {
+                              interruptedDuringRelease.set(Thread.currentThread().isInterrupted());
+                              return "released";
+                            }),
+                    defect -> {
+                      interruptedDuringOnDefect.set(Thread.currentThread().isInterrupted());
+                      return "defect: " + defect.getMessage();
+                    })
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("defect: sleep interrupted");
+        assertThat(interruptedDuringOnDefect).isFalse();
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("after an InterruptedException from use, a failing release still sets the status")
+    void failingReleaseAfterInterruptedExceptionSetsTheStatus() {
+      IllegalStateException cleanup = new IllegalStateException("cleanup broke");
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    interruptedBooking(
+                            (seat, outcome) -> VTask.fail(cleanup), Throwable::getMessage)
+                        .run()
+                        .run())
+            .isSameAs(cleanup);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("an InterruptedException wrapped in another defect does not set the status")
+    void wrappedInterruptedExceptionLeavesTheStatusClear() {
+      try {
+        Either<String, String> result =
+            failingUse(
+                    new IllegalStateException("wire snapped", new InterruptedException()),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("wire snapped");
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("in a Scope whose timeout cancels the use, a release that blocks finishes")
+    void blockingReleaseFinishesWhenScopeTimeoutCancelsTheUse() {
+      CountDownLatch useStarted = new CountDownLatch(1);
+      AtomicBoolean released = new AtomicBoolean();
+      VResultPath<String, String> booking =
+          VResultPath.bracketOutcome(
+              VResultPath.<String, String>pure("seat"),
+              seat ->
+                  VResultPath.<String, String>fromVTask(
+                      VTask.of(
+                          () -> {
+                            useStarted.countDown();
+                            try {
+                              Thread.sleep(Duration.ofSeconds(10));
+                            } catch (InterruptedException e) {
+                              Thread.currentThread().interrupt();
+                              throw new IllegalStateException("cancelled", e);
+                            }
+                            return Either.right("booked");
+                          })),
+              (seat, outcome) ->
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(1);
+                        released.set(true);
+                        return "released";
+                      }),
+              defect -> "defect: " + defect.getMessage());
+
+      Throwable thrown =
+          catchThrowable(
+              () ->
+                  Scope.<Either<String, String>>allSucceed()
+                      .timeout(Duration.ofMillis(100))
+                      .fork(booking.run())
+                      .join()
+                      .run());
+
+      assertThat(useStarted.getCount()).as("the use started before the timeout").isZero();
+      assertThat(thrown).cause().isInstanceOf(TimeoutException.class);
+      assertThat(released).isTrue();
     }
 
     @Test

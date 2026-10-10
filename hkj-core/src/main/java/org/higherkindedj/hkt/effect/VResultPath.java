@@ -909,8 +909,13 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * {@code release} has already seen it as a value, so its defect is the failure left to report.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
-   * therefore also typed through {@code onDefect}, and release still runs, as a {@code Resource}
-   * guarantees. If the pipeline must distinguish cancellation from domain failure, map it to a
+   * therefore also typed through {@code onDefect}. {@code release} runs with the thread's interrupt
+   * status cleared, whatever the outcome, so a release that blocks after a cancellation is not cut
+   * short. The status is restored once it has run. When {@code use} throws an {@code
+   * InterruptedException} itself, typing it catches the interrupt, so the status is set again once
+   * {@code release} has run, as Java asks of code that catches one; one wrapped in another
+   * exception does not set it. So the caller still sees an interrupt that {@code use} threw or left
+   * pending. If the pipeline must distinguish cancellation from domain failure, map it to a
    * dedicated error in {@code onDefect}.
    *
    * @param acquire produces the resource; must not be null
@@ -952,7 +957,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                             useOutcome = VTask.fail(defect);
                           }
                           return useOutcome
-                              .map(outcome -> new Settled<E, B>(outcome, Maybe.nothing()))
+                              .map(outcome -> Settled.<E, B>returned(outcome))
                               .recoverWith(defect -> VTask.succeed(settle(onDefect, defect)))
                               .flatMap(
                                   settlement -> releaseThenRaise(release, resource, settlement));
@@ -960,23 +965,31 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   }
 
   /**
-   * Runs release on the settled outcome, then raises any pending failure. A release defect
-   * propagates, carrying the pending failure it would otherwise mask.
+   * Runs release on the settled outcome with the interrupt status cleared, then raises any pending
+   * failure. A release defect propagates, carrying the pending failure it would otherwise mask.
+   * After an {@link InterruptedException} from use, the status is set once release has run.
    */
   private static <E, A, B> VTask<Either<E, B>> releaseThenRaise(
       BiFunction<? super A, ? super Either<E, B>, ? extends VTask<?>> release,
       A resource,
       Settled<E, B> settlement) {
-    VTask<?> released;
-    try {
-      released =
-          Objects.requireNonNull(
-              release.apply(resource, settlement.outcome()), "release must not return null");
-    } catch (Throwable releaseDefect) {
-      return VTask.fail(settlement.carriedBy(releaseDefect));
-    }
+    VTask<Unit> released =
+        () -> {
+          try {
+            Cleanup.withInterruptCleared(
+                () ->
+                    Objects.requireNonNull(
+                            release.apply(resource, settlement.outcome()),
+                            "release must not return null")
+                        .execute());
+          } finally {
+            if (settlement.interrupted()) {
+              Thread.currentThread().interrupt();
+            }
+          }
+          return Unit.INSTANCE;
+        };
     return released
-        .<Unit>map(ignored -> Unit.INSTANCE)
         .recoverWith(releaseDefect -> VTask.fail(settlement.carriedBy(releaseDefect)))
         .flatMap(ignored -> settlement.raise());
   }
@@ -984,8 +997,16 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   /**
    * The outcome release observes, with the failure to raise once release has run when {@code
    * onDefect} could not type the defect. A release defect carries that failure as suppressed.
+   * {@code interrupted} says the defect was an {@link InterruptedException}, so the interrupt
+   * status is set once release has run.
    */
-  private record Settled<E, B>(Either<E, B> outcome, Maybe<Throwable> pending) {
+  private record Settled<E, B>(
+      Either<E, B> outcome, Maybe<Throwable> pending, boolean interrupted) {
+
+    /** The outcome use returned. */
+    static <E, B> Settled<E, B> returned(Either<E, B> outcome) {
+      return new Settled<>(outcome, Maybe.nothing(), false);
+    }
 
     VTask<Either<E, B>> raise() {
       return pending.isJust() ? VTask.fail(pending.get()) : VTask.succeed(outcome);
@@ -1002,18 +1023,20 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    */
   private static <E, B> Settled<E, B> settle(
       Function<? super Throwable, ? extends E> onDefect, Throwable defect) {
+    boolean interrupted = defect instanceof InterruptedException;
     E error;
     try {
       error = onDefect.apply(defect);
     } catch (Throwable broken) {
-      return new Settled<>(Either.left(null), Maybe.just(Cleanup.keep(broken, defect)));
+      return new Settled<>(
+          Either.left(null), Maybe.just(Cleanup.keep(broken, defect)), interrupted);
     }
     if (error == null) {
       NullPointerException refused = new NullPointerException("onDefect must not return null");
       refused.initCause(defect);
-      return new Settled<>(Either.left(null), Maybe.just(refused));
+      return new Settled<>(Either.left(null), Maybe.just(refused), interrupted);
     }
-    return new Settled<>(Either.left(error), Maybe.nothing());
+    return new Settled<>(Either.left(error), Maybe.nothing(), interrupted);
   }
 
   /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */

@@ -15,13 +15,14 @@ import org.jspecify.annotations.Nullable;
  * VTaskPath}, {@code Resource} and {@code VStream} report a failing cleanup through this class, so
  * the rule is the same for all of them. Each keeps its own form for a checked exception, and its
  * own order among several releases, such as the composed releases of a {@code Resource}. {@code
- * VResultPath.bracketOutcome} does not use this class: it reports its release's defect, and runs
- * its release without clearing the interrupt status.
+ * VResultPath.bracketOutcome} reports its release's defect instead, keeping any pending failure
+ * with {@link #keep}, and runs its release through {@link #withInterruptCleared}.
  *
  * <p>Cleanup after a failure runs with the thread's interrupt status cleared, so cleanup after a
- * cancelled computation is not cut short. The status is restored afterwards, and set if the cleanup
- * itself throws an {@link InterruptedException}; one wrapped in another exception, as a composed
- * {@code Resource} or a {@code VStream} wraps it, does not set it.
+ * cancelled computation is not cut short. The status is restored afterwards. When {@link
+ * #afterFailure} suppresses an {@link InterruptedException} from the cleanup, it sets the status;
+ * one wrapped in another exception, as a composed {@code Resource} or a {@code VStream} wraps it,
+ * does not set it.
  *
  * <p>An exception that more than one run throws, such as the one a {@code VTask.fail} holds,
  * gathers the suppressed exceptions of every run whose cleanup fails, as it would under
@@ -34,7 +35,8 @@ public final class Cleanup {
   private Cleanup() {}
 
   /**
-   * A step of cleanup, which may throw a checked exception, as {@link AutoCloseable#close()} may.
+   * A step of cleanup, which may throw a checked exception, as {@link AutoCloseable#close()} may,
+   * or any {@link Throwable}, as a {@code VTask} may.
    */
   @FunctionalInterface
   public interface Action {
@@ -42,9 +44,9 @@ public final class Cleanup {
     /**
      * Runs the cleanup.
      *
-     * @throws Exception if the cleanup fails
+     * @throws Throwable if the cleanup fails
      */
-    void run() throws Exception;
+    void run() throws Throwable;
   }
 
   /**
@@ -80,12 +82,29 @@ public final class Cleanup {
    * @param cleanup the cleanup to run
    */
   public static void afterFailure(Throwable failure, Action cleanup) {
+    try {
+      withInterruptCleared(cleanup);
+    } catch (Throwable secondary) {
+      if (secondary instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      suppress(failure, secondary);
+    }
+  }
+
+  /**
+   * Runs cleanup with the interrupt status cleared, and restores the status afterwards. Unlike
+   * {@link #afterFailure}, anything the cleanup throws is thrown on unchanged, and the status is
+   * only restored: an {@link InterruptedException} from the cleanup does not set it, since the
+   * caller receives the exception itself.
+   *
+   * @param cleanup the cleanup to run
+   * @throws Throwable what the cleanup throws
+   */
+  public static void withInterruptCleared(Action cleanup) throws Throwable {
     boolean interrupted = Thread.interrupted();
     try {
       cleanup.run();
-    } catch (Throwable secondary) {
-      interrupted |= secondary instanceof InterruptedException;
-      suppress(failure, secondary);
     } finally {
       if (interrupted) {
         Thread.currentThread().interrupt();
