@@ -8,3 +8,6 @@ org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$BoxIndexOneGene
 org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$TypeVariableGenerator
 org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$FbDefaultGenerator
 org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$PriOverrideGenerator
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$BlankGenerator
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$ShdDefaultGenerator
+org.higherkindedj.optics.processing.testspi.TestMarkerGenerators$ShdOverrideGenerator

@@ -23,10 +23,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * #generateOpticExpression()}, and {@link #getRequiredImports()} to participate in Focus DSL path
  * widening. When these methods are overridden, the FocusProcessor and NavigatorClassGenerator will
  * automatically select the correct path type ({@code AffinePath} or {@code TraversalPath}) and
- * generate the appropriate composition call ({@code .some(affine)} or {@code .each(each)}).
- * {@code @GenerateFocus} recognises {@code Optional}, {@code Maybe}, {@code List}, {@code Set} and
- * {@code Collection} by name and widens them without asking any generator, so these methods are not
- * read for those types.
+ * generate the appropriate composition call ({@code .some(affine)} or {@code .each(each)}). A
+ * generator that leaves {@link #generateOpticExpression()} at its default takes no part: a path
+ * stops at its container, as if no generator supported it, and only {@code @GenerateTraversals} and
+ * {@code @ImportOptics} use the generator. {@code @GenerateFocus} recognises {@code Optional},
+ * {@code Maybe}, {@code List}, {@code Set} and {@code Collection} by name and widens them without
+ * asking any generator, so these methods are not read for those types.
  *
  * @since 0.3.8
  */
@@ -75,7 +77,8 @@ public interface TraversableGenerator {
   /**
    * Returns the cardinality of elements within this container type.
    *
-   * <p>This determines the appropriate path type in the Focus DSL:
+   * <p>For a generator that names an optic expression, this determines the appropriate path type in
+   * the Focus DSL:
    *
    * <ul>
    *   <li>{@link Cardinality#ZERO_OR_ONE} → {@code AffinePath}, always (for types like Optional,
@@ -115,7 +118,11 @@ public interface TraversableGenerator {
    * <p>For ZERO_OR_ONE types, this should return an expression producing an {@code Affine}. For
    * ZERO_OR_MORE types, this should return an expression producing an {@code Each}.
    *
-   * @return a valid Java source expression, e.g. {@code "Affines.eitherRight()"}
+   * <p>The default, an empty string, keeps this generator out of Focus widening: a path stops at a
+   * container of a type it supports, as if no generator supported it.
+   *
+   * @return a valid Java source expression, e.g. {@code "Affines.eitherRight()"}, or an empty
+   *     string to take no part in Focus widening
    */
   default String generateOpticExpression() {
     return "";
