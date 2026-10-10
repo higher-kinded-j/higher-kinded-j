@@ -173,7 +173,7 @@ VResultPath<OrderError, OrderResult> processWithReservation(
 }
 ```
 
-Release *always* runs and receives the `Either` outcome: a `Right` confirms the reservation, a `Left` releases it. There is no mutable "confirmed" flag. A defect (a thrown exception) inside the use phase is first typed through the final `onDefect` argument (here as a `SystemError`), so the release observes a typed outcome and the reservation is released. Should `onDefect` itself fail, the release still runs and sees `Left(null)`, which this release also treats as a failure. A timeout that cancels the use counts as a defect too. The release then runs with the interrupt status cleared, so its call to the inventory service finishes, and the status is restored afterwards.
+Release *always* runs and receives the `Either` outcome: a `Right` confirms the reservation, a `Left` releases it. There is no mutable "confirmed" flag. A defect (a thrown exception) inside the use phase is first typed through the final `onDefect` argument (here as a `SystemError`), so the release observes a typed outcome and the reservation is released. Should `onDefect` itself fail, the release still runs and sees `Left(null)`, which this release also treats as a failure. A cancellation, such as a `Scope` timeout or `firstSuccess` cancelling a losing candidate, interrupts the use. The release runs with the interrupt status cleared, so a release that calls a remote inventory service is not cut short, and the status is restored afterwards.
 
 ### General-Purpose Resource
 

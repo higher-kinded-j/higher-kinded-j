@@ -1995,10 +1995,13 @@ class VResultPathTest {
       }
     }
 
-    @Test
-    @DisplayName("after a use that returns its outcome, release sees the status the use left")
-    void releaseAfterReturnedOutcomeSeesTheStatus() {
-      AtomicBoolean interruptedDuringRelease = new AtomicBoolean();
+    /**
+     * Runs a booking whose use returns {@code returned} with the interrupt status set, as {@code
+     * withBulkhead} and {@code withTimeout} do when they type an interrupt, and whose release
+     * blocks.
+     */
+    private void assertBlockingReleaseFinishesAfterReturning(Either<String, String> returned) {
+      AtomicBoolean released = new AtomicBoolean();
 
       try {
         Either<String, String> result =
@@ -2009,7 +2012,53 @@ class VResultPathTest {
                             VTask.delay(
                                 () -> {
                                   Thread.currentThread().interrupt();
-                                  return Either.<String, String>left("cancelled");
+                                  return returned;
+                                })),
+                    (seat, outcome) ->
+                        VTask.of(
+                            () -> {
+                              Thread.sleep(1);
+                              released.set(true);
+                              return "released";
+                            }),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThat(result).isEqualTo(returned);
+        assertThat(released).isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("after a use returns Left with the status set, a release that blocks finishes")
+    void blockingReleaseFinishesAfterReturnedLeft() {
+      assertBlockingReleaseFinishesAfterReturning(Either.left("timed out"));
+    }
+
+    @Test
+    @DisplayName("after a use returns Right with the status set, a release that blocks finishes")
+    void blockingReleaseFinishesAfterReturnedRight() {
+      assertBlockingReleaseFinishesAfterReturning(Either.right("booked"));
+    }
+
+    @Test
+    @DisplayName("an InterruptedException from use is typed, and the status is set again")
+    void interruptedExceptionFromUseSetsTheStatusAgain() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+
+      try {
+        Either<String, String> result =
+            VResultPath.bracketOutcome(
+                    VResultPath.<String, String>pure("seat"),
+                    seat ->
+                        VResultPath.<String, String>fromVTask(
+                            VTask.of(
+                                () -> {
+                                  throw new InterruptedException("sleep interrupted");
                                 })),
                     (seat, outcome) ->
                         VTask.delay(
@@ -2017,12 +2066,31 @@ class VResultPathTest {
                               interruptedDuringRelease.set(Thread.currentThread().isInterrupted());
                               return "released";
                             }),
+                    defect -> "defect: " + defect.getMessage())
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("defect: sleep interrupted");
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("an InterruptedException wrapped in another defect does not set the status")
+    void wrappedInterruptedExceptionLeavesTheStatusClear() {
+      try {
+        Either<String, String> result =
+            failingUse(
+                    new IllegalStateException("wire snapped", new InterruptedException()),
                     Throwable::getMessage)
                 .run()
                 .run();
 
-        assertThatEither(result).isLeft().hasLeft("cancelled");
-        assertThat(interruptedDuringRelease).isTrue();
+        assertThatEither(result).isLeft().hasLeft("wire snapped");
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
       } finally {
         Thread.interrupted();
       }

@@ -15,8 +15,8 @@ import org.jspecify.annotations.Nullable;
  * VTaskPath}, {@code Resource} and {@code VStream} report a failing cleanup through this class, so
  * the rule is the same for all of them. Each keeps its own form for a checked exception, and its
  * own order among several releases, such as the composed releases of a {@code Resource}. {@code
- * VResultPath.bracketOutcome} reports its release's defect instead, so it uses only {@link
- * #withInterruptCleared}.
+ * VResultPath.bracketOutcome} reports its release's defect instead, keeping any pending failure
+ * with {@link #keep}, and runs its release through {@link #withInterruptCleared}.
  *
  * <p>Cleanup after a failure runs with the thread's interrupt status cleared, so cleanup after a
  * cancelled computation is not cut short. The status is restored afterwards. When {@link
