@@ -1351,6 +1351,73 @@ public final class ProcessorUtils {
   }
 
   /**
+   * A generic type written with concrete type arguments, for a diagnostic's fix line, or empty when
+   * one of its type parameters admits no type the fix line can name.
+   *
+   * <p>Each argument becomes a type its parameter admits. A wildcard becomes the type its bound
+   * names, so {@code ? super Integer} is {@code Integer}. An unbounded wildcard, or a raw type's
+   * missing argument, becomes the bound the parameter declares, which is {@code Object} for an
+   * unbounded one. That bound is named only when it is a single type, neither raw nor written in
+   * terms of the type's own parameters: {@code T extends Comparable<T>} admits no type its
+   * declaration alone names, and {@code Object} would fall outside it.
+   *
+   * @param declaredType a generic type that is raw or carries a wildcard type argument; must not be
+   *     null
+   * @return its head with concrete type arguments, such as {@code Either<String, Object>}, or empty
+   * @since 0.5.0
+   */
+  public static Optional<String> concreteAlternative(DeclaredType declaredType) {
+    TypeElement element = (TypeElement) declaredType.asElement();
+    List<? extends TypeParameterElement> parameters = element.getTypeParameters();
+    List<? extends TypeMirror> written = declaredType.getTypeArguments();
+    List<Optional<TypeMirror>> arguments =
+        IntStream.range(0, parameters.size())
+            .mapToObj(
+                i ->
+                    concreteArgument(
+                        written.isEmpty() ? null : written.get(i), parameters.get(i), element))
+            .toList();
+    return arguments.stream().allMatch(Optional::isPresent)
+        ? Optional.of(
+            declaredHead(declaredType)
+                + "<"
+                + arguments.stream()
+                    .map(argument -> simpleTypeName(argument.orElseThrow()))
+                    .collect(Collectors.joining(", "))
+                + ">")
+        : Optional.empty();
+  }
+
+  /**
+   * The type a fix line writes for one type argument: the argument itself, the type a wildcard's
+   * bound names, or the parameter's own bound where the argument names none.
+   *
+   * @param written the argument as written, or null for a raw type, which writes none
+   * @param parameter the type parameter the argument is for
+   * @param element the generic type declaring the parameter
+   * @return the type to write, or empty when the parameter admits none a fix line can name
+   */
+  private static Optional<TypeMirror> concreteArgument(
+      TypeMirror written, TypeParameterElement parameter, TypeElement element) {
+    TypeMirror named =
+        written instanceof WildcardType wildcard
+            ? (wildcard.getExtendsBound() != null
+                ? wildcard.getExtendsBound()
+                : wildcard.getSuperBound())
+            : written;
+    if (named != null) {
+      return Optional.of(named);
+    }
+    List<? extends TypeMirror> bounds = parameter.getBounds();
+    TypeMirror bound = bounds.getFirst();
+    return bounds.size() == 1
+            && firstRawIn(bound) == null
+            && element.getTypeParameters().stream().noneMatch(own -> mentions(bound, own))
+        ? Optional.of(bound)
+        : Optional.empty();
+  }
+
+  /**
    * Whether a container's type arguments leave an optic instance composed over it undenotable.
    *
    * <p>An optic handed to a Focus path — {@code .some(Affines.eitherRight())}, {@code
@@ -1362,6 +1429,9 @@ public final class ProcessorUtils {
    * <p>Only the container's own arguments count: {@code Either<String, ? extends Leaf>} is
    * undenotable, {@code Either<String, List<? extends Leaf>>} is not, because the wildcard there
    * belongs to the {@code List} and {@code Either} still has a ground instantiation.
+   *
+   * <p>A navigator into a generic record asks the same question of the record as a component gives
+   * it, because the navigator takes the record's type arguments as its own.
    *
    * @param type the type to inspect
    * @return true when {@code type} is a declared generic type that is raw or carries a wildcard

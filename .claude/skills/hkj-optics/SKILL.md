@@ -101,7 +101,12 @@ Company updated = allNames.modifyAll(String::toUpperCase, company);
 
 Navigators are generated for **nested record** fields (`UserFocus.address().city()` above) and for
 SPI container types holding one; `List`, `Set`, `Optional` and `Maybe` fields are widened instead,
-so you chain them with `.via(...)`.
+so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
+field's type arguments: `Revision<EmailAddress> email` chains as `.email().current()`. A field that
+names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, keeps a plain
+path to the whole value, and the processor says so in a note. No `.via(RevisionFocus...)` chain
+reaches inside that path either; declare the field with concrete type arguments
+(`Revision<EmailAddress>`) to get the navigator.
 
 A navigator method composes the static Focus method for the field it navigates to, so the two always
 report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one

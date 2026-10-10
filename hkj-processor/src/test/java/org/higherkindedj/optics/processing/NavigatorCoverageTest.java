@@ -15,6 +15,8 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * Coverage tests for NavigatorClassGenerator targeting missed branches.
@@ -1244,21 +1246,21 @@ class NavigatorCoverageTest {
   @DisplayName("Generic Navigable Targets")
   class GenericNavigableTargets {
 
+    private static final JavaFileObject INNER =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Inner",
+            """
+            package com.myapp;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Inner<T>(T value, String label) {}
+            """);
+
     @Test
-    @DisplayName("a generic navigable target keeps its plain path method instead of a navigator")
-    void genericNavigableTargetKeepsThePlainPathMethod() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
+    @DisplayName("a generic target gets a navigator instantiated with the component's arguments")
+    void aGenericTargetGetsAnInstantiatedNavigator() throws ReflectiveOperationException {
       final var outer =
           JavaFileObjects.forSourceString(
               "com.myapp.Outer",
@@ -1270,32 +1272,190 @@ class NavigatorCoverageTest {
               @GenerateFocus(generateNavigators = true)
               public record Outer(Inner<String> inner, String tag) {}
               """);
-
-      // A navigator is parameterised by the source type alone and reads its target's components
-      // from
-      // the target's own declaration, so a generic target would name variables in scope on neither.
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
-
-      assertThat(compilation).succeeded();
-      assertGeneratedCodeDoesNotContain(
-          compilation, "com.myapp.OuterFocus", "class InnerNavigator");
-    }
-
-    @Test
-    @DisplayName("a generic navigable inside a container keeps its plain path method too")
-    void genericNavigableInsideAContainerKeepsThePlainPathMethod() {
-      final var inner =
+      // Compiling the chain proves the composed type; running it proves the composed path.
+      final var use =
           JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
+              "com.myapp.Use",
               """
               package com.myapp;
 
-              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.focus.FocusPath;
 
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
+              public final class Use {
+                private static final Outer OUTER = new Outer(new Inner<>("x", "l"), "t");
+
+                public static String read() {
+                  FocusPath<Outer, String> value = OuterFocus.inner().value();
+                  return value.get(OUTER);
+                }
+
+                public static String write() {
+                  return OuterFocus.inner().value().set("y", OUTER).toString();
+                }
+
+                public static String segments() {
+                  return OuterFocus.inner().value().pathString();
+                }
+              }
               """);
 
+      var result = RuntimeCompilationHelper.compileWith(new FocusProcessor(), INNER, outer, use);
+
+      final String focus = "com.myapp.OuterFocus";
+      Compilation compilation = result.compilation();
+      assertGeneratedCodeContains(
+          compilation, focus, "public static InnerNavigator<Outer, String> inner()");
+      assertGeneratedCodeContains(
+          compilation, focus, "public static final class InnerNavigator<S, T>");
+      assertGeneratedCodeContains(
+          compilation, focus, "private final FocusPath<S, Inner<T>> delegate");
+      assertGeneratedCodeContains(
+          compilation,
+          focus,
+          "public FocusPath<S, T> value() { return delegate.via(InnerFocus.<T>value()); }");
+      Assertions.assertThat(result.invokeStatic("com.myapp.Use", "read")).isEqualTo("x");
+      Assertions.assertThat(result.invokeStatic("com.myapp.Use", "write"))
+          .isEqualTo("Outer[inner=Inner[value=y, label=l], tag=t]");
+      Assertions.assertThat(result.invokeStatic("com.myapp.Use", "segments"))
+          .isEqualTo("inner.value");
+    }
+
+    @Test
+    @DisplayName("every shape a component can instantiate a target with compiles under -Werror")
+    void everyInstantiatedShapeCompilesUnderWerror() {
+      // A target claiming S, a navigator composing another generic target's navigator, a generic
+      // record navigated into, several type parameters, bounded and raw-bounded ones, a wildcard
+      // inside an argument, and an SPI container's element: each chain below is typed, so a
+      // navigator that is missing or instantiated wrongly fails to compile.
+      final var records =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Records",
+              """
+              package com.myapp;
+
+              import java.util.ArrayList;
+              import java.util.List;
+              import java.util.Map;
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              public final class Records {
+                private Records() {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Deep<S>(S leaf) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Holder<S>(S value, Deep<S> deep) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Address(String city) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Wrapper<U>(Inner<U> inner, Address address, U extra) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Pair<A, B>(A first, B second) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Bounded<T extends Comparable<T>>(T value) {}
+
+                @SuppressWarnings("rawtypes")
+                @GenerateFocus(generateNavigators = true)
+                public record RawBound<T extends List>(T value) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Root(
+                    Wrapper<String> wrapper,
+                    Holder<Integer> holder,
+                    Pair<String, Integer> pair,
+                    Bounded<String> bounded,
+                    RawBound<ArrayList<String>> rawBound,
+                    Inner<List<?>> listed,
+                    Either<String, Inner<Long>> either) {}
+
+                @GenerateFocus(generateNavigators = true)
+                public record Indexed(Map<String, Inner<String>> inners) {}
+              }
+              """);
+      final var use =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Chains",
+              """
+              package com.myapp;
+
+              import com.myapp.Records.*;
+              import java.util.ArrayList;
+              import java.util.List;
+              import org.higherkindedj.optics.focus.AffinePath;
+              import org.higherkindedj.optics.focus.FocusPath;
+              import org.higherkindedj.optics.focus.TraversalPath;
+
+              final class Chains {
+                FocusPath<Root, String> a = RootFocus.wrapper().inner().value();
+                FocusPath<Root, String> b = RootFocus.wrapper().address().city();
+                FocusPath<Root, String> c = RootFocus.wrapper().extra();
+                FocusPath<Root, Integer> d = RootFocus.holder().deep().leaf();
+                FocusPath<Root, Integer> e = RootFocus.pair().second();
+                FocusPath<Root, String> f = RootFocus.bounded().value();
+                FocusPath<Root, ArrayList<String>> g = RootFocus.rawBound().value();
+                FocusPath<Root, List<?>> h = RootFocus.listed().value();
+                AffinePath<Root, Long> i = RootFocus.either().value();
+                TraversalPath<Indexed, String> j = IndexedFocus.inners().value();
+                FocusPath<Wrapper<Long>, Long> k = WrapperFocus.<Long>inner().value();
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(INNER, records, use);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String root = "com.myapp.RootFocus";
+      // The target claimed S, so the source takes the next free name.
+      assertGeneratedCodeContains(
+          compilation, root, "public static final class HolderNavigator<S1, S>");
+      // A navigator composing a generic target's navigator passes its type arguments explicitly.
+      assertGeneratedCodeContains(
+          compilation,
+          root,
+          "public HolderFocus.DeepNavigator<S1, S> deep() { return new"
+              + " HolderFocus.DeepNavigator<>(delegate.via(HolderFocus.<S>deep().toPath())); }");
+      assertGeneratedCodeContains(
+          compilation, root, "public static PairNavigator<Records.Root, String, Integer> pair()");
+      assertGeneratedCodeContains(
+          compilation,
+          root,
+          "public static final class BoundedNavigator<S, T extends Comparable<T>>");
+      // A raw bound is redeclared on the class, which answers for it itself.
+      assertGeneratedCodeContains(
+          compilation,
+          root,
+          "@SuppressWarnings(\"rawtypes\") public static final class RawBoundNavigator<S, T"
+              + " extends List>");
+      assertGeneratedCodeContains(
+          compilation, root, "public static ListedNavigator<Records.Root, List<?>> listed()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.IndexedFocus",
+          "public static InnersNavigator<Records.Indexed, String>");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " -> ",
+        textBlock =
+            """
+            Inner<?> inner -> Inner<?> -> Inner<Object>
+            @SuppressWarnings("rawtypes") Inner inner -> the raw Inner -> Inner<Object>
+            Inner<? extends Number> inner -> Inner<? extends Number> -> Inner<Number>
+            Map<String, Inner<?>> inner -> Inner<?> -> Inner<Object>
+            """)
+    @DisplayName("a component naming no type for a target's parameter keeps its plain path")
+    void anUninstantiableComponentKeepsItsPlainPath(
+        String component, String written, String alternative) {
       final var outer =
           JavaFileObjects.forSourceString(
               "com.myapp.Outer",
@@ -1306,34 +1466,191 @@ class NavigatorCoverageTest {
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Outer(Map<String, Inner<String>> inners, String tag) {}
-              """);
+              public record Outer(%s, String tag) {}
+              """
+                  .formatted(component));
 
-      // The element of a container reaches a navigator the same way a component does, so it is
-      // asked
-      // the same question.
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(INNER, outer);
 
+      // No chain is offered: a path into Inner is over one instantiation of it, so it composes
+      // with neither a wildcard nor a raw Inner.
       assertThat(compilation).succeeded();
-      assertGeneratedCodeDoesNotContain(
-          compilation, "com.myapp.OuterFocus", "class InnersNavigator");
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.OuterFocus", "InnerNavigator");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "Navigator for field 'inner' is not generated: a navigator into Inner has to name"
+                  + " one type for each of its type parameters, which "
+                  + written
+                  + " does not. OuterFocus.inner() keeps its plain path, and a path over one"
+                  + " instantiation of Inner does not compose with it either. Write "
+                  + alternative
+                  + ", or another concrete instantiation, in place of "
+                  + written
+                  + " to get a navigator.");
     }
 
-    @Test
-    @DisplayName("a record navigating into one keeps a focus path, not a widened traversal")
-    void aRecordNavigatingIntoOneKeepsAFocusPath() {
-      final var inner =
+    /** Targets whose type parameters are bounded, one shape of bound each. */
+    private static final JavaFileObject BOUNDED =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Bounded",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            record Num<T extends Number>(T value) {}
+
+            @GenerateFocus(generateNavigators = true)
+            record Ord<T extends Comparable<T>>(T value) {}
+
+            @GenerateFocus(generateNavigators = true)
+            record Both<T extends Number & Comparable<T>>(T value) {}
+
+            @SuppressWarnings("rawtypes")
+            @GenerateFocus(generateNavigators = true)
+            record RawBound<T extends List>(T value) {}
+            """);
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " -> ",
+        textBlock =
+            """
+            Num<?> -> Num<?> -> Write Num<Number>, or another concrete instantiation,
+            Num<? super Integer> -> Num<? super Integer> -> Write Num<Integer>, or another concrete instantiation,
+            Ord<?> -> Ord<?> -> Write Ord with a concrete type argument for each type parameter
+            @SuppressWarnings("rawtypes") Ord -> the raw Ord -> Write Ord with a concrete type argument for each type parameter
+            Both<?> -> Both<?> -> Write Both with a concrete type argument for each type parameter
+            RawBound<?> -> RawBound<?> -> Write RawBound with a concrete type argument for each type parameter
+            """)
+    @DisplayName("the note names a type within the parameter's bounds, or none")
+    void theNoteNamesATypeWithinTheBounds(String component, String written, String fix) {
+      final var outer =
           JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
+              "com.myapp.Outer",
               """
               package com.myapp;
 
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
+              public record Outer(%s holder) {}
+              """
+                  .formatted(component));
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(BOUNDED, outer);
+
+      // Object falls outside Number, and no type the declaration alone names meets a bound written
+      // in T itself, an intersection or a raw List, so those name none.
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadNoteContaining(
+              "which " + written + " does not. OuterFocus.holder() keeps its plain path");
+      assertThat(compilation)
+          .hadNoteContaining(fix + " in place of " + written + " to get a navigator.");
+    }
+
+    @Test
+    @DisplayName("the type the note names gets a navigator when it is written")
+    void theTypeTheNoteNamesGetsANavigator() {
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Inner<Object> any, Num<Number> number, Num<Integer> whole) {}
               """);
 
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(INNER, BOUNDED, outer);
+
+      // A fix line is only worth printing if following it does what it says.
+      assertThat(compilation).succeededWithoutWarnings();
+      final String focus = "com.myapp.OuterFocus";
+      assertGeneratedCodeContains(
+          compilation, focus, "public static AnyNavigator<Outer, Object> any()");
+      assertGeneratedCodeContains(
+          compilation, focus, "public static NumberNavigator<Outer, Number> number()");
+      assertGeneratedCodeContains(
+          compilation, focus, "public static WholeNavigator<Outer, Integer> whole()");
+    }
+
+    @Test
+    @DisplayName("a wildcard is the reason given ahead of a companion the field cannot reach")
+    void aWildcardIsTheReasonGivenAheadOfAnUnreachableCompanion() {
+      final var inner =
+          JavaFileObjects.forSourceString(
+              "com.lib.Inner",
+              """
+              package com.lib;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Inner<T>(T value, Secret secret) {}
+              """);
+      final var secret =
+          JavaFileObjects.forSourceString(
+              "com.lib.Secret",
+              """
+              package com.lib;
+
+              record Secret(String code) {}
+              """);
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import com.lib.Inner;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Inner<?> loose, Inner<String> tight) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(inner, secret, outer);
+
+      // Making Secret public gives tight a navigator, and loose none, so the note for loose names
+      // the wildcard, which shows in its declaration, rather than promising one in vain.
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadNoteContaining(
+              "Navigator for field 'loose' is not generated: a navigator into Inner has to name"
+                  + " one type for each of its type parameters, which Inner<?> does not.");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "Navigator for field 'tight' is not generated: a navigator into Inner names"
+                  + " 'Secret'");
+      Assertions.assertThat(compilation.notes())
+          .noneMatch(
+              note ->
+                  note.getMessage(null).contains("field 'loose'")
+                      && note.getMessage(null).contains("Secret"));
+    }
+
+    @Test
+    @DisplayName("a record navigating into a container agrees with it about its element")
+    void aRecordNavigatingIntoAContainerAgreesAboutItsElement() {
       final var mid =
           JavaFileObjects.forSourceString(
               "com.myapp.Mid",
@@ -1344,7 +1661,7 @@ class NavigatorCoverageTest {
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Mid(Map<String, Inner<String>> inners, String tag) {}
+              public record Mid(Map<String, Inner<String>> named, Map<String, Inner<?>> loose) {}
               """);
 
       final var root =
@@ -1359,12 +1676,16 @@ class NavigatorCoverageTest {
               public record Root(Mid mid, String name) {}
               """);
 
-      // The widening decides the return type before the navigator question is asked, so a
-      // container whose element gets no navigator must not be widened into either - or the
-      // method declares a traversal and returns a focus.
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, mid, root);
+      // The widening decides the return type before the navigator question is asked, so the two
+      // must agree: the container whose element gets a navigator is stepped into, and the one
+      // whose element gets none is not, or the method declares a traversal and returns a focus.
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(INNER, mid, root);
 
       assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.RootFocus", "public MidFocus.NamedNavigator<S, String> named()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.RootFocus", "public FocusPath<S, Map<String, Inner<?>>> loose()");
     }
 
     @Test
@@ -1426,56 +1747,8 @@ class NavigatorCoverageTest {
     }
 
     @Test
-    @DisplayName("says why the navigator the record asked for is not there")
-    void saysWhyTheNavigatorIsNotThere() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(Inner<String> inner, String tag) {}
-              """);
-
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
-
-      // The record asked for navigators and gets one fewer than its components suggest, which is
-      // the same surprise a delegate-name collision reports.
-      assertThat(compilation).succeeded();
-      assertThat(compilation).hadNoteContaining("Navigator for field 'inner' is not generated");
-      assertThat(compilation).hadNoteContaining("OuterFocus.inner().via(InnerFocus.");
-    }
-
-    @Test
-    @DisplayName("says nothing about a generic target the record itself filtered out")
+    @DisplayName("says nothing about an uninstantiable target the record itself filtered out")
     void saysNothingAboutAFilteredField() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
       final var outer =
           JavaFileObjects.forSourceString(
               "com.myapp.Outer",
@@ -1485,128 +1758,16 @@ class NavigatorCoverageTest {
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true, excludeFields = "inner")
-              public record Outer(Inner<String> inner, String tag) {}
+              public record Outer(Inner<?> inner, String tag) {}
               """);
 
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(INNER, outer);
 
-      // The field has no navigator because the record said so. Reporting its target's genericity
-      // as the reason would name something the author cannot act on, and did not ask about.
+      // The field has no navigator because the record said so. Reporting its wildcard as the
+      // reason would name something the author cannot act on, and did not ask about.
       assertThat(compilation).succeeded();
       Assertions.assertThat(compilation.notes())
           .noneMatch(note -> note.getMessage(null).contains("Navigator for field 'inner'"));
-    }
-
-    @Test
-    @DisplayName("names the container step when the field is one the Focus method keeps in focus")
-    void namesTheContainerStepForAnUnwidenedContainer() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import java.util.Map;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(Map<String, Inner<String>> inners, String tag) {}
-              """);
-
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
-
-      // A ZERO_OR_MORE SPI container is not stepped into by default, so inners() is focused on the
-      // Map itself and the element's own Focus methods compose with nothing it offers.
-      assertThat(compilation).succeeded();
-      assertThat(compilation).hadNoteContaining("Navigator for field 'inners' is not generated");
-      assertThat(compilation).hadNoteContaining("add widenCollections = true to step into it");
-      assertThat(compilation).hadNoteContaining("OuterFocus.inners().via(InnerFocus.");
-    }
-
-    @Test
-    @DisplayName("a zero-or-one container is stepped into already, so the plain chain stands")
-    void namesThePlainChainForAZeroOrOneContainer() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.hkt.either.Either;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(Either<String, Inner<String>> inner, String tag) {}
-              """);
-
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
-
-      // A ZERO_OR_ONE container is widened whatever widenCollections says, so inner()
-      // already focuses the element.
-      assertThat(compilation).succeeded();
-      assertThat(compilation).hadNoteContaining("OuterFocus.inner().via(InnerFocus.");
-      assertThat(compilation).hadNoteContaining("to chain through it.");
-    }
-
-    @Test
-    @DisplayName("a container the record already widens needs no further step named")
-    void namesThePlainChainWhenTheRecordWidensContainers() {
-      final var inner =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Inner",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Inner<T>(T value, String label) {}
-              """);
-
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import java.util.Map;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true, widenCollections = true)
-              public record Outer(Map<String, Inner<String>> inners, String tag) {}
-              """);
-
-      var compilation = javac().withProcessors(new FocusProcessor()).compile(inner, outer);
-
-      // The record asked for the container to be stepped into, so inners() already reaches the
-      // element and the chain composes as written.
-      assertThat(compilation).succeeded();
-      assertThat(compilation).hadNoteContaining("OuterFocus.inners().via(InnerFocus.");
-      assertThat(compilation).hadNoteContaining("to chain through it.");
     }
   }
 }

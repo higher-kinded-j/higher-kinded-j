@@ -1127,6 +1127,33 @@ public class FocusProcessorNavigatorTest {
             public record Money(long cents) {}
             """);
 
+    private static final JavaFileObject BOXED =
+        JavaFileObjects.forSourceString(
+            "com.upstream.Boxed",
+            """
+            package com.upstream;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Boxed<T>(T value) {}
+            """);
+
+    private static JavaFileObject shelf(String component) {
+      return JavaFileObjects.forSourceString(
+          "com.downstream.Shelf",
+          """
+          package com.downstream;
+
+          import com.upstream.Boxed;
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+
+          @GenerateFocus(generateNavigators = true)
+          public record Shelf(%s boxed) {}
+          """
+              .formatted(component));
+    }
+
     /** Compiles one module, with or without the processor, against other modules' class files. */
     private static Compilation compile(
         boolean processor, List<Path> dependencies, JavaFileObject... sources) {
@@ -1520,7 +1547,9 @@ public class FocusProcessorNavigatorTest {
                   String hidden,
                   String tag,
                   String sketch,
-                  String mark) {}
+                  String mark,
+                  String deepish,
+                  String loose) {}
               """);
       // Stands in for a companion something other than hkj-processor wrote: each method meets one
       // way a published method can fail to be named, or composed, from generated code elsewhere.
@@ -1566,6 +1595,10 @@ public class FocusProcessorNavigatorTest {
                 public static TagNavigator<Thing> tag() { return null; }
                 public static SketchNavigator<Thing> sketch() { return null; }
                 public static MarkNavigator<Thing> mark() { return null; }
+                public static DeepishNavigator<Thing, FocusPath<Thing, String>> deepish() {
+                  return null;
+                }
+                public static LooseNavigator<Thing, Long> loose() { return null; }
 
                 public static final class BoxNavigator<S> {}
 
@@ -1616,6 +1649,17 @@ public class FocusProcessorNavigatorTest {
                   public MarkNavigator(FocusPath<S, Integer> path) {}
                   public FocusPath<S, String> toPath() { return null; }
                 }
+
+                public static final class DeepishNavigator<S, P extends FocusPath<S, String>> {
+                  public DeepishNavigator(P path) {}
+                  public P toPath() { return null; }
+                }
+
+                // T is named by nothing the constructor takes, so the return type alone fixes it.
+                public static final class LooseNavigator<S, T> {
+                  public LooseNavigator(FocusPath<S, String> path) {}
+                  public FocusPath<S, String> toPath() { return null; }
+                }
               }
               """);
       JavaFileObject holder =
@@ -1638,6 +1682,8 @@ public class FocusProcessorNavigatorTest {
       final String focus = "com.c.HolderFocus";
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> label() {");
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, List<?>> anything() {");
+      assertGeneratedCodeContains(
+          downstream, focus, "public ThingFocus.LooseNavigator<S, Long> loose() {");
       for (String unrecognised :
           List.of(
               "count",
@@ -1655,7 +1701,8 @@ public class FocusProcessorNavigatorTest {
               "hidden",
               "tag",
               "sketch",
-              "mark")) {
+              "mark",
+              "deepish")) {
         assertGeneratedCodeDoesNotContain(downstream, focus, " " + unrecognised + "()");
         assertThat(downstream)
             .hadNoteContaining(
@@ -1804,39 +1851,152 @@ public class FocusProcessorNavigatorTest {
     }
 
     @Test
-    @DisplayName("an unpublished generic record draws no note, since it would never be navigable")
-    void anUnpublishedGenericRecordDrawsNoNote() throws IOException {
-      JavaFileObject boxed =
+    @DisplayName("an unpublished generic record draws the note when the field instantiates it")
+    void anUnpublishedGenericRecordDrawsTheNote() throws IOException {
+      Compilation downstream =
+          compile(
+              true, List.of(module("upstream", false, List.of(), BOXED)), shelf("Boxed<String>"));
+      assertThat(downstream).succeeded();
+
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'boxed' is not generated: com.upstream.Boxed carries"
+                  + " @GenerateFocus, but no public com.upstream.BoxedFocus");
+    }
+
+    @Test
+    @DisplayName("an unpublished generic record given a wildcard draws the wildcard's note")
+    void anUnpublishedGenericRecordGivenAWildcardDrawsTheWildcardsNote() throws IOException {
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), BOXED)), shelf("Boxed<?>"));
+      assertThat(downstream).succeeded();
+
+      // Boxed<?> gets no navigator even once Boxed's companion is published, so the note names the
+      // wildcard rather than telling the author to publish one, which would change nothing.
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'boxed' is not generated: a navigator into Boxed has to name one"
+                  + " type for each of its type parameters, which Boxed<?> does not.");
+      Assertions.assertThat(downstream.notes())
+          .noneMatch(note -> note.getMessage(null).contains("no public com.upstream.BoxedFocus"));
+    }
+
+    @Test
+    @DisplayName("a generic dependency's navigators compose as one compilation's do")
+    void aGenericDependencysNavigatorsCompose() throws IOException {
+      JavaFileObject inner =
           JavaFileObjects.forSourceString(
-              "com.upstream.Boxed",
+              "com.up.Inner",
               """
-              package com.upstream;
+              package com.up;
 
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Boxed<T>(T value) {}
+              public record Inner<T>(T value, Deep<T> deep, Leaf leaf) {}
+              """);
+      JavaFileObject deep =
+          JavaFileObjects.forSourceString(
+              "com.up.Deep",
+              """
+              package com.up;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Deep<X>(X found, String note) {}
+              """);
+      JavaFileObject outer =
+          JavaFileObjects.forSourceString(
+              "com.down.Outer",
+              """
+              package com.down;
+
+              import com.up.Inner;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Outer(Inner<String> inner) {}
+              """);
+      Compilation across =
+          compile(true, List.of(module("upstream", true, List.of(), LEAF, inner, deep)), outer);
+      Compilation together = compile(true, List.of(), LEAF, inner, deep, outer);
+      assertThat(across).succeeded();
+      assertThat(together).succeeded();
+
+      // The dependency's generic navigator is read from what its companion published, instantiated
+      // with the navigator's own type variable, and its non-generic one beside it.
+      Assertions.assertThat(source(across, "com.down.OuterFocus"))
+          .contains("public InnerFocus.DeepNavigator<S, T> deep() {")
+          .contains("public InnerFocus.LeafNavigator<S> leaf() {")
+          .isEqualTo(source(together, "com.down.OuterFocus"));
+    }
+
+    @Test
+    @DisplayName("a generic companion method under other type variables is not composed")
+    void aGenericMethodUnderOtherVariablesIsNotComposed() throws IOException {
+      JavaFileObject tagged =
+          JavaFileObjects.forSourceString(
+              "com.h.Tagged",
+              """
+              package com.h;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Tagged<T>(T value, String label, String note) {}
+              """);
+      // A navigator passes its own type variables, named and bounded as Tagged's, to the methods it
+      // composes, and writes their results in those names: a method naming others, or bounding
+      // its own more tightly, is not one it can compose.
+      JavaFileObject taggedFocus =
+          JavaFileObjects.forSourceString(
+              "com.h.TaggedFocus",
+              """
+              package com.h;
+
+              import org.higherkindedj.optics.focus.FocusPath;
+
+              public final class TaggedFocus {
+                private TaggedFocus() {}
+
+                public static <U> FocusPath<Tagged<U>, U> value() { return null; }
+                public static <T> FocusPath<Tagged<T>, String> label() { return null; }
+                public static <T extends Number> FocusPath<Tagged<T>, String> note() {
+                  return null;
+                }
+              }
               """);
       JavaFileObject shelf =
           JavaFileObjects.forSourceString(
-              "com.downstream.Shelf",
+              "com.c.Rack",
               """
-              package com.downstream;
+              package com.c;
 
-              import com.upstream.Boxed;
+              import com.h.Tagged;
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Shelf(Boxed<String> boxed) {}
+              public record Rack(Tagged<String> tagged) {}
               """);
       Compilation downstream =
-          compile(true, List.of(module("upstream", false, List.of(), boxed)), shelf);
+          compile(true, List.of(module("h", false, List.of(), tagged, taggedFocus)), shelf);
       assertThat(downstream).succeeded();
 
-      // A generic record gets no navigator even when its companion is published, so telling the
-      // author to publish one would be advice that changes nothing.
-      Assertions.assertThat(downstream.notes())
-          .noneMatch(note -> note.getMessage(null).contains("is not generated"));
+      final String focus = "com.c.RackFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static TaggedNavigator<Rack, String> tagged() {");
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> label() {");
+      for (String unrecognised : List.of("value", "note")) {
+        assertGeneratedCodeDoesNotContain(downstream, focus, " " + unrecognised + "()");
+        assertThat(downstream)
+            .hadNoteContaining(
+                "has no '"
+                    + unrecognised
+                    + "' method: com.h.TaggedFocus has no public static "
+                    + unrecognised
+                    + "() returning a path or navigator over Tagged");
+      }
     }
 
     @Test

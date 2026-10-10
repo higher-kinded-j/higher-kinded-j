@@ -10,8 +10,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -409,8 +407,10 @@ public class FocusProcessor extends AbstractProcessor {
             + (raw
                 ? "a raw type offers no type arguments to infer it from."
                 : "a wildcard has no ground instantiation to infer it from."),
-        "Declare the component with concrete type arguments, such as "
-            + concreteAlternative(declaredType)
+        "Declare the component with concrete type arguments"
+            + ProcessorUtils.concreteAlternative(declaredType)
+                .map(alternative -> ", such as " + alternative)
+                .orElse("")
             + (raw
                 // A raw container has no element type for @GenerateTraversals to focus either, so
                 // it draws a note and no traversal there; only the lens takes it as written.
@@ -419,26 +419,5 @@ public class FocusProcessor extends AbstractProcessor {
                 : ", or drop @GenerateFocus from the record: @GenerateLenses and"
                     + " @GenerateTraversals compose no optic instance and take the component as"
                     + " written."));
-  }
-
-  /**
-   * The container written with concrete type arguments: each wildcard replaced by the type it
-   * resolves to, and a raw container filled in from the bounds its type parameters declare.
-   */
-  private static String concreteAlternative(DeclaredType declaredType) {
-    TypeElement element = (TypeElement) declaredType.asElement();
-    Stream<String> arguments =
-        declaredType.getTypeArguments().isEmpty()
-            ? element.getTypeParameters().stream()
-                .map(parameter -> ProcessorUtils.simpleTypeName(parameter.getBounds().getFirst()))
-            : declaredType.getTypeArguments().stream()
-                .map(ProcessorUtils::resolveWildcard)
-                .map(
-                    resolved ->
-                        resolved == null ? "Object" : ProcessorUtils.simpleTypeName(resolved));
-    return ProcessorUtils.declaredHead(declaredType)
-        + "<"
-        + arguments.collect(Collectors.joining(", "))
-        + ">";
   }
 }

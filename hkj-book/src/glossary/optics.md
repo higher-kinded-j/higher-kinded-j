@@ -493,7 +493,7 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 
 ## Navigator
 
-**Definition:** A small class the Focus processor generates, under `@GenerateFocus(generateNavigators = true)`, for a field whose type is another non-generic `@GenerateFocus` record. A `Map`, an `Either` or a similar container of such a record gets one too. It wraps the field's path and adds one method per field of that record, so `UserFocus.address().city()` chains where the plain path needs `.via(AddressFocus.city())`. A navigator carries the core reads and writes of the path it wraps:
+**Definition:** A small class the Focus processor generates, under `@GenerateFocus(generateNavigators = true)`, for a field whose type is another `@GenerateFocus` record, given a type for each of its type parameters if it has any. A `Map`, an `Either` or a similar container of such a record gets one too. It wraps the field's path and adds one method per field of that record, so `UserFocus.address().city()` chains where the plain path needs `.via(AddressFocus.city())`. A navigator carries the core reads and writes of the path it wraps:
 
 | Wrapped path | Operations on the navigator |
 |---|---|
