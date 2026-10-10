@@ -63,12 +63,42 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + " public enum StateTKindHelper { STATE_T;"
         + "   public <S, F, A> StateT<S, F, A> stateT("
         + "       Function<S, Object> runStateTFn, Monad<F> monadF) { return null; } }",
+    "package org.higherkindedj.hkt.either; public interface Either<L, R> {"
+        + " static <L, R> Either<L, R> right(R value) { return null; } }",
   };
 
   @Override
   public void defaults(RecipeSpec spec) {
     spec.recipeFromResources("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0")
         .parser(JavaParser.fromJavaVersion().dependsOn(HKJ_STUBS));
+  }
+
+  @Test
+  void marksANullSuccessWithoutRewritingIt() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Cancel {
+                Either<String, Void> cancel() {
+                    return Either.right(null);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Cancel {
+                /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> cancel() {
+                    return /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/Either.right(null);
+                }
+            }
+            """));
   }
 
   @Test

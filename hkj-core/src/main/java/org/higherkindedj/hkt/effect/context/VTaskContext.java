@@ -353,7 +353,9 @@ public final class VTaskContext<A> {
    * Executes the computation eagerly and returns the result wrapped in a Try.
    *
    * <p>This is the primary execution method. It runs the VTask immediately and captures the result
-   * or any exception in a Try.
+   * or any exception in a Try. A Success always holds a value, so a computation that returns null
+   * gives a Failure holding a {@link NullPointerException}; {@link #runOrThrow()}, {@link
+   * #runOrElse(Object)} and {@link #runOrElseGet(Function)} hand the null back instead.
    *
    * @return a Try containing the result or exception
    */
@@ -392,7 +394,11 @@ public final class VTaskContext<A> {
    * @return the success value or the default
    */
   public A runOrElse(A defaultValue) {
-    return run().orElse(defaultValue);
+    try {
+      return path.unsafeRun();
+    } catch (Exception e) {
+      return defaultValue;
+    }
   }
 
   /**
@@ -404,7 +410,11 @@ public final class VTaskContext<A> {
    */
   public A runOrElseGet(Function<? super Throwable, ? extends A> errorHandler) {
     Objects.requireNonNull(errorHandler, "errorHandler must not be null");
-    return run().foldFailureFirst(errorHandler, a -> a);
+    try {
+      return path.unsafeRun();
+    } catch (Exception e) {
+      return errorHandler.apply(e);
+    }
   }
 
   // ===== Access to Underlying Path =====

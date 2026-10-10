@@ -81,12 +81,11 @@ class TryPathTest {
     }
 
     @Test
-    @DisplayName("Path.success() accepts null value")
-    void pathSuccessAcceptsNull() {
-      // Try.success allows null values
-      TryPath<String> path = Path.success(null);
-      assertThat(path.run().isSuccess()).isTrue();
-      assertThat(path.getOrElse("default")).isNull();
+    @DisplayName("Path.success() rejects a null value")
+    void pathSuccessRejectsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.<String>success(null))
+          .withMessage("value must not be null");
     }
 
     @Test

@@ -96,6 +96,15 @@ class VTaskPathAssertContractTest
   }
 
   @Test
+  void a_task_that_returns_null_succeeds_with_a_null_value() {
+    // A VTask may still give null, so the assertion runs it without a Try, which cannot hold one
+    VTaskPathAssert.assertThatVTaskPath(Path.<Integer>vtask(() -> null))
+        .succeeds()
+        .hasValue(null)
+        .isEquivalentTo(Path.vtask(() -> null));
+  }
+
+  @Test
   void isEquivalentTo_passes_for_two_succeeding_paths_with_same_value() {
     VTaskPathAssert.assertThatVTaskPath(Path.vtaskPure(42)).isEquivalentTo(Path.vtaskPure(42));
   }

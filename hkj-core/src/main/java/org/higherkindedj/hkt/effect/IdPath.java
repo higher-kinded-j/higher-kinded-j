@@ -107,13 +107,19 @@ public final class IdPath<A> implements Chainable<A> {
   /**
    * Converts this IdPath to an EitherPath.
    *
-   * <p>The resulting EitherPath will be Right since IdPath always has a value.
+   * <p>A value that is not null gives a Right. A Right always holds a value, so a null value
+   * throws: {@code toMaybePath().toEitherPath(error)} gives a Left for it instead.
    *
    * @param <E> the error type for the resulting EitherPath
    * @return an EitherPath containing the value as Right
+   * @throws NullPointerException if the value is null
    */
   public <E> EitherPath<E, A> toEitherPath() {
-    return new EitherPath<>(Either.right(value.value()));
+    return new EitherPath<>(
+        Either.right(
+            Objects.requireNonNull(
+                value.value(),
+                "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it")));
   }
 
   // ===== Composable implementation =====

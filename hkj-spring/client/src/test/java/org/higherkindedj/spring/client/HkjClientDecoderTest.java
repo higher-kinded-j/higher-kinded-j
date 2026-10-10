@@ -73,7 +73,8 @@ class HkjClientDecoderTest {
     @DisplayName("throws when the error node is JSON null")
     void throwsOnNullErrorNode() {
       assertThatThrownBy(() -> decoder.decode(response("{\"success\":false,\"error\":null}")))
-          .isInstanceOf(ResponseErrorDecodeException.class);
+          .isInstanceOf(ResponseErrorDecodeException.class)
+          .hasNoCause();
     }
 
     @Test

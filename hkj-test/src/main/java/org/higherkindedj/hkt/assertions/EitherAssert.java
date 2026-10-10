@@ -117,13 +117,6 @@ public class EitherAssert<L, R>
     return this;
   }
 
-  /** Verifies the actual {@code Either} is a Right containing null. */
-  public EitherAssert<L, R> hasRightNull() {
-    isRight();
-    Assertions.assertThat(EITHER.narrow(actual).getRight()).as("Either.Right value").isNull();
-    return this;
-  }
-
   /** Verifies the actual {@code Either} is a Left containing null. */
   public EitherAssert<L, R> hasLeftNull() {
     isLeft();

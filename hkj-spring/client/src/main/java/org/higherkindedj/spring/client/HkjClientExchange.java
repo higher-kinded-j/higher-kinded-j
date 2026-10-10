@@ -41,6 +41,12 @@ import tools.jackson.databind.json.JsonMapper;
  * {@link #either}/{@link #maybe} translators and as a failed task from the deferred {@link
  * #eitherVTask}/{@link #vstream} translators — matching the eager-vs-deferred nature of {@code
  * EitherPath} vs {@code VTaskPath}/{@code VStreamPath}.
+ *
+ * <p><b>Empty bodies.</b> A {@code Right} always holds a value, so {@link #either} and {@link
+ * #eitherVTask} treat a 2xx response with no body as a fault in the exchange, like an undecodable
+ * body: it propagates as an {@link EmptyResponseBodyException}, after the request has been made.
+ * Declare {@code MaybePath<T>} where the body may be missing, and use {@link #eitherUnit}, {@link
+ * #eitherVTaskUnit} or {@link #maybeUnit} where the endpoint sends none.
  */
 public final class HkjClientExchange {
 
@@ -57,21 +63,40 @@ public final class HkjClientExchange {
 
   /**
    * Folds a blocking HTTP call into an {@link EitherPath}: 2xx → {@code Right(body)}, 4xx/5xx →
-   * {@code Left(decoded error)}. A 2xx response with an empty body (e.g. 204) yields {@code
-   * Right(null)}; if your endpoint may return no body, declare {@code T} accordingly or guard the
-   * success value.
+   * {@code Left(decoded error)}. A {@code Right} always holds a value, so a 2xx response with no
+   * body throws an {@link EmptyResponseBodyException}. For an endpoint that sends no body, use
+   * {@link #eitherUnit}; for one whose body may be missing, {@link #maybe}.
    *
    * @param call performs the HTTP call and returns the response entity
    * @param decoder decodes a failed response into a typed error
    * @param <E> the typed error
    * @param <T> the success body type
    * @return an {@code EitherPath} carrying the outcome
+   * @throws EmptyResponseBodyException if a 2xx response has no body
    */
   public static <E, T> EitherPath<E, T> either(
       Supplier<ResponseEntity<T>> call, ResponseErrorDecoder<E> decoder) {
     try {
-      ResponseEntity<T> response = call.get();
-      return Path.right(response.getBody());
+      return Path.right(requireBody(call.get()));
+    } catch (RestClientResponseException ex) {
+      return Path.left(decoded(decoder, ex));
+    }
+  }
+
+  /**
+   * Folds a blocking HTTP call to an endpoint that sends no body into an {@link EitherPath}: 2xx →
+   * {@code Right(Unit.INSTANCE)}, whatever the body, and 4xx/5xx → {@code Left(decoded error)}.
+   *
+   * @param call performs the HTTP call and returns the response entity
+   * @param decoder decodes a failed response into a typed error
+   * @param <E> the typed error
+   * @return an {@code EitherPath} carrying the outcome
+   */
+  public static <E> EitherPath<E, Unit> eitherUnit(
+      Supplier<? extends ResponseEntity<?>> call, ResponseErrorDecoder<E> decoder) {
+    try {
+      call.get();
+      return Path.right(Unit.INSTANCE);
     } catch (RestClientResponseException ex) {
       return Path.left(decoded(decoder, ex));
     }
@@ -81,6 +106,10 @@ public final class HkjClientExchange {
    * Folds an HTTP call into a {@link VTaskPath} deferred on a virtual thread, yielding {@code
    * Either<E, T>}. The call is not made until the task is run, so callers can layer {@code
    * withRetry}/{@code withCircuitBreaker}/{@code timeout} on the returned path.
+   *
+   * <p>A {@code Right} always holds a value, so a 2xx response with no body fails the task with an
+   * {@link EmptyResponseBodyException}. For an endpoint that sends no body, use {@link
+   * #eitherVTaskUnit}.
    *
    * @param call performs the HTTP call and returns the response entity
    * @param decoder decodes a failed response into a typed error
@@ -93,8 +122,30 @@ public final class HkjClientExchange {
     return Path.vtask(
         () -> {
           try {
-            ResponseEntity<T> response = call.get();
-            return Either.right(response.getBody());
+            return Either.right(requireBody(call.get()));
+          } catch (RestClientResponseException ex) {
+            return Either.left(decoded(decoder, ex));
+          }
+        });
+  }
+
+  /**
+   * Folds an HTTP call to an endpoint that sends no body into a {@link VTaskPath} deferred on a
+   * virtual thread, yielding {@code Right(Unit.INSTANCE)} for a 2xx response, whatever the body,
+   * and {@code Left(decoded error)} for 4xx/5xx. The call is not made until the task is run.
+   *
+   * @param call performs the HTTP call and returns the response entity
+   * @param decoder decodes a failed response into a typed error
+   * @param <E> the typed error
+   * @return a deferred {@code VTaskPath} carrying the {@code Either} outcome
+   */
+  public static <E> VTaskPath<Either<E, Unit>> eitherVTaskUnit(
+      Supplier<? extends ResponseEntity<?>> call, ResponseErrorDecoder<E> decoder) {
+    return Path.vtask(
+        () -> {
+          try {
+            call.get();
+            return Either.right(Unit.INSTANCE);
           } catch (RestClientResponseException ex) {
             return Either.left(decoded(decoder, ex));
           }
@@ -113,6 +164,26 @@ public final class HkjClientExchange {
     try {
       // Path.maybe folds null (an empty 2xx body) to Nothing and a present body to Just.
       return Path.maybe(call.get().getBody());
+    } catch (RestClientResponseException ex) {
+      if (ex.getStatusCode().value() == 404) {
+        return Path.nothing();
+      }
+      throw ex;
+    }
+  }
+
+  /**
+   * Folds a blocking HTTP call to an endpoint that sends no body into a {@link MaybePath}: 2xx →
+   * {@code Just(Unit.INSTANCE)}, whatever the body, and 404 → {@code Nothing}. Other failures
+   * propagate as the original exception.
+   *
+   * @param call performs the HTTP call and returns the response entity
+   * @return a {@code MaybePath} carrying the outcome
+   */
+  public static MaybePath<Unit> maybeUnit(Supplier<? extends ResponseEntity<?>> call) {
+    try {
+      call.get();
+      return Path.just(Unit.INSTANCE);
     } catch (RestClientResponseException ex) {
       if (ex.getStatusCode().value() == 404) {
         return Path.nothing();
@@ -254,6 +325,18 @@ public final class HkjClientExchange {
       }
     }
     return line.toString();
+  }
+
+  /**
+   * Returns a 2xx response's body, throwing {@link EmptyResponseBodyException} when there is none,
+   * since a {@code Right} needs a value.
+   */
+  private static <T> T requireBody(ResponseEntity<T> response) {
+    T body = response.getBody();
+    if (body == null) {
+      throw new EmptyResponseBodyException(response.getStatusCode(), response.getHeaders());
+    }
+    return body;
   }
 
   /** Decodes a failed response, enforcing the {@link ResponseErrorDecoder} non-null contract. */

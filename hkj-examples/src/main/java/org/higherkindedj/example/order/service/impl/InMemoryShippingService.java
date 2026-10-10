@@ -21,6 +21,7 @@ import org.higherkindedj.example.order.model.WarehouseInfo;
 import org.higherkindedj.example.order.model.value.Money;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.service.ShippingService;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 
 /** In-memory implementation of ShippingService for testing and examples. */
@@ -154,7 +155,7 @@ public class InMemoryShippingService implements ShippingService {
   }
 
   @Override
-  public Either<OrderError, Void> cancelShipment(String shipmentId) {
+  public Either<OrderError, Unit> cancelShipment(String shipmentId) {
     var shipment = shipments.get(shipmentId);
     if (shipment == null) {
       return Either.left(
@@ -176,7 +177,7 @@ public class InMemoryShippingService implements ShippingService {
             status != null ? status.location() : "Unknown",
             status != null ? status.estimatedDelivery() : Instant.now()));
 
-    return Either.right(null);
+    return Either.right(Unit.INSTANCE);
   }
 
   @Override

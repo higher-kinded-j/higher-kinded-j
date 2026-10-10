@@ -232,15 +232,20 @@ public final class Saga<A> {
    * left side contains a {@link SagaError} on failure; the right side contains the result on
    * success.
    *
+   * <p>A {@code Right} always holds a value, so a saga whose result is null is treated as a
+   * failure: its completed steps are compensated, and the {@code Left} holds a {@link
+   * NullPointerException} reported against the step named {@code "result"}. Return {@link
+   * org.higherkindedj.hkt.Unit#INSTANCE} from a saga with nothing to return.
+   *
    * @return a VTask producing Either with the saga result or error
    */
   public VTask<Either<SagaError, A>> runSafe() {
     return () -> {
       List<CompletedStep<?>> completedSteps = new ArrayList<>();
 
+      A result;
       try {
-        A result = runner.execute(completedSteps);
-        return Either.right(result);
+        result = runner.execute(completedSteps);
       } catch (Throwable caught) {
         Throwable originalError;
         String failedStepName;
@@ -254,6 +259,15 @@ public final class Saga<A> {
         SagaError sagaError = compensate(completedSteps, originalError, failedStepName);
         return Either.left(sagaError);
       }
+      if (result == null) {
+        // Compensated like a failed step, so a retry of the whole saga starts from a clean state
+        NullPointerException refused =
+            new NullPointerException(
+                "the saga's result is null, and a Right always holds a value: return Unit from a"
+                    + " saga with nothing to return");
+        return Either.left(compensate(completedSteps, refused, "result"));
+      }
+      return Either.right(result);
     };
   }
 

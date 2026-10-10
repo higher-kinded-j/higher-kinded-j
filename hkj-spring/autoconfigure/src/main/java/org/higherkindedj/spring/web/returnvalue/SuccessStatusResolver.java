@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  *
  * @DeleteMapping("/{id}")
  * @ResponseStatus(HttpStatus.NO_CONTENT)
- * public MaybePath<Void> deleteUser(...) { ... }
+ * public MaybePath<Unit> deleteUser(...) { ... }
  * }</pre>
  */
 public final class SuccessStatusResolver {

@@ -228,13 +228,16 @@ public interface VTask<A> extends VTaskKind<A> {
    *
    * <p>This is the preferred method for error handling. Unlike {@link #run()}, which wraps checked
    * exceptions in {@link VTaskExecutionException}, this method preserves the original exception
-   * type in the {@code Try.Failure}.
+   * type in the {@code Try.Failure}. A {@code Try.Success} always holds a value, so a task that
+   * returns {@code null} gives a {@code Try.Failure} holding a {@link NullPointerException}.
    *
    * @return A {@link Try} containing either the successful result or the failure. Never null.
    */
   default Try<A> runSafe() {
     try {
-      return Try.success(execute());
+      return Try.success(
+          Objects.requireNonNull(
+              execute(), "the task returned null, and a Success always holds a value"));
     } catch (Throwable t) {
       return Try.failure(t);
     }

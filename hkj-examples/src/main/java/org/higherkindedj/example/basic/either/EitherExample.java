@@ -9,6 +9,7 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
@@ -36,9 +37,9 @@ public class EitherExample {
       System.out.println("It's Left!");
     }
 
-    // Null values are permitted in Left or Right by default in this implementation
-    Either<String, Integer> rightNull = Either.right(null);
-    Either<String, Integer> leftNull = Either.left(null);
+    // A Right always holds a value: Either.right(null) throws NullPointerException. A step that
+    // succeeds with nothing to return gives Either.right(Unit.INSTANCE).
+    Either<String, Unit> done = Either.right(Unit.INSTANCE);
 
     try {
       Integer value = success.getRight(); // Returns 123

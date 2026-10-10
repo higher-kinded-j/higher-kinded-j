@@ -338,13 +338,18 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Converts to a TryPath.
    *
-   * <p>Forces evaluation. If the computation throws, the exception is captured in the TryPath.
+   * <p>Forces evaluation. If the computation throws, the exception is captured in the TryPath. A
+   * Success always holds a value, so a null value gives a Failure holding a {@link
+   * NullPointerException}.
    *
    * @return a TryPath containing Success if computation succeeds, Failure otherwise
    */
   public TryPath<A> toTryPath() {
     try {
-      return new TryPath<>(Try.success(lazy.force()));
+      return new TryPath<>(
+          Try.success(
+              Objects.requireNonNull(
+                  lazy.force(), "the lazy value is null, and a Success always holds a value")));
     } catch (Throwable t) {
       return new TryPath<>(Try.failure(t));
     }

@@ -27,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.CompletableFuturePath;
 import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.EitherPath;
@@ -43,10 +44,10 @@ import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
-import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.UpdateSpec;
+import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.higherkindedj.spring.autoconfigure.HkjAutoConfiguration;
 import org.higherkindedj.spring.autoconfigure.HkjJacksonAutoConfiguration;
@@ -59,13 +60,14 @@ import org.higherkindedj.spring.web.returnvalue.HttpHeaderCarrier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -88,7 +90,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.ResponseEntity;
 
 // ---------------------------------------------------------------------------------------------
 // The reader's own domain, which the chapter quite properly elides.
@@ -218,7 +219,7 @@ interface UserService {
 
   User update(String id, UserRequest request);
 
-  Either<DomainError, Void> delete(String id);
+  Either<DomainError, Unit> delete(String id);
 
   Either<DomainError, User> patch(String id, Edits.Accumulated<User> patch);
 }
@@ -226,7 +227,7 @@ interface UserService {
 interface OrderService {
   EitherPath<DomainError, Order> create(OrderRequest request);
 
-  MaybePath<Void> cancel(String id);
+  MaybePath<Unit> cancel(String id);
 
   Either<DomainError, List<Order>> getOrdersForUser(User user);
 

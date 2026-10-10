@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.fluent;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -10,7 +11,6 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.constant.Const;
@@ -18,19 +18,14 @@ import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.constant.ConstKindHelper;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherKindHelper;
-import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedKindHelper;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.extensions.TraversalExtensions;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
@@ -631,25 +626,10 @@ public final class OpticOps {
    */
   public static <E, S, A extends @Nullable Object> Validated<List<E>, S> modifyAllValidated(
       S source, Traversal<S, A> traversal, Function<A, Validated<E, @NonNull A>> validator) {
-    // Create applicative for Validated with List semigroup for error accumulation
-
-    Applicative<ValidatedKind.Witness<List<E>>> applicative =
-        ValidatedMonad.instance(Semigroups.list());
-
-    // Lift the validator to work with List<E> errors
-    Function<A, Kind<ValidatedKind.Witness<List<E>>, A>> liftedValidator =
-        a -> {
-          Validated<E, @NonNull A> validated = validator.apply(a);
-          // Convert Validated<E, A> to Validated<List<E>, A>
-          Validated<List<E>, @NonNull A> result = validated.bimap(List::of, Function.identity());
-          return ValidatedKindHelper.VALIDATED.widen(result);
-        };
-
-    // Use traversal's modifyF with the applicative
-    Kind<ValidatedKind.Witness<List<E>>, S> resultKind =
-        traversal.modifyF(liftedValidator, source, applicative);
-
-    return ValidatedKindHelper.VALIDATED.narrow(resultKind);
+    return TraversalExtensions.modifyAllValidated(
+        traversal,
+        a -> Objects.requireNonNull(validator.apply(a), "validator must not return null"),
+        source);
   }
 
   /**
@@ -695,18 +675,10 @@ public final class OpticOps {
    */
   public static <E, S, A extends @Nullable Object> Either<E, S> modifyAllEither(
       S source, Traversal<S, A> traversal, Function<A, Either<E, @NonNull A>> validator) {
-    // Either's applicative keeps the first Left; every element's effect is still built
-    Applicative<EitherKind.Witness<E>> applicative = EitherMonad.instance();
-
-    // Lift the validator to the Kind type
-    Function<A, Kind<EitherKind.Witness<E>, A>> liftedValidator =
-        a -> EitherKindHelper.EITHER.widen(validator.apply(a));
-
-    // Use traversal's modifyF with the applicative
-    Kind<EitherKind.Witness<E>, S> resultKind =
-        traversal.modifyF(liftedValidator, source, applicative);
-
-    return EitherKindHelper.EITHER.narrow(resultKind);
+    return TraversalExtensions.modifyAllEither(
+        traversal,
+        a -> Objects.requireNonNull(validator.apply(a), "validator must not return null"),
+        source);
   }
 
   // ============================================================================

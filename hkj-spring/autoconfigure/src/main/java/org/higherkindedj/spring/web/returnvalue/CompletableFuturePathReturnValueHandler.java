@@ -240,10 +240,11 @@ public class CompletableFuturePathReturnValueHandler
    * @param response the HTTP response
    * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
+  private void writeSuccessResponse(
+      @Nullable Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }

@@ -282,7 +282,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
         a ->
             typedOther.value.foldFailureFirst(
                 ex -> new TryPath<>(Try.failure(ex)),
-                b -> new TryPath<>(Try.of(() -> combiner.apply(a, b)))));
+                b ->
+                    new TryPath<>(
+                        Try.of(
+                            () ->
+                                Objects.requireNonNull(
+                                    combiner.apply(a, b), "combiner must not return null")))));
   }
 
   /**
@@ -290,7 +295,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -312,7 +317,13 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
                 b ->
                     third.value.foldFailureFirst(
                         ex -> new TryPath<>(Try.failure(ex)),
-                        c -> new TryPath<>(Try.of(() -> combiner.apply(a, b, c))))));
+                        c ->
+                            new TryPath<>(
+                                Try.of(
+                                    () ->
+                                        Objects.requireNonNull(
+                                            combiner.apply(a, b, c),
+                                            "combiner must not return null"))))));
   }
 
   // ===== Chainable implementation =====
@@ -377,7 +388,9 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   @Override
   public TryPath<A> recover(Function<? super Throwable, ? extends A> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
-    return new TryPath<>(value.recover(recovery));
+    return new TryPath<>(
+        value.recover(
+            e -> Objects.requireNonNull(recovery.apply(e), "recovery must not return null")));
   }
 
   @Override
@@ -460,9 +473,10 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * // Equivalent to: configPath.map(apiKeyPath::get)
    * }</pre>
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
-   * null focus becomes.
+   * <p>A Success always holds a value, so this form is for a focus that is never null: a null one
+   * gives a Failure holding a {@link NullPointerException}. For a focus that may be null, pass
+   * {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a null focus
+   * becomes.
    *
    * @param path the FocusPath to apply
    * @param <B> the focused type
@@ -470,7 +484,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    */
   public <B> TryPath<B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), exceptionIfAbsent) to give a"
+                    + " Failure for it"));
   }
 
   /**

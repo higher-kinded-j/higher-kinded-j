@@ -727,15 +727,15 @@ public class OrderController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public MaybePath<Void> cancel(@PathVariable String id) {
+    public MaybePath<Unit> cancel(@PathVariable String id) {
         return orderService.cancel(id);
-        // Just(_)   → HTTP 204 No Content (body suppressed)
+        // Just(Unit) → HTTP 204 No Content (body suppressed)
         // Nothing() → HTTP 404
     }
 }
 ```
 
-All ten Effect Path handlers honour `@ResponseStatus` consistently.
+All ten Effect Path handlers honour `@ResponseStatus` consistently. A success holding `Unit`, or a null from a lazy Path such as an `IOPath`, writes no body, at whatever status applies, as a `void` controller method does.
 
 ### Error Status Mapping
 
@@ -980,9 +980,9 @@ public class UserController {
 
     // Delete user (may not exist)
     @DeleteMapping("/{id}")
-    public Either<DomainError, Void> deleteUser(@PathVariable String id) {
+    public Either<DomainError, Unit> deleteUser(@PathVariable String id) {
         return userService.delete(id);
-        // Right(null) → 200 OK
+        // Right(Unit) → 200 OK, no body
         // Left(UserNotFoundError) → 404 Not Found
     }
 

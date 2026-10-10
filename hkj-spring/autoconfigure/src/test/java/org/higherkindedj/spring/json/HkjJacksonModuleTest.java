@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.json;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.exc.MismatchedInputException;
 import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("HkjJacksonModule Tests")
@@ -85,6 +87,16 @@ class HkjJacksonModuleTest {
 
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).isEqualTo("Error occurred");
+    }
+
+    @Test
+    @DisplayName("Should report a null right as bad input, since a Right always holds a value")
+    void shouldRejectANullRight() {
+      String json = "{\"isRight\":true,\"right\":null}";
+
+      assertThatThrownBy(() -> objectMapper.readValue(json, Either.class))
+          .isInstanceOf(MismatchedInputException.class)
+          .hasMessageContaining("Either 'right' must not be null");
     }
   }
 

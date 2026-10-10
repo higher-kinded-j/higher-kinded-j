@@ -2,23 +2,19 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.extensions;
 
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.hkt.either.EitherKind;
-import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.maybe.MaybeKind;
-import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedKind;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NonNull;
@@ -103,9 +99,18 @@ public final class TraversalExtensions {
    */
   public static <S, A extends @Nullable Object> Maybe<S> modifyAllMaybe(
       Traversal<S, A> traversal, Function<A, Maybe<@NonNull A>> f, S source) {
-    Kind<MaybeKind.Witness, S> result =
-        traversal.modifyF(a -> MAYBE.widen(f.apply(a)), source, MaybeMonad.INSTANCE);
-    return MAYBE.narrow(result);
+    Outcome<S> outcome =
+        modifyAll(
+            traversal,
+            a -> {
+              Maybe<@NonNull A> result =
+                  Objects.requireNonNull(f.apply(a), "f must not return null");
+              return result.isJust()
+                  ? new Outcome.Ok<>(result.get())
+                  : Outcome.failed(Unit.INSTANCE);
+            },
+            source);
+    return outcome instanceof Outcome.Ok<S>(var updated) ? Maybe.just(updated) : Maybe.nothing();
   }
 
   /**
@@ -128,9 +133,21 @@ public final class TraversalExtensions {
    */
   public static <E, S, A extends @Nullable Object> Either<E, S> modifyAllEither(
       Traversal<S, A> traversal, Function<A, Either<E, @NonNull A>> f, S source) {
-    Kind<EitherKind.Witness<E>, S> result =
-        traversal.modifyF(a -> EITHER.widen(f.apply(a)), source, EitherMonad.instance());
-    return EITHER.narrow(result);
+    Outcome<S> outcome =
+        modifyAll(
+            traversal,
+            a -> {
+              Either<E, @NonNull A> result =
+                  Objects.requireNonNull(f.apply(a), "f must not return null");
+              return result.isRight()
+                  ? new Outcome.Ok<>(result.getRight())
+                  : Outcome.failed(result.getLeft());
+            },
+            source);
+    return switch (outcome) {
+      case Outcome.Ok<S>(var updated) -> Either.right(updated);
+      case Outcome.Failed<S>(var failures) -> Either.left(Outcome.<E>first(failures));
+    };
   }
 
   /**
@@ -153,12 +170,21 @@ public final class TraversalExtensions {
    */
   public static <E, S, A extends @Nullable Object> Validated<List<E>, S> modifyAllValidated(
       Traversal<S, A> traversal, Function<A, Validated<E, @NonNull A>> f, S source) {
-    Kind<ValidatedKind.Witness<List<E>>, S> result =
-        traversal.modifyF(
-            a -> VALIDATED.widen(f.apply(a).mapError(List::of)),
-            source,
-            ValidatedMonad.instance(Semigroups.list()));
-    return VALIDATED.narrow(result);
+    Outcome<S> outcome =
+        modifyAll(
+            traversal,
+            a -> {
+              Validated<E, @NonNull A> result =
+                  Objects.requireNonNull(f.apply(a), "f must not return null");
+              return result.isValid()
+                  ? new Outcome.Ok<>(result.get())
+                  : Outcome.failed(result.getError());
+            },
+            source);
+    return switch (outcome) {
+      case Outcome.Ok<S>(var updated) -> Validated.valid(updated);
+      case Outcome.Failed<S>(var failures) -> Validated.invalid(Outcome.<E>all(failures));
+    };
   }
 
   /**
@@ -231,5 +257,96 @@ public final class TraversalExtensions {
         .filter(Either::isLeft)
         .map(Either::getLeft)
         .toList();
+  }
+
+  /**
+   * Runs {@code step} on every focus, in traversal order, under {@link OutcomeApplicative}. The
+   * traversal rebuilds the source only when every step succeeded, as under the applicative of
+   * {@code Either}, {@code Validated} or {@code Maybe}; unlike theirs, the applicative's {@code of}
+   * holds a null, so an element the traversal passes over, a null one included, is kept as it is.
+   */
+  private static <S, A extends @Nullable Object> Outcome<S> modifyAll(
+      Traversal<S, A> traversal, Function<A, Outcome<A>> step, S source) {
+    return Outcome.narrow(traversal.modifyF(step::apply, source, OutcomeApplicative.INSTANCE));
+  }
+
+  /** The value of a run, which may be null, or every failure the run met, in traversal order. */
+  private sealed interface Outcome<A extends @Nullable Object> extends Kind<Outcome.Witness, A> {
+
+    /** The witness for {@link Outcome}. */
+    final class Witness implements WitnessArity<TypeArity.Unary> {
+      private Witness() {}
+    }
+
+    /** Every step so far succeeded. */
+    record Ok<A extends @Nullable Object>(A value) implements Outcome<A> {}
+
+    /** At least one step failed; the failures may include null, as a {@code Left} may hold. */
+    record Failed<A extends @Nullable Object>(List<@Nullable Object> failures)
+        implements Outcome<A> {}
+
+    static <A extends @Nullable Object> Outcome<A> failed(@Nullable Object failure) {
+      List<@Nullable Object> failures = new ArrayList<>(1);
+      failures.add(failure);
+      return new Failed<>(Collections.unmodifiableList(failures));
+    }
+
+    static <A extends @Nullable Object> Outcome<A> narrow(Kind<Witness, A> kind) {
+      return (Outcome<A>) kind;
+    }
+
+    @SuppressWarnings("unchecked") // each failure was recorded from an E
+    static <E> E first(List<@Nullable Object> failures) {
+      return (E) failures.getFirst();
+    }
+
+    @SuppressWarnings("unchecked") // each failure was recorded from an E
+    static <E> List<E> all(List<@Nullable Object> failures) {
+      return (List<E>) (List<?>) failures;
+    }
+  }
+
+  /**
+   * The applicative behind {@link #modifyAll}: {@code of} holds any value, a null one included, and
+   * once a step has failed nothing is combined, so the traversal's rebuild never runs.
+   */
+  private static final class OutcomeApplicative implements Applicative<Outcome.Witness> {
+
+    static final OutcomeApplicative INSTANCE = new OutcomeApplicative();
+
+    private OutcomeApplicative() {}
+
+    @Override
+    public <A> Kind<Outcome.Witness, A> of(@Nullable A value) {
+      return new Outcome.Ok<>(value);
+    }
+
+    @Override
+    public <A, B> Kind<Outcome.Witness, B> map(
+        Function<? super A, ? extends B> f, Kind<Outcome.Witness, A> fa) {
+      return switch (Outcome.narrow(fa)) {
+        case Outcome.Ok<A>(var value) -> new Outcome.Ok<>(f.apply(value));
+        case Outcome.Failed<A>(var failures) -> new Outcome.Failed<>(failures);
+      };
+    }
+
+    @Override
+    public <A, B> Kind<Outcome.Witness, B> ap(
+        Kind<Outcome.Witness, ? extends Function<A, B>> ff, Kind<Outcome.Witness, A> fa) {
+      Outcome<? extends Function<A, B>> function = Outcome.narrow(ff);
+      Outcome<A> value = Outcome.narrow(fa);
+      if (function instanceof Outcome.Ok<? extends Function<A, B>>(var f)
+          && value instanceof Outcome.Ok<A>(var a)) {
+        return new Outcome.Ok<>(f.apply(a));
+      }
+      List<@Nullable Object> failures = new ArrayList<>();
+      if (function instanceof Outcome.Failed<?>(var earlier)) {
+        failures.addAll(earlier);
+      }
+      if (value instanceof Outcome.Failed<?>(var later)) {
+        failures.addAll(later);
+      }
+      return new Outcome.Failed<>(Collections.unmodifiableList(failures));
+    }
   }
 }

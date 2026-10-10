@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -73,9 +74,10 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
 
   /**
    * Executes a {@link Supplier} that produces a value of type {@code T} and wraps the outcome in a
-   * {@code Try}. If the supplier executes successfully, its result (which can be {@code null}) is
-   * wrapped in a {@link Success}. If the supplier throws any {@link Exception}, it is caught and
-   * wrapped in a {@link Failure}.
+   * {@code Try}. If the supplier executes successfully, its result is wrapped in a {@link Success}.
+   * If the supplier throws any {@link Exception}, it is caught and wrapped in a {@link Failure}. A
+   * {@link Success} always holds a value, so a supplier that returns {@code null} gives a {@link
+   * Failure} holding a {@link NullPointerException}.
    *
    * <p>In practice this means {@link RuntimeException}: a standard {@link Supplier} cannot declare
    * checked exceptions in its lambda body, so a checked exception can only reach this method via
@@ -88,17 +90,17 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *
    * <p>This is the most common way to create a {@code Try} instance from potentially failable code.
    *
-   * @param supplier The non-null computation (supplier) to execute. The supplier itself may return
-   *     {@code null}.
+   * @param supplier The non-null computation (supplier) to execute.
    * @param <T> The type of the result produced by the supplier.
-   * @return A non-null {@link Success} instance containing the supplier's result if execution is
-   *     normal, or a non-null {@link Failure} instance containing the caught {@link Exception}.
+   * @return A non-null {@link Success} holding the supplier's result if execution is normal, or a
+   *     non-null {@link Failure} holding the caught {@link Exception}, or holding a {@link
+   *     NullPointerException} if the supplier returned {@code null}.
    * @throws NullPointerException if {@code supplier} is null.
    */
   static <T> Try<T> of(Supplier<? extends T> supplier) {
     Validation.function().require(supplier, "supplier", OF);
     try {
-      return new Success<>(supplier.get());
+      return new Success<>(Objects.requireNonNull(supplier.get(), "supplier must not return null"));
     } catch (Exception e) {
       return new Failure<>(e);
     }
@@ -107,8 +109,9 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
   /**
    * Executes a {@link CheckedSupplier} whose lambda body may declare and throw a checked {@link
    * Exception}, wrapping the outcome in a {@code Try}. If the supplier executes successfully, its
-   * result (which can be {@code null}) is wrapped in a {@link Success}; if it throws any {@link
-   * Exception}, checked or unchecked, the exception is caught and wrapped in a {@link Failure}.
+   * result is wrapped in a {@link Success}; if it throws any {@link Exception}, checked or
+   * unchecked, the exception is caught and wrapped in a {@link Failure}. A supplier that returns
+   * {@code null} gives a {@link Failure} holding a {@link NullPointerException}.
    *
    * <p>This is the preferred entry point when interoperating with Java APIs that throw checked
    * exceptions ({@code Files.readString}, {@code Class.forName}, JDBC, reflection, and so on).
@@ -125,8 +128,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * // Success("...file contents...") or Failure(NoSuchFileException)
    * }</pre>
    *
-   * @param supplier The non-null checked computation to execute. The supplier itself may return
-   *     {@code null}.
+   * @param supplier The non-null checked computation to execute.
    * @param <T> The type of the result produced by the supplier.
    * @param <X> The checked-exception type declared by the supplier.
    * @return A non-null {@link Success} containing the supplier's result if execution is normal, or
@@ -137,21 +139,25 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
       CheckedSupplier<? extends T, ? extends X> supplier) {
     Validation.function().require(supplier, "supplier", ATTEMPT);
     try {
-      return new Success<>(supplier.get());
+      return new Success<>(Objects.requireNonNull(supplier.get(), "supplier must not return null"));
     } catch (Exception e) {
       return new Failure<>(e);
     }
   }
 
   /**
-   * Creates a {@code Try} representing a successful computation with the given value. The provided
-   * value can be {@code null}, in which case it results in {@code Success(null)}.
+   * Creates a {@code Try} representing a successful computation with the given value.
    *
-   * @param value The successful value. Can be {@code null}.
+   * <p>A {@link Success} always holds a value, so {@code value} must not be null. A computation
+   * that succeeds with nothing to return gives {@code Try.success(Unit.INSTANCE)}, typed {@code
+   * Try<Unit>}.
+   *
+   * @param value The non-null successful value.
    * @param <T> The type of the value.
    * @return A non-null {@link Success} instance holding the provided value.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <T> Try<T> success(@Nullable T value) {
+  static <T> Try<T> success(T value) {
     return new Success<>(value);
   }
 
@@ -210,17 +216,17 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * {@link #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success
    * and failure cases without throwing exceptions.
    *
-   * @return The successful value (can be {@code null} if it was a {@code Success(null)}).
+   * @return The non-null successful value.
    * @throws Throwable if this is a {@link Failure}, the original exception is thrown.
    */
-  @Nullable T get() throws Throwable;
+  T get() throws Throwable;
 
   /**
    * Retrieves the successful value if this is a {@link Success}. If this is a {@link Failure}, it
    * returns the provided {@code other} value.
    *
-   * @param other The alternative value to return if this is a {@link Failure}. Can be {@code null}
-   *     if {@code T} is a nullable type.
+   * @param other The alternative value to return if this is a {@link Failure}. It may be {@code
+   *     null}, as a way out of the {@code Try} for a caller that wants one.
    * @return The successful value if this is a {@link Success}, otherwise {@code other}.
    */
   @Nullable T orElse(@Nullable T other);
@@ -233,11 +239,11 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * @param supplier The non-null {@link Supplier} that provides an alternative value if this is a
    *     {@link Failure}.
    * @return The successful value if this is a {@link Success}, otherwise the result of {@code
-   *     supplier.get()}.
-   * @throws NullPointerException if {@code supplier} is null (but only if this is a {@link Failure}
-   *     and the supplier needs to be invoked by the concrete implementation).
+   *     supplier.get()}, which must not be null.
+   * @throws NullPointerException if {@code supplier} is null, or if this is a {@link Failure} and
+   *     the supplier returns null.
    */
-  @Nullable T orElseGet(Supplier<? extends T> supplier);
+  T orElseGet(Supplier<? extends T> supplier);
 
   /**
    * Applies one of two functions depending on whether this is a {@link Failure} or a {@link
@@ -327,8 +333,9 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
 
   /**
    * If this is a {@link Success}, applies the given mapping function to its value. If the mapping
-   * function itself throws a {@link Throwable}, the result is a new {@link Failure} containing that
-   * {@link Throwable}. If this is a {@link Failure}, it returns the original {@link Failure}
+   * function itself throws an {@link Exception}, the result is a new {@link Failure} containing
+   * that exception, and if it returns {@code null}, a {@link Failure} containing a {@link
+   * NullPointerException}. If this is a {@link Failure}, it returns the original {@link Failure}
    * instance unchanged.
    *
    * @param mapper The non-null function to apply to the successful value.
@@ -355,9 +362,10 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
   /**
    * If this is a {@link Failure}, applies the given recovery function to the {@link Throwable}. If
    * the recovery function successfully produces a value of type {@code T}, a {@link Success}
-   * containing this value is returned. If the recovery function itself throws a {@link Throwable},
-   * a new {@link Failure} containing this new {@link Throwable} is returned. If this is a {@link
-   * Success}, it returns the original {@link Success} instance unchanged.
+   * containing this value is returned. If the recovery function itself throws an {@link Exception},
+   * a new {@link Failure} containing that exception is returned, and if it returns {@code null}, a
+   * {@link Failure} containing a {@link NullPointerException}. If this is a {@link Success}, it
+   * returns the original {@link Success} instance unchanged.
    *
    * @param recoveryFunction The non-null function to apply to the {@link Throwable} in case of a
    *     {@link Failure}.
@@ -405,14 +413,23 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
   }
 
   /**
-   * Represents a successful computation within a {@link Try}. It holds the resulting value of type
-   * {@code T}, which can be {@code null}. This is a {@link Record} for conciseness and
-   * immutability.
+   * Represents a successful computation within a {@link Try}. It holds the non-null resulting value
+   * of type {@code T}. This is a {@link Record} for conciseness and immutability.
    *
    * @param <T> The type of the successful value.
-   * @param value The successful value, which can be {@code null}.
+   * @param value The non-null successful value.
    */
-  record Success<T>(@Nullable T value) implements Try<T> {
+  record Success<T>(T value) implements Try<T> {
+
+    /**
+     * Ensures the held value is non-null.
+     *
+     * @throws NullPointerException if {@code value} is null
+     */
+    public Success {
+      Validation.coreType().requireValue(value, TRY_CLASS, SUCCESS);
+    }
+
     @Override
     public boolean isSuccess() {
       return true;
@@ -424,7 +441,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     }
 
     @Override
-    public @Nullable T get() {
+    public T get() {
       return value;
     }
 
@@ -434,7 +451,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     }
 
     @Override
-    public @Nullable T orElseGet(Supplier<? extends T> supplier) {
+    public T orElseGet(Supplier<? extends T> supplier) {
       Validation.function().require(supplier, "supplier", OR_ELSE_GET);
       return value;
     }
@@ -443,7 +460,8 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     public <U> Try<U> map(Function<? super T, ? extends U> mapper) {
       Validation.function().require(mapper, "mapper", MAP);
       try {
-        return new Success<>(mapper.apply(value));
+        return new Success<>(
+            Objects.requireNonNull(mapper.apply(value), "mapper must not return null"));
       } catch (Exception e) {
         return new Failure<>(e);
       }
@@ -508,7 +526,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     }
 
     @Override
-    public @Nullable T get() throws Throwable {
+    public T get() throws Throwable {
       throw cause;
     }
 
@@ -518,9 +536,9 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     }
 
     @Override
-    public @Nullable T orElseGet(Supplier<? extends T> supplier) {
+    public T orElseGet(Supplier<? extends T> supplier) {
       Validation.function().require(supplier, "supplier", OR_ELSE_GET);
-      return supplier.get();
+      return Objects.requireNonNull(supplier.get(), "supplier must not return null");
     }
 
     @Override
@@ -543,7 +561,9 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
       Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER);
       try {
-        return new Success<>(recoveryFunction.apply(cause));
+        return new Success<>(
+            Objects.requireNonNull(
+                recoveryFunction.apply(cause), "recoveryFunction must not return null"));
       } catch (Exception e) {
         return new Failure<>(e);
       }

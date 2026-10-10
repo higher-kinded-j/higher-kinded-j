@@ -96,19 +96,17 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Execute the deferred IO at the edge and convert result to HTTP response
-    ioPath
-        .runSafe()
-        .foldFailureFirst(
-            throwable -> {
-              log.error("IOPath execution failed in controller method", throwable);
-              writeFailureResponse(throwable, response);
-              return null;
-            },
-            value -> {
-              writeSuccessResponse(value, response, successStatus);
-              return null;
-            });
+    // Execute the deferred IO at the edge. Not through runSafe: a Try cannot hold the null an IO
+    // may still give, which answers like a void method.
+    Object value;
+    try {
+      value = ioPath.unsafeRun();
+    } catch (Exception e) {
+      log.error("IOPath execution failed in controller method", e);
+      writeFailureResponse(e, response);
+      return;
+    }
+    writeSuccessResponse(value, response, successStatus);
   }
 
   /**
@@ -152,10 +150,11 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
    * @param response the HTTP response
    * @param status the HTTP status code to set
    */
-  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
+  private void writeSuccessResponse(
+      @Nullable Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }

@@ -150,14 +150,6 @@ class TryFoldableTest extends TryTestBase {
   class NullHandlingTests {
 
     @Test
-    @DisplayName("foldMap() handles a null value inside Success")
-    void foldMapHandlesNullValueInSuccess() {
-      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
-      String result = foldable.foldMap(STRING_MONOID, s -> s == null ? "NULL" : s, successNull);
-      assertThat(result).isEqualTo("NULL");
-    }
-
-    @Test
     @DisplayName("foldMap() returns null when the function returns null on Success")
     void foldMapReturnsNullWhenFunctionReturnsNull() {
       Kind<TryKind.Witness, String> success = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));

@@ -3,12 +3,12 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} interface for {@link Try}, using {@link TryKind.Witness}. It
@@ -25,11 +25,14 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
    * Kind<TryKind.Witness, A>}.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift. Can be {@code null}.
+   * @param value The non-null value to lift, since a {@link Try.Success} always holds one.
    * @return A {@code Kind<TryKind.Witness, A>} representing {@code Try.success(value)}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<TryKind.Witness, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Try.Success forbids null
+  public <A> Kind<TryKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, TryApplicative.class, OF);
     return TRY.widen(Try.success(value));
   }
 
@@ -59,9 +62,7 @@ public class TryApplicative extends TryFunctor implements Applicative<TryKind.Wi
     Try<? extends Function<A, B>> tryF = TRY.narrow(ff);
     Try<A> tryA = TRY.narrow(fa);
 
-    Try<B> resultTry =
-        tryF.foldFailureFirst(
-            Try::failure, f -> tryA.foldFailureFirst(Try::failure, a -> Try.of(() -> f.apply(a))));
+    Try<B> resultTry = tryF.foldFailureFirst(Try::failure, tryA::map);
     return TRY.widen(resultTry);
   }
 }

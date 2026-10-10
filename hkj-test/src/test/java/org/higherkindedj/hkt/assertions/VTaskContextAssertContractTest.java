@@ -158,4 +158,13 @@ class VTaskContextAssertContractTest
                         VTaskContext.fail(new RuntimeException("x")))
                     .hasValue(42));
   }
+
+  @Test
+  void a_context_that_returns_null_succeeds_with_a_null_value() {
+    // A VTask may still give null, so the assertion runs it without a Try, which cannot hold one
+    VTaskContextAssert.assertThatVTaskContext(VTaskContext.<Integer>of(() -> null))
+        .succeeds()
+        .hasValue(null)
+        .isEquivalentTo(VTaskContext.of(() -> null));
+  }
 }

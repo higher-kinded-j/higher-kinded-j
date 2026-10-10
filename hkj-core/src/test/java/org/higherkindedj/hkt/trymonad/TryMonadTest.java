@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
@@ -140,11 +141,11 @@ class TryMonadTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("of() wraps a null value in Success")
-    @SuppressWarnings("DataFlowIssue") // Success may legitimately hold a null value
-    void ofWrapsNullInSuccess() {
-      var result = monad.of(null);
-      assertThatTry(result).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
+    @DisplayName("of() refuses a null value")
+    void ofRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.of(null))
+          .withMessage("TryApplicative.of value cannot be null");
     }
 
     @Test
@@ -158,17 +159,6 @@ class TryMonadTest extends TryTestBase {
   @Nested
   @DisplayName("Edge cases")
   class EdgeCases {
-
-    @Test
-    @DisplayName("flatMap() handles a null value inside Success")
-    @SuppressWarnings("ConstantValue") // a Success may legitimately hold a null value
-    void flatMapHandlesNullValueInSuccess() {
-      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
-      Function<String, Kind<TryKind.Witness, Integer>> safe =
-          s -> TRY.widen(Try.success(s == null ? -1 : s.length()));
-      var result = monad.flatMap(safe, successNull);
-      assertThatTry(result).isSuccess().hasValue(-1);
-    }
 
     @Test
     @DisplayName("Deep flatMap chaining accumulates correctly")

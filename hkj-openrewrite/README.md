@@ -181,8 +181,10 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a
 deprecated annotation that has no effect, replaces two deprecated `@PathSource` capabilities
-with the levels they generate, and drops the `Monad` argument that `StateT` no longer takes. The
-composite recipe runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 before the
+with the levels they generate, and drops the `Monad` argument that `StateT` no longer takes. It
+also marks, without rewriting, each null success that 0.5.0 refuses: `rewriteRun` writes each mark
+into the source as a `/*~~(…)~~>*/` comment, to remove once the site is fixed. The composite recipe
+runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 before the
 project moves to 0.5.0: the recipes match the 0.4.x signatures, and the rewritten `StateT` calls
 compile only against 0.5.0, so bump the library straight after.
 
@@ -195,6 +197,7 @@ compile only against 0.5.0, so bump the library straight after.
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` → `CHAINABLE` and `ACCUMULATING` → `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` → the function alone; `stateT.mapT(monad, f)` → `stateT.mapT(f)` |
+| `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks, without rewriting: `null` passed to `Either.right`, `Try.success`, `Path.right`, `Path.success`, `Path.vresultRight`, `VResultPath.pure`, `TryKindHelper.success`, `EitherT.right` or `ErrorContext.success`; a `Try.of`, `Try.attempt`, `Path.tryOf` or `TryKindHelper.tryOf` lambda returning `null`; `Void` as the success type of an `Either`, `Try`, `EitherT`, `EitherPath`, `TryPath`, `VResultPath` or `ErrorContext`; and `Void` as the result of a `VTask`, `VTaskPath`, `IO`, `IOPath`, `FreePath`, `CompletableFuturePath` or `Saga`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
 
 ```kotlin
 rewrite {

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.id.Id;
@@ -302,15 +303,15 @@ class IdPathTest {
     }
 
     @Test
-    @DisplayName("toEitherPath() converts to Right with null for null value")
-    void toEitherPathConvertsToRightWithNull() {
+    @DisplayName("toEitherPath() refuses a null value and names the route that gives a Left")
+    void toEitherPathRefusesNullValue() {
       IdPath<String> path = Path.id(null);
 
-      EitherPath<String, String> result = path.toEitherPath();
-
-      // IdPath always succeeds, so toEitherPath() always returns Right
-      assertThat(result.run().isRight()).isTrue();
-      assertThat(result.run().getRight()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(path::toEitherPath)
+          .withMessage(
+              "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it");
+      assertThatEither(path.toMaybePath().toEitherPath("absent").run()).hasLeft("absent");
     }
   }
 

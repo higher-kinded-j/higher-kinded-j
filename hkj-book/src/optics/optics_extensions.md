@@ -198,7 +198,7 @@ Use for **atomic updates** where all modifications must succeed or none should a
 
 #### `modifyAllEither`: First Error Only
 
-Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element.
+Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element. An element the traversal passes over, such as a null one that `filtered` or a prism leaves out, stays as it is, though a `Right` could not hold it. The same holds for `modifyAllValidated` and `modifyAllMaybe`.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:modify_all_either}}

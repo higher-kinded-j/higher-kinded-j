@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect.boundary;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.ArrayList;
@@ -215,6 +216,19 @@ class EffectBoundaryTest {
       Try<String> result = boundary.runSafe(program);
       assertThat(result.isSuccess()).isTrue();
       assertThat(result.orElse(null)).isEqualTo("HELLO");
+    }
+
+    @Test
+    @DisplayName("Should return Try.Failure for a program that returns null")
+    void shouldReturnFailureForANullResult() {
+      Free<TestOpKind.Witness, String> program = store("hello").map(s -> null);
+      assertThatTry(boundary.runSafe(program))
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("the program returned null, and a Success always holds a value"));
     }
 
     @Test

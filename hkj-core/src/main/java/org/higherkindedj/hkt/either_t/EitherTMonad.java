@@ -54,12 +54,15 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
    * This results in an {@code EitherT} wrapping {@code F<Right(r)>}.
    *
    * @param <R> The type of the 'right' value.
-   * @param r The 'right' value to lift. Can be null if {@code R} is nullable.
+   * @param r The non-null 'right' value to lift, since a {@code Right} always holds one.
    * @return A {@code Kind<EitherTKind.Witness<F, L>, R>} representing the lifted 'right' value.
    *     Never null.
+   * @throws NullPointerException if {@code r} is null.
    */
   @Override
-  public <R> Kind<EitherTKind.Witness<F, L>, R> of(@Nullable R r) {
+  @SuppressWarnings("NullableProblems") // Either.Right forbids null
+  public <R> Kind<EitherTKind.Witness<F, L>, R> of(R r) {
+    Validation.coreType().requireValue(r, EitherTMonad.class, OF);
     EitherT<F, L, R> concreteEitherT = EitherT.right(outerMonad, r);
     return EITHER_T.widen(concreteEitherT);
   }
@@ -268,23 +271,24 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
    * Recovers from a {@code Left} with a pure fallback {@code value}, lifted via {@link
    * #of(Object)}. If {@code ma} is a {@code Right}, it is returned unchanged.
    *
-   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
-   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
-   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
-   * since {@code of(null)} yields {@code Right(null)}.
+   * <p>This override names {@code recover} (rather than the delegated {@code handleErrorWith}) when
+   * {@code ma} is null. A {@code Right} always holds a value, so a null {@code value} is refused at
+   * the call, whether or not {@code ma} is a {@code Left}.
    *
    * @param <R> The type of the {@code Right} value.
    * @param ma The non-null {@code Kind<EitherTKind.Witness<F, L>, R>} that might be a {@code Left}.
-   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} is a {@code
-   *     Left}.
+   * @param value The non-null fallback value to lift via {@link #of(Object)} if {@code ma} is a
+   *     {@code Left}.
    * @return The original {@code ma} if a {@code Right}, otherwise {@code of(value)}. Never null.
-   * @throws NullPointerException if {@code ma} is null.
+   * @throws NullPointerException if {@code ma} or {@code value} is null.
    */
   @Override
+  @SuppressWarnings("NullableProblems") // Either.Right forbids null
   public <R> Kind<EitherTKind.Witness<F, L>, R> recover(
-      final Kind<EitherTKind.Witness<F, L>, R> ma, @Nullable R value) {
+      final Kind<EitherTKind.Witness<F, L>, R> ma, R value) {
 
     Validation.kind().requireNonNull(ma, RECOVER, "source");
+    Validation.coreType().requireValue(value, EitherTMonad.class, RECOVER);
 
     return handleErrorWith(ma, _ -> of(value));
   }

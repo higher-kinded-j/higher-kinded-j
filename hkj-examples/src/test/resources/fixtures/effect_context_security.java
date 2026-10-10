@@ -207,8 +207,8 @@ final class ReportService {
 
 final class UserAdminService {
 
-  Void delete(String userId) {
-    return null;
+  Unit delete(String userId) {
+    return Unit.INSTANCE;
   }
 }
 
@@ -225,12 +225,12 @@ final class DocumentService {
     return new Document(id, "owner", Set.of(), true);
   }
 
-  Void update(String id, DocumentUpdate update) {
-    return null;
+  Unit update(String id, DocumentUpdate update) {
+    return Unit.INSTANCE;
   }
 
-  Void delete(String id) {
-    return null;
+  Unit delete(String id) {
+    return Unit.INSTANCE;
   }
 }
 

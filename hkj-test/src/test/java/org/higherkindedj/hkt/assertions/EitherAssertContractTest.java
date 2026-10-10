@@ -20,7 +20,6 @@ class EitherAssertContractTest
 
   private static final Either<String, Integer> RIGHT_42 = Either.right(42);
   private static final Either<String, Integer> RIGHT_99 = Either.right(99);
-  private static final Either<String, Integer> RIGHT_NULL = Either.right(null);
   private static final Either<String, Integer> LEFT_ERR = Either.left("err");
   private static final Either<String, Integer> LEFT_OTHER = Either.left("other");
   private static final Either<String, Integer> LEFT_NULL = Either.left(null);
@@ -69,11 +68,8 @@ class EitherAssertContractTest
                     })),
 
         // Null checks
-        row("hasRightNull", RIGHT_NULL, RIGHT_42, EitherAssert::hasRightNull),
-        row("hasRightNull wrong state", RIGHT_NULL, LEFT_ERR, EitherAssert::hasRightNull),
         row("hasLeftNull", LEFT_NULL, LEFT_ERR, EitherAssert::hasLeftNull),
         row("hasLeftNull wrong state", LEFT_NULL, RIGHT_42, EitherAssert::hasLeftNull),
-        row("hasRightNonNull", RIGHT_42, RIGHT_NULL, EitherAssert::hasRightNonNull),
         row("hasRightNonNull wrong state", RIGHT_42, LEFT_ERR, EitherAssert::hasRightNonNull),
         row("hasLeftNonNull", LEFT_ERR, LEFT_NULL, EitherAssert::hasLeftNonNull),
         row("hasLeftNonNull wrong state", LEFT_ERR, RIGHT_42, EitherAssert::hasLeftNonNull));

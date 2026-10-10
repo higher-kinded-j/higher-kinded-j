@@ -277,7 +277,10 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
         VTask.delay(
             () -> {
               try {
-                return Either.right(this.unsafeRun());
+                return Either.right(
+                    Objects.requireNonNull(
+                        this.unsafeRun(),
+                        "the computation returned null, and a Right always holds a value"));
               } catch (Throwable t) {
                 return Either.left(
                     ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));

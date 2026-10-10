@@ -154,10 +154,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   /**
    * Creates a successful VResultPath containing the given value.
    *
-   * @param value the success value
+   * <p>A Right always holds a value. For a step that succeeds with nothing to return, pass {@link
+   * org.higherkindedj.hkt.Unit#INSTANCE}.
+   *
+   * @param value the success value; must not be null
    * @param <E> the phantom error type
    * @param <A> the success type
    * @return a VResultPath that immediately produces {@code Right(value)} when run
+   * @throws NullPointerException if value is null
    */
   public static <E, A> VResultPath<E, A> pure(A value) {
     return new VResultPath<>(VTask.succeed(Either.right(value)));
@@ -312,7 +316,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                     e -> VTask.<Either<E, C>>succeed(Either.left(e)),
                     a ->
                         typedOther.task.map(
-                            otherEither -> otherEither.map(b -> combiner.apply(a, b))))));
+                            otherEither ->
+                                otherEither.map(
+                                    b ->
+                                        Objects.requireNonNull(
+                                            combiner.apply(a, b),
+                                            "combiner must not return null"))))));
   }
 
   /**
@@ -323,7 +332,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -351,7 +360,11 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                                     b ->
                                         third.task.map(
                                             thirdEither ->
-                                                thirdEither.map(c -> combiner.apply(a, b, c))))))));
+                                                thirdEither.map(
+                                                    c ->
+                                                        Objects.requireNonNull(
+                                                            combiner.apply(a, b, c),
+                                                            "combiner must not return null"))))))));
   }
 
   // ===== Chainable implementation =====
@@ -414,7 +427,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   public VResultPath<E, A> recover(Function<? super E, ? extends A> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new VResultPath<>(
-        task.map(either -> either.fold(e -> Either.<E, A>right(recovery.apply(e)), _ -> either)));
+        task.map(
+            either ->
+                either.fold(
+                    e ->
+                        Either.<E, A>right(
+                            Objects.requireNonNull(
+                                recovery.apply(e), "recovery must not return null")),
+                    _ -> either)));
   }
 
   /**
@@ -504,7 +524,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                     e ->
                         Objects.requireNonNull(
                             errorMapper.apply(e), "errorMapper must not return null"),
-                    successMapper)));
+                    a ->
+                        Objects.requireNonNull(
+                            successMapper.apply(a), "successMapper must not return null"))));
   }
 
   // ===== Conversions =====

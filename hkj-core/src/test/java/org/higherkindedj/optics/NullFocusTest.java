@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.extensions.LensExtensions;
 import org.higherkindedj.optics.extensions.TraversalExtensions;
@@ -257,6 +259,48 @@ class NullFocusTest {
       assertThatVStreamPath(
               PathOps.traverseVStream(nullsAround("b"), s -> Path.vstreamPure(s == null ? "-" : s)))
           .producesElementsInOrder(List.of("-", "b", "-"));
+    }
+
+    @Test
+    @DisplayName(
+        "the helpers keep a null element their traversal passes over, though a Right or a Valid"
+            + " cannot hold it")
+    void theHelpersKeepANullElementTheTraversalPassesOver() {
+      Traversal<List<@Nullable String>, @Nullable String> present =
+          Traversals.<@Nullable String>forList().filtered(Objects::nonNull);
+      Traversal<List<@Nullable String>, String> viaPrism =
+          Traversals.<@Nullable String>forList().andThen(Prisms.<String>notNull().asTraversal());
+
+      assertThatEither(
+              TraversalExtensions.modifyAllEither(
+                  present, s -> Either.<String, String>right(s + "!"), nullsAround("b")))
+          .hasRight(Arrays.asList(null, "b!", null));
+      assertThatEither(
+              OpticOps.modifyAllEither(
+                  nullsAround("b"), viaPrism, s -> Either.<String, String>right(s + "!")))
+          .hasRight(Arrays.asList(null, "b!", null));
+      assertThatEither(
+              TraversalExtensions.modifyAllEither(
+                  viaPrism, s -> Either.<String, String>left("bad " + s), Arrays.asList("x", "y")))
+          .hasLeft("bad x");
+      assertThatValidated(
+              OpticOps.modifyAllValidated(
+                  nullsAround("b"), viaPrism, s -> Validated.<String, String>valid(s + "!")))
+          .hasValue(Arrays.asList(null, "b!", null));
+      assertThatValidated(
+              TraversalExtensions.modifyAllValidated(
+                  viaPrism,
+                  s -> Validated.<String, String>invalid("bad " + s),
+                  Arrays.asList("x", null, "y")))
+          .hasError(List.of("bad x", "bad y"));
+      assertThatMaybe(
+              TraversalExtensions.modifyAllMaybe(
+                  viaPrism, s -> Maybe.just(s + "!"), nullsAround("b")))
+          .hasValue(Arrays.asList(null, "b!", null));
+      assertThatMaybe(
+              TraversalExtensions.modifyAllMaybe(
+                  viaPrism, s -> Maybe.<String>nothing(), nullsAround("b")))
+          .isNothing();
     }
   }
 

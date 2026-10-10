@@ -38,6 +38,7 @@ import org.higherkindedj.example.order.service.impl.InMemoryNotificationService;
 import org.higherkindedj.example.order.service.impl.InMemoryPaymentService;
 import org.higherkindedj.example.order.service.impl.InMemoryShippingService;
 import org.higherkindedj.example.order.workflow.ConfigurableOrderWorkflow;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -160,7 +161,7 @@ class ConfigurableOrderWorkflowTest {
     }
 
     @Override
-    public Either<OrderError, Void> cancelShipment(String shipmentId) {
+    public Either<OrderError, Unit> cancelShipment(String shipmentId) {
       return delegate.cancelShipment(shipmentId);
     }
 

@@ -160,6 +160,80 @@ class HkjHttpClientProcessorTest {
   }
 
   @Nested
+  @DisplayName("an endpoint that sends no body")
+  class NoBody {
+
+    @Test
+    @DisplayName("Unit ignores the body: the native method returns ResponseEntity<Void>")
+    void unitIgnoresTheBody() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}\")",
+                  "  EitherPath<UserError, org.higherkindedj.hkt.Unit> delete(@PathVariable String id);",
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}/later\")",
+                  "  VTaskPath<Either<UserError, org.higherkindedj.hkt.Unit>> deleteLater(",
+                  "      @PathVariable String id);",
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}/maybe\")",
+                  "  MaybePath<org.higherkindedj.hkt.Unit> deleteIfThere(@PathVariable String id);"),
+              USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("ResponseEntity<Void> delete\\(");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("HkjClientExchange.eitherUnit(");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("HkjClientExchange.eitherVTaskUnit(");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("HkjClientExchange.maybeUnit(");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("ResponseEntity<Void> deleteIfThere\\(");
+    }
+
+    @Test
+    @DisplayName("Void is refused, with a fix line naming Unit")
+    void voidIsRefused() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}\")",
+                  "  EitherPath<UserError, Void> delete(@PathVariable String id);"),
+              USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@HkjHttpClient success type Void cannot hold a value, but a success always holds"
+                  + " one. Replace Void with org.higherkindedj.hkt.Unit");
+    }
+
+    @Test
+    @DisplayName("Void is refused on a MaybePath too, where every 2xx would read as Nothing")
+    void voidIsRefusedOnAMaybePath() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}\")",
+                  "  MaybePath<Void> deleteIfThere(@PathVariable String id);"),
+              USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Replace Void with org.higherkindedj.hkt.Unit");
+    }
+  }
+
+  @Nested
   @DisplayName("copies arbitrary mapping-annotation attributes through faithfully")
   class CopyThrough {
 

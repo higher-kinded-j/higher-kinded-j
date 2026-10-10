@@ -59,16 +59,8 @@ class EitherTAssertContractTest
   private static final Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> EMPTY =
       empty();
 
-  private static Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> rightNull() {
-    Kind<OptionalKind.Witness, Either<String, Integer>> outer =
-        OPTIONAL.widen(Optional.of(Either.right(null)));
-    return EITHER_T.widen(EitherT.fromKind(outer));
-  }
-
   private static final Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> L_NULL =
       left(null);
-  private static final Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> R_NULL =
-      rightNull();
 
   @Override
   protected Function<
@@ -132,9 +124,6 @@ class EitherTAssertContractTest
         passOnly("hasNonNullLeftValue", L_ERR, EitherTOptionalAssert::hasNonNullLeftValue),
         row("hasRightValueOfType match", R_42, L_ERR, a -> a.hasRightValueOfType(Integer.class)),
         failOnly("hasRightValueOfType wrong type", R_42, a -> a.hasRightValueOfType(String.class)),
-        // Right(null) → ternary's "null" branch is taken when message is built
-        failOnly(
-            "hasRightValueOfType null Right", R_NULL, a -> a.hasRightValueOfType(String.class)),
         row("hasLeftValueOfType match", L_ERR, R_42, a -> a.hasLeftValueOfType(String.class)),
         failOnly("hasLeftValueOfType wrong type", L_ERR, a -> a.hasLeftValueOfType(Integer.class)),
         failOnly("hasLeftValueOfType null Left", L_NULL, a -> a.hasLeftValueOfType(Integer.class)),

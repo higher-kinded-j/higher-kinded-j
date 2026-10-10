@@ -922,11 +922,12 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Extracts the focused value and wraps it in an {@link EitherPath}.
    *
    * <p>This bridges from the optics domain to the effect domain for error-handling computations.
-   * Since FocusPath always focuses on exactly one element, the result is always a Right (success)
-   * EitherPath.
+   * Since FocusPath always focuses on exactly one element, a focus that is not null gives a Right
+   * (success) EitherPath.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, {@link #toEitherPath(Object, Object)} says what a null focus becomes.
+   * <p>A Right always holds a value, so this form is for a focus that is never null, and a null
+   * focus throws. For a focus that may be null, {@link #toEitherPath(Object, Object)} says what a
+   * null focus becomes.
    *
    * <h2>Example Usage</h2>
    *
@@ -942,9 +943,13 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * @param source the source structure
    * @param <E> the error type (phantom for success case)
    * @return an EitherPath containing the focused value as Right
+   * @throws NullPointerException if the focus is null
    */
   default <E> EitherPath<E, A> toEitherPath(S source) {
-    return Path.right(get(source));
+    return Path.right(
+        Objects.requireNonNull(
+            get(source),
+            "the focus is null: use toEitherPath(source, errorIfNull) to give a Left for it"));
   }
 
   /**
@@ -1023,11 +1028,12 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Extracts the focused value and wraps it in a {@link TryPath}.
    *
    * <p>This bridges from the optics domain to the effect domain for exception-handling
-   * computations. Since FocusPath always focuses on exactly one element, the result is always a
-   * Success TryPath.
+   * computations. Since FocusPath always focuses on exactly one element, a focus that is not null
+   * gives a Success TryPath.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, {@link #toTryPath(Object, Supplier)} says what a null focus becomes.
+   * <p>A Success always holds a value, so this form is for a focus that is never null, and a null
+   * focus throws. For a focus that may be null, {@link #toTryPath(Object, Supplier)} says what a
+   * null focus becomes.
    *
    * <h2>Example Usage</h2>
    *
@@ -1042,9 +1048,13 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param source the source structure
    * @return a TryPath containing the focused value as Success
+   * @throws NullPointerException if the focus is null
    */
   default TryPath<A> toTryPath(S source) {
-    return Path.success(get(source));
+    return Path.success(
+        Objects.requireNonNull(
+            get(source),
+            "the focus is null: use toTryPath(source, exceptionIfNull) to give a Failure for it"));
   }
 
   /**

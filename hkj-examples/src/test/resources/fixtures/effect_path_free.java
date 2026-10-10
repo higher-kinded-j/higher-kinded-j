@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
@@ -92,8 +93,8 @@ class Fixture {
     return Path.freeLift(new Ask<>(prompt, Function.identity()), consoleFunctor);
   }
 
-  FreePath<ConsoleOp.Witness, Void> tell(String message) {
-    return Path.freeLift(new Tell<>(message, null), consoleFunctor);
+  FreePath<ConsoleOp.Witness, Unit> tell(String message) {
+    return Path.freeLift(new Tell<>(message, Unit.INSTANCE), consoleFunctor);
   }
 
   final FreePath<ConsoleOp.Witness, String> greetUser =

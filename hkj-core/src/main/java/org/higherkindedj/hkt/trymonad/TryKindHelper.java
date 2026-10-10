@@ -61,10 +61,11 @@ public enum TryKindHelper implements TryConverterOps {
    * with the given value.
    *
    * @param <A> The type of the successful value.
-   * @param value The successful value. Can be {@code null}.
+   * @param value The non-null successful value.
    * @return A non-null {@code Kind<TryKind.Witness, A>} representing the successful computation.
+   * @throws NullPointerException if {@code value} is null.
    */
-  public <A> Kind<TryKind.Witness, A> success(@Nullable A value) {
+  public <A> Kind<TryKind.Witness, A> success(A value) {
     return this.widen(Try.success(value));
   }
 
@@ -83,7 +84,8 @@ public enum TryKindHelper implements TryConverterOps {
 
   /**
    * Executes a {@link Supplier} and wraps its outcome into a {@link Kind}&lt;{@link
-   * TryKind.Witness}, A&gt;.
+   * TryKind.Witness}, A&gt;, as {@link Try#of(Supplier)} does: a supplier that returns null gives a
+   * {@code Failure} holding a {@link NullPointerException}.
    *
    * @param <A> The type of the value supplied by the {@code supplier}.
    * @param supplier The non-null {@link Supplier} to execute.

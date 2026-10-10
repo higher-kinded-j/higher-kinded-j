@@ -9,7 +9,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
@@ -41,6 +43,20 @@ final class JsonResponses {
     return status == HttpStatus.NO_CONTENT.value()
         || status == HttpStatus.RESET_CONTENT.value()
         || status == HttpStatus.NOT_MODIFIED.value();
+  }
+
+  /**
+   * Whether a successful response carries a body. A bodiless status never does, and nor does a
+   * {@link Unit} value, which is how a handler says it succeeded with nothing to send, or a null
+   * value, which a lazy Path such as an {@code IOPath} may still give. The response is then the
+   * resolved status with no body, as a {@code void} controller method gives.
+   *
+   * @param status the HTTP status code
+   * @param value the success value
+   * @return {@code true} when the value should be written as the JSON body
+   */
+  static boolean hasSuccessBody(int status, @Nullable Object value) {
+    return !isBodilessStatus(status) && value != null && !(value instanceof Unit);
   }
 
   /**

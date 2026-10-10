@@ -217,12 +217,17 @@ public final class Path {
   /**
    * Creates an EitherPath containing a Right (success) value.
    *
-   * @param value the success value
+   * <p>A Right always holds a value. For a step that succeeds with nothing to return, pass {@link
+   * Unit#INSTANCE}.
+   *
+   * @param value the success value; must not be null
    * @param <E> the error type (phantom)
    * @param <A> the success type
    * @return an EitherPath containing Right
+   * @throws NullPointerException if value is null
    */
-  public static <E, A> EitherPath<E, A> right(@Nullable A value) {
+  public static <E, A> EitherPath<E, A> right(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new EitherPath<>(Either.right(value));
   }
 
@@ -370,7 +375,8 @@ public final class Path {
    * Creates a TryPath by executing the given supplier.
    *
    * <p>If the supplier completes normally, returns a success TryPath. If the supplier throws, the
-   * exception is captured in a failure TryPath.
+   * exception is captured in a failure TryPath, and a supplier that returns null gives a failure
+   * holding a {@link NullPointerException}, since a success always holds a value.
    *
    * @param supplier the computation to execute; must not be null
    * @param <A> the type of the result
@@ -385,11 +391,16 @@ public final class Path {
   /**
    * Creates a successful TryPath containing the given value.
    *
-   * @param value the success value
+   * <p>A Success always holds a value. For a step that succeeds with nothing to return, pass {@link
+   * Unit#INSTANCE}.
+   *
+   * @param value the success value; must not be null
    * @param <A> the type of the value
    * @return a success TryPath
+   * @throws NullPointerException if value is null
    */
-  public static <A> TryPath<A> success(@Nullable A value) {
+  public static <A> TryPath<A> success(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new TryPath<>(Try.success(value));
   }
 
@@ -581,10 +592,14 @@ public final class Path {
   /**
    * Creates a successful VResultPath containing the given value.
    *
-   * @param value the success value
+   * <p>A Right always holds a value. For a step that succeeds with nothing to return, pass {@link
+   * Unit#INSTANCE}.
+   *
+   * @param value the success value; must not be null
    * @param <E> the phantom error type
    * @param <A> the success type
    * @return a VResultPath that immediately produces {@code Right(value)} when run
+   * @throws NullPointerException if value is null
    */
   public static <E, A> VResultPath<E, A> vresultRight(A value) {
     return VResultPath.pure(value);

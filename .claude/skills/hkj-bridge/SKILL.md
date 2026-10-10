@@ -39,7 +39,7 @@ You are helping a developer combine HKJ's Effect Path API with the Focus DSL / O
 
 Use `toXxxPath()` methods on Focus paths to start an effect pipeline from data navigation.
 
-### FocusPath (always one focus -> toEitherPath, toTryPath and toIdPath succeed; toMaybePath gives Nothing for a null focus)
+### FocusPath (always one focus -> each bridge succeeds for a non-null focus; a null focus gives Nothing from toMaybePath and throws from the one-argument toEitherPath/toTryPath)
 
 ```java
 FocusPath<User, String> namePath = UserFocus.name();
@@ -87,10 +87,10 @@ MaybePath<User> first = employees.toMaybePath(company);   // First value or Noth
 | Source Path | Method | Result |
 |-------------|--------|--------|
 | `FocusPath<S, A>` | `.toMaybePath(S)` | `Just(a)`, or `Nothing` for a null focus |
-| `FocusPath<S, A>` | `.toEitherPath(S)` | Always `Right(a)` |
+| `FocusPath<S, A>` | `.toEitherPath(S)` | `Right(a)`; throws for a null focus |
 | `FocusPath<S, A>` | `.toEitherPath(S, E)` | `Right(a)`, or `Left(e)` for a null focus |
 | `FocusPath<S, A>` | `.toEitherPath(S, Supplier)` | As above, error built only for a null focus |
-| `FocusPath<S, A>` | `.toTryPath(S)` | Always `Success(a)` |
+| `FocusPath<S, A>` | `.toTryPath(S)` | `Success(a)`; throws for a null focus |
 | `FocusPath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)`, or `Failure` for a null focus |
 | `FocusPath<S, A>` | `.toIdPath(S)` | Always `Id(a)` |
 | `AffinePath<S, A>` | `.toMaybePath(S)` | `Just(a)` or `Nothing` |

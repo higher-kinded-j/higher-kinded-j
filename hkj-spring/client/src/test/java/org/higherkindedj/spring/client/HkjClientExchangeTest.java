@@ -6,11 +6,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.VTaskPath;
@@ -22,6 +25,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 @DisplayName("HkjClientExchange translators")
@@ -76,12 +80,22 @@ class HkjClientExchangeTest {
     }
 
     @Test
-    @DisplayName("a 2xx response with an empty body becomes Right(null)")
-    void emptyBodyRightNull() {
-      EitherPath<UserError, UserDto> path =
-          HkjClientExchange.either(() -> ResponseEntity.ok(null), DECODER);
+    @DisplayName("a 2xx response with an empty body is refused, carrying its status and headers")
+    void emptyBodyRefused() {
+      Supplier<ResponseEntity<UserDto>> created =
+          () -> ResponseEntity.created(URI.create("/users/7")).build();
 
-      assertThatEither(path.run()).isRight().hasRightNull();
+      assertThatThrownBy(() -> HkjClientExchange.either(created, DECODER))
+          .isInstanceOfSatisfying(
+              EmptyResponseBodyException.class,
+              e -> {
+                assertThat(e)
+                    .isInstanceOf(RestClientException.class)
+                    .hasMessageStartingWith(
+                        "The 201 response had no body, but a Right needs a value");
+                assertThat(e.statusCode()).isEqualTo(HttpStatus.CREATED);
+                assertThat(e.headers().getLocation()).isEqualTo(URI.create("/users/7"));
+              });
     }
 
     @Test
@@ -117,6 +131,84 @@ class HkjClientExchangeTest {
       assertThatEither(path.unsafeRun())
           .isLeft()
           .hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("400"));
+    }
+
+    @Test
+    @DisplayName("a 2xx response with an empty body fails the task")
+    void emptyBodyFailsTheTask() {
+      VTaskPath<Either<UserError, UserDto>> path =
+          HkjClientExchange.eitherVTask(() -> ResponseEntity.ok(null), DECODER);
+
+      assertThatTry(path.runSafe())
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(EmptyResponseBodyException.class)
+                      .hasMessageContaining("had no body"));
+    }
+  }
+
+  @Nested
+  @DisplayName("maybeUnit")
+  class MaybeUnitTranslator {
+
+    @Test
+    @DisplayName("2xx becomes Just(Unit.INSTANCE), whatever the body, and 404 becomes Nothing")
+    void justUnitOrNothing() {
+      Supplier<ResponseEntity<Void>> noContent = () -> ResponseEntity.noContent().build();
+
+      assertThatMaybe(HkjClientExchange.maybeUnit(noContent).run())
+          .isJust()
+          .hasValue(Unit.INSTANCE);
+      assertThatMaybe(HkjClientExchange.maybeUnit(ok(ADA)).run()).isJust().hasValue(Unit.INSTANCE);
+      assertThatMaybe(HkjClientExchange.maybeUnit(fails(HttpStatus.NOT_FOUND, "gone")).run())
+          .isNothing();
+    }
+
+    @Test
+    @DisplayName("other failures propagate as the original exception")
+    void otherFailuresPropagate() {
+      Supplier<ResponseEntity<UserDto>> serverError = fails(HttpStatus.INTERNAL_SERVER_ERROR, "x");
+
+      assertThatThrownBy(() -> HkjClientExchange.maybeUnit(serverError))
+          .isInstanceOf(RestClientResponseException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("eitherUnit and eitherVTaskUnit")
+  class UnitTranslators {
+
+    private final Supplier<ResponseEntity<Void>> noContent =
+        () -> ResponseEntity.noContent().build();
+
+    @Test
+    @DisplayName("2xx becomes Right(Unit.INSTANCE), whatever the body")
+    void successRightUnit() {
+      assertThatEither(HkjClientExchange.eitherUnit(noContent, DECODER).run())
+          .isRight()
+          .hasRight(Unit.INSTANCE);
+      assertThatEither(HkjClientExchange.eitherUnit(ok(ADA), DECODER).run())
+          .isRight()
+          .hasRight(Unit.INSTANCE);
+      assertThatEither(HkjClientExchange.eitherVTaskUnit(noContent, DECODER).unsafeRun())
+          .isRight()
+          .hasRight(Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("4xx is decoded into Left(error)")
+    void failureLeft() {
+      assertThatEither(
+              HkjClientExchange.eitherUnit(fails(HttpStatus.NOT_FOUND, "gone"), DECODER).run())
+          .isLeft()
+          .hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("404"));
+      assertThatEither(
+              HkjClientExchange.eitherVTaskUnit(fails(HttpStatus.CONFLICT, "busy"), DECODER)
+                  .unsafeRun())
+          .isLeft()
+          .hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("409"));
     }
   }
 

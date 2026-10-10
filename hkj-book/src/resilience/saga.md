@@ -141,7 +141,7 @@ try {
 
 If all compensations succeed, the original exception is thrown directly. If any compensation also fails, a `SagaExecutionException` is thrown containing the full `SagaError`.
 
-The saga's own `runSafe()` (distinct from `VTask.runSafe()`, which returns a `Try`) keeps the failure structured instead of thrown:
+The saga's own `runSafe()` (distinct from `VTask.runSafe()`, which returns a `Try`) keeps the failure structured instead of thrown. A `Right` always holds a value, so return `Unit` from a saga with nothing to return: a null result is compensated like a failed step.
 
 ### runSafe(): Either with Full Details
 

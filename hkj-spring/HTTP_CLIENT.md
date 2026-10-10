@@ -104,6 +104,13 @@ signature, and sorted), so repeated builds produce byte-identical sources.
 | `EitherPath<E, T>` | `Right(body)` on 2xx, `Left(decoded)` on a 4xx/5xx envelope | Eager: the call runs when the method is invoked. |
 | `VTaskPath<Either<E, T>>` | the same `Either`, deferred on a virtual thread | Lazy: layer `withRetry` / `timeout` / `withCircuitBreaker` on the returned path before running it. |
 | `MaybePath<T>` | `Just(body)` on 2xx, `Nothing` on 404 or empty body | Other failures propagate as the original exception. |
+| `EitherPath<E, Unit>`, `VTaskPath<Either<E, Unit>>` | `Right(Unit.INSTANCE)` on 2xx, whatever the body | For an endpoint that sends no body. The native method returns `ResponseEntity<Void>`; declaring `Void` itself is a compile error. |
+| `MaybePath<Unit>` | `Just(Unit.INSTANCE)` on 2xx, whatever the body, `Nothing` on 404 | For an endpoint that sends no body and may answer 404. |
+
+A `Right` always holds a value, so `EitherPath<E, T>` and `VTaskPath<Either<E, T>>` refuse a 2xx
+response with no body: it propagates as an `EmptyResponseBodyException`, a `RestClientException`
+that carries the response's status and headers. The request has already been made by then, so
+exclude that type from a retry policy that retries every throwable.
 
 The runtime translators live in `HkjClientExchange`:
 
@@ -111,6 +118,9 @@ The runtime translators live in `HkjClientExchange`:
 HkjClientExchange.either(Supplier<ResponseEntity<T>>, ResponseErrorDecoder<E>) → EitherPath<E, T>
 HkjClientExchange.eitherVTask(Supplier<ResponseEntity<T>>, ResponseErrorDecoder<E>) → VTaskPath<Either<E, T>>
 HkjClientExchange.maybe(Supplier<ResponseEntity<T>>) → MaybePath<T>
+HkjClientExchange.eitherUnit(Supplier<? extends ResponseEntity<?>>, ResponseErrorDecoder<E>) → EitherPath<E, Unit>
+HkjClientExchange.eitherVTaskUnit(Supplier<? extends ResponseEntity<?>>, ResponseErrorDecoder<E>) → VTaskPath<Either<E, Unit>>
+HkjClientExchange.maybeUnit(Supplier<? extends ResponseEntity<?>>) → MaybePath<Unit>
 HkjClientExchange.vstream(Supplier<InputStream>, Class<T>, JsonMapper) → VStreamPath<T>
 ```
 

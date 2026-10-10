@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either_t;
 
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherTAssert.assertThatEitherT;
 import static org.higherkindedj.hkt.either_t.EitherTKindHelper.EITHER_T;
@@ -66,14 +67,6 @@ class EitherTMonadTest
   private <R> Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, R> emptyT() {
     Kind<OptionalKind.Witness, Either<TestError, R>> emptyOuter = OPTIONAL.widen(Optional.empty());
     return EITHER_T.widen(EitherT.fromKind(emptyOuter));
-  }
-
-  private <A, B>
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Function<A, B>>
-          rightTWithNullFunction() {
-    Kind<OptionalKind.Witness, Either<TestError, Function<A, B>>>
-        outerOptionalOfEitherRightNullFunc = OPTIONAL.widen(Optional.of(Either.right(null)));
-    return EITHER_T.widen(EitherT.fromKind(outerOptionalOfEitherRightNullFunc));
   }
 
   // TypeClassTestBase implementations
@@ -277,18 +270,6 @@ class EitherTMonadTest
     }
 
     @Test
-    @DisplayName("ap: F<Right(null_function)> ap F<Right(val)> should throw NPE")
-    void ap_FuncRightIsNull_ValRight_shouldThrowNPE() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Function<Integer, String>> ff =
-          rightTWithNullFunction();
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> fa = rightT(10);
-
-      assertThatThrownBy(() -> eitherTMonad.ap(ff, fa))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessage("mapper for map cannot be null");
-    }
-
-    @Test
     @DisplayName("ap: F<Right(function_throws)> ap F<Right(val)> should throw exception")
     void ap_FuncRightThrows_ValRight_shouldThrowException() {
       RuntimeException ex = new RuntimeException("Function apply crashed");
@@ -489,10 +470,14 @@ class EitherTMonadTest
     }
 
     @Test
-    @DisplayName("recover with a null value yields Right(null)")
-    void recover_withNullValueYieldsRightOfNull() {
-      var result = eitherTMonad.recover(leftVal, null);
-      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional).isPresentRight();
+    @DisplayName("recover refuses a null value, whether or not the source is a Left")
+    void recover_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> eitherTMonad.recover(leftVal, null))
+          .withMessage("EitherTMonad.recover value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> eitherTMonad.recover(rightVal, null))
+          .withMessage("EitherTMonad.recover value cannot be null");
     }
 
     @Test
@@ -605,13 +590,11 @@ class EitherTMonadTest
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("of with null value")
-    @SuppressWarnings("DataFlowIssue") // EitherT holds a null Right payload
-    void of_withNullValue() {
-      var result = eitherTMonad.of(null);
-      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
-          .isPresentRight()
-          .hasRightValue(null);
+    @DisplayName("of refuses a null value")
+    void of_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> eitherTMonad.of(null))
+          .withMessage("EitherTMonad.of value cannot be null");
     }
 
     @Test

@@ -649,20 +649,15 @@ public final class PathOps {
             () -> {
               Throwable lastError = null;
               for (VTaskPath<A> path : paths) {
-                // Use VTask.runSafe() (catches all Throwable) instead of
-                // Effectful.runSafe() (catches only Exception via Try.of())
-                Try<A> result = path.run().runSafe();
-                // Use pattern matching on the sealed Try type to extract values
-                // without dead lambda branches that fold() would require.
-                switch (result) {
-                  case Try.Success<A>(var value) -> {
-                    return value;
-                  }
-                  case Try.Failure<A>(var cause) -> lastError = cause;
+                // Catch every Throwable, not only Exception, and hand back a null result as it
+                // is: a VTaskPath may hold one, where a Try.Success may not.
+                try {
+                  return path.run().execute();
+                } catch (Throwable t) {
+                  lastError = t;
                 }
               }
-              // VTask.runSafe() catches all Throwable, so lastError can be
-              // RuntimeException, Error, or checked Exception.
+              // lastError can be RuntimeException, Error, or checked Exception.
               if (lastError instanceof RuntimeException re) {
                 throw re;
               }

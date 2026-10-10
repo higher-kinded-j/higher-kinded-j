@@ -479,7 +479,12 @@ public final class EitherOrBothPath<L, A>
    */
   public <B> EitherOrBothPath<L, B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), errorIfAbsent) to give a Left for"
+                    + " it"));
   }
 
   /**

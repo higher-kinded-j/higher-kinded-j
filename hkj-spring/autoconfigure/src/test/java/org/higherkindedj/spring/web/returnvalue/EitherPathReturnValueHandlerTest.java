@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
 import java.util.Map;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,6 +108,19 @@ class EitherPathReturnValueHandlerTest {
       String json = stringWriter.toString();
       assertThat(json).contains("\"id\":\"1\"");
       assertThat(json).contains("\"email\":\"alice@example.com\"");
+    }
+
+    @Test
+    @DisplayName("A Right(Unit) writes no body at the resolved status")
+    void rightUnitWritesNoBody() throws Exception {
+      EitherPath<String, Unit> path = Path.right(Unit.INSTANCE);
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.OK.value());
+      verify(response, never()).setContentType(anyString());
+      printWriter.flush();
+      assertThat(stringWriter.toString()).isEmpty();
     }
 
     @Test
