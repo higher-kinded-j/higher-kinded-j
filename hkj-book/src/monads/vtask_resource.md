@@ -284,10 +284,10 @@ Resource<Connection> connResource = Resource.make(
 });
 
 VTask<OrderResult> processOrder = connResource.use(conn ->
-    Scope.<Void>allSucceed()
-        .fork(VTask.of(() -> { updateInventory(conn, order); return null; }))
-        .fork(VTask.of(() -> { chargePayment(conn, order); return null; }))
-        .fork(VTask.of(() -> { sendNotification(conn, order); return null; }))
+    Scope.<Unit>allSucceed()
+        .fork(VTask.exec(() -> updateInventory(conn, order)))
+        .fork(VTask.exec(() -> chargePayment(conn, order)))
+        .fork(VTask.exec(() -> sendNotification(conn, order)))
         .join()
         .flatMap(_ -> VTask.of(() -> {
             conn.commit();

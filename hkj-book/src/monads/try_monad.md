@@ -77,12 +77,12 @@ You can create `Try` instances in several ways:
    // Failure(ClassNotFoundException)
    ```
 
-3. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value (which can be null).
+3. **`Try.success(value)`:** Directly creates a `Success` instance holding the given value. A `Success` always holds a value, so `Try.success(null)` throws `NullPointerException`. A supplier, mapper or recovery function that returns null gives a `Failure` holding a `NullPointerException`.
 
    <!-- verify -->
    ```java
    Try<String> directSuccess = Try.success("Known value");
-   Try<String> successNull = Try.success(null);
+   Try<String> nothingBack = Try.of(() -> null);   // Failure(NullPointerException)
    ```
 4. **`Try.failure(throwable)`:** Directly creates a `Failure` instance holding the given non-null `Throwable`.
 

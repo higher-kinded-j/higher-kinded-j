@@ -308,6 +308,12 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
    * optic composition. Elements that don't match the predicate are preserved unchanged in the
    * structure during modifications, but are excluded from queries like {@code getAll}.
    *
+   * <p>{@code modifyF} keeps an element it passes over by lifting it with the applicative's {@code
+   * of}. So under an applicative whose {@code of} refuses null, such as {@code Either}'s, {@code
+   * Try}'s or {@code Validated}'s, a null element the predicate passes over throws. {@code
+   * TraversalExtensions.modifyAllEither} and its siblings run in one pass that keeps such an
+   * element as it is.
+   *
    * <p>Example:
    *
    * <pre>{@code
@@ -352,6 +358,8 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
    *
    * <p>This advanced filtering combinator allows filtering based on properties accessed through
    * another optic (Fold), enabling queries like "all users who have at least one expensive order".
+   * As with {@link #filtered(Predicate)}, an element passed over is lifted with the applicative's
+   * {@code of}, so a null one throws where {@code of} refuses null.
    *
    * <p>Example:
    *

@@ -171,7 +171,7 @@ public final class EitherTAssert {
       Assertions.assertThat(value)
           .withFailMessage(
               "Expected Right value to be of type <%s> but was <%s>",
-              type.getName(), value == null ? "null" : value.getClass().getName())
+              type.getName(), value.getClass().getName())
           .isInstanceOf(type);
       return this;
     }

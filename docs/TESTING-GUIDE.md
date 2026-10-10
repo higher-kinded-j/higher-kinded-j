@@ -1163,15 +1163,15 @@ assertThatThrownBy(() -> testIdentityLaw(brokenFunctor, testData))
 @Test
 @DisplayName("map catches exceptions and converts Success to Failure")
 void mapCatchesExceptions() {
-    Try<Integer> success = Try.success(null);
-    // Function throws NPE on null
-    Function<Integer, String> throwingFunction = i -> i.toString();
+    Try<String> success = Try.success("not a number");
+    // Function throws NumberFormatException
+    Function<String, Integer> throwingFunction = Integer::parseInt;
 
-    Try<String> result = success.map(throwingFunction);
+    Try<Integer> result = success.map(throwingFunction);
 
     assertThat(result.isFailure()).isTrue();
-    assertThat(((Try.Failure<String>) result).cause())
-        .isInstanceOf(NullPointerException.class);
+    assertThat(((Try.Failure<Integer>) result).cause())
+        .isInstanceOf(NumberFormatException.class);
 }
 ```
 

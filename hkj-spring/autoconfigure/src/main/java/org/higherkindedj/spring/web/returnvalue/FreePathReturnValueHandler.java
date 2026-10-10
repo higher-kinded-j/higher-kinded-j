@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.boundary.EffectBoundary;
-import org.higherkindedj.hkt.trymonad.Try;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,18 +110,17 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Interpret the program via the boundary
-    Try<?> result = boundary.runSafe(freePath.toFree());
-    result.foldFailureFirst(
-        throwable -> {
-          log.error("FreePath interpretation failed in controller method", throwable);
-          writeFailureResponse(throwable, response);
-          return null;
-        },
-        value -> {
-          writeSuccessResponse(value, response, successStatus);
-          return null;
-        });
+    // Interpret the program via the boundary. Not through runSafe: a Try cannot hold the null a
+    // program may still give, which answers like a void method.
+    Object value;
+    try {
+      value = boundary.run(freePath.toFree());
+    } catch (Exception e) {
+      log.error("FreePath interpretation failed in controller method", e);
+      writeFailureResponse(e, response);
+      return;
+    }
+    writeSuccessResponse(value, response, successStatus);
   }
 
   private void writeFailureResponse(Throwable throwable, HttpServletResponse response) {
@@ -153,10 +151,11 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
     }
   }
 
-  private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
+  private void writeSuccessResponse(
+      @Nullable Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }

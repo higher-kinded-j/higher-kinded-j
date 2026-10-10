@@ -341,11 +341,19 @@ public final class WriterPath<W, A> implements Chainable<A> {
   /**
    * Converts to an EitherPath, discarding the log.
    *
+   * <p>A Right always holds a value, so a null value throws: {@code
+   * toMaybePath().toEitherPath(error)} gives a Left for it instead.
+   *
    * @param <E> the error type
    * @return an EitherPath containing the value as Right
+   * @throws NullPointerException if the value is null
    */
   public <E> EitherPath<E, A> toEitherPath() {
-    return new EitherPath<>(Either.right(value()));
+    return new EitherPath<>(
+        Either.right(
+            Objects.requireNonNull(
+                value(),
+                "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it")));
   }
 
   // ===== Object methods =====

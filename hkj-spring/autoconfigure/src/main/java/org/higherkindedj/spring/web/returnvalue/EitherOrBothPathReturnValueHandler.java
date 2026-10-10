@@ -150,7 +150,7 @@ public class EitherOrBothPathReturnValueHandler implements HandlerMethodReturnVa
   private void writeSuccessResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }
@@ -165,7 +165,7 @@ public class EitherOrBothPathReturnValueHandler implements HandlerMethodReturnVa
       response.setStatus(status);
       // Warnings are surfaced as a header so the success body stays the bare value.
       response.setHeader(WARNINGS_HEADER, objectWriter.writeValueAsString(warnings));
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }

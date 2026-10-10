@@ -70,13 +70,6 @@ class EitherFunctorTest extends EitherTestBase {
       var result = functor.map(validMapper, leftKind);
       assertThatEither(result).isLeft().hasLeft(TestErrorType.ERROR_1.message());
     }
-
-    @Test
-    void mapWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind(null);
-      var result = functor.map(String::valueOf, rightNull);
-      assertThatEither(result).isRight().hasRight("null");
-    }
   }
 
   @Nested

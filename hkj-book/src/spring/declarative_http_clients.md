@@ -187,13 +187,14 @@ For an interface `UserClientApi`, the annotation processor generates three sibli
 - **`UserClientApiClientConfiguration`** : a `@Configuration` that registers the native interface as an `@ImportHttpServices` group and exposes the client as a bean.
 ~~~
 
-Every supported return type maps to the same native method shape, `ResponseEntity<T>`, where `T` is the Path's success type:
+Every supported return type maps to the same native method shape, `ResponseEntity<T>`, where `T` is the Path's success type. The one exception is `Unit`, which says the endpoint sends no body:
 
 | Your method returns | Generated native method |
 |---|---|
 | `EitherPath<E, T>` | `ResponseEntity<T>` |
 | `VTaskPath<Either<E, T>>` | `ResponseEntity<T>` |
 | `MaybePath<T>` | `ResponseEntity<T>` |
+| `EitherPath<E, Unit>`, `VTaskPath<Either<E, Unit>>` or `MaybePath<Unit>` | `ResponseEntity<Void>` |
 
 You never reference the generated names. You autowire your own interface.
 
@@ -208,9 +209,12 @@ Each method picks how the call is run and what shape the result takes. (`Right`/
 | `EitherPath<E, T>` | Eager, blocks the calling thread | `Right(body)` | `Left(decoded error)` | A straightforward request/response call |
 | `VTaskPath<Either<E, T>>` | Deferred onto a virtual thread | `Right(body)` | `Left(decoded error)` | You want retries, a circuit breaker, a timeout, or a `Retry-After` hook |
 | `MaybePath<T>` | Eager, blocks the calling thread | `Just(body)` | 404 → `Nothing` | Absence is normal and untyped (a lookup that may miss) |
+| `EitherPath<E, Unit>` | Eager, blocks the calling thread | `Right(Unit.INSTANCE)`, body ignored | `Left(decoded error)` | The endpoint sends no body, such as a `DELETE` answered with 204 |
+| `VTaskPath<Either<E, Unit>>` | Deferred onto a virtual thread | `Right(Unit.INSTANCE)`, body ignored | `Left(decoded error)` | As above, with retries or a timeout |
+| `MaybePath<Unit>` | Eager, blocks the calling thread | `Just(Unit.INSTANCE)`, body ignored | 404 → `Nothing` | The endpoint sends no body and may answer 404 |
 
 ~~~admonish note title="Semantics worth pinning"
-- **Empty 2xx body.** `EitherPath`/`VTaskPath` yield `Right(null)`; `MaybePath` yields `Nothing`. If an endpoint may legitimately return no body, declare `T` accordingly or guard the success value.
+- **Empty 2xx body.** A `Right` always holds a value, so `EitherPath` throws an `EmptyResponseBodyException` for an empty body, and `VTaskPath` fails its task with one. The request has been made by then, so exclude that type from a retry policy. `MaybePath` yields `Nothing`. For an endpoint that sends no body, declare `Unit`; `Void` is refused when the client is generated.
 - **`MaybePath` only treats 404 as absence.** Other non-2xx statuses propagate as the original exception. `MaybePath` models "might be missing", not "might fail".
 - **Thread-safety.** The generated client is a stateless singleton, safe for concurrent use; the eager variants block the caller, the deferred `VTaskPath` runs on a virtual thread when the task is run.
 ~~~

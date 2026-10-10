@@ -63,7 +63,9 @@ import org.jspecify.annotations.Nullable;
  * </ul>
  *
  * <p>Supported return types: {@code EitherPath<E, T>}, {@code VTaskPath<Either<E, T>>}, and {@code
- * MaybePath<T>}.
+ * MaybePath<T>}. For an endpoint that sends no body, {@code T} is {@code Unit}: the body is ignored
+ * and a 2xx gives {@code Right(Unit.INSTANCE)}, or {@code Just(Unit.INSTANCE)} on a {@code
+ * MaybePath}. {@code Void} is refused, since a success always holds a value.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.spring.client.HkjHttpClient")
@@ -74,6 +76,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   private static final String VTASK_PATH = "org.higherkindedj.hkt.effect.VTaskPath";
   private static final String VSTREAM_PATH = "org.higherkindedj.hkt.effect.VStreamPath";
   private static final String EITHER = "org.higherkindedj.hkt.either.Either";
+  private static final String UNIT = "org.higherkindedj.hkt.Unit";
   private static final String HKJ_HTTP_CLIENT = "org.higherkindedj.spring.client.HkjHttpClient";
   private static final String ON_STATUS = "org.higherkindedj.spring.client.OnStatus";
   private static final String ON_STATUSES = "org.higherkindedj.spring.client.OnStatuses";
@@ -118,7 +121,17 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /** A client method's analysed return type: its path flavour and error/success type arguments. */
-  private record ReturnInfo(PathKind kind, @Nullable TypeMirror error, TypeMirror success) {}
+  private record ReturnInfo(PathKind kind, @Nullable TypeMirror error, TypeMirror success) {
+
+    /**
+     * Whether the method's success type is {@code Unit}, so the body is ignored: the native method
+     * returns {@code ResponseEntity<Void>} and a 2xx gives {@code Right(Unit.INSTANCE)} or {@code
+     * Just(Unit.INSTANCE)}.
+     */
+    boolean ignoresBody() {
+      return success instanceof DeclaredType declared && qualifiedName(declared).equals(UNIT);
+    }
+  }
 
   /** A validated {@link OnStatus} override: a status code mapped to an error subtype. */
   private record StatusOverride(int status, TypeMirror errorType) {}
@@ -245,7 +258,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     for (int i = 0; i < methods.size(); i++) {
       ExecutableElement method = methods.get(i);
-      TypeName successType = TypeNames.typeNameOf(infos.get(i).success(), packageName);
+      TypeName successType =
+          infos.get(i).ignoresBody()
+              ? ClassName.get(Void.class)
+              : TypeNames.typeNameOf(infos.get(i).success(), packageName);
       MethodSpec.Builder nativeMethod =
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
@@ -372,11 +388,24 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         switch (info.kind()) {
           case EITHER ->
               CodeBlock.of(
-                  "return $T.either($L, this.$L)", HKJ_CLIENT_EXCHANGE, call, decoderField);
+                  "return $T.$L($L, this.$L)",
+                  HKJ_CLIENT_EXCHANGE,
+                  info.ignoresBody() ? "eitherUnit" : "either",
+                  call,
+                  decoderField);
           case EITHER_VTASK ->
               CodeBlock.of(
-                  "return $T.eitherVTask($L, this.$L)", HKJ_CLIENT_EXCHANGE, call, decoderField);
-          case MAYBE -> CodeBlock.of("return $T.maybe($L)", HKJ_CLIENT_EXCHANGE, call);
+                  "return $T.$L($L, this.$L)",
+                  HKJ_CLIENT_EXCHANGE,
+                  info.ignoresBody() ? "eitherVTaskUnit" : "eitherVTask",
+                  call,
+                  decoderField);
+          case MAYBE ->
+              CodeBlock.of(
+                  "return $T.$L($L)",
+                  HKJ_CLIENT_EXCHANGE,
+                  info.ignoresBody() ? "maybeUnit" : "maybe",
+                  call);
         });
     return facadeMethod.build();
   }
@@ -620,7 +649,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         break;
       case MAYBE_PATH:
         if (args.size() == 1) {
-          return new ReturnInfo(PathKind.MAYBE, null, args.get(0));
+          return refusesVoid(args.get(0), iface, method)
+              ? null
+              : new ReturnInfo(PathKind.MAYBE, null, args.get(0));
         }
         break;
       case VTASK_PATH:
@@ -682,7 +713,25 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           method);
       return null;
     }
-    return new ReturnInfo(kind, error, success);
+    return refusesVoid(success, iface, method) ? null : new ReturnInfo(kind, error, success);
+  }
+
+  /**
+   * Reports a {@code Void} success type, which has no value for a {@code Right} or a {@code Just}
+   * to hold, and names {@code Unit} as the type that says the endpoint sends no body.
+   */
+  private boolean refusesVoid(TypeMirror success, TypeElement iface, ExecutableElement method) {
+    if (success instanceof DeclaredType declared
+        && qualifiedName(declared).equals("java.lang.Void")) {
+      error(
+          "@HkjHttpClient success type Void cannot hold a value, but a success always holds one."
+              + " Replace Void with org.higherkindedj.hkt.Unit: the client then ignores the response"
+              + " body and gives Right(Unit.INSTANCE), or Just(Unit.INSTANCE) on a MaybePath.",
+          iface,
+          method);
+      return true;
+    }
+    return false;
   }
 
   /** A concrete, non-generic class/interface — bindable as {@code E.class} by the decoder. */

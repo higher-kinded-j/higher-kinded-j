@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.trymonad;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
@@ -77,12 +78,11 @@ class TryApplicativeTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("of() wraps a null value in Success")
-    @SuppressWarnings("DataFlowIssue") // Success may legitimately hold a null value
-    void ofWrapsNullInSuccess() {
-      assertThatTry(applicative.of(null))
-          .isSuccess()
-          .hasValueSatisfying(v -> assertThat(v).isNull());
+    @DisplayName("of() refuses a null value")
+    void ofRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("TryApplicative.of value cannot be null");
     }
   }
 
@@ -159,25 +159,20 @@ class TryApplicativeTest extends TryTestBase {
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("ap() with a function returning null yields a Success(null)")
+    @DisplayName("ap() with a function returning null gives a Failure")
     void apWithFunctionReturningNull() {
       Function<String, Integer> nullFunc = _ -> null;
       Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(nullFunc));
       Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success("test"));
 
       var result = applicative.ap(funcKind, valueKind);
-      assertThatTry(result).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
-    }
-
-    @Test
-    @DisplayName("ap() handles a null value in Success")
-    void apHandlesNullValue() {
-      Function<String, Integer> safeFunc = s -> s == null ? -1 : s.length();
-      Kind<TryKind.Witness, Function<String, Integer>> funcKind = TRY.widen(Try.success(safeFunc));
-      Kind<TryKind.Witness, String> valueKind = TRY.widen(Try.success(null));
-
-      var result = applicative.ap(funcKind, valueKind);
-      assertThatTry(result).isSuccess().hasValue(-1);
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("mapper must not return null"));
     }
   }
 }

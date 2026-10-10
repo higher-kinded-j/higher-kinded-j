@@ -197,12 +197,17 @@ class TryMonadErrorTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("recover() with a null value yields Success(null)")
-    @SuppressWarnings("DataFlowIssue") // Success(null) is the intended outcome; assert it is null
-    void recoverWithNullValueYieldsSuccessOfNull() {
+    @DisplayName("recover() refuses a null value, whether or not the source failed")
+    void recoverRefusesNullValue() {
       Kind<TryKind.Witness, String> failure = failureKind(DEFAULT_TEST_EXCEPTION);
-      var result = monadError.recover(failure, null);
-      assertThatTry(result).isSuccess().hasValueSatisfying(v -> assertThat(v).isNull());
+      Kind<TryKind.Witness, String> success = TRY.widen(Try.success(DEFAULT_SUCCESS_VALUE));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> monadError.recover(failure, null))
+          .withMessage("TryMonad.recover value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> monadError.recover(success, null))
+          .withMessage("TryMonad.recover value cannot be null");
     }
 
     @ParameterizedTest(name = "recoverWith rejects null {0} argument")

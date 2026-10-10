@@ -620,29 +620,44 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Converts to a TryPath (blocking).
    *
-   * <p>Blocks until the future completes, capturing any exception.
+   * <p>Blocks until the future completes, capturing any exception. A Success always holds a value,
+   * so a future that completes with null gives a Failure holding a {@link NullPointerException}.
    *
    * @return a TryPath containing the result or exception
    */
   public TryPath<A> toTryPath() {
-    return new TryPath<>(Try.of(this::join));
+    return new TryPath<>(
+        Try.of(
+            () ->
+                Objects.requireNonNull(
+                    join(), "the future completed with null, and a Success always holds a value")));
   }
 
   /**
    * Converts to an EitherPath (blocking).
    *
-   * <p>Blocks until the future completes. Exceptions become Left values.
+   * <p>Blocks until the future completes. Exceptions become Left values. A Right always holds a
+   * value, so a future that completes with null throws: {@link #toTryPath()} gives a Failure for it
+   * instead, and keeps a failed future's exception.
    *
    * @return an EitherPath with Exception as Left
+   * @throws NullPointerException if the future completes with null
    */
   public EitherPath<Exception, A> toEitherPath() {
+    A value;
     try {
-      return new EitherPath<>(Either.right(join()));
+      value = join();
     } catch (CompletionException e) {
       Exception cause =
           e.getCause() instanceof Exception ex ? ex : new RuntimeException(e.getCause());
       return new EitherPath<>(Either.left(cause));
     }
+    return new EitherPath<>(
+        Either.right(
+            Objects.requireNonNull(
+                value,
+                "the future completed with null: use toTryPath(), which gives a Failure for it and"
+                    + " keeps a failed future's exception")));
   }
 
   /**

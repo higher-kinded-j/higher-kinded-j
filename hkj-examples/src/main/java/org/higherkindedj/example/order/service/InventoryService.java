@@ -8,6 +8,7 @@ import org.higherkindedj.example.order.model.InventoryReservation;
 import org.higherkindedj.example.order.model.ProductAvailability;
 import org.higherkindedj.example.order.model.ValidatedOrderLine;
 import org.higherkindedj.example.order.model.value.OrderId;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
 import org.higherkindedj.hkt.either.Either;
@@ -42,7 +43,7 @@ public interface InventoryService {
    * @return either an error or success
    */
   @PathVia(doc = "Confirms inventory reservation after successful payment")
-  Either<OrderError, Void> confirmReservation(String reservationId);
+  Either<OrderError, Unit> confirmReservation(String reservationId);
 
   /**
    * Releases a reservation, returning stock to available pool.
@@ -51,7 +52,7 @@ public interface InventoryService {
    * @return either an error or success
    */
   @PathVia(doc = "Releases inventory reservation, returning stock to pool")
-  Either<OrderError, Void> releaseReservation(String reservationId);
+  Either<OrderError, Unit> releaseReservation(String reservationId);
 
   /**
    * Gets detailed availability for order lines including warehouse information. Used for partial

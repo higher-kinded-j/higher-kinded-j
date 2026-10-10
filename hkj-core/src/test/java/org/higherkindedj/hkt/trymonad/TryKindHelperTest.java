@@ -127,17 +127,6 @@ class TryKindHelperTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("widen() should handle Success with null value")
-    void widen_shouldHandleSuccessWithNullValue() {
-      Try<String> successNull = Try.success(null);
-      Kind<TryKind.Witness, String> kind = TRY.widen(successNull);
-
-      assertThat(TRY.narrow(kind))
-          .as("should preserve Success with null value")
-          .isSameAs(successNull);
-    }
-
-    @Test
     @DisplayName("widen() should throw NPE for null Try")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_shouldThrowNPEForNullTry() {
@@ -209,12 +198,11 @@ class TryKindHelperTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("success() should allow null value")
-    void success_shouldAllowNullValue() {
-      Kind<TryKind.Witness, String> kind = TRY.success(null);
-      Try<String> result = TRY.narrow(kind);
-
-      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
+    @DisplayName("success() refuses a null value")
+    void success_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> TRY.success(null))
+          .withMessage("Try.success value cannot be null");
     }
 
     @Test

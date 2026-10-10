@@ -129,21 +129,6 @@ class TryTraverseTest extends TryTestBase {
 
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
     }
-
-    @Test
-    @DisplayName("traverse() handles a null value inside Success")
-    @SuppressWarnings("ConstantValue") // a Success may legitimately hold a null value
-    void traverseHandlesNullValueInSuccess() {
-      Kind<TryKind.Witness, String> successNull = TRY.widen(Try.success(null));
-      Function<String, Kind<MaybeKind.Witness, Integer>> safe =
-          s -> MAYBE.widen(Maybe.just(s == null ? -1 : Integer.parseInt(s)));
-
-      Kind<MaybeKind.Witness, Kind<TryKind.Witness, Integer>> result =
-          traverse.traverse(maybeApplicative, safe, successNull);
-
-      Maybe<Kind<TryKind.Witness, Integer>> maybe = MAYBE.narrow(result);
-      assertThatTry(maybe.get()).isSuccess().hasValue(-1);
-    }
   }
 
   @Nested

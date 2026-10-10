@@ -9,7 +9,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} interface for the {@link Try} data type.
@@ -174,23 +173,23 @@ public class TryMonad extends TryApplicative implements MonadError<TryKind.Witne
    * Recovers from a {@link Try.Failure} with a pure fallback {@code value}, lifted via {@link
    * #of(Object)}. If {@code ma} is a {@link Try.Success}, it is returned unchanged.
    *
-   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
-   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
-   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
-   * since {@code recover(failure, null)} yields a valid {@code Success(null)}.
+   * <p>This override names {@code recover} (rather than the delegated {@code handleErrorWith}) when
+   * {@code ma} is null. A {@link Try.Success} always holds a value, so a null {@code value} is
+   * refused at the call, whether or not {@code ma} failed.
    *
    * @param <A> The type of the value.
    * @param ma The {@code Kind<TryKind.Witness, A>} that might have failed. Must not be null.
-   * @param value The fallback value to wrap in a {@link Try.Success} if {@code ma} failed.
+   * @param value The non-null fallback value to wrap in a {@link Try.Success} if {@code ma} failed.
    * @return Either the original success, or {@code Success(value)} if {@code ma} failed. Never
    *     null.
-   * @throws NullPointerException if {@code ma} is null.
+   * @throws NullPointerException if {@code ma} or {@code value} is null.
    */
   @Override
-  public <A> Kind<TryKind.Witness, A> recover(
-      final Kind<TryKind.Witness, A> ma, @Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Try.Success forbids null
+  public <A> Kind<TryKind.Witness, A> recover(final Kind<TryKind.Witness, A> ma, A value) {
 
     Validation.kind().requireNonNull(ma, RECOVER, "source");
+    Validation.coreType().requireValue(value, TryMonad.class, RECOVER);
 
     return handleErrorWith(ma, _ -> of(value));
   }

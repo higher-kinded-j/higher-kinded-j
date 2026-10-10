@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreeApPath;
 import org.higherkindedj.hkt.effect.FreePath;
@@ -117,10 +118,10 @@ public class FreePathExample {
       };
 
   // Smart constructors for Console DSL
-  static FreePath<ConsoleOpWitness, Void> printLine(String line) {
+  static FreePath<ConsoleOpWitness, Unit> printLine(String line) {
     return FreePath.liftF(
             new ConsoleOpKind<>(new ConsoleOp.PrintLine<>(line, null)), CONSOLE_FUNCTOR)
-        .map(_ -> null);
+        .map(_ -> Unit.INSTANCE);
   }
 
   static FreePath<ConsoleOpWitness, String> readLine() {
@@ -219,14 +220,14 @@ public class FreePathExample {
     return FreePath.liftF(new KVStoreKind<>(new KVStoreOp.Get<>(key, s -> s)), KV_FUNCTOR);
   }
 
-  static FreePath<KVStoreWitness, Void> kvPut(String key, String value) {
+  static FreePath<KVStoreWitness, Unit> kvPut(String key, String value) {
     return FreePath.liftF(new KVStoreKind<>(new KVStoreOp.Put<>(key, value, null)), KV_FUNCTOR)
-        .map(_ -> null);
+        .map(_ -> Unit.INSTANCE);
   }
 
-  static FreePath<KVStoreWitness, Void> kvDelete(String key) {
+  static FreePath<KVStoreWitness, Unit> kvDelete(String key) {
     return FreePath.liftF(new KVStoreKind<>(new KVStoreOp.Delete<>(key, null)), KV_FUNCTOR)
-        .map(_ -> null);
+        .map(_ -> Unit.INSTANCE);
   }
 
   private static void keyValueStoreDslExample() {

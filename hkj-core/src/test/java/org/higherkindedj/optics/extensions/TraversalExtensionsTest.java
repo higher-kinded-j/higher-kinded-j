@@ -6,6 +6,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
@@ -494,6 +499,55 @@ class TraversalExtensionsTest {
       assertThat(step2.get(1).age).isEqualTo(25);
       assertThat(step2.get(2).name).isEqualTo("Charlie");
       assertThat(step2.get(2).age).isEqualTo(36);
+    }
+  }
+
+  @Nested
+  @DisplayName("a failed step leaves the traversal's rebuild unrun")
+  class AFailedStepLeavesTheRebuildUnrun {
+
+    /** A record whose constructor checks an invariant across both foci. */
+    record Range(int lo, int hi) {
+      Range {
+        if (lo > hi) {
+          throw new IllegalArgumentException("lo > hi: " + lo + " > " + hi);
+        }
+      }
+    }
+
+    private final Traversal<Range, Integer> bounds =
+        new Traversal<>() {
+          @Override
+          public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Range> modifyF(
+              Function<Integer, Kind<F, Integer>> f, Range source, Applicative<F> app) {
+            return app.map2(f.apply(source.lo()), f.apply(source.hi()), Range::new);
+          }
+        };
+
+    @Test
+    @DisplayName("so a rebuild that checks an invariant gives the failure, not an exception")
+    void aRebuildThatChecksAnInvariantGivesTheFailure() {
+      Range range = new Range(1, 7);
+
+      assertThat(
+              modifyAllEither(
+                  bounds,
+                  x -> x < 5 ? Either.right(x + 10) : Either.<String, Integer>left("too big " + x),
+                  range))
+          .isEqualTo(Either.left("too big 7"));
+      assertThat(
+              modifyAllValidated(
+                  bounds,
+                  x ->
+                      x < 5
+                          ? Validated.valid(x + 10)
+                          : Validated.<String, Integer>invalid("too big " + x),
+                  range))
+          .isEqualTo(Validated.invalid(List.of("too big 7")));
+      assertThat(modifyAllMaybe(bounds, x -> x < 5 ? Maybe.just(x + 10) : Maybe.nothing(), range))
+          .isEqualTo(Maybe.nothing());
+      assertThat(modifyAllEither(bounds, x -> Either.<String, Integer>right(x + 10), range))
+          .isEqualTo(Either.right(new Range(11, 17)));
     }
   }
 }

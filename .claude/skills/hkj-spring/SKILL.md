@@ -370,8 +370,10 @@ The starter bundles `spring-boot-restclient`, which binds `spring.http.servicecl
 | `EitherPath<E, T>` | eager, blocks the caller | `Left(decoded)` | a plain request/response call |
 | `VTaskPath<Either<E, T>>` | deferred on a virtual thread | `Left(decoded)` | you want `withRetry` / `withCircuitBreaker` / `timeout` |
 | `MaybePath<T>` | eager, blocks the caller | 404 -> `Nothing` (others propagate) | absence is normal and untyped |
+| `EitherPath<E, Unit>` / `VTaskPath<Either<E, Unit>>` | as above | `Left(decoded)` | the endpoint sends no body: 2xx gives `Right(Unit.INSTANCE)` |
+| `MaybePath<Unit>` | eager, blocks the caller | 404 -> `Nothing` | no body, may be missing: 2xx gives `Just(Unit.INSTANCE)` |
 
-Empty 2xx body: `EitherPath`/`VTaskPath` yield `Right(null)`, `MaybePath` yields `Nothing`. Transport failures (connection refused, timeout) and undecodable bodies are **not** typed errors: they propagate synchronously from the eager variants, and as a failed task from the deferred ones. The generated client is a stateless, thread-safe singleton.
+Empty 2xx body: a `Right` always holds a value, so `EitherPath`/`VTaskPath` refuse it with an `EmptyResponseBodyException` (the request has already been made, so exclude it from retries); `MaybePath` yields `Nothing`. Declare `Unit`, never `Void`, for an endpoint with no body. Transport failures (connection refused, timeout) and undecodable bodies are **not** typed errors: they propagate synchronously from the eager variants, and as a failed task from the deferred ones. The generated client is a stateless, thread-safe singleton.
 
 ### Decoding errors: concrete vs sealed
 

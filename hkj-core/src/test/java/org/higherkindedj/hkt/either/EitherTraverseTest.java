@@ -151,21 +151,6 @@ class EitherTraverseTest extends EitherTestBase {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("traverse() with null values in Right")
-    void traverseWithNullValuesInRight() {
-      Kind<EitherKind.Witness<String>, Integer> rightNull = rightKind(null);
-
-      Function<Integer, Kind<MaybeKind.Witness, String>> nullSafeTraverse =
-          i -> MAYBE.widen(Maybe.just(String.valueOf(i)));
-
-      Kind<MaybeKind.Witness, Kind<EitherKind.Witness<String>, String>> result =
-          traverse.traverse(maybeApplicative, nullSafeTraverse, rightNull);
-
-      Maybe<Kind<EitherKind.Witness<String>, String>> maybe = MAYBE.narrow(result);
-      assertThatEither(maybe.get()).isRight().hasRight("null");
-    }
-
-    @Test
     @DisplayName("traverse() with conditional function")
     void traverseWithConditionalFunction() {
       Function<Integer, Kind<MaybeKind.Witness, String>> conditionalFunc =

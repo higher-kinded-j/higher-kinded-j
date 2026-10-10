@@ -45,12 +45,15 @@ public class EitherMonad<L> extends EitherFunctor<L>
    * Lifts a value into the "Right" side of an {@link Either}. This is equivalent to {@code
    * Either.right(value)}.
    *
-   * @param value The value to lift into the {@link Either.Right}. Can be {@code null}.
+   * @param value The non-null value to lift into the {@link Either.Right}, which always holds one.
    * @param <R> The type of the "Right" value.
    * @return A {@code Kind<EitherKind.Witness<L>, R>} representing {@code Right(value)}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <R> Kind<EitherKind.Witness<L>, R> of(@Nullable R value) {
+  @SuppressWarnings("NullableProblems") // Either.Right forbids null
+  public <R> Kind<EitherKind.Witness<L>, R> of(R value) {
+    Validation.coreType().requireValue(value, EitherMonad.class, OF);
     return EITHER.widen(Either.right(value));
   }
 
@@ -230,21 +233,23 @@ public class EitherMonad<L> extends EitherFunctor<L>
 
   /**
    * Recovers from a {@code Left} with a pure {@code value}, lifted via {@link #of(Object)}; a
-   * {@code Right} is returned unchanged. {@code value} stays {@link Nullable}, since {@code
-   * of(null)} is a valid {@code Right(null)}.
+   * {@code Right} is returned unchanged. A {@code Right} always holds a value, so a null {@code
+   * value} is refused at the call, whether or not {@code ma} is a {@code Left}.
    *
    * @param <A> the {@code Right} value type.
    * @param ma the value that might be a {@code Left}. Must not be null.
-   * @param value the fallback value to lift via {@link #of(Object)} when {@code ma} is a {@code
-   *     Left}.
+   * @param value the non-null fallback value to lift via {@link #of(Object)} when {@code ma} is a
+   *     {@code Left}.
    * @return {@code ma} if a {@code Right}, otherwise {@code of(value)}. Never null.
-   * @throws NullPointerException if {@code ma} is null.
+   * @throws NullPointerException if {@code ma} or {@code value} is null.
    */
   @Override
+  @SuppressWarnings("NullableProblems") // Either.Right forbids null
   public <A> Kind<EitherKind.Witness<L>, A> recover(
-      final Kind<EitherKind.Witness<L>, A> ma, @Nullable A value) {
+      final Kind<EitherKind.Witness<L>, A> ma, A value) {
 
     Validation.kind().requireNonNull(ma, RECOVER, "source");
+    Validation.coreType().requireValue(value, EitherMonad.class, RECOVER);
 
     return handleErrorWith(ma, _ -> of(value));
   }

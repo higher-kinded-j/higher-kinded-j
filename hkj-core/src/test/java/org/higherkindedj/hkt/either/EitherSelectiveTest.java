@@ -377,25 +377,11 @@ class EitherSelectiveTest extends EitherTestBase {
   class NullBooleanUnboxingTests {
 
     @Test
-    @DisplayName("whenS with Right(null) Boolean should not NPE on unboxing")
-    void whenSWithRightNullBooleanShouldNotNpe() {
-      // Either.right(null) is valid — creates Right(null); unboxing the condition must not NPE.
-      Kind<EitherKind.Witness<String>, Boolean> condRightNull = EITHER.widen(Either.right(null));
-      Kind<EitherKind.Witness<String>, Unit> effect = EITHER.widen(Either.right(Unit.INSTANCE));
-
-      assertThatThrownBy(() -> selective.whenS(condRightNull, effect))
-          .isNotInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    @DisplayName("ifS with Right(null) Boolean should not NPE on unboxing")
-    void ifSWithRightNullBooleanShouldNotNpe() {
-      Kind<EitherKind.Witness<String>, Boolean> condRightNull = EITHER.widen(Either.right(null));
-      Kind<EitherKind.Witness<String>, Integer> thenBranch = EITHER.widen(Either.right(1));
-      Kind<EitherKind.Witness<String>, Integer> elseBranch = EITHER.widen(Either.right(2));
-
-      assertThatThrownBy(() -> selective.ifS(condRightNull, thenBranch, elseBranch))
-          .isNotInstanceOf(NullPointerException.class);
+    @DisplayName("a Right condition cannot hold a null Boolean for whenS or ifS to unbox")
+    void aRightConditionCannotHoldNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.<String, Boolean>right(null))
+          .withMessage("Either.right value cannot be null");
     }
   }
 }

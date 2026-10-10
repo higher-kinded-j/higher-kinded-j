@@ -132,7 +132,8 @@ public enum VTaskKindHelper implements VTaskConverterOps {
 
   /**
    * Executes the {@link VTask} computation held within the {@link Kind} wrapper, returning a {@link
-   * Try}.
+   * Try}, as {@link VTask#runSafe()} does: a task that returns null gives a {@code Failure} holding
+   * a {@link NullPointerException}.
    *
    * @param <A> The result type of the computation.
    * @param kind The {@code Kind<VTaskKind.Witness, A>} holding the VTask computation. Must not be

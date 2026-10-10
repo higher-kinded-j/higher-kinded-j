@@ -126,7 +126,8 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    * Interprets and executes a Free program, capturing any exception as a {@code Try.Failure}.
    *
    * <p>Never throws. Returns {@code Try.success(result)} on success or {@code
-   * Try.failure(exception)} if the interpreter throws.
+   * Try.failure(exception)} if the interpreter throws. A {@code Success} always holds a value, so a
+   * program that returns null gives a {@code Failure} holding a {@link NullPointerException}.
    *
    * @param program the Free monad program to interpret and execute
    * @param <A> the result type
@@ -135,7 +136,10 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    */
   public <A> Try<A> runSafe(Free<F, A> program) {
     Objects.requireNonNull(program, "program must not be null");
-    return Try.of(() -> run(program));
+    return Try.of(
+        () ->
+            Objects.requireNonNull(
+                run(program), "the program returned null, and a Success always holds a value"));
   }
 
   /**

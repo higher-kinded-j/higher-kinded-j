@@ -78,9 +78,10 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * Creates an ErrorContext from a computation that may throw exceptions.
    *
    * <p>Exceptions thrown during computation are caught and converted to the error type via the
-   * provided mapper.
+   * provided mapper. A success always holds a value, so a computation that returns null is treated
+   * the same way: the mapper sees a {@link NullPointerException}.
    *
-   * @param computation the computation to execute; must not be null
+   * @param computation the computation to execute; must not be null, and must not return null
    * @param errorMapper converts exceptions to the error type; must not be null, and must not return
    *     null; a null result fails the context with a NullPointerException when it runs
    * @param <E> the error type
@@ -97,7 +98,8 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
         IO.delay(
             () -> {
               try {
-                return Either.right(computation.get());
+                return Either.right(
+                    Objects.requireNonNull(computation.get(), "computation must not return null"));
               } catch (Throwable t) {
                 return Either.left(mappedError(errorMapper, t));
               }
@@ -142,10 +144,11 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
   /**
    * Creates a successful ErrorContext containing the given value.
    *
-   * @param value the success value; may be null if A is nullable
+   * @param value the success value; must not be null
    * @param <E> the error type
    * @param <A> the success value type
    * @return a new ErrorContext representing success
+   * @throws NullPointerException if value is null
    */
   public static <E, A> ErrorContext<IOKind.Witness, E, A> success(A value) {
     EitherT<IOKind.Witness, E, A> transformer = EitherT.right(IOMonad.INSTANCE, value);
@@ -277,7 +280,11 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
 
     Kind<EitherTKind.Witness<F, E>, A> result =
         eitherTMonad.handleErrorWith(
-            EITHER_T.widen(transformer), error -> eitherTMonad.of(recovery.apply(error)));
+            EITHER_T.widen(transformer),
+            error ->
+                eitherTMonad.of(
+                    Objects.requireNonNull(
+                        recovery.apply(error), "recovery must not return null")));
 
     return new ErrorContext<>(EITHER_T.narrow(result), outerMonad);
   }

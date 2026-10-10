@@ -77,8 +77,8 @@ FreePath<ConsoleOp.Witness, String> ask(String prompt) {
     return Path.freeLift(new Ask<>(prompt, Function.identity()), consoleFunctor);
 }
 
-FreePath<ConsoleOp.Witness, Void> tell(String message) {
-    return Path.freeLift(new Tell<>(message, null), consoleFunctor);
+FreePath<ConsoleOp.Witness, Unit> tell(String message) {
+    return Path.freeLift(new Tell<>(message, Unit.INSTANCE), consoleFunctor);
 }
 ```
 

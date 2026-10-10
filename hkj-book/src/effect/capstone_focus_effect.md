@@ -241,7 +241,7 @@ EitherPath<DirectoryError, Department> lifted =
 ~~~admonish info title="Key Takeaways"
 * **Effects and optics solve different problems.** Effects handle "what might go wrong" (absence, failure, validation). Optics handle "where is the data" (nested fields, optional values). Together, they cover both dimensions in a single pipeline.
 * **`focus()` with `AffinePath` requires an error.** When the optic might not find a value (optional fields, sum type variants), you must supply the error that goes on the failure track. This makes the absent case explicit rather than hidden.
-* **`focus()` with `FocusPath` always succeeds.** When the field is guaranteed to exist (a required record component), no error is needed. The type system enforces this distinction.
+* **`focus()` with `FocusPath` succeeds for a focus that is never null.** When the field is guaranteed to exist (a required record component), no error is needed. The type system enforces this distinction.
 * **The before/after difference is structural, not cosmetic.** The imperative version mixes searching, checking, validating, and rebuilding in one block. The HKJ version gives each concern its own pipeline step, connected by the railway's automatic error propagation.
 ~~~
 

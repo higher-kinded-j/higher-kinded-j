@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect.capability;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
@@ -86,10 +87,16 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * );
    * }</pre>
    *
+   * <p>A {@code Success} always holds a value, so a computation that returns {@code null} gives a
+   * {@code Failure} holding a {@link NullPointerException}.
+   *
    * @return a {@code Try} containing either the result or the exception
    */
   default Try<A> runSafe() {
-    return Try.of(this::unsafeRun);
+    return Try.of(
+        () ->
+            Objects.requireNonNull(
+                unsafeRun(), "the computation returned null, and a Success always holds a value"));
   }
 
   /**

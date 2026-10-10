@@ -62,13 +62,11 @@ Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. T
 Either<String, Integer> success = Either.right(123);
 Either<String, Integer> failure = Either.left("File not found");
 
-// Null is permitted on either side; the type does not police absence,
-// it only models the success/alternative split.
-Either<String, Integer> rightNull = Either.right(null);
-Either<String, Integer> leftNull  = Either.left(null);
+// A step that succeeds with nothing to return
+Either<String, Unit> saved = Either.right(Unit.INSTANCE);
 ```
 
-If null-safety on the success side matters, lift through [`Maybe`](./maybe_monad.md) first or convert with `Maybe::toEither`.
+A `Right` always holds a value, so `Either.right(null)` throws `NullPointerException`, and so does a `map` whose function returns null. A step with nothing to return gives `Unit.INSTANCE`. For a value that may be missing, lift through [`Maybe`](./maybe_monad.md) first or convert with `Maybe::toEither`, so the `Left` says why it is missing.
 
 ---
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.either;
 
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
@@ -144,16 +145,16 @@ class EitherApplicativeTest extends EitherTestBase {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("mapN operations with null values in Right")
-    void mapNWithNullValuesInRight() {
-      var rightNull = applicative.of(null);
-      var rightValue = applicative.of("test");
+    @DisplayName("of() and a combiner that returns null are refused")
+    void ofAndNullCombinerAreRefused() {
+      Kind<EitherKind.Witness<String>, String> rightValue = applicative.of("test");
 
-      // String concatenation stringifies a null left value as "null", proving map2 passes it
-      // through to the combiner rather than short-circuiting on it.
-      var result = applicative.map2(rightNull, rightValue, (i, s) -> i + ":" + s);
-
-      assertThatEither(result).isRight().hasRight("null:test");
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("EitherMonad.of value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.map2(rightValue, rightValue, (a, b) -> null))
+          .withMessage("mapper must not return null");
     }
 
     @Test

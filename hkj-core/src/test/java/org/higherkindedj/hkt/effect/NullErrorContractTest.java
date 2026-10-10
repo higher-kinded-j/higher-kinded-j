@@ -74,7 +74,7 @@ class NullErrorContractTest {
       assertThatNullPointerException()
           .isThrownBy(() -> ErrorContext.fromEither(leftNull))
           .withMessage("either must not hold a null error");
-      assertThat(Path.either(Either.<String, Integer>right(null)).run().isRight()).isTrue();
+      assertThat(Path.either(Either.<String, Integer>right(1)).run().isRight()).isTrue();
     }
 
     @Test

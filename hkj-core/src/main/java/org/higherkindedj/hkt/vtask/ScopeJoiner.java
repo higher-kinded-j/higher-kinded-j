@@ -220,7 +220,10 @@ final class JoinerSource<T, R> {
 
   Either<Throwable, R> latestResult() {
     try {
-      return Either.right(latest.get().result());
+      return Either.right(
+          Objects.requireNonNull(
+              latest.get().result(),
+              "the scope's result is null, and a Right always holds a value"));
     } catch (Throwable t) {
       return Either.left(t);
     }

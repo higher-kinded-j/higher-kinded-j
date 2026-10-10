@@ -361,9 +361,17 @@ class FocusPathBridgeTest {
     }
 
     @Test
-    @DisplayName("the one-argument forms hold a null focus as it is")
-    void oneArgumentFormsHoldTheFocus() {
-      assertThatEither(NICKNAME.<String>toEitherPath(UNNAMED).run()).hasRightNull();
+    @DisplayName(
+        "the one-argument Either and Try forms refuse a null focus, naming the forms to use")
+    void oneArgumentFormsRefuseANullFocus() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.<String>toEitherPath(UNNAMED))
+          .withMessage(
+              "the focus is null: use toEitherPath(source, errorIfNull) to give a Left for it");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toTryPath(UNNAMED))
+          .withMessage(
+              "the focus is null: use toTryPath(source, exceptionIfNull) to give a Failure for it");
       assertThatId(NICKNAME.toIdPath(UNNAMED).run()).hasNullValue();
     }
   }

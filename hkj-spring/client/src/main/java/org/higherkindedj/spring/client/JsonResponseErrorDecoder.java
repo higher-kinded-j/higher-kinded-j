@@ -5,6 +5,7 @@ package org.higherkindedj.spring.client;
 import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -46,16 +47,17 @@ public final class JsonResponseErrorDecoder<E> implements ResponseErrorDecoder<E
       throw new ResponseErrorDecodeException(response.status(), body, null);
     }
     // Bind in a Try so a Jackson failure becomes a Left rather than a caught-and-rewrapped
-    // exception; a null binding (a JSON `null` error node) is its own Left. fold() then either
-    // returns the typed error or raises the decode failure, honouring the non-null decode contract.
-    return Try.of(() -> bind(body))
+    // exception; a null binding (a JSON `null` error node) reads as Nothing and is its own Left.
+    // fold() then either returns the typed error or raises the decode failure, honouring the
+    // non-null decode contract.
+    return Try.of(() -> Maybe.fromNullable(bind(body)))
         .toEither(failure -> new ResponseErrorDecodeException(response.status(), body, failure))
         .flatMap(
             decoded ->
-                decoded == null
-                    ? Either.<ResponseErrorDecodeException, E>left(
-                        new ResponseErrorDecodeException(response.status(), body, null))
-                    : Either.<ResponseErrorDecodeException, E>right(decoded))
+                decoded.isJust()
+                    ? Either.<ResponseErrorDecodeException, E>right(decoded.get())
+                    : Either.<ResponseErrorDecodeException, E>left(
+                        new ResponseErrorDecodeException(response.status(), body, null)))
         .fold(
             failure -> {
               throw failure;

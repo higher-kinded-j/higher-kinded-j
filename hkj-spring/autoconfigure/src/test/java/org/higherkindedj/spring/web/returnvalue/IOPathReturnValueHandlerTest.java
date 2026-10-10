@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Map;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,6 +89,32 @@ class IOPathReturnValueHandlerTest {
   @Nested
   @DisplayName("handleReturnValue - Successful Execution Tests")
   class SuccessfulExecutionTests {
+
+    @Test
+    @DisplayName("An IO that returns null writes no body at the resolved status, as void does")
+    void ioNullWritesNoBody() throws Exception {
+      IOPath<String> path = Path.io(() -> null);
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.OK.value());
+      verify(response, never()).setContentType(anyString());
+      printWriter.flush();
+      assertThat(stringWriter.toString()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("An IO that succeeds with Unit writes no body at the resolved status")
+    void ioUnitWritesNoBody() throws Exception {
+      IOPath<Unit> path = Path.ioRunnable(() -> {});
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      verify(response).setStatus(HttpStatus.OK.value());
+      verify(response, never()).setContentType(anyString());
+      printWriter.flush();
+      assertThat(stringWriter.toString()).isEmpty();
+    }
 
     @Test
     @DisplayName("Should handle successful IO execution with HTTP 200")

@@ -119,7 +119,7 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
   private void writeJustResponse(Object value, HttpServletResponse response, int status) {
     try {
       response.setStatus(status);
-      if (!JsonResponses.isBodilessStatus(status)) {
+      if (JsonResponses.hasSuccessBody(status, value)) {
         JsonResponses.setJsonContentType(response);
         objectWriter.writeValue(response.getWriter(), value);
       }

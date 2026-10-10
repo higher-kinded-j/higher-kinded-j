@@ -325,6 +325,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * Wraps the result in an Either, catching exceptions.
    *
    * <p>Success produces {@code Either.right(value)}; failure produces {@code Either.left(mapped)}.
+   * A Right always holds a value, so a task that returns null is treated as a failure: the mapper
+   * sees a {@link NullPointerException}.
    *
    * @param exceptionMapper function to map exceptions to the left type; must not be null, and must
    *     not return null; a null result fails the path with a NullPointerException when it runs
@@ -342,7 +344,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
   VTaskPath<Maybe<A>> asMaybe();
 
   /**
-   * Wraps the result in a Try.
+   * Wraps the result in a Try. A Success always holds a value, so a task that returns null gives a
+   * Failure holding a {@link NullPointerException}.
    *
    * @return a new VTaskPath that always succeeds with a Try
    */
@@ -401,7 +404,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
   /**
    * Converts this VTaskPath to a TryPath by executing it safely.
    *
-   * <p><b>Note:</b> This executes the VTask immediately to capture success or failure.
+   * <p><b>Note:</b> This executes the VTask immediately to capture success or failure. A Success
+   * always holds a value, so a task that returns null gives a Failure holding a {@link
+   * NullPointerException}.
    *
    * @return a TryPath containing the result or exception
    */

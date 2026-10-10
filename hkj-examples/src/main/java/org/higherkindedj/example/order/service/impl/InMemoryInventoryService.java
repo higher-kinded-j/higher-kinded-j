@@ -16,6 +16,7 @@ import org.higherkindedj.example.order.model.ProductAvailability;
 import org.higherkindedj.example.order.model.ValidatedOrderLine;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.service.InventoryService;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.time.TimeSource;
 
@@ -122,18 +123,18 @@ public class InMemoryInventoryService implements InventoryService {
   }
 
   @Override
-  public Either<OrderError, Void> confirmReservation(String reservationId) {
+  public Either<OrderError, Unit> confirmReservation(String reservationId) {
     if (!reservations.containsKey(reservationId)) {
       return Either.left(
           OrderError.InventoryError.reservationFailed(
               timeSource, "Reservation not found: " + reservationId));
     }
     reservations.remove(reservationId);
-    return Either.right(null);
+    return Either.right(Unit.INSTANCE);
   }
 
   @Override
-  public Either<OrderError, Void> releaseReservation(String reservationId) {
+  public Either<OrderError, Unit> releaseReservation(String reservationId) {
     var reservation = reservations.remove(reservationId);
     if (reservation == null) {
       return Either.left(
@@ -146,7 +147,7 @@ public class InMemoryInventoryService implements InventoryService {
       stock.compute(item.productId().value(), (k, v) -> (v == null ? 0 : v) + item.quantity());
     }
 
-    return Either.right(null);
+    return Either.right(Unit.INSTANCE);
   }
 
   @Override

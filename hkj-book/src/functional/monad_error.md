@@ -225,10 +225,11 @@ Kind<EitherKind.Witness<String>, Config> config =
         Config.defaults());
 ```
 
-Two things to know:
+Three things to know:
 
 - **`recoverWith` takes a value, not a lambda, so its fallback is evaluated eagerly**, even when `ma` succeeds. Reach for it only when the fallback is already built or cheap; if producing it is expensive or effectful-on-demand (like `loadConfigFromEnv()` above), keep `handleErrorWith` so it runs only on the failure path.
-- **The two methods guard different arguments.** `recoverWith` rejects a `null` *fallback* (and a `null` source) eagerly on every `MonadError` instance. A mistyped fallback fails fast at the call site instead of surfacing later from inside `handleErrorWith`. `recover` rejects a `null` *source*, but its *value* is `@Nullable` **by design**: a null value is lifted through `of`, so `recover(failure, null)` is a valid result (`Success(null)`, `Nothing`, or empty, depending on the type), not an error. (One wrinkle: `Validated` overrides `recoverWith` but not `recover`, because `Validated.of` rejects null; a null source to `Validated.recover` still fails fast, just with a message naming the underlying `handleErrorWith`.)
+- **The two methods guard different arguments.** `recoverWith` rejects a `null` *fallback* (and a `null` source) eagerly on every `MonadError` instance. A mistyped fallback fails fast at the call site instead of surfacing later from inside `handleErrorWith`.
+- **`recover` rejects a `null` *source*, and `of` decides what a null *value* means.** `Maybe` and `Optional` lift it to `Nothing` or empty, and `CompletableFuture` and `VTask` hold it. `Either`, `Try` and `EitherT` refuse it at the call, since a success always holds a value. `Validated` refuses it only when `ma` is invalid, and names `handleErrorWith` for a null source.
 
 ---
 

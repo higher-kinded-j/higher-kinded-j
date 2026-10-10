@@ -325,13 +325,22 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
    *
    * <p>During interpretation, if the target monad is a {@link org.higherkindedj.hkt.MonadError
    * MonadError}, any error is captured as a {@code Left}. If the target monad is not a {@code
-   * MonadError}, the result is always a {@code Right} (the handler is silently ignored).
+   * MonadError}, the result is always a {@code Right} (the handler is silently ignored). A {@code
+   * Right} always holds a value, so a program that returns null fails with a {@link
+   * NullPointerException}, which a {@code VTask} target captures as a {@code Left}. A {@code Try}
+   * or {@code Either} target cannot hold a null value at any step: an {@code Either} target throws,
+   * and a {@code Try} target captures the exception its own {@code of} raises as a {@code Left}.
    *
    * @return A new FreePath producing {@code Either<Throwable, A>}
    */
   public FreePath<F, Either<Throwable, A>> attempt() {
     // Map the success path to Right
-    FreePath<F, Either<Throwable, A>> rightPath = this.map(Either::right);
+    FreePath<F, Either<Throwable, A>> rightPath =
+        this.map(
+            a ->
+                Either.right(
+                    Objects.requireNonNull(
+                        a, "the program returned null, and a Right always holds a value")));
     // Handle errors by wrapping them in Left
     return rightPath.handleError(Throwable.class, e -> FreePath.pure(Either.left(e), functor));
   }

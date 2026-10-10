@@ -239,6 +239,78 @@ class NullableFocusNullnessTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("dereferenced expression 'k' is @Nullable");
     }
+
+    @Test
+    @DisplayName("a Right or a Success always holds a value, so a nullable one cannot build it")
+    void aSuccessRefusesANullableValue() {
+      // Each factory, and of on a monad that refuses null, takes a non-null value, so each call
+      // with a nullable one is reported on its own line.
+      JavaFileObject builds =
+          source(
+              "com.example.Builds",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.Path;
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.hkt.either.EitherMonad;
+              import org.higherkindedj.hkt.either_t.EitherT;
+              import org.higherkindedj.hkt.id.IdKind;
+              import org.higherkindedj.hkt.id.IdMonad;
+              import org.higherkindedj.hkt.trymonad.Try;
+              import org.higherkindedj.hkt.trymonad.TryKindHelper;
+              import org.jspecify.annotations.Nullable;
+
+              class Builds {
+                static void build(@Nullable String raw) {
+                  Either.<String, String>right(raw);
+                  Try.<String>success(raw);
+                  Path.<String, String>right(raw);
+                  Path.<String>success(raw);
+                  TryKindHelper.TRY.<String>success(raw);
+                  EitherT.<IdKind.Witness, String, String>right(IdMonad.instance(), raw);
+                  EitherMonad.<String>instance().<String>of(raw);
+                }
+              }
+              """);
+
+      Compilation compilation = compileChecked(builds);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(7);
+      for (int line = 15; line <= 21; line++) {
+        assertThat(compilation)
+            .hadErrorContaining("passing @Nullable parameter 'raw' where @NonNull is required")
+            .inFile(builds)
+            .onLine(line);
+      }
+    }
+
+    @Test
+    @DisplayName("the value a Right or a Success hands back needs no null check")
+    void aSuccessHandsBackANonNullValue() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.Reads",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.hkt.trymonad.Try;
+
+                  class Reads {
+                    static int read(Either<String, String> either, Try<String> attempt)
+                        throws Throwable {
+                      return either.getRight().length()
+                          + attempt.get().length()
+                          + attempt.orElseGet(() -> "fallback").length();
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 
   @Nested

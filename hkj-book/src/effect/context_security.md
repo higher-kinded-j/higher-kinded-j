@@ -403,11 +403,11 @@ VTask<Report> generateFinancialReport(ReportRequest request) {
 }
 
 // Pattern: Guard with detailed error
-VTask<Void> deleteUser(String userId) {
+VTask<Unit> deleteUser(String userId) {
     return SecurityContext.requireRole("ADMIN")
         .mapError(e -> new ForbiddenException(
             "Cannot delete user: " + e.getMessage()))
-        .flatMap(_ -> Context.<Set<String>, Void>succeed(userService.delete(userId)))
+        .flatMap(_ -> Context.<Set<String>, Unit>succeed(userService.delete(userId)))
         .toVTask();
 }
 
@@ -456,14 +456,14 @@ VTask<Document> readDocument(String documentId) {
         .toVTask();
 }
 
-VTask<Void> updateDocument(String documentId, DocumentUpdate update) {
+VTask<Unit> updateDocument(String documentId, DocumentUpdate update) {
     return SecurityContext.requirePermission("document:write")
         .flatMap(_ ->
-            Context.<Set<String>, Void>succeed(documentService.update(documentId, update)))
+            Context.<Set<String>, Unit>succeed(documentService.update(documentId, update)))
         .toVTask();
 }
 
-public VTask<Void> deleteDocument(String documentId) {
+public VTask<Unit> deleteDocument(String documentId) {
     return SecurityContext.requirePermission("document:delete")
         .flatMap(_ -> Context.succeed(documentService.delete(documentId)))
         .toVTask();

@@ -40,7 +40,6 @@ class EitherKindHelperTest extends EitherTestBase {
           List.of(
               Either.right("Success"),
               Either.left(ComplexTestError.high("E404", "Not found")),
-              Either.right(null),
               Either.left(null));
 
       for (Either<ComplexTestError, String> instance : testInstances) {
@@ -133,12 +132,10 @@ class EitherKindHelperTest extends EitherTestBase {
     }
 
     @Test
-    @DisplayName("Null values in Either are preserved")
-    void testNullValuesPreserved() {
-      Either<ComplexTestError, String> rightNull = Either.right(null);
+    @DisplayName("A null Left value is preserved")
+    void testNullLeftValuePreserved() {
       Either<ComplexTestError, String> leftNull = Either.left(null);
 
-      eitherKindHelper(rightNull).test();
       eitherKindHelper(leftNull).test();
     }
 
@@ -207,7 +204,7 @@ class EitherKindHelperTest extends EitherTestBase {
     @DisplayName("All combinations of null values")
     void testAllNullValueCombinations() {
       List<Either<ComplexTestError, String>> nullInstances =
-          List.of(Either.right(null), Either.left(null), Either.right(""));
+          List.of(Either.left(null), Either.right(""));
 
       for (Either<ComplexTestError, String> instance : nullInstances) {
         eitherKindHelper(instance).test();
@@ -238,7 +235,6 @@ class EitherKindHelperTest extends EitherTestBase {
               Either.right(Map.of("key", "value")),
               Either.right(ComplexTestError.medium("nested_error", "Nested")),
               Either.left(ComplexTestError.low("left_error", "Error")),
-              Either.right(null),
               Either.left(null));
 
       for (Either<ComplexTestError, Object> instance : complexInstances) {
@@ -308,19 +304,6 @@ class EitherKindHelperTest extends EitherTestBase {
 
       assertThat(result).isEqualTo(original);
       assertThatEither(result).hasLeftSatisfying(e -> assertThat(e.severity()).isEqualTo(5));
-    }
-
-    @Test
-    @DisplayName("narrow2() preserves null Right value")
-    void narrow2PreservesNullRightValue() {
-      Either<ComplexTestError, String> original = Either.right(null);
-      Kind2<EitherKind2.Witness, ComplexTestError, String> kind2 = EITHER.widen2(original);
-
-      Either<ComplexTestError, String> result = EITHER.narrow2(kind2);
-
-      assertThat(result).isEqualTo(original);
-      assertThatEither(result).isRight();
-      assertThat(result.getRight()).isNull();
     }
 
     @Test
@@ -417,7 +400,6 @@ class EitherKindHelperTest extends EitherTestBase {
           List.of(
               Either.right("success"),
               Either.right(""),
-              Either.right(null),
               Either.left(ComplexTestError.medium("error", "Error")),
               Either.left(ComplexTestError.low("", "")),
               Either.left(null));

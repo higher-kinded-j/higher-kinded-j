@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.either_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -87,10 +88,11 @@ class EitherTTest {
     }
 
     @Test
-    @DisplayName("right should lift null value to EitherT(F<Right(null)>)")
-    void right_liftsNullValue() {
-      EitherT<OptionalKind.Witness, String, String> et = EitherT.right(outerMonad, null);
-      assertThat(unwrapT(et)).isPresent().contains(Either.right(null));
+    @DisplayName("right refuses a null value")
+    void right_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherT.<OptionalKind.Witness, String, String>right(outerMonad, null))
+          .withMessage("EitherT.right value cannot be null");
     }
 
     @Test
@@ -251,15 +253,15 @@ class EitherTTest {
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("Edge case: null values in Either")
+    @DisplayName("Edge case: a null Left is lifted, a null Right is refused")
     void edgeCase_nullValuesInEither() {
       EitherT<OptionalKind.Witness, String, String> leftNull = EitherT.left(outerMonad, null);
       assertThat(leftNull).isNotNull();
       assertThat(leftNull.value()).isNotNull();
 
-      EitherT<OptionalKind.Witness, String, String> rightNull = EitherT.right(outerMonad, null);
-      assertThat(rightNull).isNotNull();
-      assertThat(rightNull.value()).isNotNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherT.right(outerMonad, null))
+          .withMessage("EitherT.right value cannot be null");
     }
 
     @Test
@@ -275,7 +277,7 @@ class EitherTTest {
     @Test
     @DisplayName("Edge case: fromEither with Right")
     void edgeCase_fromEitherWithRight() {
-      Either<String, String> eitherRight = Either.right(null);
+      Either<String, String> eitherRight = Either.right("");
       EitherT<OptionalKind.Witness, String, String> fromEitherRight =
           EitherT.fromEither(outerMonad, eitherRight);
       assertThat(fromEitherRight).isNotNull();

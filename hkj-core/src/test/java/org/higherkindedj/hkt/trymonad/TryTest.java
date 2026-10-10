@@ -35,7 +35,6 @@ class TryTest extends TryTestBase {
   private final Error error = new StackOverflowError("Stack overflow simulation");
 
   private final Try<String> successInstance = Try.success(successValue);
-  private final Try<String> successNullInstance = Try.success(null);
   private final Try<String> failureInstance = Try.failure(failureException);
   private final Try<String> failureCheckedInstance = Try.failure(checkedException);
   private final Try<String> failureErrorInstance = Try.failure(error);
@@ -63,11 +62,14 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("success() should allow null value")
-    void success_shouldAllowNullValue() {
-      assertThatTry(successNullInstance)
-          .isSuccess()
-          .hasValueSatisfying(value -> assertThat(value).isNull());
+    @DisplayName("success() refuses a null value")
+    void success_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Try.success(null))
+          .withMessage("Try.success value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Try.Success<String>(null))
+          .withMessage("Try.success value cannot be null");
     }
 
     @Test
@@ -111,11 +113,17 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("of() should create Success for null return")
-    void of_shouldCreateSuccessForNullReturn() {
+    @DisplayName("of() gives a Failure when the supplier returns null")
+    void of_givesFailureForNullReturn() {
       Supplier<String> supplier = () -> null;
       Try<String> tryResult = Try.of(supplier);
-      assertThatTry(tryResult).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
+      assertThatTry(tryResult)
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("supplier must not return null"));
     }
 
     @Test
@@ -168,10 +176,16 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("attempt() should create Success(null) when CheckedSupplier returns null")
-    void attempt_shouldCreateSuccessWhenCheckedSupplierReturnsNull() {
+    @DisplayName("attempt() gives a Failure when the CheckedSupplier returns null")
+    void attempt_givesFailureWhenCheckedSupplierReturnsNull() {
       Try<String> result = Try.attempt(() -> null);
-      assertThatTry(result).isSuccess().hasValue(null);
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("supplier must not return null"));
     }
 
     @Test
@@ -254,7 +268,6 @@ class TryTest extends TryTestBase {
     @DisplayName("get() on Success should return value")
     void get_onSuccess_shouldReturnValue() throws Throwable {
       assertThat(successInstance.get()).isEqualTo(successValue);
-      assertThat(successNullInstance.get()).isNull();
     }
 
     @Test
@@ -292,7 +305,6 @@ class TryTest extends TryTestBase {
     @DisplayName("orElse() on Success should return value")
     void orElse_onSuccess_shouldReturnValue() {
       assertThat(successInstance.orElse(defaultValue)).isEqualTo(successValue);
-      assertThat(successNullInstance.orElse(defaultValue)).isNull();
     }
 
     @Test
@@ -321,9 +333,6 @@ class TryTest extends TryTestBase {
 
       assertThat(successInstance.orElseGet(trackingSupplier)).isEqualTo(successValue);
       assertThat(supplierCalled).isFalse();
-
-      assertThat(successNullInstance.orElseGet(trackingSupplier)).isNull();
-      assertThat(supplierCalled).isFalse();
     }
 
     @Test
@@ -341,10 +350,11 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("orElseGet() on Failure should return null if supplier returns null")
-    void orElseGet_onFailure_shouldReturnNullIfSupplierReturnsNull() {
-      Supplier<String> nullReturningSupplier = () -> null;
-      assertThat(failureInstance.orElseGet(nullReturningSupplier)).isNull();
+    @DisplayName("orElseGet() on Failure refuses a supplier that returns null")
+    void orElseGet_onFailure_refusesNullFromSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> failureInstance.orElseGet(() -> null))
+          .withMessage("supplier must not return null");
     }
 
     @Test
@@ -392,9 +402,6 @@ class TryTest extends TryTestBase {
     void fold_onSuccess_shouldApplySuccessMapper() {
       String result = successInstance.fold(successMapper, failureMapper);
       assertThat(result).isEqualTo("Success mapped: " + successValue);
-
-      String resultNull = successNullInstance.fold(successMapper, failureMapper);
-      assertThat(resultNull).isEqualTo("Success mapped: null");
     }
 
     @Test
@@ -467,9 +474,6 @@ class TryTest extends TryTestBase {
     void foldFailureFirst_onSuccess_shouldApplySuccessMapper() {
       String result = successInstance.foldFailureFirst(failureMapper, successMapper);
       assertThat(result).isEqualTo("Success mapped: " + successValue);
-
-      String resultNull = successNullInstance.foldFailureFirst(failureMapper, successMapper);
-      assertThat(resultNull).isEqualTo("Success mapped: null");
     }
 
     @Test
@@ -545,14 +549,6 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("toEither() on Success with null value should return Right with null")
-    void toEither_onSuccessWithNullValue_shouldReturnRightWithNull() {
-      Either<String, String> result = successNullInstance.toEither(_ -> "ShouldNotBeCalled");
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isNull();
-    }
-
-    @Test
     @DisplayName("toEither() on Failure should apply mapper and return Left")
     void toEither_onFailure_shouldApplyMapperAndReturnLeft() {
       Either<String, String> result = failureInstance.toEither(exToMessage);
@@ -622,10 +618,16 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName("map() on Success should apply mapper returning null and return Success")
-    void map_onSuccess_shouldApplyMapperReturningNullAndReturnSuccess() {
+    @DisplayName("map() on Success gives a Failure when the mapper returns null")
+    void map_onSuccess_givesFailureWhenMapperReturnsNull() {
       Try<String> result = successInstance.map(mapperToNull);
-      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("mapper must not return null"));
     }
 
     @Test
@@ -789,11 +791,16 @@ class TryTest extends TryTestBase {
     }
 
     @Test
-    @DisplayName(
-        "recover() on Failure should return Success with null if recovery func returns null")
-    void recover_onFailure_shouldReturnSuccessWithNullIfRecoveryFuncReturnsNull() {
+    @DisplayName("recover() on Failure gives a Failure when the recovery function returns null")
+    void recover_onFailure_givesFailureWhenRecoveryFuncReturnsNull() {
       Try<String> result = failureInstance.recover(nullReturningRecoveryFunc);
-      assertThatTry(result).isSuccess().hasValueSatisfying(value -> assertThat(value).isNull());
+      assertThatTry(result)
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("recoveryFunction must not return null"));
     }
 
     @Test
@@ -1003,7 +1010,6 @@ class TryTest extends TryTestBase {
     @DisplayName("toString() on Success")
     void toString_onSuccess() {
       assertThat(successInstance.toString()).isEqualTo("Success(" + successValue + ")");
-      assertThat(successNullInstance.toString()).isEqualTo("Success(null)");
     }
 
     @Test
@@ -1019,20 +1025,13 @@ class TryTest extends TryTestBase {
       Try<String> success1 = Try.success("A");
       Try<String> success2 = Try.success("A");
       Try<String> success3 = Try.success("B");
-      Try<String> successNull1 = Try.success(null);
-      Try<String> successNull2 = Try.success(null);
       Try<String> failure1 = Try.failure(new RuntimeException("X"));
 
       assertThat(success1).isEqualTo(success2);
       assertThat(success1).hasSameHashCodeAs(success2);
       assertThat(success1).isNotEqualTo(success3);
-      assertThat(success1).isNotEqualTo(successNull1);
       assertThat(success1).isNotEqualTo(failure1);
       assertThat(success1).isNotEqualTo(null);
-
-      assertThat(successNull1).isEqualTo(successNull2);
-      assertThat(successNull1).hasSameHashCodeAs(successNull2);
-      assertThat(successNull1).isNotEqualTo(success1);
     }
 
     @Test

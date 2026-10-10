@@ -132,13 +132,11 @@ class ErrorContextTest {
     }
 
     @Test
-    @DisplayName("success() allows null value")
-    void successAllowsNull() {
-      ErrorContext<IOKind.Witness, String, String> ctx = ErrorContext.success(null);
-
-      Either<String, String> result = ctx.runIO().unsafeRun();
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isNull();
+    @DisplayName("success() rejects a null value")
+    void successRejectsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> ErrorContext.<String, String>success(null))
+          .withMessage("EitherT.right value cannot be null");
     }
 
     @Test

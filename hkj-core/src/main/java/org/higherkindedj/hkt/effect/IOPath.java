@@ -122,7 +122,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   /**
    * Converts this IOPath to a TryPath by executing it safely.
    *
-   * <p><b>Note:</b> This executes the IO immediately to capture success or failure.
+   * <p><b>Note:</b> This executes the IO immediately to capture success or failure. A Success
+   * always holds a value, so an IO that returns null gives a Failure holding a {@link
+   * NullPointerException}.
    *
    * @return a TryPath containing the result or exception
    */
@@ -777,7 +779,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * Wraps the IO result in an Either, catching any exceptions.
    *
    * <p>Exceptions thrown during execution are caught and converted to the error type via the
-   * provided mapper. Successful results are wrapped in {@link Either#right}.
+   * provided mapper. Successful results are wrapped in {@link Either#right}. A Right always holds a
+   * value, so an IO that returns null is treated as a failure: the mapper sees a {@link
+   * NullPointerException}.
    *
    * <p>This method is useful for converting exception-throwing computations into typed error
    * handling, enabling composition with other Either-based operations.
@@ -807,7 +811,10 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return Either.right(this.value.unsafeRunSync());
+                return Either.right(
+                    Objects.requireNonNull(
+                        this.value.unsafeRunSync(),
+                        "the computation returned null, and a Right always holds a value"));
               } catch (Throwable t) {
                 return Either.left(
                     ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
@@ -855,7 +862,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * <p>Unlike {@link #toTryPath()} which executes immediately, this method returns a deferred
    * computation that produces a Try when run. The exception is captured in the Try rather than
-   * propagating.
+   * propagating. A Success always holds a value, so an IO that returns null gives a Failure holding
+   * a {@link NullPointerException}.
    *
    * <p>Example:
    *
@@ -876,7 +884,10 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return Try.success(this.value.unsafeRunSync());
+                return Try.success(
+                    Objects.requireNonNull(
+                        this.value.unsafeRunSync(),
+                        "the computation returned null, and a Success always holds a value"));
               } catch (Throwable t) {
                 return Try.failure(t);
               }

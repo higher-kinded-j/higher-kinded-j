@@ -294,22 +294,38 @@ public final class Scope<T, R> {
   }
 
   /**
-   * Joins all forked tasks and returns the result wrapped in a {@link Try}.
+   * Joins all forked tasks and returns the result wrapped in a {@link Try}. A {@code Success}
+   * always holds a value, so a null result gives a {@code Failure} holding a {@link
+   * NullPointerException}.
    *
    * @return a VTask that executes the scope and returns a Try containing the result or exception
    */
   public VTask<Try<R>> joinSafe() {
-    return join().map(Try::success).recover(Try::failure);
+    return join()
+        .map(
+            r ->
+                Try.success(
+                    Objects.requireNonNull(
+                        r, "the scope's result is null, and a Success always holds a value")))
+        .recover(Try::failure);
   }
 
   /**
-   * Joins all forked tasks and returns the result wrapped in an {@link Either}.
+   * Joins all forked tasks and returns the result wrapped in an {@link Either}. A {@code Right}
+   * always holds a value, so a null result gives a {@code Left} holding a {@link
+   * NullPointerException}.
    *
    * @return a VTask that executes the scope and returns Either.right(result) or
    *     Either.left(exception)
    */
   public VTask<Either<Throwable, R>> joinEither() {
-    return join().map(Either::<Throwable, R>right).recover(Either::left);
+    return join()
+        .map(
+            r ->
+                Either.<Throwable, R>right(
+                    Objects.requireNonNull(
+                        r, "the scope's result is null, and a Right always holds a value")))
+        .recover(Either::left);
   }
 
   /**

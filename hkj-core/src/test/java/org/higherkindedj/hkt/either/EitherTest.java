@@ -30,7 +30,6 @@ class EitherTest extends EitherTestBase {
   private final Either<String, Integer> leftInstance = Either.left(leftValue);
   private final Either<String, Integer> rightInstance = Either.right(rightValue);
   private final Either<String, Integer> leftNullInstance = Either.left(null);
-  private final Either<String, Integer> rightNullInstance = Either.right(null);
 
   @Nested
   @DisplayName("Factory Methods - Complete Coverage")
@@ -64,9 +63,13 @@ class EitherTest extends EitherTestBase {
       assertThat(rightInstance).isInstanceOf(Either.Right.class);
       assertThatEither(rightInstance).isRight().hasRightNonNull().hasRight(rightValue);
 
-      // Null values
-      assertThat(rightNullInstance).isInstanceOf(Either.Right.class);
-      assertThatEither(rightNullInstance).isRight().hasRightNull();
+      // A Right always holds a value
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.right(null))
+          .withMessage("Either.right value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Either.Right<String, Integer>(null))
+          .withMessage("Either.right value cannot be null");
 
       // Complex types
       List<String> list = List.of("a", "b", "c");
@@ -125,11 +128,6 @@ class EitherTest extends EitherTestBase {
           .isInstanceOf(NoSuchElementException.class)
           .hasMessageContaining("Cannot invoke getLeft() on a Right instance.");
 
-      // Right with null
-      assertThatThrownBy(rightNullInstance::getLeft)
-          .isInstanceOf(NoSuchElementException.class)
-          .hasMessageContaining("Cannot invoke getLeft() on a Right instance.");
-
       // Complex Right types
       Either<String, List<Integer>> listRight = Either.right(List.of(1, 2, 3));
       assertThatThrownBy(listRight::getLeft)
@@ -143,9 +141,6 @@ class EitherTest extends EitherTestBase {
       // Standard case
       assertThat(rightInstance.getRight()).isEqualTo(rightValue);
       assertThatEither(rightInstance).hasRightNonNull();
-
-      // Null case
-      assertThat(rightNullInstance.getRight()).isNull();
 
       // Complex types
       List<String> resultList = List.of("a", "b", "c");
@@ -202,10 +197,6 @@ class EitherTest extends EitherTestBase {
       String leftNullResult =
           leftNullInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
       assertThat(leftNullResult).isEqualTo("Left mapped: null");
-
-      String rightNullResult =
-          rightNullInstance.fold(l -> "Left mapped: " + l, r -> "Right mapped: " + r);
-      assertThat(rightNullResult).isEqualTo("Right mapped: null");
     }
 
     @Test
@@ -291,10 +282,6 @@ class EitherTest extends EitherTestBase {
           .isRight()
           .hasRightNonNull()
           .hasRightSatisfying(list -> assertThat(list).containsExactly(123, 246));
-
-      // Null-safe transformation
-      Either<String, String> nullResult = rightNullInstance.map(String::valueOf);
-      assertThatEither(nullResult).isRight().hasRightNonNull().hasRight("null");
     }
 
     @Test
@@ -355,10 +342,20 @@ class EitherTest extends EitherTestBase {
     }
 
     @Test
-    @DisplayName("map() handles null-returning functions")
-    void mapHandlesNullReturningFunctions() {
-      Either<String, String> result = rightInstance.map(TestFunctions.nullReturningFunction());
-      assertThatEither(result).isRight().hasRightNull();
+    @DisplayName("map() refuses a function that returns null")
+    void mapRefusesNullReturningFunctions() {
+      Function<Integer, String> returnsNull = TestFunctions.nullReturningFunction();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> rightInstance.map(returnsNull))
+          .withMessage("mapper must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> rightInstance.mapRight(returnsNull))
+          .withMessage("rightMapper must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> rightInstance.bimap(Function.identity(), returnsNull))
+          .withMessage("rightMapper must not return null");
+      assertThat((Object) leftInstance.map(returnsNull)).isSameAs(leftInstance);
     }
 
     @Test
@@ -413,9 +410,6 @@ class EitherTest extends EitherTestBase {
 
       rightInstance.ifLeft(_ -> shouldNotExecute.set(true));
       assertThat(shouldNotExecute).isFalse();
-
-      rightNullInstance.ifLeft(_ -> shouldNotExecute.set(true));
-      assertThat(shouldNotExecute).isFalse();
     }
 
     @Test
@@ -432,16 +426,6 @@ class EitherTest extends EitherTestBase {
 
       assertThat(executed).isTrue();
       assertThat(correctValue).isTrue();
-
-      // Test with null value
-      AtomicBoolean nullExecuted = new AtomicBoolean(false);
-      rightNullInstance.ifRight(
-          i -> {
-            nullExecuted.set(true);
-            assertThat(i).isNull();
-          });
-
-      assertThat(nullExecuted).isTrue();
     }
 
     @Test
@@ -621,7 +605,6 @@ class EitherTest extends EitherTestBase {
 
       // Right toString
       assertThat(rightInstance.toString()).isEqualTo("Right(" + rightValue + ")");
-      assertThat(rightNullInstance.toString()).isEqualTo("Right(null)");
 
       // Complex types
       Either<List<String>, Integer> complexLeft = Either.left(List.of("a", "b"));
@@ -649,8 +632,7 @@ class EitherTest extends EitherTestBase {
 
       // Null handling
       assertThat(leftNullInstance).isEqualTo(Either.left(null));
-      assertThat(rightNullInstance).isEqualTo(Either.right(null));
-      assertThat(leftNullInstance).isNotEqualTo(rightNullInstance);
+      assertThat(leftNullInstance).isNotEqualTo(rightInstance);
     }
   }
 
@@ -803,7 +785,6 @@ class EitherTest extends EitherTestBase {
       assertThat(processEither.apply(leftInstance)).isEqualTo("Error: " + leftValue);
       assertThat(processEither.apply(rightInstance)).isEqualTo("Success: " + rightValue);
       assertThat(processEither.apply(leftNullInstance)).isEqualTo("Error: null");
-      assertThat(processEither.apply(rightNullInstance)).isEqualTo("Success: null");
 
       // Test with nested pattern matching
       Either<Either<String, Integer>, Boolean> nested = Either.left(Either.right(42));

@@ -12,6 +12,7 @@ import org.higherkindedj.example.order.model.ValidatedOrderLine;
 import org.higherkindedj.example.order.model.ValidatedShippingAddress;
 import org.higherkindedj.example.order.model.WarehouseInfo;
 import org.higherkindedj.example.order.model.value.OrderId;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
 import org.higherkindedj.hkt.either.Either;
@@ -48,7 +49,7 @@ public interface ShippingService {
    * @return either an error or success
    */
   @PathVia(doc = "Cancels a shipment before dispatch")
-  Either<OrderError, Void> cancelShipment(String shipmentId);
+  Either<OrderError, Unit> cancelShipment(String shipmentId);
 
   /**
    * Gets the current status of a shipment.

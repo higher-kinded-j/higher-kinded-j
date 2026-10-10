@@ -76,12 +76,11 @@ class EitherPathTest {
     }
 
     @Test
-    @DisplayName("Path.right() accepts null value")
-    void pathRightAcceptsNull() {
-      // Either allows null values
-      EitherPath<String, String> path = Path.right(null);
-      assertThat(path.run().isRight()).isTrue();
-      assertThat(path.run().getRight()).isNull();
+    @DisplayName("Path.right() rejects a null value")
+    void pathRightRejectsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.<String, String>right(null))
+          .withMessage("value must not be null");
     }
 
     @Test

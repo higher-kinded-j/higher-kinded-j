@@ -565,7 +565,12 @@ public final class ValidationPath<E, A>
    */
   public <B> ValidationPath<E, B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), errorIfAbsent) to give an"
+                    + " Invalid for it"));
   }
 
   /**

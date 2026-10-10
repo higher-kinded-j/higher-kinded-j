@@ -72,18 +72,6 @@ class PathLiftingTest {
       }
 
       @Test
-      @DisplayName("lifts null Right value into IO context")
-      void liftsNullRightIntoIO() {
-        EitherPath<String, String> path = Path.right(null);
-
-        IOPath<Either<String, String>> lifted = path.liftIO();
-
-        Either<String, String> result = lifted.unsafeRun();
-        assertThat(result.isRight()).isTrue();
-        assertThat(result.getRight()).isNull();
-      }
-
-      @Test
       @DisplayName("returns same Either value when run multiple times")
       void returnsSameValueOnMultipleRuns() {
         EitherPath<String, Integer> path = Path.right(TEST_INT);

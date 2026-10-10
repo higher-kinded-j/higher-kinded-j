@@ -174,7 +174,7 @@ flowchart TD
 
 ### Direction 1: Focus Path to Effect Path
 
-Extract a value with optics and continue in an effect pipeline. A `FocusPath` always has one focus, so its one-argument `toEitherPath`, `toTryPath` and `toIdPath` always succeed, and `toMaybePath` gives `Just` unless that focus is null. An `AffinePath` may be empty, so its bridges take the value to use when it is:
+Extract a value with optics and continue in an effect pipeline. A `FocusPath` always has one focus. Its one-argument `toEitherPath` and `toTryPath` give a `Right` or `Success` for a focus that is not null, `toIdPath` holds the focus whatever it is, and `toMaybePath` gives `Just` unless it is null. An `AffinePath` may be empty, so its bridges take the value to use when it is:
 
 <!-- verify -->
 ```java
@@ -193,10 +193,10 @@ EitherPath<String, String> nickname =
 | Method | Return Type | Description |
 |--------|-------------|-------------|
 | `toMaybePath(S)` | `MaybePath<A>` | `Just(value)`, or `Nothing` for a null focus |
-| `toEitherPath(S)` | `EitherPath<E, A>` | Always `Right(value)` |
+| `toEitherPath(S)` | `EitherPath<E, A>` | `Right(value)`; throws for a null focus |
 | `toEitherPath(S, E)` | `EitherPath<E, A>` | `Right(value)`, or `Left(error)` for a null focus |
 | `toEitherPath(S, Supplier<E>)` | `EitherPath<E, A>` | `Right(value)`, or `Left(error)` built only for a null focus |
-| `toTryPath(S)` | `TryPath<A>` | Always `Success(value)` |
+| `toTryPath(S)` | `TryPath<A>` | `Success(value)`; throws for a null focus |
 | `toTryPath(S, Supplier<Throwable>)` | `TryPath<A>` | `Success(value)`, or `Failure` for a null focus |
 | `toIdPath(S)` | `IdPath<A>` | Trivial effect wrapper |
 
@@ -235,7 +235,7 @@ EitherPath<String, String> nickname =
 
 `find(Objects::nonNull, source)` gives the first focus that is not null, and `getAll` keeps every focus, where position matters.
 
-The one-argument `toEitherPath`, `toTryPath` and `toIdPath` hold the focus as it is. Under a nullness checker such as NullAway, their result type cannot be written for a nullable focus, though `var` hides that. For a focus that may be null, use the forms that take an error, or `toMaybePath`.
+The one-argument `toEitherPath` and `toTryPath` take only a focus that is not null. A `Right` or `Success` always holds a value, so a null focus throws `NullPointerException`, and the message names the form to use instead. Under a nullness checker such as NullAway, their result type cannot be written for a nullable focus, though `var` hides that. For a focus that may be null, use the forms that take an error, or `toMaybePath`.
 
 <!-- verify -->
 ```java
@@ -279,7 +279,7 @@ EitherPath<String, String> firstNickname =
 
 `IdPath` is the one row that changes effect: `Id` has nowhere to record an absent focus, so focusing an `AffinePath` through one hands back a `MaybePath`.
 
-A `FocusPath` whose focus may be null reads the null as absent in the `MaybePath` and `OptionalPath` rows. The other rows take only a non-null focus: most hold a null as it is, and `ValidationPath` throws on one. Pass `path.nullable()` to the `AffinePath` column instead, which reads a null focus as absent in every row.
+A `FocusPath` whose focus may be null reads the null as absent in the `MaybePath` and `OptionalPath` rows. The other rows take only a non-null focus: `EitherPath` and `ValidationPath` throw on a null, `TryPath` gives a `Failure`, and `IOPath` and `IdPath` hold it as it is. Pass `path.nullable()` to the `AffinePath` column instead, which reads a null focus as absent in every row.
 
 ### Which Direction?
 

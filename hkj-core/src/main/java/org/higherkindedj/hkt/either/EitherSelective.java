@@ -182,8 +182,8 @@ public final class EitherSelective<L> extends EitherMonad<L>
   /**
    * Conditionally executes a Unit-returning effect based on a boolean condition.
    *
-   * <p>Key improvement: Returns Either.right(Unit.INSTANCE) instead of Either.right(null), making
-   * the "no-op" case explicit and type-safe.
+   * <p>When the condition is false, the result is {@code Right(Unit.INSTANCE)}, so the "no-op" case
+   * is explicit and type-safe.
    *
    * @param fcond The effectful condition
    * @param fa The Unit-returning effect to execute if condition is true
@@ -203,12 +203,7 @@ public final class EitherSelective<L> extends EitherMonad<L>
       return EITHER.widen(Either.left(condEither.getLeft()));
     }
 
-    Boolean conditionValue = condEither.getRight();
-    if (conditionValue == null) {
-      throw new IllegalArgumentException("whenS condition Boolean must not be null");
-    }
-
-    if (conditionValue) {
+    if (condEither.getRight()) {
       // Execute and return the effect
       return fa;
     } else {
@@ -246,13 +241,8 @@ public final class EitherSelective<L> extends EitherMonad<L>
       return EITHER.widen(Either.left(condEither.getLeft()));
     }
 
-    Boolean conditionValue = condEither.getRight();
-    if (conditionValue == null) {
-      throw new IllegalArgumentException("ifS condition Boolean must not be null");
-    }
-
     // Return the appropriate branch
     // Note: We don't evaluate both branches - this is key for selective functors
-    return conditionValue ? fthen : felse;
+    return condEither.getRight() ? fthen : felse;
   }
 }

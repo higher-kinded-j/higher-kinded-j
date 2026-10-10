@@ -261,7 +261,11 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
         a ->
             typedOther.value.fold(
                 e -> new EitherPath<>(Either.left(e)),
-                b -> new EitherPath<>(Either.right(combiner.apply(a, b)))));
+                b ->
+                    new EitherPath<>(
+                        Either.right(
+                            Objects.requireNonNull(
+                                combiner.apply(a, b), "combiner must not return null")))));
   }
 
   /**
@@ -269,7 +273,7 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -291,7 +295,12 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
                 b ->
                     third.value.fold(
                         e -> new EitherPath<>(Either.left(e)),
-                        c -> new EitherPath<>(Either.right(combiner.apply(a, b, c))))));
+                        c ->
+                            new EitherPath<>(
+                                Either.right(
+                                    Objects.requireNonNull(
+                                        combiner.apply(a, b, c),
+                                        "combiner must not return null"))))));
   }
 
   // ===== Chainable implementation =====
@@ -350,7 +359,10 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
     if (value.isRight()) {
       return this;
     }
-    return new EitherPath<>(Either.right(recovery.apply(value.getLeft())));
+    return new EitherPath<>(
+        Either.right(
+            Objects.requireNonNull(
+                recovery.apply(value.getLeft()), "recovery must not return null")));
   }
 
   @Override
@@ -428,7 +440,9 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
     return new EitherPath<>(
         value.bimap(
             e -> Objects.requireNonNull(errorMapper.apply(e), "errorMapper must not return null"),
-            successMapper));
+            a ->
+                Objects.requireNonNull(
+                    successMapper.apply(a), "successMapper must not return null")));
   }
 
   // ===== FocusPath Bridge Methods =====
@@ -450,9 +464,9 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * // Equivalent to: userPath.map(namePath::get)
    * }</pre>
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Object)}, which says what a null
-   * focus becomes.
+   * <p>A Right always holds a value, so this form takes a focus that is never null and throws on a
+   * null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath, Object)}, which says what a null focus becomes.
    *
    * @param path the FocusPath to apply
    * @param <B> the focused type
@@ -460,7 +474,12 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    */
   public <B> EitherPath<E, B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), errorIfAbsent) to give a Left for"
+                    + " it"));
   }
 
   /**
