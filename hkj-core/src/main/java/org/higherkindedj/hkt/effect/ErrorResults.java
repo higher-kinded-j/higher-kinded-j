@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
-import java.util.Objects;
 import java.util.function.Function;
-import org.higherkindedj.hkt.either.Either;
 
 /**
  * Internal helper that holds an error built from an exception to the non-null contract every error
@@ -39,23 +37,5 @@ final class ErrorResults {
       throw refused;
     }
     return error;
-  }
-
-  /**
-   * Refuses an {@link Either} that is missing, or that holds a null error, before it enters a path.
-   *
-   * @param either the Either to admit
-   * @param name the parameter name the refusal names
-   * @param <E> the error type
-   * @param <A> the success type
-   * @return {@code either}
-   * @throws NullPointerException if {@code either} is null or is a {@code Left(null)}
-   */
-  static <E, A> Either<E, A> admitted(Either<E, A> either, String name) {
-    Objects.requireNonNull(either, name + " must not be null");
-    if (either.isLeft() && either.getLeft() == null) {
-      throw new NullPointerException(name + " must not hold a null error");
-    }
-    return either;
   }
 }

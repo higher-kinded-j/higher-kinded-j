@@ -145,10 +145,11 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * @param <E> the error type
    * @param <A> the success type
    * @return a VResultPath that immediately produces the Either when run
-   * @throws NullPointerException if either is null, or holds a null error
+   * @throws NullPointerException if either is null
    */
   public static <E, A> VResultPath<E, A> fromEither(Either<E, A> either) {
-    return new VResultPath<>(VTask.succeed(ErrorResults.admitted(either, "either")));
+    return new VResultPath<>(
+        VTask.succeed(Objects.requireNonNull(either, "either must not be null")));
   }
 
   /**
@@ -917,18 +918,23 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * release it - with the release seeing the {@link Either} outcome, so compensation (confirm vs
    * refund vs plain cleanup) is decided from the result, not a side flag.
    *
+   * <p>Release sees the outcome as an {@code Either<Maybe<E>, B>}: {@code Right(b)} when {@code
+   * use} succeeds, {@code Left(Just(e))} for a typed failure, and {@code Left(Nothing)} when a
+   * defect could not be typed. A release that only asks {@code isRight()}, or whose {@code fold}
+   * ignores the error, treats all failures alike.
+   *
    * <p>Policies: a typed failure from {@code acquire} skips {@code use} and {@code release}
    * (nothing was acquired). A defect thrown inside {@code use}, including one thrown while {@code
    * use} is still <em>constructing</em> its path before any task runs, is first converted to the
    * typed channel through {@code onDefect}, so {@code release} observes a typed outcome whenever
    * {@code onDefect} can build one, and the resource is never leaked. If {@code onDefect} itself
-   * throws, or returns null, release still runs and sees {@code Left(null)}, so decide on {@code
-   * isRight()} or {@code fold} rather than on the error's value; the path then fails with what
-   * {@code onDefect} threw, the defect suppressed, or with a {@link NullPointerException} whose
-   * cause is the defect. A defect thrown by {@code release} itself propagates as a defect, carrying
-   * any such pending failure as suppressed. Unlike try-with-resources, which keeps the body's
-   * failure, this reports the release's: whenever {@code onDefect} can type the use's outcome,
-   * {@code release} has already seen it as a value, so its defect is the failure left to report.
+   * throws, or returns null, release still runs and sees {@code Left(Nothing)}; the path then fails
+   * with what {@code onDefect} threw, the defect suppressed, or with a {@link NullPointerException}
+   * whose cause is the defect. A defect thrown by {@code release} itself propagates as a defect,
+   * carrying any such pending failure as suppressed. Unlike try-with-resources, which keeps the
+   * body's failure, this reports the release's: whenever {@code onDefect} can type the use's
+   * outcome, {@code release} has already seen it as a value, so its defect is the failure left to
+   * report.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
    * therefore also typed through {@code onDefect}. {@code release} runs with the thread's interrupt
@@ -942,8 +948,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    *
    * @param acquire produces the resource; must not be null
    * @param use consumes the resource; must not be null
-   * @param release always runs after {@code use}, observing the outcome, which is {@code
-   *     Left(null)} only when {@code onDefect} throws or returns null; must not be null
+   * @param release always runs after {@code use}, observing the outcome, whose error is {@code
+   *     Nothing} only when {@code onDefect} throws or returns null; must not be null
    * @param onDefect types a defect thrown inside {@code use}; must not be null, and must not return
    *     null
    * @param <E> the typed error type
@@ -955,7 +961,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   public static <E, A, B> VResultPath<E, B> bracketOutcome(
       VResultPath<E, A> acquire,
       Function<? super A, ? extends VResultPath<E, B>> use,
-      BiFunction<? super A, ? super Either<E, B>, ? extends VTask<?>> release,
+      BiFunction<? super A, ? super Either<Maybe<E>, B>, ? extends VTask<?>> release,
       Function<? super Throwable, ? extends E> onDefect) {
     Objects.requireNonNull(acquire, "acquire must not be null");
     Objects.requireNonNull(use, "use must not be null");
@@ -992,7 +998,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * After an {@link InterruptedException} from use, the status is set once release has run.
    */
   private static <E, A, B> VTask<Either<E, B>> releaseThenRaise(
-      BiFunction<? super A, ? super Either<E, B>, ? extends VTask<?>> release,
+      BiFunction<? super A, ? super Either<Maybe<E>, B>, ? extends VTask<?>> release,
       A resource,
       Settled<E, B> settlement) {
     VTask<Unit> released =
@@ -1001,7 +1007,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
             Cleanup.withInterruptCleared(
                 () ->
                     Objects.requireNonNull(
-                            release.apply(resource, settlement.outcome()),
+                            release.apply(resource, settlement.observed()),
                             "release must not return null")
                         .execute());
           } finally {
@@ -1023,15 +1029,18 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * status is set once release has run.
    */
   private record Settled<E, B>(
-      Either<E, B> outcome, Maybe<Throwable> pending, boolean interrupted) {
+      Either<Maybe<E>, B> observed, Maybe<Throwable> pending, boolean interrupted) {
 
     /** The outcome use returned. */
     static <E, B> Settled<E, B> returned(Either<E, B> outcome) {
-      return new Settled<>(outcome, Maybe.nothing(), false);
+      return new Settled<>(outcome.mapLeft(Maybe::just), Maybe.nothing(), false);
     }
 
     VTask<Either<E, B>> raise() {
-      return pending.isJust() ? VTask.fail(pending.get()) : VTask.succeed(outcome);
+      // Without a pending failure the outcome was typed, so a Left holds a Just
+      return pending.isJust()
+          ? VTask.fail(pending.get())
+          : VTask.succeed(observed.mapLeft(Maybe::get));
     }
 
     Throwable carriedBy(Throwable releaseDefect) {
@@ -1041,7 +1050,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
 
   /**
    * Types a defect through {@code onDefect}. When it throws, or returns null, release still
-   * observes a {@code Left(null)}, and the failure is raised after it.
+   * observes a {@code Left(Nothing)}, and the failure is raised after it.
    */
   private static <E, B> Settled<E, B> settle(
       Function<? super Throwable, ? extends E> onDefect, Throwable defect) {
@@ -1051,14 +1060,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
       error = onDefect.apply(defect);
     } catch (Throwable broken) {
       return new Settled<>(
-          Either.left(null), Maybe.just(Cleanup.keep(broken, defect)), interrupted);
+          Either.left(Maybe.nothing()), Maybe.just(Cleanup.keep(broken, defect)), interrupted);
     }
     if (error == null) {
       NullPointerException refused = new NullPointerException("onDefect must not return null");
       refused.initCause(defect);
-      return new Settled<>(Either.left(null), Maybe.just(refused), interrupted);
+      return new Settled<>(Either.left(Maybe.nothing()), Maybe.just(refused), interrupted);
     }
-    return new Settled<>(Either.left(error), Maybe.nothing(), interrupted);
+    return new Settled<>(Either.left(Maybe.just(error)), Maybe.nothing(), interrupted);
   }
 
   /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */

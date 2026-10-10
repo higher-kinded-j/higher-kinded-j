@@ -26,7 +26,8 @@ public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends 
    * invoked with {@code Unit.INSTANCE}.
    *
    * @param error The error value to lift. If E is {@code org.higherkindedj.hkt.Unit}, this must be
-   *     {@code Unit.INSTANCE}. Otherwise, nullability depends on the specific E type.
+   *     {@code Unit.INSTANCE}. An instance whose failure holds its error, such as {@code Either},
+   *     {@code Try} or {@code Validated}, refuses null.
    * @param <A> The phantom type parameter of the value (since this represents an error state).
    * @return The error wrapped in the context F. Guaranteed non-null.
    */

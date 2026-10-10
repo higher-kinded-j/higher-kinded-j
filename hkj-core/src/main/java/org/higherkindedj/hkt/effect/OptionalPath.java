@@ -188,8 +188,8 @@ public final class OptionalPath<A> implements Chainable<A> {
    * functional interface written as a lambda, which reads as a supplier and fails to infer: name
    * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
    * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)} selects between its overloads the
-   * same way. Unlike it, neither overload here takes a null error: a bare {@code null} selects this
-   * one and is rejected as a null supplier.
+   * same way, and like it, neither overload here takes a null error: a bare {@code null} selects
+   * this one and is rejected as a null supplier.
    *
    * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
    *     return null

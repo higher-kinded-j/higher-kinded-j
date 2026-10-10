@@ -598,14 +598,11 @@ class EitherTMonadTest
     }
 
     @Test
-    @DisplayName("raiseError with null error")
-    @SuppressWarnings("DataFlowIssue") // EitherT lifts a null error into Left(null)
+    @DisplayName("raiseError refuses a null error, since a Left always holds one")
     void raiseError_withNullError() {
-      Kind<EitherTKind.Witness<OptionalKind.Witness, TestError>, Integer> result =
-          eitherTMonad.raiseError(null);
-      assertThatEitherT(result, EitherTMonadTest.this::unwrapOuterOptional)
-          .isPresentLeft()
-          .hasLeftValue(null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> eitherTMonad.raiseError(null))
+          .withMessage("EitherTMonad.raiseError error cannot be null");
     }
   }
 }

@@ -12,7 +12,6 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents the concrete implementation of the Either Transformer Monad (EitherT). It wraps a
@@ -86,16 +85,17 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
    * Lifts a 'left' value {@code l} into {@code EitherT<F, L, R>}, resulting in {@code F<Left(l)>}.
    *
    * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
-   * @param l The 'left' value to wrap. Can be null if {@code L} is nullable.
+   * @param l The non-null 'left' value to wrap.
    * @param <F> The witness type of the outer monad.
    * @param <L> The type of the 'left' value.
    * @param <R> The type of the 'right' value.
    * @return A new {@code EitherT} instance representing {@code outerMonad.of(Either.left(l))}.
-   * @throws NullPointerException if {@code outerMonad} is null.
+   * @throws NullPointerException if {@code outerMonad} or {@code l} is null.
    */
   public static <F extends WitnessArity<TypeArity.Unary>, L, R> EitherT<F, L, R> left(
-      Monad<F> outerMonad, @Nullable L l) {
+      Monad<F> outerMonad, L l) {
     Validation.transformer().requireOuterMonad(outerMonad, EITHER_T_CLASS, LEFT);
+    Validation.coreType().requireError(l, EITHER_T_CLASS, LEFT);
     Kind<F, Either<L, R>> lifted = outerMonad.of(Either.left(l));
     return new EitherT<>(lifted);
   }

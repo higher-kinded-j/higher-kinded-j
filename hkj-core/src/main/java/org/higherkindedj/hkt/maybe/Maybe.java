@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.JUST;
 import static org.higherkindedj.hkt.util.validation.Operation.TO_EITHER;
 
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -206,13 +207,15 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    * }</pre>
    *
    * @param <L> The type of the {@link Either.Left Left} value.
-   * @param leftValue The value to use for the {@link Either.Left Left} case if this is {@link
-   *     Nothing}. May be {@code null} if the left type permits null values.
+   * @param leftValue The non-null value to use for the {@link Either.Left Left} case if this is
+   *     {@link Nothing}. It is checked even when this is {@link Just}.
    * @return An {@code Either} that is {@link Either.Right Right} containing this {@code Maybe}'s
    *     value if this is {@link Just}, or {@link Either.Left Left} containing {@code leftValue} if
    *     this is {@link Nothing}. The returned {@code Either} will not be {@code null}.
+   * @throws NullPointerException if {@code leftValue} is null.
    */
   default <L> Either<L, T> toEither(L leftValue) {
+    Validation.coreType().requireError(leftValue, MAYBE_CLASS, TO_EITHER);
     return switch (this) {
       case Just<T>(var value) -> Either.right(value);
       case Nothing<T> _ -> Either.left(leftValue);
@@ -239,21 +242,22 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    * }</pre>
    *
    * @param <L> The type of the {@link Either.Left Left} value.
-   * @param leftSupplier The supplier to generate the {@link Either.Left Left} value if this is
-   *     {@link Nothing}. Must not be {@code null} when this is {@link Nothing}.
+   * @param leftSupplier The non-null supplier to generate the {@link Either.Left Left} value if
+   *     this is {@link Nothing}. It is checked even when this is {@link Just}, and must not return
+   *     null.
    * @return An {@code Either} that is {@link Either.Right Right} containing this {@code Maybe}'s
    *     value if this is {@link Just}, or {@link Either.Left Left} containing the supplied value if
    *     this is {@link Nothing}. The returned {@code Either} will not be {@code null}.
-   * @throws NullPointerException if this is {@link Nothing} and {@code leftSupplier} is {@code
-   *     null}.
+   * @throws NullPointerException if {@code leftSupplier} is null, or returns null when this is
+   *     {@link Nothing}.
    */
   default <L> Either<L, T> toEither(Supplier<? extends L> leftSupplier) {
+    Validation.function().require(leftSupplier, "leftSupplier", TO_EITHER);
     return switch (this) {
       case Just<T>(var value) -> Either.right(value);
-      case Nothing<T> _ -> {
-        Validation.function().require(leftSupplier, "leftSupplier", TO_EITHER);
-        yield Either.left(leftSupplier.get());
-      }
+      case Nothing<T> _ ->
+          Either.left(
+              Objects.requireNonNull(leftSupplier.get(), "leftSupplier must not return null"));
     };
   }
 

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.extensions;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
@@ -71,16 +72,19 @@ public final class PrismExtensions {
    * <p>A null focus reads as absent, as a non-matching one does.
    *
    * @param prism The prism to get the value from
-   * @param errorValue The error value to use if the prism doesn't match
+   * @param errorValue The error value to use if the prism doesn't match; must not be null, even
+   *     when the prism matches
    * @param source The source structure
    * @param <E> The type of the error value
    * @param <S> The type of the source structure
    * @param <A> The type of the focused part
    * @return {@code Either.right(value)} if the prism matches, {@code Either.left(errorValue)}
    *     otherwise
+   * @throws NullPointerException if {@code errorValue} is null
    */
   public static <E, S extends @Nullable Object, A extends @Nullable Object>
       Either<E, @NonNull A> getEither(Prism<S, A> prism, E errorValue, S source) {
+    Objects.requireNonNull(errorValue, "errorValue must not be null");
     return prism
         .getOptional(source)
         .map(Either::<E, @NonNull A>right)
@@ -95,16 +99,19 @@ public final class PrismExtensions {
    * <p>A null focus reads as absent, as a non-matching one does.
    *
    * @param prism The prism to get the value from
-   * @param errorValue The error value to use if the prism doesn't match
+   * @param errorValue The error value to use if the prism doesn't match; must not be null, even
+   *     when the prism matches
    * @param source The source structure
    * @param <E> The type of the error value
    * @param <S> The type of the source structure
    * @param <A> The type of the focused part
    * @return {@code Validated.valid(value)} if the prism matches, {@code
    *     Validated.invalid(errorValue)} otherwise
+   * @throws NullPointerException if {@code errorValue} is null
    */
   public static <E, S extends @Nullable Object, A extends @Nullable Object>
       Validated<E, @NonNull A> getValidated(Prism<S, A> prism, E errorValue, S source) {
+    Objects.requireNonNull(errorValue, "errorValue must not be null");
     return prism
         .getOptional(source)
         .map(Validated::<E, @NonNull A>valid)
@@ -147,16 +154,18 @@ public final class PrismExtensions {
    * non-null focus.
    *
    * @param prism The prism to modify through
-   * @param noMatchError Error to return if the prism doesn't match
+   * @param noMatchError Error to return if the prism doesn't match; must not be null
    * @param f The modification function returning {@code Either}
    * @param source The source structure
    * @param <E> The type of the error value
    * @param <S> The type of the source structure
    * @param <A> The type of the focused part
    * @return {@code Either.right(updatedSource)} if successful, {@code Either.left(error)} otherwise
+   * @throws NullPointerException if {@code noMatchError} is null
    */
   public static <E, S, A extends @Nullable Object> Either<E, S> modifyEither(
       Prism<S, A> prism, E noMatchError, Function<@NonNull A, Either<E, @NonNull A>> f, S source) {
+    Objects.requireNonNull(noMatchError, "noMatchError must not be null");
     return prism
         .getOptional(source)
         .map(Either::<E, @NonNull A>right)
@@ -174,7 +183,7 @@ public final class PrismExtensions {
    * non-null focus.
    *
    * @param prism The prism to modify through
-   * @param noMatchError Error to return if the prism doesn't match
+   * @param noMatchError Error to return if the prism doesn't match; must not be null
    * @param f The modification function returning {@code Validated}
    * @param source The source structure
    * @param <E> The type of the error value
@@ -182,12 +191,14 @@ public final class PrismExtensions {
    * @param <A> The type of the focused part
    * @return {@code Validated.valid(updatedSource)} if successful, {@code Validated.invalid(error)}
    *     otherwise
+   * @throws NullPointerException if {@code noMatchError} is null
    */
   public static <E, S, A extends @Nullable Object> Validated<E, S> modifyValidated(
       Prism<S, A> prism,
       E noMatchError,
       Function<@NonNull A, Validated<E, @NonNull A>> f,
       S source) {
+    Objects.requireNonNull(noMatchError, "noMatchError must not be null");
     return prism
         .getOptional(source)
         .map(Validated::<E, @NonNull A>valid)

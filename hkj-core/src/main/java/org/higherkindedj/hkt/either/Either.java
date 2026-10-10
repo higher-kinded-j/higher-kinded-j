@@ -9,7 +9,6 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a value of one of two possible types: {@link Left} or {@link Right}. {@code Either} is
@@ -78,10 +77,10 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * returns {@code true}, or within a context where being a {@code Left} is guaranteed. Otherwise,
    * prefer using {@link #fold(Function, Function)} or pattern matching to safely access the value.
    *
-   * @return The value of type {@code L} if this is a {@link Left}.
+   * @return The non-null value of type {@code L} if this is a {@link Left}.
    * @throws NoSuchElementException if this is a {@link Right}.
    */
-  @Nullable L getLeft() throws NoSuchElementException;
+  L getLeft() throws NoSuchElementException;
 
   /**
    * Retrieves the value if this is a {@link Right}.
@@ -195,7 +194,7 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * }</pre>
    *
    * @param leftMapper The non-null function to apply to the {@link Left} value if this is a {@link
-   *     Left}.
+   *     Left}. It must not return null.
    * @param rightMapper The non-null function to apply to the {@link Right} value if this is a
    *     {@link Right}. It must not return null.
    * @param <L2> The type of the {@link Left} value in the resulting {@code Either}.
@@ -203,7 +202,7 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * @return A new {@code Either<L2, R2>} with one of its values transformed according to the
    *     appropriate mapper. The returned {@code Either} will be non-null.
    * @throws NullPointerException if either {@code leftMapper} or {@code rightMapper} is null, or if
-   *     {@code rightMapper} returns null.
+   *     the mapper applied returns null.
    */
   default <L2, R2> Either<L2, R2> bimap(
       Function<? super L, ? extends L2> leftMapper, Function<? super R, ? extends R2> rightMapper) {
@@ -211,7 +210,10 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
     Validation.function().require(rightMapper, "rightMapper", BIMAP);
 
     return switch (this) {
-      case Left<L, R>(var leftValue) -> Either.left(leftMapper.apply(leftValue));
+      case Left<L, R>(var leftValue) ->
+          Either.left(
+              Objects.requireNonNull(
+                  leftMapper.apply(leftValue), "leftMapper must not return null"));
       case Right<L, R>(var rightValue) ->
           Either.right(
               Objects.requireNonNull(
@@ -242,19 +244,22 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * <p><b>Note:</b> This is equivalent to calling {@code bimap(leftMapper, Function.identity())}.
    *
    * @param leftMapper The non-null function to apply to the {@link Left} value if this is a {@link
-   *     Left}.
+   *     Left}. It must not return null.
    * @param <L2> The type of the {@link Left} value in the resulting {@code Either}.
    * @return A new {@code Either<L2, R>} with the left value transformed if this was a {@link Left},
    *     or the original {@link Right} value unchanged. The returned {@code Either} will be
    *     non-null.
-   * @throws NullPointerException if {@code leftMapper} is null.
+   * @throws NullPointerException if {@code leftMapper} is null, or returns null.
    */
   @SuppressWarnings("unchecked")
   default <L2> Either<L2, R> mapLeft(Function<? super L, ? extends L2> leftMapper) {
     Validation.function().require(leftMapper, "leftMapper", MAP_LEFT);
 
     return switch (this) {
-      case Left<L, R>(var leftValue) -> Either.left(leftMapper.apply(leftValue));
+      case Left<L, R>(var leftValue) ->
+          Either.left(
+              Objects.requireNonNull(
+                  leftMapper.apply(leftValue), "leftMapper must not return null"));
       case Right<L, R> r -> (Either<L2, R>) r; // Right remains unchanged, cast is safe
     };
   }
@@ -375,17 +380,19 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   // --- Static Factory Methods ---
 
   /**
-   * Creates an {@code Either} instance representing the {@link Left} case. The value for {@code
-   * Left} can be null, aligning with common conventions where a left value might represent an error
-   * state that doesn't carry detailed information, or where {@code null} itself is a valid
-   * representation for the left type.
+   * Creates an {@code Either} instance representing the {@link Left} case.
    *
-   * @param value The value for the {@link Left} case. Can be {@code null}.
+   * <p>A {@link Left} always holds an error, so {@code value} must not be null. An error that
+   * carries no detail is {@code Either.left(Unit.INSTANCE)}, typed {@code Either<Unit, R>}; one
+   * that does is a value, such as a record, that says what went wrong.
+   *
+   * @param value The non-null value for the {@link Left} case.
    * @param <L> The type of the {@link Left} value.
    * @param <R> The type of the (absent) {@link Right} value.
    * @return A new non-null {@link Left} instance containing the given value.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <L, R> Either<L, R> left(@Nullable L value) {
+  static <L, R> Either<L, R> left(L value) {
     return new Left<>(value);
   }
 
@@ -436,9 +443,18 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    *
    * @param <L> The type of the value held.
    * @param <R> The type of the {@link Right} value (phantom type for {@code Left}).
-   * @param value The value of type {@code L}. Can be {@code null}.
+   * @param value The non-null value of type {@code L}.
    */
-  record Left<L, R>(@Nullable L value) implements Either<L, R> {
+  record Left<L, R>(L value) implements Either<L, R> {
+
+    /**
+     * Ensures the held error is non-null.
+     *
+     * @throws NullPointerException if {@code value} is null
+     */
+    public Left {
+      Validation.coreType().requireError(value, Either.class, LEFT);
+    }
 
     @Override
     public boolean isLeft() {
@@ -451,7 +467,7 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
     }
 
     @Override
-    public @Nullable L getLeft() {
+    public L getLeft() {
       return value;
     }
 

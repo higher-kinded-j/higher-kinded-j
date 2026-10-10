@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.extensions;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -70,15 +71,18 @@ public final class LensExtensions {
    * <p>If the lens returns {@code null}, the result will be {@code Either.left(errorValue)}.
    *
    * @param lens The lens to get the value from
-   * @param errorValue The error value to use if the lens returns null
+   * @param errorValue The error value to use if the lens returns null; must not be null, even when
+   *     the focus is present
    * @param source The source structure
    * @param <E> The type of the error value
    * @param <S> The type of the source structure
    * @param <A> The type of the focused part
    * @return {@code Either.right(value)} if non-null, {@code Either.left(errorValue)} otherwise
+   * @throws NullPointerException if {@code errorValue} is null
    */
   public static <E, S extends @Nullable Object, A extends @Nullable Object>
       Either<E, @NonNull A> getEither(Lens<S, A> lens, E errorValue, S source) {
+    Objects.requireNonNull(errorValue, "errorValue must not be null");
     A value = lens.get(source);
     return value != null ? Either.right(value) : Either.left(errorValue);
   }
@@ -89,16 +93,19 @@ public final class LensExtensions {
    * <p>If the lens returns {@code null}, the result will be {@code Validated.invalid(errorValue)}.
    *
    * @param lens The lens to get the value from
-   * @param errorValue The error value to use if the lens returns null
+   * @param errorValue The error value to use if the lens returns null; must not be null, even when
+   *     the focus is present
    * @param source The source structure
    * @param <E> The type of the error value
    * @param <S> The type of the source structure
    * @param <A> The type of the focused part
    * @return {@code Validated.valid(value)} if non-null, {@code Validated.invalid(errorValue)}
    *     otherwise
+   * @throws NullPointerException if {@code errorValue} is null
    */
   public static <E, S extends @Nullable Object, A extends @Nullable Object>
       Validated<E, @NonNull A> getValidated(Lens<S, A> lens, E errorValue, S source) {
+    Objects.requireNonNull(errorValue, "errorValue must not be null");
     A value = lens.get(source);
     return value != null ? Validated.valid(value) : Validated.invalid(errorValue);
   }

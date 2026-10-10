@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.extensions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.optics.extensions.LensExtensions.*;
 
 import org.higherkindedj.hkt.either.Either;
@@ -317,6 +318,23 @@ class LensExtensionsTest {
 
       assertThat(nameUpdate.isLeft()).isTrue();
       assertThat(nameUpdate.getLeft()).isEqualTo("Name too short");
+    }
+  }
+
+  @Nested
+  @DisplayName("A null error is refused, even when the focus is present")
+  class NullError {
+    @Test
+    @DisplayName("getEither and getValidated name their error parameter")
+    void refusesANullError() {
+      Person person = new Person("Alice", 30);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> getEither(nameLens, null, person))
+          .withMessage("errorValue must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> getValidated(nameLens, null, person))
+          .withMessage("errorValue must not be null");
     }
   }
 }

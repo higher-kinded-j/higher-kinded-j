@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.resilience.Bulkhead;
 import org.higherkindedj.hkt.resilience.BulkheadConfig;
@@ -1511,10 +1513,15 @@ class VResultPathTest {
 
     private final List<String> releaseLog = new ArrayList<>();
 
-    private VTask<String> logRelease(String resource, Either<String, String> outcome) {
+    private VTask<String> logRelease(String resource, Either<Maybe<String>, String> outcome) {
       return VTask.delay(
           () -> {
-            releaseLog.add(resource + ":" + (outcome.isRight() ? "confirm" : "compensate"));
+            releaseLog.add(
+                resource
+                    + ":"
+                    + outcome.fold(
+                        error -> error.map(e -> "compensate " + e).orElse("compensate untyped"),
+                        _ -> "confirm"));
             return "released";
           });
     }
@@ -1546,7 +1553,7 @@ class VResultPathTest {
               .run()
               .run();
       assertThatEither(result).isLeft().hasLeft("card declined");
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate card declined");
     }
 
     @Test
@@ -1563,7 +1570,7 @@ class VResultPathTest {
               .run()
               .run();
       assertThatEither(result).isLeft().hasLeft("failed before any task ran");
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate failed before any task ran");
     }
 
     @Test
@@ -1583,7 +1590,7 @@ class VResultPathTest {
               .run()
               .run();
       assertThatEither(result).isLeft().hasLeft("wire snapped");
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate wire snapped");
     }
 
     @Test
@@ -1643,7 +1650,7 @@ class VResultPathTest {
           .isThrownBy(() -> failingUse(defect, d -> null).run().run())
           .withMessage("onDefect must not return null")
           .withCause(defect);
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate untyped");
     }
 
     @Test
@@ -1663,7 +1670,7 @@ class VResultPathTest {
                       .run())
           .isSameAs(broken)
           .hasSuppressedException(defect);
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate untyped");
     }
 
     @Test
@@ -1706,7 +1713,9 @@ class VResultPathTest {
                       .run())
           .isSameAs(inner)
           .hasSuppressedException(defect);
-      assertThat(releaseLog).containsExactly("res:compensate", "res:compensate", "res:compensate");
+      assertThat(releaseLog)
+          .containsExactly(
+              "res:compensate untyped", "res:compensate untyped", "res:compensate untyped");
     }
 
     @Test
@@ -1732,7 +1741,7 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("a release that fails on Left(null) carries the pending failure")
+    @DisplayName("a release that fails on an untyped defect carries the pending failure")
     void releaseFailingCarriesThePendingFailure() {
       IllegalStateException defect = new IllegalStateException("wire snapped");
       IllegalStateException cleanup = new IllegalStateException("cleanup broke");
@@ -1743,8 +1752,7 @@ class VResultPathTest {
                   VResultPath.bracketOutcome(
                           VResultPath.<String, String>pure("res"),
                           resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
-                          (resource, outcome) ->
-                              VTask.succeed(outcome.fold(String::length, String::length)),
+                          (resource, outcome) -> VTask.succeed(outcome.getLeft().get().length()),
                           d -> null)
                       .run()
                       .run());
@@ -1759,7 +1767,7 @@ class VResultPathTest {
                       .run()
                       .run());
 
-      assertThat(thrown).isInstanceOf(NullPointerException.class);
+      assertThat(thrown).isInstanceOf(NoSuchElementException.class);
       assertThat(thrown.getSuppressed())
           .singleElement()
           .satisfies(
@@ -1792,11 +1800,11 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("an Error from onDefect still releases once on Left(null), then is raised")
+    @DisplayName("an Error from onDefect still releases once on Left(Nothing), then is raised")
     void onDefectThrowingAnErrorStillReleases() {
       IllegalStateException defect = new IllegalStateException("wire snapped");
       AssertionError broken = new AssertionError("onDefect broke");
-      List<Either<String, String>> released = new ArrayList<>();
+      List<Either<Maybe<String>, String>> released = new ArrayList<>();
 
       assertThatThrownBy(
               () ->
@@ -1814,7 +1822,7 @@ class VResultPathTest {
                       .run())
           .isSameAs(broken)
           .hasSuppressedException(defect);
-      assertThat(released).containsExactly(Either.left(null));
+      assertThat(released).containsExactly(Either.left(Maybe.nothing()));
     }
 
     @Test
@@ -1832,7 +1840,7 @@ class VResultPathTest {
               .run();
 
       assertThatEither(result).isLeft().hasLeft("built badly");
-      assertThat(releaseLog).containsExactly("res:compensate");
+      assertThat(releaseLog).containsExactly("res:compensate built badly");
     }
 
     @Test
@@ -1865,7 +1873,7 @@ class VResultPathTest {
      * guidance asks of code that catches an {@link InterruptedException}, and fails.
      */
     private VResultPath<String, String> cancelledBooking(
-        BiFunction<String, Either<String, String>, VTask<?>> release) {
+        BiFunction<String, Either<Maybe<String>, String>, VTask<?>> release) {
       return VResultPath.bracketOutcome(
           VResultPath.<String, String>pure("seat"),
           seat ->
@@ -2046,7 +2054,7 @@ class VResultPathTest {
 
     /** A booking whose use throws an {@link InterruptedException}, as a blocking call does. */
     private VResultPath<String, String> interruptedBooking(
-        BiFunction<String, Either<String, String>, VTask<?>> release,
+        BiFunction<String, Either<Maybe<String>, String>, VTask<?>> release,
         Function<Throwable, String> onDefect) {
       return VResultPath.bracketOutcome(
           VResultPath.<String, String>pure("seat"),

@@ -311,6 +311,67 @@ class NullableFocusNullnessTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName("a Left always holds an error, so a nullable one cannot build it")
+    void aFailureRefusesANullableError() {
+      JavaFileObject builds =
+          source(
+              "com.example.Fails",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.hkt.either.EitherMonad;
+              import org.higherkindedj.hkt.either_t.EitherT;
+              import org.higherkindedj.hkt.id.IdKind;
+              import org.higherkindedj.hkt.id.IdMonad;
+              import org.higherkindedj.hkt.maybe.Maybe;
+              import org.jspecify.annotations.Nullable;
+
+              class Fails {
+                static void fail(@Nullable String raw) {
+                  Either.<String, String>left(raw);
+                  EitherT.<IdKind.Witness, String, String>left(IdMonad.instance(), raw);
+                  EitherMonad.<String>instance().<String>raiseError(raw);
+                  Maybe.<String>nothing().<String>toEither(raw);
+                }
+              }
+              """);
+
+      Compilation compilation = compileChecked(builds);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(4);
+      for (int line = 13; line <= 16; line++) {
+        assertThat(compilation)
+            .hadErrorContaining("passing @Nullable parameter 'raw' where @NonNull is required")
+            .inFile(builds)
+            .onLine(line);
+      }
+    }
+
+    @Test
+    @DisplayName("the error a Left hands back needs no null check")
+    void aFailureHandsBackANonNullError() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.ReadsError",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.either.Either;
+
+                  class ReadsError {
+                    static int read(Either<String, String> either) {
+                      return either.getLeft().length();
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 
   @Nested

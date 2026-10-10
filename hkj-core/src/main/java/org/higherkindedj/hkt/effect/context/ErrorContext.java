@@ -177,13 +177,10 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * @param <E> the error type
    * @param <A> the success value type
    * @return a new ErrorContext wrapping the Either
-   * @throws NullPointerException if either is null, or holds a null error
+   * @throws NullPointerException if either is null
    */
   public static <E, A> ErrorContext<IOKind.Witness, E, A> fromEither(Either<E, A> either) {
     Objects.requireNonNull(either, "either must not be null");
-    if (either.isLeft() && either.getLeft() == null) {
-      throw new NullPointerException("either must not hold a null error");
-    }
     EitherT<IOKind.Witness, E, A> transformer = EitherT.fromEither(IOMonad.INSTANCE, either);
     return new ErrorContext<>(transformer, IOMonad.INSTANCE);
   }

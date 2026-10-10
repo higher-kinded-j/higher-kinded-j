@@ -317,17 +317,16 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *     Failure} to a value of type {@code L}.
    * @param <L> The type for the left side of the resulting {@code Either} (representing the error).
    * @return An {@code Either<L, T>} representing the outcome of this {@code Try}.
-   * @throws NullPointerException if {@code failureToLeftMapper} is null.
+   * @throws NullPointerException if {@code failureToLeftMapper} is null, or returns null.
    */
   default <L> Either<L, T> toEither(Function<? super Throwable, ? extends L> failureToLeftMapper) {
     Validation.function().require(failureToLeftMapper, "failureToLeftMapper", TO_EITHER);
     return switch (this) {
       case Success<T>(var value) -> Either.right(value);
-      case Failure<T>(var cause) -> {
-        L leftValue = failureToLeftMapper.apply(cause);
-        Validation.function().requireNonNullResult(leftValue, "failureToLeftMapper", TO_EITHER);
-        yield Either.left(leftValue);
-      }
+      case Failure<T>(var cause) ->
+          Either.left(
+              Objects.requireNonNull(
+                  failureToLeftMapper.apply(cause), "failureToLeftMapper must not return null"));
     };
   }
 

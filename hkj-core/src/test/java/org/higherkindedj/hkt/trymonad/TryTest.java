@@ -580,10 +580,9 @@ class TryTest extends TryTestBase {
     @DisplayName("toEither() on Failure should throw NPE if mapper returns null")
     void toEither_onFailure_shouldThrowNPEIfMapperReturnsNull() {
       Function<Throwable, String> nullReturningMapper = _ -> null;
-      assertThatThrownBy(() -> failureInstance.toEither(nullReturningMapper))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining(
-              "Function failureToLeftMapper in toEither returned null, which is not allowed");
+      assertThatNullPointerException()
+          .isThrownBy(() -> failureInstance.toEither(nullReturningMapper))
+          .withMessage("failureToLeftMapper must not return null");
     }
 
     @Test

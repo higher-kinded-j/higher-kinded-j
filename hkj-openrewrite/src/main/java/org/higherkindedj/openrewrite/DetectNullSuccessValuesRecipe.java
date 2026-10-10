@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.openrewrite;
 
+import static org.higherkindedj.openrewrite.NullLiterals.isNullLiteral;
+import static org.higherkindedj.openrewrite.NullLiterals.returnsNull;
+
 import java.util.List;
 import java.util.Set;
 import org.openrewrite.ExecutionContext;
@@ -12,7 +15,6 @@ import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
-import org.openrewrite.java.tree.Statement;
 import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.SearchResult;
 
@@ -188,28 +190,5 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
     }
     JavaType value = returned.getTypeParameters().getLast();
     return TypeUtils.isOfClassType(value, "java.lang.Void") || value instanceof JavaType.Unknown;
-  }
-
-  private static boolean isNullLiteral(Expression expression) {
-    return expression instanceof J.Literal literal
-        && literal.getValue() == null
-        && literal.getType() == JavaType.Primitive.Null;
-  }
-
-  /** Whether a lambda's body is {@code null}, or a block with a top-level {@code return null}. */
-  private static boolean returnsNull(J.Lambda lambda) {
-    if (lambda.getBody() instanceof Expression body) {
-      return isNullLiteral(body);
-    }
-    if (lambda.getBody() instanceof J.Block block) {
-      for (Statement statement : block.getStatements()) {
-        if (statement instanceof J.Return ret
-            && ret.getExpression() != null
-            && isNullLiteral(ret.getExpression())) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 }

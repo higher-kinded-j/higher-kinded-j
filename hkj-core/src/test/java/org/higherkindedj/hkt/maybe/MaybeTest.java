@@ -376,11 +376,17 @@ class MaybeTest extends MaybeTestBase {
     }
 
     @Test
-    @DisplayName("toEither(L) allows null left value")
-    void toEitherAllowsNullLeftValue() {
-      Either<String, String> result = nothingInstance.toEither((String) null);
-      assertThat(result.isLeft()).isTrue();
-      assertThat(result.getLeft()).isNull();
+    @DisplayName("toEither refuses a null left value, even on a Just")
+    void toEitherRefusesANullLeftValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> nothingInstance.toEither((String) null))
+          .withMessage("Maybe.toEither error cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> justInstance.toEither((String) null))
+          .withMessage("Maybe.toEither error cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> nothingInstance.toEither(() -> null))
+          .withMessage("leftSupplier must not return null");
     }
 
     @Test
@@ -424,15 +430,15 @@ class MaybeTest extends MaybeTestBase {
     }
 
     @Test
-    @DisplayName("toEither(Supplier) does not validate null supplier for Just")
-    @SuppressWarnings("RedundantCast") // cast disambiguates toEither(L) vs toEither(Supplier<L>)
-    void toEitherSupplierDoesNotValidateNullSupplierForJust() {
-      // For Just, supplier is never called, so null is allowed (consistent with orElseGet)
-      assertThatCode(() -> justInstance.toEither((Supplier<String>) null))
-          .doesNotThrowAnyException();
-      Either<String, String> result = justInstance.toEither((Supplier<String>) null);
-      assertThat(result.isRight()).isTrue();
-      assertThat(result.getRight()).isEqualTo(justValue);
+    @DisplayName(
+        "toEither(Supplier) refuses a null supplier even for Just, as a bare null picks it")
+    void toEitherSupplierRefusesANullSupplierForJust() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> justInstance.toEither((Supplier<String>) null))
+          .withMessageContaining("leftSupplier");
+      assertThatNullPointerException()
+          .isThrownBy(() -> justInstance.toEither(null))
+          .withMessageContaining("leftSupplier");
     }
 
     @Test
