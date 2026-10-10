@@ -6,6 +6,7 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
+import static org.higherkindedj.optics.processing.testspi.TestMarkerGenerators.opticMarker;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -35,23 +36,9 @@ import org.junit.jupiter.api.Test;
 @DisplayName("SPI generator priority resolution")
 class SpiPriorityResolutionTest {
 
-  private static final JavaFileObject PRI_MARKER =
-      JavaFileObjects.forSourceString(
-          "com.example.hkjtest.Pri",
-          """
-          package com.example.hkjtest;
+  private static final JavaFileObject PRI_MARKER = opticMarker("Pri");
 
-          public class Pri<T> {}
-          """);
-
-  private static final JavaFileObject FB_MARKER =
-      JavaFileObjects.forSourceString(
-          "com.example.hkjtest.Fb",
-          """
-          package com.example.hkjtest;
-
-          public class Fb<T> {}
-          """);
+  private static final JavaFileObject FB_MARKER = opticMarker("Fb");
 
   private static final JavaFileObject DUP_MARKER =
       JavaFileObjects.forSourceString(
@@ -199,6 +186,33 @@ class SpiPriorityResolutionTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.example.FbWidenFocus", "TraversalPath<FbWiden, String> item()");
+    }
+
+    @Test
+    @DisplayName("should leave the field alone when the winning generator names no optic")
+    void shouldLeaveTheFieldAloneWhenTheWinningGeneratorNamesNoOptic() {
+      // The override names no optic and outranks a default that names one. The field is left
+      // alone rather than falling through to the lower-priority optic, so @GenerateFocus never
+      // widens through an optic from a generator @GenerateTraversals did not choose.
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.ShdWiden",
+              """
+              package com.example;
+
+              import com.example.hkjtest.Shd;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(widenCollections = true)
+              public record ShdWiden(String name, Shd<String> item) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(opticMarker("Shd"), source);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.ShdWidenFocus", "FocusPath<ShdWiden, Shd<String>> item()");
     }
   }
 }
