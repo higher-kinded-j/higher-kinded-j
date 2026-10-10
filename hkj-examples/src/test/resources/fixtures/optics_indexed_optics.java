@@ -33,10 +33,11 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
-record Product(String name, BigDecimal price, String shipping) {
+record Product(String sku, String name, BigDecimal price, int stock) {
 
-  Product withShipping(String newShipping) {
-    return new Product(name, price, newShipping);
+  Product applyDiscount(int percent) {
+    BigDecimal factor = BigDecimal.valueOf(100 - percent, 2);
+    return new Product(sku, name, price.multiply(factor).setScale(2, RoundingMode.HALF_EVEN), stock);
   }
 }
 
@@ -60,7 +61,7 @@ class Fixture {
 
   static final List<Order> orders = List.of(order);
 
-  static final List<Product> products = List.of(new Product("Laptop", new BigDecimal("999.99"), "standard"));
+  static final List<Product> products = List.of(new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 5));
 
   static final List<String> list = List.of("a", "b", "c");
 

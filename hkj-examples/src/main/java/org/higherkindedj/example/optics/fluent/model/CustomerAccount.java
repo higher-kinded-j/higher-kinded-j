@@ -3,15 +3,16 @@
 package org.higherkindedj.example.optics.fluent.model;
 
 import java.util.List;
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
-/** Represents a user profile with settings and addresses. */
+/**
+ * The account a customer of the order service signs in to: the chapter's {@link Customer}, the
+ * account's settings, and the addresses it has saved.
+ */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 @GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record UserProfile(
-    String userId,
-    String username,
-    String email,
-    ProfileSettings settings,
-    List<UserAddress> addresses) {}
+public record CustomerAccount(
+    String accountId, Customer customer, ProfileSettings settings, List<Address> addresses) {}

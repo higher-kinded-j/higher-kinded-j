@@ -78,4 +78,4 @@ like Cats and ZIO flexible in Scala, now available in Java.
 ---
 
 **Previous:** [OptionalPath](path_optional.md)
-**Next:** [Custom Paths with `@PathSource`](path_source.md)
+**Next:** [Custom Paths with @PathSource](path_source.md)

@@ -5,8 +5,17 @@ package org.higherkindedj.example.optics;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.*;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.expression.ForIndexed;
 import org.higherkindedj.hkt.id.IdKind;
@@ -43,12 +52,44 @@ import org.higherkindedj.optics.util.IndexedTraversals;
  */
 public class IndexedOpticsExample {
 
-  // Domain models for e-commerce order processing
-  public record LineItem(String productName, int quantity, double price) {}
+  // The records are the chapter's order service, imported from its cast package.
 
-  public record Order(String orderId, List<LineItem> items, Map<String, String> metadata) {}
+  private static final Customer ADA = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-  public record Customer(String name, String email) {}
+  private static final BigDecimal FIFTY = new BigDecimal("50");
+
+  private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+
+  // An order of Ada's with the given lines, placed on the same day, in pounds
+  private static Order order(String id, List<LineItem> lines) {
+    return new Order(
+        UUID.fromString(id),
+        ADA,
+        lines,
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
+  }
+
+  private static LineItem line(String sku, int quantity, String price) {
+    return new LineItem(sku, quantity, new BigDecimal(price));
+  }
+
+  // A price with a discount applied, to the penny
+  private static BigDecimal discounted(BigDecimal price, String factor) {
+    return price.multiply(new BigDecimal(factor)).setScale(2, RoundingMode.HALF_EVEN);
+  }
+
+  // A line's total: its price times its quantity
+  private static BigDecimal lineTotal(LineItem item) {
+    return item.price().multiply(BigDecimal.valueOf(item.quantity()));
+  }
+
+  private static BigDecimal total(List<LineItem> items) {
+    return items.stream()
+        .map(IndexedOpticsExample::lineTotal)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
 
   public static void main(String[] args) {
     System.out.println("=== Indexed Optics Examples ===\n");
@@ -140,17 +181,16 @@ public class IndexedOpticsExample {
 
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, 999.99),
-            new LineItem("Mouse", 2, 24.99),
-            new LineItem("Keyboard", 1, 79.99),
-            new LineItem("Monitor", 1, 299.99),
-            new LineItem("Webcam", 1, 59.99),
-            new LineItem("Headphones", 1, 149.99));
+            line("LAPTOP", 1, "999.99"),
+            line("MOUSE", 2, "24.99"),
+            line("KEYBOARD", 1, "79.99"),
+            line("MONITOR", 1, "299.99"),
+            line("WEBCAM", 1, "59.99"),
+            line("HEADPHONES", 1, "149.99"));
 
     System.out.println("Original items:");
     for (int i = 0; i < items.size(); i++) {
-      System.out.printf(
-          "  Position %d: %s - £%.2f%n", i, items.get(i).productName(), items.get(i).price());
+      System.out.printf("  Position %d: %s - £%.2f%n", i, items.get(i).sku(), items.get(i).price());
     }
 
     // Apply 10% discount to items at even positions (0, 2, 4...)
@@ -159,8 +199,8 @@ public class IndexedOpticsExample {
             itemsIndexed,
             (index, item) -> {
               if (index % 2 == 0) {
-                double newPrice = item.price() * 0.9;
-                return new LineItem(item.productName(), item.quantity(), newPrice);
+                BigDecimal newPrice = discounted(item.price(), "0.90");
+                return new LineItem(item.sku(), item.quantity(), newPrice);
               }
               return item;
             },
@@ -169,7 +209,7 @@ public class IndexedOpticsExample {
     System.out.println("\nAfter even-position discount (10% off):");
     for (int i = 0; i < discounted.size(); i++) {
       LineItem item = discounted.get(i);
-      System.out.printf("  Position %d: %s - £%.2f", i, item.productName(), item.price());
+      System.out.printf("  Position %d: %s - £%.2f", i, item.sku(), item.price());
       if (i % 2 == 0) {
         System.out.print(" (discounted)");
       }
@@ -185,13 +225,13 @@ public class IndexedOpticsExample {
               String prefix = "";
               if (index == 0) prefix = "[FIRST] ";
               if (index == lastIndex) prefix = "[LAST] ";
-              return new LineItem(prefix + item.productName(), item.quantity(), item.price());
+              return new LineItem(prefix + item.sku(), item.quantity(), item.price());
             },
             items);
 
     System.out.println("\nWith first/last markers:");
     for (LineItem item : marked) {
-      System.out.println("  " + item.productName());
+      System.out.println("  " + item.sku());
     }
 
     System.out.println();
@@ -218,17 +258,19 @@ public class IndexedOpticsExample {
     // Filter by both index and value
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, 999.99), // Index 0, expensive
-            new LineItem("Pen", 1, 2.99), // Index 1, cheap
-            new LineItem("Keyboard", 1, 79.99), // Index 2, mid-range
-            new LineItem("Mouse", 1, 24.99), // Index 3, cheap
-            new LineItem("Monitor", 1, 299.99)); // Index 4, expensive
+            line("LAPTOP", 1, "999.99"), // Index 0, expensive
+            line("PEN", 1, "2.99"), // Index 1, cheap
+            line("KEYBOARD", 1, "79.99"), // Index 2, mid-range
+            line("MOUSE", 1, "24.99"), // Index 3, cheap
+            line("MONITOR", 1, "299.99")); // Index 4, expensive
 
     IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
 
     // Filter: even positions AND price > £50
     IndexedTraversal<Integer, List<LineItem>, LineItem> evenAndExpensive =
-        itemsIndexed.filterIndex(i -> i % 2 == 0).filtered(item -> item.price() > 50);
+        itemsIndexed
+            .filterIndex(i -> i % 2 == 0)
+            .filtered(item -> item.price().compareTo(FIFTY) > 0);
 
     List<Pair<Integer, LineItem>> filtered =
         IndexedTraversals.toIndexedList(evenAndExpensive, items);
@@ -236,8 +278,7 @@ public class IndexedOpticsExample {
     System.out.println("\nEven positions AND price > £50:");
     for (Pair<Integer, LineItem> pair : filtered) {
       System.out.printf(
-          "  Position %d: %s (£%.2f)%n",
-          pair.first(), pair.second().productName(), pair.second().price());
+          "  Position %d: %s (£%.2f)%n", pair.first(), pair.second().sku(), pair.second().price());
     }
 
     System.out.println();
@@ -248,26 +289,27 @@ public class IndexedOpticsExample {
     System.out.println("--- IndexedLens for Field Tracking ---");
 
     // Create indexed lens for customer email field
-    IndexedLens<String, Customer, String> emailLens =
+    IndexedLens<String, Customer, EmailAddress> emailLens =
         IndexedLens.of(
             "email", // The index: field name
             Customer::email, // Getter
             (customer, newEmail) -> new Customer(customer.name(), newEmail) // Setter
             );
 
-    Customer customer = new Customer("Alice", "alice@example.com");
+    Customer customer = ADA;
 
     // Get both field name and value
-    Pair<String, String> fieldInfo = emailLens.iget(customer);
+    Pair<String, EmailAddress> fieldInfo = emailLens.iget(customer);
     System.out.println("Field name: " + fieldInfo.first());
-    System.out.println("Field value: " + fieldInfo.second());
+    System.out.println("Field value: " + fieldInfo.second().value());
 
     // Modify with field name awareness
     Customer updated =
         emailLens.imodify(
             (fieldName, oldValue) -> {
-              System.out.println("\nModifying field '" + fieldName + "' from '" + oldValue + "'");
-              return "alice.smith@example.com";
+              System.out.println(
+                  "\nModifying field '" + fieldName + "' from '" + oldValue.value() + "'");
+              return new EmailAddress("ada.lovelace@example.com");
             },
             customer);
 
@@ -286,19 +328,20 @@ public class IndexedOpticsExample {
     List<FieldChange> auditLog = new ArrayList<>();
 
     // Create indexed lens with audit logging
-    IndexedLens<String, Customer, String> emailLens =
+    IndexedLens<String, Customer, EmailAddress> emailLens =
         IndexedLens.of("email", Customer::email, (c, email) -> new Customer(c.name(), email));
 
-    Customer customer = new Customer("Bob", "bob@old.com");
+    Customer customer = new Customer("Grace", new EmailAddress("grace@old.example"));
 
     // Modify with audit logging
     Customer updated =
         emailLens.imodify(
             (fieldName, oldValue) -> {
-              String newValue = "bob@new.com";
+              EmailAddress newValue = new EmailAddress("grace@new.example");
 
               if (!oldValue.equals(newValue)) {
-                auditLog.add(new FieldChange(fieldName, oldValue, newValue, Instant.now()));
+                auditLog.add(
+                    new FieldChange(fieldName, oldValue.value(), newValue.value(), Instant.now()));
               }
 
               return newValue;
@@ -322,31 +365,28 @@ public class IndexedOpticsExample {
     System.out.println("--- Composing Indexed Optics ---");
 
     // Nested structure: List of Orders, each with List of LineItems
-    record OrderWithItems(String id, List<LineItem> items) {}
 
     // First level: indexed traversal for orders
-    IndexedTraversal<Integer, List<OrderWithItems>, OrderWithItems> ordersIndexed =
-        IndexedTraversals.forList();
+    IndexedTraversal<Integer, List<Order>, Order> ordersIndexed = IndexedTraversals.forList();
 
-    // Second level: lens to items field
-    Lens<OrderWithItems, List<LineItem>> itemsLens =
-        Lens.of(OrderWithItems::items, (order, items) -> new OrderWithItems(order.id(), items));
+    // Second level: lens to the lines field
+    Lens<Order, List<LineItem>> linesLens = OrderLenses.lines();
 
-    // Third level: indexed traversal for items
-    IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
+    // Third level: indexed traversal for the lines
+    IndexedTraversal<Integer, List<LineItem>, LineItem> linesIndexed = IndexedTraversals.forList();
 
-    // Compose: orders → items field → each item with PAIRED indices
-    IndexedTraversal<Pair<Integer, Integer>, List<OrderWithItems>, LineItem> composed =
-        ordersIndexed.andThen(itemsLens.asTraversal()).iandThen(itemsIndexed);
+    // Compose: orders → lines field → each line with PAIRED indices
+    IndexedTraversal<Pair<Integer, Integer>, List<Order>, LineItem> composed =
+        ordersIndexed.andThen(linesLens.asTraversal()).iandThen(linesIndexed);
 
-    List<OrderWithItems> orders =
+    List<Order> orders =
         List.of(
-            new OrderWithItems(
-                "ORD-1",
-                List.of(new LineItem("Laptop", 1, 999.99), new LineItem("Mouse", 1, 24.99))),
-            new OrderWithItems(
-                "ORD-2",
-                List.of(new LineItem("Keyboard", 1, 79.99), new LineItem("Monitor", 1, 299.99))));
+            order(
+                "00000000-0000-0000-0000-000000000001",
+                List.of(line("LAPTOP", 1, "999.99"), line("MOUSE", 1, "24.99"))),
+            order(
+                "00000000-0000-0000-0000-000000000002",
+                List.of(line("KEYBOARD", 1, "79.99"), line("MONITOR", 1, "299.99"))));
 
     // Access with paired indices: (order index, item index)
     List<Pair<Pair<Integer, Integer>, LineItem>> all =
@@ -356,19 +396,18 @@ public class IndexedOpticsExample {
     for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
       Pair<Integer, Integer> indices = entry.first();
       LineItem item = entry.second();
-      System.out.printf(
-          "  Order %d, Item %d: %s%n", indices.first(), indices.second(), item.productName());
+      System.out.printf("  Order %d, Item %d: %s%n", indices.first(), indices.second(), item.sku());
     }
 
     // Modify with full path visibility
-    List<OrderWithItems> updated =
+    List<Order> updated =
         IndexedTraversals.imodify(
             composed,
             (indices, item) -> {
               int orderIdx = indices.first();
               int itemIdx = indices.second();
               System.out.printf(
-                  "Processing [order=%d, item=%d]: %s%n", orderIdx, itemIdx, item.productName());
+                  "Processing [order=%d, item=%d]: %s%n", orderIdx, itemIdx, item.sku());
               return item;
             },
             orders);
@@ -381,32 +420,33 @@ public class IndexedOpticsExample {
     System.out.println("--- Real-World: Order Fulfilment Dashboard ---");
 
     Order order =
-        new Order(
-            "ORD-12345",
+        order(
+            "00000000-0000-0000-0000-000000012345",
             List.of(
-                new LineItem("Laptop", 1, 999.99),
-                new LineItem("Mouse", 2, 24.99),
-                new LineItem("Keyboard", 1, 79.99),
-                new LineItem("Monitor", 1, 299.99)),
-            new LinkedHashMap<>(
-                Map.of(
-                    "priority", "express",
-                    "gift-wrap", "true",
-                    "delivery-note", "Leave at door")));
+                line("LAPTOP", 1, "999.99"),
+                line("MOUSE", 2, "24.99"),
+                line("KEYBOARD", 1, "79.99"),
+                line("MONITOR", 1, "299.99")));
+
+    // The order's metadata, kept beside it, put in the order it is printed
+    Map<String, String> metadata = new LinkedHashMap<>();
+    metadata.put("priority", "express");
+    metadata.put("gift-wrap", "true");
+    metadata.put("delivery-note", "Leave at door");
 
     // Task 1: Generate packing slip
-    System.out.println("Packing Slip for " + order.orderId() + ":");
+    System.out.println("Packing Slip for " + order.id() + ":");
     IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
 
     List<Pair<Integer, LineItem>> indexedItems =
-        IndexedTraversals.toIndexedList(itemsIndexed, order.items());
+        IndexedTraversals.toIndexedList(itemsIndexed, order.lines());
 
     for (Pair<Integer, LineItem> pair : indexedItems) {
       int position = pair.first() + 1; // 1-based for display
       LineItem item = pair.second();
       System.out.printf(
           "  Item %d: %s (Qty: %d) - £%.2f%n",
-          position, item.productName(), item.quantity(), item.price() * item.quantity());
+          position, item.sku(), item.quantity(), lineTotal(item));
     }
 
     // Task 2: Apply position-based discount (every 3rd item gets 15% off)
@@ -416,23 +456,18 @@ public class IndexedOpticsExample {
             itemsIndexed,
             (index, item) -> {
               if ((index + 1) % 3 == 0) {
-                double newPrice = item.price() * 0.85;
+                BigDecimal newPrice = discounted(item.price(), "0.85");
                 System.out.printf(
                     "  Position %d (%s): £%.2f → £%.2f (15%% off)%n",
-                    index + 1, item.productName(), item.price(), newPrice);
-                return new LineItem(item.productName(), item.quantity(), newPrice);
+                    index + 1, item.sku(), item.price(), newPrice);
+                return new LineItem(item.sku(), item.quantity(), newPrice);
               }
               return item;
             },
-            order.items());
+            order.lines());
 
-    double originalTotal =
-        order.items().stream().mapToDouble(item -> item.price() * item.quantity()).sum();
-    double discountedTotal =
-        discounted.stream().mapToDouble(item -> item.price() * item.quantity()).sum();
-
-    System.out.printf("Original total: £%.2f%n", originalTotal);
-    System.out.printf("Discounted total: £%.2f%n", discountedTotal);
+    System.out.printf("Original total: £%.2f%n", total(order.lines()));
+    System.out.printf("Discounted total: £%.2f%n", total(discounted));
 
     // Task 3: Process metadata with key awareness
     System.out.println("\nProcessing metadata:");
@@ -440,7 +475,7 @@ public class IndexedOpticsExample {
         IndexedTraversals.forMap();
 
     List<Pair<String, String>> metadataEntries =
-        IndexedTraversals.toIndexedList(metadataIndexed, order.metadata());
+        IndexedTraversals.toIndexedList(metadataIndexed, metadata);
 
     for (Pair<String, String> entry : metadataEntries) {
       String key = entry.first();
@@ -459,15 +494,15 @@ public class IndexedOpticsExample {
     // Task 4: Identify high-value positions (items > £100)
     System.out.println("\nHigh-value items (require special handling):");
     IndexedTraversal<Integer, List<LineItem>, LineItem> highValue =
-        itemsIndexed.filteredWithIndex((index, item) -> item.price() > 100);
+        itemsIndexed.filteredWithIndex((index, item) -> item.price().compareTo(ONE_HUNDRED) > 0);
 
     List<Pair<Integer, LineItem>> expensive =
-        IndexedTraversals.toIndexedList(highValue, order.items());
+        IndexedTraversals.toIndexedList(highValue, order.lines());
 
     for (Pair<Integer, LineItem> pair : expensive) {
       System.out.printf(
           "  Position %d: %s (£%.2f)%n",
-          pair.first() + 1, pair.second().productName(), pair.second().price());
+          pair.first() + 1, pair.second().sku(), pair.second().price());
     }
 
     System.out.println("\n=== Indexed optics enable position-aware business logic ===");
@@ -484,24 +519,20 @@ public class IndexedOpticsExample {
 
     IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
 
-    // Lens for accessing the price field
-    Lens<LineItem, Double> priceLens =
-        Lens.of(
-            LineItem::price,
-            (item, price) -> new LineItem(item.productName(), item.quantity(), price));
+    // Lens for accessing the price field, generated for the cast
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
 
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, 999.99),
-            new LineItem("Mouse", 2, 24.99),
-            new LineItem("Keyboard", 1, 79.99),
-            new LineItem("Monitor", 1, 299.99),
-            new LineItem("Webcam", 1, 59.99));
+            line("LAPTOP", 1, "999.99"),
+            line("MOUSE", 2, "24.99"),
+            line("KEYBOARD", 1, "79.99"),
+            line("MONITOR", 1, "299.99"),
+            line("WEBCAM", 1, "59.99"));
 
     System.out.println("Original items:");
     for (int i = 0; i < items.size(); i++) {
-      System.out.printf(
-          "  Position %d: %s - £%.2f%n", i, items.get(i).productName(), items.get(i).price());
+      System.out.printf("  Position %d: %s - £%.2f%n", i, items.get(i).sku(), items.get(i).price());
     }
 
     // Example 1: Apply position-based discount using ForIndexed
@@ -509,7 +540,7 @@ public class IndexedOpticsExample {
     Kind<IdKind.Witness, List<LineItem>> discountedResult =
         ForIndexed.overIndexed(itemsIndexed, items, Instances.monad(id()))
             .filterIndex(i -> i % 2 == 0)
-            .modify(priceLens, (index, price) -> price * 0.9)
+            .modify(priceLens, (index, price) -> discounted(price, "0.90"))
             .run();
 
     List<LineItem> discounted = ID.unwrap(discountedResult);
@@ -517,7 +548,7 @@ public class IndexedOpticsExample {
     System.out.println("\nAfter ForIndexed even-position discount (10% off):");
     for (int i = 0; i < discounted.size(); i++) {
       LineItem item = discounted.get(i);
-      System.out.printf("  Position %d: %s - £%.2f", i, item.productName(), item.price());
+      System.out.printf("  Position %d: %s - £%.2f", i, item.sku(), item.price());
       if (i % 2 == 0) {
         System.out.print(" (discounted)");
       }
@@ -528,8 +559,8 @@ public class IndexedOpticsExample {
     // Only discount expensive items (>£50) at the first 3 positions
     Kind<IdKind.Witness, List<LineItem>> combinedResult =
         ForIndexed.overIndexed(itemsIndexed, items, Instances.monad(id()))
-            .filter((index, item) -> index < 3 && item.price() > 50.0)
-            .modify(priceLens, (index, price) -> price * 0.85) // 15% off
+            .filter((index, item) -> index < 3 && item.price().compareTo(FIFTY) > 0)
+            .modify(priceLens, (index, price) -> discounted(price, "0.85")) // 15% off
             .run();
 
     List<LineItem> combinedFiltered = ID.unwrap(combinedResult);
@@ -537,8 +568,8 @@ public class IndexedOpticsExample {
     System.out.println("\nAfter combined filter (first 3 positions AND price > £50, 15% off):");
     for (int i = 0; i < combinedFiltered.size(); i++) {
       LineItem item = combinedFiltered.get(i);
-      boolean wasDiscounted = i < 3 && items.get(i).price() > 50.0;
-      System.out.printf("  Position %d: %s - £%.2f", i, item.productName(), item.price());
+      boolean wasDiscounted = i < 3 && items.get(i).price().compareTo(FIFTY) > 0;
+      System.out.printf("  Position %d: %s - £%.2f", i, item.sku(), item.price());
       if (wasDiscounted) {
         System.out.print(" (discounted)");
       }
@@ -556,8 +587,7 @@ public class IndexedOpticsExample {
     System.out.println("\nOdd-positioned items collected with indices:");
     for (Pair<Integer, LineItem> pair : indexedList) {
       System.out.printf(
-          "  Index %d: %s (£%.2f)%n",
-          pair.first(), pair.second().productName(), pair.second().price());
+          "  Index %d: %s (£%.2f)%n", pair.first(), pair.second().sku(), pair.second().price());
     }
 
     System.out.println(

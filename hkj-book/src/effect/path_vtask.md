@@ -421,4 +421,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 ---
 
 **Previous:** [IOPath](path_io.md)
-**Next:** [Composition Patterns](composition.md)
+**Next:** [VResultPath](path_vresult.md)

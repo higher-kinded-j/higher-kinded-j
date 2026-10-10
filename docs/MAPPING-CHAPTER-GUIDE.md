@@ -95,9 +95,12 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
     reproducer may change the one thing its diagnostic is about. The "before" half of a
     before-and-after pair shows the shape it replaces. The intro's hand-written mapper takes the
     boundary capstone's shapes.
-  - **Reference pages keep their own reproducers.** Compiler Messages and Rules and Limits name
-    each reproducer for its refusal, and code included from another module, such as the Spring
-    example app's `User` or a processor golden file, keeps its own names.
+  - **Reference pages name their own reproducers, and give the package's names the package's
+    shapes.** Compiler Messages and Rules and Limits name each reproducer for its refusal. A
+    reproducer that declares a name of this package keeps its components, names, types and order
+    but for the one thing its diagnostic is about. One that needs none names a type of its own: not
+    a cast name, and not a name this chapter declares in another shape. Code included from another
+    module, such as the Spring example app's `User` or a processor golden file, keeps its own names.
   - **A checkpoint's fresh instance is a fresh case, not a fresh type**: it may reuse the page's
     cast with new values.
   - **The boundary capstone's package holds a larger cast of its own.** Its `Order` carries a

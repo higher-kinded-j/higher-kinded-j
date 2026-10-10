@@ -116,7 +116,8 @@ class SettersBookTest {
     assertThat(SettersBook.normalise())
         .extracting(Product::name)
         .containsExactly("Laptop", "Keyboard", "Monitor");
-    assertThat(SettersBook.normalise().getFirst().toString()).startsWith("Product[name=Laptop, ");
+    assertThat(SettersBook.normalise().getFirst().toString())
+        .startsWith("Product[sku=LAPTOP, name=Laptop, ");
   }
 
   @Test

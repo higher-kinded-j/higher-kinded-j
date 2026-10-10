@@ -5,9 +5,9 @@ package org.higherkindedj.example.optics;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.higherkindedj.example.optics.GenerateMappingExample.Account;
 import org.higherkindedj.example.optics.GenerateMappingExample.Bank;
 import org.higherkindedj.example.optics.GenerateMappingExample.Card;
+import org.higherkindedj.example.optics.GenerateMappingExample.Customer;
 import org.higherkindedj.example.optics.GenerateMappingExample.CustomerDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.DirectoryDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.EmailAddress;
@@ -121,13 +121,13 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("bean tier: AccountMapping's domain round trip is lawful (the bean has no equals)")
-  void accountMappingIsLawful() {
+  @DisplayName("bean tier: ContactMapping's domain round trip is lawful (the bean has no equals)")
+  void contactMappingIsLawful() {
     // A bean wire has no value equals(), so only the domain round trip is comparable: the
-    // domain-sample overload asserts parse(build(account)) == Valid(account).
+    // domain-sample overload asserts parse(build(customer)) == Valid(customer).
     MappingLaws.assertMappingLaws(
-        GenerateMappingExampleAccountMappingImpl.INSTANCE.asValidatedPrism(),
-        new Account("Ada", new EmailAddress("ada@corp.example")));
+        GenerateMappingExampleContactMappingImpl.INSTANCE.asValidatedPrism(),
+        new Customer("Ada", new EmailAddress("ada@corp.example")));
   }
 
   @Test

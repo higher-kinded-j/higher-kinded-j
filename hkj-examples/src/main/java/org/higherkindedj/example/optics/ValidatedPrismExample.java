@@ -3,6 +3,8 @@
 package org.higherkindedj.example.optics;
 
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -27,24 +29,18 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  */
 public final class ValidatedPrismExample {
 
-  public record EmailAddress(String local, String domain) {
-    public String render() {
-      return local + "@" + domain;
-    }
-  }
-
-  public record Contact(String name, EmailAddress email) {}
+  // The records are the chapter's Customer and EmailAddress, imported from its cast package.
 
   /** The wire boundary: {@code String <-> EmailAddress}, parse with reasons, total render. */
   public static final ValidatedPrism<String, EmailAddress> EMAIL =
-      ValidatedPrism.of(ValidatedPrismExample::parseEmail, EmailAddress::render);
+      ValidatedPrism.of(ValidatedPrismExample::parseEmail, EmailAddress::value);
 
   private static Validated<NonEmptyList<FieldError>, EmailAddress> parseEmail(String raw) {
     int at = raw.indexOf('@');
     if (at <= 0 || at != raw.lastIndexOf('@') || at == raw.length() - 1) {
       return Validated.invalidNel(FieldError.of("not an email address: " + raw));
     }
-    return Validated.validNel(new EmailAddress(raw.substring(0, at), raw.substring(at + 1)));
+    return Validated.validNel(new EmailAddress(raw));
   }
 
   public static void main(String[] args) {
@@ -59,7 +55,7 @@ public final class ValidatedPrismExample {
     System.out.println("=== Parse and Build Example ===");
     System.out.println("Parsed:   " + EMAIL.parse("ada@corp.example"));
     System.out.println("Rejected: " + EMAIL.parse("not-an-email"));
-    System.out.println("Rendered: " + EMAIL.build(new EmailAddress("ada", "corp.example")));
+    System.out.println("Rendered: " + EMAIL.build(new EmailAddress("ada@corp.example")));
     System.out.println("Railway:  " + EMAIL.parsePath("ada@corp.example").run());
     System.out.println("Expected: Valid, Invalid with a reason, total render, Valid on the path\n");
   }
@@ -68,20 +64,20 @@ public final class ValidatedPrismExample {
   private static void demonstrateSiblingAccumulation() {
     System.out.println("=== Sibling Accumulation Example ===");
 
-    Validated<NonEmptyList<FieldError>, Contact> good =
+    Validated<NonEmptyList<FieldError>, Customer> good =
         Validated.fields()
             .field("name", Validated.validNel("Ada"))
             .field("email", EMAIL.parse("ada@corp.example"))
-            .apply(Contact::new);
-    Validated<NonEmptyList<FieldError>, Contact> bad =
+            .apply(Customer::new);
+    Validated<NonEmptyList<FieldError>, Customer> bad =
         Validated.fields()
             .field("name", Validated.validNel("Bob"))
             .field("email", EMAIL.parse("nope"))
-            .apply(Contact::new);
+            .apply(Customer::new);
 
     System.out.println("Good: " + good);
     System.out.println("Bad:  " + bad);
-    System.out.println("Expected: Valid(Contact...), Invalid located at \"email: ...\"\n");
+    System.out.println("Expected: Valid(Customer...), Invalid located at \"email: ...\"\n");
   }
 
   /** Lift a plain prism by supplying the missing reason; forget reasons when composing onward. */
@@ -112,13 +108,16 @@ public final class ValidatedPrismExample {
   private static void demonstrateShortCircuitNesting() {
     System.out.println("=== Short-Circuit Nesting Example ===");
 
+    // EmailAddress keeps the whole address, so the inner prism reads the name before the domain.
+    String corpDomain = "@corp.example";
     ValidatedPrism<EmailAddress, String> corpOnly =
         ValidatedPrism.of(
             email ->
-                "corp.example".equals(email.domain())
-                    ? Validated.validNel(email.local())
+                email.value().endsWith(corpDomain)
+                    ? Validated.validNel(
+                        email.value().substring(0, email.value().length() - corpDomain.length()))
                     : Validated.invalidNel(FieldError.of("not a corp address")),
-            local -> new EmailAddress(local, "corp.example"));
+            local -> new EmailAddress(local + corpDomain));
 
     ValidatedPrism<String, String> corpUser = EMAIL.andThen(corpOnly);
 

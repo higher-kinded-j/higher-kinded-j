@@ -35,7 +35,7 @@ record UserSettings(
 record User(String username, String email, int loginCount, UserSettings settings) {}
 
 @GenerateSetters
-record Product(String name, BigDecimal price, int stock, List<String> tags) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 @GenerateSetters
 record Inventory(List<Product> products, String warehouseId) {}
@@ -54,7 +54,7 @@ class Fixture {
 
   static final Person person = new Person("Ada", 36);
 
-  static final Product laptop = new Product("Laptop", new BigDecimal("999.99"), 50, List.of("electronics"));
+  static final Product laptop = new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 50);
 
   static final List<Product> usdProducts = List.of(laptop);
 
@@ -88,7 +88,7 @@ class Fixture {
 
   static final Setter<Product, BigDecimal> priceSetter =
       Setter.fromGetSet(
-          Product::price, (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
+          Product::price, (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
 
   static final Setter<List<Product>, Product> productsSetter = Setter.forList();
 

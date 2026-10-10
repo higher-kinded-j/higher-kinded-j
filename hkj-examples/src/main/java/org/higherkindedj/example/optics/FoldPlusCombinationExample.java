@@ -2,10 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Monoid;
-import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -205,24 +205,43 @@ public class FoldPlusCombinationExample {
   private static void demonstrateMonoidAggregation() {
     System.out.println("--- Monoid Aggregation Across Combined Folds ---");
 
-    record Product(String name, double price, double shippingCost) {}
+    // A catalogue entry, and a quote for shipping it, which carries the cost the product does not
+    record Product(String sku, String name, BigDecimal price, int stock) {}
+    record ShippingQuote(Product product, BigDecimal shippingCost) {}
 
-    Lens<Product, Double> priceLens =
-        Lens.of(Product::price, (p, v) -> new Product(p.name(), v, p.shippingCost()));
-    Lens<Product, Double> shippingLens =
-        Lens.of(Product::shippingCost, (p, v) -> new Product(p.name(), p.price(), v));
+    Lens<ShippingQuote, Product> productLens =
+        Lens.of(ShippingQuote::product, (q, p) -> new ShippingQuote(p, q.shippingCost()));
+    Lens<Product, BigDecimal> priceLens =
+        Lens.of(Product::price, (p, v) -> new Product(p.sku(), p.name(), v, p.stock()));
+    Lens<ShippingQuote, BigDecimal> shippingLens =
+        Lens.of(ShippingQuote::shippingCost, (q, v) -> new ShippingQuote(q.product(), v));
 
-    // Combine price and shipping cost folds
-    Fold<Product, Double> totalCostFold = priceLens.asFold().plus(shippingLens.asFold());
+    // Combine the product's price, one level down, with the quote's shipping cost
+    Fold<ShippingQuote, BigDecimal> totalCostFold =
+        productLens.andThen(priceLens).asFold().plus(shippingLens.asFold());
 
-    Monoid<Double> sumMonoid = Monoids.doubleAddition();
+    // Monoids has no BigDecimal sum, so money sums with a monoid of its own
+    Monoid<BigDecimal> sumMonoid =
+        new Monoid<>() {
+          @Override
+          public BigDecimal empty() {
+            return BigDecimal.ZERO;
+          }
 
-    Product product = new Product("Laptop", 999.99, 15.00);
+          @Override
+          public BigDecimal combine(BigDecimal a, BigDecimal b) {
+            return a.add(b);
+          }
+        };
 
-    double totalCost = totalCostFold.foldMap(sumMonoid, d -> d, product);
-    System.out.println("Product: " + product.name());
+    ShippingQuote quote =
+        new ShippingQuote(
+            new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 5), new BigDecimal("15.00"));
+
+    BigDecimal totalCost = totalCostFold.foldMap(sumMonoid, d -> d, quote);
+    System.out.println("Product: " + quote.product().name());
     System.out.println("Total cost (price + shipping): " + totalCost);
-    System.out.println("All cost components: " + totalCostFold.getAll(product));
+    System.out.println("All cost components: " + totalCostFold.getAll(quote));
     System.out.println();
   }
 }

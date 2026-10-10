@@ -131,13 +131,13 @@ public final class GenerateMappingExample {
 
   public sealed interface Payment permits Card, Bank {}
 
-  public record Card(String number) implements Payment {}
+  public record Card(String pan) implements Payment {}
 
   public record Bank(String iban) implements Payment {}
 
   public sealed interface PaymentDto permits CardDto, BankDto {}
 
-  public record CardDto(String number) implements PaymentDto {}
+  public record CardDto(String pan) implements PaymentDto {}
 
   public record BankDto(String iban) implements PaymentDto {}
 
@@ -164,21 +164,20 @@ public final class GenerateMappingExample {
   @GenerateMapping
   public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
 
-  public record Account(String owner, EmailAddress email) {}
-
   // A mutable getter/setter DTO - the shape a JAXB, Jackson or OpenAPI generator emits. It is not a
   // record and is not annotatable, yet it maps: build fills it through setters, parse reads it back
   // through getters. An unset property is null, so every reference read is null-guarded (below).
-  public static final class AccountDto {
-    private String owner;
+  // It is a second wire for Customer, beside CustomerDto, so it has a spec of its own.
+  public static final class ContactBean {
+    private String name;
     private String email;
 
-    public String getOwner() {
-      return owner;
+    public String getName() {
+      return name;
     }
 
-    public void setOwner(String owner) {
-      this.owner = owner;
+    public void setName(String name) {
+      this.name = name;
     }
 
     public String getEmail() {
@@ -191,7 +190,7 @@ public final class GenerateMappingExample {
   }
 
   @GenerateMapping
-  public interface AccountMapping extends MappingSpec<Account, AccountDto> {
+  public interface ContactMapping extends MappingSpec<Customer, ContactBean> {
     default ValidatedPrism<String, EmailAddress> email() {
       return ValidatedPrism.of(
           raw ->
@@ -374,19 +373,18 @@ public final class GenerateMappingExample {
             + " age=36\n");
 
     System.out.println("=== Bean-Shaped Wire Example (getters/setters, null-guarded parse) ===");
-    Account account = new Account("Ada", new EmailAddress("ada@corp.example"));
-    var accountMapping = GenerateMappingExampleAccountMappingImpl.INSTANCE;
-    AccountDto accountDto = accountMapping.build(account);
+    var contactMapping = GenerateMappingExampleContactMappingImpl.INSTANCE;
+    ContactBean contactBean = contactMapping.build(ada);
     System.out.println(
-        "Built:        AccountDto[owner="
-            + accountDto.getOwner()
+        "Built:        ContactBean[name="
+            + contactBean.getName()
             + ", email="
-            + accountDto.getEmail()
+            + contactBean.getEmail()
             + "]");
-    System.out.println("Round trip:   " + accountMapping.parse(accountDto));
-    AccountDto missing = new AccountDto();
-    missing.setOwner("Bob"); // email left unset (null)
-    System.out.println("Located fail: " + accountMapping.parse(missing));
+    System.out.println("Round trip:   " + contactMapping.parse(contactBean));
+    ContactBean missing = new ContactBean();
+    missing.setName("Bob"); // email left unset (null)
+    System.out.println("Located fail: " + contactMapping.parse(missing));
     System.out.println(
         "Expected: build via setters, Valid(round trip), and the unset email located at \"email\""
             + " as must-not-be-null (a null never reaches the leaf)\n");

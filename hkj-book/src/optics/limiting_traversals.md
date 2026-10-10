@@ -456,7 +456,7 @@ Optional<Product> fifth = IxedInstances.get(IxedInstances.listIx(), 4, products)
 
 ## Real-World Example: E-Commerce Pagination
 
-[`PaginationExample`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java) serves a catalogue of twenty products the way a REST endpoint would: a page at a time, with a hero section at the front and a clearance section at the back. Each product carries a stock count and a badge:
+[`PaginationExample`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java) serves a catalogue of twenty products the way a REST endpoint would: a page at a time, with a hero section at the front and a clearance section at the back. Each product carries a stock count, and the listing that shows it on a page carries a badge:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:model}}
@@ -468,7 +468,7 @@ Each page is one `slicing` traversal, built from the page number:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:get_page}}
 ```
 
-The hero section is the first three products. `taking(3)` marks them as featured, and composed with a price lens it discounts the same three, leaving every other price as it was:
+The hero section is the first three products. `taking(3)` marks them as featured and, composed with lenses through each listing's product to its price, discounts the same three, leaving every other price as it was:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:hero}}

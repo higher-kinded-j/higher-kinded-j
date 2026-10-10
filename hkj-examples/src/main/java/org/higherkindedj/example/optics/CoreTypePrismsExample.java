@@ -4,6 +4,8 @@ package org.higherkindedj.example.optics;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -25,9 +27,9 @@ import org.higherkindedj.optics.util.ValidatedTraversals;
  * {@link Try} using optics, providing a functional alternative to traditional pattern matching and
  * null checking.
  *
- * <p><b>Scenario:</b> Processing API responses that may contain data, errors, or validation
- * failures. We use optics to safely extract and transform these responses without verbose null
- * checks or try-catch blocks.
+ * <p><b>Scenario:</b> Processing the order service's API responses, which may contain a customer,
+ * errors, or validation failures. We use optics to safely extract and transform these responses
+ * without verbose null checks or try-catch blocks.
  *
  * <p><b>Key Utilities Demonstrated:</b>
  *
@@ -47,12 +49,9 @@ import org.higherkindedj.optics.util.ValidatedTraversals;
  */
 public class CoreTypePrismsExample {
 
-  // Domain model for API responses
+  // The order service API's answer to a customer lookup, carrying the chapter's Customer
   @GenerateLenses
-  record User(String id, String name, String email, int age) {}
-
-  @GenerateLenses
-  record ApiResponse(String requestId, Maybe<User> data, List<String> warnings) {}
+  record CustomerLookup(String requestId, Maybe<Customer> customer, List<String> warnings) {}
 
   sealed interface ValidationError permits FieldError, BusinessError {}
 
@@ -92,15 +91,17 @@ public class CoreTypePrismsExample {
     Maybe<String> built = justPrism.build("Functional Java");
     System.out.println("Built Maybe: " + built);
 
-    // Practical use: Extracting user data from API response
-    ApiResponse response =
-        new ApiResponse(
-            "req-123", Maybe.just(new User("u1", "Alice", "alice@example.com", 30)), List.of());
-    Prism<Maybe<User>, User> userPrism = Prisms.just();
-    Optional<User> user = userPrism.getOptional(response.data());
+    // Practical use: Extracting the customer from an API response
+    CustomerLookup response =
+        new CustomerLookup(
+            "req-123",
+            Maybe.just(new Customer("Ada", new EmailAddress("ada@example.com"))),
+            List.of());
+    Prism<Maybe<Customer>, Customer> customerPrism = Prisms.just();
+    Optional<Customer> customer = customerPrism.getOptional(response.customer());
     System.out.println(
-        "User from response: "
-            + user.map(u -> u.name() + " (" + u.email() + ")").orElse("No user"));
+        "Customer from response: "
+            + customer.map(c -> c.name() + " (" + c.email().value() + ")").orElse("No customer"));
 
     System.out.println();
   }
@@ -124,16 +125,17 @@ public class CoreTypePrismsExample {
     System.out.println("Error message: " + leftPrism.getOptional(errorResponse).orElse("None"));
 
     // Practical use: Processing a batch of Either results
-    List<Either<String, User>> results =
+    List<Either<String, Customer>> results =
         List.of(
-            Either.right(new User("u1", "Alice", "alice@example.com", 30)),
+            Either.right(new Customer("Ada", new EmailAddress("ada@example.com"))),
             Either.left("Invalid email format"),
-            Either.right(new User("u2", "Bob", "bob@example.com", 25)));
+            Either.right(new Customer("Grace", new EmailAddress("grace@example.com"))));
 
-    Prism<Either<String, User>, User> userRightPrism = Prisms.right();
+    Prism<Either<String, Customer>, Customer> customerRightPrism = Prisms.right();
     long successCount =
-        results.stream().filter(r -> userRightPrism.getOptional(r).isPresent()).count();
-    System.out.println("Successful user creations: " + successCount + " out of " + results.size());
+        results.stream().filter(r -> customerRightPrism.getOptional(r).isPresent()).count();
+    System.out.println(
+        "Successful customer sign-ups: " + successCount + " out of " + results.size());
 
     System.out.println();
   }
@@ -155,22 +157,24 @@ public class CoreTypePrismsExample {
     System.out.println("Error: " + invalidPrism.getOptional(invalidAge).orElse("None"));
 
     // Practical use: Form validation results
-    List<Validated<String, User>> validationResults =
+    List<Validated<String, Customer>> validationResults =
         List.of(
-            Validated.valid(new User("u1", "Alice", "alice@example.com", 30)),
+            Validated.valid(new Customer("Ada", new EmailAddress("ada@example.com"))),
             Validated.invalid("Email already exists"),
             Validated.invalid("Age must be at least 18"),
-            Validated.valid(new User("u2", "Bob", "bob@example.com", 25)));
+            Validated.valid(new Customer("Grace", new EmailAddress("grace@example.com"))));
 
-    Prism<Validated<String, User>, User> userValidPrism = Prisms.valid();
-    Prism<Validated<String, User>, String> errorPrism = Prisms.invalid();
+    Prism<Validated<String, Customer>, Customer> customerValidPrism = Prisms.valid();
+    Prism<Validated<String, Customer>, String> errorPrism = Prisms.invalid();
 
-    List<User> validUsers =
-        validationResults.stream().flatMap(v -> userValidPrism.getOptional(v).stream()).toList();
+    List<Customer> validCustomers =
+        validationResults.stream()
+            .flatMap(v -> customerValidPrism.getOptional(v).stream())
+            .toList();
     List<String> errors =
         validationResults.stream().flatMap(v -> errorPrism.getOptional(v).stream()).toList();
 
-    System.out.println("Valid users: " + validUsers.size());
+    System.out.println("Valid customers: " + validCustomers.size());
     System.out.println("Validation errors: " + errors);
 
     System.out.println();
@@ -197,11 +201,14 @@ public class CoreTypePrismsExample {
             + failurePrism.getOptional(failureResult).map(Throwable::getMessage).orElse("None"));
 
     // Practical use: Database operations
-    Prism<Try<User>, User> userSuccessPrism = Prisms.success();
-    Try<User> dbResult = Try.of(() -> fetchUserFromDatabase("u1"));
+    Prism<Try<Customer>, Customer> customerSuccessPrism = Prisms.success();
+    Try<Customer> dbResult = Try.of(() -> fetchCustomerFromDatabase("grace@example.com"));
     System.out.println(
-        "User loaded: "
-            + userSuccessPrism.getOptional(dbResult).map(u -> u.name()).orElse("Failed to load"));
+        "Customer loaded: "
+            + customerSuccessPrism
+                .getOptional(dbResult)
+                .map(Customer::name)
+                .orElse("Failed to load"));
 
     System.out.println();
   }
@@ -221,14 +228,16 @@ public class CoreTypePrismsExample {
     Maybe<String> unchanged = Traversals.modify(justTraversal, String::toUpperCase, absent);
     System.out.println("Unchanged Nothing: " + unchanged);
 
-    // Practical use: Updating user email if present
-    ApiResponse response =
-        new ApiResponse(
-            "req-456", Maybe.just(new User("u1", "Alice", "alice@example.com", 30)), List.of());
-    Traversal<Maybe<User>, User> userTraversal = MaybeTraversals.just();
+    // Practical use: Updating the customer's email if present
+    CustomerLookup response =
+        new CustomerLookup(
+            "req-456",
+            Maybe.just(new Customer("Ada", new EmailAddress("ada@example.com"))),
+            List.of());
+    Traversal<Maybe<Customer>, Customer> customerTraversal = MaybeTraversals.just();
 
     // Note: This would require composing with a lens to actually modify the email field
-    System.out.println("Original user: " + response.data());
+    System.out.println("Original customer: " + response.customer());
 
     System.out.println();
   }
@@ -256,23 +265,26 @@ public class CoreTypePrismsExample {
   private static void demonstrateComposition() {
     System.out.println("--- Composition: Combining Prisms with Other Optics ---");
 
-    // Scenario: Extract and modify user email from an API response
-    ApiResponse response =
-        new ApiResponse(
+    // Scenario: Extract and modify the customer's email from an API response
+    CustomerLookup response =
+        new CustomerLookup(
             "req-789",
-            Maybe.just(new User("u1", "Alice", "alice@example.com", 30)),
+            Maybe.just(new Customer("Ada", new EmailAddress("ada@example.com"))),
             List.of("Deprecated API"));
 
-    // Compose: ApiResponse -> Maybe<User> -> User -> email
-    Prism<Maybe<User>, User> userPrism = Prisms.just();
+    // Compose: CustomerLookup -> Maybe<Customer> -> Customer -> email
+    Prism<Maybe<Customer>, Customer> customerPrism = Prisms.just();
 
-    // Get the user if present
-    Optional<User> user = userPrism.getOptional(response.data());
-    System.out.println("User email: " + user.map(User::email).orElse("No user found"));
+    // Get the customer if present
+    Optional<Customer> customer = customerPrism.getOptional(response.customer());
+    System.out.println(
+        "Customer email: " + customer.map(c -> c.email().value()).orElse("No customer found"));
 
-    // In a real scenario, you'd compose with UserLenses.email() to create a full path:
+    // In a real scenario, you'd compose with CustomerLenses.email() to create a full path:
     // var emailPath =
-    // ApiResponseLenses.data().andThen(MaybeTraversals.just()).andThen(UserLenses.email());
+    //     CustomerLookupLenses.customer()
+    //         .andThen(MaybeTraversals.just())
+    //         .andThen(CustomerLenses.email());
 
     System.out.println();
   }
@@ -280,48 +292,57 @@ public class CoreTypePrismsExample {
   private static void demonstrateBeforeAfterComparison() {
     System.out.println("--- Before/After: The Power of Prisms ---\n");
 
-    Maybe<User> maybeUser = Maybe.just(new User("u1", "Alice", "alice@example.com", 30));
+    Maybe<Customer> maybeCustomer =
+        Maybe.just(new Customer("Ada", new EmailAddress("ada@example.com")));
 
     System.out.println("❌ Traditional Java approach:");
     // Verbose null checking and pattern matching
-    if (maybeUser.isJust()) {
-      User user = maybeUser.get();
-      String email = user.email();
+    if (maybeCustomer.isJust()) {
+      Customer customer = maybeCustomer.get();
+      String email = customer.email().value();
       System.out.println("  Email: " + email);
     } else {
-      System.out.println("  Email: No user found");
+      System.out.println("  Email: No customer found");
     }
 
     System.out.println("\n✅ With Prisms:");
     // Elegant, composable, functional
-    Prism<Maybe<User>, User> userPrism = Prisms.just();
-    String email = userPrism.getOptional(maybeUser).map(User::email).orElse("No user found");
+    Prism<Maybe<Customer>, Customer> customerPrism = Prisms.just();
+    String email =
+        customerPrism
+            .getOptional(maybeCustomer)
+            .map(c -> c.email().value())
+            .orElse("No customer found");
     System.out.println("  Email: " + email);
 
     System.out.println("\n" + "=".repeat(60));
     System.out.println("\n❌ Traditional Try handling:");
-    Try<User> tryUser = Try.of(() -> fetchUserFromDatabase("u1"));
-    if (tryUser.isSuccess()) {
+    Try<Customer> tryCustomer = Try.of(() -> fetchCustomerFromDatabase("grace@example.com"));
+    if (tryCustomer.isSuccess()) {
       System.out.println(
-          "  User: " + tryUser.foldFailureFirst(ex -> "Failed: " + ex.getMessage(), u -> u.name()));
+          "  Customer: "
+              + tryCustomer.foldFailureFirst(ex -> "Failed: " + ex.getMessage(), c -> c.name()));
     } else {
-      System.out.println("  Error: " + tryUser.foldFailureFirst(ex -> ex.getMessage(), u -> ""));
+      System.out.println(
+          "  Error: " + tryCustomer.foldFailureFirst(ex -> ex.getMessage(), c -> ""));
     }
 
     System.out.println("\n✅ With Prisms:");
-    Prism<Try<User>, User> successPrism = Prisms.success();
-    Prism<Try<User>, Throwable> failurePrism = Prisms.failure();
+    Prism<Try<Customer>, Customer> successPrism = Prisms.success();
+    Prism<Try<Customer>, Throwable> failurePrism = Prisms.failure();
     System.out.println(
-        "  User: " + successPrism.getOptional(tryUser).map(User::name).orElse("Failed to load"));
+        "  Customer: "
+            + successPrism.getOptional(tryCustomer).map(Customer::name).orElse("Failed to load"));
     System.out.println(
-        "  Error: " + failurePrism.getOptional(tryUser).map(Throwable::getMessage).orElse("None"));
+        "  Error: "
+            + failurePrism.getOptional(tryCustomer).map(Throwable::getMessage).orElse("None"));
 
     System.out.println();
   }
 
   // Helper method to simulate database access
-  private static User fetchUserFromDatabase(String id) {
+  private static Customer fetchCustomerFromDatabase(String email) {
     // Simulated database fetch
-    return new User(id, "Database User", "db@example.com", 25);
+    return new Customer("Grace", new EmailAddress(email));
   }
 }

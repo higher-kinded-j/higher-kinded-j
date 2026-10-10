@@ -338,13 +338,10 @@ Understanding when indexed optics add value is crucial for writing clear, mainta
 IndexedTraversal<Integer, List<Product>, Product> productsIndexed =
     IndexedTraversals.forList();
 
-List<Product> prioritised = IndexedTraversals.imodify(
+List<Product> featured = IndexedTraversals.imodify(
     productsIndexed,
-    (index, product) -> {
-        // First 3 products get express shipping
-        String shipping = index < 3 ? "express" : "standard";
-        return product.withShipping(shipping);
-    },
+    // The first 3 products are featured, at 10% off
+    (index, product) -> index < 3 ? product.applyDiscount(10) : product,
     products
 );
 ```

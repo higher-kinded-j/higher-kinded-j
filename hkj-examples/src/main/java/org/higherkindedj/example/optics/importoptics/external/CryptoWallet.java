@@ -2,5 +2,5 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.importoptics.external;
 
-/** A credit card payment method. */
-public record CreditCard(String cardNumber, String expiryDate) implements PaymentMethod {}
+/** A crypto wallet the payment gateway can charge. */
+public record CryptoWallet(String address) implements PaymentInstrument {}

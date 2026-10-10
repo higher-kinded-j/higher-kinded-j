@@ -25,14 +25,14 @@ class TraversalsBookTest {
 
   private static final List<Product> PRODUCTS =
       List.of(
-          product("Widget", "100.00", "tools", 5),
-          product("Gadget", "200.00", "tools", 0),
-          product("Gizmo", "300.00", "toys", 2),
-          product("Doohickey", "400.00", "toys", 7),
-          product("Thingummy", "500.00", "spares", 0));
+          product("WIDGET", "Widget", "100.00", 5),
+          product("GADGET", "Gadget", "200.00", 0),
+          product("GIZMO", "Gizmo", "300.00", 2),
+          product("DOOHICKEY", "Doohickey", "400.00", 7),
+          product("THINGUMMY", "Thingummy", "500.00", 0));
 
-  private static Product product(String name, String price, String tag, int stock) {
-    return new Product(name, new BigDecimal(price), tag, stock);
+  private static Product product(String sku, String name, String price, int stock) {
+    return new Product(sku, name, new BigDecimal(price), stock);
   }
 
   private static List<BigDecimal> prices(List<Product> products) {

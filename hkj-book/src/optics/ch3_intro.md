@@ -8,7 +8,7 @@
 
 ---
 
-Sometimes you don't want *all* the elements. You want the expensive ones, or the ones at certain indices, or the value at one key of a map. Filtering and indexing narrow a traversal's focus to exactly that subset. Here is the destination, before any theory: a bulk update to the chapter's `Order`, narrowed to only the lines that cost more than £10. The build compiles and runs it, and a test holds each value the comments show:
+Sometimes you don't want *all* the elements. You want the expensive ones, or the ones at certain indices, or the value at one key of a map. Filtering and indexing narrow a traversal's focus to exactly that subset. Here is the destination, before any theory: an update to the prices of the chapter's `Order`, narrowed to only the lines that cost more than £10. The build compiles and runs it, and a test holds each value the comments show:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/groups/GroupIntrosBook.java:precision}}

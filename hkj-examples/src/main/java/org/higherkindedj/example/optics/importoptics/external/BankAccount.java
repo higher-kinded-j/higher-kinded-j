@@ -2,5 +2,5 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.importoptics.external;
 
-/** A digital wallet payment method. */
-public record DigitalWallet(String provider, String accountEmail) implements PaymentMethod {}
+/** A bank account the payment gateway can debit. */
+public record BankAccount(String iban) implements PaymentInstrument {}

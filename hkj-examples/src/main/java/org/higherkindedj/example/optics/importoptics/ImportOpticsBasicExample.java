@@ -41,7 +41,7 @@ public class ImportOpticsBasicExample {
 
     // 2. Composing multiple field updates
     // Update multiple fields by chaining lens operations
-    LocalDate modified = LocalDateLenses.withYear(LocalDateLenses.withDayOfMonth(today, 1), 2025);
+    LocalDate modified = LocalDateLenses.withYear(LocalDateLenses.withDayOfYear(today, 1), 2025);
     System.out.println("Modified (Jan 1, 2025): " + modified);
 
     System.out.println();

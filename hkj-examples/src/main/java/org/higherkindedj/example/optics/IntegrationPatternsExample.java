@@ -7,9 +7,24 @@ import static org.higherkindedj.optics.extensions.PrismExtensions.*;
 import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -20,7 +35,6 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -60,31 +74,16 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class IntegrationPatternsExample {
 
-  // Domain model
+  // Domain model: the chapter's Order, Customer, LineItem and Consignment, and two supporting types
+  // for what the chapter's cast does not carry
+
+  // The phone number the shop holds for a customer, if they gave one
   @GenerateLenses
-  record IPCustomer(String customerId, String name, String email, Maybe<String> phoneNumber) {}
+  record CustomerPhone(Customer customer, Maybe<String> number) {}
 
+  // The discount code a shopper entered against an order line, if any
   @GenerateLenses
-  record IPOrderItem(
-      String sku, String name, BigDecimal unitPrice, int quantity, Maybe<String> discountCode) {}
-
-  @GenerateLenses
-  record IPOrder(
-      String orderId, IPCustomer customer, List<IPOrderItem> items, IPOrderStatus status) {}
-
-  @GeneratePrisms
-  sealed interface IPOrderStatus
-      permits IPDraft, IPSubmitted, IPProcessing, IPCompleted, IPFailed {}
-
-  record IPDraft() implements IPOrderStatus {}
-
-  record IPSubmitted(LocalDateTime timestamp) implements IPOrderStatus {}
-
-  record IPProcessing(String stage) implements IPOrderStatus {}
-
-  record IPCompleted(LocalDateTime timestamp, BigDecimal totalAmount) implements IPOrderStatus {}
-
-  record IPFailed(String reason, LocalDateTime timestamp) implements IPOrderStatus {}
+  record LineDiscount(LineItem line, Maybe<String> code) {}
 
   // API response wrapper
   @GenerateLenses
@@ -93,13 +92,13 @@ public class IntegrationPatternsExample {
   // Validation results
   sealed interface ValidationResult permits ValidationSuccess, ValidationFailure {}
 
-  record ValidationSuccess(IPOrder order) implements ValidationResult {}
+  record ValidationSuccess(Order order) implements ValidationResult {}
 
   record ValidationFailure(List<String> errors) implements ValidationResult {}
 
   public static void main(String[] args) {
     System.out.println("=== Integrated Optics Patterns Example ===\n");
-    System.out.println("Complete E-Commerce IPOrder IPProcessing Workflow\n");
+    System.out.println("Complete E-Commerce Order Processing Workflow\n");
     System.out.println("=".repeat(70) + "\n");
 
     demonstrateCompleteWorkflow();
@@ -108,22 +107,22 @@ public class IntegrationPatternsExample {
   }
 
   private static void demonstrateCompleteWorkflow() {
-    System.out.println("📦 SCENARIO 1: Complete IPOrder IPProcessing Workflow\n");
+    System.out.println("📦 SCENARIO 1: Complete Order Processing Workflow\n");
 
     // Step 1: Receive order from API
-    IPApiResponse<IPOrder> apiResponse = receiveOrderFromApi();
+    IPApiResponse<Order> apiResponse = receiveOrderFromApi();
     System.out.println("Step 1: API Response Received");
     System.out.println("  Status Code: " + apiResponse.statusCode());
     System.out.println("  Has Data: " + apiResponse.data().isJust());
     System.out.println("  Errors: " + apiResponse.errors());
 
     // Step 2: Extract order using prism (safe optional extraction)
-    Prism<Maybe<IPOrder>, IPOrder> justPrism = Prisms.just();
-    Maybe<IPOrder> maybeOrder = apiResponse.data();
+    Prism<Maybe<Order>, Order> justPrism = Prisms.just();
+    Maybe<Order> maybeOrder = apiResponse.data();
 
     if (maybeOrder.isJust()) {
-      IPOrder order = maybeOrder.get();
-      System.out.println("\n✅ IPOrder extracted successfully: " + order.orderId());
+      Order order = maybeOrder.get();
+      System.out.println("\n✅ Order extracted successfully: " + order.id());
       processOrder(order);
     } else {
       System.out.println("\n❌ No order data in API response");
@@ -132,24 +131,24 @@ public class IntegrationPatternsExample {
     System.out.println("\n" + "=".repeat(70) + "\n");
   }
 
-  private static void processOrder(IPOrder order) {
+  private static void processOrder(Order order) {
     // Step 3: Validate customer data
-    System.out.println("\nStep 2: IPCustomer Validation");
-    Validated<NonEmptyList<FieldError>, IPCustomer> customerValidation =
+    System.out.println("\nStep 2: Customer Validation");
+    Validated<NonEmptyList<FieldError>, Customer> customerValidation =
         validateCustomer(order.customer());
 
     customerValidation.fold(
         errors -> {
-          System.out.println("  ❌ IPCustomer validation failed:");
+          System.out.println("  ❌ Customer validation failed:");
           errors.forEach(err -> System.out.println("     • " + err));
           return null;
         },
         validCustomer -> {
-          System.out.println("  ✅ IPCustomer valid: " + validCustomer.name());
+          System.out.println("  ✅ Customer valid: " + validCustomer.name());
 
           // Step 4: Validate all order items
-          System.out.println("\nStep 3: IPOrder Items Validation");
-          ValidationResult itemsValidation = validateOrderItems(order.items());
+          System.out.println("\nStep 3: Order Items Validation");
+          ValidationResult itemsValidation = validateOrderItems(order);
 
           switch (itemsValidation) {
             case ValidationSuccess success -> {
@@ -157,7 +156,7 @@ public class IntegrationPatternsExample {
 
               // Step 5: Apply discounts where applicable
               System.out.println("\nStep 4: Apply Discounts");
-              List<IPOrderItem> discountedItems = applyDiscounts(order.items());
+              List<LineItem> discountedItems = applyDiscounts(order.lines());
               System.out.println("  ✅ Discounts applied to eligible items");
 
               // Step 6: Calculate total
@@ -167,14 +166,14 @@ public class IntegrationPatternsExample {
 
               // Step 7: Save to database
               System.out.println("\nStep 6: Database Persistence");
-              Try<IPOrder> saveResult = saveOrderToDatabase(order);
+              Try<Order> saveResult = saveOrderToDatabase(order);
               saveResult.foldFailureFirst(
                   error -> {
                     System.out.println("  ❌ Save failed: " + error.getMessage());
                     return null;
                   },
                   savedOrder -> {
-                    System.out.println("  ✅ IPOrder saved: " + savedOrder.orderId());
+                    System.out.println("  ✅ Order saved: " + savedOrder.id());
                     return null;
                   });
             }
@@ -188,10 +187,9 @@ public class IntegrationPatternsExample {
         });
   }
 
-  private static Validated<NonEmptyList<FieldError>, IPCustomer> validateCustomer(
-      IPCustomer customer) {
-    FocusPath<IPCustomer, String> name = FocusPath.of(IPCustomerLenses.name());
-    FocusPath<IPCustomer, String> email = FocusPath.of(IPCustomerLenses.email());
+  private static Validated<NonEmptyList<FieldError>, Customer> validateCustomer(Customer customer) {
+    FocusPath<Customer, String> name = CustomerFocus.name();
+    FocusPath<Customer, String> email = CustomerFocus.email().value();
 
     // Every field validated independently; ALL failures reported at once, located by field.
     // A null incoming value would mean "absent" to parseIfPresent, so required fields are
@@ -204,7 +202,7 @@ public class IntegrationPatternsExample {
                 .at("name"),
             Edit.parseIfPresent(
                     email,
-                    Objects.requireNonNullElse(customer.email(), ""),
+                    Objects.requireNonNullElse(customer.email(), new EmailAddress("")).value(),
                     IntegrationPatternsExample::parseEmail)
                 .at("email"))
         .apply(customer);
@@ -225,14 +223,15 @@ public class IntegrationPatternsExample {
         : Validated.invalidNel(FieldError.of("valid email is required"));
   }
 
-  private static ValidationResult validateOrderItems(List<IPOrderItem> items) {
-    Lens<IPOrderItem, BigDecimal> priceLens = IPOrderItemLenses.unitPrice();
-    Traversal<List<IPOrderItem>, BigDecimal> allPrices =
-        Traversals.<IPOrderItem>forList().andThen(priceLens.asTraversal());
+  private static ValidationResult validateOrderItems(Order order) {
+    List<LineItem> items = order.lines();
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
-    Lens<IPOrderItem, Integer> quantityLens = IPOrderItemLenses.quantity();
-    Traversal<List<IPOrderItem>, Integer> allQuantities =
-        Traversals.<IPOrderItem>forList().andThen(quantityLens.asTraversal());
+    Lens<LineItem, Integer> quantityLens = LineItemLenses.quantity();
+    Traversal<List<LineItem>, Integer> allQuantities =
+        Traversals.<LineItem>forList().andThen(quantityLens.asTraversal());
 
     // Collect all validation errors
     List<String> priceErrors =
@@ -267,38 +266,39 @@ public class IntegrationPatternsExample {
         List.of(priceErrors, quantityErrors).stream().flatMap(List::stream).toList();
 
     if (allErrors.isEmpty()) {
-      return new ValidationSuccess(null); // Placeholder
+      return new ValidationSuccess(order);
     } else {
       return new ValidationFailure(allErrors);
     }
   }
 
-  private static List<IPOrderItem> applyDiscounts(List<IPOrderItem> items) {
-    Lens<IPOrderItem, BigDecimal> priceLens = IPOrderItemLenses.unitPrice();
-    Traversal<List<IPOrderItem>, BigDecimal> allPrices =
-        Traversals.<IPOrderItem>forList().andThen(priceLens.asTraversal());
+  private static List<LineItem> applyDiscounts(List<LineItem> items) {
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Apply 10% discount to items over £100 (selective modification)
     return modifyWherePossible(
         allPrices,
         price ->
             price.compareTo(new BigDecimal("100")) > 0
-                ? Maybe.just(price.multiply(new BigDecimal("0.9")))
+                ? Maybe.just(
+                    price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
                 : Maybe.nothing(),
         items);
   }
 
-  private static BigDecimal calculateTotal(List<IPOrderItem> items) {
+  private static BigDecimal calculateTotal(List<LineItem> items) {
     return items.stream()
-        .map(item -> item.unitPrice().multiply(new BigDecimal(item.quantity())))
+        .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  private static Try<IPOrder> saveOrderToDatabase(IPOrder order) {
+  private static Try<Order> saveOrderToDatabase(Order order) {
     return Try.of(
         () -> {
           // Simulate database operation
-          if (order.customer().email().contains("fail")) {
+          if (order.customer().email().value().contains("fail")) {
             throw new RuntimeException("Database connection failed");
           }
           return order;
@@ -308,19 +308,19 @@ public class IntegrationPatternsExample {
   private static void demonstrateErrorAccumulationVsFailFast() {
     System.out.println("📊 SCENARIO 2: Error Accumulation vs First Error\n");
 
-    List<IPOrderItem> problematicItems =
+    List<LineItem> problematicItems =
         List.of(
-            new IPOrderItem("SKU001", "Item 1", new BigDecimal("-10"), 1, Maybe.nothing()),
-            new IPOrderItem("SKU002", "Item 2", new BigDecimal("50"), -5, Maybe.nothing()),
-            new IPOrderItem("SKU003", "Item 3", new BigDecimal("-20"), 0, Maybe.nothing()));
+            new LineItem("SKU001", 1, new BigDecimal("-10.00")),
+            new LineItem("SKU002", -5, new BigDecimal("50.00")),
+            new LineItem("SKU003", 0, new BigDecimal("-20.00")));
 
-    Lens<IPOrderItem, BigDecimal> priceLens = IPOrderItemLenses.unitPrice();
-    Traversal<List<IPOrderItem>, BigDecimal> allPrices =
-        Traversals.<IPOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Strategy 1: First Error (Either)
     System.out.println("Strategy 1: First Error with Either");
-    Either<String, List<IPOrderItem>> firstError =
+    Either<String, List<LineItem>> firstError =
         modifyAllEither(
             allPrices,
             price ->
@@ -341,7 +341,7 @@ public class IntegrationPatternsExample {
 
     // Strategy 2: Error Accumulation (Validated)
     System.out.println("\nStrategy 2: Error Accumulation with Validated");
-    Validated<List<String>, List<IPOrderItem>> accumulate =
+    Validated<List<String>, List<LineItem>> accumulate =
         modifyAllValidated(
             allPrices,
             price ->
@@ -371,68 +371,85 @@ public class IntegrationPatternsExample {
   private static void demonstrateCompositionPatterns() {
     System.out.println("🔗 SCENARIO 3: Advanced Composition Patterns\n");
 
-    IPOrder order =
-        new IPOrder(
-            "ORD-789",
-            new IPCustomer("CUST-123", "Alice", "alice@example.com", Maybe.just("07700900000")),
-            List.of(
-                new IPOrderItem(
-                    "SKU001", "Premium Laptop", new BigDecimal("999.99"), 1, Maybe.just("SAVE10")),
-                new IPOrderItem(
-                    "SKU002", "Wireless Mouse", new BigDecimal("29.99"), 2, Maybe.nothing())),
-            new IPDraft());
+    Customer alice = new Customer("Alice", new EmailAddress("alice@example.com"));
+    LineItem laptop = new LineItem("SKU001", 1, new BigDecimal("999.99"));
+    LineItem mouse = new LineItem("SKU002", 2, new BigDecimal("29.99"));
+    Order order = order("00000000-0000-0000-0000-000000000789", alice, laptop, mouse);
+
+    CustomerPhone phoneOnFile = new CustomerPhone(alice, Maybe.just("07700900000"));
+    List<LineDiscount> discounts =
+        List.of(
+            new LineDiscount(laptop, Maybe.just("SAVE10")),
+            new LineDiscount(mouse, Maybe.nothing()));
+    Consignment consignment =
+        new Consignment(
+            order.id(),
+            new Address("1 Long Street", "London", "N1 1AA"),
+            new ConsignmentState.Pending());
 
     // Pattern 1: Deep navigation with prisms
     System.out.println("Pattern 1: Extract customer phone (nested Maybe)");
-    Lens<IPOrder, IPCustomer> customerLens = IPOrderLenses.customer();
-    Lens<IPCustomer, Maybe<String>> phoneLens = IPCustomerLenses.phoneNumber();
-
-    // Get phone number using lens composition and prism
-    Maybe<String> phone = order.customer().phoneNumber();
+    Lens<CustomerPhone, Maybe<String>> numberLens = CustomerPhoneLenses.number();
     Prism<Maybe<String>, String> justPrism = Prisms.just();
+
+    // Get the phone number with the lens, then unwrap it with the prism
+    Maybe<String> phone = numberLens.get(phoneOnFile);
 
     System.out.println("  Phone: " + justPrism.getOptional(phone).orElse("No phone provided"));
 
     // Pattern 2: Conditional bulk updates
     System.out.println("\nPattern 2: Apply discount codes");
-    Lens<IPOrderItem, Maybe<String>> discountLens = IPOrderItemLenses.discountCode();
-    Traversal<List<IPOrderItem>, Maybe<String>> allDiscountCodes =
-        Traversals.<IPOrderItem>forList().andThen(discountLens.asTraversal());
+    Lens<LineDiscount, Maybe<String>> codeLens = LineDiscountLenses.code();
+    Traversal<List<LineDiscount>, Maybe<String>> allDiscountCodes =
+        Traversals.<LineDiscount>forList().andThen(codeLens.asTraversal());
 
     int itemsWithDiscount =
         countValid(
             allDiscountCodes,
             maybeCode -> maybeCode.isJust() ? Either.right(maybeCode) : Either.left("No code"),
-            order.items());
+            discounts);
 
     System.out.println(
-        "  Items with discount codes: " + itemsWithDiscount + "/" + order.items().size());
+        "  Items with discount codes: " + itemsWithDiscount + "/" + discounts.size());
 
-    // Pattern 3: Status transitions with prisms
-    System.out.println("\nPattern 3: IPOrder status management");
-    Prism<IPOrderStatus, IPDraft> draftPrism = IPOrderStatusPrisms.iPDraft();
+    // Pattern 3: State transitions with prisms
+    System.out.println("\nPattern 3: Consignment state management");
+    Prism<ConsignmentState, ConsignmentState.Pending> pendingPrism =
+        ConsignmentStatePrisms.pending();
 
-    if (draftPrism.matches(order.status())) {
-      System.out.println("  ✅ IPOrder is in IPDraft status, ready to submit");
-      IPOrderStatus newStatus = new IPSubmitted(LocalDateTime.now());
-      System.out.println("  Transitioning to: IPSubmitted");
+    if (pendingPrism.matches(consignment.state())) {
+      System.out.println("  ✅ Consignment is Pending, ready to dispatch");
+      Consignment dispatched =
+          ConsignmentLenses.state()
+              .set(
+                  new ConsignmentState.Dispatched(Instant.parse("2026-10-01T12:00:00Z")),
+                  consignment);
+      System.out.println("  Transitioning to: " + dispatched.state());
     }
 
     System.out.println();
   }
 
   // Helper: Simulate API response
-  private static IPApiResponse<IPOrder> receiveOrderFromApi() {
-    IPOrder order =
-        new IPOrder(
-            "ORD-456",
-            new IPCustomer("CUST-789", "Bob Smith", "bob@example.com", Maybe.nothing()),
-            List.of(
-                new IPOrderItem("SKU100", "Product A", new BigDecimal("49.99"), 2, Maybe.nothing()),
-                new IPOrderItem(
-                    "SKU200", "Product B", new BigDecimal("149.99"), 1, Maybe.just("FIRST10"))),
-            new IPDraft());
+  private static IPApiResponse<Order> receiveOrderFromApi() {
+    Order order =
+        order(
+            "00000000-0000-0000-0000-000000000456",
+            new Customer("Bob Smith", new EmailAddress("bob@example.com")),
+            new LineItem("SKU100", 2, new BigDecimal("49.99")),
+            new LineItem("SKU200", 1, new BigDecimal("149.99")));
 
     return new IPApiResponse<>(200, Maybe.just(order), List.of());
+  }
+
+  // Helper: a new order of the customer's, placed on 1 October, in pounds
+  private static Order order(String id, Customer customer, LineItem... lines) {
+    return new Order(
+        UUID.fromString(id),
+        customer,
+        List.of(lines),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
   }
 }

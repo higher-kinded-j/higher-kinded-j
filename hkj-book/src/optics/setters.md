@@ -37,7 +37,7 @@ public record UserSettings(
     String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
 @GenerateSetters
-public record Product(String name, BigDecimal price, int stock, List<String> tags) {}
+public record Product(String sku, String name, BigDecimal price, int stock) {}
 
 @GenerateSetters
 public record Inventory(List<Product> products, String warehouseId) {}
@@ -380,7 +380,7 @@ setter.modify(obj -> { obj.setValue(newValue); return obj; }, source);
 // Correct: Return new immutable instance
 Setter<Product, BigDecimal> priceSetter = Setter.fromGetSet(
     Product::price,
-    (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
+    (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
 ```
 
 ---

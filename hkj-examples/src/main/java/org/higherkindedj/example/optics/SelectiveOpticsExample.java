@@ -34,9 +34,11 @@ public class SelectiveOpticsExample {
   @GenerateLenses
   public record Account(String id, double balance, boolean isPremium) {}
 
+  // A bank's book of accounts. It is not named Bank, which in the Optics chapter's order service is
+  // a payment by bank transfer.
   @GenerateLenses
   @GenerateTraversals
-  public record Bank(String name, List<Account> accounts) {}
+  public record Ledger(String name, List<Account> accounts) {}
 
   @GenerateLenses
   public record Email(String address, boolean verified) {}
@@ -120,21 +122,21 @@ public class SelectiveOpticsExample {
   private static void conditionalTraversalExample() {
     System.out.println("--- Example 3: Conditional Traversal ---");
 
-    Bank bank =
-        new Bank(
-            "Premium Bank",
+    Ledger ledger =
+        new Ledger(
+            "Premium accounts",
             List.of(
                 new Account("ACC-001", 5000.0, true),
                 new Account("ACC-002", 100.0, false),
                 new Account("ACC-003", 10000.0, true),
                 new Account("ACC-004", 500.0, false)));
 
-    Traversal<Bank, Account> accountsTraversal = BankTraversals.accounts();
+    Traversal<Ledger, Account> accountsTraversal = LedgerTraversals.accounts();
 
     // Only apply bonus to premium accounts
     Predicate<Account> isPremium = Account::isPremium;
 
-    Kind<IdKind.Witness, Bank> updated =
+    Kind<IdKind.Witness, Ledger> updated =
         accountsTraversal.modifyWhen(
             isPremium,
             account ->
@@ -143,11 +145,11 @@ public class SelectiveOpticsExample {
                         .modify(
                             balance -> balance * 1.10, // 10% bonus
                             account)),
-            bank,
+            ledger,
             IdSelective.instance());
 
     System.out.println("Original accounts:");
-    bank.accounts().forEach(acc -> System.out.println("  " + acc));
+    ledger.accounts().forEach(acc -> System.out.println("  " + acc));
 
     System.out.println("\nAfter premium bonus:");
     ID.narrow(updated).value().accounts().forEach(acc -> System.out.println("  " + acc));
@@ -230,15 +232,15 @@ public class SelectiveOpticsExample {
   private static void comparativeExample() {
     System.out.println("--- Example 6: Applicative vs Selective Comparison ---");
 
-    Bank bank =
-        new Bank(
-            "Test Bank",
+    Ledger ledger =
+        new Ledger(
+            "Test accounts",
             List.of(
                 new Account("ACC-001", 1000.0, false),
                 new Account("ACC-002", -50.0, false),
                 new Account("ACC-003", -100.0, false)));
 
-    Traversal<Bank, Account> accountsTraversal = BankTraversals.accounts();
+    Traversal<Ledger, Account> accountsTraversal = LedgerTraversals.accounts();
 
     // Validation function
     Function<Account, Kind<ValidatedKind.Witness<String>, Account>> validator =
@@ -254,10 +256,10 @@ public class SelectiveOpticsExample {
 
     // Approach 1: Applicative - validates ALL accounts, accumulates ALL errors
     System.out.println("\nApplicative approach (accumulates all errors):");
-    Validated<String, Bank> applicativeResult =
+    Validated<String, Ledger> applicativeResult =
         VALIDATED.narrow(
             accountsTraversal.modifyF(
-                validator, bank, Instances.validated(Semigroups.string("; "))));
+                validator, ledger, Instances.validated(Semigroups.string("; "))));
     System.out.println("Result: " + applicativeResult);
 
     // Approach 2: Selective - validate only the accounts the predicate admits
@@ -268,11 +270,11 @@ public class SelectiveOpticsExample {
     Selective<ValidatedKind.Witness<String>> selective =
         ValidatedSelective.instance(Semigroups.string("; "));
 
-    Validated<String, Bank> selectiveResult =
+    Validated<String, Ledger> selectiveResult =
         VALIDATED.narrow(
             accountsTraversal.modifyWhen(
                 isValid, validator, // Only validate if basic check passes
-                bank, selective));
+                ledger, selective));
     System.out.println("Result: " + selectiveResult);
     System.out.println(
         "Note: rejected accounts are kept unvalidated, so their overdrafts are not reported");

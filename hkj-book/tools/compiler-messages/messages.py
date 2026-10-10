@@ -72,21 +72,21 @@ GROUPS = [
              meaning="A domain component has no wire component of the same name, and no rename points it at one.",
              fix="Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = \"fullName\") String name();`. Where the component already has a leaf, put the `@MapField` on the leaf instead, as [Renamed and converted](basics.md#renamed-and-converted) shows.",
              rule=("Renames", "basics.md#renames-mapfield"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}"""),
         dict(id="no-usable-source",
              heading="target field 'XDto.y' has no usable source",
              fragment="has no usable source",
              meaning="A wire component's type differs from its domain counterpart's, and nothing converts between them.",
              fix="Add the method the message spells out, or put it in place of the one the message names, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container.",
              rule=("Validated leaves", "basics.md#validated-leaves"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
@@ -98,9 +98,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              meaning="A leaf declared on the spec is named after nothing the domain has, which is usually a typo.",
              fix="Rename it after the component it parses; the message names the nearest one when it is close. Make it `private` or `static` if it is a helper.",
              rule=("How the two `default` families are told apart", "rules.md#how-the-two-default-families-are-told-apart"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -114,13 +114,13 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="The spec declares a mapping method, as a MapStruct mapper would; here the spec declares only vocabulary, and the Impl generates the methods.",
              fix="Delete the method, and call the generated Impl's `build` or `parse`.",
              rule=("Your first mapping", "basics.md#your-first-mapping"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  CustomerDto toDto(Customer customer);
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  AuthorDto toDto(Author author);
 }"""),
         dict(id="collides-with-a-generated-member",
              heading="'build(X)' collides with the 'build' member the generated XImpl emits",
@@ -128,14 +128,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="The spec declares a method the generated Impl also declares, so it would be overridden or break the generated file.",
              fix="Rename the method, or remove it and rely on the generated one. To change how one component maps, declare a leaf named after it.",
              rule=("Validated leaves", "basics.md#validated-leaves"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default CustomerDto build(Customer customer) {
-    return new CustomerDto(customer.name());
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  default AuthorDto build(Author author) {
+    return new AuthorDto(author.name());
   }
 }"""),
         dict(id="wire-has-more-components",
@@ -144,19 +144,19 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.",
              fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.",
              rule=("Derived wire fields", "basics.md#derived-wire-fields"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name, String email) {}
+record AuthorDto(String name, String email) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}"""),
         dict(id="projection-field-has-no-domain-source",
              heading="projection field 'XDto.y' has no domain source",
              fragment="has no domain source",
              meaning="A wire with fewer components than the domain maps as a projection, and one of its components is named after nothing the domain has.",
              fix="Align the component names, or add a `@MapField` rename, on the component's leaf where it has one.",
              rule=("Renames", "basics.md#renames-mapfield"),
-             code="""record Customer(String name, String email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
 record CustomerDto(String nmae) {}
 
@@ -170,12 +170,12 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              meaning="A rename's `to` names nothing the wire has, which is usually a typo.",
              fix="Point `to` at an existing wire component; the message lists them.",
              rule=("Renames", "basics.md#renames-mapfield"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
   @MapField(to = "fulName")
   String name();
 }"""),
@@ -187,14 +187,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A derived field is named after nothing the wire has, which is usually a typo.",
              fix="Rename the method after the wire component it derives, or remove it.",
              rule=("Derived wire fields", "basics.md#derived-wire-fields"),
-             code="""record Customer(String name) {}
+             code="""record Recipient(String first, String last) {}
 
-record CustomerDto(String name, String displayName) {}
+record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default Getter<Customer, String> dispalyName() {
-    return Getter.of(Customer::name);
+interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+  default Getter<Recipient, String> dispalyName() {
+    return Getter.of(r -> r.first() + " " + r.last());
   }
 }"""),
         dict(id="both-map-to-one-wire-component",
@@ -236,12 +236,12 @@ interface PersonMapping extends MappingSpec<Person, PersonDto> {
              meaning="An abstract method on the spec carries nothing that says what it declares, so the generated Impl cannot implement it.",
              fix="Give it a `default` body, make it a `@MapField` rename, or mark it `@OptionalBridge`.",
              rule=("Renames", "basics.md#renames-mapfield"),
-             code="""record Customer(String name) {}
+             code="""record Recipient(String first, String last) {}
 
-record CustomerDto(String name) {}
+record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
   String displayName();
 }"""),
         dict(id="mapfield-neither-marker-nor-leaf",
@@ -252,9 +252,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A `@MapField` method has a body, and is not the component's leaf, so it is neither shape a rename takes.",
              fix="Make it the component's leaf, a zero-parameter `default` method returning `ValidatedPrism<Wire, Domain>`, or remove the body to leave a rename marker. The message names the change the method's shape needs.",
              rule=("Renamed and converted", "basics.md#renamed-and-converted"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String emailAddress) {}
+record CustomerDto(String name, String emailAddress) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -269,14 +269,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A derived field carries the name of a domain component, where the processor expects a leaf.",
              fix="Name it after the wire-only component it derives, or return a `ValidatedPrism` to make it a leaf.",
              rule=("How the two `default` families are told apart", "rules.md#how-the-two-default-families-are-told-apart"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default Getter<Customer, String> name() {
-    return Getter.of(customer -> customer.name().toUpperCase(Locale.ROOT));
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  default Getter<Author, String> name() {
+    return Getter.of(author -> author.name().toUpperCase(Locale.ROOT));
   }
 }"""),
         dict(id="projection-with-derived-fields",
@@ -285,14 +285,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A wire with fewer components than the domain (a projection) also declares a derived field, and the write-back could never keep a value `build` recomputes.",
              fix="Drop the derived field and map the smaller wire as a plain projection, or give the wire every domain component.",
              rule=("Derived fields and the emission tiers", "rules.md#derived-fields-and-the-emission-tiers"),
-             code="""record Employee(String name, String dept, int age) {}
+             code="""record Employee(String name, String department, int age) {}
 
 record BadgeDto(String name, String label) {}
 
 @GenerateMapping
 interface BadgeMapping extends MappingSpec<Employee, BadgeDto> {
   default Getter<Employee, String> label() {
-    return Getter.of(employee -> employee.name() + " (" + employee.dept() + ")");
+    return Getter.of(employee -> employee.name() + " (" + employee.department() + ")");
   }
 }"""),
         dict(id="own-type-parameters",
@@ -301,12 +301,12 @@ interface BadgeMapping extends MappingSpec<Employee, BadgeDto> {
              meaning="An abstract leaf, rename or marker declares its own `<R>`, which the generated Impl has nowhere to declare.",
              fix="Give the method a concrete type. Element types belong on the spec's own type parameters.",
              rule=("The boundaries of a generic spec", "rules.md#generic-boundaries"),
-             code="""record Page(List<String> items) {}
+             code="""record Page<T>(List<T> items, int total) {}
 
-record PageDto(List<String> entries) {}
+record PageView<T>(List<T> entries, int total) {}
 
 @GenerateMapping
-interface PageMapping extends MappingSpec<Page, PageDto> {
+interface PageViewMapping<T> extends MappingSpec<Page<T>, PageView<T>> {
   @MapField(to = "entries")
   <R> List<R> items();
 }"""),
@@ -355,13 +355,13 @@ interface PageMapping extends MappingSpec<Page, PageDto> {
              meaning="A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruct-style. The constant can read `null`, depending on which class a program uses first.",
              fix="Keep the Impl in the calling code: a local, or a `private static final` field on the class that calls it. Annotate a constant you keep on purpose `@SuppressWarnings(\"impl-constant\")`.",
              rule=("A spec never holds its Impl in a constant", "rules.md#impl-constant-on-a-spec"),
-             code="""record Customer(String name) {}
+             code="""record Warehouse(String code, int bays) {}
 
-record CustomerDto(String name) {}
+record WarehouseDto(String code, int bays) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;
+interface WarehouseMapping extends MappingSpec<Warehouse, WarehouseDto> {
+  WarehouseMappingImpl MAPPER = WarehouseMappingImpl.INSTANCE;
 }"""),
     ]),
     ("Optional fields", "optional-fields", [
@@ -455,19 +455,19 @@ interface GuestMapping extends MappingSpec<Guest, GuestBean> {
              meaning="A spec extends another spec as if it were a vocabulary; a spec generates an Impl, a mix-in only shares members.",
              fix="Move the shared renames and leaves onto a plain interface, and extend that instead.",
              rule=("Mix-in shapes the processor refuses", "rules.md#refused-mix-in-shapes"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
-record Supplier(String name) {}
+record Publisher(String name) {}
 
-record SupplierDto(String name) {}
-
-@GenerateMapping
-interface SupplierMapping extends MappingSpec<Supplier, SupplierDto> {}
+record PublisherDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, SupplierMapping {}"""),
+interface PublisherMapping extends MappingSpec<Publisher, PublisherDto> {}
+
+@GenerateMapping
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, PublisherMapping {}"""),
         dict(id="extended-raw",
              heading="mix-in 'X' is extended raw by the spec",
              fragment="is extended raw by",
@@ -479,13 +479,13 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, SupplierMa
   T name();
 }
 
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @SuppressWarnings("rawtypes")
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, Renames {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, Renames {}"""),
         dict(id="reached-through-raw",
              heading="mix-in 'X' is reached through 'Y', which the spec extends raw",
              fragment="which the spec extends raw",
@@ -500,20 +500,20 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, Renames {}
 
 interface Middle<T> extends Renames<T> {}
 
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @SuppressWarnings("rawtypes")
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, Middle {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, Middle {}"""),
         dict(id="conflicting-renames",
              heading="component 'x' has conflicting renames",
              fragment="has conflicting renames",
              meaning="Two mix-ins rename the same component to different wire components, and neither overrides the other.",
              fix="Declare the rename on the spec itself, which overrides both, or align the mix-ins on one target.",
              rule=("Inheriting one member twice", "rules.md#inheriting-one-member-twice"),
-             code="""interface BillingNames {
+             code="""interface BylineNames {
   @MapField(to = "fullName")
   String name();
 }
@@ -523,13 +523,13 @@ interface DisplayNames {
   String name();
 }
 
-record Customer(String name, String nickname) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName, String displayName) {}
+record AuthorDto(String fullName, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping
-    extends MappingSpec<Customer, CustomerDto>, BillingNames, DisplayNames {}"""),
+interface AuthorMapping
+    extends MappingSpec<Author, AuthorDto>, BylineNames, DisplayNames {}"""),
     ]),
     ("Containers", "containers", [
         dict(id="array-constructor",
@@ -557,12 +557,12 @@ interface BoardMapping extends MappingSpec<Board, BoardDto> {}"""),
              meaning="A key leaf sits beside a leaf over the whole `Map`, which is tried first, so the key leaf would never convert anything.",
              fix="Follow the message: drop the whole-map leaf (the values then copy, where their types match, or take the value leaf it offers), or drop the key leaf to keep converting the map whole.",
              rule=("A key leaf beside a whole-map leaf", "rules.md#key-leaf-beside-a-whole-map-leaf"),
-             code="""record Catalogue(Map<Locale, String> labels) {}
+             code="""record Banner(Map<Locale, String> labels) {}
 
-record CatalogueDto(Map<String, String> labels) {}
+record BannerDto(Map<String, String> labels) {}
 
 @GenerateMapping
-interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+interface BannerMapping extends MappingSpec<Banner, BannerDto> {
   default ValidatedPrism<Map<String, String>, Map<Locale, String>> labels() {
     return LabelCodecs.LABELS;
   }
@@ -579,13 +579,13 @@ interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
              fix="Declare both type arguments on the component, such as `Map<Locale, String>`.",
              rule=("What lifts, and what does not", "rules.md#what-lifts"),
              code="""@SuppressWarnings("rawtypes")
-record Catalogue(Map labels) {}
+record Banner(Map labels) {}
 
 @SuppressWarnings("rawtypes")
-record CatalogueDto(Map labels) {}
+record BannerDto(Map labels) {}
 
 @GenerateMapping
-interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+interface BannerMapping extends MappingSpec<Banner, BannerDto> {
   @MapKey("labels")
   default ValidatedPrism<String, Locale> labelKeys() {
     return StandardCodecs.locale();
@@ -597,22 +597,22 @@ interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
              meaning="Two specs map the same pair, so a component of that pair has no single spec to nest through.",
              fix="Remove the duplicate spec, or add the leaf the message spells out, delegating to the spec you mean.",
              rule=("How a dependency's specs are found", "rules.md#how-a-dependencys-specs-are-found"),
-             code="""record Customer(String name) {}
+             code="""record Merchant(String id, String name) {}
 
-record CustomerDto(String name) {}
-
-@GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+record MerchantDto(String id, String name) {}
 
 @GenerateMapping
-interface LegacyCustomerMapping extends MappingSpec<Customer, CustomerDto> {}
-
-record Invoice(Customer customer) {}
-
-record InvoiceDto(CustomerDto customer) {}
+interface MerchantMapping extends MappingSpec<Merchant, MerchantDto> {}
 
 @GenerateMapping
-interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}"""),
+interface LegacyMerchantMapping extends MappingSpec<Merchant, MerchantDto> {}
+
+record Storefront(String url, Merchant merchant) {}
+
+record StorefrontDto(String url, MerchantDto merchant) {}
+
+@GenerateMapping
+interface StorefrontMapping extends MappingSpec<Storefront, StorefrontDto> {}"""),
         dict(id="subtype-has-no-spec",
              heading="permitted subtype 'X' of 'Y' has no mapping spec",
              fragment="has no mapping spec",
@@ -621,13 +621,13 @@ interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}"""),
              rule=("Sealed hierarchies", "structure.md#sealed-hierarchies"),
              code="""sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
 sealed interface PaymentDto permits CardDto, BankDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 record BankDto(String iban) implements PaymentDto {}
 
@@ -644,13 +644,13 @@ interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}"""),
              rule=("Sealed hierarchies", "structure.md#sealed-hierarchies"),
              code="""sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
 sealed interface PaymentDto permits CardDto, BankDto, CashDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 record BankDto(String iban) implements PaymentDto {}
 
@@ -670,21 +670,21 @@ interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}"""),
              meaning="Two domain subtypes map to one wire subtype, so `parse` could not tell which to build.",
              fix="Give each domain subtype its own wire subtype.",
              rule=("Sealed hierarchies", "structure.md#sealed-hierarchies"),
-             code="""sealed interface Payment permits Card, GiftCard {}
+             code="""sealed interface Payment permits Card, StoreCard {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record GiftCard(String number) implements Payment {}
+record StoreCard(String pan) implements Payment {}
 
 sealed interface PaymentDto permits CardDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 @GenerateMapping
 interface CardMapping extends MappingSpec<Card, CardDto> {}
 
 @GenerateMapping
-interface GiftCardMapping extends MappingSpec<GiftCard, CardDto> {}
+interface StoreCardMapping extends MappingSpec<StoreCard, CardDto> {}
 
 @GenerateMapping
 interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}"""),
@@ -694,13 +694,13 @@ interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}"""),
              meaning="A sealed spec declares a leaf, derived field, rename or marker, but a dispatch has no components to bind it to.",
              fix="Move the method onto the spec of the subtype pair it belongs to.",
              rule=("Spec members on a sealed mapping", "rules.md#how-the-two-default-families-are-told-apart"),
-             code="""sealed interface Contact permits Email {}
+             code="""sealed interface Channel permits Email {}
 
-record Email(EmailAddress address) implements Contact {}
+record Email(EmailAddress address) implements Channel {}
 
-sealed interface ContactDto permits EmailDto {}
+sealed interface ChannelDto permits EmailDto {}
 
-record EmailDto(String address) implements ContactDto {}
+record EmailDto(String address) implements ChannelDto {}
 
 @GenerateMapping
 interface EmailMapping extends MappingSpec<Email, EmailDto> {
@@ -710,7 +710,7 @@ interface EmailMapping extends MappingSpec<Email, EmailDto> {
 }
 
 @GenerateMapping
-interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+interface ChannelMapping extends MappingSpec<Channel, ChannelDto> {
   default ValidatedPrism<String, EmailAddress> address() {
     return EmailCodecs.EMAIL;
   }
@@ -723,14 +723,14 @@ interface ContactMapping extends MappingSpec<Contact, ContactDto> {
              meaning="A flattened record has a component named like one of the domain's own, so both would claim the same wire component.",
              fix="Rename one of the two record components, or, where two groups spread one record type, flatten only one of them and nest the other.",
              rule=("Names in a flattened group", "rules.md#names-in-a-flattened-group"),
-             code="""record Address(String street, String city) {}
+             code="""record Address(String street, String city, String postcode) {}
 
-record Customer(String name, String city, Address address) {}
+record PickupPoint(String name, String city, Address address) {}
 
-record CustomerDto(String name, String city, String street) {}
+record PickupPointDto(String name, String street, String city, String postcode) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address();
 }"""),
@@ -740,14 +740,15 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A flattened group is read from and written to record components, and this wire is a bean.",
              fix="Map the pair with a record wire.",
              rule=("Where a flattened component can appear", "rules.md#where-flattening-applies"),
-             code="""record Address(String street, String city) {}
+             code="""record Address(String street, String city, String postcode) {}
 
-record Customer(String name, Address address) {}
+record PickupPoint(String name, Address address) {}
 
-class CustomerBean {
+class PickupPointBean {
   private String name;
   private String street;
   private String city;
+  private String postcode;
 
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
@@ -755,10 +756,12 @@ class CustomerBean {
   public void setStreet(String street) { this.street = street; }
   public String getCity() { return city; }
   public void setCity(String city) { this.city = city; }
+  public String getPostcode() { return postcode; }
+  public void setPostcode(String postcode) { this.postcode = postcode; }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointBean> {
   @Flatten
   Address address();
 }"""),
@@ -770,14 +773,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
              rule=("Where a flattened component can appear", "rules.md#where-flattening-applies"),
              code="""record Geo(String lat) {}
 
-record Address(String street, Geo geo) {}
+record Address(String street, String city, String postcode, Geo geo) {}
 
-record Customer(String name, Address address) {}
+record PickupPoint(String name, Address address) {}
 
-record CustomerDto(String name, String street, String lat) {}
+record PickupPointDto(String name, String street, String city, String postcode, String lat) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address();
 
@@ -792,26 +795,26 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="The domain is a bean, but `parse` builds the domain through a record's canonical constructor.",
              fix="Make the domain a record, or a sealed interface of records, and map the bean as the wire.",
              rule=("How a bean is read and written", "rules.md#how-a-bean-is-read-and-written"),
-             code="""class Customer {
+             code="""class Author {
   private String name;
 
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
 }
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}"""),
         dict(id="setter-with-no-getter",
              heading="bean property 'x' on 'Y' has a setter but no getter, or a getter but no setter, so the mapping leaves it out",
              fragment="so the mapping leaves it out",
              meaning="An accessor has no partner, and leaving it out would drop a domain component, or on a PATCH bean ignore a value the client sends.",
              fix="Add the missing accessor, or correct the misspelt one the message names. A getter `parse` should read and `build` leave out takes a `@ReadOnly` marker, and an accessor meant to stay out an `@Unmapped` one.",
              rule=("When an unpaired accessor is refused", "rules.md#unpaired-accessors"),
-             code="""record Customer(String name, String email) {}
+             code="""record Author(String name, String email) {}
 
-class CustomerBean {
+class AuthorBean {
   private String name;
   private String email;
 
@@ -822,43 +825,46 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}"""),
         dict(id="read-and-written-at-different-types",
              heading="bean property 'x' on 'Y' is read and written at different types",
              fragment="is read and written at different types",
              meaning="A getter and the setter or builder setter that shares its name take the property at different types, and no overload of the writer takes the getter's type.",
              fix="Give the writer, or one of its overloads, the getter's type where they are declared.",
              rule=("How a bean is read and written", "rules.md#how-a-bean-is-read-and-written"),
-             code="""record Customer(int age) {}
+             code="""record Author(String name, int age) {}
 
-class CustomerBean {
+class AuthorBean {
+  private String name;
   private int age;
 
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
   public int getAge() { return age; }
   public void setAge(String age) { this.age = Integer.parseInt(age); }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}"""),
         dict(id="unmapped-names-no-accessor",
              heading="@Unmapped method 'x' names no accessor 'Y' leaves out",
              fragment="names no accessor",
              meaning="An `@Unmapped` marker names something the bean does not leave unpaired, which is usually a misspelling.",
              fix="Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it.",
              rule=("Accessors meant to stay out", "beans.md#accessors-meant-to-stay-out"),
-             code="""record Customer(String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerBean {
-  private String name;
+class MerchantPatchBean {
   private String id;
+  private String name;
 
+  public String getId() { return id; }
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
-  public String getId() { return id; }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
   @Unmapped
   String ident();
 }"""),
@@ -868,9 +874,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
              meaning="An `@Unmapped` marker names a property the bean both reads and writes, so the mapping carries it anyway.",
              fix="Remove the marker. To leave the property out, remove one of its accessors.",
              rule=("Accessors meant to stay out", "beans.md#accessors-meant-to-stay-out"),
-             code="""record Customer(String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerBean {
+class MerchantBean {
   private String name;
   private String id;
 
@@ -881,7 +887,7 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface MerchantMapping extends MappingSpec<Merchant, MerchantBean> {
   @Unmapped
   String id();
 }"""),
@@ -891,15 +897,15 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
              meaning="An `@Unmapped` marker sits on a bean that is only read, or only written, whose accessors are each a property of their own, so none is left unpaired.",
              fix="Remove the marker. On a bean that is only written, fill a writer no domain component names with a derived field, or remove that writer.",
              rule=("What `@Unmapped` withholds", "rules.md#what-unmapped-withholds"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-class CustomerView {
+class AuthorView {
   public String getName() { return "Ada"; }
   public String getNickname() { return "A"; }
 }
 
 @GenerateMapping
-interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
+interface AuthorViewMapping extends MappingSpec<Author, AuthorView> {
   @Unmapped
   String nickname();
 }"""),
@@ -909,9 +915,9 @@ interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
              meaning="A `@ReadOnly` marker names no getter the bean declares without a setter, which is usually a misspelling.",
              fix="Name the marker after the getter's property, which the message lists, or remove it.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -921,7 +927,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String idd();
 }"""),
@@ -932,9 +938,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
              meaning="A `@ReadOnly` marker names a property the bean both reads and writes, so the mapping writes it anyway.",
              fix="Remove the marker. To leave the property unwritten, remove its setter from the bean.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -945,7 +951,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }"""),
@@ -955,12 +961,12 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
              meaning="A `@ReadOnly` marker sits on a record wire, or a bean crossed one way, which has no getter without a setter for it to read.",
              fix="Remove the marker. On a record, `build` writes every component, and `parse` reads it.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-record CustomerDto(String id, String name) {}
+record MerchantDto(String id, String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface MerchantMapping extends MappingSpec<Merchant, MerchantDto> {
   @ReadOnly
   String id();
 }"""),
@@ -970,9 +976,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="A projection nests a spec with two halves, which has no whole prism for its write-back, since its `parse` cannot read back what its `build` leaves out. A generic mapping, or an element-mapped spec's `of(...)`, refuses one the same way. The spec may have taken its halves from a spec it nests, which the message names.",
              fix="Nest it in a mapping that builds and parses its whole domain, which takes two halves too, or where a mapping only parses or only builds. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.",
              rule=("Nesting a mapping with two halves", "rules.md#nesting-two-halves"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -982,26 +988,34 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
 
-record Ticket(String ref, Customer customer, String note) {}
+record Storefront(String url, Merchant merchant, String tagline) {}
 
-record TicketDto(String ref, CustomerModel customer) {}
+class StorefrontModel {
+  private String url;
+  private MerchantModel merchant;
+
+  public String getUrl() { return url; }
+  public void setUrl(String url) { this.url = url; }
+  public MerchantModel getMerchant() { return merchant; }
+  public void setMerchant(MerchantModel merchant) { this.merchant = merchant; }
+}
 
 @GenerateMapping
-interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}"""),
+interface StorefrontModelMapping extends MappingSpec<Storefront, StorefrontModel> {}"""),
         dict(id="maps-as-two-halves", kind="note",
              heading="'X' maps as two halves: the generated Impl carries parse, build, asValidatedParse() and asValidatedBuild(), and no asValidatedPrism()",
              fragment="maps as two halves",
              meaning="A mapping that builds and parses nests, or dispatches to, a spec with a read-only property, so its own `parse` cannot read back what its `build` wrote. It takes the two halves, each nesting through that spec's half, and the note names the spec.",
              fix="Nothing, unless you need `asValidatedPrism()`: law-check each half with its `MappingLaws` overload. A leaf joining the nested spec's halves keeps the whole prism, at the cost of a round trip that loses the read-only property.",
              rule=("Nesting a mapping with two halves", "rules.md#nesting-two-halves"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1011,26 +1025,34 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
 
-record Ticket(String ref, Customer customer) {}
+record Storefront(String url, Merchant merchant) {}
 
-record TicketDto(String ref, CustomerModel customer) {}
+class StorefrontModel {
+  private String url;
+  private MerchantModel merchant;
+
+  public String getUrl() { return url; }
+  public void setUrl(String url) { this.url = url; }
+  public MerchantModel getMerchant() { return merchant; }
+  public void setMerchant(MerchantModel merchant) { this.merchant = merchant; }
+}
 
 @GenerateMapping
-interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}"""),
+interface StorefrontModelMapping extends MappingSpec<Storefront, StorefrontModel> {}"""),
         dict(id="read-only-on-a-projection",
              heading="'Y' maps as a projection, which has no parse to read the read-only property 'x'",
              fragment="which has no parse to read",
              meaning="A bean with a `@ReadOnly` property still lacks a property for some domain component, so it maps as a projection, which has no `parse`.",
              fix="Give the bean a property for each missing component, or replace `@ReadOnly` with `@Unmapped` to map the projection.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
-             code="""record Customer(String id, String name, String email) {}
+             code="""record Merchant(String id, String name, String email) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1040,7 +1062,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }"""),
@@ -1050,9 +1072,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
              meaning="A `@ReadOnly` marker sits on an `UpdateSpec`, which builds nothing to leave the property out of.",
              fix="Replace `@ReadOnly` with `@Unmapped` to leave the accessor out of the update, or remove the marker.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
-             code="""record Customer(String id, String name) {}
+             code="""record Merchant(String id, String name) {}
 
-class CustomerPatch {
+class MerchantPatchBean {
   private String id;
   private String name;
 
@@ -1062,7 +1084,7 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {
+interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
   @ReadOnly
   String id();
 }"""),
@@ -1072,10 +1094,10 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {
              meaning="A getter-only `List` is raw or has a wildcard, so the generated `addAll` that fills it cannot be written.",
              fix="Declare the list's element type on the getter, or give the property a setter.",
              rule=("A getter-only `List` must name its element type", "rules.md#getter-only-list-element-type"),
-             code="""record Order(List<String> items) {}
+             code="""record Wishlist(List<String> items) {}
 
 @SuppressWarnings("rawtypes")
-class OrderBean {
+class WishlistBean {
   private List items;
 
   public List getItems() {
@@ -1087,16 +1109,16 @@ class OrderBean {
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderBean> {}"""),
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistBean> {}"""),
         dict(id="bridged-to-a-getter-only-list",
              heading="domain field 'X.y' is Optional<List<T>>, bridged to the getter-only bean property 'y' (not supported yet)",
              fragment="bridged to the getter-only bean property",
              meaning="A domain `Optional` faces a getter-only `List`, which creates its list on first call and so can never read as absent.",
              fix="Drop the `Optional` so the empty list carries the meaning, or give the property a setter and a getter that returns what was set.",
              rule=("A getter-only `List` refuses the bridge", "rules.md#getter-only-list-refuses-the-bridge"),
-             code="""record Order(Optional<List<String>> items) {}
+             code="""record Wishlist(Optional<List<String>> items) {}
 
-class OrderBean {
+class WishlistBean {
   private List<String> items;
 
   public List<String> getItems() {
@@ -1108,37 +1130,37 @@ class OrderBean {
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderBean> {}"""),
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistBean> {}"""),
         dict(id="bridged-to-a-singular-collection",
              heading="domain field 'X.y' is Optional<List<T>>, bridged to the @Singular bean property 'y' (not supported yet)",
              fragment="bridged to the @Singular bean property",
              meaning="A domain `Optional` faces a Lombok `@Singular` collection, which is never `null`, so absence can be neither written nor read back.",
              fix="Drop the `Optional` so the empty collection carries the meaning, or drop `@Singular` so the builder stores the collection it is given.",
              rule=("A Lombok `@Singular` collection", "rules.md#singular-collections"),
-             code="""record Order(Optional<List<String>> tags) {}
+             code="""record Wishlist(Optional<List<String>> items) {}
 
-// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
-final class OrderDto {
-  private final List<String> tags;
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> items.
+final class WishlistDto {
+  private final List<String> items;
 
-  private OrderDto(List<String> tags) { this.tags = tags; }
+  private WishlistDto(List<String> items) { this.items = items; }
 
-  public List<String> getTags() { return tags; }
+  public List<String> getItems() { return items; }
 
   public static Builder builder() { return new Builder(); }
 
   public static final class Builder {
-    private final List<String> tags = new ArrayList<>();
+    private final List<String> items = new ArrayList<>();
 
-    public Builder tag(String tag) { tags.add(tag); return this; }
-    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
-    public Builder clearTags() { tags.clear(); return this; }
-    public OrderDto build() { return new OrderDto(List.copyOf(tags)); }
+    public Builder item(String item) { items.add(item); return this; }
+    public Builder items(Collection<? extends String> items) { this.items.addAll(items); return this; }
+    public Builder clearItems() { items.clear(); return this; }
+    public WishlistDto build() { return new WishlistDto(List.copyOf(items)); }
   }
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderDto> {}"""),
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistDto> {}"""),
         dict(id="protobuf-field-without-presence",
              heading="domain field 'X.y' is Optional<T>, bridged to the field 'y' of the protobuf-java message 'Z', which does not track whether it is set",
              fragment="which does not track whether it is set",
@@ -1323,9 +1345,9 @@ interface CrewMapping extends MappingSpec<Crew, CrewRequest> {}"""),
              meaning="The bean reads some names and writes others, which fits neither a two-way nor a one-way mapping.",
              fix="Pair each getter with its setter, which a misspelling usually explains, or remove the accessors of the direction the wire never crosses.",
              rule=("How a bean's direction is read", "rules.md#how-a-beans-direction-is-read"),
-             code="""record Customer(String name, String email) {}
+             code="""record Author(String name, String email) {}
 
-class CustomerBean {
+class AuthorBean {
   private String name;
   private String email;
 
@@ -1334,7 +1356,7 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}"""),
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}"""),
     ]),
     ("Sparse PATCH", "sparse-patch", [
         dict(id="extends-both-tiers",
@@ -1343,9 +1365,9 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}"""),
              meaning="One spec asks for both tiers, and the two emit disjoint members, so no Impl can answer both.",
              fix="Declare a spec per tier, and let a plain mix-in carry the renames and leaves they share.",
              rule=("One tier per spec", "rules.md#one-tier-per-spec"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-class CustomerPatch {
+class AuthorPatch {
   private String name;
 
   public String getName() { return name; }
@@ -1353,17 +1375,17 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerMapping
-    extends MappingSpec<Customer, CustomerPatch>, UpdateSpec<Customer, CustomerPatch> {}"""),
+interface AuthorMapping
+    extends MappingSpec<Author, AuthorPatch>, UpdateSpec<Author, AuthorPatch> {}"""),
         dict(id="primitive-patch-property",
              heading="the wire property 'x' is primitive and can never be absent",
              fragment="is primitive and can never be absent",
              meaning="A PATCH property is a primitive, which always carries a value, so an omitted field could not be told apart from one sent as `0`.",
              fix="Declare the property as the wrapper type, `Integer` for an `int`.",
              rule=("No primitive wire property", "rules.md#no-primitive-patch-property"),
-             code="""record Customer(String name, int age) {}
+             code="""record Author(String name, int age) {}
 
-class CustomerPatch {
+class AuthorPatch {
   private String name;
   private int age;
 
@@ -1374,28 +1396,28 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
+interface AuthorPatchMapping extends UpdateSpec<Author, AuthorPatch> {}"""),
         dict(id="record-patch-wire",
              heading="the wire 'X' is a record, which a sparse UpdateSpec cannot map",
              fragment="which a sparse UpdateSpec cannot map",
              meaning="A PATCH wire is a record, whose components are always present, so absence cannot be expressed.",
              fix="Use a bean-shaped PATCH DTO with wrapper-typed properties, or a full `MappingSpec` if you meant a total mapping.",
              rule=("No record wire", "rules.md#no-record-patch-wire"),
-             code="""record Customer(String name) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerPatch(String name) {}
+record CustomerPatchDto(String name, String email) {}
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
+interface CustomerPatchDtoMapping extends UpdateSpec<Customer, CustomerPatchDto> {}"""),
         dict(id="getter-only-list-patch",
              heading="bean property 'x' on 'Y' is a getter-only List<T>, which cannot carry a sparse update's absence (not supported yet)",
              fragment="cannot carry a sparse update's absence",
              meaning="A getter-only `List` never reads `null`, so a request that omits it would clear the domain value.",
              fix="Give the property a setter, and a getter that answers `null` until it is set.",
              rule=("No getter-only `List` property", "rules.md#no-getter-only-list-on-a-patch"),
-             code="""record Order(List<String> items) {}
+             code="""record Wishlist(List<String> items) {}
 
-class OrderPatch {
+class WishlistPatch {
   private List<String> items;
 
   public List<String> getItems() {
@@ -1407,7 +1429,7 @@ class OrderPatch {
 }
 
 @GenerateMapping
-interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}"""),
+interface WishlistPatchMapping extends UpdateSpec<Wishlist, WishlistPatch> {}"""),
         dict(id="protobuf-field-names-no-component",
              heading="the fields [x] of the protobuf-java message 'Z' name no component of X",
              fragment="name no component of",
@@ -1427,39 +1449,39 @@ interface StampPatch extends UpdateSpec<Stamp, com.google.protobuf.Timestamp> {}
              meaning="A Lombok `@Singular` collection is built empty when nothing is added, so a request that omits it would clear the domain value.",
              fix="Drop `@Singular`, so the builder stores the collection it is given and leaves it `null` until set.",
              rule=("A Lombok `@Singular` collection", "rules.md#singular-collections"),
-             code="""record Order(List<String> tags) {}
+             code="""record Wishlist(List<String> items) {}
 
-// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
-final class OrderPatch {
-  private final List<String> tags;
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> items.
+final class WishlistPatch {
+  private final List<String> items;
 
-  private OrderPatch(List<String> tags) { this.tags = tags; }
+  private WishlistPatch(List<String> items) { this.items = items; }
 
-  public List<String> getTags() { return tags; }
+  public List<String> getItems() { return items; }
 
   public static Builder builder() { return new Builder(); }
 
   public static final class Builder {
-    private final List<String> tags = new ArrayList<>();
+    private final List<String> items = new ArrayList<>();
 
-    public Builder tag(String tag) { tags.add(tag); return this; }
-    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
-    public Builder clearTags() { tags.clear(); return this; }
-    public OrderPatch build() { return new OrderPatch(List.copyOf(tags)); }
+    public Builder item(String item) { items.add(item); return this; }
+    public Builder items(Collection<? extends String> items) { this.items.addAll(items); return this; }
+    public Builder clearItems() { items.clear(); return this; }
+    public WishlistPatch build() { return new WishlistPatch(List.copyOf(items)); }
   }
 }
 
 @GenerateMapping
-interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}"""),
+interface WishlistPatchMapping extends UpdateSpec<Wishlist, WishlistPatch> {}"""),
         dict(id="optional-on-a-patch",
              heading="the wire property 'x' bridges the domain Optional component X.x, which a sparse update cannot express",
              fragment="which a sparse update cannot express",
              meaning="A plain PATCH property faces a domain `Optional`, and `null` already means *leave unchanged*, so nothing is left to mean *set to empty*.",
              fix="Declare the property as an `Optional`, with the field starting `null` rather than `Optional.empty()`.",
              rule=("No plain property bridged to a domain `Optional`", "rules.md#no-optional-bridge-on-a-patch"),
-             code="""record Customer(String name, Optional<String> nickname) {}
+             code="""record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
-class CustomerPatch {
+class CustomerProfilePatchBean {
   private String name;
   private String nickname;
 
@@ -1470,17 +1492,18 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
+interface CustomerProfilePatchMapping
+    extends UpdateSpec<CustomerProfile, CustomerProfilePatchBean> {}"""),
         dict(id="jsonnullable-value-no-source",
              heading="the wire property 'x' (JsonNullable<T>) holds a T, which cannot be written into X.x (Y)",
              fragment="which cannot be written into",
              meaning="A `JsonNullable` PATCH property's sent value parses as a plain property of the type it holds, and nothing converts that type into the component.",
              fix="Declare the leaf the message names, over the type the `JsonNullable` holds, such as `default ValidatedPrism<String, EmailAddress> email()`.",
              rule=("A `JsonNullable` property keeps, clears or sets", "rules.md#no-jsonnullable-patch-property"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
 // A nullable property as openapi-generator's spring generator writes it.
-class CustomerPatch {
+class CustomerPatchModel {
   private JsonNullable<String> email = JsonNullable.undefined();
 
   public JsonNullable<String> getEmail() { return email; }
@@ -1488,7 +1511,7 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
+interface CustomerPatchModelMapping extends UpdateSpec<Customer, CustomerPatchModel> {}"""),
     ]),
     ("Generic specs", "generic-specs", [
         dict(id="generic-bean-or-patch",
@@ -1498,26 +1521,29 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""
              meaning="The spec, its domain or its wire declares type parameters on a bean-wire mapping, a sparse UpdateSpec or a sealed mapping (the message names which), which is not supported yet, even at a concrete instantiation.",
              fix="Declare the spec and the types it maps without type parameters. Outside a sparse `UpdateSpec`, a generic type can instead be a record, mapped record to record.",
              rule=("The boundaries of a generic spec", "rules.md#generic-boundaries"),
-             code="""record Page<T>(List<T> items) {}
+             code="""record Page<T>(List<T> items, int total) {}
 
 class PageBean<T> {
   private List<T> items;
+  private int total;
 
   public List<T> getItems() { return items; }
   public void setItems(List<T> items) { this.items = items; }
+  public int getTotal() { return total; }
+  public void setTotal(int total) { this.total = total; }
 }
 
 @GenerateMapping
-interface PageMapping<T> extends MappingSpec<Page<T>, PageBean<T>> {}"""),
+interface PageBeanMapping<T> extends MappingSpec<Page<T>, PageBean<T>> {}"""),
         dict(id="abstract-leaf-needs-a-generic-spec",
              heading="abstract leaf 'x' needs a generic spec",
              fragment="needs a generic spec",
              meaning="A concrete spec declares a leaf with no body, and only an element-mapped generic spec defers a leaf to `of(...)`.",
              fix="Give the leaf a `default` body, or make the spec generic in the element types.",
              rule=("The boundaries of a generic spec", "rules.md#generic-boundaries"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -1531,15 +1557,17 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              meaning="Two or more sources carry a component the target needs (the message says `all carry it` for three or more), and every target component takes exactly one source.",
              fix="Rename the component on all but one source.",
              rule=("How a merge fills", "rules.md#how-a-merge-fills"),
-             code="""record Customer(String name) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record Account(String name, String iban) {}
+record Account(String name, String iban, int balance) {}
 
-record Summary(String name, String iban) {}
+record Settings(boolean darkMode) {}
+
+record Dashboard(String name, String iban, boolean darkMode) {}
 
 @GenerateMerge
-interface SummaryMerge {
-  Summary merge(Customer customer, Account account);
+interface DashboardAssembly {
+  Dashboard assemble(Customer customer, Account account, Settings settings);
 }"""),
         dict(id="merge-plain-return",
              heading="@GenerateMerge: 'x' uses fallible fills but declares a plain 'T' return",
@@ -1549,7 +1577,7 @@ interface SummaryMerge {
              rule=("How a merge fills", "rules.md#how-a-merge-fills"),
              code="""record Contact(String email) {}
 
-record Account(String iban) {}
+record Account(String iban, int balance) {}
 
 record Summary(EmailAddress email, String iban) {}
 
@@ -1567,15 +1595,18 @@ interface SummaryMerge {
              meaning="Every fill copies its source, so the merge cannot fail, but its signature says it can.",
              fix="Declare the plain target return, or give a component a leaf that can fail, which makes the `Validated` return true.",
              rule=("How a merge fills", "rules.md#how-a-merge-fills"),
-             code="""record User(String name, String email) {}
+             code="""record Customer(String name, EmailAddress email) {}
+
+record Account(String iban, int balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Header(String name, boolean darkMode) {}
+record Dashboard(String name, String iban, boolean darkMode) {}
 
 @GenerateMerge
-interface HeaderAssembly {
-  Validated<NonEmptyList<FieldError>, Header> assemble(User user, Settings settings);
+interface DashboardAssembly {
+  Validated<NonEmptyList<FieldError>, Dashboard> assemble(
+      Customer customer, Account account, Settings settings);
 }"""),
         dict(id="merge-unfilled",
              heading="@GenerateMerge: target component 'x' is not filled by any source",
@@ -1583,15 +1614,15 @@ interface HeaderAssembly {
              meaning="No source has a component of that name, and a merge matches by name only: it has no rename.",
              fix="Rename a source component to match, or add a source that carries it.",
              rule=("How a merge fills", "rules.md#how-a-merge-fills"),
-             code="""record Order(String orderId) {}
+             code="""record Wishlist(List<String> items) {}
 
-record Customer(String name) {}
+record Customer(String name, EmailAddress email) {}
 
-record OrderView(String orderId, String customerName) {}
+record WishlistView(List<String> items, String customerName) {}
 
 @GenerateMerge
-interface OrderViewAssembly {
-  OrderView assemble(Order order, Customer customer);
+interface WishlistViewAssembly {
+  WishlistView assemble(Wishlist wishlist, Customer customer);
 }"""),
         dict(id="envelope-primitive-context",
              heading="@GenerateErrorEnvelope: context component 'x' of 'C' is a primitive",
@@ -1599,11 +1630,11 @@ interface OrderViewAssembly {
              meaning="The all-absent context holds `null` in every component, which a primitive cannot.",
              fix="Declare the component as a reference type, `Integer` for an `int`.",
              rule=("Error envelope rules", "rules.md#error-envelope-rules"),
-             code="""record OrderContext(String orderId, int attempt) {}
+             code="""record LookupContext(String orderId, int attempt) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError {
-  record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+sealed interface LookupError {
+  record NotFound(String id, ErrorEnvelope<LookupContext> envelope) implements LookupError {}
 }"""),
         dict(id="envelope-variant-not-a-record",
              heading="@GenerateErrorEnvelope: permitted variant 'X' of 'Y' is a class, not a record",
@@ -1611,38 +1642,38 @@ sealed interface OrderError {
              meaning="The companion builds each variant from its record components, and this variant is a class.",
              fix="Make the variant a record carrying its own components and one `ErrorEnvelope<...>`.",
              rule=("Error envelope rules", "rules.md#error-envelope-rules"),
-             code="""record OrderContext(String orderId) {}
+             code="""record LookupContext(String orderId) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError permits NotFound {}
+sealed interface LookupError permits NotFound {}
 
-final class NotFound implements OrderError {}"""),
+final class NotFound implements LookupError {}"""),
         dict(id="envelope-generic",
              heading="@GenerateErrorEnvelope: 'X' is generic, which this companion does not support",
              fragment="which this companion does not support",
              meaning="The error hierarchy declares type parameters, which the generated factories would have no way to name.",
              fix="Declare the hierarchy, its variants and the context without type parameters.",
              rule=("Error envelope rules", "rules.md#error-envelope-rules"),
-             code="""record OrderContext(String orderId) {}
+             code="""record LookupContext(String orderId) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError<T> {
-  record NotFound<T>(T id, ErrorEnvelope<OrderContext> envelope) implements OrderError<T> {}
+sealed interface LookupError<T> {
+  record NotFound<T>(T id, ErrorEnvelope<LookupContext> envelope) implements LookupError<T> {}
 }"""),
         dict(id="envelope-cannot-be-reached",
              heading="@GenerateErrorEnvelope: context record 'X' cannot be reached from 'p'",
              fragment="cannot be reached from",
-             marker="context record 'Orders.OrderContext' cannot be reached from",
+             marker="context record 'Orders.LookupContext' cannot be reached from",
              display="@GenerateErrorEnvelope: … cannot be reached from",
              meaning="A type the envelope companion names is hidden from the hierarchy's package, where the companion is generated: the context record here, or the hierarchy, a variant, or a component of either.",
              fix="Remove `private` from the class the message names.",
              rule=("Error envelope rules", "rules.md#error-envelope-rules"),
              code="""class Orders {
-  private record OrderContext(String orderId) {}
+  private record LookupContext(String orderId) {}
 
   @GenerateErrorEnvelope
-  sealed interface OrderError {
-    record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+  sealed interface LookupError {
+    record NotFound(String id, ErrorEnvelope<LookupContext> envelope) implements LookupError {}
   }
 }"""),
     ]),
@@ -1651,17 +1682,17 @@ sealed interface OrderError<T> {
              heading="cannot find symbol: class XMappingImpl",
              fragment="cannot find symbol",
              display="cannot find symbol … class XMappingImpl",
-             marker="class CustomerMappingImpl",
+             marker="class AuthorMappingImpl",
              meaning="The generated Impl does not exist. Most often the spec was refused, which writes no Impl, so every use of it reports this too.",
-             fix="If the build also printed a `@GenerateMapping:` error, fix that first. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `CustomerMappingImpl.INSTANCE.build(...)`, the same cause reads `package CustomerMappingImpl does not exist`.",
+             fix="If the build also printed a `@GenerateMapping:` error, fix that first. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `AuthorMappingImpl.INSTANCE.build(...)`, the same cause reads `package AuthorMappingImpl does not exist`.",
              rule=("Your first mapping", "basics.md#your-first-mapping"),
-             code="""record Customer(String name) {}
+             code="""record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 
-CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;"""),
+AuthorMappingImpl mapper = AuthorMappingImpl.INSTANCE;"""),
         dict(id="no-such-surface",
              heading="cannot find symbol: method asIso()",
              fragment="cannot find symbol",
@@ -1670,9 +1701,9 @@ CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;"""),
              meaning="The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`. A mapping with a read-only property, or nesting or dispatching to one, has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`.",
              fix="Call a method your spec's shape gets; [the method table](tiers.md#which-methods-your-spec-gets) says when each appears.",
              rule=("Which methods your spec gets", "tiers.md#which-methods-your-spec-gets"),
-             code="""record Customer(EmailAddress email) {}
+             code="""record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {

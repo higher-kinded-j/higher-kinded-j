@@ -5,13 +5,23 @@ package org.higherkindedj.example.optics;
 import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.util.Traversals;
 
 /**
@@ -21,9 +31,9 @@ import org.higherkindedj.optics.util.Traversals;
  * <p>This example showcases how to process collections using traversals whilst handling validation
  * errors, keeping either the first error or every error.
  *
- * <p><b>Scenario:</b> Bulk order processing system for an e-commerce platform. We validate and
- * process multiple order items, demonstrating different error handling strategies appropriate for
- * various business requirements.
+ * <p><b>Scenario:</b> Bulk order processing for the order service. We validate and process the
+ * lines of an order, and the statuses of several orders, demonstrating different error handling
+ * strategies appropriate for various business requirements.
  *
  * <p><b>Key Methods Demonstrated:</b>
  *
@@ -41,12 +51,25 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class TraversalExtensionsExample {
 
-  // Domain model for e-commerce order processing
-  @GenerateLenses
-  record TEOrderItem(String sku, String name, BigDecimal price, int quantity, String status) {}
+  // Domain model: the chapter's Order, Customer and LineItem
+  private static final Customer ALICE =
+      new Customer("Alice", new EmailAddress("alice@example.com"));
 
-  @GenerateLenses
-  record TEOrder(String orderId, List<TEOrderItem> items, String customerEmail) {}
+  private static final Customer BOB = new Customer("Bob", new EmailAddress("bob@example.com"));
+
+  private static final Customer CAROL =
+      new Customer("Carol", new EmailAddress("carol@example.com"));
+
+  // A customer's order in the given status, placed on the same day, in pounds
+  private static Order order(String id, Customer customer, OrderStatus status, LineItem... lines) {
+    return new Order(
+        UUID.fromString(id),
+        customer,
+        List.of(lines),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        status);
+  }
 
   // Validation errors
   sealed interface ValidationError permits PriceError, QuantityError, StatusError {}
@@ -88,22 +111,22 @@ public class TraversalExtensionsExample {
   private static void demonstrateGetAllMaybe() {
     System.out.println("--- getAllMaybe: Extract All Values ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("29.99"), 2, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("79.99"), 1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("29.99")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Extract all prices
     Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
     System.out.println("All prices: " + prices.map(list -> list.toString()).orElse("No prices"));
 
     // Empty list returns Nothing
-    List<TEOrderItem> empty = List.of();
+    List<LineItem> empty = List.of();
     Maybe<List<BigDecimal>> noPrices = getAllMaybe(allPrices, empty);
     System.out.println("Empty list: " + noPrices.orElse(null));
 
@@ -113,39 +136,41 @@ public class TraversalExtensionsExample {
   private static void demonstrateModifyAllMaybe() {
     System.out.println("--- modifyAllMaybe: All-or-Nothing Modifications ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("100.00"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("20.00"), 2, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("50.00"), 1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("100.00")),
+            new LineItem("MOUSE", 2, new BigDecimal("20.00")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("50.00")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Successful modification (all prices > £10)
-    Maybe<List<TEOrderItem>> updated =
+    Maybe<List<LineItem>> updated =
         modifyAllMaybe(
             allPrices,
             price ->
                 price.compareTo(new BigDecimal("10")) >= 0
-                    ? Maybe.just(price.multiply(new BigDecimal("1.1")))
+                    ? Maybe.just(
+                        price.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN))
                     : Maybe.nothing(),
             items);
     System.out.println("10% price increase: " + (updated.isJust() ? "Success" : "Failed"));
 
     // Failed modification (one price too low)
-    List<TEOrderItem> withLowPrice =
+    List<LineItem> withLowPrice =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("100.00"), 1, "pending"),
-            new TEOrderItem("SKU002", "Cheap Item", new BigDecimal("5.00"), 2, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("100.00")),
+            new LineItem("STICKER", 2, new BigDecimal("5.00")));
 
-    Maybe<List<TEOrderItem>> failed =
+    Maybe<List<LineItem>> failed =
         modifyAllMaybe(
             allPrices,
             price ->
                 price.compareTo(new BigDecimal("10")) >= 0
-                    ? Maybe.just(price.multiply(new BigDecimal("1.1")))
+                    ? Maybe.just(
+                        price.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN))
                     : Maybe.nothing(),
             withLowPrice);
     System.out.println(
@@ -157,18 +182,18 @@ public class TraversalExtensionsExample {
   private static void demonstrateModifyAllEither() {
     System.out.println("--- modifyAllEither: First Error Only ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("-10.00"), 2, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("79.99"), 1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("-10.00")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Keeps only the first error; every price is still validated
-    Either<String, List<TEOrderItem>> result =
+    Either<String, List<LineItem>> result =
         modifyAllEither(
             allPrices,
             price -> {
@@ -198,18 +223,18 @@ public class TraversalExtensionsExample {
   private static void demonstrateModifyAllValidated() {
     System.out.println("--- modifyAllValidated: Error Accumulation ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("-100.00"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("29.99"), -5, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("-50.00"), 1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("-100.00")),
+            new LineItem("MOUSE", -5, new BigDecimal("29.99")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("-50.00")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     // Accumulate ALL validation errors
-    Validated<List<String>, List<TEOrderItem>> result =
+    Validated<List<String>, List<LineItem>> result =
         modifyAllValidated(
             allPrices,
             price -> {
@@ -240,25 +265,39 @@ public class TraversalExtensionsExample {
   private static void demonstrateModifyWherePossible() {
     System.out.println("--- modifyWherePossible: Selective Modification ---");
 
-    List<TEOrderItem> items =
+    List<Order> orders =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("29.99"), 2, "shipped"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("79.99"), 1, "pending"));
+            order(
+                "00000000-0000-0000-0000-000000000001",
+                ALICE,
+                OrderStatus.PAID,
+                new LineItem("LAPTOP", 1, new BigDecimal("999.99"))),
+            order(
+                "00000000-0000-0000-0000-000000000002",
+                BOB,
+                OrderStatus.SHIPPED,
+                new LineItem("MOUSE", 2, new BigDecimal("29.99"))),
+            order(
+                "00000000-0000-0000-0000-000000000003",
+                CAROL,
+                OrderStatus.NEW,
+                new LineItem("KEYBOARD", 1, new BigDecimal("79.99"))));
 
-    Lens<TEOrderItem, String> statusLens = TEOrderItemLenses.status();
-    Traversal<List<TEOrderItem>, String> allStatuses =
-        Traversals.<TEOrderItem>forList().andThen(statusLens.asTraversal());
+    Lens<Order, OrderStatus> statusLens = OrderLenses.status();
+    Traversal<List<Order>, OrderStatus> allStatuses =
+        Traversals.<Order>forList().andThen(statusLens.asTraversal());
 
-    // Update only pending items (best-effort)
-    List<TEOrderItem> updated =
+    // Ship only the PAID orders (best-effort)
+    List<Order> updated =
         modifyWherePossible(
             allStatuses,
-            status -> status.equals("pending") ? Maybe.just("processing") : Maybe.nothing(),
-            items);
+            status ->
+                status == OrderStatus.PAID ? Maybe.just(OrderStatus.SHIPPED) : Maybe.nothing(),
+            orders);
 
     System.out.println("Status updates:");
-    updated.forEach(item -> System.out.println("  " + item.sku() + ": " + item.status()));
+    updated.forEach(
+        order -> System.out.println("  " + order.customer().name() + ": " + order.status()));
 
     System.out.println();
   }
@@ -266,16 +305,16 @@ public class TraversalExtensionsExample {
   private static void demonstrateCountValid() {
     System.out.println("--- countValid: Count Passing Validation ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("-10.00"), 2, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("79.99"), 1, "pending"),
-            new TEOrderItem("SKU004", "Monitor", new BigDecimal("-50.00"), 1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("-10.00")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")),
+            new LineItem("MONITOR", 1, new BigDecimal("-50.00")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     int validCount =
         countValid(
@@ -295,16 +334,16 @@ public class TraversalExtensionsExample {
   private static void demonstrateCollectErrors() {
     System.out.println("--- collectErrors: Gather All Validation Failures ---");
 
-    List<TEOrderItem> items =
+    List<LineItem> items =
         List.of(
-            new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-            new TEOrderItem("SKU002", "Mouse", new BigDecimal("-10.00"), 2, "pending"),
-            new TEOrderItem("SKU003", "Keyboard", new BigDecimal("79.99"), 1, "pending"),
-            new TEOrderItem("SKU004", "Monitor", new BigDecimal("-50.00"), -1, "pending"));
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("-10.00")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")),
+            new LineItem("MONITOR", -1, new BigDecimal("-50.00")));
 
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     List<String> errors =
         collectErrors(
@@ -328,27 +367,27 @@ public class TraversalExtensionsExample {
   private static void demonstrateRealWorldScenario() {
     System.out.println("--- Real-World Scenario: Order Validation Pipeline ---\n");
 
-    TEOrder order =
-        new TEOrder(
-            "ORD-12345",
-            List.of(
-                new TEOrderItem("SKU001", "Laptop", new BigDecimal("999.99"), 1, "pending"),
-                new TEOrderItem("SKU002", "Mouse", new BigDecimal("29.99"), 2, "pending"),
-                new TEOrderItem("SKU003", "USB Cable", new BigDecimal("-5.00"), 5, "pending"),
-                new TEOrderItem("SKU004", "Keyboard", new BigDecimal("79.99"), 0, "pending")),
-            "customer@example.com");
+    Order order =
+        order(
+            "00000000-0000-0000-0000-000000012345",
+            ALICE,
+            OrderStatus.NEW,
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+            new LineItem("MOUSE", 2, new BigDecimal("29.99")),
+            new LineItem("USB-CABLE", 5, new BigDecimal("-5.00")),
+            new LineItem("KEYBOARD", 0, new BigDecimal("79.99")));
 
-    System.out.println("Processing Order: " + order.orderId());
-    System.out.println("Items: " + order.items().size());
+    System.out.println("Processing Order: " + order.id());
+    System.out.println("Lines: " + order.lines().size());
 
     // Step 1: Validate all prices (accumulate errors)
     System.out.println("\n📋 Step 1: Price Validation");
-    Lens<TEOrderItem, BigDecimal> priceLens = TEOrderItemLenses.price();
-    Traversal<List<TEOrderItem>, BigDecimal> allPrices =
-        Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens.asTraversal());
 
     List<String> priceErrors =
-        collectErrors(allPrices, price -> validatePrice(price), order.items());
+        collectErrors(allPrices, price -> validatePrice(price), order.lines());
 
     if (priceErrors.isEmpty()) {
       System.out.println("  ✅ All prices valid");
@@ -359,12 +398,12 @@ public class TraversalExtensionsExample {
 
     // Step 2: Validate all quantities
     System.out.println("\n📦 Step 2: Quantity Validation");
-    Lens<TEOrderItem, Integer> quantityLens = TEOrderItemLenses.quantity();
-    Traversal<List<TEOrderItem>, Integer> allQuantities =
-        Traversals.<TEOrderItem>forList().andThen(quantityLens.asTraversal());
+    Lens<LineItem, Integer> quantityLens = LineItemLenses.quantity();
+    Traversal<List<LineItem>, Integer> allQuantities =
+        Traversals.<LineItem>forList().andThen(quantityLens.asTraversal());
 
     List<String> quantityErrors =
-        collectErrors(allQuantities, qty -> validateQuantity(qty), order.items());
+        collectErrors(allQuantities, qty -> validateQuantity(qty), order.lines());
 
     if (quantityErrors.isEmpty()) {
       System.out.println("  ✅ All quantities valid");
@@ -375,22 +414,23 @@ public class TraversalExtensionsExample {
 
     // Step 3: Count valid vs invalid items
     System.out.println("\n📊 Step 3: Validation Summary");
-    int validPrices = countValid(allPrices, price -> validatePrice(price), order.items());
-    int validQuantities = countValid(allQuantities, qty -> validateQuantity(qty), order.items());
+    int validPrices = countValid(allPrices, price -> validatePrice(price), order.lines());
+    int validQuantities = countValid(allQuantities, qty -> validateQuantity(qty), order.lines());
 
-    System.out.println("  Valid prices: " + validPrices + "/" + order.items().size());
-    System.out.println("  Valid quantities: " + validQuantities + "/" + order.items().size());
+    System.out.println("  Valid prices: " + validPrices + "/" + order.lines().size());
+    System.out.println("  Valid quantities: " + validQuantities + "/" + order.lines().size());
 
     // Step 4: Apply discount to valid items only
     System.out.println("\n💰 Step 4: Apply 10% Discount to Valid Items");
-    List<TEOrderItem> discounted =
+    List<LineItem> discounted =
         modifyWherePossible(
             allPrices,
             price ->
                 price.compareTo(BigDecimal.ZERO) > 0
-                    ? Maybe.just(price.multiply(new BigDecimal("0.9")))
+                    ? Maybe.just(
+                        price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
                     : Maybe.nothing(),
-            order.items());
+            order.lines());
 
     System.out.println("  Discounted items:");
     discounted.forEach(

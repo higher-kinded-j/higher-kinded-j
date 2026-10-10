@@ -206,8 +206,8 @@ A domain component has no wire component of the same name, and no rename points 
 **Fix.** Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = "fullName") String name();`. Where the component already has a leaf, put the `@MapField` on the leaf instead, as [Renamed and converted](basics.md#renamed-and-converted) shows.
 
 ```
-@GenerateMapping: domain field 'Customer.name' has no wire counterpart named 'name'. Found on
-CustomerDto: [fullName]. Align the component names, or add a '@MapField(to = ...)' rename on the
+@GenerateMapping: domain field 'Author.name' has no wire counterpart named 'name'. Found on
+AuthorDto: [fullName]. Align the component names, or add a '@MapField(to = ...)' rename on the
 spec.
 ```
 
@@ -216,12 +216,12 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no wire counterpart named" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 ```
 ~~~
 
@@ -234,7 +234,7 @@ A wire component's type differs from its domain counterpart's, and nothing conve
 ```
 @GenerateMapping: target field 'CustomerDto.email' has no usable source. The types differ
 (java.lang.String vs com.example.EmailAddress) and no matching leaf method was found. Found on
-Customer: [email]. Add 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>
+Customer: [name, email]. Add 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>
 email()' to the spec.
 ```
 
@@ -243,9 +243,9 @@ The rule: [Validated leaves](basics.md#validated-leaves).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no usable source" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
@@ -262,8 +262,8 @@ A leaf declared on the spec is named after nothing the domain has, which is usua
 @GenerateMapping: leaf 'emial' names no component of Customer. A leaf is a zero-parameter
 'default' named after the DOMAIN component it parses (or an inner component of a flattened one);
 an unmatched leaf would silently validate nothing. Did you mean 'email()'? Found on Customer:
-[email]. Rename the method to the component it parses, or make it 'private' or 'static' if it is
-a helper.
+[name, email]. Rename the method to the component it parses, or make it 'private' or 'static' if
+it is a helper.
 ```
 
 The rule: [How the two `default` families are told apart](rules.md#how-the-two-default-families-are-told-apart).
@@ -271,9 +271,9 @@ The rule: [How the two `default` families are told apart](rules.md#how-the-two-d
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "A leaf is a zero-parameter" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -303,13 +303,13 @@ The rule: [Your first mapping](basics.md#your-first-mapping).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "redeclares the mapping itself" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  CustomerDto toDto(Customer customer);
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  AuthorDto toDto(Author author);
 }
 ```
 ~~~
@@ -321,8 +321,8 @@ The spec declares a method the generated Impl also declares, so it would be over
 **Fix.** Rename the method, or remove it and rely on the generated one. To change how one component maps, declare a leaf named after it.
 
 ```
-@GenerateMapping: 'build(Customer)' collides with the 'build' member the generated
-CustomerMappingImpl emits for this tier (a full mapping). The generated Impl declares an
+@GenerateMapping: 'build(Author)' collides with the 'build' member the generated
+AuthorMappingImpl emits for this tier (a full mapping). The generated Impl declares an
 override-equivalent 'build', so this method is either silently overridden (its logic never runs
 on INSTANCE) or fails the generated file's compile with a raw javac error. Rename the method, or
 remove it and rely on the generated 'build'; to customise how a component maps, declare a
@@ -334,14 +334,14 @@ The rule: [Validated leaves](basics.md#validated-leaves).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "collides with the" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default CustomerDto build(Customer customer) {
-    return new CustomerDto(customer.name());
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  default AuthorDto build(Author author) {
+    return new AuthorDto(author.name());
   }
 }
 ```
@@ -354,13 +354,12 @@ The wire has components nothing on the domain fills, so `build` cannot write the
 **Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.
 
 ```
-@GenerateMapping: 'CustomerDto' has more components than 'Customer', leaving [email] unfilled.
-build must fill every wire component from a domain source or a derived field, and the extras
-have neither. A wire with fewer components maps as a projection (Lens tier). Remove the extra
-wire components, add matching domain components (or a @MapField rename where a name differs),
-declare derived fields ('default Getter<Customer, ComponentType>' methods named after the
-extras), or spread a nested domain component across the extras with an '@Flatten' marker named
-after it.
+@GenerateMapping: 'AuthorDto' has more components than 'Author', leaving [email] unfilled. build
+must fill every wire component from a domain source or a derived field, and the extras have
+neither. A wire with fewer components maps as a projection (Lens tier). Remove the extra wire
+components, add matching domain components (or a @MapField rename where a name differs), declare
+derived fields ('default Getter<Author, ComponentType>' methods named after the extras), or
+spread a nested domain component across the extras with an '@Flatten' marker named after it.
 ```
 
 The rule: [Derived wire fields](basics.md#derived-wire-fields).
@@ -368,12 +367,12 @@ The rule: [Derived wire fields](basics.md#derived-wire-fields).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has more components than" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name, String email) {}
+record AuthorDto(String name, String email) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 ```
 ~~~
 
@@ -395,7 +394,7 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no domain source" -->
 ```java
-record Customer(String name, String email) {}
+record Customer(String name, EmailAddress email) {}
 
 record CustomerDto(String nmae) {}
 
@@ -411,8 +410,8 @@ A rename's `to` names nothing the wire has, which is usually a typo.
 **Fix.** Point `to` at an existing wire component; the message lists them.
 
 ```
-@GenerateMapping: @MapField(to = "fulName") on 'name' names no component of CustomerDto. Found
-on CustomerDto: [fullName]. Point 'to' at an existing wire component.
+@GenerateMapping: @MapField(to = "fulName") on 'name' names no component of AuthorDto. Found on
+AuthorDto: [fullName]. Point 'to' at an existing wire component.
 ```
 
 The rule: [Renames](basics.md#renames-mapfield).
@@ -420,12 +419,12 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "Point 'to' at an existing wire component" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
   @MapField(to = "fulName")
   String name();
 }
@@ -439,10 +438,10 @@ A derived field is named after nothing the wire has, which is usually a typo.
 **Fix.** Rename the method after the wire component it derives, or remove it.
 
 ```
-@GenerateMapping: derived field method 'dispalyName' names no component of CustomerDto. A
+@GenerateMapping: derived field method 'dispalyName' names no component of RecipientDto. A
 default method returning Getter declares a derived wire field, so its name must be the wire
-component build fills. Found on CustomerDto: [name, displayName]. Rename the method after the
-wire component it derives, or remove it.
+component build fills. Found on RecipientDto: [first, last, displayName]. Rename the method
+after the wire component it derives, or remove it.
 ```
 
 The rule: [Derived wire fields](basics.md#derived-wire-fields).
@@ -450,14 +449,14 @@ The rule: [Derived wire fields](basics.md#derived-wire-fields).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "its name must be the wire component build fills" -->
 ```java
-record Customer(String name) {}
+record Recipient(String first, String last) {}
 
-record CustomerDto(String name, String displayName) {}
+record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default Getter<Customer, String> dispalyName() {
-    return Getter.of(Customer::name);
+interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+  default Getter<Recipient, String> dispalyName() {
+    return Getter.of(r -> r.first() + " " + r.last());
   }
 }
 ```
@@ -543,12 +542,12 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is neither a rename, a leaf, nor a bridge" -->
 ```java
-record Customer(String name) {}
+record Recipient(String first, String last) {}
 
-record CustomerDto(String name) {}
+record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
   String displayName();
 }
 ```
@@ -574,9 +573,9 @@ The rule: [Renamed and converted](basics.md#renamed-and-converted).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "where the component also converts" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String emailAddress) {}
+record CustomerDto(String name, String emailAddress) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -598,7 +597,7 @@ A derived field carries the name of a domain component, where the processor expe
 @GenerateMapping: default method 'name' returns a Getter but is named after a domain component.
 The name decides what a default method declares: a leaf is named after a DOMAIN component and
 returns ValidatedPrism<WireComponent, DomainComponent>; a derived wire field is named after a
-wire component with NO domain counterpart and returns Getter<Customer, WireComponentType>. Named
+wire component with NO domain counterpart and returns Getter<Author, WireComponentType>. Named
 'name', this method reads as a leaf, but a leaf never returns Getter. Return a ValidatedPrism to
 make it a leaf, or rename the method after the wire-only component it derives.
 ```
@@ -608,14 +607,14 @@ The rule: [How the two `default` families are told apart](rules.md#how-the-two-d
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "returns a Getter but is named after a domain component" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  default Getter<Customer, String> name() {
-    return Getter.of(customer -> customer.name().toUpperCase(Locale.ROOT));
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {
+  default Getter<Author, String> name() {
+    return Getter.of(author -> author.name().toUpperCase(Locale.ROOT));
   }
 }
 ```
@@ -641,14 +640,14 @@ The rule: [Derived fields and the emission tiers](rules.md#derived-fields-and-th
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "combines a projection with derived fields" -->
 ```java
-record Employee(String name, String dept, int age) {}
+record Employee(String name, String department, int age) {}
 
 record BadgeDto(String name, String label) {}
 
 @GenerateMapping
 interface BadgeMapping extends MappingSpec<Employee, BadgeDto> {
   default Getter<Employee, String> label() {
-    return Getter.of(employee -> employee.name() + " (" + employee.dept() + ")");
+    return Getter.of(employee -> employee.name() + " (" + employee.department() + ")");
   }
 }
 ```
@@ -673,12 +672,12 @@ The rule: [The boundaries of a generic spec](rules.md#generic-boundaries).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "declares type parameters of its own" -->
 ```java
-record Page(List<String> items) {}
+record Page<T>(List<T> items, int total) {}
 
-record PageDto(List<String> entries) {}
+record PageView<T>(List<T> entries, int total) {}
 
 @GenerateMapping
-interface PageMapping extends MappingSpec<Page, PageDto> {
+interface PageViewMapping<T> extends MappingSpec<Page<T>, PageView<T>> {
   @MapField(to = "entries")
   <R> List<R> items();
 }
@@ -757,10 +756,10 @@ A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruc
 **Fix.** Keep the Impl in the calling code: a local, or a `private static final` field on the class that calls it. Annotate a constant you keep on purpose `@SuppressWarnings("impl-constant")`.
 
 ```
-@GenerateMapping: 'CustomerMapping.MAPPER' holds the generated CustomerMappingImpl in a
-constant, which can read null. CustomerMappingImpl implements 'CustomerMapping', so once
-'CustomerMapping' declares a default method, such as a leaf, or a private instance method, a
-program that uses CustomerMappingImpl.INSTANCE before reading the constant leaves it null for
+@GenerateMapping: 'WarehouseMapping.MAPPER' holds the generated WarehouseMappingImpl in a
+constant, which can read null. WarehouseMappingImpl implements 'WarehouseMapping', so once
+'WarehouseMapping' declares a default method, such as a leaf, or a private instance method, a
+program that uses WarehouseMappingImpl.INSTANCE before reading the constant leaves it null for
 good. Keep the Impl in the calling code: a local, or a private static final field on the class
 that calls it. To keep this constant anyway, annotate it @SuppressWarnings("impl-constant").
 ```
@@ -770,13 +769,13 @@ The rule: [A spec never holds its Impl in a constant](rules.md#impl-constant-on-
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:reports "holds the generated" -->
 ```java
-record Customer(String name) {}
+record Warehouse(String code, int bays) {}
 
-record CustomerDto(String name) {}
+record WarehouseDto(String code, int bays) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
-  CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;
+interface WarehouseMapping extends MappingSpec<Warehouse, WarehouseDto> {
+  WarehouseMappingImpl MAPPER = WarehouseMappingImpl.INSTANCE;
 }
 ```
 ~~~
@@ -962,7 +961,7 @@ A spec extends another spec as if it were a vocabulary; a spec generates an Impl
 **Fix.** Move the shared renames and leaves onto a plain interface, and extend that instead.
 
 ```
-@GenerateMapping: mix-in 'SupplierMapping' is itself a mapping spec. A mix-in shares vocabulary
+@GenerateMapping: mix-in 'PublisherMapping' is itself a mapping spec. A mix-in shares vocabulary
 (renames, leaves, derived fields); a mapping spec generates an Impl of its own, and inheriting
 one spec from another would conflate the two. Move the shared renames and leaves onto a plain
 interface and extend that instead.
@@ -973,19 +972,19 @@ The rule: [Mix-in shapes the processor refuses](rules.md#refused-mix-in-shapes).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is itself a mapping spec" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
-record Supplier(String name) {}
+record Publisher(String name) {}
 
-record SupplierDto(String name) {}
-
-@GenerateMapping
-interface SupplierMapping extends MappingSpec<Supplier, SupplierDto> {}
+record PublisherDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, SupplierMapping {}
+interface PublisherMapping extends MappingSpec<Publisher, PublisherDto> {}
+
+@GenerateMapping
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, PublisherMapping {}
 ```
 ~~~
 
@@ -1012,13 +1011,13 @@ interface Renames<T> {
   T name();
 }
 
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @SuppressWarnings("rawtypes")
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, Renames {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, Renames {}
 ```
 ~~~
 
@@ -1047,13 +1046,13 @@ interface Renames<T> {
 
 interface Middle<T> extends Renames<T> {}
 
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName) {}
+record AuthorDto(String fullName) {}
 
 @SuppressWarnings("rawtypes")
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto>, Middle {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto>, Middle {}
 ```
 ~~~
 
@@ -1065,7 +1064,7 @@ Two mix-ins rename the same component to different wire components, and neither 
 
 ```
 @GenerateMapping: component 'name' has conflicting renames. 'name' is renamed to 'fullName'
-(inherited from 'BillingNames') and to 'displayName' (inherited from 'DisplayNames'); neither
+(inherited from 'BylineNames') and to 'displayName' (inherited from 'DisplayNames'); neither
 declaration overrides the other, so there is no winner. Override the rename on the spec itself,
 or align the mix-ins on one target.
 ```
@@ -1075,7 +1074,7 @@ The rule: [Inheriting one member twice](rules.md#inheriting-one-member-twice).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has conflicting renames" -->
 ```java
-interface BillingNames {
+interface BylineNames {
   @MapField(to = "fullName")
   String name();
 }
@@ -1085,13 +1084,13 @@ interface DisplayNames {
   String name();
 }
 
-record Customer(String name, String nickname) {}
+record Author(String name) {}
 
-record CustomerDto(String fullName, String displayName) {}
+record AuthorDto(String fullName, String displayName) {}
 
 @GenerateMapping
-interface CustomerMapping
-    extends MappingSpec<Customer, CustomerDto>, BillingNames, DisplayNames {}
+interface AuthorMapping
+    extends MappingSpec<Author, AuthorDto>, BylineNames, DisplayNames {}
 ```
 ~~~
 
@@ -1154,12 +1153,12 @@ The rule: [A key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "never runs" -->
 ```java
-record Catalogue(Map<Locale, String> labels) {}
+record Banner(Map<Locale, String> labels) {}
 
-record CatalogueDto(Map<String, String> labels) {}
+record BannerDto(Map<String, String> labels) {}
 
 @GenerateMapping
-interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+interface BannerMapping extends MappingSpec<Banner, BannerDto> {
   default ValidatedPrism<Map<String, String>, Map<Locale, String>> labels() {
     return LabelCodecs.LABELS;
   }
@@ -1189,13 +1188,13 @@ The rule: [What lifts, and what does not](rules.md#what-lifts).
 <!-- verify:rejects "names a raw Map component" -->
 ```java
 @SuppressWarnings("rawtypes")
-record Catalogue(Map labels) {}
+record Banner(Map labels) {}
 
 @SuppressWarnings("rawtypes")
-record CatalogueDto(Map labels) {}
+record BannerDto(Map labels) {}
 
 @GenerateMapping
-interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+interface BannerMapping extends MappingSpec<Banner, BannerDto> {
   @MapKey("labels")
   default ValidatedPrism<String, Locale> labelKeys() {
     return StandardCodecs.locale();
@@ -1211,10 +1210,10 @@ Two specs map the same pair, so a component of that pair has no single spec to n
 **Fix.** Remove the duplicate spec, or add the leaf the message spells out, delegating to the spec you mean.
 
 ```
-@GenerateMapping: field 'customer' matches more than one mapping spec: [CustomerMapping,
-LegacyCustomerMapping]. A nested component resolves to the single spec mapping
-(com.example.Customer, com.example.CustomerDto); with several, the choice would be arbitrary.
-Add the leaf 'default ValidatedPrism<com.example.CustomerDto, com.example.Customer> customer()'
+@GenerateMapping: field 'merchant' matches more than one mapping spec: [MerchantMapping,
+LegacyMerchantMapping]. A nested component resolves to the single spec mapping
+(com.example.Merchant, com.example.MerchantDto); with several, the choice would be arbitrary.
+Add the leaf 'default ValidatedPrism<com.example.MerchantDto, com.example.Merchant> merchant()'
 delegating to the spec you want, or remove the duplicate spec.
 ```
 
@@ -1223,22 +1222,22 @@ The rule: [How a dependency's specs are found](rules.md#how-a-dependencys-specs-
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "matches more than one mapping spec" -->
 ```java
-record Customer(String name) {}
+record Merchant(String id, String name) {}
 
-record CustomerDto(String name) {}
-
-@GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+record MerchantDto(String id, String name) {}
 
 @GenerateMapping
-interface LegacyCustomerMapping extends MappingSpec<Customer, CustomerDto> {}
-
-record Invoice(Customer customer) {}
-
-record InvoiceDto(CustomerDto customer) {}
+interface MerchantMapping extends MappingSpec<Merchant, MerchantDto> {}
 
 @GenerateMapping
-interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
+interface LegacyMerchantMapping extends MappingSpec<Merchant, MerchantDto> {}
+
+record Storefront(String url, Merchant merchant) {}
+
+record StorefrontDto(String url, MerchantDto merchant) {}
+
+@GenerateMapping
+interface StorefrontMapping extends MappingSpec<Storefront, StorefrontDto> {}
 ```
 ~~~
 
@@ -1262,13 +1261,13 @@ The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ```java
 sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
 sealed interface PaymentDto permits CardDto, BankDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 record BankDto(String iban) implements PaymentDto {}
 
@@ -1299,13 +1298,13 @@ The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ```java
 sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
 sealed interface PaymentDto permits CardDto, BankDto, CashDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 record BankDto(String iban) implements PaymentDto {}
 
@@ -1339,21 +1338,21 @@ The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is targeted by more than one domain subtype" -->
 ```java
-sealed interface Payment permits Card, GiftCard {}
+sealed interface Payment permits Card, StoreCard {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record GiftCard(String number) implements Payment {}
+record StoreCard(String pan) implements Payment {}
 
 sealed interface PaymentDto permits CardDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 @GenerateMapping
 interface CardMapping extends MappingSpec<Card, CardDto> {}
 
 @GenerateMapping
-interface GiftCardMapping extends MappingSpec<GiftCard, CardDto> {}
+interface StoreCardMapping extends MappingSpec<StoreCard, CardDto> {}
 
 @GenerateMapping
 interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
@@ -1378,13 +1377,13 @@ The rule: [Spec members on a sealed mapping](rules.md#how-the-two-default-famili
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no meaning on a sealed mapping" -->
 ```java
-sealed interface Contact permits Email {}
+sealed interface Channel permits Email {}
 
-record Email(EmailAddress address) implements Contact {}
+record Email(EmailAddress address) implements Channel {}
 
-sealed interface ContactDto permits EmailDto {}
+sealed interface ChannelDto permits EmailDto {}
 
-record EmailDto(String address) implements ContactDto {}
+record EmailDto(String address) implements ChannelDto {}
 
 @GenerateMapping
 interface EmailMapping extends MappingSpec<Email, EmailDto> {
@@ -1394,7 +1393,7 @@ interface EmailMapping extends MappingSpec<Email, EmailDto> {
 }
 
 @GenerateMapping
-interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+interface ChannelMapping extends MappingSpec<Channel, ChannelDto> {
   default ValidatedPrism<String, EmailAddress> address() {
     return EmailCodecs.EMAIL;
   }
@@ -1413,7 +1412,7 @@ A flattened record has a component named like one of the domain's own, so both w
 **Fix.** Rename one of the two record components, or, where two groups spread one record type, flatten only one of them and nest the other.
 
 ```
-@GenerateMapping: @Flatten on 'address' spreads a component 'city' that 'Customer' also has.
+@GenerateMapping: @Flatten on 'address' spreads a component 'city' that 'PickupPoint' also has.
 Every wire component takes exactly one source, and a flattened group's components are sourced by
 name, so a name shared with the domain or with another group would claim one wire component
 twice. Rename one of the two record components.
@@ -1424,14 +1423,14 @@ The rule: [Names in a flattened group](rules.md#names-in-a-flattened-group).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "spreads a component" -->
 ```java
-record Address(String street, String city) {}
+record Address(String street, String city, String postcode) {}
 
-record Customer(String name, String city, Address address) {}
+record PickupPoint(String name, String city, Address address) {}
 
-record CustomerDto(String name, String city, String street) {}
+record PickupPointDto(String name, String street, String city, String postcode) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address();
 }
@@ -1455,14 +1454,15 @@ The rule: [Where a flattened component can appear](rules.md#where-flattening-app
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "spreads across a bean-shaped wire" -->
 ```java
-record Address(String street, String city) {}
+record Address(String street, String city, String postcode) {}
 
-record Customer(String name, Address address) {}
+record PickupPoint(String name, Address address) {}
 
-class CustomerBean {
+class PickupPointBean {
   private String name;
   private String street;
   private String city;
+  private String postcode;
 
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
@@ -1470,10 +1470,12 @@ class CustomerBean {
   public void setStreet(String street) { this.street = street; }
   public String getCity() { return city; }
   public void setCity(String city) { this.city = city; }
+  public String getPostcode() { return postcode; }
+  public void setPostcode(String postcode) { this.postcode = postcode; }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointBean> {
   @Flatten
   Address address();
 }
@@ -1500,14 +1502,14 @@ The rule: [Where a flattened component can appear](rules.md#where-flattening-app
 ```java
 record Geo(String lat) {}
 
-record Address(String street, Geo geo) {}
+record Address(String street, String city, String postcode, Geo geo) {}
 
-record Customer(String name, Address address) {}
+record PickupPoint(String name, Address address) {}
 
-record CustomerDto(String name, String street, String lat) {}
+record PickupPointDto(String name, String street, String city, String postcode, String lat) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address();
 
@@ -1528,7 +1530,7 @@ The domain is a bean, but `parse` builds the domain through a record's canonical
 **Fix.** Make the domain a record, or a sealed interface of records, and map the bean as the wire.
 
 ```
-@GenerateMapping: the domain type argument 'com.example.Customer' is a bean-shaped class, which
+@GenerateMapping: the domain type argument 'com.example.Author' is a bean-shaped class, which
 this mapper does not support on the domain side. parse assembles the domain through its
 canonical constructor, so the domain must be a record (or a sealed interface of records); only
 the wire may be bean-shaped. Use a record or sealed interface for the domain, mapping the bean
@@ -1540,17 +1542,17 @@ The rule: [How a bean is read and written](rules.md#how-a-bean-is-read-and-writt
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "does not support on the domain side" -->
 ```java
-class Customer {
+class Author {
   private String name;
 
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
 }
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 ```
 ~~~
 
@@ -1561,10 +1563,10 @@ An accessor has no partner, and leaving it out would drop a domain component, or
 **Fix.** Add the missing accessor, or correct the misspelt one the message names. A getter `parse` should read and `build` leave out takes a `@ReadOnly` marker, and an accessor meant to stay out an `@Unmapped` one.
 
 ```
-@GenerateMapping: bean property 'email' on 'CustomerBean' has a setter, setEmail(String), but no
+@GenerateMapping: bean property 'email' on 'AuthorBean' has a setter, setEmail(String), but no
 getter, so the mapping leaves it out. A mapping carries only the properties a bean both reads
-and writes, so 'Customer.email' would go unmapped without a word: build would never write it.
-Add String getEmail() to 'CustomerBean'. Or, if getEmial() is meant to read 'email', rename it
+and writes, so 'Author.email' would go unmapped without a word: build would never write it. Add
+String getEmail() to 'AuthorBean'. Or, if getEmial() is meant to read 'email', rename it
 getEmail().
 ```
 
@@ -1573,9 +1575,9 @@ The rule: [When an unpaired accessor is refused](rules.md#unpaired-accessors).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "so the mapping leaves it out" -->
 ```java
-record Customer(String name, String email) {}
+record Author(String name, String email) {}
 
-class CustomerBean {
+class AuthorBean {
   private String name;
   private String email;
 
@@ -1586,7 +1588,7 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}
 ```
 ~~~
 
@@ -1597,7 +1599,7 @@ A getter and the setter or builder setter that shares its name take the property
 **Fix.** Give the writer, or one of its overloads, the getter's type where they are declared.
 
 ```
-@GenerateMapping: bean property 'age' on 'CustomerBean' is read and written at different types
+@GenerateMapping: bean property 'age' on 'AuthorBean' is read and written at different types
 (int vs String). A mappable property has one type; the mapper cannot guess which of the two the
 component should carry. Align the getter and its setter (or builder setter) where they are
 declared, or drop one of them.
@@ -1608,17 +1610,20 @@ The rule: [How a bean is read and written](rules.md#how-a-bean-is-read-and-writt
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is read and written at different types" -->
 ```java
-record Customer(int age) {}
+record Author(String name, int age) {}
 
-class CustomerBean {
+class AuthorBean {
+  private String name;
   private int age;
 
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
   public int getAge() { return age; }
   public void setAge(String age) { this.age = Integer.parseInt(age); }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}
 ```
 ~~~
 
@@ -1629,9 +1634,9 @@ An `@Unmapped` marker names something the bean does not leave unpaired, which is
 **Fix.** Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it.
 
 ```
-@GenerateMapping: @Unmapped method 'ident' names no accessor 'CustomerBean' leaves out. The
-marker reads an accessor with no partner as deliberate. Left unpaired on 'CustomerBean': [id].
-Name the marker after the accessor's property, or remove it.
+@GenerateMapping: @Unmapped method 'ident' names no accessor 'MerchantPatchBean' leaves out. The
+marker reads an accessor with no partner as deliberate. Left unpaired on 'MerchantPatchBean':
+[id]. Name the marker after the accessor's property, or remove it.
 ```
 
 The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
@@ -1639,19 +1644,19 @@ The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names no accessor" -->
 ```java
-record Customer(String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerBean {
-  private String name;
+class MerchantPatchBean {
   private String id;
+  private String name;
 
+  public String getId() { return id; }
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }
-  public String getId() { return id; }
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
   @Unmapped
   String ident();
 }
@@ -1665,10 +1670,10 @@ An `@Unmapped` marker names a property the bean both reads and writes, so the ma
 **Fix.** Remove the marker. To leave the property out, remove one of its accessors.
 
 ```
-@GenerateMapping: @Unmapped method 'id' names a property 'CustomerBean' maps. The marker reads
+@GenerateMapping: @Unmapped method 'id' names a property 'MerchantBean' maps. The marker reads
 an accessor with no partner as deliberate, and 'id' is read and written, so the mapping carries
 it like any other property. Remove the marker; to leave the property out of the mapping, remove
-one of its accessors from 'CustomerBean'.
+one of its accessors from 'MerchantBean'.
 ```
 
 The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
@@ -1676,9 +1681,9 @@ The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names a property" -->
 ```java
-record Customer(String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerBean {
+class MerchantBean {
   private String name;
   private String id;
 
@@ -1689,7 +1694,7 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
+interface MerchantMapping extends MappingSpec<Merchant, MerchantBean> {
   @Unmapped
   String id();
 }
@@ -1703,7 +1708,7 @@ An `@Unmapped` marker sits on a bean that is only read, or only written, whose a
 **Fix.** Remove the marker. On a bean that is only written, fill a writer no domain component names with a derived field, or remove that writer.
 
 ```
-@GenerateMapping: @Unmapped method 'nickname' has nothing to leave out: 'CustomerView' is only
+@GenerateMapping: @Unmapped method 'nickname' has nothing to leave out: 'AuthorView' is only
 read. The marker reads an accessor with no partner as deliberate, and each getter of a bean that
 is only read is a property of its own, so none is left unpaired: parse reads those the domain
 needs and never calls the rest. Remove the marker.
@@ -1714,15 +1719,15 @@ The rule: [What `@Unmapped` withholds](rules.md#what-unmapped-withholds).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has nothing to leave out" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-class CustomerView {
+class AuthorView {
   public String getName() { return "Ada"; }
   public String getNickname() { return "A"; }
 }
 
 @GenerateMapping
-interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
+interface AuthorViewMapping extends MappingSpec<Author, AuthorView> {
   @Unmapped
   String nickname();
 }
@@ -1736,8 +1741,8 @@ A `@ReadOnly` marker names no getter the bean declares without a setter, which i
 **Fix.** Name the marker after the getter's property, which the message lists, or remove it.
 
 ```
-@GenerateMapping: @ReadOnly method 'idd' names no getter 'CustomerModel' leaves unpaired. The
-marker reads a getter with no setter as a read-only property. Getters 'CustomerModel' leaves
+@GenerateMapping: @ReadOnly method 'idd' names no getter 'MerchantModel' leaves unpaired. The
+marker reads a getter with no setter as a read-only property. Getters 'MerchantModel' leaves
 unpaired that a domain component maps to: [id]. Name the marker after the getter's property, or
 remove it. Did you mean 'id()'?
 ```
@@ -1747,9 +1752,9 @@ The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names no getter" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1759,7 +1764,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String idd();
 }
@@ -1773,10 +1778,10 @@ A `@ReadOnly` marker names a property the bean both reads and writes, so the map
 **Fix.** Remove the marker. To leave the property unwritten, remove its setter from the bean.
 
 ```
-@GenerateMapping: @ReadOnly method 'id' names a property 'CustomerModel' maps. The marker reads
+@GenerateMapping: @ReadOnly method 'id' names a property 'MerchantModel' maps. The marker reads
 a getter with no setter as a read-only property, and 'id' is read and written, so the mapping
 carries it both ways. Remove the marker; to leave the property unwritten, remove its writer from
-'CustomerModel'.
+'MerchantModel'.
 ```
 
 The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
@@ -1784,9 +1789,9 @@ The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names a property" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1797,7 +1802,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
@@ -1811,7 +1816,7 @@ A `@ReadOnly` marker sits on a record wire, or a bean crossed one way, which has
 **Fix.** Remove the marker. On a record, `build` writes every component, and `parse` reads it.
 
 ```
-@GenerateMapping: @ReadOnly method 'id' has nothing to mark read-only: 'CustomerDto' is a
+@GenerateMapping: @ReadOnly method 'id' has nothing to mark read-only: 'MerchantDto' is a
 record. The marker reads a getter with no setter as a read-only property, and a record's
 components are all read and written. Remove the marker.
 ```
@@ -1821,12 +1826,12 @@ The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has nothing to mark read-only" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-record CustomerDto(String id, String name) {}
+record MerchantDto(String id, String name) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface MerchantMapping extends MappingSpec<Merchant, MerchantDto> {
   @ReadOnly
   String id();
 }
@@ -1840,18 +1845,18 @@ A projection nests a spec with two halves, which has no whole prism for its writ
 **Fix.** Nest it in a mapping that builds and parses its whole domain, which takes two halves too, or where a mapping only parses or only builds. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.
 
 ```
-@GenerateMapping: target field 'TicketDto.customer' has no usable source. The types differ
-(com.example.CustomerModel vs com.example.Customer) and no matching leaf method was found.
-'CustomerMapping' maps this pair but has a read-only property 'id' (no asValidatedPrism), so it
-cannot be nested in a projection, which needs a whole prism for its write-back: its build leaves
-that property out, so its parse cannot read back what its build wrote. Found on Ticket: [ref,
-customer, note]. Nest 'CustomerMapping' in a mapping that builds and parses its whole domain, or
-in one that only parses or only builds. To nest it here anyway, add 'default
-ValidatedPrism<com.example.CustomerModel, com.example.Customer> customer() { return
-ValidatedPrism.of(CustomerMappingImpl.INSTANCE::parse, CustomerMappingImpl.INSTANCE::build); }'
-to the spec: this mapping's patch then cannot restore what the nested build leaves out. On a
-projection, a leaf's write-back can fail, so the projection maps through the validated
-patch(domain, wire), never asLens().
+@GenerateMapping: target field 'StorefrontModel.merchant' has no usable source. The types differ
+(com.example.MerchantModel vs com.example.Merchant) and no matching leaf method was found.
+'MerchantModelMapping' maps this pair but has a read-only property 'id' (no asValidatedPrism),
+so it cannot be nested in a projection, which needs a whole prism for its write-back: its build
+leaves that property out, so its parse cannot read back what its build wrote. Found on
+Storefront: [url, merchant, tagline]. Nest 'MerchantModelMapping' in a mapping that builds and
+parses its whole domain, or in one that only parses or only builds. To nest it here anyway, add
+'default ValidatedPrism<com.example.MerchantModel, com.example.Merchant> merchant() { return
+ValidatedPrism.of(MerchantModelMappingImpl.INSTANCE::parse,
+MerchantModelMappingImpl.INSTANCE::build); }' to the spec: this mapping's patch then cannot
+restore what the nested build leaves out. On a projection, a leaf's write-back can fail, so the
+projection maps through the validated patch(domain, wire), never asLens().
 ```
 
 The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
@@ -1859,9 +1864,9 @@ The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has a read-only property" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1871,17 +1876,25 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
 
-record Ticket(String ref, Customer customer, String note) {}
+record Storefront(String url, Merchant merchant, String tagline) {}
 
-record TicketDto(String ref, CustomerModel customer) {}
+class StorefrontModel {
+  private String url;
+  private MerchantModel merchant;
+
+  public String getUrl() { return url; }
+  public void setUrl(String url) { this.url = url; }
+  public MerchantModel getMerchant() { return merchant; }
+  public void setMerchant(MerchantModel merchant) { this.merchant = merchant; }
+}
 
 @GenerateMapping
-interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}
+interface StorefrontModelMapping extends MappingSpec<Storefront, StorefrontModel> {}
 ```
 ~~~
 
@@ -1892,12 +1905,13 @@ A mapping that builds and parses nests, or dispatches to, a spec with a read-onl
 **Fix.** Nothing, unless you need `asValidatedPrism()`: law-check each half with its `MappingLaws` overload. A leaf joining the nested spec's halves keeps the whole prism, at the cost of a round trip that loses the read-only property.
 
 ```
-@GenerateMapping: 'TicketMapping' maps as two halves: the generated Impl carries parse, build,
-asValidatedParse() and asValidatedBuild(), and no asValidatedPrism(). It nests 'CustomerMapping'
-at 'customer', which has a read-only property 'id': build leaves that property out, so parse
-cannot read back what build wrote. Law-check each direction with the MappingLaws overloads for
-one direction. To keep asValidatedPrism() anyway, declare a leaf joining the nested halves for
-'customer', at the cost of a round trip that loses what the nested build leaves out.
+@GenerateMapping: 'StorefrontModelMapping' maps as two halves: the generated Impl carries parse,
+build, asValidatedParse() and asValidatedBuild(), and no asValidatedPrism(). It nests
+'MerchantModelMapping' at 'merchant', which has a read-only property 'id': build leaves that
+property out, so parse cannot read back what build wrote. Law-check each direction with the
+MappingLaws overloads for one direction. To keep asValidatedPrism() anyway, declare a leaf
+joining the nested halves for 'merchant', at the cost of a round trip that loses what the nested
+build leaves out.
 ```
 
 The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
@@ -1905,9 +1919,9 @@ The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:reports "maps as two halves" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1917,17 +1931,25 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
 
-record Ticket(String ref, Customer customer) {}
+record Storefront(String url, Merchant merchant) {}
 
-record TicketDto(String ref, CustomerModel customer) {}
+class StorefrontModel {
+  private String url;
+  private MerchantModel merchant;
+
+  public String getUrl() { return url; }
+  public void setUrl(String url) { this.url = url; }
+  public MerchantModel getMerchant() { return merchant; }
+  public void setMerchant(MerchantModel merchant) { this.merchant = merchant; }
+}
 
 @GenerateMapping
-interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}
+interface StorefrontModelMapping extends MappingSpec<Storefront, StorefrontModel> {}
 ```
 ~~~
 
@@ -1938,10 +1960,10 @@ A bean with a `@ReadOnly` property still lacks a property for some domain compon
 **Fix.** Give the bean a property for each missing component, or replace `@ReadOnly` with `@Unmapped` to map the projection.
 
 ```
-@GenerateMapping: 'CustomerModel' maps as a projection, which has no parse to read the read-only
-property 'id'. 'CustomerModel' has no property for [email] of 'Customer'. A read-only property
+@GenerateMapping: 'MerchantModel' maps as a projection, which has no parse to read the read-only
+property 'id'. 'MerchantModel' has no property for [email] of 'Merchant'. A read-only property
 is one parse reads and build leaves out, and a projection has no parse: it builds, and writes a
-wire back onto a domain value it is given. Give 'CustomerModel' a property for [email], so that
+wire back onto a domain value it is given. Give 'MerchantModel' a property for [email], so that
 parse can read the whole domain; or, to map the projection, replace @ReadOnly with @Unmapped on
 'id()'.
 ```
@@ -1951,9 +1973,9 @@ The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which has no parse to read" -->
 ```java
-record Customer(String id, String name, String email) {}
+record Merchant(String id, String name, String email) {}
 
-class CustomerModel {
+class MerchantModel {
   private String id;
   private String name;
 
@@ -1963,7 +1985,7 @@ class CustomerModel {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
   @ReadOnly
   String id();
 }
@@ -1989,9 +2011,9 @@ The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no meaning on a sparse update" -->
 ```java
-record Customer(String id, String name) {}
+record Merchant(String id, String name) {}
 
-class CustomerPatch {
+class MerchantPatchBean {
   private String id;
   private String name;
 
@@ -2001,7 +2023,7 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {
+interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
   @ReadOnly
   String id();
 }
@@ -2015,7 +2037,7 @@ A getter-only `List` is raw or has a wildcard, so the generated `addAll` that fi
 **Fix.** Declare the list's element type on the getter, or give the property a setter.
 
 ```
-@GenerateMapping: bean property 'items' on 'OrderBean' is a getter-only List, which a build
+@GenerateMapping: bean property 'items' on 'WishlistBean' is a getter-only List, which a build
 cannot fill (not supported yet). A getter-only List is filled by the JAXB convention,
 getItems().addAll(...), and addAll needs an element type it can name: a raw List names none, so
 the call is unchecked. Declare the type arguments on 'getItems()', for example List<T>, or give
@@ -2027,10 +2049,10 @@ The rule: [A getter-only `List` must name its element type](rules.md#getter-only
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which a build cannot fill" -->
 ```java
-record Order(List<String> items) {}
+record Wishlist(List<String> items) {}
 
 @SuppressWarnings("rawtypes")
-class OrderBean {
+class WishlistBean {
   private List items;
 
   public List getItems() {
@@ -2042,7 +2064,7 @@ class OrderBean {
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderBean> {}
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistBean> {}
 ```
 ~~~
 
@@ -2053,7 +2075,7 @@ A domain `Optional` faces a getter-only `List`, which creates its list on first 
 **Fix.** Drop the `Optional` so the empty list carries the meaning, or give the property a setter and a getter that returns what was set.
 
 ```
-@GenerateMapping: domain field 'Order.items' is Optional<List<String>>, bridged to the
+@GenerateMapping: domain field 'Wishlist.items' is Optional<List<String>>, bridged to the
 getter-only bean property 'items' (not supported yet). The bridge writes an empty Optional as
 null, and 'items' is written through its own getter (the JAXB convention,
 getItems().addAll(...)), whose list is created on first call, so the property cannot hold a null
@@ -2067,9 +2089,9 @@ The rule: [A getter-only `List` refuses the bridge](rules.md#getter-only-list-re
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "bridged to the getter-only bean property" -->
 ```java
-record Order(Optional<List<String>> items) {}
+record Wishlist(Optional<List<String>> items) {}
 
-class OrderBean {
+class WishlistBean {
   private List<String> items;
 
   public List<String> getItems() {
@@ -2081,7 +2103,7 @@ class OrderBean {
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderBean> {}
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistBean> {}
 ```
 ~~~
 
@@ -2092,13 +2114,13 @@ A domain `Optional` faces a Lombok `@Singular` collection, which is never `null`
 **Fix.** Drop the `Optional` so the empty collection carries the meaning, or drop `@Singular` so the builder stores the collection it is given.
 
 ```
-@GenerateMapping: domain field 'Order.tags' is Optional<List<String>>, bridged to the @Singular
-bean property 'tags' (not supported yet). The bridge writes an empty Optional as null, and
-'tags' is written through tags(Collection<? extends String>), which throws on a null (or skips
-it, under @Singular(ignoreNullCollections = true)), and the builder builds an empty collection
-when nothing is added, so an empty Optional can be neither written nor read back. Declare 'tags'
-as List<String>, dropping the Optional, so the empty collection encodes nothing, or drop
-@Singular from 'tags', so the builder stores the collection it is given, null included.
+@GenerateMapping: domain field 'Wishlist.items' is Optional<List<String>>, bridged to the
+@Singular bean property 'items' (not supported yet). The bridge writes an empty Optional as
+null, and 'items' is written through items(Collection<? extends String>), which throws on a null
+(or skips it, under @Singular(ignoreNullCollections = true)), and the builder builds an empty
+collection when nothing is added, so an empty Optional can be neither written nor read back.
+Declare 'items' as List<String>, dropping the Optional, so the empty collection encodes nothing,
+or drop @Singular from 'items', so the builder stores the collection it is given, null included.
 ```
 
 The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
@@ -2106,30 +2128,30 @@ The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "bridged to the @Singular bean property" -->
 ```java
-record Order(Optional<List<String>> tags) {}
+record Wishlist(Optional<List<String>> items) {}
 
-// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
-final class OrderDto {
-  private final List<String> tags;
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> items.
+final class WishlistDto {
+  private final List<String> items;
 
-  private OrderDto(List<String> tags) { this.tags = tags; }
+  private WishlistDto(List<String> items) { this.items = items; }
 
-  public List<String> getTags() { return tags; }
+  public List<String> getItems() { return items; }
 
   public static Builder builder() { return new Builder(); }
 
   public static final class Builder {
-    private final List<String> tags = new ArrayList<>();
+    private final List<String> items = new ArrayList<>();
 
-    public Builder tag(String tag) { tags.add(tag); return this; }
-    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
-    public Builder clearTags() { tags.clear(); return this; }
-    public OrderDto build() { return new OrderDto(List.copyOf(tags)); }
+    public Builder item(String item) { items.add(item); return this; }
+    public Builder items(Collection<? extends String> items) { this.items.addAll(items); return this; }
+    public Builder clearItems() { items.clear(); return this; }
+    public WishlistDto build() { return new WishlistDto(List.copyOf(items)); }
   }
 }
 
 @GenerateMapping
-interface OrderMapping extends MappingSpec<Order, OrderDto> {}
+interface WishlistMapping extends MappingSpec<Wishlist, WishlistDto> {}
 ```
 ~~~
 
@@ -2468,9 +2490,9 @@ The bean reads some names and writes others, which fits neither a two-way nor a 
 **Fix.** Pair each getter with its setter, which a misspelling usually explains, or remove the accessors of the direction the wire never crosses.
 
 ```
-@GenerateMapping: 'CustomerBean' is not a usable bean-shaped wire: no property it reads is one
-it can write. It reads [name] and writes [email]. A bean maps both ways over the properties it
-can read and write, and one way only when it offers nothing at all in the other direction, so
+@GenerateMapping: 'AuthorBean' is not a usable bean-shaped wire: no property it reads is one it
+can write. It reads [name] and writes [email]. A bean maps both ways over the properties it can
+read and write, and one way only when it offers nothing at all in the other direction, so
 reading some names and writing others fits neither. Align each getter with its setter (or
 builder setter), which a misspelt accessor usually explains, or remove the accessors of the
 direction the wire is not crossed in.
@@ -2481,9 +2503,9 @@ The rule: [How a bean's direction is read](rules.md#how-a-beans-direction-is-rea
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "no property it reads is one it can write" -->
 ```java
-record Customer(String name, String email) {}
+record Author(String name, String email) {}
 
-class CustomerBean {
+class AuthorBean {
   private String name;
   private String email;
 
@@ -2492,7 +2514,7 @@ class CustomerBean {
 }
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}
 ```
 ~~~
 
@@ -2507,12 +2529,12 @@ One spec asks for both tiers, and the two emit disjoint members, so no Impl can 
 **Fix.** Declare a spec per tier, and let a plain mix-in carry the renames and leaves they share.
 
 ```
-@GenerateMapping: 'CustomerMapping' extends both 'MappingSpec<Customer, CustomerPatch>' and
-'UpdateSpec<Customer, CustomerPatch>'. A spec generates one Impl on one tier, and the tiers emit
+@GenerateMapping: 'AuthorMapping' extends both 'MappingSpec<Author, AuthorPatch>' and
+'UpdateSpec<Author, AuthorPatch>'. A spec generates one Impl on one tier, and the tiers emit
 disjoint members: a full MappingSpec emits build/parse/as*, a sparse UpdateSpec emits updateFrom
-alone, so no Impl can answer both clauses. Keep 'interface CustomerMapping extends
-MappingSpec<Customer, CustomerPatch>' and declare a second spec extending 'UpdateSpec<Customer,
-CustomerPatch>'; shared renames and leaves can live on a plain mix-in interface both extend.
+alone, so no Impl can answer both clauses. Keep 'interface AuthorMapping extends
+MappingSpec<Author, AuthorPatch>' and declare a second spec extending 'UpdateSpec<Author,
+AuthorPatch>'; shared renames and leaves can live on a plain mix-in interface both extend.
 ```
 
 The rule: [One tier per spec](rules.md#one-tier-per-spec).
@@ -2520,9 +2542,9 @@ The rule: [One tier per spec](rules.md#one-tier-per-spec).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "extends both 'MappingSpec" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-class CustomerPatch {
+class AuthorPatch {
   private String name;
 
   public String getName() { return name; }
@@ -2530,8 +2552,8 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerMapping
-    extends MappingSpec<Customer, CustomerPatch>, UpdateSpec<Customer, CustomerPatch> {}
+interface AuthorMapping
+    extends MappingSpec<Author, AuthorPatch>, UpdateSpec<Author, AuthorPatch> {}
 ```
 ~~~
 
@@ -2553,9 +2575,9 @@ The rule: [No primitive wire property](rules.md#no-primitive-patch-property).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is primitive and can never be absent" -->
 ```java
-record Customer(String name, int age) {}
+record Author(String name, int age) {}
 
-class CustomerPatch {
+class AuthorPatch {
   private String name;
   private int age;
 
@@ -2566,7 +2588,7 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
+interface AuthorPatchMapping extends UpdateSpec<Author, AuthorPatch> {}
 ```
 ~~~
 
@@ -2577,10 +2599,11 @@ A PATCH wire is a record, whose components are always present, so absence cannot
 **Fix.** Use a bean-shaped PATCH DTO with wrapper-typed properties, or a full `MappingSpec` if you meant a total mapping.
 
 ```
-@GenerateMapping: the wire 'CustomerPatch' is a record, which a sparse UpdateSpec cannot map.
+@GenerateMapping: the wire 'CustomerPatchDto' is a record, which a sparse UpdateSpec cannot map.
 Sparse PATCH reads null as 'not provided, leave unchanged', but a record component is always
 present, so absence is inexpressible. Use a bean-shaped PATCH DTO (wrapper-typed
-getters/setters), or a full MappingSpec<Customer, CustomerPatch> if you meant a total mapping.
+getters/setters), or a full MappingSpec<Customer, CustomerPatchDto> if you meant a total
+mapping.
 ```
 
 The rule: [No record wire](rules.md#no-record-patch-wire).
@@ -2588,12 +2611,12 @@ The rule: [No record wire](rules.md#no-record-patch-wire).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which a sparse UpdateSpec cannot map" -->
 ```java
-record Customer(String name) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerPatch(String name) {}
+record CustomerPatchDto(String name, String email) {}
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
+interface CustomerPatchDtoMapping extends UpdateSpec<Customer, CustomerPatchDto> {}
 ```
 ~~~
 
@@ -2604,7 +2627,7 @@ A getter-only `List` never reads `null`, so a request that omits it would clear 
 **Fix.** Give the property a setter, and a getter that answers `null` until it is set.
 
 ```
-@GenerateMapping: bean property 'items' on 'OrderPatch' is a getter-only List<String>, which
+@GenerateMapping: bean property 'items' on 'WishlistPatch' is a getter-only List<String>, which
 cannot carry a sparse update's absence (not supported yet). A sparse update reads null as 'not
 provided, leave unchanged', and getItems() creates its list on first call, so it never answers
 null: a request that omits 'items' would read as a present empty list and clear the domain
@@ -2618,9 +2641,9 @@ The rule: [No getter-only `List` property](rules.md#no-getter-only-list-on-a-pat
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "cannot carry a sparse update's absence" -->
 ```java
-record Order(List<String> items) {}
+record Wishlist(List<String> items) {}
 
-class OrderPatch {
+class WishlistPatch {
   private List<String> items;
 
   public List<String> getItems() {
@@ -2632,7 +2655,7 @@ class OrderPatch {
 }
 
 @GenerateMapping
-interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}
+interface WishlistPatchMapping extends UpdateSpec<Wishlist, WishlistPatch> {}
 ```
 ~~~
 
@@ -2669,11 +2692,11 @@ A Lombok `@Singular` collection is built empty when nothing is added, so a reque
 **Fix.** Drop `@Singular`, so the builder stores the collection it is given and leaves it `null` until set.
 
 ```
-@GenerateMapping: bean property 'tags' on 'OrderPatch' is a @Singular collection, which cannot
-carry a sparse update's absence (not supported yet). A sparse update reads null as 'not
+@GenerateMapping: bean property 'items' on 'WishlistPatch' is a @Singular collection, which
+cannot carry a sparse update's absence (not supported yet). A sparse update reads null as 'not
 provided, leave unchanged', and a @Singular builder builds an empty collection when nothing is
-added, so 'tags' never reads null: a request that omits it would read as a present empty
-collection and clear the domain value. Drop @Singular from 'tags', so the builder stores the
+added, so 'items' never reads null: a request that omits it would read as a present empty
+collection and clear the domain value. Drop @Singular from 'items', so the builder stores the
 collection it is given and leaves it null until set; a generated class that cannot change needs
 a hand-written PATCH bean instead.
 ```
@@ -2683,30 +2706,30 @@ The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is a @Singular collection" -->
 ```java
-record Order(List<String> tags) {}
+record Wishlist(List<String> items) {}
 
-// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
-final class OrderPatch {
-  private final List<String> tags;
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> items.
+final class WishlistPatch {
+  private final List<String> items;
 
-  private OrderPatch(List<String> tags) { this.tags = tags; }
+  private WishlistPatch(List<String> items) { this.items = items; }
 
-  public List<String> getTags() { return tags; }
+  public List<String> getItems() { return items; }
 
   public static Builder builder() { return new Builder(); }
 
   public static final class Builder {
-    private final List<String> tags = new ArrayList<>();
+    private final List<String> items = new ArrayList<>();
 
-    public Builder tag(String tag) { tags.add(tag); return this; }
-    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
-    public Builder clearTags() { tags.clear(); return this; }
-    public OrderPatch build() { return new OrderPatch(List.copyOf(tags)); }
+    public Builder item(String item) { items.add(item); return this; }
+    public Builder items(Collection<? extends String> items) { this.items.addAll(items); return this; }
+    public Builder clearItems() { items.clear(); return this; }
+    public WishlistPatch build() { return new WishlistPatch(List.copyOf(items)); }
   }
 }
 
 @GenerateMapping
-interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}
+interface WishlistPatchMapping extends UpdateSpec<Wishlist, WishlistPatch> {}
 ```
 ~~~
 
@@ -2718,12 +2741,12 @@ A plain PATCH property faces a domain `Optional`, and `null` already means *leav
 
 ```
 @GenerateMapping: the wire property 'nickname' bridges the domain Optional component
-Customer.nickname (java.util.Optional<java.lang.String>), which a sparse update cannot express.
-Under null-as-absent a null property means 'leave unchanged', so a plain property has no state
-left to set the component to an empty Optional. Declare 'nickname' as Optional<java.lang.String>
-with the field defaulting to null, not Optional.empty(), which would read every omitted property
-as a clear: null then leaves the component unchanged, and a present empty Optional sets it
-empty.
+CustomerProfile.nickname (java.util.Optional<java.lang.String>), which a sparse update cannot
+express. Under null-as-absent a null property means 'leave unchanged', so a plain property has
+no state left to set the component to an empty Optional. Declare 'nickname' as
+Optional<java.lang.String> with the field defaulting to null, not Optional.empty(), which would
+read every omitted property as a clear: null then leaves the component unchanged, and a present
+empty Optional sets it empty.
 ```
 
 The rule: [No plain property bridged to a domain `Optional`](rules.md#no-optional-bridge-on-a-patch).
@@ -2731,9 +2754,9 @@ The rule: [No plain property bridged to a domain `Optional`](rules.md#no-optiona
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which a sparse update cannot express" -->
 ```java
-record Customer(String name, Optional<String> nickname) {}
+record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
-class CustomerPatch {
+class CustomerProfilePatchBean {
   private String name;
   private String nickname;
 
@@ -2744,7 +2767,8 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
+interface CustomerProfilePatchMapping
+    extends UpdateSpec<CustomerProfile, CustomerProfilePatchBean> {}
 ```
 ~~~
 
@@ -2770,10 +2794,10 @@ The rule: [A `JsonNullable` property keeps, clears or sets](rules.md#no-jsonnull
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which cannot be written into" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
 // A nullable property as openapi-generator's spring generator writes it.
-class CustomerPatch {
+class CustomerPatchModel {
   private JsonNullable<String> email = JsonNullable.undefined();
 
   public JsonNullable<String> getEmail() { return email; }
@@ -2781,7 +2805,7 @@ class CustomerPatch {
 }
 
 @GenerateMapping
-interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
+interface CustomerPatchModelMapping extends UpdateSpec<Customer, CustomerPatchModel> {}
 ```
 ~~~
 
@@ -2796,8 +2820,8 @@ The spec, its domain or its wire declares type parameters on a bean-wire mapping
 **Fix.** Declare the spec and the types it maps without type parameters. Outside a sparse `UpdateSpec`, a generic type can instead be a record, mapped record to record.
 
 ```
-@GenerateMapping: 'PageMapping' is generic, which a bean-wire mapping does not support yet. The
-generated Impl names the spec and reads the mapped types' members as declared, so a type
+@GenerateMapping: 'PageBeanMapping' is generic, which a bean-wire mapping does not support yet.
+The generated Impl names the spec and reads the mapped types' members as declared, so a type
 parameter would reach it as an undeclared type variable, even under a concrete instantiation.
 Declare the spec and the types it maps without type parameters; a record-to-record mapping may
 use generic types, either concretely instantiated or threaded through the spec's type
@@ -2809,17 +2833,20 @@ The rule: [The boundaries of a generic spec](rules.md#generic-boundaries).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is generic, which a bean-wire mapping does not support yet" -->
 ```java
-record Page<T>(List<T> items) {}
+record Page<T>(List<T> items, int total) {}
 
 class PageBean<T> {
   private List<T> items;
+  private int total;
 
   public List<T> getItems() { return items; }
   public void setItems(List<T> items) { this.items = items; }
+  public int getTotal() { return total; }
+  public void setTotal(int total) { this.total = total; }
 }
 
 @GenerateMapping
-interface PageMapping<T> extends MappingSpec<Page<T>, PageBean<T>> {}
+interface PageBeanMapping<T> extends MappingSpec<Page<T>, PageBean<T>> {}
 ```
 ~~~
 
@@ -2841,9 +2868,9 @@ The rule: [The boundaries of a generic spec](rules.md#generic-boundaries).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "needs a generic spec" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -2873,15 +2900,17 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "both carry it" -->
 ```java
-record Customer(String name) {}
+record Customer(String name, EmailAddress email) {}
 
-record Account(String name, String iban) {}
+record Account(String name, String iban, int balance) {}
 
-record Summary(String name, String iban) {}
+record Settings(boolean darkMode) {}
+
+record Dashboard(String name, String iban, boolean darkMode) {}
 
 @GenerateMerge
-interface SummaryMerge {
-  Summary merge(Customer customer, Account account);
+interface DashboardAssembly {
+  Dashboard assemble(Customer customer, Account account, Settings settings);
 }
 ```
 ~~~
@@ -2905,7 +2934,7 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ```java
 record Contact(String email) {}
 
-record Account(String iban) {}
+record Account(String iban, int balance) {}
 
 record Summary(EmailAddress email, String iban) {}
 
@@ -2929,7 +2958,7 @@ Every fill copies its source, so the merge cannot fail, but its signature says i
 ```
 @GenerateMerge: 'assemble' declares a Validated return but every fill is an identity copy. A
 merge that cannot fail returns the plain target type, so its callers never handle an error that
-cannot happen. Declare the plain 'Header' return type.
+cannot happen. Declare the plain 'Dashboard' return type.
 ```
 
 The rule: [How a merge fills](rules.md#how-a-merge-fills).
@@ -2937,15 +2966,18 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "declares a Validated return but every fill is an identity copy" -->
 ```java
-record User(String name, String email) {}
+record Customer(String name, EmailAddress email) {}
+
+record Account(String iban, int balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Header(String name, boolean darkMode) {}
+record Dashboard(String name, String iban, boolean darkMode) {}
 
 @GenerateMerge
-interface HeaderAssembly {
-  Validated<NonEmptyList<FieldError>, Header> assemble(User user, Settings settings);
+interface DashboardAssembly {
+  Validated<NonEmptyList<FieldError>, Dashboard> assemble(
+      Customer customer, Account account, Settings settings);
 }
 ```
 ~~~
@@ -2957,7 +2989,7 @@ No source has a component of that name, and a merge matches by name only: it has
 **Fix.** Rename a source component to match, or add a source that carries it.
 
 ```
-@GenerateMerge: target component 'OrderView.customerName' is not filled by any source. Every
+@GenerateMerge: target component 'WishlistView.customerName' is not filled by any source. Every
 target component needs exactly one same-named source component. Add 'customerName' to one of the
 sources, or drop it from the target.
 ```
@@ -2967,15 +2999,15 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is not filled by any source" -->
 ```java
-record Order(String orderId) {}
+record Wishlist(List<String> items) {}
 
-record Customer(String name) {}
+record Customer(String name, EmailAddress email) {}
 
-record OrderView(String orderId, String customerName) {}
+record WishlistView(List<String> items, String customerName) {}
 
 @GenerateMerge
-interface OrderViewAssembly {
-  OrderView assemble(Order order, Customer customer);
+interface WishlistViewAssembly {
+  WishlistView assemble(Wishlist wishlist, Customer customer);
 }
 ```
 ~~~
@@ -2987,7 +3019,7 @@ The all-absent context holds `null` in every component, which a primitive cannot
 **Fix.** Declare the component as a reference type, `Integer` for an `int`.
 
 ```
-@GenerateErrorEnvelope: context component 'attempt' of 'OrderContext' is a primitive int. The
+@GenerateErrorEnvelope: context component 'attempt' of 'LookupContext' is a primitive int. The
 all-absent context instance holds null for every component not yet set, which a primitive
 component cannot represent. Declare the component as 'Integer' or another reference type.
 ```
@@ -2997,11 +3029,11 @@ The rule: [Error envelope rules](rules.md#error-envelope-rules).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is a primitive" -->
 ```java
-record OrderContext(String orderId, int attempt) {}
+record LookupContext(String orderId, int attempt) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError {
-  record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+sealed interface LookupError {
+  record NotFound(String id, ErrorEnvelope<LookupContext> envelope) implements LookupError {}
 }
 ```
 ~~~
@@ -3013,7 +3045,7 @@ The companion builds each variant from its record components, and this variant i
 **Fix.** Make the variant a record carrying its own components and one `ErrorEnvelope<...>`.
 
 ```
-@GenerateErrorEnvelope: permitted variant 'NotFound' of 'OrderError' is a class, not a record.
+@GenerateErrorEnvelope: permitted variant 'NotFound' of 'LookupError' is a class, not a record.
 The companion derives each variant's factory and editContext arm from its record components.
 Make 'NotFound' a record carrying its domain components plus one ErrorEnvelope<...> component.
 ```
@@ -3023,12 +3055,12 @@ The rule: [Error envelope rules](rules.md#error-envelope-rules).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is a class, not a record" -->
 ```java
-record OrderContext(String orderId) {}
+record LookupContext(String orderId) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError permits NotFound {}
+sealed interface LookupError permits NotFound {}
 
-final class NotFound implements OrderError {}
+final class NotFound implements LookupError {}
 ```
 ~~~
 
@@ -3039,7 +3071,7 @@ The error hierarchy declares type parameters, which the generated factories woul
 **Fix.** Declare the hierarchy, its variants and the context without type parameters.
 
 ```
-@GenerateErrorEnvelope: 'OrderError' is generic, which this companion does not support. The
+@GenerateErrorEnvelope: 'LookupError' is generic, which this companion does not support. The
 generated factories and the editContext switch name the hierarchy and its variants directly;
 type parameters would leave them referencing undeclared type variables. Declare the hierarchy
 without type parameters.
@@ -3050,11 +3082,11 @@ The rule: [Error envelope rules](rules.md#error-envelope-rules).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which this companion does not support" -->
 ```java
-record OrderContext(String orderId) {}
+record LookupContext(String orderId) {}
 
 @GenerateErrorEnvelope
-sealed interface OrderError<T> {
-  record NotFound<T>(T id, ErrorEnvelope<OrderContext> envelope) implements OrderError<T> {}
+sealed interface LookupError<T> {
+  record NotFound<T>(T id, ErrorEnvelope<LookupContext> envelope) implements LookupError<T> {}
 }
 ```
 ~~~
@@ -3066,23 +3098,23 @@ A type the envelope companion names is hidden from the hierarchy's package, wher
 **Fix.** Remove `private` from the class the message names.
 
 ```
-@GenerateErrorEnvelope: context record 'Orders.OrderContext' cannot be reached from
+@GenerateErrorEnvelope: context record 'Orders.LookupContext' cannot be reached from
 'com.example'. The generated companion is a top-level class in that package, where it names
 every type it reads or writes, so each has to be visible from there. Remove 'private' from
-'OrderContext'.
+'LookupContext'.
 ```
 
 The rule: [Error envelope rules](rules.md#error-envelope-rules).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "context record 'Orders.OrderContext' cannot be reached from" -->
+<!-- verify:rejects "context record 'Orders.LookupContext' cannot be reached from" -->
 ```java
 class Orders {
-  private record OrderContext(String orderId) {}
+  private record LookupContext(String orderId) {}
 
   @GenerateErrorEnvelope
-  sealed interface OrderError {
-    record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+  sealed interface LookupError {
+    record NotFound(String id, ErrorEnvelope<LookupContext> envelope) implements LookupError {}
   }
 }
 ```
@@ -3096,26 +3128,26 @@ class Orders {
 
 The generated Impl does not exist. Most often the spec was refused, which writes no Impl, so every use of it reports this too.
 
-**Fix.** If the build also printed a `@GenerateMapping:` error, fix that first. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `CustomerMappingImpl.INSTANCE.build(...)`, the same cause reads `package CustomerMappingImpl does not exist`.
+**Fix.** If the build also printed a `@GenerateMapping:` error, fix that first. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `AuthorMappingImpl.INSTANCE.build(...)`, the same cause reads `package AuthorMappingImpl does not exist`.
 
 ```
 cannot find symbol
-symbol:   class CustomerMappingImpl
+symbol:   class AuthorMappingImpl
 location: class Probe
 ```
 
 The rule: [Your first mapping](basics.md#your-first-mapping).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "class CustomerMappingImpl" -->
+<!-- verify:rejects "class AuthorMappingImpl" -->
 ```java
-record Customer(String name) {}
+record Author(String name) {}
 
-record CustomerDto(String name) {}
+record AuthorDto(String name) {}
 
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 
-CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;
+AuthorMappingImpl mapper = AuthorMappingImpl.INSTANCE;
 ```
 ~~~
 
@@ -3136,9 +3168,9 @@ The rule: [Which methods your spec gets](tiers.md#which-methods-your-spec-gets).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "method asIso()" -->
 ```java
-record Customer(EmailAddress email) {}
+record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String email) {}
+record CustomerDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {

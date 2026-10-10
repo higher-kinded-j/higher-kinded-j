@@ -276,7 +276,7 @@ The logging interpreter runs it and keeps one line per operation:
 public record ProductCatalogue(List<Product> products) {}
 
 @GenerateLenses
-public record Product(String id, BigDecimal price, int stock) {}
+public record Product(String sku, String name, BigDecimal price, int stock) {}
 
 // Program: Bulk price update
 Free<OpticOpKind.Witness, ProductCatalogue> bulkPriceUpdate(
@@ -294,8 +294,8 @@ Free<OpticOpKind.Witness, ProductCatalogue> bulkPriceUpdate(
 // First, run it under the validating interpreter and read the report
 ProductCatalogue catalogue = new ProductCatalogue(
     List.of(
-        new Product("P001", new BigDecimal("99.99"), 10),
-        new Product("P002", new BigDecimal("49.99"), 5)
+        new Product("P001", "Widget", new BigDecimal("99.99"), 10),
+        new Product("P002", "Gadget", new BigDecimal("49.99"), 5)
     )
 );
 

@@ -216,5 +216,5 @@ All counts are **lower bounds**: `FlatMapped` continuations are opaque functions
 
 ---
 
-**Previous:** [Effect Handlers Introduction](effect_handlers_intro.md)
+**Previous:** [Effect Handlers](effect_handlers_intro.md)
 **Next:** [Patterns and Recipes](patterns.md)

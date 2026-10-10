@@ -2,11 +2,27 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.cookbook;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.example.book.optics.cast.AddressLenses;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerLenses;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Update;
 import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
  * Cookbook recipes for deep immutable updates on nested structures.
@@ -14,18 +30,24 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  * <p>Problem: Updating deeply nested fields in immutable records requires verbose reconstruction.
  *
  * <p>Solution: Compose lenses to create a path, then use {@code set} or {@code modify}.
+ *
+ * <p>The records are the chapter's order service, imported from its cast package with the lenses
+ * generated for them.
  */
 public class DeepUpdateRecipes {
 
-  // --- Domain Model ---
-  @GenerateLenses
-  public record User(String name, Address address) {}
+  private static final UUID ORDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
-  @GenerateLenses
-  public record Address(Street street, String city, String postcode) {}
-
-  @GenerateLenses
-  public record Street(String name, int number) {}
+  // Ada's order of a lamp, with the customer's email as given
+  private static Order order(String email) {
+    return new Order(
+        ORDER_ID,
+        new Customer("Ada", new EmailAddress(email)),
+        List.of(new LineItem("LAMP", 1, new BigDecimal("40.00"))),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
+  }
 
   public static void main(String[] args) {
     System.out.println("=== Deep Update Recipes ===\n");
@@ -44,31 +66,30 @@ public class DeepUpdateRecipes {
     System.out.println("--- Recipe: Update Deeply Nested Field ---");
 
     // The verbose way (without optics):
-    User user = new User("Alice", new Address(new Street("High Street", 42), "London", "SW1A 1AA"));
+    Order order = order("ada@example.com");
 
     // Without optics (error-prone, verbose):
-    User verboseUpdate =
-        new User(
-            user.name(),
-            new Address(
-                new Street("New Street", user.address().street().number()),
-                user.address().city(),
-                user.address().postcode()));
+    Order verboseUpdate =
+        new Order(
+            order.id(),
+            new Customer(order.customer().name(), new EmailAddress("ada@example.org")),
+            order.lines(),
+            order.placedAt(),
+            order.currency(),
+            order.status());
 
-    System.out.println("Without optics: " + verboseUpdate);
+    System.out.println("Without optics: " + verboseUpdate.customer());
 
     // With optics (clear, composable):
-    Lens<User, Address> addressLens = Lens.of(User::address, (u, addr) -> new User(u.name(), addr));
-    Lens<Address, Street> streetLens =
-        Lens.of(Address::street, (a, s) -> new Address(s, a.city(), a.postcode()));
-    Lens<Street, String> streetNameLens =
-        Lens.of(Street::name, (s, name) -> new Street(name, s.number()));
+    Lens<Order, Customer> customerLens = OrderLenses.customer();
+    Lens<Customer, EmailAddress> emailLens = CustomerLenses.email();
+    Lens<EmailAddress, String> valueLens = EmailAddressLenses.value();
 
     // Compose into a single path
-    Lens<User, String> userStreetName = addressLens.andThen(streetLens).andThen(streetNameLens);
+    Lens<Order, String> orderEmail = customerLens.andThen(emailLens).andThen(valueLens);
 
-    User cleanUpdate = userStreetName.set("New Street", user);
-    System.out.println("With optics: " + cleanUpdate);
+    Order cleanUpdate = orderEmail.set("ada@example.org", order);
+    System.out.println("With optics: " + cleanUpdate.customer());
     System.out.println();
   }
 
@@ -80,22 +101,16 @@ public class DeepUpdateRecipes {
   private static void recipeModifyWithFunction() {
     System.out.println("--- Recipe: Modify with Function ---");
 
-    User user = new User("Bob", new Address(new Street("Baker Street", 221), "London", "NW1 6XE"));
+    Order order = order("Ada@Example.COM");
 
-    Lens<User, Address> addressLens = Lens.of(User::address, (u, addr) -> new User(u.name(), addr));
-    Lens<Address, Street> streetLens =
-        Lens.of(Address::street, (a, s) -> new Address(s, a.city(), a.postcode()));
-    Lens<Street, Integer> streetNumberLens =
-        Lens.of(Street::number, (s, num) -> new Street(s.name(), num));
+    Lens<Order, String> orderEmail =
+        OrderLenses.customer().andThen(CustomerLenses.email()).andThen(EmailAddressLenses.value());
 
-    Lens<User, Integer> userStreetNumber =
-        addressLens.andThen(streetLens).andThen(streetNumberLens);
+    // Lower-case the email address
+    Order updated = orderEmail.modify(String::toLowerCase, order);
 
-    // Increment the street number
-    User updated = userStreetNumber.modify(n -> n + 1, user);
-
-    System.out.println("Original: " + user);
-    System.out.println("Number incremented: " + updated);
+    System.out.println("Original: " + order.customer());
+    System.out.println("Email lower-cased: " + updated.customer());
     System.out.println();
   }
 
@@ -108,30 +123,34 @@ public class DeepUpdateRecipes {
     System.out.println("--- Recipe: Reusable Composed Paths ---");
 
     // Define paths once
-    Lens<User, Address> addressLens = Lens.of(User::address, (u, addr) -> new User(u.name(), addr));
-    Lens<Address, String> cityLens =
-        Lens.of(Address::city, (a, c) -> new Address(a.street(), c, a.postcode()));
-    Lens<Address, String> postcodeLens =
-        Lens.of(Address::postcode, (a, p) -> new Address(a.street(), a.city(), p));
+    Lens<Consignment, Address> toLens = ConsignmentLenses.to();
+    Lens<Address, String> cityLens = AddressLenses.city();
+    Lens<Address, String> postcodeLens = AddressLenses.postcode();
 
     // Reusable paths
-    Lens<User, String> userCity = addressLens.andThen(cityLens);
-    Lens<User, String> userPostcode = addressLens.andThen(postcodeLens);
+    Lens<Consignment, String> consignmentCity = toLens.andThen(cityLens);
+    Lens<Consignment, String> consignmentPostcode = toLens.andThen(postcodeLens);
 
-    User user = new User("Charlie", new Address(new Street("Main St", 1), "Manchester", "M1 1AA"));
+    Consignment consignment =
+        new Consignment(
+            ORDER_ID,
+            new Address("1 Main St", "Manchester", "M1 1AA"),
+            new ConsignmentState.Pending());
 
     // Reuse the paths AND the composed transformation: fold both writes into one update.
     // (Edits.combine(Edit.set(path, v), ...) sugars exactly this fold - see
     // org.higherkindedj.optics.edit.)
-    Update<User> relocate =
-        Monoids.<User>update()
+    Update<Consignment> redirect =
+        Monoids.<Consignment>update()
             .combineAll(
-                List.of(u -> userCity.set("Edinburgh", u), u -> userPostcode.set("EH1 1AA", u)));
+                List.of(
+                    c -> consignmentCity.set("Edinburgh", c),
+                    c -> consignmentPostcode.set("EH1 1AA", c)));
 
-    User relocated = relocate.apply(user);
+    Consignment redirected = redirect.apply(consignment);
 
-    System.out.println("Original: " + user);
-    System.out.println("Relocated: " + relocated);
+    System.out.println("Original: " + consignment.to());
+    System.out.println("Redirected: " + redirected.to());
     System.out.println();
   }
 }

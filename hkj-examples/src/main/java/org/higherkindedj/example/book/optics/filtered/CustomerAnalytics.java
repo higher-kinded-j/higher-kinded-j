@@ -120,8 +120,11 @@ public class CustomerAnalytics {
         BigDecimal premiumSpend =
             premiumLines.foldMap(MONEY, CustomerAnalytics::lineTotal, history);
         System.out.printf(
-            "%s: %d premium items, £%.2f total%n",
-            history.customer().name(), premiumCount, premiumSpend);
+            "%s: %d premium %s, £%.2f total%n",
+            history.customer().name(),
+            premiumCount,
+            premiumCount == 1 ? "line" : "lines",
+            premiumSpend);
       }
     }
 
@@ -143,10 +146,10 @@ public class CustomerAnalytics {
     // --- Analysis 4: Mark VIP Customers ---
     System.out.println("\n--- Analysis 4: Auto-Mark VIP Customers ---");
 
-    // Customers who bought premium items AND have any order over £300
+    // Customers with a premium line AND any order over £300
     Traversal<List<CustomerHistory>, CustomerHistory> potentialVIPs =
         allHistories
-            .filterBy(ALL_HISTORY_LINES, CATALOGUE::premium) // Has premium items
+            .filterBy(ALL_HISTORY_LINES, CATALOGUE::premium) // Has a premium line
             .filterBy(orderTotals, total -> total.compareTo(new BigDecimal("300")) > 0);
 
     Lens<CustomerHistory, Boolean> vipLens =
@@ -162,7 +165,7 @@ public class CustomerAnalytics {
     }
 
     // --- Analysis 5: Aggregated Statistics ---
-    System.out.println("\n--- Analysis 5: Platform Statistics ---");
+    System.out.println("\n--- Analysis 5: Statistics Across All Customers ---");
 
     Fold<List<CustomerHistory>, CustomerHistory> historyFold = Fold.of(list -> list);
     Fold<List<CustomerHistory>, LineItem> allLines = historyFold.andThen(ALL_HISTORY_LINES);
@@ -179,20 +182,20 @@ public class CustomerAnalytics {
         expensiveLines.foldMap(MONEY, CustomerAnalytics::lineTotal, histories);
 
     System.out.printf(
-        "Expensive items (>£100): %d items, £%.2f revenue%n", totalExpensive, expensiveRevenue);
-    System.out.printf("Budget items (≤£100): %d items%n", totalCheap);
+        "Expensive lines (>£100): %d lines, £%.2f revenue%n", totalExpensive, expensiveRevenue);
+    System.out.printf("Budget lines (≤£100): %d lines%n", totalCheap);
 
     System.out.println("\n=== END OF ANALYTICS ===");
   }
-
-  private static final UUID ORDER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private static final Instant PLACED_AT = Instant.parse("2026-10-01T09:00:00Z");
 
   private static final Currency GBP = Currency.getInstance("GBP");
 
-  private static Order order(Customer customer, LineItem... lines) {
-    return new Order(ORDER_ID, customer, List.of(lines), PLACED_AT, GBP, OrderStatus.PAID);
+  // Order number n, paid, placed on the same day as the others, in pounds
+  private static Order order(int number, Customer customer, LineItem... lines) {
+    return new Order(
+        new UUID(0, number), customer, List.of(lines), PLACED_AT, GBP, OrderStatus.PAID);
   }
 
   private static LineItem line(String sku, String price) {
@@ -207,16 +210,16 @@ public class CustomerAnalytics {
         new CustomerHistory(
             alice,
             List.of(
-                order(alice, line("LAPTOP", "999.00"), line("MOUSE", "25.00")),
-                order(alice, line("DESK", "350.00"))),
+                order(1, alice, line("LAPTOP", "999.00"), line("MOUSE", "25.00")),
+                order(2, alice, line("DESK", "350.00"))),
             false),
         new CustomerHistory(
-            bob, List.of(order(bob, line("BOOK", "20.00"), line("PEN", "5.00"))), false),
+            bob, List.of(order(3, bob, line("BOOK", "20.00"), line("PEN", "5.00"))), false),
         new CustomerHistory(
             charlie,
             List.of(
-                order(charlie, line("PHONE", "800.00"), line("CASE", "50.00")),
-                order(charlie, line("HEADPHONES", "250.00"))),
+                order(4, charlie, line("PHONE", "800.00"), line("CASE", "50.00")),
+                order(5, charlie, line("HEADPHONES", "250.00"))),
             false));
   }
 }

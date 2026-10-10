@@ -180,7 +180,7 @@ The annotations target `TYPE`, so javac itself is happy; the message comes from 
 <!-- verify:rejects "can only be applied to records" -->
 ```java
 @GenerateLenses
-class Order {}
+class Voucher {}
 ```
 ~~~
 
@@ -255,13 +255,13 @@ Note this is about what the *iso* names, not what the method declares: `<T> Iso<
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names a type variable" -->
 ```java
-record Box<T>(T content) {}
+record Box<T>(T value) {}
 
 final class BoxIsos {
 
     @GenerateIsos
     static <T> Iso<Box<T>, T> box() {
-        return Iso.of(Box::content, Box::new);
+        return Iso.of(Box::value, Box::new);
     }
 }
 ```
@@ -274,15 +274,15 @@ The annotated method is an instance method. The generated field initialises itse
 **Fix.** Make the method `static`.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "'point' is not static" -->
+<!-- verify:rejects "'quantity' is not static" -->
 ```java
-record Point(int x) {}
+record Quantity(int units) {}
 
-final class PointIsos {
+final class QuantityIsos {
 
     @GenerateIsos
-    Iso<Point, Integer> point() {
-        return Iso.of(Point::x, Point::new);
+    Iso<Quantity, Integer> quantity() {
+        return Iso.of(Quantity::units, Quantity::new);
     }
 }
 ```
@@ -295,15 +295,15 @@ The annotated method takes arguments. The generated field initialises itself by 
 **Fix.** Take the arguments away, or drop `@GenerateIsos` and call the method directly.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "'point' takes parameters" -->
+<!-- verify:rejects "'quantity' takes parameters" -->
 ```java
-record Point(int x) {}
+record Quantity(int units) {}
 
-final class PointIsos {
+final class QuantityIsos {
 
     @GenerateIsos
-    static Iso<Point, Integer> point(int scale) {
-        return Iso.of(Point::x, Point::new);
+    static Iso<Quantity, Integer> quantity(int scale) {
+        return Iso.of(Quantity::units, Quantity::new);
     }
 }
 ```
@@ -411,7 +411,7 @@ It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-
 <!-- verify:reports "no traversal was generated for component" -->
 ```java
 @GenerateTraversals
-record Pending(Deque<String> queue) {}
+record Backlog(Deque<String> queue) {}
 ```
 ~~~
 
@@ -570,7 +570,7 @@ abstract class SessionOpticsSpec implements OpticsSpec<Session> {}
 
 A spec interface inherits a method that returns an optic, abstract or `default`, from another interface. A spec generates optics from the methods it declares itself, and reading them from another interface is not supported yet, so the generated class would be missing that optic.
 
-**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. The message writes the signature for the spec's own source type, `Lens<Order, Long> id()` for a mix-in's `Lens<S, Long> id()`; reached through a raw clause, it asks for the type arguments instead. For a `default` method, redeclare it on the spec as an abstract method with its copy strategy or hint annotation, which replaces the inherited one. Or move the default out of the mix-in into a static method that calls the generated statics. A method the spec redeclares is its own, and the one it inherits is no longer read.
+**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. The message writes the signature for the spec's own source type, `Lens<Order, UUID> id()` for a mix-in's `Lens<S, UUID> id()`; reached through a raw clause, it asks for the type arguments instead. For a `default` method, redeclare it on the spec as an abstract method with its copy strategy or hint annotation, which replaces the inherited one. Or move the default out of the mix-in into a static method that calls the generated statics. A method the spec redeclares is its own, and the one it inherits is no longer read.
 
 ~~~admonish note title="Why" collapsible=true
 Leaving the method out would be quieter and worse: code calling it would fail with `cannot find symbol`, and a `@ThroughField` traversal composing through an inherited lens would fail inside the generated file. A spec extending another `@ImportOptics` spec draws it too, since its own generated class would lack the other's optics. An inherited method that returns something other than an optic, such as `int count()`, is not a declaration of an optic and leaves the spec as it is. So does one taking arguments or declaring type parameters of its own, which a spec could not declare as an optic either.
@@ -689,18 +689,18 @@ Every generated optic repeats the source type verbatim, so the generated file, w
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which names the raw type 'Box'" -->
 ```java
-record Box<T>(T content) {
+record Box<T>(T value) {
 
-    Box<T> withContent(T content) {
-        return new Box<>(content);
+    Box<T> withValue(T value) {
+        return new Box<>(value);
     }
 }
 
 @ImportOptics
 interface BoxOpticsSpec extends OpticsSpec<Box> {
 
-    @Wither("withContent")
-    Lens<Box, String> content();
+    @Wither("withValue")
+    Lens<Box, String> value();
 }
 ```
 ~~~
@@ -855,11 +855,11 @@ The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic'
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is not a subtype of source type" -->
 ```java
-sealed interface Payment permits Card, Cash {}
+sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record Cash(int pence) implements Payment {}
+record Bank(String iban) implements Payment {}
 
 @ImportOptics
 interface PaymentOpticsSpec extends OpticsSpec<Payment> {
@@ -938,19 +938,19 @@ Either the two are unrelated, or the source type pins the target's argument to s
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "narrows to 'Card', which is not a 'Cash'" -->
+<!-- verify:rejects "narrows to 'Card', which is not a 'Bank'" -->
 ```java
-sealed interface Payment permits Card, Cash {}
+sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record Cash(int pence) implements Payment {}
+record Bank(String iban) implements Payment {}
 
 @ImportOptics
 interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
     @InstanceOf(Card.class)
-    Prism<Payment, Cash> card();
+    Prism<Payment, Bank> card();
 }
 ```
 ~~~
@@ -1668,26 +1668,17 @@ That is only a source when the focus is one, so a focus that is a *value* rather
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "focuses 'String', which is not a 'Payment'" -->
 ```java
-sealed interface Payment permits Card, Cash {
+sealed interface Payment permits Card, Bank {}
 
-    default boolean isCard() {
-        return this instanceof Card;
-    }
+record Card(String pan) implements Payment {}
 
-    default String number() {
-        return "";
-    }
-}
-
-record Card(String number) implements Payment {}
-
-record Cash(int pence) implements Payment {}
+record Bank(String iban) implements Payment {}
 
 @ImportOptics
 interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
-    @MatchWhen(predicate = "isCard", getter = "number")
-    Prism<Payment, String> number();
+    @MatchWhen(predicate = "isCard", getter = "pan")
+    Prism<Payment, String> pan();
 }
 ```
 ~~~
@@ -1701,11 +1692,20 @@ The processor does **not** validate the strings in `@MatchWhen(predicate = "isFo
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "method isCrad()" -->
 ```java
-sealed interface Payment permits Card, Cash {}
+sealed interface Payment permits Card, Bank {
 
-record Card(String number) implements Payment {}
+    default boolean isCard() {
+        return this instanceof Card;
+    }
 
-record Cash(int pence) implements Payment {}
+    default Card asCard() {
+        return (Card) this;
+    }
+}
+
+record Card(String pan) implements Payment {}
+
+record Bank(String iban) implements Payment {}
 
 @ImportOptics
 interface PaymentOpticsSpec extends OpticsSpec<Payment> {
@@ -1725,11 +1725,11 @@ A spec-interface method returning `Prism<S, A>` with neither hint.
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "requires a prism hint annotation" -->
 ```java
-sealed interface Payment permits Card, Cash {}
+sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record Cash(int pence) implements Payment {}
+record Bank(String iban) implements Payment {}
 
 @ImportOptics
 interface PaymentOpticsSpec extends OpticsSpec<Payment> {

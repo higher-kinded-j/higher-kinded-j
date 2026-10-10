@@ -12,10 +12,10 @@
  *   <li>Wither-based classes: {@link java.time.LocalDate}, {@link java.time.LocalTime}
  *   <li>JDK enums: {@link java.time.DayOfWeek}, {@link java.time.Month}, {@link
  *       java.util.concurrent.TimeUnit}
- *   <li>External records: {@link org.higherkindedj.example.optics.importoptics.external.Customer}
+ *   <li>External records: {@link org.higherkindedj.example.optics.importoptics.external.Coordinate}
  *   <li>Sealed interfaces: {@link
- *       org.higherkindedj.example.optics.importoptics.external.PaymentMethod}
- *   <li>Custom enums: {@link org.higherkindedj.example.optics.importoptics.external.OrderStatus}
+ *       org.higherkindedj.example.optics.importoptics.external.PaymentInstrument}
+ *   <li>Custom enums: {@link org.higherkindedj.example.optics.importoptics.external.TrackingStatus}
  * </ul>
  */
 @ImportOptics({
@@ -26,12 +26,12 @@
   DayOfWeek.class,
   Month.class,
   TimeUnit.class,
-  // External record (simulated third-party library)
-  Customer.class,
-  // External sealed interface (simulated third-party library)
-  PaymentMethod.class,
-  // External enum (simulated third-party library)
-  OrderStatus.class
+  // External record (simulated geocoding SDK)
+  Coordinate.class,
+  // External sealed interface (simulated payment gateway SDK)
+  PaymentInstrument.class,
+  // External enum (simulated courier SDK)
+  TrackingStatus.class
 })
 package org.higherkindedj.example.optics.importoptics;
 
@@ -40,7 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.Month;
 import java.util.concurrent.TimeUnit;
-import org.higherkindedj.example.optics.importoptics.external.Customer;
-import org.higherkindedj.example.optics.importoptics.external.OrderStatus;
-import org.higherkindedj.example.optics.importoptics.external.PaymentMethod;
+import org.higherkindedj.example.optics.importoptics.external.Coordinate;
+import org.higherkindedj.example.optics.importoptics.external.PaymentInstrument;
+import org.higherkindedj.example.optics.importoptics.external.TrackingStatus;
 import org.higherkindedj.optics.annotations.ImportOptics;

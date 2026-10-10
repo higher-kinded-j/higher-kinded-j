@@ -307,4 +307,5 @@ The Free program is the functional core: pure, testable, inspectable. The Spring
 
 ---
 
-**Previous:** [Context vs ConfigContext](context_vs_config.md) | **Next:** [Effect Handler Reference](effect_handlers.md)
+**Previous:** [Context vs ConfigContext](context_vs_config.md)
+**Next:** [Effect Handler Reference](effect_handlers.md)
