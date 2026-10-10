@@ -546,6 +546,31 @@ class VTaskPathResilienceTest {
         Thread.interrupted();
       }
     }
+
+    @Test
+    @DisplayName(
+        "runs the finaliser with the interrupt status cleared after a task that returns with it"
+            + " set, then restores it")
+    void runsFinalizerUninterruptedAfterTaskThatKeptTheInterrupt() {
+      AtomicBoolean interruptedDuringFinalizer = new AtomicBoolean(true);
+
+      VTaskPath<String> path =
+          Path.<String>vtask(
+                  () -> {
+                    Thread.currentThread().interrupt();
+                    return "fallback";
+                  })
+              .guarantee(
+                  () -> interruptedDuringFinalizer.set(Thread.currentThread().isInterrupted()));
+
+      try {
+        assertThat(path.unsafeRun()).isEqualTo("fallback");
+        assertThat(interruptedDuringFinalizer).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 
   @Nested

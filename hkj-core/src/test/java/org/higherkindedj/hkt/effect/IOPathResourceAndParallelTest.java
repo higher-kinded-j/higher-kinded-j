@@ -438,6 +438,33 @@ class IOPathResourceAndParallelTest {
         Thread.interrupted();
       }
     }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLEANED_USES)
+    @DisplayName(
+        "the cleanup after a use that returns with the interrupt status set runs with it cleared,"
+            + " then restores it")
+    void cleanupAfterUseThatKeptTheInterruptRunsUninterrupted(CleanedUse method) {
+      AtomicBoolean interruptedDuringCleanup = new AtomicBoolean(true);
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    Thread.currentThread().interrupt();
+                    return "fallback";
+                  },
+                  () -> interruptedDuringCleanup.set(Thread.currentThread().isInterrupted()));
+
+      try {
+        assertThat(path.unsafeRun()).isEqualTo("fallback");
+        assertThat(interruptedDuringCleanup).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 
   @Nested
@@ -558,6 +585,33 @@ class IOPathResourceAndParallelTest {
         assertThatThrownBy(path::unsafeRun)
             .isSameAs(useFailure)
             .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(closeFailure));
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName(
+        "close() after a use that returns with the interrupt status set runs with it cleared, then"
+            + " restores it")
+    void closeAfterUseThatKeptTheInterruptRunsUninterrupted(ClosingUse method) {
+      AtomicBoolean interruptedDuringClose = new AtomicBoolean(true);
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> interruptedDuringClose.set(Thread.currentThread().isInterrupted()),
+                  () -> {
+                    Thread.currentThread().interrupt();
+                    return "fallback";
+                  });
+
+      try {
+        assertThat(path.unsafeRun()).isEqualTo("fallback");
+        assertThat(interruptedDuringClose).isFalse();
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {
         Thread.interrupted();

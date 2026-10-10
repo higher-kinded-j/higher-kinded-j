@@ -406,9 +406,10 @@ rule.
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:cleanup_fails}}
 ```
 
-After a failed use, these methods run the cleanup with the thread's interrupt
-status cleared, so a blocking close is not cut short. They restore the status
-afterwards.
+These methods run the cleanup with the thread's interrupt status cleared,
+whether the use failed or succeeded, so a blocking close is not cut short. They
+restore the status afterwards. That includes a use that caught a cancellation,
+set the status again as Java asks, and returned.
 
 An exception the path holds, such as the one `Path.vtaskFail(e)` fails with, is
 the same instance on every run. So it gathers the cleanup failure of every run,

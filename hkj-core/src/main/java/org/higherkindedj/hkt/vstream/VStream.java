@@ -1432,6 +1432,10 @@ public interface VStream<A> extends VStreamKind<A> {
    * error is preserved and the finaliser error is added as a suppressed exception. Otherwise a
    * finaliser that throws fails the operation that completed or closed the stream.
    *
+   * <p>The finaliser runs with the thread's interrupt status cleared, and the status is restored
+   * afterwards, so a finaliser that blocks is not cut short when the reading was cancelled. The
+   * release of a {@link #bracket} runs the same way.
+   *
    * <h2>Example</h2>
    *
    * <pre>{@code
@@ -1872,7 +1876,7 @@ final class FinalizedStream<A> implements VStream<A> {
       try {
         if (released.compareAndSet(false, true)) {
           // run() wraps a checked failure, as the finaliser at the end of the stream does
-          finalizer.run();
+          Cleanup.withInterruptCleared(finalizer::run);
         }
       } catch (Throwable t) {
         failure = Cleanup.keep(failure, t);
@@ -1905,7 +1909,7 @@ final class FinalizedStream<A> implements VStream<A> {
                           new Step.Skip<>(consumption(s.tail(), finalizer, released));
                       case Step.Done<A> _ -> {
                         if (released.compareAndSet(false, true)) {
-                          finalizer.run();
+                          Cleanup.withInterruptCleared(finalizer::run);
                         }
                         yield new Step.Done<A>();
                       }

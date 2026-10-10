@@ -320,9 +320,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * <p>A failure is reported as try-with-resources reports it. If the use throws and the release
    * throws too, the use's exception is the one thrown, with the release's suppressed onto it; if
-   * only the release throws, its exception is thrown. After a failed use, the release runs with the
-   * thread's interrupt status cleared, so a blocking release is not cut short, and the status is
-   * restored afterwards.
+   * only the release throws, its exception is thrown. The release runs with the thread's interrupt
+   * status cleared, whether the use failed or succeeded, so a blocking release is not cut short,
+   * and the status is restored afterwards.
    *
    * <p>Example:
    *
@@ -404,8 +404,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * from {@code close()} fails the path: an {@link IOException} as an {@link UncheckedIOException},
    * another checked exception as a {@link RuntimeException} whose cause it is, and an unchecked one
    * as it is. When the use fails, its exception is the one thrown, with the exception from {@code
-   * close()} suppressed onto it as {@code close()} threw it. Either way, an {@link
-   * InterruptedException} from {@code close()} sets the thread's interrupt status.
+   * close()} suppressed onto it as {@code close()} threw it. Either way, {@code close()} runs with
+   * the thread's interrupt status cleared, which is restored afterwards, and an {@link
+   * InterruptedException} from {@code close()} sets the status.
    *
    * <p>A resource supplier that returns null fails the path with a {@link NullPointerException}
    * before the use runs.
@@ -486,14 +487,14 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   }
 
   /**
-   * Closes a resource after a successful use, failing with an exception from {@code close()}: an
-   * {@link IOException} as an {@link UncheckedIOException}, and another checked exception as a
-   * {@link RuntimeException} whose cause it is, setting the interrupt status for an {@link
-   * InterruptedException}.
+   * Closes a resource after a successful use, with the interrupt status cleared, failing with an
+   * exception from {@code close()}: an {@link IOException} as an {@link UncheckedIOException}, and
+   * another checked exception as a {@link RuntimeException} whose cause it is, setting the
+   * interrupt status for an {@link InterruptedException}.
    */
   private static void closeAfterUse(AutoCloseable resource) {
     try {
-      resource.close();
+      Cleanup.withInterruptCleared(resource::close);
     } catch (RuntimeException e) {
       throw e;
     } catch (IOException e) {
@@ -511,9 +512,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * <p>The finaliser is guaranteed to run even if this IOPath throws an exception. If this IOPath
    * throws and the finaliser throws too, this IOPath's exception is the one thrown, with the
-   * finaliser's suppressed onto it; if only the finaliser throws, its exception is thrown. After a
-   * failure, the finaliser runs with the thread's interrupt status cleared, which is restored
-   * afterwards.
+   * finaliser's suppressed onto it; if only the finaliser throws, its exception is thrown. The
+   * finaliser runs with the thread's interrupt status cleared, whether this IOPath failed or
+   * succeeded, and the status is restored afterwards.
    *
    * <p>Example:
    *

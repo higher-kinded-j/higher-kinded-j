@@ -49,6 +49,10 @@ Key points:
 - Payment was charged successfully, so its compensation issues a refund
 - Compensations run in **reverse** order: stock first, then payment
 
+Each compensation runs with the thread's interrupt status cleared, and the
+status is restored afterwards. So when a step fails after a cancellation, such
+as a `Scope` timeout, a refund that makes a blocking call still runs to the end.
+
 ## Creating a Saga
 
 ### Direct Construction

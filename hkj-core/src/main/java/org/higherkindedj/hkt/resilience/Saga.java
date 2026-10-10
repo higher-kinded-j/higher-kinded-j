@@ -10,12 +10,17 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 
 /**
  * A saga represents a sequence of steps where each step has a corresponding compensation action. If
  * any step fails, all previously completed steps are compensated in reverse order.
+ *
+ * <p>Each compensation runs with the thread's interrupt status cleared, and the status is restored
+ * afterwards. So a compensation that blocks, such as a refund call, is not cut short when a step
+ * fails after a cancellation that left the thread interrupted.
  *
  * <p><b>Distinction from Resource:</b> {@link org.higherkindedj.hkt.vtask.Resource Resource}
  * manages individual resources with deterministic cleanup (close files, release connections).
@@ -317,8 +322,12 @@ public final class Saga<A> {
     for (CompletedStep<?> completed : reversed) {
       CompletedStep<Object> typedStep = (CompletedStep<Object>) completed;
       try {
-        VTask<Unit> compensationTask = typedStep.step().compensate().apply(typedStep.result());
-        compensationTask.run();
+        Cleanup.withInterruptCleared(
+            () -> {
+              VTask<Unit> compensationTask =
+                  typedStep.step().compensate().apply(typedStep.result());
+              compensationTask.run();
+            });
         results.add(
             new SagaError.CompensationResult(typedStep.step().name(), Either.right(Unit.INSTANCE)));
       } catch (Throwable compensationError) {

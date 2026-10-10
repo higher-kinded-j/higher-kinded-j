@@ -89,6 +89,30 @@ class CleanupTest {
           .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
       assertThat(cleaned).isTrue();
     }
+
+    @Test
+    @DisplayName(
+        "runs the cleanup after successful work with the interrupt status cleared, then restores"
+            + " it")
+    void clearsInterruptStatusAfterSuccessfulWork() {
+      AtomicBoolean interruptedDuringCleanup = new AtomicBoolean(true);
+
+      try {
+        String result =
+            Cleanup.guarantee(
+                () -> {
+                  Thread.currentThread().interrupt();
+                  return "fallback";
+                },
+                () -> interruptedDuringCleanup.set(Thread.currentThread().isInterrupted()));
+
+        assertThat(result).isEqualTo("fallback");
+        assertThat(interruptedDuringCleanup).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 
   @Nested
