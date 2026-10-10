@@ -87,7 +87,7 @@ Then test the lens with a sample the old constructor would have changed. `LensLa
 ```
 
 ~~~admonish warning title="A constructor that changes a component's value breaks the lens"
-A lens must give back what you set. A compact constructor that changes a component's value, by lowercasing, trimming or rounding it, runs on every write, so the value read back is not the value set. Normalise where values come in, keep the constructor to checks that reject and copies that keep the value equal, and test the lens with `LensLaws` on a sample the change would alter.
+A lens must give back what you set. A compact constructor that changes a component's value, by lowercasing, trimming, rounding or deduplicating it, runs on every write, so the value read back is not the value set. Normalise where values come in, keep the constructor to checks that reject and copies that keep the value equal, and test the lens with `LensLaws` on a sample the change would alter.
 ~~~
 
 A generated lens's `set`, and the `with*` helper built on it, copies the record through its canonical constructor: every other component as it was, and the focused one replaced. A compact constructor that normalises or checks a component, a defensive copy or a range check, therefore runs on every write.

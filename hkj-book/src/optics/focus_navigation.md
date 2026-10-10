@@ -326,7 +326,7 @@ record CustomerReferral(Customer referrer, Customer referred) {}
 
 ### A target with type parameters {#a-target-with-type-parameters}
 
-A navigator is an inner class parameterised by the source type alone, so it has no way to name a target's own type parameters. `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
+A navigator is an inner class parameterised by the source type alone, so it has no way to name a target's own type parameters. `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case. That chain compiles when the field names `Inner`'s type argument, as `Inner<String>` does. For a wildcard one, such as `Inner<? extends CharSequence>`, javac reports "no suitable method found for via", so write the lens that [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows instead.
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 

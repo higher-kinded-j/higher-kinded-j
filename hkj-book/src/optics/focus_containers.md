@@ -6,7 +6,7 @@ _Predict which path type a container field generates, and teach the processor a 
 - Predict a field's path type from its container's cardinality: exactly one, zero or one, or zero or more
 - Decide whether to set `widenCollections = true`, and say why a `Map` field stops at the container without it
 - Check whether a JDK, HKJ, Eclipse Collections, Guava, Vavr, Apache Commons or PCollections container works out of the box
-- Predict when `@GenerateFocus` rejects a raw or wildcard container type argument
+- Predict when `@GenerateFocus` rejects a raw or wildcard container type argument, and what a wildcard inside the element gives you
 - Register your own container type by implementing the `TraversableGenerator` SPI
 ~~~
 
@@ -188,10 +188,11 @@ Which fields the rule reaches follows from how each one widens:
 | `Maybe`, `Set`, `Collection` | naming an optic instance: `Affines.just()` or an `Each` | ❌ Rejected, the same as an SPI container |
 | `Either`, `Try`, `Validated`, `Map`, arrays, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
 | `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Leaf>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
+| Any container in this table whose element is a generic type it does not step into, such as `List<Box<? extends Leaf>>` | the container's own widening, as for any other element | ✅ Accepted under every setting. The element is kept whole, so `List<Box<? extends Leaf>>` widens to `TraversalPath<Holder, Box<? extends Leaf>>` (see [A wildcard inside the element](#a-wildcard-inside-the-element)) |
 
 Three things narrow the rule further.
 
-**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`.
+**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows.
 
 **A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
@@ -199,6 +200,42 @@ Three things narrow the rule further.
 
 The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
+
+### A wildcard inside the element {#a-wildcard-inside-the-element}
+
+When the element is a generic type of your own, such as `Box<? extends Leaf>`, the container widens as it would for any other element, under every setting. The path focuses on that whole type, wildcard and all:
+
+<!-- verify -->
+```java
+@GenerateFocus
+public record Box<T>(T value) {}
+
+@GenerateFocus
+public record Holder(List<Box<? extends Leaf>> boxes) {}
+
+// The wildcard stays inside the element
+TraversalPath<Holder, Box<? extends Leaf>> boxes = HolderFocus.boxes();
+```
+
+`HolderFocus` takes you as far as each `Box`. `BoxFocus.value()` is a path from `Box<T>` for one `T`. Java generics are invariant, so a `Box<? extends Leaf>` is not a `Box<T>` for any one `T`. Naming the type, as in `BoxFocus.<Leaf>value()`, gives a path from `Box<Leaf>`, which does not fit either. Both calls fail with "no suitable method found for via":
+
+<!-- verify:rejects "no suitable method found for via" -->
+```java
+// Rejected by javac: Box<? extends Leaf> is not Box<T> for any one T
+TraversalPath<Holder, Leaf> leaves = HolderFocus.boxes().via(BoxFocus.value());
+TraversalPath<Holder, Leaf> named = HolderFocus.boxes().via(BoxFocus.<Leaf>value());
+```
+
+To reach the `Leaf`, write the lens over the element type as declared, wildcard included:
+
+<!-- verify -->
+```java
+Lens<Box<? extends Leaf>, Leaf> value = Lens.of(Box::value, (box, leaf) -> new Box<>(leaf));
+
+TraversalPath<Holder, Leaf> leaves = HolderFocus.boxes().via(value);
+```
+
+The setter needs only the new value because `Box` has one component. With more, it copies the others from `box`, and `LensLaws` checks the result, as [Every Write Runs the Canonical Constructor](lenses.md#every-write-runs-the-canonical-constructor) shows. If nothing needs the wildcard, declare `List<Box<Leaf>>` instead, and `.via(BoxFocus.value())` composes as generated.
 
 ### Cross-Ecosystem Navigation
 

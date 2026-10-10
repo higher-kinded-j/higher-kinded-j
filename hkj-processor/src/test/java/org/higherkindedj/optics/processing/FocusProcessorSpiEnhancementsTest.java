@@ -30,6 +30,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -470,6 +471,19 @@ public class FocusProcessorSpiEnhancementsTest {
             public record Leaf(String name) {}
             """);
 
+    /** A generic navigable element: no navigator can name its type parameter. */
+    private static final JavaFileObject BOX =
+        JavaFileObjects.forSourceString(
+            "com.example.Box",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus
+            public record Box<T>(T value) {}
+            """);
+
     private static JavaFileObject holder(String attributes, String component) {
       return JavaFileObjects.forSourceString(
           "com.example.Holder",
@@ -477,10 +491,15 @@ public class FocusProcessorSpiEnhancementsTest {
           package com.example;
 
           import org.higherkindedj.optics.annotations.GenerateFocus;
+          import org.higherkindedj.hkt.Kind;
           import org.higherkindedj.hkt.either.Either;
+          import org.higherkindedj.hkt.list.ListKind;
+          import org.higherkindedj.hkt.maybe.Maybe;
+          import java.util.Collection;
           import java.util.List;
           import java.util.Map;
           import java.util.Optional;
+          import java.util.Set;
 
           @GenerateFocus(%s)
           public record Holder(%s) {}
@@ -550,6 +569,65 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.example.HolderFocus", ".some(Affines.eitherRight()).each()");
+    }
+
+    @ParameterizedTest(name = "@GenerateFocus({0})")
+    @CsvSource(
+        delimiterString = " | ",
+        value = {
+          "'' | FocusPath<Holder, Map<String, Box<? extends Leaf>>> map()",
+          "widenCollections = true | TraversalPath<Holder, Box<? extends Leaf>> map()",
+          "generateNavigators = true | FocusPath<Holder, Map<String, Box<? extends Leaf>>> map()",
+          "generateNavigators = true, widenCollections = true"
+              + " | TraversalPath<Holder, Box<? extends Leaf>> map()"
+        })
+    @DisplayName("should keep a wildcard inside a generic element as written")
+    void shouldKeepWildcardInsideGenericElementAsWritten(String attributes, String map) {
+      // Only a container's own type arguments are resolved or checked. Box<? extends Leaf> is a
+      // complete type, so every container focuses on it whole and the wildcard stays inside it.
+      // Box is generic, so no setting generates a navigator for it, and a Map is stepped into only
+      // when the record's own flag asks.
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(
+                  holder(
+                      attributes,
+                      """
+                      List<Box<? extends Leaf>> list,
+                      Set<Box<? extends Leaf>> set,
+                      Collection<Box<? extends Leaf>> collection,
+                      Optional<Box<? extends Leaf>> optional,
+                      Maybe<Box<? extends Leaf>> maybe,
+                      Either<String, Box<? extends Leaf>> either,
+                      Map<String, Box<? extends Leaf>> map,
+                      Kind<ListKind.Witness, Box<? extends Leaf>> kind,
+                      List<? extends Box<? extends Leaf>> bounded,
+                      List<List<Box<? extends Leaf>>> nested,
+                      List<Box<?>> unbounded,
+                      List<Box<? super Leaf>> lower"""),
+                  BOX,
+                  LEAF);
+      assertThat(compilation).succeededWithoutWarnings();
+
+      List.of(
+              "TraversalPath<Holder, Box<? extends Leaf>> list()",
+              "TraversalPath<Holder, Box<? extends Leaf>> set()",
+              "TraversalPath<Holder, Box<? extends Leaf>> collection()",
+              "AffinePath<Holder, Box<? extends Leaf>> optional()",
+              "AffinePath<Holder, Box<? extends Leaf>> maybe()",
+              "AffinePath<Holder, Box<? extends Leaf>> either()",
+              map,
+              "TraversalPath<Holder, Box<? extends Leaf>> kind()",
+              "TraversalPath<Holder, Box<? extends Leaf>> bounded()",
+              "TraversalPath<Holder, Box<? extends Leaf>> nested()",
+              "TraversalPath<Holder, Box<?>> unbounded()",
+              "TraversalPath<Holder, Box<? super Leaf>> lower()")
+          .forEach(
+              signature ->
+                  assertGeneratedCodeContains(
+                      compilation, "com.example.HolderFocus", "public static " + signature));
     }
 
     @Test
@@ -635,22 +713,10 @@ public class FocusProcessorSpiEnhancementsTest {
       // A generic element gets no navigator, so the container is never stepped into to reach it
       // and stays a plain FocusPath; a wildcard it carries is then never asked for an optic, any
       // more than its concrete twin's arguments are.
-      JavaFileObject box =
-          JavaFileObjects.forSourceString(
-              "com.example.Box",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus
-              public record Box<T>(T value) {}
-              """);
-
       Compilation compilation =
           javac()
               .withProcessors(new FocusProcessor())
-              .compile(holder("generateNavigators = true", component + " boxes"), box);
+              .compile(holder("generateNavigators = true", component + " boxes"), BOX);
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(

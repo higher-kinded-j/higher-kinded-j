@@ -17,6 +17,7 @@ import java.util.Set;
 import org.eclipse.collections.api.factory.Lists;
 import org.eclipse.collections.api.list.ImmutableList;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.each.EachInstances;
@@ -47,6 +48,14 @@ record Team(String name, Set<Skill> skills, Collection<String> tags) {}
 record WidenedEmployee(String name, Map<String, Integer> scores) {}
 
 record Leaf(String name) {}
+
+// A generic element, and a list of it whose element carries a wildcard, for A wildcard inside the
+// element
+@GenerateFocus
+record Box<T>(T value) {}
+
+@GenerateFocus
+record Holder(List<Box<? extends Leaf>> boxes) {}
 
 @GenerateLenses
 @GenerateFocus
