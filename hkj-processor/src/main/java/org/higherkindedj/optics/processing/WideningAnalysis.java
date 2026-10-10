@@ -51,7 +51,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>A {@code Kind<F, A>} component widens through {@code .traverseOver()}, at the outermost
  *       layer only, because the analysis reads it from the component's own declaration.
  *   <li>Every other container arrives through the SPI. A {@code ZERO_OR_ONE} generator always
- *       widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}.
+ *       widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}. A generator that
+ *       names no optic expression takes no part: its container stays in focus, as if no generator
+ *       supported it, since the no-argument {@code .some()} and {@code .each()} read only an {@code
+ *       Optional} and a {@code List}.
  *   <li>A widening that names an optic instance cannot be written for a raw or wildcard-carrying
  *       container. The walk turns such a container away and the widening {@linkplain
  *       Widening#declined() names it}, so that the declaration is rejected where it is written
@@ -619,7 +622,10 @@ public final class WideningAnalysis {
    */
   public sealed interface SpiLookup {
 
-    /** No generator on the annotation processor path supports the type. */
+    /**
+     * Nothing on the annotation processor path widens the type: no generator supports it, or the
+     * one that does names no optic expression.
+     */
     record None() implements SpiLookup {}
 
     /**
@@ -627,9 +633,7 @@ public final class WideningAnalysis {
      *
      * <p>A generator that names an optic instance — {@code .some(Affines.eitherRight())}, {@code
      * .each(EachInstances.mapValuesEach())} — has that instance's type arguments inferred from the
-     * field type, which a raw or wildcard-carrying container gives javac no way to do. A generator
-     * with no optic expression widens through the no-argument {@code .some()} or {@code .each()}
-     * instead, whose free type variable takes either without complaint, and is admitted.
+     * field type, which a raw or wildcard-carrying container gives javac no way to do.
      *
      * <p>Such a container is left un-widened, and its declaration is rejected where it is written
      * rather than inside generated source.
@@ -650,18 +654,21 @@ public final class WideningAnalysis {
    * Classifies what the SPI has to say about {@code type}, reading the highest-priority generator
    * from the {@link GeneratorRegistry} every generator-choosing site reads.
    *
+   * <p>A generator that names no optic expression, an empty or blank one, classifies as {@link
+   * SpiLookup.None}, so its container is left in focus at every site: the static method, the
+   * navigator and the turned-away check all read this one answer.
+   *
    * @param type the type to look up
    * @param component the record component to report an equal-priority conflict against, or null
    * @return none, a refused generator, or an admitted one
    */
   public SpiLookup spiLookup(TypeMirror type, Element component) {
     TraversableGenerator generator = generatorRegistry.generatorFor(type, component);
-    if (generator == null) {
+    if (generator == null || generator.generateOpticExpression().isBlank()) {
       return new SpiLookup.None();
     }
-    boolean writable =
-        generator.generateOpticExpression().isEmpty()
-            || !ProcessorUtils.hasUndenotableTypeArguments(type);
-    return writable ? new SpiLookup.Admitted(generator) : new SpiLookup.Refused(generator);
+    return ProcessorUtils.hasUndenotableTypeArguments(type)
+        ? new SpiLookup.Refused(generator)
+        : new SpiLookup.Admitted(generator);
   }
 }

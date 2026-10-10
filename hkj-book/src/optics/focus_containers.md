@@ -196,7 +196,7 @@ Three things narrow the rule further.
 
 **A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
-**A generator that names no optic expression is exempt.** It widens through the no-argument `.some()` or `.each()`, whose element type is free to be whatever the field says, so a raw or wildcard argument costs it nothing. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
+**A generator that names no optic expression is exempt, because it widens nothing.** The path stops at its container, as if no generator supported it, so a raw or wildcard argument is never asked for an optic. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
 The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
@@ -245,7 +245,7 @@ Real projects mix collection libraries: JDK collections for ordinary code, Eclip
 
 ## The fine print: registering your own container type
 
-A library can teach the processor about its own container by implementing `TraversableGenerator`. The interface is small: say which types you handle, what cardinality they have, which type argument is the focus, what optic expression to emit, and (the one method with no default) how to emit `modifyF`.
+A library can teach the processor about its own container by implementing `TraversableGenerator`. The interface is small: say which types you handle, what cardinality they have, which type argument is the focus, what optic expression to emit, and (the one method with no default) how to emit `modifyF`. Leave the optic expression out and the generator serves `@GenerateTraversals` and `@ImportOptics` only: under `@GenerateFocus`, the path stops at the container, as if no generator supported it.
 
 ```java
 @ServiceProvider(TraversableGenerator.class)
