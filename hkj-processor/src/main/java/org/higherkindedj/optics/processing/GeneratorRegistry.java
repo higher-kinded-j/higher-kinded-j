@@ -23,7 +23,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>Resolution honours {@link TraversableGenerator#priority()}: the highest-priority generator
  * that supports the type wins, wherever its {@code META-INF/services} entry lands. Among generators
  * of equal priority the first registered wins and a compile-time warning names both, anchored to
- * the record component under analysis when one is at hand.
+ * the record component the lookup is made for. A lookup made for no component, as a re-walk is,
+ * reports nothing.
  *
  * @since 0.4.11
  */
