@@ -340,7 +340,7 @@ Widening is what turns a lens to a field into the path type the field's shape de
 
 #### SPI containers {#spi-containers}
 
-Each SPI generator declares a `Cardinality`, the number of values its container can hold, and that decides the path type:
+Each SPI generator that names an optic declares a `Cardinality`, the number of values its container can hold, and that decides the path type:
 
 | Cardinality | Path | Types |
 |-------------|------|-------|
@@ -366,7 +366,7 @@ Composing paths keeps the wider path type:
 | TRAVERSAL | anything | TRAVERSAL |
 
 ~~~admonish note title="Custom Generators"
-If you write a `TraversableGenerator` for your own container type, override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types. The default is `ZERO_OR_MORE`, which is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md).
+If you write a `TraversableGenerator` for your own container type, override `generateOpticExpression()` with the optic that reads it, or the path stops at the container. Override `getCardinality()` to return `ZERO_OR_ONE` for optional-like types; the default `ZERO_OR_MORE` is correct for collection-like types. See [Traversal Generator Plugins](../tooling/generator_plugins.md).
 ~~~
 
 #### Nested container widening {#nested-container-widening}

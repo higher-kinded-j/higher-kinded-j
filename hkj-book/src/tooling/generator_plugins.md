@@ -197,9 +197,10 @@ public interface TraversableGenerator {
     boolean supports(TypeMirror type);
 
     /**
-     * Declares the cardinality of elements in this container type, which decides
-     * the path tier the Focus DSL gives the field:
-     *   ZERO_OR_ONE  → AffinePath, always  (Optional, Either, Try, Validated)
+     * Declares the cardinality of elements in this container type. For a generator
+     * that names an optic expression, it decides the path tier the Focus DSL gives
+     * the field:
+     *   ZERO_OR_ONE  → AffinePath, always  (Either, Try, Validated)
      *   ZERO_OR_MORE → TraversalPath under widenCollections, or when the element
      *                  is itself a navigable record
      *
@@ -207,6 +208,21 @@ public interface TraversableGenerator {
      */
     default Cardinality getCardinality() {
         return Cardinality.ZERO_OR_MORE;
+    }
+
+    /**
+     * The optic @GenerateFocus composes to widen the field: an expression producing
+     * an Affine for ZERO_OR_ONE, or an Each for ZERO_OR_MORE. Leave it empty and the
+     * generator serves @GenerateTraversals and @ImportOptics only: under
+     * @GenerateFocus the path stops at the container, as if no generator supported it.
+     */
+    default String generateOpticExpression() {
+        return "";
+    }
+
+    /** The classes the optic expression names, imported where it is written. */
+    default Set<String> getRequiredImports() {
+        return Set.of();
     }
 
     /**
@@ -254,12 +270,12 @@ public interface TraversableGenerator {
 A body that writes out a component's type, such as a local it declares, is not always written into that type's package: a companion generated under a `targetPackage`, or the optics generated for a type reached with `@ImportOptics`, land elsewhere. Name such a type with `ProcessorUtils.typeNameOf(type, targetPackage)` from the four-argument `generateModifyF`, and a type-use annotation that package cannot name, one package-private to the component's own package, is left off rather than copied into a file that could not compile with it. `BaseTraversableGenerator.getTypeArgumentName(component, index, targetPackage)` does the same for a type argument. A generator that names no type of its own needs neither.
 ~~~
 
-~~~admonish note title="Cardinality and Navigator Generation"
-The `getCardinality()` method influences both `@GenerateTraversals` and `@GenerateFocus(generateNavigators = true)`. When the Focus processor generates navigator classes, it consults each SPI generator's cardinality to determine whether a field should produce an `AffinePath` (zero or one element) or a `TraversalPath` (zero or more elements). Without this, SPI-registered types would default to `FocusPath`, losing the correct widening semantics.
+~~~admonish note title="Cardinality, the optic expression and @GenerateFocus"
+Only `@GenerateFocus` reads `getCardinality()` and `generateOpticExpression()`; `@GenerateTraversals` and `@ImportOptics` need neither. A generator takes part in Focus widening by naming an optic expression. Its cardinality then decides whether a field gives an `AffinePath` (zero or one element) or a `TraversalPath` (zero or more elements), in the static Focus method and the navigators alike. A generator with no expression takes no part: the field's path stops at the container, as if no generator supported it.
 ~~~
 
 ~~~admonish tip title="Replacing a Built-in Generator"
-To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed.
+To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed. Name an optic expression too, or extend the built-in generator to inherit its one: an override with none takes the type out of `@GenerateFocus` widening.
 
 `@GenerateFocus` asks no generator about `Optional`, `Maybe`, `List`, `Set` or `Collection`: it recognises them by name and widens them itself, so a build without the plugins widens them too. An override for one of those changes what `@GenerateTraversals` and `@ImportOptics` generate, not its Focus path.
 ~~~
@@ -355,7 +371,7 @@ dependencies {
 }
 ```
 
-The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `ServiceLoader` and generate traversals for any `NonEmptyList<A>` field.
+The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `ServiceLoader` and generate traversals for any `NonEmptyList<A>` field. It names no optic expression, so under `@GenerateFocus` a `NonEmptyList<A>` field keeps a `FocusPath` on the list; override `generateOpticExpression()` with an `Each` for it to widen to a `TraversalPath` too.
 
 ### Implementation Tips
 
@@ -367,6 +383,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
 - **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
+- **Override `generateOpticExpression()` and `getRequiredImports()`** for the field to widen under `@GenerateFocus`: name the `Affine` or `Each` that reads and rebuilds your container. Without them the Focus path stops at the container.
 - **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements. Compiling it with `-Xlint:cast,unchecked,rawtypes -Werror` and asserting `succeededWithoutWarnings()` catches a warning your users' builds would otherwise report in a file they cannot edit.
 
 ---
@@ -376,7 +393,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns
-* **Cardinality drives widening**: `ZERO_OR_ONE` produces an `AffinePath`, always; `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when the container's element is itself a navigable record. Static Focus methods and navigator methods read the same answer
+* **The optic expression opts in to widening, and cardinality picks the tier**: for a generator that names an optic, `ZERO_OR_ONE` produces an `AffinePath`, always. `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when the container's element is itself a navigable record. Static Focus methods and navigator methods read the same answer
 ~~~
 
 ~~~admonish tip title="See Also"
