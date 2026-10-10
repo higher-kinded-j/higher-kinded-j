@@ -809,11 +809,12 @@ class IOPathResourceAndParallelTest {
       assertThatThrownBy(raceResult::unsafeRun)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("interrupted");
+      // race() restores the interrupt status: clear it, or interrupter.join can throw
+      assertThat(Thread.interrupted()).isTrue();
 
       // Clean up
       canComplete.countDown();
       interrupter.join(1000);
-      Thread.interrupted(); // Clear interrupt status
     }
   }
 
@@ -1003,10 +1004,11 @@ class IOPathResourceAndParallelTest {
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("interrupted");
+      // parZip3() restores the interrupt status: clear it, or interrupter.join can throw
+      assertThat(Thread.interrupted()).isTrue();
 
       canComplete.countDown();
       interrupter.join(1000);
-      Thread.interrupted();
     }
   }
 
@@ -1114,10 +1116,11 @@ class IOPathResourceAndParallelTest {
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("interrupted");
+      // parZip4() restores the interrupt status: clear it, or interrupter.join can throw
+      assertThat(Thread.interrupted()).isTrue();
 
       canComplete.countDown();
       interrupter.join(1000);
-      Thread.interrupted();
     }
   }
 
@@ -1284,10 +1287,11 @@ class IOPathResourceAndParallelTest {
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("interrupted");
+      // raceIO() restores the interrupt status: clear it, or interrupter.join can throw
+      assertThat(Thread.interrupted()).isTrue();
 
       canComplete.countDown();
       interrupter.join(1000);
-      Thread.interrupted();
     }
   }
 }
