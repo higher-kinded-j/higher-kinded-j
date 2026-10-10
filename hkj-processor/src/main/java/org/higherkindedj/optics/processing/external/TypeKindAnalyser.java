@@ -188,23 +188,13 @@ public class TypeKindAnalyser {
   }
 
   /**
-   * The spellings a field's getter is looked for under, in the order the pairing rule prefers them:
-   * the field's own name, then {@code getXxx}, then {@code isXxx}.
-   */
-  private static List<String> getterSpellings(String fieldName) {
-    return List.of(
-        fieldName,
-        "get" + ProcessorUtils.capitalise(fieldName),
-        "is" + ProcessorUtils.capitalise(fieldName));
-  }
-
-  /**
-   * How far down those spellings a wither's getter is. Two withers that reach one field name are
-   * told apart by it, so which lens is generated does not depend on the order the class declares
-   * its members in. The getter is always one of the spellings, since that is what paired it.
+   * How far down {@link ProcessorUtils#getterSpellings} a wither's getter is, in the order the
+   * pairing rule prefers them. Two withers that reach one field name are told apart by it, so which
+   * lens is generated does not depend on the order the class declares its members in. The getter is
+   * always one of the spellings, since that is what paired it.
    */
   private static int getterRank(WitherInfo wither) {
-    return getterSpellings(wither.fieldName()).indexOf(wither.getterMethodName());
+    return ProcessorUtils.getterSpellings(wither.fieldName()).indexOf(wither.getterMethodName());
   }
 
   /**
@@ -336,7 +326,7 @@ public class TypeKindAnalyser {
       TypeElement classElement, String fieldName, VariableElement witherParam) {
     TypeMirror expectedType = witherParam.asType();
 
-    List<String> getterCandidates = getterSpellings(fieldName);
+    List<String> getterCandidates = ProcessorUtils.getterSpellings(fieldName);
 
     // The spellings are tried in order, so a class that declares more than one of them pairs
     // through the same spelling whichever order its members are read in.

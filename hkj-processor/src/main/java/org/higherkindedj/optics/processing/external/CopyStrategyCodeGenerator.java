@@ -101,8 +101,9 @@ public class CopyStrategyCodeGenerator {
    *
    * <p>Generated code: {@code (source, newValue) -> new Type(source.f1(), newValue, source.f3())}
    *
-   * <p>This generates a statement lambda that calls the constructor. If parameter order is not
-   * specified, a simplified version is generated that may need manual adjustment.
+   * <p>An annotation that writes no order has it read from the constructor's parameter names, and
+   * is refused where they give none, so the order is empty here only for a source type the
+   * generated class cannot name, which is refused before anything is generated.
    *
    * @param info the @ViaConstructor annotation values
    * @param fieldName the field name being set
@@ -115,18 +116,6 @@ public class CopyStrategyCodeGenerator {
     TypeName sourceTypeName = TypeName.get(sourceType);
     String[] parameterOrder = info.parameterOrder();
 
-    if (parameterOrder.length == 0) {
-      // No parameter order specified - generate a simplified version
-      // The user may need to add parameterOrder if this doesn't work
-      return CodeBlock.of(
-          "(source, newValue) -> {\n"
-              + "  // TODO: Specify parameterOrder in @ViaConstructor if this doesn't compile\n"
-              + "  throw new $T(\"@ViaConstructor requires parameterOrder for field: $L\");\n"
-              + "}",
-          UnsupportedOperationException.class,
-          fieldName);
-    }
-
     // Build constructor call with proper argument substitution
     CodeBlock.Builder constructorArgs = CodeBlock.builder();
     for (int i = 0; i < parameterOrder.length; i++) {
@@ -137,7 +126,7 @@ public class CopyStrategyCodeGenerator {
       if (param.equals(fieldName)) {
         constructorArgs.add(focusArgument(info.unboxedFocusType()));
       } else {
-        // Assume getter method matches parameter name
+        // Every other name is an accessor, which the analyser has held the source type to.
         constructorArgs.add("source.$L()", param);
       }
     }

@@ -1558,6 +1558,18 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The spellings an accessor for {@code name} is looked for under, in the order they are
+   * preferred: the name itself, then {@code getName}, then {@code isName}.
+   *
+   * @param name a field's, or a constructor parameter's, name; must not be null
+   * @return the three spellings (non-null)
+   * @since 0.5.0
+   */
+  public static List<String> getterSpellings(String name) {
+    return List.of(name, "get" + capitalise(name), "is" + capitalise(name));
+  }
+
+  /**
    * The mirror of an annotation on an element, or null where it carries none of that type.
    *
    * @param element the annotated element; must not be null

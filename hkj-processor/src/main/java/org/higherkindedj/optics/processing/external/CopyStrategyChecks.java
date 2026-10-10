@@ -3,13 +3,14 @@
 package org.higherkindedj.optics.processing.external;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -25,6 +26,7 @@ import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -32,6 +34,8 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInf
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * What a spec's lens method rebuilds its source type through, and whether it can.
@@ -45,8 +49,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>The rules the refusals rest on are javac's own, and two of them are deliberately not repeated:
  * a call whose binding rests on inference, and a focus written as a wildcard, whose type such a
  * lens draws from its getter as much as from the wildcard. Both are read leniently, so that nothing
- * javac would accept is refused here. {@link WitherBinding} answers which method a one-argument
- * call binds.
+ * javac would accept is refused here. {@link CallBinding} answers which method or constructor a
+ * generated call binds, and {@link ConstructorOrderChecks} what order a {@code @ViaConstructor}
+ * rebuild passes its arguments in.
  *
  * <p>Split from {@link SpecInterfaceAnalyser}, which asks it one question per lens method and keeps
  * the rest of a spec's reading: its source type, its optic kinds, and its prism and traversal
@@ -64,6 +69,7 @@ final class CopyStrategyChecks {
   private final Types typeUtils;
   private final Elements elementUtils;
   private final Messager messager;
+  private final ConstructorOrderChecks constructorOrders;
 
   /**
    * Creates the checks over a round's utilities.
@@ -76,6 +82,7 @@ final class CopyStrategyChecks {
     this.typeUtils = typeUtils;
     this.elementUtils = elementUtils;
     this.messager = messager;
+    this.constructorOrders = new ConstructorOrderChecks(typeUtils, elementUtils, messager);
   }
 
   // ----- Copy Strategy Parsing -----
@@ -123,7 +130,15 @@ final class CopyStrategyChecks {
       // As for a wither, the builder's setter is called with the unboxed value where the
       // generator casts it.
       TypeMirror builderWritten =
-          builderFocusType(method, declaredSource, sourceTypeElement, getter, toBuilder, setter);
+          builderFocusType(
+              method,
+              declaredSource,
+              sourceTypeElement,
+              getter,
+              toBuilder,
+              setter,
+              focusType,
+              targetPackage);
       if (readsThroughUnusableGetter(
               method,
               "@ViaBuilder",
@@ -136,6 +151,7 @@ final class CopyStrategyChecks {
               method,
               declaredSource,
               sourceTypeElement,
+              getter.isEmpty() ? fieldName : getter,
               toBuilder,
               setter.isEmpty() ? fieldName : setter,
               build,
@@ -157,7 +173,14 @@ final class CopyStrategyChecks {
       // The generated lens passes a primitive unboxed where the name is overloaded, so that is
       // the value the call is resolved with.
       TypeMirror written =
-          writtenFocusType(method, declaredSource, sourceTypeElement, getter, witherMethod);
+          writtenFocusType(
+              method,
+              declaredSource,
+              sourceTypeElement,
+              getter,
+              witherMethod,
+              focusType,
+              targetPackage);
       if (readsThroughUnusableGetter(
               method,
               "@Wither",
@@ -170,6 +193,7 @@ final class CopyStrategyChecks {
               method,
               declaredSource,
               sourceTypeElement,
+              getter.isEmpty() ? fieldName : getter,
               written == null ? focusType : written,
               witherMethod,
               targetPackage)) {
@@ -186,8 +210,18 @@ final class CopyStrategyChecks {
       if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaConstructor")) {
         return Optional.empty();
       }
-      String[] parameterOrder =
-          ProcessorUtils.getAnnotationStringArray(viaConstructor, "parameterOrder");
+      String[] written = ProcessorUtils.getAnnotationStringArray(viaConstructor, "parameterOrder");
+      ConstructorOrderChecks.Rebuild rebuild =
+          new ConstructorOrderChecks.Rebuild(
+              method,
+              declaredSource,
+              focusType,
+              callableMembers(sourceTypeElement, targetPackage),
+              callableConstructors(sourceTypeElement, targetPackage),
+              targetPackage,
+              (order, focus) ->
+                  constructorFocusType(
+                      method, declaredSource, sourceTypeElement, order, focus, targetPackage));
       if (readsThroughUnusableGetter(
               method,
               "@ViaConstructor",
@@ -196,17 +230,26 @@ final class CopyStrategyChecks {
               fieldName,
               focusType,
               targetPackage)
-          || rebuildsThroughUnreadableParameter(
-              method, declaredSource, sourceTypeElement, parameterOrder, targetPackage)) {
+          || rebuildsThroughUnreadableParameter(rebuild, written)) {
         return Optional.empty();
       }
-      return Optional.of(
-          new CopyStrategyResult(
-              CopyStrategyKind.VIA_CONSTRUCTOR,
-              CopyStrategyInfo.forConstructor(
-                  parameterOrder,
-                  constructorFocusType(
-                      method, declaredSource, sourceTypeElement, parameterOrder))));
+      // A source type the generated class cannot name is refused once, after the analysis, by the
+      // reachability check every companion makes, and none of its constructors could be called.
+      if (Reachability.firstHidden(
+              elementUtils, targetPackage, Stream.of(Crossing.over("source type", declaredSource)))
+          .isPresent()) {
+        return Optional.of(
+            new CopyStrategyResult(
+                CopyStrategyKind.VIA_CONSTRUCTOR, CopyStrategyInfo.forConstructor(written, null)));
+      }
+      return constructorOrders
+          .order(rebuild, List.of(written))
+          .map(
+              order ->
+                  new CopyStrategyResult(
+                      CopyStrategyKind.VIA_CONSTRUCTOR,
+                      CopyStrategyInfo.forConstructor(
+                          order.toArray(String[]::new), rebuild.unboxed(order))));
     }
 
     // Check for @ViaCopyAndSet
@@ -220,7 +263,9 @@ final class CopyStrategyChecks {
       String setter = ProcessorUtils.getAnnotationString(viaCopyAndSet, "setter", "");
       // The generated lens passes a primitive unboxed where the name is overloaded, so that is
       // the value the call is resolved with.
-      TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
+      TypeMirror written =
+          writtenFocusType(
+              method, declaredSource, sourceTypeElement, "", setter, focusType, targetPackage);
       if (readsThroughUnusableGetter(
               method,
               "@ViaCopyAndSet",
@@ -234,6 +279,7 @@ final class CopyStrategyChecks {
               "@ViaCopyAndSet",
               declaredSource,
               sourceTypeElement,
+              fieldName,
               setter,
               written == null ? focusType : written,
               targetPackage)) {
@@ -283,15 +329,29 @@ final class CopyStrategyChecks {
         .toList();
   }
 
-  /** The zero-parameter instance method of that name, which an accessor call needs, or null. */
-  private ExecutableElement accessorNamed(List<ExecutableElement> members, String name) {
+  /** The constructors of a type the generated class can call. */
+  private List<ExecutableElement> callableConstructors(TypeElement type, String targetPackage) {
+    return ElementFilter.constructorsIn(type.getEnclosedElements()).stream()
+        .filter(constructor -> callableOn(constructor, targetPackage))
+        .toList();
+  }
+
+  /**
+   * The zero-parameter instance method of that name, which an accessor call needs, or null. Where
+   * the type inherits one concrete method of the name beside an interface's declaration of it, as a
+   * class's {@code String name()} beside a {@code CharSequence name()} it implements, the concrete
+   * one is what the call runs, and what it reads is what the call passes on.
+   */
+  static ExecutableElement accessorNamed(List<ExecutableElement> members, String name) {
     return members.stream()
         .filter(
             member ->
                 member.getSimpleName().contentEquals(name)
                     && member.getParameters().isEmpty()
                     && !member.getModifiers().contains(Modifier.STATIC))
-        .findFirst()
+        .min(
+            Comparator.comparing(
+                member -> member.getModifiers().contains(Modifier.ABSTRACT) || member.isDefault()))
         .orElse(null);
   }
 
@@ -453,8 +513,7 @@ final class CopyStrategyChecks {
     // A focus is a type argument, so a primitive read is declared as its wrapper.
     String readAsFocus =
         declaredRead.getKind().isPrimitive()
-            ? ProcessorUtils.simpleTypeName(
-                typeUtils.boxedClass((PrimitiveType) declaredRead).asType())
+            ? ProcessorUtils.simpleTypeName(asFocus(typeUtils, declaredRead))
             : readName;
     Diagnostics.error(
         messager,
@@ -494,6 +553,7 @@ final class CopyStrategyChecks {
    * @param tag the strategy annotation, which the message names
    * @param sourceType the source type {@code S}, as the spec names it
    * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param getterName the accessor the lens reads its focus through
    * @param setterName the method the strategy sets through
    * @param focusType the lens's focus, which the call passes
    * @param targetPackage the package the optics class is generated into
@@ -504,6 +564,7 @@ final class CopyStrategyChecks {
       String tag,
       DeclaredType sourceType,
       TypeElement sourceTypeElement,
+      String getterName,
       String setterName,
       TypeMirror focusType,
       String targetPackage) {
@@ -515,7 +576,8 @@ final class CopyStrategyChecks {
             setterName,
             focusType,
             "setter",
-            ProcessorUtils.simpleTypeName(sourceType),
+            sourceType,
+            getterName,
             targetPackage)
         instanceof SetterCall.Refused;
   }
@@ -533,7 +595,9 @@ final class CopyStrategyChecks {
    * @param setterName the method the strategy sets through
    * @param focusType the lens's focus, which the call passes
    * @param attribute the annotation attribute that names it
-   * @param sourceName the source type, which a remedy offers another strategy for
+   * @param source the source type {@code S}, which a remedy offers another strategy for, and whose
+   *     getter the lens reads its focus through
+   * @param getterName that getter
    * @param targetPackage the package the optics class is generated into
    * @return the method the call binds, a refusal that has been reported, or undecided
    */
@@ -545,8 +609,10 @@ final class CopyStrategyChecks {
       String setterName,
       TypeMirror focusType,
       String attribute,
-      String sourceName,
+      DeclaredType source,
+      String getterName,
       String targetPackage) {
+    String sourceName = ProcessorUtils.simpleTypeName(source);
     List<ExecutableElement> named =
         callableMembers(ownerElement, targetPackage).stream()
             .filter(member -> member.getSimpleName().contentEquals(setterName))
@@ -569,8 +635,8 @@ final class CopyStrategyChecks {
           : new SetterCall.Undecided();
     }
     String call = "'" + setterName + "(newValue)'";
-    return switch (WitherBinding.resolve(typeUtils, owner, focusType, named)) {
-      case WitherBinding.Binds(ExecutableElement bound) -> {
+    return switch (CallBinding.resolve(typeUtils, owner, List.of(focusType), named)) {
+      case CallBinding.Binds(ExecutableElement bound) -> {
         if (!bound.getModifiers().contains(Modifier.STATIC)) {
           yield new SetterCall.Binds(bound);
         }
@@ -592,7 +658,7 @@ final class CopyStrategyChecks {
             "Set " + tag + "'s '" + attribute + "' to an instance method.");
         yield new SetterCall.Refused();
       }
-      case WitherBinding.NoneApplies() -> {
+      case CallBinding.NoneApplies() -> {
         Diagnostics.error(
             messager,
             method,
@@ -613,23 +679,25 @@ final class CopyStrategyChecks {
                 + "': "
                 + named.stream().map(member -> signatureOn(owner, member)).toList()
                 + ".",
-            "Set "
-                + tag
-                + "'s '"
-                + attribute
-                + "' to a method that takes the value the getter reads"
-                + (tag.equals("@ViaBuilder")
-                    ? ", or point @ViaBuilder's 'getter' at an accessor one of them takes and"
-                        + " declare the focus as its type"
-                    : "")
+            narrowerFocus(source, getterName, focusType, owner, named)
+                    .orElse(
+                        "Set "
+                            + tag
+                            + "'s '"
+                            + attribute
+                            + "' to a method that takes the value the getter reads"
+                            + (tag.equals("@ViaBuilder")
+                                ? ", or point @ViaBuilder's 'getter' at an accessor one of them"
+                                    + " takes and declare the focus as its type"
+                                : ""))
                 + "; otherwise "
                 + rebuildWith(sourceName, tag)
                 + ".");
         yield new SetterCall.Refused();
       }
-      case WitherBinding.Ambiguous(List<ExecutableElement> methods) -> {
+      case CallBinding.Ambiguous(List<ExecutableElement> methods) -> {
         List<String> signatures =
-            methods.stream().map(member -> "'" + signatureOn(owner, member) + "'").toList();
+            methods.stream().map(member -> "'" + signatureAsDeclared(member) + "'").toList();
         Diagnostics.error(
             messager,
             method,
@@ -648,10 +716,10 @@ final class CopyStrategyChecks {
                 + " with the new value typed '"
                 + ProcessorUtils.simpleTypeName(focusType)
                 + "', which each of them takes, with no parameter more specific than every other.",
-            "Declare the lens's focus as the parameter type of the one you mean.");
+            ambiguityFix(owner, methods, sourceName, tag));
         yield new SetterCall.Refused();
       }
-      case WitherBinding.Undecided(List<ExecutableElement> ignored) -> new SetterCall.Undecided();
+      case CallBinding.Undecided(List<ExecutableElement> ignored) -> new SetterCall.Undecided();
     };
   }
 
@@ -760,6 +828,7 @@ final class CopyStrategyChecks {
    * @param method the annotated lens method, for error reporting
    * @param sourceType the source type {@code S}, as the spec names it
    * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param getterName the accessor the lens reads its focus through
    * @param toBuilderName the method that hands back the builder
    * @param setterName the builder method that takes the focus
    * @param buildName the builder method that hands the source type back
@@ -771,6 +840,7 @@ final class CopyStrategyChecks {
       ExecutableElement method,
       DeclaredType sourceType,
       TypeElement sourceTypeElement,
+      String getterName,
       String toBuilderName,
       String setterName,
       String buildName,
@@ -824,7 +894,8 @@ final class CopyStrategyChecks {
             setterName,
             focusType,
             "setter",
-            ProcessorUtils.simpleTypeName(sourceType),
+            sourceType,
+            getterName,
             targetPackage);
     // Which method an undecided call binds is javac's to settle, so what it hands back is too.
     if (!(setter instanceof SetterCall.Binds(ExecutableElement bound))) {
@@ -948,62 +1019,58 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * Reports a {@code @ViaConstructor} parameter order naming an accessor the source type does not
-   * have, and returns whether it did.
+   * Reports a {@code @ViaConstructor} parameter order that leaves out the lens's own name, or names
+   * an accessor the source type does not have, and returns whether it did.
    *
    * <p>Every name but the lens's own reads an argument, {@code source.x()}, for the constructor
    * call the lens rebuilds with.
    *
-   * @param method the annotated lens method, for error reporting
-   * @param sourceType the source type {@code S}, as the spec names it
-   * @param sourceTypeElement the element of {@code S}, whose members are searched
-   * @param parameterOrder the names the annotation carries
-   * @param targetPackage the package the optics class is generated into
-   * @return true when one of them names no accessor, and an error was reported
+   * @param rebuild the lens and what it rebuilds
+   * @param written the names the annotation carries, empty where it carries none
+   * @return true when the order cannot be read, and an error was reported
    */
   private boolean rebuildsThroughUnreadableParameter(
-      ExecutableElement method,
-      DeclaredType sourceType,
-      TypeElement sourceTypeElement,
-      String[] parameterOrder,
-      String targetPackage) {
-    String fieldName = method.getSimpleName().toString();
-    if (parameterOrder.length > 0
-        && Arrays.stream(parameterOrder).noneMatch(parameter -> parameter.equals(fieldName))) {
-      Diagnostics.error(
-          messager,
-          method,
-          "@ViaConstructor",
-          "'parameterOrder' names no argument for the lens's own '" + fieldName + "'.",
-          "The generated lens rebuilds '"
-              + ProcessorUtils.simpleTypeName(sourceType)
-              + "' from the order given, and passes the value it sets where the lens's own name"
-              + " stands; naming it nowhere would set nothing.",
-          "Add '"
-              + fieldName
-              + "' to @ViaConstructor's 'parameterOrder', at the place the constructor takes it.");
+      ConstructorOrderChecks.Rebuild rebuild, String[] written) {
+    if (constructorOrders.leavesOutTheLens(rebuild, List.of(written))) {
       return true;
     }
-    List<ExecutableElement> members = callableMembers(sourceTypeElement, targetPackage);
-    for (String parameter : parameterOrder) {
-      if (parameter.equals(fieldName) || accessorNamed(members, parameter) != null) {
+    for (String parameter : written) {
+      if (parameter.equals(rebuild.fieldName())
+          || accessorNamed(rebuild.members(), parameter) != null) {
         continue;
       }
       reportMissingAccessor(
-          method,
+          rebuild.method(),
           "@ViaConstructor",
-          sourceType,
-          sourceTypeElement,
+          rebuild.source(),
+          (TypeElement) rebuild.source().asElement(),
           parameter,
           "read the argument '" + parameter + "'",
           "'source'",
           "Name in @ViaConstructor's 'parameterOrder' the accessors '"
-              + ProcessorUtils.simpleTypeName(sourceType)
+              + rebuild.sourceName()
               + "' declares, in the order its constructor takes them.",
-          targetPackage);
+          rebuild.targetPackage());
       return true;
     }
     return false;
+  }
+
+  /**
+   * Parameter types as their author wrote them, for a diagnostic: the last of a variable-arity
+   * method or constructor, an array to the compiler, as {@code T...}.
+   */
+  static List<String> parametersAsWritten(
+      List<? extends TypeMirror> parameters, boolean variableArity) {
+    return IntStream.range(0, parameters.size())
+        .mapToObj(
+            at -> {
+              String name = ProcessorUtils.simpleTypeName(parameters.get(at));
+              return variableArity && at == parameters.size() - 1
+                  ? name.substring(0, name.length() - "[]".length()) + "..."
+                  : name;
+            })
+        .toList();
   }
 
   /**
@@ -1012,8 +1079,8 @@ final class CopyStrategyChecks {
    *
    * <p>The generated lens sets through {@code source.withX(newValue)}, with {@code newValue} typed
    * by the lens's focus, and javac picks among the methods of that name by that type. So it is the
-   * method the call binds, as {@link WitherBinding} repeats javac's choice, that is checked, not
-   * any method that carries the name. The call has to bind one method, an instance method, since a
+   * method the call binds, as {@link CallBinding} repeats javac's choice, that is checked, not any
+   * method that carries the name. The call has to bind one method, an instance method, since a
    * static one never reads the value it is called on, and that method has to hand back the source
    * type. Every method of the name that the generated class can reach is weighed, of any arity,
    * static or not, as javac weighs them.
@@ -1035,6 +1102,7 @@ final class CopyStrategyChecks {
       ExecutableElement method,
       DeclaredType sourceType,
       TypeElement sourceTypeElement,
+      String getterName,
       TypeMirror focusType,
       String witherName,
       String targetPackage) {
@@ -1063,8 +1131,8 @@ final class CopyStrategyChecks {
           named.stream().filter(candidate -> candidate.getParameters().size() == 1).toList(),
           null);
     }
-    return switch (WitherBinding.resolve(typeUtils, sourceType, focusType, named)) {
-      case WitherBinding.Binds(ExecutableElement bound) -> {
+    return switch (CallBinding.resolve(typeUtils, sourceType, List.of(focusType), named)) {
+      case CallBinding.Binds(ExecutableElement bound) -> {
         if (bound.getModifiers().contains(Modifier.STATIC)) {
           reportStaticWither(method, sourceType, bound, focusType);
           yield true;
@@ -1076,15 +1144,15 @@ final class CopyStrategyChecks {
         reportWitherOfAnotherType(method, sourceType, bound, named.size() > 1 ? focusType : null);
         yield true;
       }
-      case WitherBinding.NoneApplies() -> {
-        reportInapplicableWither(method, sourceType, focusType, named);
+      case CallBinding.NoneApplies() -> {
+        reportInapplicableWither(method, sourceType, getterName, focusType, named);
         yield true;
       }
-      case WitherBinding.Ambiguous(List<ExecutableElement> methods) -> {
+      case CallBinding.Ambiguous(List<ExecutableElement> methods) -> {
         reportAmbiguousWither(method, sourceType, focusType, methods);
         yield true;
       }
-      case WitherBinding.Undecided(List<ExecutableElement> candidates) ->
+      case CallBinding.Undecided(List<ExecutableElement> candidates) ->
           noCandidateRebuilds(method, sourceType, candidates, focusType);
     };
   }
@@ -1130,7 +1198,7 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * Whether the generated class can call a member on the source type.
+   * Whether the generated class can call a member on the source type, a method or a constructor.
    *
    * <p>The call names no type but the source's own, so it is the member's own access that decides,
    * not where it was declared: a {@code public} method a package-private class declares is called
@@ -1227,6 +1295,7 @@ final class CopyStrategyChecks {
   private void reportInapplicableWither(
       ExecutableElement method,
       DeclaredType sourceType,
+      String getterName,
       TypeMirror focusType,
       List<ExecutableElement> named) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
@@ -1263,8 +1332,12 @@ final class CopyStrategyChecks {
         (wildcardSource
                 ? "Declare the spec over the type each wildcard stands for, or "
                     + rebuildWith(source, "@Wither")
-                : "Name a wither that takes the value the getter reads, or point 'getter' at an"
-                    + " accessor one of them takes and declare the focus as its type; otherwise "
+                : narrowerFocus(sourceType, getterName, focusType, sourceType, named)
+                        .orElse(
+                            "Name a wither that takes the value the getter reads, or point"
+                                + " 'getter' at an accessor one of them takes and declare the"
+                                + " focus as its type")
+                    + "; otherwise "
                     + rebuildWith(source, "@Wither"))
             + ".");
   }
@@ -1278,7 +1351,7 @@ final class CopyStrategyChecks {
     String source = ProcessorUtils.simpleTypeName(sourceType);
     String witherName = methods.getFirst().getSimpleName().toString();
     List<String> signatures =
-        methods.stream().map(member -> "'" + signatureOn(sourceType, member) + "'").toList();
+        methods.stream().map(member -> "'" + signatureAsDeclared(member) + "'").toList();
     Diagnostics.error(
         messager,
         method,
@@ -1292,9 +1365,29 @@ final class CopyStrategyChecks {
             + ".",
         settingThrough(witherName, argument)
             + ", which each of them takes, with no parameter more specific than every other.",
-        "Declare the lens's focus as the parameter type of the one you mean, or "
-            + rebuildWith(source, "@Wither")
-            + ".");
+        ambiguityFix(sourceType, methods, source, "@Wither"));
+  }
+
+  /**
+   * The fix for a one-argument call javac cannot choose for: a focus of the type the one meant
+   * takes, or, where the methods take one type under the source's instantiation, as {@code
+   * withX(T)} and {@code withX(String)} do over a {@code W<String>}, another strategy, since no
+   * focus can tell them apart.
+   */
+  private String ambiguityFix(
+      DeclaredType owner, List<ExecutableElement> methods, String source, String tag) {
+    TypeMirror first = ProcessorUtils.firstParameterTypeIn(typeUtils, owner, methods.getFirst());
+    boolean oneType =
+        methods.stream()
+            .allMatch(
+                method ->
+                    typeUtils.isSameType(
+                        ProcessorUtils.firstParameterTypeIn(typeUtils, owner, method), first));
+    return oneType
+        ? ProcessorUtils.capitalise(rebuildWith(source, tag)) + "."
+        : "Declare the lens's focus as the parameter type of the one you mean, or "
+            + rebuildWith(source, tag)
+            + ".";
   }
 
   /**
@@ -1384,7 +1477,7 @@ final class CopyStrategyChecks {
   }
 
   /** The remedy every wither refusal ends on, for a diagnostic's fix: an unfinished clause. */
-  private static String rebuildWith(String source, String tag) {
+  static String rebuildWith(String source, String tag) {
     List<String> others =
         List.of("@Wither", "@ViaBuilder", "@ViaConstructor", "@ViaCopyAndSet").stream()
             .filter(strategy -> !strategy.equals(tag))
@@ -1408,17 +1501,27 @@ final class CopyStrategyChecks {
 
   /** A method as the source type sees it, {@code withId(String)}, telling overloads apart. */
   private String signatureOn(DeclaredType sourceType, ExecutableElement member) {
-    List<? extends TypeMirror> parameters =
-        ProcessorUtils.memberOf(typeUtils, sourceType, member).getParameterTypes();
     List<String> names =
-        new ArrayList<>(parameters.stream().map(ProcessorUtils::simpleTypeName).toList());
-    if (member.isVarArgs()) {
-      // The last parameter is an array the author wrote as a variable-arity one.
-      String last = names.getLast();
-      names.set(names.size() - 1, last.substring(0, last.length() - "[]".length()) + "...");
-    }
+        parametersAsWritten(
+            ProcessorUtils.memberOf(typeUtils, sourceType, member).getParameterTypes(),
+            member.isVarArgs());
     return member.getSimpleName()
         + String.join(", ", names).transform(joined -> "(" + joined + ")");
+  }
+
+  /**
+   * A method as its type declares it, {@code withX(T)}, for the overloads a call cannot choose
+   * between: two that one instantiation makes alike, {@code withX(T)} and {@code withX(String)}
+   * over a {@code W<String>}, still read apart.
+   */
+  private static String signatureAsDeclared(ExecutableElement member) {
+    return member.getSimpleName()
+        + String.join(
+                ", ",
+                parametersAsWritten(
+                    member.getParameters().stream().map(VariableElement::asType).toList(),
+                    member.isVarArgs()))
+            .transform(joined -> "(" + joined + ")");
   }
 
   /**
@@ -1426,8 +1529,9 @@ final class CopyStrategyChecks {
    *
    * <p>A strategy that rebuilds through a constructor emits {@code new S(...)}, and a wildcard
    * cannot be written as a type argument there: {@code new Node<?>(...)} is not Java, whatever the
-   * arguments. The strategies that rebuild through a wither or a builder name no constructor and
-   * are unaffected, so this is asked per strategy rather than of the source type as a whole.
+   * arguments. Nor can an abstract class or an interface be instantiated, whatever constructors it
+   * declares. The strategies that rebuild through a wither or a builder name no constructor and are
+   * unaffected, so this is asked per strategy rather than of the source type as a whole.
    *
    * <p>Only the outermost arguments matter. A wildcard nested inside one, {@code Node<List<?>>},
    * writes perfectly well.
@@ -1449,32 +1553,57 @@ final class CopyStrategyChecks {
     boolean innerClass =
         element.getNestingKind() == NestingKind.MEMBER
             && !element.getModifiers().contains(Modifier.STATIC);
-    if (!wildcard && !innerClass) {
-      return false;
-    }
+    // An interface is abstract too, as javac reads its modifiers.
+    boolean abstractType = element.getModifiers().contains(Modifier.ABSTRACT);
     String name = ProcessorUtils.simpleTypeName(declared);
+    String withWither = "use @Wither, which rebuilds through a method and needs no constructor.";
+    if (wildcard) {
+      reportUnwritableConstructor(
+          method,
+          annotation,
+          name,
+          "written with a wildcard type argument",
+          "a wildcard: a constructor call has to name the type argument.",
+          "Name the type the wildcard stands for, or " + withWither);
+    } else if (innerClass) {
+      reportUnwritableConstructor(
+          method,
+          annotation,
+          name,
+          "an inner class",
+          "an inner class: the call needs an enclosing instance the generated class has no way"
+              + " to reach.",
+          "Declare the source type static, or " + withWither);
+    } else if (abstractType) {
+      reportUnwritableConstructor(
+          method,
+          annotation,
+          name,
+          element.getKind().isInterface() ? "an interface" : "an abstract class",
+          "a type that cannot be instantiated.",
+          "Name a concrete class as the spec's source type, or " + withWither);
+    }
+    return wildcard || innerClass || abstractType;
+  }
+
+  /** Reports a source type whose own constructor call cannot be written, for the reason given. */
+  private void reportUnwritableConstructor(
+      ExecutableElement method,
+      String annotation,
+      String name,
+      String whatItIs,
+      String writtenFor,
+      String fix) {
     Diagnostics.error(
         messager,
         method,
         annotation,
-        "'"
-            + name
-            + "' is "
-            + (wildcard ? "written with a wildcard type argument" : "an inner class")
-            + ", and this strategy rebuilds it through a constructor.",
+        "'" + name + "' is " + whatItIs + ", and this strategy rebuilds it through a constructor.",
         "The generated set function calls 'new "
             + name
             + "(...)', which is not something that can be written for "
-            + (wildcard
-                ? "a wildcard: a constructor call has to name the type argument."
-                : "an inner class: the call needs an enclosing instance the generated class has"
-                    + " no way to reach."),
-        wildcard
-            ? "Name the type the wildcard stands for, or use @Wither, which rebuilds through a"
-                + " method and needs no constructor."
-            : "Declare the source type static, or use @Wither, which rebuilds through a method and"
-                + " needs no constructor.");
-    return true;
+            + writtenFor,
+        fix);
   }
 
   /**
@@ -1489,6 +1618,9 @@ final class CopyStrategyChecks {
    * @param receiverElement that type's element
    * @param getter the getter named by the strategy, or empty to read the optic method's own name
    * @param written the name of the method the focus is passed to
+   * @param focusType the lens's focus
+   * @param targetPackage the package the optics class is generated into, whose reach decides which
+   *     methods the call weighs
    * @return the primitive type to unbox the focus to, or null
    */
   private TypeMirror writtenFocusType(
@@ -1496,9 +1628,11 @@ final class CopyStrategyChecks {
       DeclaredType receiver,
       TypeElement receiverElement,
       String getter,
-      String written) {
-    return Optional.ofNullable(primitiveRead(method, receiver, receiverElement, getter))
-        .map(read -> unboxedFocus(read, writtenParameters(receiverElement, written)))
+      String written,
+      TypeMirror focusType,
+      String targetPackage) {
+    return Optional.ofNullable(primitiveRead(method, receiver, receiverElement, getter, focusType))
+        .map(read -> unboxedFocus(read, writtenParameters(receiverElement, written, targetPackage)))
         .orElse(null);
   }
 
@@ -1514,6 +1648,9 @@ final class CopyStrategyChecks {
    * @param getter the getter the strategy names, or empty to read the optic method's own name
    * @param toBuilder the name of the method handing back the builder
    * @param setter the builder's setter, or empty to read the optic method's own name
+   * @param focusType the lens's focus
+   * @param targetPackage the package the optics class is generated into, whose reach decides which
+   *     methods the call weighs
    * @return the primitive type to unbox the focus to, or null
    */
   private TypeMirror builderFocusType(
@@ -1522,13 +1659,17 @@ final class CopyStrategyChecks {
       TypeElement sourceElement,
       String getter,
       String toBuilder,
-      String setter) {
+      String setter,
+      TypeMirror focusType,
+      String targetPackage) {
     String named = setter.isEmpty() ? method.getSimpleName().toString() : setter;
-    return Optional.ofNullable(primitiveRead(method, source, sourceElement, getter))
+    return Optional.ofNullable(primitiveRead(method, source, sourceElement, getter, focusType))
         .flatMap(
             read ->
                 builderOf(source, sourceElement, toBuilder)
-                    .map(builder -> unboxedFocus(read, writtenParameters(builder, named))))
+                    .map(
+                        builder ->
+                            unboxedFocus(read, writtenParameters(builder, named, targetPackage))))
         .orElse(null);
   }
 
@@ -1545,17 +1686,88 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * The type the lens reads its focus through, when that is a primitive: the zero-argument method
-   * the strategy names, or the optic method's own name where it names none. Null for a getter that
-   * hands back a reference type, which the call takes as it is, and for one the source does not
-   * declare, which javac reports at the generated call.
+   * The type the lens reads its focus through, when that is a primitive the focus unboxes to: the
+   * zero-argument method the strategy names, or the optic method's own name where it names none.
+   * Null for a getter that hands back a reference type, which the call takes as it is, and for one
+   * the source does not declare, which javac reports at the generated call.
+   *
+   * <p>Null too for a focus wider than the primitive's wrapper, {@code Number} over an {@code int}
+   * getter: a cast to {@code int} would compile there and throw for a value of another kind, so the
+   * focus is passed as it is and the call is held to it.
    */
   private TypeMirror primitiveRead(
-      ExecutableElement method, DeclaredType receiver, TypeElement receiverElement, String getter) {
+      ExecutableElement method,
+      DeclaredType receiver,
+      TypeElement receiverElement,
+      String getter,
+      TypeMirror focusType) {
     String named = getter.isEmpty() ? method.getSimpleName().toString() : getter;
     return zeroArgumentMethods(receiver, receiverElement, named)
         .filter(type -> type.getKind().isPrimitive())
+        .filter(read -> unboxesTo(focusType, read))
         .orElse(null);
+  }
+
+  /**
+   * Whether the value a lens sets unboxes to {@code read}: the focus itself, or for a focus written
+   * as a wildcard, its lower bound. javac infers {@code ?} and {@code ? extends Number} as the
+   * getter's own wrapper, which always does; {@code ? super Number} as no narrower than {@code
+   * Number}, which does not.
+   */
+  private boolean unboxesTo(TypeMirror focusType, TypeMirror read) {
+    TypeMirror passed =
+        focusType.getKind() == TypeKind.WILDCARD
+            ? ((WildcardType) focusType).getSuperBound()
+            : focusType;
+    return passed == null || typeUtils.isAssignable(passed, read);
+  }
+
+  /**
+   * The remedy where the focus is wider than the wrapper of the primitive its getter reads, {@code
+   * Number} over an {@code int} getter, and one of the methods the call might bind takes that
+   * primitive. The value such a lens sets may be any {@code Number}, so it is passed as it is, and
+   * only a focus of the wrapper itself is passed unboxed. An unfinished clause, or empty where the
+   * focus is not wider so.
+   */
+  private Optional<String> narrowerFocus(
+      DeclaredType source,
+      String getterName,
+      TypeMirror focusType,
+      DeclaredType owner,
+      List<ExecutableElement> candidates) {
+    return zeroArgumentMethods(source, (TypeElement) source.asElement(), getterName)
+        .filter(read -> read.getKind().isPrimitive() && !unboxesTo(focusType, read))
+        .filter(
+            read ->
+                candidates.stream()
+                    .anyMatch(
+                        candidate ->
+                            candidate.getParameters().size() == 1
+                                && typeUtils.isAssignable(
+                                    read,
+                                    ProcessorUtils.firstParameterTypeIn(
+                                        typeUtils, owner, candidate))))
+        .map(
+            read ->
+                declareFocusAs(asFocus(typeUtils, read), getterName)
+                    + ", which the call then passes unboxed");
+  }
+
+  /**
+   * A type as a lens's focus declares it: a primitive as its wrapper, since a focus is a type
+   * argument, and anything else as it is.
+   */
+  static TypeMirror asFocus(Types types, TypeMirror read) {
+    return read.getKind().isPrimitive() ? types.boxedClass((PrimitiveType) read).asType() : read;
+  }
+
+  /** The fix that declares the focus a getter reads, for a diagnostic: an unfinished clause. */
+  static String declareFocusAs(TypeMirror focus, String getterName) {
+    return "Declare the lens's focus as '"
+        + ProcessorUtils.simpleTypeName(focus)
+        + "', the type '"
+        + getterName
+        + "()' reads";
   }
 
   /** The type the zero-argument method {@code named} hands back, read on {@code receiver}. */
@@ -1570,10 +1782,12 @@ final class CopyStrategyChecks {
 
   /**
    * The parameter types of the one-argument methods named {@code written} on {@code
-   * receiverElement}, the candidates a call passing one argument chooses among.
+   * receiverElement} that the generated class can call, the candidates a call passing one argument
+   * chooses among, as {@link CallBinding} weighs them.
    */
-  private List<TypeMirror> writtenParameters(TypeElement receiverElement, String written) {
-    return ElementFilter.methodsIn(elementUtils.getAllMembers(receiverElement)).stream()
+  private List<TypeMirror> writtenParameters(
+      TypeElement receiverElement, String written, String targetPackage) {
+    return callableMembers(receiverElement, targetPackage).stream()
         .filter(candidate -> candidate.getSimpleName().contentEquals(written))
         .filter(candidate -> candidate.getParameters().size() == 1)
         .map(candidate -> candidate.getParameters().getFirst().asType())
@@ -1620,34 +1834,39 @@ final class CopyStrategyChecks {
    *
    * <p>The candidates are the constructors of the call's own arity, read at the focus's place, and
    * {@link #unboxedFocus} decides among them; one that no other argument fits is among them
-   * harmlessly, since it cannot take a call it is not applicable to. The focus also has to be an
-   * argument of the call at all, which a {@code parameterOrder} naming other getters leaves it out
-   * of. Answering it here, with {@code Types}, leaves the generator the one rule
-   * {@code @ViaCopyAndSet}'s cast follows: a null type means no cast.
+   * harmlessly, since it cannot take a call it is not applicable to. The order always passes the
+   * focus somewhere: one that names the lens nowhere is refused before this is asked, and one read
+   * from the parameter names always names it. Answering it here, with {@code Types}, leaves the
+   * generator the one rule {@code @ViaCopyAndSet}'s cast follows: a null type means no cast.
    *
    * @param method the annotated optic method, named after its getter
    * @param source the source type {@code S}
    * @param sourceElement the source type's element
-   * @param parameterOrder the getters the constructor call reads its arguments from, in order
+   * @param parameterOrder the getters the constructor call reads its arguments from, in order, the
+   *     lens method's own name among them
+   * @param focusType the lens's focus
+   * @param targetPackage the package the optics class is generated into, whose reach decides which
+   *     constructors the call weighs
    * @return the primitive type to unbox the focus to, or null
    */
   private TypeMirror constructorFocusType(
       ExecutableElement method,
       DeclaredType source,
       TypeElement sourceElement,
-      String[] parameterOrder) {
-    int focus = List.of(parameterOrder).indexOf(method.getSimpleName().toString());
-    if (focus < 0) {
-      // The call passes the focus nowhere, so there is no argument to unbox.
-      return null;
-    }
+      List<String> parameterOrder,
+      TypeMirror focusType,
+      String targetPackage) {
+    int focus = parameterOrder.indexOf(method.getSimpleName().toString());
     List<TypeMirror> candidates =
-        ElementFilter.constructorsIn(sourceElement.getEnclosedElements()).stream()
-            .map(ExecutableElement::getParameters)
-            .filter(parameters -> parameters.size() == parameterOrder.length)
-            .map(parameters -> parameters.get(focus).asType())
+        callableConstructors(sourceElement, targetPackage).stream()
+            .filter(constructor -> constructor.getParameters().size() == parameterOrder.size())
+            .<TypeMirror>map(
+                constructor ->
+                    ProcessorUtils.memberOf(typeUtils, source, constructor)
+                        .getParameterTypes()
+                        .get(focus))
             .toList();
-    return Optional.ofNullable(primitiveRead(method, source, sourceElement, ""))
+    return Optional.ofNullable(primitiveRead(method, source, sourceElement, "", focusType))
         .map(read -> unboxedFocus(read, candidates))
         .orElse(null);
   }
@@ -1836,27 +2055,6 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * Returns whether the generated class may call a constructor of {@code member}'s kind.
-   *
-   * <p>{@code protected} is package access here: it reaches a subclass, and the generated optics
-   * class is not one.
-   *
-   * @param member the constructor being considered
-   * @param targetPackage the package the optics class is generated into
-   * @return true if the generated class can call it
-   */
-  private boolean isAccessibleFrom(Element member, String targetPackage) {
-    Set<Modifier> modifiers = member.getModifiers();
-    if (modifiers.contains(Modifier.PRIVATE)) {
-      return false;
-    }
-    if (modifiers.contains(Modifier.PUBLIC)) {
-      return true;
-    }
-    return elementUtils.getPackageOf(member).getQualifiedName().contentEquals(targetPackage);
-  }
-
-  /**
    * Returns whether {@code sourceType} declares a constructor the generated class can call a single
    * {@code argument} through.
    *
@@ -1867,11 +2065,10 @@ final class CopyStrategyChecks {
    */
   private boolean hasConstructorAccepting(
       DeclaredType sourceType, TypeMirror argument, String targetPackage) {
+    // A constructor the generated class cannot call is no use, however well it fits.
     for (ExecutableElement constructor :
-        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements())) {
-      List<? extends VariableElement> parameters = constructor.getParameters();
-      // A constructor the generated class cannot call is no use, however well it fits.
-      if (parameters.size() != 1 || !isAccessibleFrom(constructor, targetPackage)) {
+        callableConstructors((TypeElement) sourceType.asElement(), targetPackage)) {
+      if (constructor.getParameters().size() != 1) {
         continue;
       }
       TypeMirror parameterType = constructorParameterType(sourceType, constructor);
@@ -1935,9 +2132,8 @@ final class CopyStrategyChecks {
     // gave is comparing like with like. The names carry type arguments and the attribute does not,
     // so the list is there to be recognised rather than copied from.
     List<String> parameterTypes =
-        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements()).stream()
+        callableConstructors((TypeElement) sourceType.asElement(), targetPackage).stream()
             .filter(constructor -> constructor.getParameters().size() == 1)
-            .filter(constructor -> isAccessibleFrom(constructor, targetPackage))
             .map(
                 constructor ->
                     ProcessorUtils.simpleTypeName(
