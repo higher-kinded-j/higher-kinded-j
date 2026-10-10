@@ -49,10 +49,6 @@ Key points:
 - Payment was charged successfully, so its compensation issues a refund
 - Compensations run in **reverse** order: stock first, then payment
 
-Each compensation runs with the thread's interrupt status cleared, and the
-status is restored afterwards. So when a step fails after a cancellation, such
-as a `Scope` timeout, a refund that makes a blocking call still runs to the end.
-
 ## Creating a Saga
 
 ### Direct Construction
@@ -208,6 +204,11 @@ on the first compensation failure. This maximises the chance of restoring consis
 but means that partial compensation is possible. Design your compensations to be
 idempotent where possible.
 ~~~
+
+Each compensation runs with the thread's interrupt status cleared, and the
+status is restored afterwards. So when a step fails with the thread left
+interrupted by a cancellation, such as a `Scope` timeout, a refund that makes a
+blocking call is not cut short.
 
 ## Saga Factory Methods
 

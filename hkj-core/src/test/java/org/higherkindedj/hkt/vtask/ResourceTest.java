@@ -452,6 +452,60 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName(
+        "a release of a composed Resource that is interrupted cuts short neither the next release"
+            + " nor the finaliser")
+    void interruptedReleaseDoesNotCutShortTheNext() {
+      List<String> seen = new ArrayList<>();
+      Resource<String> first =
+          Resource.make(
+              () -> "first", _ -> seen.add("first: " + Thread.currentThread().isInterrupted()));
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              _ -> {
+                // a release that caught an interrupt sets the status again
+                Thread.currentThread().interrupt();
+                seen.add("second interrupted");
+              });
+
+      VTask<String> task =
+          first
+              .and(second)
+              .withFinalizer(() -> seen.add("finaliser: " + Thread.currentThread().isInterrupted()))
+              .use(_ -> VTask.succeed("done"));
+
+      try {
+        assertThat(task.run()).isEqualTo("done");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(seen).containsExactly("second interrupted", "first: false", "finaliser: false");
+    }
+
+    @Test
+    @DisplayName("the release after an onFailure action that is interrupted is not cut short")
+    void releaseAfterInterruptedOnFailureActionRunsUninterrupted() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+      Resource<String> resource =
+          Resource.make(
+                  () -> "test",
+                  _ -> interruptedDuringRelease.set(Thread.currentThread().isInterrupted()))
+              .onFailure(_ -> Thread.currentThread().interrupt());
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("use failed")));
+
+      try {
+        assertThatThrownBy(task::run).hasMessage("use failed");
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("use() validates non-null function")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void useValidatesNonNullFunction() {

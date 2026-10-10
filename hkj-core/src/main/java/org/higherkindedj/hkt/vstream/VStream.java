@@ -1352,6 +1352,9 @@ public interface VStream<A> extends VStreamKind<A> {
    *       closes the rest of it
    * </ul>
    *
+   * <p>The release runs with the thread's interrupt status cleared, as {@link #onFinalize}
+   * describes.
+   *
    * <p><b>Limitation:</b> A consumer that pulls steps by hand and drops the stream without draining
    * it or calling {@link #close()} never runs the release. Every terminal operation, {@link #take}
    * and {@link #takeWhile} take care of this.

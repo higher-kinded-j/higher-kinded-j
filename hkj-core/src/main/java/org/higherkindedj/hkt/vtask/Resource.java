@@ -88,8 +88,9 @@ import org.jspecify.annotations.Nullable;
  * <p>When used with structured concurrency, Resource respects task cancellation. A cancelled task
  * fails, so its acquired resources are still released. Cleanup runs with the thread's interrupt
  * status cleared, whether the use failed or succeeded, so a blocking release is not cut short, and
- * the status is restored afterwards. So a use that catches a cancellation, sets the status again
- * and returns still has its resources released in full.
+ * the status is restored afterwards. That includes a use that catches a cancellation, sets the
+ * status again and returns. Each release and finaliser of a composed Resource runs this way, so one
+ * that is interrupted does not cut short the ones after it.
  *
  * @param <A> the type of the managed resource
  * @see VTask
@@ -424,7 +425,7 @@ public final class Resource<A> {
                 Cleanup.afterFailure(failure, finalizer::run);
                 throw failure;
               }
-              finalizer.run();
+              Cleanup.withInterruptCleared(finalizer::run);
             });
   }
 
@@ -461,7 +462,7 @@ public final class Resource<A> {
                   throw failure;
                 }
               }
-              allocated.release().accept(exit);
+              Cleanup.withInterruptCleared(() -> allocated.release().accept(exit));
             });
   }
 
@@ -496,8 +497,9 @@ public final class Resource<A> {
     return exit -> {
       @Nullable Throwable failure = null;
       for (int i = 0; i < held.length; i++) {
+        Allocated<?> next = held[i];
         try {
-          held[i].release().accept(exit);
+          Cleanup.withInterruptCleared(() -> next.release().accept(exit));
         } catch (Throwable t) {
           if (failure != null) {
             Cleanup.suppress(t, failure);

@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -400,6 +401,49 @@ class VStreamParTest {
 
       List<Integer> resultList = result.toList().run();
       assertThat(resultList).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
+    }
+
+    @Test
+    @DisplayName(
+        "closing a merge waits for its sources to close, even when the closing thread is"
+            + " interrupted")
+    void closeWaitsForSourcesWhenInterrupted() {
+      AtomicBoolean finalised = new AtomicBoolean(false);
+      VStream<Integer> source =
+          VStream.repeat(1)
+              .mapTask(
+                  i ->
+                      VTask.of(
+                          () -> {
+                            Thread.sleep(1);
+                            return i;
+                          }))
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(20);
+                        finalised.set(true);
+                        return Unit.INSTANCE;
+                      }));
+
+      try {
+        List<Integer> read =
+            VStreamPar.merge(source, VStream.<Integer>empty())
+                .map(
+                    i -> {
+                      Thread.currentThread().interrupt();
+                      return i;
+                    })
+                .take(1)
+                .toList()
+                .run();
+
+        assertThat(read).containsExactly(1);
+        assertThat(finalised).as("the source closed before close() returned").isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
     }
 
     @Test

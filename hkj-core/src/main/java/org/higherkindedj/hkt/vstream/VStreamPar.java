@@ -416,10 +416,18 @@ public final class VStreamPar {
     Thread closer =
         Thread.ofVirtual()
             .start(() -> Closing.closeAll(unfinished.toArray(VStream<?>[]::new)).runSafe());
+    joinFully(closer);
+  }
+
+  /**
+   * Waits for {@code thread} to end, even when this thread is interrupted, whether before the wait
+   * or during it. The interrupt status is set again once the thread has ended.
+   */
+  private static void joinFully(Thread thread) {
     boolean interrupted = false;
     while (true) {
       try {
-        closer.join();
+        thread.join();
         break;
       } catch (InterruptedException e) {
         interrupted = true;
@@ -493,13 +501,10 @@ public final class VStreamPar {
               cancelled.set(true);
               queue.clear();
               // Interrupt the producer so a source blocked in a pull stops; its scope stops the
-              // others, then the producer closes the sources that did not finish
+              // others, then the producer closes the sources that did not finish. Wait for that
+              // even when this thread is interrupted, so the sources are closed when this returns
               producer.interrupt();
-              try {
-                producer.join();
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
+              joinFully(producer);
               return Unit.INSTANCE;
             });
       }

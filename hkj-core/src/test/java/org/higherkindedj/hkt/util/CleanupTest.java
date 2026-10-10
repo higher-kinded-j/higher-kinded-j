@@ -193,7 +193,7 @@ class CleanupTest {
 
     @Test
     @DisplayName("runs the cleanup with the interrupt status cleared, then restores it")
-    void clearsThenRestoresInterruptStatus() throws Throwable {
+    void clearsThenRestoresInterruptStatus() {
       AtomicBoolean interruptedDuringCleanup = new AtomicBoolean(true);
       Thread.currentThread().interrupt();
 
@@ -202,6 +202,20 @@ class CleanupTest {
             () -> interruptedDuringCleanup.set(Thread.currentThread().isInterrupted()));
 
         assertThat(interruptedDuringCleanup).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("keeps an interrupt that arrives while the cleanup runs")
+    void keepsInterruptArrivingDuringCleanup() {
+      Thread.interrupted();
+
+      try {
+        Cleanup.withInterruptCleared(() -> Thread.currentThread().interrupt());
+
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {
         Thread.interrupted();
