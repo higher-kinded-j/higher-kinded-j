@@ -5,8 +5,10 @@ package org.higherkindedj.optics.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
@@ -18,6 +20,9 @@ import org.higherkindedj.optics.Traversal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListTraversals - Limiting Traversals for Lists")
 class ListTraversalsTest {
@@ -902,19 +907,45 @@ class ListTraversalsTest {
       assertThat(result).containsExactly(1, 2, 3);
     }
 
-    @Test
-    @DisplayName("Traversals work with mutable operations but return new list")
-    void immutabilityCheck() {
-      Traversal<List<Integer>, Integer> first2 = ListTraversals.taking(2);
+    static Stream<Arguments> limitingTraversals() {
+      return Stream.of(
+          Arguments.of("taking(2)", ListTraversals.<Integer>taking(2), List.of(10, 20, 3, 4, 5)),
+          Arguments.of(
+              "dropping(0)", ListTraversals.<Integer>dropping(0), List.of(10, 20, 30, 40, 50)),
+          Arguments.of(
+              "dropping(3)", ListTraversals.<Integer>dropping(3), List.of(1, 2, 3, 40, 50)),
+          Arguments.of(
+              "takingLast(2)", ListTraversals.<Integer>takingLast(2), List.of(1, 2, 3, 40, 50)),
+          Arguments.of(
+              "droppingLast(0)",
+              ListTraversals.<Integer>droppingLast(0),
+              List.of(10, 20, 30, 40, 50)),
+          Arguments.of(
+              "droppingLast(3)", ListTraversals.<Integer>droppingLast(3), List.of(10, 20, 3, 4, 5)),
+          Arguments.of(
+              "slicing(1, 3)", ListTraversals.<Integer>slicing(1, 3), List.of(1, 20, 30, 4, 5)),
+          Arguments.of(
+              "takingWhile(x < 3)",
+              ListTraversals.<Integer>takingWhile(x -> x < 3),
+              List.of(10, 20, 3, 4, 5)),
+          Arguments.of(
+              "droppingWhile(x < 3)",
+              ListTraversals.<Integer>droppingWhile(x -> x < 3),
+              List.of(1, 2, 30, 40, 50)),
+          Arguments.of("element(1)", ListTraversals.<Integer>element(1), List.of(1, 20, 3, 4, 5)));
+    }
 
-      List<Integer> original = List.of(1, 2, 3, 4, 5);
-      List<Integer> modified = Traversals.modify(first2, x -> x * 2, original);
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("limitingTraversals")
+    @DisplayName("A traversal that focuses an element should hand back a new unmodifiable list")
+    void focusingTraversalShouldHandBackAnUnmodifiableList(
+        String name, Traversal<List<Integer>, Integer> traversal, List<Integer> expected) {
+      List<Integer> source = new ArrayList<>(List.of(1, 2, 3, 4, 5));
 
-      // Original should be unchanged
-      assertThat(original).containsExactly(1, 2, 3, 4, 5);
-      // Modified should be new list
-      assertThat(modified).containsExactly(2, 4, 3, 4, 5);
-      assertThat(original).isNotSameAs(modified);
+      List<Integer> modified = Traversals.modify(traversal, x -> x * 10, source);
+
+      assertThat(modified).isUnmodifiable().containsExactlyElementsOf(expected);
+      assertThat(source).containsExactly(1, 2, 3, 4, 5);
     }
   }
 

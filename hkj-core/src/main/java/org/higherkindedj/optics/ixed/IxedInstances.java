@@ -131,8 +131,9 @@ public final class IxedInstances {
    * out-of-bounds index has no effect and returns the original list unchanged. This is consistent
    * with the "zero or one element" semantics of {@code Ixed}.
    *
-   * <p><strong>Immutability:</strong> All operations return new {@link List} instances, leaving the
-   * original unchanged.
+   * <p><strong>Immutability:</strong> An update at an index within the list returns a new
+   * unmodifiable {@link List}, leaving the original unchanged; one out of bounds returns the
+   * original itself.
    *
    * @param <A> The element type of the list
    * @return An {@code Ixed} instance for lists

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,8 +27,12 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>Negative indices are treated as 0 (identity behaviour)
  *   <li>Indices beyond list size are clamped to list bounds
- *   <li>Empty lists always return identity (no modification)
+ *   <li>Empty lists always come back with their contents unchanged
  * </ul>
+ *
+ * <p>A modification that focuses at least one element hands back a new unmodifiable list, as {@link
+ * Traversals#forList()} does. One that focuses none hands back the source list, except that {@code
+ * dropping} and {@code droppingLast} with {@code n <= 0} rebuild even an empty list.
  *
  * <p>Example usage:
  *
@@ -98,7 +103,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(newPrefix);
               result.addAll(suffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedPrefixF);
       }
@@ -155,7 +160,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(prefix);
               result.addAll(newSuffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedSuffixF);
       }
@@ -209,7 +214,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(prefix);
               result.addAll(newSuffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedSuffixF);
       }
@@ -268,7 +273,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(newPrefix);
               result.addAll(suffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedPrefixF);
       }
@@ -333,7 +338,7 @@ public final class ListTraversals {
               result.addAll(prefix);
               result.addAll(newMiddle);
               result.addAll(suffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedMiddleF);
       }
@@ -398,7 +403,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(newPrefix);
               result.addAll(suffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedPrefixF);
       }
@@ -463,7 +468,7 @@ public final class ListTraversals {
               final List<A> result = new ArrayList<>(source.size());
               result.addAll(prefix);
               result.addAll(newSuffix);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedSuffixF);
       }
@@ -525,7 +530,7 @@ public final class ListTraversals {
             newElement -> {
               final List<A> result = new ArrayList<>(source);
               result.set(index, newElement);
-              return result;
+              return Collections.unmodifiableList(result);
             },
             modifiedF);
       }

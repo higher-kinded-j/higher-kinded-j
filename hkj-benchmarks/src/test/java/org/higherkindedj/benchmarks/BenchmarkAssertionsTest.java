@@ -1146,6 +1146,38 @@ class BenchmarkAssertionsTest {
   }
 
   // ========================================================================
+  // Each Rebuild Scaling
+  // ========================================================================
+
+  @Nested
+  @DisplayName("Each Rebuild Scaling")
+  class EachRebuildScaling {
+
+    @Test
+    @DisplayName("Ten times the elements should cost about ten times as long, not a hundred")
+    void rebuildShouldGrowWithTheElements() {
+      assertResultsAvailable();
+      assertBenchmarkPresent("EachRebuildBenchmark");
+
+      for (String method : List.of("focusEach", "arrayEach")) {
+        var small = getParam("EachRebuildBenchmark", method, "elements=10000");
+        var large = getParam("EachRebuildBenchmark", method, "elements=100000");
+        assertThat(small).as("%s with 10,000 elements", method).isPresent();
+        assertThat(large).as("%s with 100,000 elements", method).isPresent();
+
+        // Linear growth gives about 10, and a rebuild that copies the list built so far at each
+        // element about 100.
+        double ratio = small.get().score / large.get().score;
+        assertThat(ratio)
+            .as(
+                "%s: 100,000 elements against 10,000 should cost under 30x (was %.1fx)",
+                method, ratio)
+            .isLessThan(30.0);
+      }
+    }
+  }
+
+  // ========================================================================
   // Helper Classes
   // ========================================================================
 

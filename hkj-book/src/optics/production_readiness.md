@@ -42,15 +42,17 @@ Compared to a hand-written `with*` cascade for the same nested update, generated
 
 For a single update on a small record, the cost is unlikely to matter. For tight inner loops, see [Caching optics](#caching-optics).
 
-These are engineering estimates from the shape of the generated code, not benchmark output: the [JMH suite](../benchmarks.md) covers `Fold.plus` but not lens or traversal allocation.
+These are engineering estimates from the shape of the generated code, not benchmark output. The [JMH suite](../benchmarks.md) covers `Fold.plus`, and how a list traversal's time grows with the list, but not lens or traversal allocation.
 
 ### `modifyF` and effect handlers
 
 `modifyF(f, source, applicative)` runs `f` once per focused element and threads the results through the supplied `Applicative`. The cost is one call to `f` plus whatever the applicative's `ap` and `pure` do. `Validated` accumulates every error and `Either` keeps only the first, but neither skips work: the traversal applies `f` to every focused element before the applicative combines the results, so the choice shapes the answer rather than the cost.
 
-### Traversal allocation
+### Traversal allocation {#traversal-allocation}
 
 `Traversals.modify(traversal, f, source)` over a `List<A>` allocates one new list, plus a small constant number of short-lived objects *per element*: the traversal threads each result through the `Id` applicative and an immutable cons-list before flattening. Budget O(n) allocations, not O(1). (Reads and writes on a bare `Traversal` go through the `Traversals` utility; the interface itself declares no plain read or write.) If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not compare references to skip rebuilding.
+
+A Focus path's `.each()` on a `List` is `Traversals.forList()`, and `EachInstances.arrayEach()` is `Traversals.forArray()`, as `FocusPaths.listElements` and `EachInstances.arrayEach` show. Both rebuild this way, in time linear in the length, into a new unmodifiable list or a new array.
 
 ### What each collection optic builds {#collection-optics}
 
@@ -58,10 +60,11 @@ Each collection optic rebuilds its container in its own way, and several return 
 
 | Optic | What it builds | When nothing changes | Implemented in |
 |---|---|---|---|
+| `Traversals.forList()`, a Focus path's `.each()`, `EachInstances.arrayEach().each()` | Collects the results on an immutable cons list, then builds one new unmodifiable list, or one new array. | An empty list or array still gets a new, empty one. | `Traversals.forList`, `Traversals.forArray` |
 | `Traversals.forMapValues()` | Copies the keys and values into two lists, traverses the values, then builds one new `LinkedHashMap` in the source's order. | An empty map still gets a new, empty map. | `Traversals.traverseMapValues` |
 | `Traversals.forMap(key)` | Copies the whole map to replace one value. | An absent key returns the source itself. | `Traversals.forMap` |
 | `filtered(p)`, `filterBy(query, p)` | Tests each element once, in the same pass as the update; `filterBy`'s test is a `Fold.exists`, which stops at the first queried focus that matches. | A rejected element passes through with `of`, keeping its reference. | `Traversal.filtered`, `Traversal.filterBy` |
-| `ListTraversals.taking(n)`, `slicing(from, to)` and the other limits | Run the function on the slice only, then copy the elements outside it by reference into one new list; `takingWhile` and `droppingWhile` first scan for the split point. | An empty slice returns the source itself. | `ListTraversals.slicing` |
+| `ListTraversals.taking(n)`, `slicing(from, to)` and the other limits | Run the function on the slice only, then copy the elements outside it by reference into one new unmodifiable list; `takingWhile` and `droppingWhile` first scan for the split point. | An empty slice returns the source itself, apart from `dropping` and `droppingLast` with `n <= 0`, which rebuild even an empty list. | `ListTraversals.slicing` |
 | `StringTraversals.chars()`, `worded()`, `lined()` | Split the string into a list, one boxed `Character` per character or a regular-expression split into words or lines, then join one new string. | A new string is joined anyway. | `StringTraversals.chars`, `StringTraversals.worded` |
 | `Traversals.partsOf(t)` | `get` collects the foci into one list through `getAll`, and `set` walks the traversal again, so a `modify` walks it twice. `sorted` and `reversed` copy that list once more, and `distinct` twice. | The traversal is still walked twice. | `Traversals.partsOf` |
 | `IndexedTraversals.forList()`, `forMap()` | Pass the index and the value to your function as two arguments, so no `Pair` is built per focus. | An empty list or map returns the source itself. | `IndexedTraversals.forList`, `IndexedTraversals.forMap` |

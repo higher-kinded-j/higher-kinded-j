@@ -3,21 +3,27 @@
 package org.higherkindedj.optics.focus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("FocusPaths Utility Tests")
 class FocusPathsTest {
@@ -46,18 +52,32 @@ class FocusPathsTest {
       List<String> emptyList = List.of();
 
       assertThat(Traversals.getAll(traversal, emptyList)).isEmpty();
-      assertThat(Traversals.modify(traversal, String::toUpperCase, emptyList)).isEmpty();
+    }
+
+    @ParameterizedTest(name = "size {0}")
+    @ValueSource(ints = {0, 1, 2, 1_000})
+    @DisplayName("listElements should rebuild an unmodifiable list and leave the source as it was")
+    void listElementsShouldRebuildAnUnmodifiableList(int size) {
+      List<Integer> source = new ArrayList<>(IntStream.range(0, size).boxed().toList());
+
+      List<Integer> rebuilt = Traversals.modify(FocusPaths.listElements(), x -> x + 1, source);
+
+      assertThat(rebuilt)
+          .isUnmodifiable()
+          .containsExactlyElementsOf(IntStream.rangeClosed(1, size).boxed().toList());
+      assertThat(source).containsExactlyElementsOf(IntStream.range(0, size).boxed().toList());
     }
 
     @Test
-    @DisplayName("listAt should focus on element at index")
+    @DisplayName("listAt should focus on element at index and set into a new unmodifiable list")
     void listAtShouldFocusOnElementAtIndex() {
       Affine<List<String>, String> affine = FocusPaths.listAt(1);
 
-      List<String> list = List.of("a", "b", "c");
+      List<String> list = new ArrayList<>(List.of("a", "b", "c"));
 
       assertThat(affine.getOptional(list)).contains("b");
-      assertThat(affine.set("X", list)).containsExactly("a", "X", "c");
+      assertThat(affine.set("X", list)).isUnmodifiable().containsExactly("a", "X", "c");
+      assertThat(list).containsExactly("a", "b", "c");
     }
 
     @Test
@@ -85,23 +105,29 @@ class FocusPathsTest {
     }
 
     @Test
-    @DisplayName("listHead should focus on first element")
+    @DisplayName("listHead should focus on first element and set into a new unmodifiable list")
     void listHeadShouldFocusOnFirstElement() {
       Affine<List<String>, String> affine = FocusPaths.listHead();
 
       assertThat(affine.getOptional(List.of("a", "b", "c"))).contains("a");
       assertThat(affine.getOptional(List.of())).isEmpty();
+
+      assertThat(affine.set("X", new ArrayList<>(List.of("a", "b", "c"))))
+          .isUnmodifiable()
+          .containsExactly("X", "b", "c");
     }
 
     @Test
-    @DisplayName("listLast should focus on last element")
+    @DisplayName("listLast should focus on last element and set into a new unmodifiable list")
     void listLastShouldFocusOnLastElement() {
       Affine<List<String>, String> affine = FocusPaths.listLast();
 
       assertThat(affine.getOptional(List.of("a", "b", "c"))).contains("c");
       assertThat(affine.getOptional(List.of())).isEmpty();
 
-      assertThat(affine.set("X", List.of("a", "b", "c"))).containsExactly("a", "b", "X");
+      assertThat(affine.set("X", new ArrayList<>(List.of("a", "b", "c"))))
+          .isUnmodifiable()
+          .containsExactly("a", "b", "X");
     }
 
     @Test
@@ -501,6 +527,21 @@ class FocusPathsTest {
       assertThat(Traversals.getAll(traversal, emptyArray)).isEmpty();
     }
 
+    @ParameterizedTest(name = "size {0}")
+    @ValueSource(ints = {0, 1, 2, 1_000})
+    @DisplayName("arrayElements should rebuild a new array of the source's component type")
+    void arrayElementsShouldRebuildANewArray(int size) {
+      Integer[] source = IntStream.range(0, size).boxed().toArray(Integer[]::new);
+
+      Integer[] rebuilt = Traversals.modify(FocusPaths.arrayElements(), x -> x + 1, source);
+
+      assertThat(rebuilt)
+          .isNotSameAs(source)
+          .containsExactly(IntStream.rangeClosed(1, size).boxed().toArray(Integer[]::new));
+      assertThat(rebuilt.getClass()).isEqualTo(Integer[].class);
+      assertThat(source).containsExactly(IntStream.range(0, size).boxed().toArray(Integer[]::new));
+    }
+
     @Test
     @DisplayName("arrayAt should focus on element at index")
     void arrayAtShouldFocusOnElementAtIndex() {
@@ -575,6 +616,43 @@ class FocusPathsTest {
 
       // Should find only the present theme value
       assertThat(path.getAll(user)).containsExactly("dark");
+    }
+
+    @Test
+    @DisplayName("a record rebuilt through each() or at() should hold an unmodifiable list")
+    void recordRebuiltThroughAListPathShouldHoldAnUnmodifiableList() {
+      record Basket(List<Integer> items) {}
+
+      FocusPath<Basket, List<Integer>> items =
+          FocusPath.of(Lens.of(Basket::items, (basket, list) -> new Basket(list)));
+      Basket basket = new Basket(new ArrayList<>(List.of(1, 2, 3)));
+
+      assertThat(items.<Integer>each().modifyAll(x -> x * 10, basket).items())
+          .isUnmodifiable()
+          .containsExactly(10, 20, 30);
+      assertThat(items.<Integer>at(1).set(0, basket).items())
+          .isUnmodifiable()
+          .containsExactly(1, 0, 3);
+    }
+
+    @Test
+    @DisplayName("a path over a field declared as ArrayList should read, and write through an Each")
+    void pathOverAnArrayListFieldShouldWriteThroughAnEachThatRebuildsIt() {
+      record Shelf(ArrayList<Integer> items) {}
+
+      FocusPath<Shelf, ArrayList<Integer>> items =
+          FocusPath.of(Lens.of(Shelf::items, (shelf, list) -> new Shelf(list)));
+      Shelf shelf = new Shelf(new ArrayList<>(List.of(1, 2, 3)));
+
+      assertThat(items.<Integer>each().getAll(shelf)).containsExactly(1, 2, 3);
+      assertThatThrownBy(() -> items.<Integer>each().modifyAll(x -> x * 10, shelf))
+          .isInstanceOf(ClassCastException.class);
+      assertThat(
+              items
+                  .each(EachInstances.fromIterableCollecting(ArrayList::new))
+                  .modifyAll(x -> x * 10, shelf)
+                  .items())
+          .containsExactly(10, 20, 30);
     }
   }
 }

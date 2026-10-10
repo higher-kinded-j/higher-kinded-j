@@ -9,15 +9,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Applicative;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.util.Affines;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -61,60 +58,36 @@ public final class FocusPaths {
   /**
    * Creates a traversal over all elements in a list.
    *
+   * <p>It delegates to {@link Traversals#forList()}, so elements are visited in order, and the
+   * rebuilt list is a new unmodifiable list, built in time linear in its length.
+   *
    * @param <E> the element type
    * @return a traversal focusing on all list elements
    */
   public static <E extends @Nullable Object> Traversal<List<E>, E> listElements() {
-    return new Traversal<>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<E>> modifyF(
-          Function<E, Kind<F, E>> f, List<E> source, Applicative<F> app) {
-        if (source.isEmpty()) {
-          return app.of(source);
-        }
-
-        // Start with the first element
-        Kind<F, List<E>> result = app.map(Collections::singletonList, f.apply(source.get(0)));
-
-        // Combine with remaining elements
-        for (int i = 1; i < source.size(); i++) {
-          Kind<F, E> modifiedElement = f.apply(source.get(i));
-          result = app.map2(result, modifiedElement, FocusPaths::appendToList);
-        }
-
-        return result;
-      }
-    };
+    return Traversals.forList();
   }
 
   /**
    * Creates an affine focusing on a specific index in a list.
    *
-   * <p>The affine will return empty if the index is out of bounds. Setting a value at an index
-   * requires the index to be within the current list size.
+   * <p>The affine will return empty if the index is out of bounds. Setting at an index within the
+   * list builds a new unmodifiable list; at any other index it returns the source unchanged. It
+   * delegates to {@link Affines#listAt(int)}.
    *
    * @param index the index to focus on
    * @param <E> the element type
    * @return an affine focusing on the element at the given index
    */
   public static <E extends @Nullable Object> Affine<List<E>, E> listAt(int index) {
-    return Affine.of(
-        list ->
-            (index >= 0 && index < list.size())
-                ? Optional.ofNullable(list.get(index))
-                : Optional.empty(),
-        (list, element) -> {
-          if (index >= 0 && index < list.size()) {
-            List<E> result = new ArrayList<>(list);
-            result.set(index, element);
-            return result;
-          }
-          return list;
-        });
+    return Affines.listAt(index);
   }
 
   /**
    * Creates an affine focusing on the first element of a list.
+   *
+   * <p>It is {@code listAt(0)}: setting the first element of a non-empty list builds a new
+   * unmodifiable list, and an empty list comes back unchanged.
    *
    * @param <E> the element type
    * @return an affine focusing on the first element
@@ -126,6 +99,9 @@ public final class FocusPaths {
   /**
    * Creates an affine focusing on the last element of a list.
    *
+   * <p>Setting the last element of a non-empty list builds a new unmodifiable list, and an empty
+   * list comes back unchanged.
+   *
    * @param <E> the element type
    * @return an affine focusing on the last element
    */
@@ -136,7 +112,7 @@ public final class FocusPaths {
           if (!list.isEmpty()) {
             List<E> result = new ArrayList<>(list);
             result.set(result.size() - 1, element);
-            return result;
+            return Collections.unmodifiableList(result);
           }
           return list;
         });
@@ -417,38 +393,15 @@ public final class FocusPaths {
   /**
    * Creates a traversal over all elements in an array.
    *
+   * <p>It delegates to {@link Traversals#forArray()}, so elements are visited in order, and the
+   * rebuilt array is a new array of the source's component type, built in time linear in its
+   * length.
+   *
    * @param <E> the element type
    * @return a traversal focusing on all array elements
    */
   public static <E extends @Nullable Object> Traversal<E[], E> arrayElements() {
-    return new Traversal<>() {
-      @Override
-      @SuppressWarnings("unchecked")
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, E[]> modifyF(
-          Function<E, Kind<F, E>> f, E[] source, Applicative<F> app) {
-        if (source.length == 0) {
-          return app.of(source);
-        }
-
-        // Start with the first element wrapped in a list
-        Kind<F, List<E>> result = app.map(Collections::singletonList, f.apply(source[0]));
-
-        // Combine with remaining elements
-        for (int i = 1; i < source.length; i++) {
-          Kind<F, E> modifiedElement = f.apply(source[i]);
-          result = app.map2(result, modifiedElement, FocusPaths::appendToList);
-        }
-
-        // Convert back to array
-        return app.map(
-            list ->
-                list.toArray(
-                    (E[])
-                        java.lang.reflect.Array.newInstance(
-                            source.getClass().getComponentType(), list.size())),
-            result);
-      }
-    };
+    return Traversals.forArray();
   }
 
   /**
@@ -470,13 +423,5 @@ public final class FocusPaths {
           }
           return arr;
         });
-  }
-
-  // ===== Helper Methods =====
-
-  private static <E extends @Nullable Object> List<E> appendToList(List<E> list, E element) {
-    List<E> result = new ArrayList<>(list);
-    result.add(element);
-    return result;
   }
 }

@@ -542,10 +542,16 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * <p>The traversal it carries is a {@code List} one, so any other container needs {@link
    * #each(Each)} and the {@code Each} that rebuilds it.
    *
+   * <p>A modification rebuilds the list once, into a new unmodifiable {@code List}. A focused type
+   * declared as a subtype such as {@code ArrayList} therefore reads, but cannot take the rebuilt
+   * list back when the path writes: declare it as {@code List}, or traverse it with {@code
+   * each(EachInstances.fromIterableCollecting(ArrayList::new))}.
+   *
    * @param <E> the element type of the nested lists
    * @return a TraversalPath over all nested list elements
    * @throws ClassCastException when the returned path is run, if the focused element type {@code A}
-   *     is not a {@code List}
+   *     is not a {@code List}, or, when the path writes, if it is a {@code List} subtype such as
+   *     {@code ArrayList}
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
@@ -571,9 +577,15 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
   /**
    * When each focused element is a {@code List<E>}, focuses on elements at the specified index.
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param index the index to focus on in each list
    * @param <E> the element type of the lists
    * @return a TraversalPath focusing on elements at the index (skipping lists that are too short)
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> at(int index) {
@@ -673,6 +685,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over (head, tail) pairs
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, Pair<E, List<E>>> cons() {
@@ -698,6 +712,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over (init, last) pairs
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, Pair<List<E>, E>> snoc() {
@@ -721,8 +737,14 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * <p>Empty lists are skipped.
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param <E> the element type of the lists
    * @return a TraversalPath over head elements
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> head() {
@@ -735,8 +757,14 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * <p>Empty lists are skipped.
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param <E> the element type of the lists
    * @return a TraversalPath over last elements
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> last() {
@@ -751,6 +779,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over tails
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, List<E>> tail() {
@@ -765,6 +795,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over inits
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, List<E>> init() {

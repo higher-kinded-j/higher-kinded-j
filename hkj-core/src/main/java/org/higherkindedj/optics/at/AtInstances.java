@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.at;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,8 +119,8 @@ public final class AtInstances {
    * {@link IndexOutOfBoundsException}. Use {@link #listAtWithPadding(Object)} for auto-expanding
    * behaviour.
    *
-   * <p><strong>Immutability:</strong> All operations return new {@link List} instances, leaving the
-   * original unchanged.
+   * <p><strong>Immutability:</strong> Every write returns a new unmodifiable {@link List}, leaving
+   * the original unchanged.
    *
    * @param <A> The element type of the list
    * @return An {@code At} instance for lists
@@ -145,7 +146,7 @@ public final class AtInstances {
                 }
                 // If index is out of bounds for removal, no-op (nothing to remove)
               }
-              return newList;
+              return Collections.unmodifiableList(newList);
             });
   }
 
@@ -163,6 +164,8 @@ public final class AtInstances {
    *
    * <p><strong>Warning:</strong> This behaviour can lead to unexpected nulls in your list. Use with
    * caution.
+   *
+   * <p>As with {@link #listAt()}, every write returns a new unmodifiable {@link List}.
    *
    * @param <A> The element type of the list
    * @param defaultValue The value to use for padding. Padding with {@code null} needs an element
@@ -193,7 +196,7 @@ public final class AtInstances {
                   newList.remove((int) index);
                 }
               }
-              return newList;
+              return Collections.unmodifiableList(newList);
             });
   }
 }
