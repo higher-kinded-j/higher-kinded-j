@@ -97,7 +97,7 @@ TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
 `widenCollections = true` is usually what you want on a new record: it makes `Map` fields behave exactly like `List` fields, and the same flag applies one level down inside a nested container. It is opt-in only because turning it on changes a method's return type, and that is a source-breaking change for anyone already calling it. New code has nothing to break.
 ~~~
 
-There is one exception, and it is the one navigators need: a container whose *element* is itself a `@GenerateFocus` record is always stepped into, because the navigator that record's field hands back has to reach it. So `Map<String, Address>` on a navigator-enabled record gives you a navigator over the values without the flag, while `Map<String, String>` waits for it. So does a map whose generic element gets no navigator, such as `Map<String, Revision<?>>`, as [A target with type parameters](focus_navigation.md#a-target-with-type-parameters) explains.
+There is one exception, and it is the one navigators need: a container whose *element* is itself a `@GenerateFocus` record is always stepped into, because the navigator that record's field hands back has to reach it. So `Map<String, Address>` on a navigator-enabled record gives you a navigator over the values without the flag, and `Address[]` gives you one over the elements, while `Map<String, String>` and `String[]` wait for it. So does a map whose generic element gets no navigator, such as `Map<String, Revision<?>>`, as [A target with type parameters](focus_navigation.md#a-target-with-type-parameters) explains.
 
 Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
@@ -125,7 +125,7 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | `Set<A>` | JDK | `EachInstances.setEach()` (recognised directly) |
 | `Collection<A>` | JDK | `EachInstances.collectionEach()` (recognised directly) |
 | `Map<K, V>` | JDK | `EachInstances.mapValuesEach()` |
-| `A[]` | JDK | `EachInstances.arrayEach()` |
+| `A[]`, `A` a reference type | JDK | `EachInstances.arrayEach()` |
 | `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag`, `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
 | `ImmutableList`, `ImmutableSet` | Guava | `EachInstances.fromIterableCollecting(...)` |
 | `List`, `Set` | Vavr | `EachInstances.fromIterableCollecting(...)` |
@@ -146,6 +146,22 @@ Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1,
 ```
 
 A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given. A set-valued `Collection` comes back a set, specifically a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract. Anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
+
+An array of a reference type widens through `arrayEach()`, which builds the new array with the component type the source array was created with. An array of a primitive type stays a plain `FocusPath` under every setting, since `arrayEach()` is `Each<A[], A>` and no primitive is an `A`:
+
+<!-- verify -->
+```java
+// @GenerateFocus(widenCollections = true) steps into an array of a reference type
+TraversalPath<WidenedEmployee, String> tags = WidenedEmployeeFocus.tags();
+
+// No Each focuses an int, so a primitive array stays in focus
+FocusPath<WidenedEmployee, int[]> levels = WidenedEmployeeFocus.levels();
+
+// The whole array, to replace it or index into it, starts from its lens
+FocusPath<WidenedEmployee, String[]> allTags = FocusPath.of(WidenedEmployeeLenses.tags());
+```
+
+Because the new array keeps its source's component type, a write must store values that type can hold, as any Java array store must. A component declared `Number[]` that holds an `Integer[]` cannot take a `Double`: the path's type allows it, but the write throws `ArrayStoreException`. `@GenerateTraversals` builds a `Number[]` for the same field, so its traversal takes the `Double`.
 
 Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
 
@@ -186,13 +202,13 @@ Which fields the rule reaches follows from how each one widens:
 |-------|-----------|--------------------------|
 | `Optional`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` |
 | `Maybe`, `Set`, `Collection` | naming an optic instance: `Affines.just()` or an `Each` | ❌ Rejected, the same as an SPI container |
-| `Either`, `Try`, `Validated`, `Map`, arrays, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
+| `Either`, `Try`, `Validated`, `Map`, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
 | `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Leaf>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
 | Any container in this table whose element is a generic type it does not step into, such as `List<Box<? extends Leaf>>` | the container's own widening, as for any other element | ✅ Accepted under every setting. The element is kept whole, so `List<Box<? extends Leaf>>` widens to `TraversalPath<Holder, Box<? extends Leaf>>` (see [A wildcard inside the element](#a-wildcard-inside-the-element)) |
 
 Three things narrow the rule further.
 
-**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows.
+**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `List<? extends Leaf>[]` widens to `TraversalPath<Holder, Leaf>`, while `Set<? extends Leaf>[]` is rejected.
 
 **A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 

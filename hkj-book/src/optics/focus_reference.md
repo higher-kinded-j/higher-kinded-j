@@ -259,7 +259,7 @@ In order of preference:
 3. **Chain `.nullable()`** on the generated `FocusPath`. It turns null into an empty focus.
 4. **Build the path with `AffinePath.ofNullable(getter, setter)`** when there is no generated companion to start from.
 
-Two rules govern the annotated form. A container decides its own widening, so `@Nullable List<T>` is `.each()` and `@Nullable Optional<T>` is `.some()`. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
+Two rules govern the annotated form. A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each()`, and a null list has no elements. A nullable container inside another is ruled out the same way, and a navigator passes over a null element it would read. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
 
 ### Can I build Focus paths at runtime?
 

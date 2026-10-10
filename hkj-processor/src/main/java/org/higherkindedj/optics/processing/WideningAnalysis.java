@@ -13,6 +13,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -50,11 +51,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *       written here and nowhere else, even where a generator on the path supports the same type.
  *   <li>A {@code Kind<F, A>} component widens through {@code .traverseOver()}, at the outermost
  *       layer only, because the analysis reads it from the component's own declaration.
- *   <li>Every other container arrives through the SPI. A {@code ZERO_OR_ONE} generator always
- *       widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}. A generator that
- *       names no optic expression takes no part: its container stays in focus, as if no generator
- *       supported it, since the no-argument {@code .some()} and {@code .each()} read only an {@code
- *       Optional} and a {@code List}.
+ *   <li>Every other container arrives through the SPI, an array included. A {@code ZERO_OR_ONE}
+ *       generator always widens; a {@code ZERO_OR_MORE} one waits for {@code widenCollections}. An
+ *       array of a primitive type is left alone: {@code EachInstances.arrayEach()} is {@code
+ *       Each<A[], A>}, and no primitive is an {@code A}. A generator that names no optic expression
+ *       takes no part: its container stays in focus, as if no generator supported it, since the
+ *       no-argument {@code .some()} and {@code .each()} read only an {@code Optional} and a {@code
+ *       List}.
  *   <li>A widening that names an optic instance cannot be written for a raw or wildcard-carrying
  *       container. The walk turns such a container away and the widening {@linkplain
  *       Widening#declined() names it}, so that the declaration is rejected where it is written
@@ -64,7 +67,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *       without complaint. Routing them through an instance too would drag {@code Optional<?>},
  *       {@code List<?>} and their raw forms into the rejection for no runtime gain, since those
  *       optics are the ones they already work with.
- *   <li>{@code @Nullable} widens a component the containers leave alone, and nothing else.
+ *   <li>A {@code @Nullable} component widens through {@code .nullable()} before anything else. A
+ *       container that is null then has no focus, rather than one the next step throws on, and a
+ *       component the containers leave alone widens through {@code .nullable()} alone. A nullable
+ *       container inside another, such as the inner list of {@code List<@Nullable List<A>>}, is
+ *       ruled out the same way before the walk steps into it, through {@code
+ *       .some(Affines.nullable())}.
  * </ul>
  *
  * <p>Containers nest to three layers, and the chain always composes to the leaf: {@code
@@ -86,8 +94,7 @@ public final class WideningAnalysis {
       ClassName.get("org.higherkindedj.optics.focus", "TraversalPath");
 
   /** ClassName for Affines, which supplies the {@code Affine} a {@code Maybe} widens through. */
-  private static final ClassName AFFINES_CLASS =
-      ClassName.get("org.higherkindedj.optics.util", "Affines");
+  static final ClassName AFFINES_CLASS = ClassName.get("org.higherkindedj.optics.util", "Affines");
 
   /** ClassName for EachInstances, which supplies the {@code Each} a collection widens through. */
   private static final ClassName EACH_INSTANCES_CLASS =
@@ -175,6 +182,11 @@ public final class WideningAnalysis {
     COLLECTION(Tier.TRAVERSAL),
     /** A {@code @Nullable} component - AffinePath via {@code .nullable()}. */
     NULLABLE(Tier.AFFINE),
+    /**
+     * A {@code @Nullable} container inside another - AffinePath via {@code
+     * .some(Affines.nullable())}.
+     */
+    NULLABLE_LAYER(Tier.AFFINE),
     /** Kind with EXACTLY_ONE semantics - AffinePath via {@code .traverseOver().headOption()}. */
     KIND_EXACTLY_ONE(Tier.AFFINE),
     /** Kind with ZERO_OR_ONE semantics - AffinePath via {@code .traverseOver().headOption()}. */
@@ -307,11 +319,12 @@ public final class WideningAnalysis {
     TypeMirror componentType = component.asType();
     List<Step> steps = new ArrayList<>();
     DeclaredType declined = collect(component, report, componentType, widenCollections, 0, steps);
-    // A container turned away at the outermost layer leaves no step behind, so a @Nullable one
-    // still widens through .nullable(): the method that yields compiles, and the declaration is
-    // rejected all the same.
-    if (steps.isEmpty() && NullableAnnotations.hasNullableAnnotation(component)) {
-      steps.add(new Step(StepKind.NULLABLE, null, null, null));
+    // A null container has nothing in it to step into, so .nullable() rules the null out before
+    // the container's own step runs. A container turned away at the outermost layer leaves no step
+    // behind, so a @Nullable one widens through .nullable() alone: the method that yields
+    // compiles, and the declaration is rejected all the same.
+    if (NullableAnnotations.hasNullableAnnotation(component)) {
+      steps.addFirst(new Step(StepKind.NULLABLE, null, null, null));
     }
     return new Widening(
         tier(steps), focusType(componentType, steps, targetPackage), List.copyOf(steps), declined);
@@ -349,7 +362,39 @@ public final class WideningAnalysis {
       int depth,
       List<Step> steps) {
 
-    if (depth >= MAX_NESTING_DEPTH || type.getKind() != TypeKind.DECLARED) {
+    int before = steps.size();
+    DeclaredType declined = collectLayer(component, report, type, widenCollections, depth, steps);
+    // A nullable container inside another is ruled out before the walk steps into it, as the
+    // component's own nullness is at the outermost layer. Only a layer that widened needs it: one
+    // left alone is focused as it is, null included.
+    if (depth > 0 && steps.size() > before && NullableAnnotations.isNullable(type)) {
+      steps.add(before, new Step(StepKind.NULLABLE_LAYER, null, null, type));
+    }
+    return declined;
+  }
+
+  /**
+   * Peels one container layer off a type and carries on into what it unwraps to.
+   *
+   * @return the container turned away, or null when every layer reached was widened or left alone
+   */
+  private DeclaredType collectLayer(
+      RecordComponentElement component,
+      boolean report,
+      TypeMirror type,
+      boolean widenCollections,
+      int depth,
+      List<Step> steps) {
+
+    if (depth >= MAX_NESTING_DEPTH) {
+      return null;
+    }
+    if (type.getKind() == TypeKind.ARRAY) {
+      return spiCandidate(type)
+          ? collectSpi(component, report, type, widenCollections, depth, steps)
+          : null;
+    }
+    if (type.getKind() != TypeKind.DECLARED) {
       return null;
     }
     DeclaredType declaredType = (DeclaredType) type;
@@ -363,7 +408,14 @@ public final class WideningAnalysis {
       return namesOpticInstance(recognised) && ProcessorUtils.hasUndenotableTypeArguments(type)
           ? declaredType
           : descend(
-              component, report, declaredType, recognised, null, 0, widenCollections, depth, steps);
+              component,
+              report,
+              recognised,
+              null,
+              typeArgumentAt(declaredType, 0),
+              widenCollections,
+              depth,
+              steps);
     }
 
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
@@ -383,14 +435,15 @@ public final class WideningAnalysis {
    *
    * <p>A container the walk never steps into is never asked for an optic, so it is left alone
    * whether or not its widening could be written; only a container the walk would have stepped into
-   * is turned away.
+   * is turned away. An array has no type arguments to leave the optic undenotable, so it is never
+   * turned away.
    *
    * @return the container turned away, or null when it was widened or left alone
    */
   private DeclaredType collectSpi(
       RecordComponentElement component,
       boolean report,
-      DeclaredType declaredType,
+      TypeMirror container,
       boolean widenCollections,
       int depth,
       List<Step> steps) {
@@ -398,19 +451,19 @@ public final class WideningAnalysis {
     // The component rides along at every layer, so on the reporting walk an equal-priority conflict
     // on a type reached only inside a container is reported against the declaration that reaches
     // it.
-    return switch (spiLookup(declaredType, report ? component : null)) {
+    return switch (spiLookup(container, report ? component : null)) {
       case SpiLookup.None _ -> null;
+      // Only a declared type has type arguments to refuse, so a refused container is no array.
       case SpiLookup.Refused refused ->
-          stepsInto(refused.generator(), widenCollections) ? declaredType : null;
+          stepsInto(refused.generator(), widenCollections) ? (DeclaredType) container : null;
       case SpiLookup.Admitted admitted ->
           stepsInto(admitted.generator(), widenCollections)
               ? descend(
                   component,
                   report,
-                  declaredType,
                   spiStep(admitted.generator()),
                   admitted.generator(),
-                  admitted.generator().getFocusTypeArgumentIndex(),
+                  spiElement(container, admitted.generator()),
                   widenCollections,
                   depth,
                   steps)
@@ -437,22 +490,20 @@ public final class WideningAnalysis {
   }
 
   /**
-   * Records one layer and continues into the type argument it unwraps to.
+   * Records one layer and continues into the type it unwraps to.
    *
    * @return what the walk beneath this layer turned away, or null
    */
   private DeclaredType descend(
       RecordComponentElement component,
       boolean report,
-      DeclaredType declaredType,
       StepKind kind,
       TraversableGenerator generator,
-      int typeArgumentIndex,
+      TypeMirror innerType,
       boolean widenCollections,
       int depth,
       List<Step> steps) {
 
-    TypeMirror innerType = typeArgumentAt(declaredType, typeArgumentIndex);
     steps.add(new Step(kind, null, generator, innerType));
     return innerType == null
         ? null
@@ -491,7 +542,14 @@ public final class WideningAnalysis {
       // @Nullable on it would describe a value the affine never yields.
       case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType, targetPackage).box());
       case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE, KIND_ZERO_OR_MORE -> last.kindInfo().elementType();
-      case OPTIONAL, MAYBE, LIST, SET, COLLECTION, SPI_ZERO_OR_ONE, SPI_ZERO_OR_MORE ->
+      case OPTIONAL,
+          MAYBE,
+          LIST,
+          SET,
+          COLLECTION,
+          SPI_ZERO_OR_ONE,
+          SPI_ZERO_OR_MORE,
+          NULLABLE_LAYER ->
           last.innerType() == null
               ? ClassName.get(Object.class)
               : ProcessorUtils.typeNameOf(last.innerType(), targetPackage).box();
@@ -501,10 +559,11 @@ public final class WideningAnalysis {
   /**
    * The component's name with a nullness annotation on the component itself dropped.
    *
-   * <p>Only the outermost one goes: {@code @Nullable List<@Nullable String>} widened by {@code
-   * .nullable()} focuses a present {@code List<@Nullable String>}, whose elements are still as
-   * nullable as they were written. Anything else the author wrote at that position stays, because
-   * it is only the nullness the widening consumed.
+   * <p>Only the outermost one goes: {@code @Nullable Map<String, @Nullable String>}, which the
+   * default settings leave to {@code .nullable()} alone, focuses a present {@code
+   * Map<String, @Nullable String>}, whose values are still as nullable as they were written.
+   * Anything else the author wrote at that position stays, because it is only the nullness the
+   * widening consumed.
    */
   private static TypeName nullRuledOut(TypeName name) {
     List<AnnotationSpec> kept =
@@ -536,8 +595,9 @@ public final class WideningAnalysis {
     for (int i = 0; i < steps.size(); i++) {
       Step step = steps.get(i);
       // A no-arg step before a generator's optic instance needs a type witness, so that javac has
-      // the argument type to unify the instance against. A next step only exists because the walk
-      // descended into a non-null inner type, so innerType() is non-null wherever this is read.
+      // the argument type to unify the instance against. Only the Optional and List steps read the
+      // witness, and a step follows one of those only because the walk descended into its non-null
+      // inner type, so innerType() is non-null wherever it is read.
       boolean witness = i + 1 < steps.size() && isParameterised(steps.get(i + 1));
       // Rendered as a value rather than appended arm by arm: the kinds are the whole enum,
       // and a switch expression says so without a default arm nothing can reach.
@@ -549,6 +609,7 @@ public final class WideningAnalysis {
             case SET -> stockInstance("each", EACH_INSTANCES_CLASS, "setEach", args);
             case COLLECTION -> stockInstance("each", EACH_INSTANCES_CLASS, "collectionEach", args);
             case NULLABLE -> ".nullable()";
+            case NULLABLE_LAYER -> stockInstance("some", AFFINES_CLASS, "nullable", args);
             case SPI_ZERO_OR_ONE -> ".some(" + opticExpression(step, args) + ")";
             case SPI_ZERO_OR_MORE -> ".each(" + opticExpression(step, args) + ")";
             case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE ->
@@ -600,6 +661,7 @@ public final class WideningAnalysis {
    */
   private static boolean namesOpticInstance(StepKind kind) {
     return kind == StepKind.MAYBE
+        || kind == StepKind.NULLABLE_LAYER
         || kind == StepKind.SET
         || kind == StepKind.COLLECTION
         || kind == StepKind.SPI_ZERO_OR_ONE
@@ -623,14 +685,38 @@ public final class WideningAnalysis {
   }
 
   /**
-   * Whether the analysis recognises this declared type as a container of its own, rather than one
-   * the SPI supplies.
+   * Whether the SPI is the one asked how this type widens: an array of a reference type, or a
+   * declared type other than the Optional, Maybe, List, Set and Collection the analysis recognises
+   * by name.
    *
-   * @param type a declared type
-   * @return true for Optional, Maybe, List, Set and Collection
+   * <p>An array of a primitive type is not one, though {@code @GenerateTraversals} traverses it
+   * through the same generator: {@code EachInstances.arrayEach()} is {@code Each<A[], A>}, and no
+   * primitive is an {@code A}.
+   *
+   * @param type any type
+   * @return true when a generator, if one supports the type, decides its widening
    */
-  public boolean recognisedContainer(TypeMirror type) {
-    return RECOGNISED_CONTAINERS.containsKey(qualifiedNameOf(type));
+  public static boolean spiCandidate(TypeMirror type) {
+    return switch (type.getKind()) {
+      case ARRAY -> !((ArrayType) type).getComponentType().getKind().isPrimitive();
+      case DECLARED -> !RECOGNISED_CONTAINERS.containsKey(qualifiedNameOf(type));
+      default -> false;
+    };
+  }
+
+  /**
+   * The element an SPI container focuses on under its generator: an array's component type, or the
+   * type argument at the generator's focus index.
+   *
+   * @param container an array or a declared type the generator supports
+   * @param generator the generator that supports it
+   * @return the element, with a wildcard resolved to the type it stands for, or null when the
+   *     container is raw or the wildcard resolves to no type at all
+   */
+  public static TypeMirror spiElement(TypeMirror container, TraversableGenerator generator) {
+    return container instanceof ArrayType arrayType
+        ? arrayType.getComponentType()
+        : typeArgumentAt((DeclaredType) container, generator.getFocusTypeArgumentIndex());
   }
 
   /** The qualified name of a declared type's element. */

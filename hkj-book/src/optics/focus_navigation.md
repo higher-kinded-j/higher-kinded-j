@@ -173,7 +173,7 @@ flowchart LR
     class N,W,Q,P tier
 ```
 
-The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
+The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_or_via}}
@@ -361,7 +361,7 @@ To reach inside the field as declared, wildcard included, write a lens over its 
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 
-The processor reads each recognised annotation wherever its own `@Target` puts it: JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself. A container decides its own widening, so `@Nullable List<T>` is still `.each()`. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
+The processor reads each recognised annotation wherever its own `@Target` puts it: JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself. A nullable container widens through `.nullable()`, then its own step if it has one: `@Nullable List<T>` is `.nullable().each()`, so a null list has no elements. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
 Under a JSpecify checker such as NullAway, every optic and Focus path type takes a nullable focus. So a path typed `FocusPath<LegacyContact, @Nullable String>` checks, and its `.nullable()` is the non-null `AffinePath<LegacyContact, String>`. A read that hands the focus back in an `Optional` or a `Maybe`, such as `getOptional`, `preview` or `toMaybePath`, reads a null focus as absent, since neither can hold one. `toEitherPath` and `toTryPath` each have a form that says what a null focus becomes, as [A focus that may be null](focus_effects.md#a-focus-that-may-be-null) shows. To focus an Effect Path through such a path, pass `path.nullable()` to the Effect Path's `focus`, with the error that form takes.
 
@@ -376,7 +376,7 @@ Each SPI generator that names an optic declares a `Cardinality`, the number of v
 | Cardinality | Path | Types |
 |-------------|------|-------|
 | `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>` |
-| `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections` or when the element is itself navigable | `Map<K,V>`, arrays, Eclipse Collections, Guava, Vavr, Apache Commons |
+| `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections` or when the element is itself navigable | `Map<K,V>`, arrays of a reference type, Eclipse Collections, Guava, Vavr, Apache Commons |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:spi_widening}}
@@ -429,7 +429,7 @@ Beyond three levels, compose the rest with `.via()`.
 * **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
-* **Navigators cover a field whose type is another annotated record.** A `Map` or `Either` of one gets a navigator too, but `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
+* **Navigators cover a field whose type is another annotated record.** A `Map`, an array or an `Either` of one gets a navigator too, but `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
 * **`toPath()` is the escape hatch.** A navigator carries only the core operations; `filter`, `modifyF`, `traced` and `via` are one `toPath()` away.
 ~~~
 

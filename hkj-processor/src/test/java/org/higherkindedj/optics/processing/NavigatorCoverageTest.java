@@ -1452,6 +1452,7 @@ class NavigatorCoverageTest {
             @SuppressWarnings("rawtypes") Inner inner -> the raw Inner -> Inner<Object>
             Inner<? extends Number> inner -> Inner<? extends Number> -> Inner<Number>
             Map<String, Inner<?>> inner -> Inner<?> -> Inner<Object>
+            Inner<?>[] inner -> Inner<?> -> Inner<Object>
             """)
     @DisplayName("a component naming no type for a target's parameter keeps its plain path")
     void anUninstantiableComponentKeepsItsPlainPath(

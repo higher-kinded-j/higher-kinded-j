@@ -19,12 +19,14 @@ Every container type has a **cardinality** that determines the generated Focus p
 | `Maybe<A>`        | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.just()` (built-in)      |
 | `Optional<A>`     | Zero or one    | `AffinePath`     | `AffinePath`        | `.some()` (built-in)             |
 | `Map<K, V>`       | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.mapValuesEach()`  |
-| `T[]` (arrays)    | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
+| `T[]` (arrays) ^2 | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
 | `List<A>`         | Zero or more   | `TraversalPath`  | `TraversalPath`     | `.each()` (built-in)            |
 | `Set<A>`          | Zero or more   | `TraversalPath`  | `TraversalPath`     | `EachInstances.setEach()` (built-in) |
 | `Collection<A>`   | Zero or more   | `TraversalPath`  | `TraversalPath`     | `EachInstances.collectionEach()` (built-in) |
 
-^1 SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Call `.each(eachInstance)` to widen manually.
+^1 SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Set `@GenerateFocus(widenCollections = true)` to widen them there, or call `.each(eachInstance)` to widen manually.
+
+^2 An array of a reference type. A primitive array such as `int[]` stays a `FocusPath` under every setting: `arrayEach()` is `Each<A[], A>`, and no primitive is an `A`.
 
 ## Eclipse Collections
 
@@ -80,7 +82,7 @@ public static AffinePath<Employee, String> nickname() {
 }
 ```
 
-Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A container decides its own widening, so `@Nullable List<T>` is `.each()` and `@Nullable Optional<T>` is `.some()`; and position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
+Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each()` and `@Nullable Optional<T>` is `.nullable().some()`, and a null container has no focus. A nullable container inside another, as in `List<@Nullable List<T>>`, is ruled out the same way, and a navigator passes over a null element it would read. Position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
 ### List<T> -> TraversalPath (element traversal)
 <!-- verify -->

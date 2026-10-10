@@ -3363,6 +3363,20 @@ class TraversalsTest {
 
       assertThat(result).containsExactly("first", "second", "third", "fourth");
     }
+
+    @Test
+    @DisplayName("forArray() should build the new array with the source's component type")
+    void forArray_keepsTheSourcesComponentType() {
+      Traversal<Number[], Number> arrayTraversal = Traversals.forArray();
+      Number[] integers = new Integer[] {1, 2};
+
+      Number[] doubled = Traversals.modify(arrayTraversal, n -> n.intValue() * 2, integers);
+
+      assertThat(doubled).isInstanceOf(Integer[].class).containsExactly(2, 4);
+      // An Integer[] behind a Number[] takes no Double, as any Java array store would refuse it.
+      assertThatThrownBy(() -> Traversals.modify(arrayTraversal, n -> n.doubleValue(), integers))
+          .isInstanceOf(ArrayStoreException.class);
+    }
   }
 
   // =============================================================================

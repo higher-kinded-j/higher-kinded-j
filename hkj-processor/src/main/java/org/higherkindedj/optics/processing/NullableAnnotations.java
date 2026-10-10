@@ -287,6 +287,17 @@ public final class NullableAnnotations {
         || hasNullable(component.getAccessor().getAnnotationMirrors());
   }
 
+  /**
+   * Whether a type carries a recognised nullable {@code TYPE_USE} annotation on itself, as the
+   * element of {@code List<@Nullable Leaf>} does, rather than on a type inside it.
+   *
+   * @param type the type to check
+   * @return {@code true} if the type itself is annotated nullable
+   */
+  static boolean isNullable(TypeMirror type) {
+    return hasNullable(type.getAnnotationMirrors());
+  }
+
   private static boolean hasNullable(List<? extends AnnotationMirror> mirrors) {
     return mirrors.stream()
         .map(mirror -> mirror.getAnnotationType().toString())

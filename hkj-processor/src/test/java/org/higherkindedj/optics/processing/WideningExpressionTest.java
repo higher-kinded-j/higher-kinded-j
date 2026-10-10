@@ -52,11 +52,11 @@ class WideningExpressionTest {
   }
 
   @Test
-  @DisplayName("should append .nullable() for a NULLABLE step")
+  @DisplayName("should render .nullable() for a NULLABLE step, before the container's own step")
   void shouldAppendNullableForNullableStep() {
-    String expression = build(step(StepKind.OPTIONAL), step(StepKind.NULLABLE));
+    String expression = build(step(StepKind.NULLABLE), step(StepKind.OPTIONAL));
 
-    assertThat(expression).isEqualTo(".some().nullable()");
+    assertThat(expression).isEqualTo(".nullable().some()");
   }
 
   @Test

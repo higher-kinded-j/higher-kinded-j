@@ -27,32 +27,6 @@ class FocusProcessorEdgeCasesTest {
 
     @Test
     @DisplayName(
-        "@Nullable on Optional field should still produce AffinePath via Optional widening")
-    void nullableOptionalShouldUseOptionalWidening() {
-      // Optional takes precedence over @Nullable
-      final JavaFileObject sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.Order",
-              """
-              package com.example;
-              import java.util.Optional;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              import org.jspecify.annotations.Nullable;
-              @GenerateFocus
-              public record Order(String id, @Nullable Optional<String> note) {}
-              """);
-
-      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
-
-      assertThat(compilation).succeeded();
-
-      // Optional widening takes precedence, so it should be AffinePath via .some()
-      assertGeneratedCodeContains(
-          compilation, "com.example.OrderFocus", "AffinePath<Order, String> note()");
-    }
-
-    @Test
-    @DisplayName(
         "@Nullable on non-container declared type should produce AffinePath via .nullable()")
     void nullableOnDeclaredTypeShouldProduceAffinePath() {
       final JavaFileObject sourceFile =
