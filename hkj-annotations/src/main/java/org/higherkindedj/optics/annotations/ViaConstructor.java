@@ -84,7 +84,14 @@ public @interface ViaConstructor {
    * spec method, and so is one that passes an accessor's value where a parameter named after
    * another accessor stands. Those names are known for a constructor compiled from source, and for
    * one read from a class file compiled with {@code -parameters} or {@code -g}; a parameter named
-   * after nothing the type reads leaves its place to the order.
+   * after nothing the type reads leaves its place to the order. A variable-arity constructor is
+   * held to its names the same way, each value passed into its array to the array parameter's.
+   *
+   * <p>An order can rebuild through a constructor that takes fewer values than the source holds.
+   * Where a longer constructor takes a value the order passes nothing for, or for a record a
+   * component is left out, the processor warns, since after every set that value reads what the
+   * shorter constructor gives it. Where the shorter constructor works the value out on purpose,
+   * {@code @SuppressWarnings("shorter-constructor")} on the lens method keeps it quiet.
    *
    * <p>If empty (the default), the order is read from the parameter names: from the one constructor
    * each of whose parameters is named after an accessor that reads a value it takes, as {@code

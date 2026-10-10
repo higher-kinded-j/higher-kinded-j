@@ -406,6 +406,42 @@ class SpecGeneratedOpticLawsTest {
           }
           """);
 
+  // A shorter constructor that works out the value it leaves out, so rebuilding through it keeps
+  // the record consistent and the lens lawful.
+  private static final JavaFileObject EXTERNAL_RECT =
+      JavaFileObjects.forSourceString(
+          "com.external.Rect",
+          """
+          package com.external;
+
+          public record Rect(int w, int h, int area) {
+              public Rect(int w, int h) {
+                  this(w, h, w * h);
+              }
+          }
+          """);
+
+  private static final JavaFileObject RECT_SPEC =
+      JavaFileObjects.forSourceString(
+          "com.test.RectSpec",
+          """
+          package com.test;
+
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.ImportOptics;
+          import org.higherkindedj.optics.annotations.OpticsSpec;
+          import org.higherkindedj.optics.annotations.ViaConstructor;
+          import com.external.Rect;
+
+          @ImportOptics
+          public interface RectSpec extends OpticsSpec<Rect> {
+
+              @SuppressWarnings("shorter-constructor")
+              @ViaConstructor(parameterOrder = {"w", "h"})
+              Lens<Rect, Integer> w();
+          }
+          """);
+
   // ==================== @ViaCopyAndSet SOURCES ====================
 
   // All the state lives on the base, so both copy constructors are full copies and it does not
@@ -537,13 +573,15 @@ class SpecGeneratedOpticLawsTest {
                 EXTERNAL_NARROW_BASE,
                 EXTERNAL_NARROW,
                 EXTERNAL_RANGE,
+                EXTERNAL_RECT,
                 PERSON_SPEC,
                 POINT_SPEC,
                 SHAPE_SPEC,
                 RESULT_SPEC,
                 FULL_SPEC,
                 NARROW_SPEC,
-                RANGE_SPEC);
+                RANGE_SPEC,
+                RECT_SPEC);
 
     assertThat(compilation.status())
         .as("Compilation should succeed")
@@ -632,6 +670,15 @@ class SpecGeneratedOpticLawsTest {
           lensGetPutTest("Range.high", "com.test.Range", "high", 1, 9),
           lensPutGetTest("Range.high", "com.test.Range", "high", 7, 1, 9),
           lensPutPutTest("Range.high", "com.test.Range", "high", 6, 8, 1, 9));
+    }
+
+    @TestFactory
+    @DisplayName("a lens through a shorter constructor that works out what it leaves out is lawful")
+    Stream<DynamicTest> lensThroughAShorterConstructorThatWorksOutWhatItLeavesOutIsLawful() {
+      return Stream.of(
+          lensGetPutTest("Rect.w", "com.test.Rect", "w", 2, 3),
+          lensPutGetTest("Rect.w", "com.test.Rect", "w", 5, 2, 3),
+          lensPutPutTest("Rect.w", "com.test.Rect", "w", 4, 6, 2, 3));
     }
   }
 
@@ -1027,6 +1074,7 @@ class SpecGeneratedOpticLawsTest {
       case "com.test.Full" -> "com.external.Full";
       case "com.test.Narrow" -> "com.external.Narrow";
       case "com.test.Range" -> "com.external.Range";
+      case "com.test.Rect" -> "com.external.Rect";
       default -> throw new IllegalArgumentException("Unknown spec class: " + specClass);
     };
   }
