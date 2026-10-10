@@ -3,15 +3,8 @@
 package org.higherkindedj.example.optics.fluent.model;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
-/** Represents a product with pricing and promotion details. */
+/** A catalogue entry, keyed by the same sku a line item carries. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Product(
-    String productId,
-    String name,
-    BigDecimal price,
-    int stockLevel,
-    ProductStatus status,
-    Optional<Promotion> activePromotion) {}
+public record Product(String sku, String name, BigDecimal price, int stock) {}

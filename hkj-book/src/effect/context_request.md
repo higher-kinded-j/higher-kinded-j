@@ -862,4 +862,4 @@ Practise request tracing patterns in [Tutorial 03: RequestContext Patterns](http
 ---
 
 **Previous:** [MutableContext](effect_contexts_mutable.md)
-**Next:** [SecurityContext Patterns](context_security.md)
+**Next:** [SecurityContext](context_security.md)

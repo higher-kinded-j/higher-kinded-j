@@ -6,7 +6,7 @@ import java.util.List;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
-/** Represents a product category. */
+/** Represents a product category and the products it lists. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 @GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Category(String categoryId, String name, List<Product> products) {}
+public record Category(String categoryId, String name, List<ProductListing> listings) {}

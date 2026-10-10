@@ -144,7 +144,7 @@ public final class SettersBook {
 
     Setter<Product, BigDecimal> priceSetter =
         Setter.fromGetSet(
-            Product::price, (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
+            Product::price, (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
 
     // Compose: Inventory → List<Product> → Product
     Setter<Inventory, Product> allProductsSetter = productsSetter.andThen(productListSetter);
@@ -152,9 +152,9 @@ public final class SettersBook {
     Inventory inventory =
         new Inventory(
             List.of(
-                new Product("Laptop", new BigDecimal("999.99"), 50, List.of("electronics")),
-                new Product("Keyboard", new BigDecimal("79.99"), 100, List.of("accessories")),
-                new Product("Monitor", new BigDecimal("299.99"), 30, List.of("displays"))),
+                new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 50),
+                new Product("KEYBOARD", "Keyboard", new BigDecimal("79.99"), 100),
+                new Product("MONITOR", "Monitor", new BigDecimal("299.99"), 30)),
             "WH-001");
 
     // Apply 10% discount to all products, rounded to the penny
@@ -168,7 +168,7 @@ public final class SettersBook {
     // Restock all products
     Setter<Product, Integer> stockSetter =
         Setter.fromGetSet(
-            Product::stock, (p, stock) -> new Product(p.name(), p.price(), stock, p.tags()));
+            Product::stock, (p, stock) -> new Product(p.sku(), p.name(), p.price(), stock));
 
     Inventory restocked =
         allProductsSetter.modify(
@@ -261,7 +261,7 @@ public final class SettersBook {
     Setter<List<Product>, Product> productSetter = Setter.forList();
     Setter<Product, String> nameSetter =
         Setter.fromGetSet(
-            Product::name, (p, name) -> new Product(name, p.price(), p.stock(), p.tags()));
+            Product::name, (p, name) -> new Product(p.sku(), name, p.price(), p.stock()));
 
     Function<String, String> normalise =
         name -> {
@@ -271,13 +271,13 @@ public final class SettersBook {
 
     List<Product> rawProducts =
         List.of(
-            new Product("  LAPTOP  ", new BigDecimal("999.99"), 50, List.of()),
-            new Product("keyboard", new BigDecimal("79.99"), 100, List.of()),
-            new Product("MONITOR", new BigDecimal("299.99"), 30, List.of()));
+            new Product("LAPTOP", "  LAPTOP  ", new BigDecimal("999.99"), 50),
+            new Product("KEYBOARD", "keyboard", new BigDecimal("79.99"), 100),
+            new Product("MONITOR", "MONITOR", new BigDecimal("299.99"), 30));
 
     List<Product> normalised =
         productSetter.modify(product -> nameSetter.modify(normalise, product), rawProducts);
-    // [Product[name=Laptop, ...], Product[name=Keyboard, ...], Product[name=Monitor, ...]]
+    // [Product[sku=LAPTOP, name=Laptop, ...], Product[sku=KEYBOARD, name=Keyboard, ...], ...]
     // ANCHOR_END: normalise
     return normalised;
   }
@@ -292,9 +292,9 @@ record User(String username, String email, int loginCount, UserSettings settings
 record UserSettings(
     String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
-/** The page's product: its price is money, so it is a {@code BigDecimal}. */
+/** The chapter's catalogue entry, keyed by the sku a line item carries. */
 @GenerateSetters
-record Product(String name, BigDecimal price, int stock, List<String> tags) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 /** The page's inventory of products. */
 @GenerateSetters

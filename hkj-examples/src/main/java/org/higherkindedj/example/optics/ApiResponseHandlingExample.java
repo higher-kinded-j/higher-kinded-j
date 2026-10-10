@@ -2,7 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
 import java.util.List;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
@@ -22,13 +25,13 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
  */
 public class ApiResponseHandlingExample {
 
-  // API response variants for User data
+  // API response variants for a customer the order service looks up
   @GeneratePrisms
   public sealed interface ApiResponse
       permits ApiSuccess, ApiClientError, ApiServerError, ApiNetworkError {}
 
   @GenerateLenses
-  public record ApiSuccess(User data, int statusCode) implements ApiResponse {}
+  public record ApiSuccess(Customer data, int statusCode) implements ApiResponse {}
 
   @GenerateLenses
   public record ApiClientError(String message, int statusCode) implements ApiResponse {}
@@ -40,10 +43,8 @@ public class ApiResponseHandlingExample {
   @GenerateLenses
   public record ApiNetworkError(String reason) implements ApiResponse {}
 
-  // Domain models
-  public record User(String id, String name, String email) {}
-
-  public record Product(String id, String name, double price) {}
+  // The chapter's catalogue entry, which a product lookup returns
+  public record Product(String sku, String name, BigDecimal price, int stock) {}
 
   // Product response variants
   @GeneratePrisms
@@ -81,8 +82,8 @@ public class ApiResponseHandlingExample {
     System.out.println("--- Basic Response Type Checking ---");
 
     ApiResponse successResponse =
-        new ApiSuccess(new User("123", "Alice", "alice@example.com"), 200);
-    ApiResponse errorResponse = new ApiClientError("Invalid user ID", 400);
+        new ApiSuccess(new Customer("Alice", new EmailAddress("alice@example.com")), 200);
+    ApiResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
     ApiResponse serverErrorResponse = new ApiServerError("Database unavailable", 503, "abc");
 
     // Check response types without instanceof
@@ -99,17 +100,17 @@ public class ApiResponseHandlingExample {
     System.out.println("--- Safe Data Extraction ---");
 
     ApiResponse successResponse =
-        new ApiSuccess(new User("123", "Alice", "alice@example.com"), 200);
-    ApiResponse errorResponse = new ApiClientError("Invalid user ID", 400);
+        new ApiSuccess(new Customer("Alice", new EmailAddress("alice@example.com")), 200);
+    ApiResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
 
-    // Extract user data with default fallback
-    User defaultUser = new User("0", "Guest", "guest@example.com");
+    // Extract customer data with default fallback
+    Customer guest = new Customer("Guest", new EmailAddress("guest@example.com"));
 
-    User user1 = SUCCESS.mapOptional(ApiSuccess::data, successResponse).orElse(defaultUser);
-    User user2 = SUCCESS.mapOptional(ApiSuccess::data, errorResponse).orElse(defaultUser);
+    Customer customer1 = SUCCESS.mapOptional(ApiSuccess::data, successResponse).orElse(guest);
+    Customer customer2 = SUCCESS.mapOptional(ApiSuccess::data, errorResponse).orElse(guest);
 
-    System.out.println("User from success: " + user1);
-    System.out.println("User from error (fallback): " + user2);
+    System.out.println("Customer from success: " + customer1);
+    System.out.println("Customer from error (fallback): " + customer2);
 
     // Extract error messages safely
     String errorMessage =
@@ -177,17 +178,15 @@ public class ApiResponseHandlingExample {
   private static void demonstrateResponseTransformation() {
     System.out.println("--- Response Transformation ---");
 
-    ApiResponse response = new ApiSuccess(new User("123", "alice", "alice@example.com"), 200);
+    ApiResponse response =
+        new ApiSuccess(new Customer("alice", new EmailAddress("alice@example.com")), 200);
 
-    // Normalise user name to title case using modify
+    // Normalise the customer's name to title case using modify
     ApiResponse normalised =
         SUCCESS.modify(
             success ->
                 new ApiSuccess(
-                    new User(
-                        success.data().id(),
-                        capitalise(success.data().name()),
-                        success.data().email()),
+                    new Customer(capitalise(success.data().name()), success.data().email()),
                     success.statusCode()),
             response);
 
@@ -196,7 +195,7 @@ public class ApiResponseHandlingExample {
 
     // Redact email addresses in error messages
     ApiResponse errorWithEmail =
-        new ApiClientError("Invalid email: alice@example.com for user alice", 400);
+        new ApiClientError("Invalid email: alice@example.com for customer alice", 400);
 
     ApiResponse redacted =
         CLIENT_ERROR.modify(
@@ -222,11 +221,12 @@ public class ApiResponseHandlingExample {
 
     List<ProductResponse> responses =
         List.of(
-            new ProductSuccess(new Product("p1", "Laptop", 999.99), 200),
+            new ProductSuccess(new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 5), 200),
             new ProductClientError("Product not found", 404),
-            new ProductSuccess(new Product("p2", "Mouse", 29.99), 200),
+            new ProductSuccess(new Product("MOUSE", "Mouse", new BigDecimal("29.99"), 40), 200),
             new ProductServerError("Inventory service down", 503, "trace-1"),
-            new ProductSuccess(new Product("p3", "Keyboard", 79.99), 200));
+            new ProductSuccess(
+                new Product("KEYBOARD", "Keyboard", new BigDecimal("79.99"), 12), 200));
 
     // Extract all successful products
     List<Product> products =
@@ -251,14 +251,14 @@ public class ApiResponseHandlingExample {
     System.out.println("Client errors: " + clientErrors);
     System.out.println("Server errors: " + serverErrors);
 
-    // Calculate total value of successful products
-    double totalValue =
+    // Calculate the stock value of successful products: each price times the units in stock
+    BigDecimal stockValue =
         responses.stream()
             .flatMap(resp -> productSuccess.mapOptional(ProductSuccess::data, resp).stream())
-            .mapToDouble(Product::price)
-            .sum();
+            .map(p -> p.price().multiply(BigDecimal.valueOf(p.stock())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    System.out.println("Total value of retrieved products: £" + String.format("%.2f", totalValue));
+    System.out.println("Stock value of retrieved products: £" + stockValue);
 
     System.out.println();
   }

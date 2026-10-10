@@ -395,25 +395,27 @@ import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 
-// A product as the catalogue lists it, with the category and stock a line item does not carry
-public record Product(String name, BigDecimal price, String category, boolean inStock) {}
+// A catalogue entry, keyed by the sku a line item carries
+public record Product(String sku, String name, BigDecimal price, int stock) {}
 
+// The catalogue's products; a separate map files each sku under a category
 @GenerateFolds
-public record ProductCatalog(List<Product> products) {}
+public record ProductCatalogue(List<Product> products) {}
 
 public class ProductSearchService {
-    private static final Fold<ProductCatalog, Product> ALL_PRODUCTS =
-        ProductCatalogFolds.products();
+    private static final Fold<ProductCatalogue, Product> ALL_PRODUCTS =
+        ProductCatalogueFolds.products();
 
     // Find the cheapest in-stock product in a category
     public Maybe<Product> findCheapestInCategory(
-        ProductCatalog catalog,
+        ProductCatalogue catalogue,
+        Map<String, String> categoryBySku,
         String category
     ) {
-        return getAllMaybe(ALL_PRODUCTS, catalog)
+        return getAllMaybe(ALL_PRODUCTS, catalogue)
             .map(products -> products.stream()
-                .filter(p -> category.equals(p.category()))
-                .filter(Product::inStock)
+                .filter(p -> category.equals(categoryBySku.get(p.sku())))
+                .filter(p -> p.stock() > 0)
                 .min(Comparator.comparing(Product::price))
                 .orElse(null)
             )
@@ -421,24 +423,24 @@ public class ProductSearchService {
     }
 
     // Get first premium product (>£1000)
-    public Maybe<Product> findPremiumProduct(ProductCatalog catalog) {
+    public Maybe<Product> findPremiumProduct(ProductCatalogue catalogue) {
         return findMaybe(
             ALL_PRODUCTS,
             product -> product.price().compareTo(new BigDecimal("1000")) > 0,
-            catalog
+            catalogue
         );
     }
 
     // Check if any products are available
-    public boolean hasAvailableProducts(ProductCatalog catalog) {
-        return getAllMaybe(ALL_PRODUCTS, catalog)
-            .map(products -> products.stream().anyMatch(Product::inStock))
+    public boolean hasAvailableProducts(ProductCatalogue catalogue) {
+        return getAllMaybe(ALL_PRODUCTS, catalogue)
+            .map(products -> products.stream().anyMatch(p -> p.stock() > 0))
             .orElse(false);
     }
 
     // Extract all product names (or empty message)
-    public String getProductSummary(ProductCatalog catalog) {
-        return getAllMaybe(ALL_PRODUCTS, catalog)
+    public String getProductSummary(ProductCatalogue catalogue) {
+        return getAllMaybe(ALL_PRODUCTS, catalogue)
             .map(products -> products.stream()
                 .map(Product::name)
                 .collect(Collectors.joining(", "))

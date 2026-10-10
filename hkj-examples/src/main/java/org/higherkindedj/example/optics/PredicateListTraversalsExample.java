@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -62,12 +64,20 @@ public class PredicateListTraversalsExample {
     }
   }
 
-  record Product(String sku, String name, double price, int stock) {
+  record Product(String sku, String name, BigDecimal price, int stock) {
+    Product applyDiscount(int percent) {
+      BigDecimal factor = BigDecimal.valueOf(100 - percent, 2); // 10 percent off is 0.90
+      return new Product(
+          sku, name, price.multiply(factor).setScale(2, RoundingMode.HALF_EVEN), stock);
+    }
+
     @Override
     public String toString() {
       return String.format("%s (%s): $%.2f, stock=%d", name, sku, price, stock);
     }
   }
+
+  private static final BigDecimal TWENTY = new BigDecimal("20.00");
 
   public static void main(String[] args) {
     System.out.println("=== PREDICATE-BASED LIST TRAVERSALS EXAMPLE ===\n");
@@ -87,24 +97,21 @@ public class PredicateListTraversalsExample {
     // Process products while price < $20
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 100),
-            new Product("SKU002", "Gadget", 15.0, 50),
-            new Product("SKU003", "Gizmo", 25.0, 75), // Stops here
-            new Product("SKU004", "Thing", 12.0, 25) // Not included
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 100),
+            new Product("SKU002", "Gadget", new BigDecimal("15.00"), 50),
+            new Product("SKU003", "Gizmo", new BigDecimal("25.00"), 75), // Stops here
+            new Product("SKU004", "Thing", new BigDecimal("12.00"), 25) // Not included
             );
 
     Traversal<List<Product>, Product> affordablePrefix =
-        ListTraversals.takingWhile(p -> p.price() < 20.0);
+        ListTraversals.takingWhile(p -> p.price().compareTo(TWENTY) < 0);
 
     System.out.println("Original products:");
     products.forEach(p -> System.out.println("  " + p));
 
     // Discount affordable prefix
     List<Product> discounted =
-        Traversals.modify(
-            affordablePrefix,
-            p -> new Product(p.sku(), p.name(), p.price() * 0.9, p.stock()),
-            products);
+        Traversals.modify(affordablePrefix, p -> p.applyDiscount(10), products);
 
     System.out.println("\nAfter 10% discount on affordable prefix (price < $20):");
     discounted.forEach(p -> System.out.println("  " + p));
@@ -129,10 +136,10 @@ public class PredicateListTraversalsExample {
     // Skip low-stock items
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 20),
-            new Product("SKU002", "Gadget", 25.0, 30),
-            new Product("SKU003", "Gizmo", 15.0, 75), // First well-stocked
-            new Product("SKU004", "Thing", 12.0, 25)); // Included
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 20),
+            new Product("SKU002", "Gadget", new BigDecimal("25.00"), 30),
+            new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 75), // First well-stocked
+            new Product("SKU004", "Thing", new BigDecimal("12.00"), 25)); // Included
 
     Traversal<List<Product>, Product> wellStocked =
         ListTraversals.droppingWhile(p -> p.stock() < 50);
@@ -176,9 +183,9 @@ public class PredicateListTraversalsExample {
 
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 100),
-            new Product("SKU002", "Gadget", 25.0, 50),
-            new Product("SKU003", "Gizmo", 15.0, 75));
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 100),
+            new Product("SKU002", "Gadget", new BigDecimal("25.00"), 50),
+            new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 75));
 
     // Access third product
     Traversal<List<Product>, Product> thirdProduct = ListTraversals.element(2);
@@ -189,11 +196,7 @@ public class PredicateListTraversalsExample {
     }
 
     // Modify only the third product
-    List<Product> updated =
-        Traversals.modify(
-            thirdProduct,
-            p -> new Product(p.sku(), p.name(), p.price() * 0.8, p.stock()),
-            products);
+    List<Product> updated = Traversals.modify(thirdProduct, p -> p.applyDiscount(20), products);
 
     System.out.println("\nAfter 20% discount on element at index 2:");
     for (int i = 0; i < updated.size(); i++) {
@@ -227,18 +230,18 @@ public class PredicateListTraversalsExample {
 
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 0), // No stock
-            new Product("SKU002", "Gadget", 15.0, 50),
-            new Product("SKU003", "Gizmo", 25.0, 75),
-            new Product("SKU004", "Thing", 12.0, 100),
-            new Product("SKU005", "Doodad", 30.0, 25),
-            new Product("SKU006", "Thingamajig", 8.0, 80));
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 0), // No stock
+            new Product("SKU002", "Gadget", new BigDecimal("15.00"), 50),
+            new Product("SKU003", "Gizmo", new BigDecimal("25.00"), 75),
+            new Product("SKU004", "Thing", new BigDecimal("12.00"), 100),
+            new Product("SKU005", "Doodad", new BigDecimal("30.00"), 25),
+            new Product("SKU006", "Thingamajig", new BigDecimal("8.00"), 80));
 
     // Combine taking with filtering - take first 4, then filter by stock and price
     Traversal<List<Product>, Product> topAffordableInStock =
         ListTraversals.<Product>taking(4)
             .filtered(p -> p.stock() > 0)
-            .filtered(p -> p.price() < 20.0);
+            .filtered(p -> p.price().compareTo(TWENTY) < 0);
 
     System.out.println("All products:");
     for (int i = 0; i < products.size(); i++) {
@@ -251,10 +254,7 @@ public class PredicateListTraversalsExample {
 
     // Apply discount to focused products
     List<Product> discounted =
-        Traversals.modify(
-            topAffordableInStock,
-            p -> new Product(p.sku(), p.name(), p.price() * 0.85, p.stock()),
-            products);
+        Traversals.modify(topAffordableInStock, p -> p.applyDiscount(15), products);
 
     System.out.println("\nAfter 15% discount on focused products:");
     for (int i = 0; i < discounted.size(); i++) {

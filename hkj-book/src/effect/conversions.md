@@ -822,5 +822,5 @@ Continue to [Patterns and Recipes](patterns.md) for real-world usage patterns.
 
 ---
 
-**Previous:** [Capability Interfaces](capabilities.md)
+**Previous:** [Reference](capabilities.md)
 **Next:** [Common Compiler Errors](compiler_errors.md)

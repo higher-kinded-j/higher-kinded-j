@@ -55,7 +55,7 @@ record Team(String name, List<Player> players) {}
 record League(String name, List<Team> teams) {}
 
 @GenerateLenses
-record Product(String name, BigDecimal price, String tag, int stockLevel) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 @GenerateLenses
 @GenerateTraversals
@@ -135,20 +135,20 @@ class Fixture {
 
   static final List<Product> products =
       List.of(
-          new Product("Widget", new BigDecimal("100.00"), "tools", 5),
-          new Product("Gadget", new BigDecimal("200.00"), "tools", 0),
-          new Product("Gizmo", new BigDecimal("300.00"), "toys", 2),
-          new Product("Doohickey", new BigDecimal("400.00"), "toys", 7),
-          new Product("Thingummy", new BigDecimal("500.00"), "spares", 0));
+          new Product("WIDGET", "Widget", new BigDecimal("100.00"), 5),
+          new Product("GADGET", "Gadget", new BigDecimal("200.00"), 0),
+          new Product("GIZMO", "Gizmo", new BigDecimal("300.00"), 2),
+          new Product("DOOHICKEY", "Doohickey", new BigDecimal("400.00"), 7),
+          new Product("THINGUMMY", "Thingummy", new BigDecimal("500.00"), 0));
 
   static final Catalogue catalogue =
       new Catalogue("Autumn", List.of(new Category("Everything", products)));
 
   static final Lens<Product, BigDecimal> productToPrice =
-      Lens.of(Product::price, (p, v) -> new Product(p.name(), v, p.tag(), p.stockLevel()));
+      Lens.of(Product::price, (p, v) -> new Product(p.sku(), p.name(), v, p.stock()));
 
   static final Lens<Product, String> productToName =
-      Lens.of(Product::name, (p, v) -> new Product(v, p.price(), p.tag(), p.stockLevel()));
+      Lens.of(Product::name, (p, v) -> new Product(p.sku(), v, p.price(), p.stock()));
 
   static final Traversal<List<Product>, BigDecimal> priceTraversal =
       Traversals.<Product>forList().andThen(productToPrice.asTraversal());

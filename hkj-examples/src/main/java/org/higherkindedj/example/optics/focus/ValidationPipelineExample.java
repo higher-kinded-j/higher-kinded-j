@@ -4,8 +4,21 @@ package org.higherkindedj.example.optics.focus;
 
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.instances.Instances;
@@ -42,23 +55,22 @@ public class ValidationPipelineExample {
   @GenerateFocus
   public record Config(String apiKey, String databaseUrl, int timeout, int maxConnections) {}
 
-  /** User profile with fields requiring validation. */
-  @GenerateLenses
-  @GenerateFocus
-  public record UserProfile(String username, String email, int age) {}
+  // The customers and orders are the chapter's Customer, Order and LineItem.
 
-  /** Order with line items for aggregation example. */
-  @GenerateLenses
-  @GenerateFocus
-  public record Order(String orderId, List<LineItem> items) {}
+  // An order of Ada's with the given lines, placed on the same day, in pounds
+  private static Order order(String id, LineItem... lines) {
+    return new Order(
+        UUID.fromString(id),
+        new Customer("Ada", new EmailAddress("ada@example.com")),
+        List.of(lines),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
+  }
 
-  /** Line item in an order. */
-  @GenerateLenses
-  @GenerateFocus
-  public record LineItem(String productId, int quantity, double unitPrice) {
-    double total() {
-      return quantity * unitPrice;
-    }
+  // A line's total: its price times its quantity
+  private static BigDecimal lineTotal(LineItem line) {
+    return line.price().multiply(BigDecimal.valueOf(line.quantity()));
   }
 
   // ============= Examples =============
@@ -118,18 +130,16 @@ public class ValidationPipelineExample {
   static void chainedValidationExample() {
     System.out.println("--- Chained Validation ---");
 
-    UserProfile validProfile = new UserProfile("alice_smith", "alice@example.com", 25);
-    UserProfile invalidEmail = new UserProfile("bob_jones", "not-an-email", 30);
-    UserProfile invalidAge = new UserProfile("charlie", "charlie@test.com", -5);
+    Customer validCustomer = new Customer("Alice Smith", new EmailAddress("Alice@Example.com"));
+    Customer invalidEmail = new Customer("Bob Jones", new EmailAddress("not-an-email"));
+    Customer invalidName = new Customer("  ", new EmailAddress("charlie@test.com"));
 
-    // Username validation: alphanumeric and underscores, 3-20 chars
-    Function<String, Kind<MaybeKind.Witness, String>> validateUsername =
-        username -> {
-          if (username != null
-              && username.length() >= 3
-              && username.length() <= 20
-              && username.matches("^[a-zA-Z0-9_]+$")) {
-            return MaybeKindHelper.MAYBE.widen(Maybe.just(username.toLowerCase()));
+    // Name validation: not blank and at most 40 characters, trimmed
+    Function<String, Kind<MaybeKind.Witness, String>> validateName =
+        name -> {
+          String trimmed = name.trim();
+          if (!trimmed.isEmpty() && trimmed.length() <= 40) {
+            return MaybeKindHelper.MAYBE.widen(Maybe.just(trimmed));
           }
           return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
         };
@@ -137,91 +147,55 @@ public class ValidationPipelineExample {
     // Email validation: simple check for @ symbol
     Function<String, Kind<MaybeKind.Witness, String>> validateEmail =
         email -> {
-          if (email != null && email.contains("@") && email.contains(".")) {
+          if (email.contains("@") && email.contains(".")) {
             return MaybeKindHelper.MAYBE.widen(Maybe.just(email.toLowerCase()));
           }
           return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
         };
 
-    // Age validation: must be positive and reasonable
-    Function<Integer, Kind<MaybeKind.Witness, Integer>> validateAge =
-        age -> {
-          if (age >= 0 && age <= 150) {
-            return MaybeKindHelper.MAYBE.widen(Maybe.just(age));
-          }
-          return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
-        };
-
     // Use generated Focus classes for type-safe navigation
-    FocusPath<UserProfile, String> usernamePath = UserProfileFocus.username();
-    FocusPath<UserProfile, String> emailPath = UserProfileFocus.email();
-    FocusPath<UserProfile, Integer> agePath = UserProfileFocus.age();
+    FocusPath<Customer, String> namePath = CustomerFocus.name();
+    FocusPath<Customer, String> emailPath = CustomerFocus.email().value();
 
     // Chain validations manually (fail-fast)
-    System.out.println("Validating valid profile:");
-    validateProfile(
-        validProfile,
-        usernamePath,
-        emailPath,
-        agePath,
-        validateUsername,
-        validateEmail,
-        validateAge);
+    System.out.println("Validating valid customer:");
+    validateCustomer(validCustomer, namePath, emailPath, validateName, validateEmail);
 
-    System.out.println("\nValidating profile with invalid email:");
-    validateProfile(
-        invalidEmail,
-        usernamePath,
-        emailPath,
-        agePath,
-        validateUsername,
-        validateEmail,
-        validateAge);
+    System.out.println("\nValidating customer with invalid email:");
+    validateCustomer(invalidEmail, namePath, emailPath, validateName, validateEmail);
 
-    System.out.println("\nValidating profile with invalid age:");
-    validateProfile(
-        invalidAge, usernamePath, emailPath, agePath, validateUsername, validateEmail, validateAge);
+    System.out.println("\nValidating customer with blank name:");
+    validateCustomer(invalidName, namePath, emailPath, validateName, validateEmail);
 
     System.out.println();
   }
 
-  private static void validateProfile(
-      UserProfile profile,
-      FocusPath<UserProfile, String> usernamePath,
-      FocusPath<UserProfile, String> emailPath,
-      FocusPath<UserProfile, Integer> agePath,
-      Function<String, Kind<MaybeKind.Witness, String>> validateUsername,
-      Function<String, Kind<MaybeKind.Witness, String>> validateEmail,
-      Function<Integer, Kind<MaybeKind.Witness, Integer>> validateAge) {
+  private static void validateCustomer(
+      Customer customer,
+      FocusPath<Customer, String> namePath,
+      FocusPath<Customer, String> emailPath,
+      Function<String, Kind<MaybeKind.Witness, String>> validateName,
+      Function<String, Kind<MaybeKind.Witness, String>> validateEmail) {
 
-    // Chain validations: username -> email -> age
-    Kind<MaybeKind.Witness, UserProfile> step1 =
-        usernamePath.modifyF(validateUsername, profile, Instances.monadError(maybe()));
+    // Chain validations: name -> email
+    Kind<MaybeKind.Witness, Customer> step1 =
+        namePath.modifyF(validateName, customer, Instances.monadError(maybe()));
 
-    Maybe<UserProfile> afterUsername = MaybeKindHelper.MAYBE.narrow(step1);
-    if (afterUsername.isNothing()) {
-      System.out.println("  Failed at: username validation");
+    Maybe<Customer> afterName = MaybeKindHelper.MAYBE.narrow(step1);
+    if (afterName.isNothing()) {
+      System.out.println("  Failed at: name validation");
       return;
     }
 
-    Kind<MaybeKind.Witness, UserProfile> step2 =
-        emailPath.modifyF(validateEmail, afterUsername.get(), Instances.monadError(maybe()));
+    Kind<MaybeKind.Witness, Customer> step2 =
+        emailPath.modifyF(validateEmail, afterName.get(), Instances.monadError(maybe()));
 
-    Maybe<UserProfile> afterEmail = MaybeKindHelper.MAYBE.narrow(step2);
-    if (afterEmail.isNothing()) {
-      System.out.println("  Failed at: email validation");
-      return;
-    }
-
-    Kind<MaybeKind.Witness, UserProfile> step3 =
-        agePath.modifyF(validateAge, afterEmail.get(), Instances.monadError(maybe()));
-
-    Maybe<UserProfile> result = MaybeKindHelper.MAYBE.narrow(step3);
+    Maybe<Customer> result = MaybeKindHelper.MAYBE.narrow(step2);
     if (result.isJust()) {
       System.out.println("  All validations passed!");
-      System.out.println("  Final profile: " + result.get());
+      System.out.println("  Final customer: " + result.get());
     } else {
-      System.out.println("  Failed at: age validation");
+      System.out.println("  Failed at: email validation");
     }
   }
 
@@ -230,21 +204,20 @@ public class ValidationPipelineExample {
     System.out.println("--- Aggregation with foldMap() ---");
 
     Order order =
-        new Order(
-            "ORD-001",
-            List.of(
-                new LineItem("PROD-A", 2, 29.99),
-                new LineItem("PROD-B", 1, 149.99),
-                new LineItem("PROD-C", 5, 9.99)));
+        order(
+            "00000000-0000-0000-0000-000000000001",
+            new LineItem("LAMP", 2, new BigDecimal("29.99")),
+            new LineItem("DESK", 1, new BigDecimal("149.99")),
+            new LineItem("BULB", 5, new BigDecimal("9.99")));
 
-    // Use generated Focus class - items() returns TraversalPath for List fields
-    TraversalPath<Order, LineItem> allItemsPath = OrderFocus.items();
+    // Use generated Focus class - lines() returns TraversalPath for List fields
+    TraversalPath<Order, LineItem> allLinesPath = OrderFocus.lines();
 
     // Navigate to quantities using generated LineItemFocus
-    TraversalPath<Order, Integer> quantitiesPath = allItemsPath.via(LineItemFocus.quantity());
+    TraversalPath<Order, Integer> quantitiesPath = allLinesPath.via(LineItemFocus.quantity());
 
     // Navigate to prices
-    TraversalPath<Order, Double> pricesPath = allItemsPath.via(LineItemFocus.unitPrice());
+    TraversalPath<Order, BigDecimal> pricesPath = allLinesPath.via(LineItemFocus.price());
 
     // Integer sum monoid
     Monoid<Integer> intSum =
@@ -260,17 +233,17 @@ public class ValidationPipelineExample {
           }
         };
 
-    // Double sum monoid
-    Monoid<Double> doubleSum =
+    // BigDecimal sum monoid
+    Monoid<BigDecimal> moneySum =
         new Monoid<>() {
           @Override
-          public Double empty() {
-            return 0.0;
+          public BigDecimal empty() {
+            return BigDecimal.ZERO;
           }
 
           @Override
-          public Double combine(Double a, Double b) {
-            return a + b;
+          public BigDecimal combine(BigDecimal a, BigDecimal b) {
+            return a.add(b);
           }
         };
 
@@ -292,22 +265,23 @@ public class ValidationPipelineExample {
     int totalQuantity = quantitiesPath.foldMap(intSum, q -> q, order);
     System.out.println("Total quantity: " + totalQuantity);
 
-    // Calculate total using line item totals
-    double orderTotal = allItemsPath.foldMap(doubleSum, LineItem::total, order);
-    System.out.println("Order total: $" + String.format("%.2f", orderTotal));
+    // Calculate total using line totals
+    BigDecimal orderTotal =
+        allLinesPath.foldMap(moneySum, ValidationPipelineExample::lineTotal, order);
+    System.out.println("Order total: £" + orderTotal);
 
     // Find max quantity
     int maxQuantity = quantitiesPath.foldMap(intMax, q -> q, order);
-    System.out.println("Max quantity in single item: " + maxQuantity);
+    System.out.println("Max quantity in single line: " + maxQuantity);
 
-    // Count items
-    int itemCount = allItemsPath.count(order);
-    System.out.println("Number of line items: " + itemCount);
+    // Count lines
+    int lineCount = allLinesPath.count(order);
+    System.out.println("Number of lines: " + lineCount);
 
     // Calculate average price
-    double sumPrices = pricesPath.foldMap(doubleSum, p -> p, order);
-    double avgPrice = sumPrices / itemCount;
-    System.out.println("Average unit price: $" + String.format("%.2f", avgPrice));
+    BigDecimal sumPrices = pricesPath.foldMap(moneySum, p -> p, order);
+    BigDecimal avgPrice = sumPrices.divide(BigDecimal.valueOf(lineCount), 2, RoundingMode.HALF_UP);
+    System.out.println("Average unit price: £" + avgPrice);
 
     System.out.println();
   }
@@ -317,49 +291,53 @@ public class ValidationPipelineExample {
     System.out.println("--- Conditional Modification with modifyWhen() ---");
 
     Order order =
-        new Order(
-            "ORD-002",
-            List.of(
-                new LineItem("BULK-A", 100, 5.00), // Bulk item
-                new LineItem("SMALL-B", 2, 25.00), // Small order
-                new LineItem("BULK-C", 50, 8.00), // Another bulk item
-                new LineItem("TINY-D", 1, 100.00) // Single item
-                ));
+        order(
+            "00000000-0000-0000-0000-000000000002",
+            new LineItem("BULB", 100, new BigDecimal("5.00")), // Bulk line
+            new LineItem("LAMP", 2, new BigDecimal("25.00")), // Small line
+            new LineItem("FUSE", 50, new BigDecimal("8.00")), // Another bulk line
+            new LineItem("DESK", 1, new BigDecimal("100.00")) // Single item
+            );
 
     // Use generated Focus class for type-safe navigation
-    TraversalPath<Order, LineItem> allItemsPath = OrderFocus.items();
+    TraversalPath<Order, LineItem> allLinesPath = OrderFocus.lines();
 
-    System.out.println("Original items:");
-    printOrderItems(order);
+    System.out.println("Original lines:");
+    printOrderLines(order);
 
-    // Apply 10% discount to bulk orders (quantity >= 50)
+    // Apply 10% discount to bulk lines (quantity >= 50)
+    BigDecimal bulkMultiplier = new BigDecimal("0.90");
     Order discountedOrder =
-        allItemsPath.modifyWhen(
-            item -> item.quantity() >= 50,
-            item -> new LineItem(item.productId(), item.quantity(), item.unitPrice() * 0.90),
+        allLinesPath.modifyWhen(
+            line -> line.quantity() >= 50,
+            line ->
+                new LineItem(
+                    line.sku(),
+                    line.quantity(),
+                    line.price().multiply(bulkMultiplier).setScale(2, RoundingMode.HALF_UP)),
             order);
 
     System.out.println("\nAfter bulk discount (10% off for qty >= 50):");
-    printOrderItems(discountedOrder);
+    printOrderLines(discountedOrder);
 
-    // Double the quantity for small orders (quantity < 5)
-    Order doubledSmallOrder =
-        allItemsPath.modifyWhen(
-            item -> item.quantity() < 5,
-            item -> new LineItem(item.productId(), item.quantity() * 2, item.unitPrice()),
+    // Double the quantity for small lines (quantity < 5)
+    Order doubledSmallLines =
+        allLinesPath.modifyWhen(
+            line -> line.quantity() < 5,
+            line -> new LineItem(line.sku(), line.quantity() * 2, line.price()),
             order);
 
-    System.out.println("\nAfter doubling small orders (qty < 5):");
-    printOrderItems(doubledSmallOrder);
+    System.out.println("\nAfter doubling small lines (qty < 5):");
+    printOrderLines(doubledSmallLines);
 
     System.out.println();
   }
 
-  private static void printOrderItems(Order order) {
-    for (LineItem item : order.items()) {
+  private static void printOrderLines(Order order) {
+    for (LineItem line : order.lines()) {
       System.out.printf(
-          "  %s: qty=%d, price=$%.2f, total=$%.2f%n",
-          item.productId(), item.quantity(), item.unitPrice(), item.total());
+          "  %s: qty=%d, price=£%s, total=£%s%n",
+          line.sku(), line.quantity(), line.price(), lineTotal(line));
     }
   }
 }

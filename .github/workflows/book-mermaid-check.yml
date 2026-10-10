@@ -78,7 +78,7 @@ jobs:
 
       # Last, and even when a check before it failed, so a pull request sees every rise at once.
       - name: Check chapter footers against SUMMARY.md
-        run: python3 .github/scripts/chapter_footers.py optics mapping --check
+        run: python3 .github/scripts/chapter_footers.py optics mapping effect --check
 
       - name: Check readability against the baseline
         if: ${{ !cancelled() }}

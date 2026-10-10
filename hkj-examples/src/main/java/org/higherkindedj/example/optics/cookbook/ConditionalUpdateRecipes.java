@@ -2,12 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.cookbook;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Dispatched;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Pending;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Returned;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
 import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
 
 /**
  * Cookbook recipes for conditional updates using Prisms.
@@ -15,24 +18,15 @@ import org.higherkindedj.optics.annotations.GeneratePrisms;
  * <p>Problem: Updating values only when they match certain criteria or types.
  *
  * <p>Solution: Use Prisms to focus on specific variants or matching values.
+ *
+ * <p>The sum type is the chapter's {@link ConsignmentState}, imported from its cast package with
+ * the prisms generated for it.
  */
 public class ConditionalUpdateRecipes {
 
-  // --- Domain Model ---
-  @GeneratePrisms
-  public sealed interface OrderStatus permits Pending, Processing, Shipped, Cancelled {}
+  private static final Instant MORNING = Instant.parse("2026-10-02T09:00:00Z");
 
-  @GenerateLenses
-  public record Pending(String orderId) implements OrderStatus {}
-
-  @GenerateLenses
-  public record Processing(String orderId, String assignee) implements OrderStatus {}
-
-  @GenerateLenses
-  public record Shipped(String orderId, String trackingNumber) implements OrderStatus {}
-
-  @GenerateLenses
-  public record Cancelled(String orderId, String reason) implements OrderStatus {}
+  private static final Instant AFTERNOON = Instant.parse("2026-10-02T15:00:00Z");
 
   public static void main(String[] args) {
     System.out.println("=== Conditional Update Recipes ===\n");
@@ -51,26 +45,24 @@ public class ConditionalUpdateRecipes {
   private static void recipeUpdateSpecificVariant() {
     System.out.println("--- Recipe: Update Specific Variant ---");
 
-    // Prism for Processing orders
-    Prism<OrderStatus, Processing> processingPrism =
-        Prism.of(
-            status -> status instanceof Processing p ? Optional.of(p) : Optional.empty(), p -> p);
+    // Prism for returned consignments
+    Prism<ConsignmentState, Returned> returnedPrism = ConsignmentStatePrisms.returned();
 
-    OrderStatus pending = new Pending("ORD-001");
-    OrderStatus processing = new Processing("ORD-002", "alice");
-    OrderStatus shipped = new Shipped("ORD-003", "TRACK-123");
+    ConsignmentState pending = new Pending();
+    ConsignmentState returned = new Returned("damaged");
+    ConsignmentState dispatched = new Dispatched(MORNING);
 
-    // Update only Processing orders - reassign to new person
-    OrderStatus updatedPending =
-        processingPrism.modify(p -> new Processing(p.orderId(), "bob"), pending);
-    OrderStatus updatedProcessing =
-        processingPrism.modify(p -> new Processing(p.orderId(), "bob"), processing);
-    OrderStatus updatedShipped =
-        processingPrism.modify(p -> new Processing(p.orderId(), "bob"), shipped);
+    // Update only Returned consignments - note the refund against the reason
+    ConsignmentState updatedPending =
+        returnedPrism.modify(r -> new Returned(r.reason() + ", refunded"), pending);
+    ConsignmentState updatedReturned =
+        returnedPrism.modify(r -> new Returned(r.reason() + ", refunded"), returned);
+    ConsignmentState updatedDispatched =
+        returnedPrism.modify(r -> new Returned(r.reason() + ", refunded"), dispatched);
 
     System.out.println("Pending (unchanged): " + updatedPending);
-    System.out.println("Processing (reassigned): " + updatedProcessing);
-    System.out.println("Shipped (unchanged): " + updatedShipped);
+    System.out.println("Returned (refund noted): " + updatedReturned);
+    System.out.println("Dispatched (unchanged): " + updatedDispatched);
     System.out.println();
   }
 
@@ -82,23 +74,22 @@ public class ConditionalUpdateRecipes {
   private static void recipeFilterByType() {
     System.out.println("--- Recipe: Filter by Variant Type ---");
 
-    Prism<OrderStatus, Pending> pendingPrism =
-        Prism.of(status -> status instanceof Pending p ? Optional.of(p) : Optional.empty(), p -> p);
+    Prism<ConsignmentState, Dispatched> dispatchedPrism = ConsignmentStatePrisms.dispatched();
 
-    List<OrderStatus> orders =
+    List<ConsignmentState> consignments =
         List.of(
-            new Pending("ORD-001"),
-            new Processing("ORD-002", "alice"),
-            new Pending("ORD-003"),
-            new Shipped("ORD-004", "TRACK-456"),
-            new Cancelled("ORD-005", "Out of stock"));
+            new Pending(),
+            new Dispatched(MORNING),
+            new Pending(),
+            new Dispatched(AFTERNOON),
+            new Returned("Wrong size"));
 
-    // Get only pending orders
-    List<OrderStatus> pendingOrders =
-        orders.stream().filter(pendingPrism::matches).collect(Collectors.toList());
+    // Get only dispatched consignments
+    List<ConsignmentState> dispatched =
+        consignments.stream().filter(dispatchedPrism::matches).collect(Collectors.toList());
 
-    System.out.println("All orders: " + orders.size());
-    System.out.println("Pending orders: " + pendingOrders);
+    System.out.println("All consignments: " + consignments.size());
+    System.out.println("Dispatched consignments: " + dispatched);
     System.out.println();
   }
 
@@ -110,23 +101,22 @@ public class ConditionalUpdateRecipes {
   private static void recipeTypeChecking() {
     System.out.println("--- Recipe: Type Checking ---");
 
-    Prism<OrderStatus, Shipped> shippedPrism =
-        Prism.of(status -> status instanceof Shipped s ? Optional.of(s) : Optional.empty(), s -> s);
+    Prism<ConsignmentState, Dispatched> dispatchedPrism = ConsignmentStatePrisms.dispatched();
 
-    OrderStatus order1 = new Processing("ORD-001", "alice");
-    OrderStatus order2 = new Shipped("ORD-002", "TRACK-789");
+    ConsignmentState consignment1 = new Pending();
+    ConsignmentState consignment2 = new Dispatched(AFTERNOON);
 
-    // Check if orders are shipped
-    if (shippedPrism.matches(order1)) {
-      System.out.println("Order 1 is shipped");
+    // Check if consignments are dispatched
+    if (dispatchedPrism.matches(consignment1)) {
+      System.out.println("Consignment 1 is dispatched");
     } else {
-      System.out.println("Order 1 is not shipped yet");
+      System.out.println("Consignment 1 is not dispatched yet");
     }
 
-    if (shippedPrism.matches(order2)) {
+    if (dispatchedPrism.matches(consignment2)) {
       // Safe to extract since we checked
-      Shipped shipped = shippedPrism.getOptional(order2).orElseThrow();
-      System.out.println("Order 2 shipped with tracking: " + shipped.trackingNumber());
+      Dispatched dispatched = dispatchedPrism.getOptional(consignment2).orElseThrow();
+      System.out.println("Consignment 2 dispatched at: " + dispatched.at());
     }
     System.out.println();
   }
@@ -139,25 +129,23 @@ public class ConditionalUpdateRecipes {
   private static void recipeExclusionFiltering() {
     System.out.println("--- Recipe: Exclusion Filtering ---");
 
-    Prism<OrderStatus, Cancelled> cancelledPrism =
-        Prism.of(
-            status -> status instanceof Cancelled c ? Optional.of(c) : Optional.empty(), c -> c);
+    Prism<ConsignmentState, Returned> returnedPrism = ConsignmentStatePrisms.returned();
 
-    List<OrderStatus> orders =
+    List<ConsignmentState> consignments =
         List.of(
-            new Pending("ORD-001"),
-            new Cancelled("ORD-002", "Customer request"),
-            new Processing("ORD-003", "bob"),
-            new Cancelled("ORD-004", "Payment failed"),
-            new Shipped("ORD-005", "TRACK-111"));
+            new Pending(),
+            new Returned("Customer request"),
+            new Dispatched(MORNING),
+            new Returned("Wrong size"),
+            new Dispatched(AFTERNOON));
 
-    // Get all non-cancelled orders
-    List<OrderStatus> activeOrders =
-        orders.stream().filter(cancelledPrism::doesNotMatch).collect(Collectors.toList());
+    // Get all consignments that have not come back
+    List<ConsignmentState> active =
+        consignments.stream().filter(returnedPrism::doesNotMatch).collect(Collectors.toList());
 
-    System.out.println("Total orders: " + orders.size());
-    System.out.println("Active (non-cancelled) orders: " + activeOrders.size());
-    activeOrders.forEach(o -> System.out.println("  " + o));
+    System.out.println("Total consignments: " + consignments.size());
+    System.out.println("Active (not returned) consignments: " + active.size());
+    active.forEach(c -> System.out.println("  " + c));
     System.out.println();
   }
 }

@@ -67,7 +67,7 @@ record Account(String accountId, BigDecimal balance) {}
 record Transaction(Account from, Account to, BigDecimal amount) {}
 
 @GenerateLenses
-record Product(String id, BigDecimal price, int stock) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 @GenerateLenses
 @GenerateTraversals

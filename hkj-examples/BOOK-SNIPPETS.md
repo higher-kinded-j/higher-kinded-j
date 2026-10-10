@@ -141,7 +141,7 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 
 A fragment must be at least ten characters, so it cannot be whittled down until it matches any
 message at all. Quote the distinctive middle of the message rather than the `@Annotation:` prefix,
-and prefer the concrete names your reproducer produces (`narrows to 'Card', which is not a 'Cash'`)
+and prefer the concrete names your reproducer produces (`narrows to 'Card', which is not a 'Bank'`)
 over the `'...'` placeholders a page's heading uses: the snippet is yours, so the message is
 predictable.
 

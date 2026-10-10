@@ -254,5 +254,5 @@ EitherPath<DirectoryError, Department> lifted =
 
 ---
 
-**Previous:** [Focus-Effect Integration](focus_integration.md)
+**Previous:** [Optics Integration](focus_integration.md)
 **Next:** [Advanced Paths](advanced_topics.md)

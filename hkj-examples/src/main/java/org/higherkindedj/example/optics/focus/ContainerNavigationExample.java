@@ -2,7 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.focus;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Bank;
+import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.Payment;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
@@ -44,11 +50,14 @@ public class ContainerNavigationExample {
   /** A form field with a label and a validated answer that may hold an error or a valid integer. */
   record FormField(String label, Validated<String, Integer> answer) {}
 
-  /** A payment with an amount and currency. */
-  record Payment(int amount, String currency) {}
+  /** An order's settlement, in the shape Optics for External Types gives it. */
+  record Settlement(UUID orderId, LocalDate settledOn, BigDecimal amount) {}
 
-  /** An order with an identifier and a result that is either an error message or a payment. */
-  record Order(String id, Either<String, Payment> result) {}
+  /**
+   * An attempt to take payment for an order by the chapter's {@link Payment}, a card or a bank
+   * account. Its result is either the reason it was declined or the settlement.
+   */
+  record PaymentAttempt(Payment payment, Either<String, Settlement> result) {}
 
   // ============= @GenerateFocus Records (SPI auto-widening) =============
 
@@ -92,14 +101,14 @@ public class ContainerNavigationExample {
   static final Lens<FormField, Validated<String, Integer>> FIELD_ANSWER =
       Lens.of(FormField::answer, (f, a) -> new FormField(f.label(), a));
 
-  static final Lens<Order, Either<String, Payment>> ORDER_RESULT =
-      Lens.of(Order::result, (o, r) -> new Order(o.id(), r));
+  static final Lens<PaymentAttempt, Either<String, Settlement>> ATTEMPT_RESULT =
+      Lens.of(PaymentAttempt::result, (a, r) -> new PaymentAttempt(a.payment(), r));
 
-  static final Lens<Payment, Integer> PAYMENT_AMOUNT =
-      Lens.of(Payment::amount, (p, a) -> new Payment(a, p.currency()));
+  static final Lens<Settlement, BigDecimal> SETTLEMENT_AMOUNT =
+      Lens.of(Settlement::amount, (s, a) -> new Settlement(s.orderId(), s.settledOn(), a));
 
-  static final Lens<Payment, String> PAYMENT_CURRENCY =
-      Lens.of(Payment::currency, (p, c) -> new Payment(p.amount(), c));
+  static final Lens<Settlement, LocalDate> SETTLEMENT_SETTLED_ON =
+      Lens.of(Settlement::settledOn, (s, d) -> new Settlement(s.orderId(), d, s.amount()));
 
   // ============= Examples =============
 
@@ -211,40 +220,47 @@ public class ContainerNavigationExample {
   /**
    * Demonstrates composing container-widened paths to navigate through nested structures.
    *
-   * <p>An Order contains an Either that, when Right, holds a Payment record. By composing {@code
-   * some(Affines.eitherRight())} with a Lens into Payment fields, we can navigate the entire path
-   * in a single expression.
+   * <p>A PaymentAttempt contains an Either that, when Right, holds a Settlement record. By
+   * composing {@code some(Affines.eitherRight())} with a Lens into Settlement fields, we can
+   * navigate the entire path in a single expression.
    */
   static void composedContainerPathExample() {
     System.out.println("--- Composing Container-Widened Paths ---");
 
-    // Build the composed paths: Order -> Either<String, Payment> -> Payment -> fields
-    FocusPath<Order, Either<String, Payment>> resultPath = FocusPath.of(ORDER_RESULT);
-    AffinePath<Order, Payment> paymentPath = resultPath.some(Affines.eitherRight());
-    AffinePath<Order, Integer> amountPath = paymentPath.via(PAYMENT_AMOUNT);
-    AffinePath<Order, String> currencyPath = paymentPath.via(PAYMENT_CURRENCY);
+    // Build the composed paths: PaymentAttempt -> Either -> Settlement -> fields
+    FocusPath<PaymentAttempt, Either<String, Settlement>> resultPath = FocusPath.of(ATTEMPT_RESULT);
+    AffinePath<PaymentAttempt, Settlement> settlementPath = resultPath.some(Affines.eitherRight());
+    AffinePath<PaymentAttempt, BigDecimal> amountPath = settlementPath.via(SETTLEMENT_AMOUNT);
+    AffinePath<PaymentAttempt, LocalDate> settledOnPath = settlementPath.via(SETTLEMENT_SETTLED_ON);
 
-    Order successfulOrder = new Order("ORD-001", Either.right(new Payment(4999, "GBP")));
-    Order failedOrder = new Order("ORD-002", Either.left("Payment declined"));
+    UUID orderId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    PaymentAttempt settledAttempt =
+        new PaymentAttempt(
+            new Card("4242424242424242"),
+            Either.right(
+                new Settlement(orderId, LocalDate.of(2026, 10, 1), new BigDecimal("49.99"))));
+    PaymentAttempt declinedAttempt =
+        new PaymentAttempt(new Bank("GB33BUKB20201555555555"), Either.left("Payment declined"));
 
     // Navigate to amount through Either
-    Optional<Integer> amount = amountPath.getOptional(successfulOrder);
-    System.out.println("Amount from successful order: " + amount);
+    Optional<BigDecimal> amount = amountPath.getOptional(settledAttempt);
+    System.out.println("Amount from settled attempt: " + amount);
 
-    Optional<Integer> noAmount = amountPath.getOptional(failedOrder);
-    System.out.println("Amount from failed order:     " + noAmount);
+    Optional<BigDecimal> noAmount = amountPath.getOptional(declinedAttempt);
+    System.out.println("Amount from declined attempt: " + noAmount);
 
-    // Navigate to currency through Either
-    Optional<String> currency = currencyPath.getOptional(successfulOrder);
-    System.out.println("Currency from successful order: " + currency);
+    // Navigate to the settlement date through Either
+    Optional<LocalDate> settledOn = settledOnPath.getOptional(settledAttempt);
+    System.out.println("Settled on, from settled attempt: " + settledOn);
 
     // Modify amount through the composed path
-    Order discounted = amountPath.modify(a -> a - 500, successfulOrder);
-    System.out.println("After discount: " + amountPath.getOptional(discounted));
+    BigDecimal refund = new BigDecimal("5.00");
+    PaymentAttempt partlyRefunded = amountPath.modify(a -> a.subtract(refund), settledAttempt);
+    System.out.println("After partial refund: " + amountPath.getOptional(partlyRefunded));
 
-    // Modify on a failed order is a no-op
-    Order unchangedFailed = amountPath.modify(a -> a - 500, failedOrder);
-    System.out.println("Modify on failed order (no-op): " + unchangedFailed.result());
+    // Modify on a declined attempt is a no-op
+    PaymentAttempt unchangedDeclined = amountPath.modify(a -> a.subtract(refund), declinedAttempt);
+    System.out.println("Modify on declined attempt (no-op): " + unchangedDeclined.result());
 
     System.out.println();
   }

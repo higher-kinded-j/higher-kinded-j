@@ -55,6 +55,9 @@ page takes a row.
   `org.higherkindedj.example.book.optics`. A new or rewritten page gets a `<Topic>Book.java` beside a
   `<Topic>BookTest.java` that holds the page's claims, as the chapter intro's `intro` package does.
   Older programs in `org.higherkindedj.example.optics` stay linked from "See Example Code" boxes.
+  They predate the cast, so one may keep a world of its own, such as a league of teams, but a cast
+  name or a `Product` it declares has the cast's shape, and it clones no cast member under another
+  name.
 - **A new or rewritten Ship page takes every runnable block as an include** from those files, as the
   Style Guide's [Java code in hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified)
   rule says. A shape that cannot run is a `verify` fence, and a refused one a `verify:rejects` fence.
@@ -83,7 +86,7 @@ page takes a row.
   `CastFixtures` in the test tree holds the sample values. The Style Guide's
   [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) says when a page may add a type.
   - **A name keeps one shape across both chapters.** A field one page needs goes on a supporting
-    type named for its role beside the cast, such as `Basket`, `Catalogue`, `PaymentHistory` or
+    type named for its role beside the cast, such as `Basket`, `SkuCatalogue`, `PaymentHistory` or
     `PriceBand`, declared in that page's package.
   - **The "before" half of a before-and-after pair may redeclare a cast member** in its own package
     with the withers it calls, as Lombok's `@With` would generate them, but with the cast's
@@ -91,6 +94,12 @@ page takes a row.
     `LineItem`, do.
   - **A width proof keeps placeholder components**, such as the nested-container records on
     Collections, Optionals and Sealed Types, with a comment saying so.
+  - **`Product` is the chapter's catalogue entry**, `Product(String sku, String name, BigDecimal
+    price, int stock)`, keyed by the `sku` a `LineItem` carries. A page that needs more about a
+    product keeps that shape and puts the rest on a supporting type.
+  - **A compiler-error reproducer may reshape a cast name only in what its diagnostic is about**,
+    as the Mapping Chapter Guide's reproducer rule says. One that needs no cast member names a type
+    of its own: not a cast name, and not a name this chapter declares in another shape.
 - **A chained Focus hop needs navigators.** `OrderFocus.customer().email()` compiles only when every
   record a hop leaves carries `@GenerateFocus(generateNavigators = true)`; without it, the hop is
   `.via(...)`.

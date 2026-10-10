@@ -4,6 +4,8 @@ package org.higherkindedj.example.optics;
 
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -19,10 +21,10 @@ import org.higherkindedj.optics.util.Prisms;
  */
 public class AffineUsageExample {
 
-  // 1. Define a nested, immutable data model with optional fields.
-  public record UserProfile(String username, Optional<ContactInfo> contact) {}
-
-  public record ContactInfo(String email, Optional<String> phone) {}
+  // 1. Define a nested, immutable data model with optional fields. A product review sits beside
+  //    the chapter's CustomerProfile: an anonymous review has no author, and an author may have no
+  //    nickname.
+  public record Review(String sku, Optional<CustomerProfile> author) {}
 
   public record AppConfig(String appName, Optional<DatabaseConfig> database) {}
 
@@ -32,10 +34,10 @@ public class AffineUsageExample {
 
   public static void main(String[] args) {
     // 2. Create initial data with nested optionals.
-    var contactWithPhone = new ContactInfo("alice@example.com", Optional.of("+44 7700 900000"));
-    var contactWithoutPhone = new ContactInfo("bob@example.com", Optional.empty());
-    var userWithContact = new UserProfile("alice", Optional.of(contactWithPhone));
-    var userWithoutContact = new UserProfile("charlie", Optional.empty());
+    var ada = new CustomerProfile("Ada", Optional.of("Countess"), Optional.empty());
+    var grace = new CustomerProfile("Grace", Optional.empty(), Optional.empty());
+    var signedReview = new Review("LAMP", Optional.of(ada));
+    var anonymousReview = new Review("BULB", Optional.empty());
 
     System.out.println("=".repeat(60));
     System.out.println("AFFINE USAGE EXAMPLE");
@@ -69,29 +71,27 @@ public class AffineUsageExample {
     System.out.println("--- Scenario 2: Lens.andThen(Prism) = Affine ---");
     System.out.println();
 
-    // Create lenses for our domain model.
-    Lens<UserProfile, Optional<ContactInfo>> contactLens =
-        Lens.of(UserProfile::contact, (u, c) -> new UserProfile(u.username(), c));
+    // Create lenses for our domain model. CustomerProfile's are generated in the cast package.
+    Lens<Review, Optional<CustomerProfile>> authorLens =
+        Lens.of(Review::author, (r, a) -> new Review(r.sku(), a));
 
-    Lens<ContactInfo, Optional<String>> phoneLens =
-        Lens.of(ContactInfo::phone, (c, p) -> new ContactInfo(c.email(), p));
+    Lens<CustomerProfile, Optional<String>> nicknameLens = CustomerProfileLenses.nickname();
 
-    Lens<ContactInfo, String> emailLens =
-        Lens.of(ContactInfo::email, (c, e) -> new ContactInfo(e, c.phone()));
+    Lens<CustomerProfile, String> nameLens = CustomerProfileLenses.name();
 
     // Prism for extracting from Optional.
-    Prism<Optional<ContactInfo>, ContactInfo> contactPrism = Prisms.some();
-    Prism<Optional<String>, String> phonePrism = Prisms.some();
+    Prism<Optional<CustomerProfile>, CustomerProfile> authorPrism = Prisms.some();
+    Prism<Optional<String>, String> nicknamePrism = Prisms.some();
 
     // Composition: Lens.andThen(Prism) = Affine.
-    Affine<UserProfile, ContactInfo> userContactAffine = contactLens.andThen(contactPrism);
+    Affine<Review, CustomerProfile> reviewAuthorAffine = authorLens.andThen(authorPrism);
 
-    System.out.println("User with contact: " + userWithContact);
-    System.out.println("getOptional contact: " + userContactAffine.getOptional(userWithContact));
+    System.out.println("Signed review: " + signedReview);
+    System.out.println("getOptional author: " + reviewAuthorAffine.getOptional(signedReview));
     System.out.println();
 
-    System.out.println("User without contact: " + userWithoutContact);
-    System.out.println("getOptional contact: " + userContactAffine.getOptional(userWithoutContact));
+    System.out.println("Anonymous review: " + anonymousReview);
+    System.out.println("getOptional author: " + reviewAuthorAffine.getOptional(anonymousReview));
     System.out.println();
 
     // =======================================================================
@@ -102,21 +102,22 @@ public class AffineUsageExample {
     System.out.println();
 
     // Chain compositions to access deeply nested optionals.
-    // UserProfile -> Optional<ContactInfo> -> ContactInfo -> Optional<String> -> String
-    Affine<UserProfile, String> userPhoneAffine =
-        contactLens
-            .andThen(contactPrism) // Lens.andThen(Prism) = Affine
-            .andThen(phoneLens) // Affine.andThen(Lens) = Affine
-            .andThen(phonePrism); // Affine.andThen(Prism) = Affine
+    // Review -> Optional<CustomerProfile> -> CustomerProfile -> Optional<String> -> String
+    Affine<Review, String> authorNicknameAffine =
+        authorLens
+            .andThen(authorPrism) // Lens.andThen(Prism) = Affine
+            .andThen(nicknameLens) // Affine.andThen(Lens) = Affine
+            .andThen(nicknamePrism); // Affine.andThen(Prism) = Affine
 
-    System.out.println("User with contact+phone: " + userWithContact);
-    System.out.println("getOptional phone: " + userPhoneAffine.getOptional(userWithContact));
+    System.out.println("Review by an author with a nickname: " + signedReview);
+    System.out.println("getOptional nickname: " + authorNicknameAffine.getOptional(signedReview));
     System.out.println();
 
-    // Create a user with contact but no phone.
-    var userWithContactNoPhone = new UserProfile("bob", Optional.of(contactWithoutPhone));
-    System.out.println("User with contact but no phone: " + userWithContactNoPhone);
-    System.out.println("getOptional phone: " + userPhoneAffine.getOptional(userWithContactNoPhone));
+    // Create a review whose author has no nickname.
+    var reviewWithoutNickname = new Review("DESK", Optional.of(grace));
+    System.out.println("Review by an author without a nickname: " + reviewWithoutNickname);
+    System.out.println(
+        "getOptional nickname: " + authorNicknameAffine.getOptional(reviewWithoutNickname));
     System.out.println();
 
     // =======================================================================
@@ -128,33 +129,30 @@ public class AffineUsageExample {
 
     // matches() and doesNotMatch().
     System.out.println(
-        "userContactAffine.matches(userWithContact): "
-            + userContactAffine.matches(userWithContact));
+        "reviewAuthorAffine.matches(signedReview): " + reviewAuthorAffine.matches(signedReview));
     System.out.println(
-        "userContactAffine.matches(userWithoutContact): "
-            + userContactAffine.matches(userWithoutContact));
+        "reviewAuthorAffine.matches(anonymousReview): "
+            + reviewAuthorAffine.matches(anonymousReview));
     System.out.println(
-        "userContactAffine.doesNotMatch(userWithoutContact): "
-            + userContactAffine.doesNotMatch(userWithoutContact));
+        "reviewAuthorAffine.doesNotMatch(anonymousReview): "
+            + reviewAuthorAffine.doesNotMatch(anonymousReview));
     System.out.println();
 
     // getOrElse() for default values.
-    ContactInfo defaultContact = new ContactInfo("default@example.com", Optional.empty());
+    CustomerProfile guest = new CustomerProfile("Guest", Optional.empty(), Optional.empty());
     System.out.println(
-        "getOrElse on user with contact: "
-            + userContactAffine.getOrElse(defaultContact, userWithContact));
+        "getOrElse on signed review: " + reviewAuthorAffine.getOrElse(guest, signedReview));
     System.out.println(
-        "getOrElse on user without contact: "
-            + userContactAffine.getOrElse(defaultContact, userWithoutContact));
+        "getOrElse on anonymous review: " + reviewAuthorAffine.getOrElse(guest, anonymousReview));
     System.out.println();
 
     // mapOptional() for transformations.
     System.out.println(
-        "mapOptional to get email from contact: "
-            + userContactAffine.mapOptional(ContactInfo::email, userWithContact));
+        "mapOptional to get the author's name: "
+            + reviewAuthorAffine.mapOptional(CustomerProfile::name, signedReview));
     System.out.println(
-        "mapOptional on user without contact: "
-            + userContactAffine.mapOptional(ContactInfo::email, userWithoutContact));
+        "mapOptional on anonymous review: "
+            + reviewAuthorAffine.mapOptional(CustomerProfile::name, anonymousReview));
     System.out.println();
 
     // =======================================================================
@@ -165,31 +163,31 @@ public class AffineUsageExample {
     System.out.println();
 
     // modify() applies a function if the value is present.
-    UserProfile modifiedUser =
-        userContactAffine.modify(
-            contact -> new ContactInfo(contact.email().toUpperCase(), contact.phone()),
-            userWithContact);
-    System.out.println("After modify (uppercase email): " + modifiedUser);
+    Review modifiedReview =
+        reviewAuthorAffine.modify(
+            author -> nameLens.modify(String::toUpperCase, author), signedReview);
+    System.out.println("After modify (uppercase name): " + modifiedReview);
 
     // modify() on absent value returns unchanged.
-    UserProfile unchangedUser =
-        userContactAffine.modify(
-            contact -> new ContactInfo(contact.email().toUpperCase(), contact.phone()),
-            userWithoutContact);
-    System.out.println("Modify on absent returns unchanged: " + unchangedUser);
-    System.out.println("Same object? " + (unchangedUser == userWithoutContact));
+    Review unchangedReview =
+        reviewAuthorAffine.modify(
+            author -> nameLens.modify(String::toUpperCase, author), anonymousReview);
+    System.out.println("Modify on absent returns unchanged: " + unchangedReview);
+    System.out.println("Same object? " + (unchangedReview == anonymousReview));
     System.out.println();
 
     // modifyWhen() with predicate.
-    UserProfile conditionalModify =
-        userPhoneAffine.modifyWhen(
-            phone -> phone.startsWith("+44"), phone -> phone.replace("+44", "0"), userWithContact);
-    System.out.println("Conditional modify (UK phone): " + conditionalModify);
+    Review conditionalModify =
+        authorNicknameAffine.modifyWhen(
+            nickname -> nickname.startsWith("Count"),
+            nickname -> nickname + " of Lovelace",
+            signedReview);
+    System.out.println("Conditional modify (a countess's nickname): " + conditionalModify);
     System.out.println();
 
     // set() replaces the value.
-    UserProfile userWithNewPhone = userPhoneAffine.set("+1 555 123 4567", userWithContact);
-    System.out.println("After set new phone: " + userWithNewPhone);
+    Review reviewWithNewNickname = authorNicknameAffine.set("Lady Lovelace", signedReview);
+    System.out.println("After set new nickname: " + reviewWithNewNickname);
     System.out.println();
 
     // =======================================================================

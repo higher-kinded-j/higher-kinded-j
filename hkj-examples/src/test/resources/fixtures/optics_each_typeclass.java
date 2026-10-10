@@ -55,10 +55,10 @@ record Depot(String name, List<Bay> bays) {}
 
 record Bay(String label, Map<String, Integer> stock) {}
 
-record Product(String name, BigDecimal price) {
+record Product(String sku, String name, BigDecimal price, int stock) {
 
   Product withPrice(BigDecimal newPrice) {
-    return new Product(name, newPrice);
+    return new Product(sku, name, newPrice, stock);
   }
 }
 

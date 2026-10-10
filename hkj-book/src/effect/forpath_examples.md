@@ -153,4 +153,5 @@ For concurrent evaluation of independent paths, see [ForPath Parallel Compositio
 
 ---
 
-**Previous:** [ForPath Comprehension](forpath_comprehension.md) | **Next:** [Optics Integration](focus_integration.md)
+**Previous:** [ForPath Comprehension](forpath_comprehension.md)
+**Next:** [Optics Integration](focus_integration.md)

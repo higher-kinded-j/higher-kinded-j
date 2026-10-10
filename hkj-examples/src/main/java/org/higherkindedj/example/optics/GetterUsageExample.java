@@ -3,6 +3,7 @@
 package org.higherkindedj.example.optics;
 
 import java.util.*;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
@@ -31,27 +32,24 @@ import org.higherkindedj.optics.annotations.GenerateGetters;
  */
 public class GetterUsageExample {
 
+  // A person and a company, each with the chapter's Address
   @GenerateGetters
   public record Person(String firstName, String lastName, int age, Address address) {}
-
-  @GenerateGetters
-  public record Address(String street, String city, String zipCode, String country) {}
 
   @GenerateGetters
   public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
 
   public static void main(String[] args) {
     // Create sample data
-    var ceoAddress = new Address("123 Executive Blvd", "New York", "10001", "USA");
+    var ceoAddress = new Address("123 Executive Blvd", "London", "EC1A 1BB");
     var ceo = new Person("Jane", "Smith", 45, ceoAddress);
 
-    var emp1 = new Person("John", "Doe", 30, new Address("456 Oak St", "Boston", "02101", "USA"));
+    var emp1 = new Person("John", "Doe", 30, new Address("456 Oak St", "Manchester", "M1 1AE"));
     var emp2 =
-        new Person("Alice", "Johnson", 28, new Address("789 Elm Ave", "Chicago", "60601", "USA"));
-    var emp3 =
-        new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Seattle", "98101", "USA"));
+        new Person("Alice", "Johnson", 28, new Address("789 Elm Ave", "Birmingham", "B1 1BB"));
+    var emp3 = new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1 4AP"));
 
-    var hqAddress = new Address("1000 Corporate Way", "San Francisco", "94105", "USA");
+    var hqAddress = new Address("1000 Corporate Way", "London", "EC2A 4NE");
     var company = new Company("TechCorp", ceo, List.of(emp1, emp2, emp3), hqAddress);
 
     System.out.println("=== GETTER USAGE EXAMPLE ===\n");
@@ -90,13 +88,13 @@ public class GetterUsageExample {
 
     Getter<Person, Address> addressGetter = Getter.of(Person::address);
     Getter<Address, String> cityGetter = Getter.of(Address::city);
-    Getter<Address, String> countryGetter = Getter.of(Address::country);
+    Getter<Address, String> postcodeGetter = Getter.of(Address::postcode);
 
     Getter<Person, String> personCityGetter = addressGetter.andThen(cityGetter);
-    Getter<Person, String> personCountryGetter = addressGetter.andThen(countryGetter);
+    Getter<Person, String> personPostcodeGetter = addressGetter.andThen(postcodeGetter);
 
     System.out.println("CEO city: " + personCityGetter.get(ceo));
-    System.out.println("CEO country: " + personCountryGetter.get(ceo));
+    System.out.println("CEO postcode: " + personPostcodeGetter.get(ceo));
 
     // Deep composition
     Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
@@ -141,10 +139,10 @@ public class GetterUsageExample {
     double averageAge = (double) totalEmployeeAge / company.employees().size();
     System.out.println("Average employee age: " + String.format("%.1f", averageAge));
 
-    // Check if all employees are from USA
-    Fold<Company, String> employeeCountries = employeesFold.andThen(personCountryGetter.asFold());
-    boolean allFromUSA = employeeCountries.all(c -> c.equals("USA"), company);
-    System.out.println("All employees from USA: " + allFromUSA);
+    // Check if all employees are in London
+    Fold<Company, String> employeeCities = employeesFold.andThen(personCityGetter.asFold());
+    boolean allInLondon = employeeCities.all(c -> c.equals("London"), company);
+    System.out.println("All employees in London: " + allInLondon);
 
     // Find youngest employee
     Optional<Person> youngest = employeesFold.find(p -> p.age() < 30, company);

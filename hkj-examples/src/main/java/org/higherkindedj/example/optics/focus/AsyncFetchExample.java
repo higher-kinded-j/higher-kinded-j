@@ -5,16 +5,29 @@ package org.higherkindedj.example.optics.focus;
 import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
@@ -41,120 +54,59 @@ import org.higherkindedj.optics.focus.TraversalPath;
  *   <li>Propagate errors through the Future chain
  *   <li>Compose naturally with other Focus operations
  * </ul>
+ *
+ * <p>The data is the chapter's own: a {@link CustomerProfile} whose optional fields a CRM fills in,
+ * and an {@link Order} whose lines a pricing service prices.
  */
 public class AsyncFetchExample {
 
-  // ============= Domain Model =============
-
-  /** User profile with enrichable fields. */
-  record UserProfile(String userId, String displayName, String avatarUrl, ProfileStats stats) {}
-
-  /** Profile statistics that can be fetched asynchronously. */
-  record ProfileStats(int followers, int following, int posts) {
-    static ProfileStats empty() {
-      return new ProfileStats(0, 0, 0);
-    }
-  }
-
-  /** Product with pricing that can be updated from external service. */
-  record Product(String productId, String name, PricingInfo pricing) {}
-
-  /** Pricing information fetched from external service. */
-  record PricingInfo(double basePrice, double discountPercent, String currency) {
-    double effectivePrice() {
-      return basePrice * (1 - discountPercent / 100);
-    }
-
-    static PricingInfo unknown() {
-      return new PricingInfo(0.0, 0.0, "USD");
-    }
-  }
-
-  /** Shopping cart with products to be enriched. */
-  record ShoppingCart(String cartId, List<Product> products) {}
-
-  // ============= Lenses =============
-
-  static final Lens<UserProfile, String> displayNameLens =
-      Lens.of(
-          UserProfile::displayName,
-          (u, name) -> new UserProfile(u.userId(), name, u.avatarUrl(), u.stats()));
-
-  static final Lens<UserProfile, String> avatarUrlLens =
-      Lens.of(
-          UserProfile::avatarUrl,
-          (u, url) -> new UserProfile(u.userId(), u.displayName(), url, u.stats()));
-
-  static final Lens<UserProfile, ProfileStats> statsLens =
-      Lens.of(
-          UserProfile::stats,
-          (u, stats) -> new UserProfile(u.userId(), u.displayName(), u.avatarUrl(), stats));
-
-  static final Lens<Product, PricingInfo> pricingLens =
-      Lens.of(Product::pricing, (p, pricing) -> new Product(p.productId(), p.name(), pricing));
-
-  static final Lens<ShoppingCart, List<Product>> productsLens =
-      Lens.of(ShoppingCart::products, (c, products) -> new ShoppingCart(c.cartId(), products));
-
   // ============= Simulated Async Services =============
 
-  /** Simulates fetching display name from a remote service. */
-  static CompletableFuture<String> fetchDisplayName(String userId) {
+  /** The nicknames the simulated CRM holds, by customer name. */
+  private static final Map<String, String> CRM_NICKNAMES =
+      Map.of("Ada", "ada_l", "Grace", "amazing_grace");
+
+  /** Simulates fetching a customer's nickname from the CRM. */
+  static CompletableFuture<Optional<String>> fetchNickname(String name) {
     return CompletableFuture.supplyAsync(
         () -> {
           simulateLatency(50);
-          return "User " + userId.toUpperCase();
+          return Optional.ofNullable(CRM_NICKNAMES.get(name));
         });
   }
 
-  /** Simulates fetching avatar URL from a CDN. */
-  static CompletableFuture<String> fetchAvatarUrl(String userId) {
+  /** Simulates fetching a customer's alternative email address from the CRM. */
+  static CompletableFuture<Optional<EmailAddress>> fetchAltEmail(String name) {
     return CompletableFuture.supplyAsync(
         () -> {
           simulateLatency(30);
-          return "https://cdn.example.com/avatars/" + userId + ".png";
+          return Optional.of(new EmailAddress(name.toLowerCase() + "@work.example.com"));
         });
   }
 
-  /** Simulates fetching profile stats from analytics service. */
-  static CompletableFuture<ProfileStats> fetchStats(String userId) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          simulateLatency(100);
-          // Simulate fetched stats
-          int hash = userId.hashCode();
-          return new ProfileStats(
-              Math.abs(hash % 10000), Math.abs((hash >> 8) % 1000), Math.abs((hash >> 16) % 500));
-        });
-  }
-
-  /** Simulates fetching pricing from external pricing service. */
-  static CompletableFuture<PricingInfo> fetchPricing(String productId) {
+  /** Simulates fetching the current price of a sku from an external pricing service. */
+  static CompletableFuture<BigDecimal> fetchPrice(String sku) {
     return CompletableFuture.supplyAsync(
         () -> {
           simulateLatency(40);
-          // Simulate different pricing based on product
-          double basePrice =
-              switch (productId) {
-                case "PROD-A" -> 29.99;
-                case "PROD-B" -> 149.99;
-                case "PROD-C" -> 9.99;
-                default -> 19.99;
-              };
-          double discount = productId.hashCode() % 20;
-          return new PricingInfo(basePrice, discount, "USD");
+          return switch (sku) {
+            case "LAMP" -> new BigDecimal("40.00");
+            case "BULB" -> new BigDecimal("2.50");
+            case "SHADE" -> new BigDecimal("15.99");
+            default -> new BigDecimal("19.99");
+          };
         });
   }
 
-  /** Simulates a service that may fail. */
-  static CompletableFuture<String> fetchUnreliableData(String id) {
+  /** Simulates a CRM lookup that fails for a customer it has no record of. */
+  static CompletableFuture<Optional<String>> fetchNicknameStrictly(String name) {
     return CompletableFuture.supplyAsync(
         () -> {
           simulateLatency(20);
-          if (id.startsWith("BAD")) {
-            throw new RuntimeException("Service unavailable for ID: " + id);
+          if (!CRM_NICKNAMES.containsKey(name)) {
+            throw new RuntimeException("CRM has no record of customer: " + name);
           }
-          return "Data for " + id;
+          return Optional.of(CRM_NICKNAMES.get(name));
         });
   }
 
@@ -184,23 +136,24 @@ public class AsyncFetchExample {
     MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
         Instances.monadError(completableFuture());
 
-    // Initial profile with placeholder values
-    UserProfile profile = new UserProfile("user123", "", "", ProfileStats.empty());
+    // Initial profile, with nothing yet fetched
+    CustomerProfile profile = new CustomerProfile("Ada", Optional.empty(), Optional.empty());
     System.out.println("Initial profile: " + profile);
 
-    // Create path to display name
-    FocusPath<UserProfile, String> displayNamePath = FocusPath.of(displayNameLens);
+    // Create path to the nickname
+    FocusPath<CustomerProfile, Optional<String>> nicknamePath =
+        FocusPath.of(CustomerProfileLenses.nickname());
 
-    // Async function to fetch and update display name
-    Function<String, Kind<CompletableFutureKind.Witness, String>> fetchName =
-        currentName -> FUTURE.widen(fetchDisplayName(profile.userId()));
+    // Async function to fetch and update the nickname
+    Function<Optional<String>, Kind<CompletableFutureKind.Witness, Optional<String>>> fetch =
+        currentNickname -> FUTURE.widen(fetchNickname(profile.name()));
 
-    // Use modifyF to asynchronously update the display name
-    Kind<CompletableFutureKind.Witness, UserProfile> enrichedKind =
-        displayNamePath.modifyF(fetchName, profile, futureMonad);
+    // Use modifyF to asynchronously update the nickname
+    Kind<CompletableFutureKind.Witness, CustomerProfile> enrichedKind =
+        nicknamePath.modifyF(fetch, profile, futureMonad);
 
     // Wait for result and print
-    UserProfile enrichedProfile = FUTURE.join(enrichedKind);
+    CustomerProfile enrichedProfile = FUTURE.join(enrichedKind);
     System.out.println("Enriched profile: " + enrichedProfile);
 
     System.out.println();
@@ -214,31 +167,26 @@ public class AsyncFetchExample {
         Instances.monadError(completableFuture());
 
     // Initial profile
-    UserProfile profile = new UserProfile("alice42", "", "", ProfileStats.empty());
+    CustomerProfile profile = new CustomerProfile("Grace", Optional.empty(), Optional.empty());
     System.out.println("Initial: " + profile);
 
     // Create paths
-    FocusPath<UserProfile, String> namePath = FocusPath.of(displayNameLens);
-    FocusPath<UserProfile, String> avatarPath = FocusPath.of(avatarUrlLens);
-    FocusPath<UserProfile, ProfileStats> statsPath = FocusPath.of(statsLens);
+    FocusPath<CustomerProfile, Optional<String>> nicknamePath =
+        FocusPath.of(CustomerProfileLenses.nickname());
+    FocusPath<CustomerProfile, Optional<EmailAddress>> altEmailPath =
+        FocusPath.of(CustomerProfileLenses.altEmail());
 
-    // Capture userId for closures
-    String userId = profile.userId();
+    // Capture the name for closures
+    String name = profile.name();
 
     // Chain async enrichments using flatMap
-    Kind<CompletableFutureKind.Witness, UserProfile> result =
+    Kind<CompletableFutureKind.Witness, CustomerProfile> result =
         futureMonad.flatMap(
-            p1 -> avatarPath.modifyF(_ -> FUTURE.widen(fetchAvatarUrl(userId)), p1, futureMonad),
-            namePath.modifyF(_ -> FUTURE.widen(fetchDisplayName(userId)), profile, futureMonad));
-
-    // Continue the chain for stats
-    Kind<CompletableFutureKind.Witness, UserProfile> finalResult =
-        futureMonad.flatMap(
-            p2 -> statsPath.modifyF(_ -> FUTURE.widen(fetchStats(userId)), p2, futureMonad),
-            result);
+            p1 -> altEmailPath.modifyF(_ -> FUTURE.widen(fetchAltEmail(name)), p1, futureMonad),
+            nicknamePath.modifyF(_ -> FUTURE.widen(fetchNickname(name)), profile, futureMonad));
 
     // Wait and print
-    UserProfile enrichedProfile = FUTURE.join(finalResult);
+    CustomerProfile enrichedProfile = FUTURE.join(result);
     System.out.println("Fully enriched: " + enrichedProfile);
 
     System.out.println();
@@ -251,43 +199,48 @@ public class AsyncFetchExample {
     MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
         Instances.monadError(completableFuture());
 
-    // Shopping cart with products needing price updates
-    ShoppingCart cart =
-        new ShoppingCart(
-            "CART-001",
+    // An order whose lines are not priced yet
+    Order order =
+        new Order(
+            new UUID(0, 1),
+            new Customer("Ada", new EmailAddress("ada@example.com")),
             List.of(
-                new Product("PROD-A", "Widget", PricingInfo.unknown()),
-                new Product("PROD-B", "Gadget", PricingInfo.unknown()),
-                new Product("PROD-C", "Gizmo", PricingInfo.unknown())));
+                new LineItem("LAMP", 1, BigDecimal.ZERO),
+                new LineItem("BULB", 4, BigDecimal.ZERO),
+                new LineItem("SHADE", 1, BigDecimal.ZERO)),
+            Instant.parse("2026-10-01T09:00:00Z"),
+            Currency.getInstance("GBP"),
+            OrderStatus.NEW);
 
-    System.out.println("Initial cart products:");
-    printCartProducts(cart);
+    System.out.println("Initial order lines:");
+    printLines(order);
 
-    // Path to all products - we update products directly to get pricing
-    TraversalPath<ShoppingCart, Product> allProductsPath =
-        FocusPath.of(productsLens).<Product>each();
+    // Path to every line of the order
+    TraversalPath<Order, LineItem> allLinesPath =
+        FocusPath.of(OrderLenses.lines()).<LineItem>each();
 
-    // Async function to enrich each product with its pricing
-    Function<Product, Kind<CompletableFutureKind.Witness, Product>> enrichProduct =
-        product ->
+    // Async function to price each line from the pricing service
+    Function<LineItem, Kind<CompletableFutureKind.Witness, LineItem>> priceLine =
+        line ->
             FUTURE.widen(
-                fetchPricing(product.productId())
-                    .thenApply(
-                        pricing -> new Product(product.productId(), product.name(), pricing)));
+                fetchPrice(line.sku())
+                    .thenApply(price -> new LineItem(line.sku(), line.quantity(), price)));
 
-    // Use modifyF on the traversal to update all products
-    Kind<CompletableFutureKind.Witness, ShoppingCart> enrichedCartKind =
-        allProductsPath.modifyF(enrichProduct, cart, futureMonad);
+    // Use modifyF on the traversal to update every line
+    Kind<CompletableFutureKind.Witness, Order> pricedOrderKind =
+        allLinesPath.modifyF(priceLine, order, futureMonad);
 
     // Wait and print
-    ShoppingCart enrichedCart = FUTURE.join(enrichedCartKind);
-    System.out.println("\nEnriched cart products:");
-    printCartProducts(enrichedCart);
+    Order pricedOrder = FUTURE.join(pricedOrderKind);
+    System.out.println("\nPriced order lines:");
+    printLines(pricedOrder);
 
-    // Calculate total
-    double total =
-        enrichedCart.products().stream().mapToDouble(p -> p.pricing().effectivePrice()).sum();
-    System.out.printf("Cart total: $%.2f%n", total);
+    // Calculate total: each line's price times its quantity
+    BigDecimal total =
+        pricedOrder.lines().stream()
+            .map(line -> line.price().multiply(BigDecimal.valueOf(line.quantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    System.out.printf("Order total: £%.2f%n", total);
 
     System.out.println();
   }
@@ -299,63 +252,51 @@ public class AsyncFetchExample {
     MonadError<CompletableFutureKind.Witness, Throwable> futureMonad =
         Instances.monadError(completableFuture());
 
-    // Test with good and bad IDs
-    UserProfile goodProfile = new UserProfile("user999", "", "", ProfileStats.empty());
-    UserProfile badProfile = new UserProfile("BAD_USER", "", "", ProfileStats.empty());
+    // One customer the CRM knows, and one it does not
+    CustomerProfile knownProfile = new CustomerProfile("Ada", Optional.empty(), Optional.empty());
+    CustomerProfile unknownProfile =
+        new CustomerProfile("Linus", Optional.empty(), Optional.empty());
 
-    FocusPath<UserProfile, String> namePath = FocusPath.of(displayNameLens);
+    FocusPath<CustomerProfile, Optional<String>> nicknamePath =
+        FocusPath.of(CustomerProfileLenses.nickname());
 
     // Function that may fail
-    Function<String, Kind<CompletableFutureKind.Witness, String>> unreliableFetch =
-        _ -> FUTURE.widen(fetchUnreliableData(goodProfile.userId()));
+    Function<Optional<String>, Kind<CompletableFutureKind.Witness, Optional<String>>> strictFetch =
+        _ -> FUTURE.widen(fetchNicknameStrictly(knownProfile.name()));
 
     // Successful case
-    Kind<CompletableFutureKind.Witness, UserProfile> successResult =
-        namePath.modifyF(unreliableFetch, goodProfile, futureMonad);
+    Kind<CompletableFutureKind.Witness, CustomerProfile> successResult =
+        nicknamePath.modifyF(strictFetch, knownProfile, futureMonad);
 
-    UserProfile successProfile = FUTURE.join(successResult);
-    System.out.println("Success case: " + successProfile.displayName());
+    CustomerProfile successProfile = FUTURE.join(successResult);
+    System.out.println("Success case: " + successProfile.nickname().orElse("none"));
 
     // Error case with recovery
-    Function<String, Kind<CompletableFutureKind.Witness, String>> unreliableFetchBad =
-        _ -> FUTURE.widen(fetchUnreliableData(badProfile.userId()));
+    Function<Optional<String>, Kind<CompletableFutureKind.Witness, Optional<String>>>
+        strictFetchUnknown = _ -> FUTURE.widen(fetchNicknameStrictly(unknownProfile.name()));
 
-    Kind<CompletableFutureKind.Witness, UserProfile> errorResult =
-        namePath.modifyF(unreliableFetchBad, badProfile, futureMonad);
+    Kind<CompletableFutureKind.Witness, CustomerProfile> errorResult =
+        nicknamePath.modifyF(strictFetchUnknown, unknownProfile, futureMonad);
 
     // Use handleErrorWith for recovery
-    Kind<CompletableFutureKind.Witness, UserProfile> recoveredResult =
+    Kind<CompletableFutureKind.Witness, CustomerProfile> recoveredResult =
         futureMonad.handleErrorWith(
             errorResult,
             error -> {
               System.out.println("Caught error: " + error.getMessage());
-              // Return a fallback profile
-              UserProfile fallback =
-                  new UserProfile(
-                      badProfile.userId(),
-                      "[Unavailable]",
-                      badProfile.avatarUrl(),
-                      badProfile.stats());
-              return futureMonad.of(fallback);
+              // Fall back to the profile as it was, without a nickname
+              return futureMonad.of(unknownProfile);
             });
 
-    UserProfile recoveredProfile = FUTURE.join(recoveredResult);
-    System.out.println("Recovered profile: " + recoveredProfile.displayName());
+    CustomerProfile recoveredProfile = FUTURE.join(recoveredResult);
+    System.out.println("Recovered profile: " + recoveredProfile);
 
     System.out.println();
   }
 
-  private static void printCartProducts(ShoppingCart cart) {
-    for (Product product : cart.products()) {
-      PricingInfo p = product.pricing();
-      System.out.printf(
-          "  %s (%s): base=$%.2f, discount=%.0f%%, effective=$%.2f %s%n",
-          product.productId(),
-          product.name(),
-          p.basePrice(),
-          p.discountPercent(),
-          p.effectivePrice(),
-          p.currency());
+  private static void printLines(Order order) {
+    for (LineItem line : order.lines()) {
+      System.out.printf("  %s x%d at £%.2f%n", line.sku(), line.quantity(), line.price());
     }
   }
 }

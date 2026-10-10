@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
@@ -33,9 +35,11 @@ import org.higherkindedj.optics.util.Traversals;
 public class ListTraversalsExample {
 
   // Domain models for an e-commerce platform
-  public record Product(String sku, String name, double price, int stock) {
-    Product applyDiscount(double percentage) {
-      return new Product(sku, name, price * (1 - percentage), stock);
+  public record Product(String sku, String name, BigDecimal price, int stock) {
+    Product applyDiscount(int percent) {
+      BigDecimal factor = BigDecimal.valueOf(100 - percent, 2); // 10 percent off is 0.90
+      return new Product(
+          sku, name, price.multiply(factor).setScale(2, RoundingMode.HALF_EVEN), stock);
     }
 
     Product restock(int additional) {
@@ -215,25 +219,29 @@ public class ListTraversalsExample {
 
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 100),
-            new Product("SKU002", "Gadget", 25.0, 50),
-            new Product("SKU003", "Gizmo", 15.0, 75),
-            new Product("SKU004", "Doohickey", 30.0, 25),
-            new Product("SKU005", "Thingamajig", 20.0, 60));
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 100),
+            new Product("SKU002", "Gadget", new BigDecimal("25.00"), 50),
+            new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 75),
+            new Product("SKU004", "Doohickey", new BigDecimal("30.00"), 25),
+            new Product("SKU005", "Thingamajig", new BigDecimal("20.00"), 60));
 
     System.out.println("Products: " + products.stream().map(Product::name).toList());
 
     // Lens for product price
-    Lens<Product, Double> priceLens =
+    Lens<Product, BigDecimal> priceLens =
         Lens.of(
             Product::price, (p, newPrice) -> new Product(p.sku(), p.name(), newPrice, p.stock()));
 
     // Compose: first 3 products → their prices
-    Traversal<List<Product>, Double> first3Prices =
+    Traversal<List<Product>, BigDecimal> first3Prices =
         ListTraversals.<Product>taking(3).andThen(priceLens.asTraversal());
 
     // Apply 10% discount to first 3 products' prices
-    List<Product> discounted = Traversals.modify(first3Prices, price -> price * 0.9, products);
+    List<Product> discounted =
+        Traversals.modify(
+            first3Prices,
+            price -> price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN),
+            products);
 
     System.out.println("After 10% discount on first 3 products:");
     for (Product p : discounted) {
@@ -242,11 +250,11 @@ public class ListTraversalsExample {
     // Widget: £9.00, Gadget: £22.50, Gizmo: £13.50, Doohickey: £30.00, Thingamajig: £20.00
 
     // Get prices of last 2 products
-    Traversal<List<Product>, Double> last2Prices =
+    Traversal<List<Product>, BigDecimal> last2Prices =
         ListTraversals.<Product>takingLast(2).andThen(priceLens.asTraversal());
-    List<Double> lastPrices = Traversals.getAll(last2Prices, products);
+    List<BigDecimal> lastPrices = Traversals.getAll(last2Prices, products);
     System.out.println("Prices of last 2 products: " + lastPrices);
-    // [30.0, 20.0]
+    // [30.00, 20.00]
 
     System.out.println();
   }
@@ -281,13 +289,13 @@ public class ListTraversalsExample {
 
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 20), // low stock
-            new Product("SKU002", "Gadget", 25.0, 150),
-            new Product("SKU003", "Gizmo", 15.0, 30), // low stock
-            new Product("SKU004", "Doohickey", 30.0, 200),
-            new Product("SKU005", "Thingamajig", 20.0, 10), // low stock
-            new Product("SKU006", "Whatsit", 35.0, 5), // low stock
-            new Product("SKU007", "Contraption", 40.0, 180));
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 20), // low stock
+            new Product("SKU002", "Gadget", new BigDecimal("25.00"), 150),
+            new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 30), // low stock
+            new Product("SKU004", "Doohickey", new BigDecimal("30.00"), 200),
+            new Product("SKU005", "Thingamajig", new BigDecimal("20.00"), 10), // low stock
+            new Product("SKU006", "Whatsit", new BigDecimal("35.00"), 5), // low stock
+            new Product("SKU007", "Contraption", new BigDecimal("40.00"), 180));
 
     System.out.println(
         "Products with stock: "
@@ -320,9 +328,9 @@ public class ListTraversalsExample {
 
     List<Product> products =
         List.of(
-            new Product("SKU001", "Widget", 10.0, 100),
-            new Product("SKU002", "Gadget", 25.0, 50),
-            new Product("SKU003", "Gizmo", 15.0, 75));
+            new Product("SKU001", "Widget", new BigDecimal("10.00"), 100),
+            new Product("SKU002", "Gadget", new BigDecimal("25.00"), 50),
+            new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 75));
 
     System.out.println("Original products: " + products.stream().map(Product::name).toList());
     System.out.println("Original size: " + products.size());
@@ -330,7 +338,7 @@ public class ListTraversalsExample {
     Traversal<List<Product>, Product> first2 = ListTraversals.taking(2);
 
     // MODIFY: Structure is preserved, only focused elements change
-    List<Product> modified = Traversals.modify(first2, p -> p.applyDiscount(0.2), products);
+    List<Product> modified = Traversals.modify(first2, p -> p.applyDiscount(20), products);
     System.out.println("\nAfter 20% discount on first 2:");
     System.out.println("Modified size: " + modified.size() + " (same as original!)");
     System.out.println("Third product (unfocused) unchanged: " + modified.get(2).name());

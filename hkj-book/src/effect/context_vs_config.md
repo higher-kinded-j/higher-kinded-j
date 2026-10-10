@@ -521,5 +521,5 @@ static final ScopedValue<DatabaseUrl> DB_URL = ScopedValue.newInstance();
 
 ---
 
-**Previous:** [SecurityContext Patterns](context_security.md)
+**Previous:** [SecurityContext](context_security.md)
 **Next:** [Effect Handlers](effect_handlers_intro.md)

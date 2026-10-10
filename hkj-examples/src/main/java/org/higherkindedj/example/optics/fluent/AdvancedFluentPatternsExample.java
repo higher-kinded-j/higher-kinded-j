@@ -12,9 +12,11 @@ import java.util.stream.Collectors;
 import org.higherkindedj.example.optics.fluent.generated.CatalogueTraversals;
 import org.higherkindedj.example.optics.fluent.generated.CategoryTraversals;
 import org.higherkindedj.example.optics.fluent.generated.ProductLenses;
+import org.higherkindedj.example.optics.fluent.generated.ProductListingLenses;
 import org.higherkindedj.example.optics.fluent.model.Catalogue;
 import org.higherkindedj.example.optics.fluent.model.Category;
 import org.higherkindedj.example.optics.fluent.model.Product;
+import org.higherkindedj.example.optics.fluent.model.ProductListing;
 import org.higherkindedj.example.optics.fluent.model.ProductStatus;
 import org.higherkindedj.example.optics.fluent.model.Promotion;
 import org.higherkindedj.hkt.free.Free;
@@ -44,6 +46,18 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
  * </ul>
  */
 public class AdvancedFluentPatternsExample {
+
+  // Every listing in the catalogue, across its categories
+  private static final Traversal<Catalogue, ProductListing> ALL_LISTINGS =
+      CatalogueTraversals.categories().andThen(CategoryTraversals.listings());
+
+  // The product each listing holds
+  private static final Traversal<Catalogue, Product> ALL_PRODUCTS =
+      ALL_LISTINGS.andThen(ProductListingLenses.product().asTraversal());
+
+  // The price of each listed product
+  private static final Traversal<Catalogue, BigDecimal> ALL_PRICES =
+      ALL_PRODUCTS.andThen(ProductLenses.price().asTraversal());
 
   public static void main(String[] args) {
     System.out.println("=== ADVANCED FLUENT PATTERNS EXAMPLE ===\n");
@@ -81,48 +95,42 @@ public class AdvancedFluentPatternsExample {
 
     // Query 1: Find all active products
     System.out.println("Query 1: Count active products");
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     long activeCount =
-        OpticOps.getAll(catalogue, allProducts).stream()
-            .filter(p -> p.status() == ProductStatus.ACTIVE)
+        OpticOps.getAll(catalogue, ALL_LISTINGS).stream()
+            .filter(l -> l.status() == ProductStatus.ACTIVE)
             .count();
     System.out.println("  Active products: " + activeCount);
     System.out.println();
 
     // Query 2: Find expensive products (> £100)
     System.out.println("Query 2: Find expensive products (> £100)");
-    Traversal<Catalogue, BigDecimal> allPrices =
-        allProducts.andThen(ProductLenses.price().asTraversal());
-
     boolean hasExpensiveProducts =
         OpticOps.querying(catalogue)
-            .anyMatch(allPrices, price -> price.compareTo(new BigDecimal("100")) > 0);
+            .anyMatch(ALL_PRICES, price -> price.compareTo(new BigDecimal("100")) > 0);
     System.out.println("  Has expensive products: " + hasExpensiveProducts);
     System.out.println();
 
     // Query 3: Get all products with active promotions
     System.out.println("Query 3: Products with active promotions");
-    List<Product> productsWithPromotions =
-        OpticOps.getAll(catalogue, allProducts).stream()
-            .filter(p -> p.activePromotion().isPresent())
+    List<ProductListing> listingsWithPromotions =
+        OpticOps.getAll(catalogue, ALL_LISTINGS).stream()
+            .filter(l -> l.activePromotion().isPresent())
             .collect(Collectors.toList());
-    System.out.println("  Products on promotion: " + productsWithPromotions.size());
-    productsWithPromotions.forEach(
-        p ->
+    System.out.println("  Products on promotion: " + listingsWithPromotions.size());
+    listingsWithPromotions.forEach(
+        l ->
             System.out.println(
                 "    - "
-                    + p.name()
+                    + l.product().name()
                     + " ("
-                    + p.activePromotion().get().discountPercent()
+                    + l.activePromotion().get().discountPercent()
                     + "% off)"));
     System.out.println();
 
     // Query 4: Check stock levels
     System.out.println("Query 4: Check if any products are low stock (< 10)");
     Traversal<Catalogue, Integer> allStockLevels =
-        allProducts.andThen(ProductLenses.stockLevel().asTraversal());
+        ALL_PRODUCTS.andThen(ProductLenses.stock().asTraversal());
 
     boolean hasLowStock =
         OpticOps.querying(catalogue).anyMatch(allStockLevels, stock -> stock < 10);
@@ -140,12 +148,8 @@ public class AdvancedFluentPatternsExample {
     // Scenario: Increase prices by 10% for products > £50, by 5% for others
     System.out.println("Scenario: Tiered price increases\n");
 
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     // Get current price statistics
-    List<BigDecimal> currentPrices =
-        OpticOps.getAll(catalogue, allProducts.andThen(ProductLenses.price().asTraversal()));
+    List<BigDecimal> currentPrices = OpticOps.getAll(catalogue, ALL_PRICES);
 
     BigDecimal avgBefore =
         currentPrices.stream()
@@ -159,7 +163,7 @@ public class AdvancedFluentPatternsExample {
     Catalogue updated =
         OpticOps.modifyAll(
             catalogue,
-            allProducts,
+            ALL_PRODUCTS,
             product -> {
               BigDecimal currentPrice = product.price();
               BigDecimal newPrice;
@@ -172,8 +176,7 @@ public class AdvancedFluentPatternsExample {
                   product, ProductLenses.price(), newPrice.setScale(2, RoundingMode.HALF_UP));
             });
 
-    List<BigDecimal> updatedPrices =
-        OpticOps.getAll(updated, allProducts.andThen(ProductLenses.price().asTraversal()));
+    List<BigDecimal> updatedPrices = OpticOps.getAll(updated, ALL_PRICES);
 
     BigDecimal avgAfter =
         updatedPrices.stream()
@@ -207,9 +210,6 @@ public class AdvancedFluentPatternsExample {
     System.out.println("Stage 2: Clear expired promotions");
     System.out.println("Stage 3: Normalise prices to 2 decimal places\n");
 
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     // Build pipeline using fluent chaining
     Catalogue result = catalogue;
 
@@ -217,16 +217,17 @@ public class AdvancedFluentPatternsExample {
     result =
         OpticOps.modifying(result)
             .allThrough(
-                allProducts,
-                product ->
-                    product.stockLevel() == 0
-                        ? OpticOps.set(product, ProductLenses.status(), ProductStatus.OUT_OF_STOCK)
-                        : product);
+                ALL_LISTINGS,
+                listing ->
+                    listing.product().stock() == 0
+                        ? OpticOps.set(
+                            listing, ProductListingLenses.status(), ProductStatus.OUT_OF_STOCK)
+                        : listing);
 
     int outOfStock =
         (int)
-            OpticOps.getAll(result, allProducts).stream()
-                .filter(p -> p.status() == ProductStatus.OUT_OF_STOCK)
+            OpticOps.getAll(result, ALL_LISTINGS).stream()
+                .filter(l -> l.status() == ProductStatus.OUT_OF_STOCK)
                 .count();
     System.out.println("  ✓ Stage 1 complete: " + outOfStock + " products marked out-of-stock");
 
@@ -235,29 +236,29 @@ public class AdvancedFluentPatternsExample {
     result =
         OpticOps.modifying(result)
             .allThrough(
-                allProducts,
-                product ->
-                    product
+                ALL_LISTINGS,
+                listing ->
+                    listing
                         .activePromotion()
                         .filter(promo -> promo.endDate().isAfter(today))
-                        .map(promo -> product)
+                        .map(promo -> listing)
                         .orElse(
                             OpticOps.set(
-                                product, ProductLenses.activePromotion(), Optional.empty())));
+                                listing,
+                                ProductListingLenses.activePromotion(),
+                                Optional.empty())));
 
     int withPromotions =
         (int)
-            OpticOps.getAll(result, allProducts).stream()
-                .filter(p -> p.activePromotion().isPresent())
+            OpticOps.getAll(result, ALL_LISTINGS).stream()
+                .filter(l -> l.activePromotion().isPresent())
                 .count();
     System.out.println("  ✓ Stage 2 complete: " + withPromotions + " active promotions remaining");
 
     // Stage 3: Normalise prices
     result =
         OpticOps.modifying(result)
-            .allThrough(
-                allProducts.andThen(ProductLenses.price().asTraversal()),
-                price -> price.setScale(2, RoundingMode.HALF_UP));
+            .allThrough(ALL_PRICES, price -> price.setScale(2, RoundingMode.HALF_UP));
 
     System.out.println("  ✓ Stage 3 complete: All prices normalised");
     System.out.println("\nPipeline execution complete!");
@@ -308,21 +309,10 @@ public class AdvancedFluentPatternsExample {
     System.out.println();
 
     // Verify results
-    Traversal<Catalogue, BigDecimal> allPrices =
-        CatalogueTraversals.categories()
-            .andThen(CategoryTraversals.products())
-            .andThen(ProductLenses.price().asTraversal());
-
     BigDecimal avgPrice =
-        OpticOps.getAll(result, allPrices).stream()
+        OpticOps.getAll(result, ALL_PRICES).stream()
             .reduce(BigDecimal.ZERO, BigDecimal::add)
-            .divide(
-                new BigDecimal(
-                    OpticOps.count(
-                        result,
-                        CatalogueTraversals.categories().andThen(CategoryTraversals.products()))),
-                2,
-                RoundingMode.HALF_UP);
+            .divide(new BigDecimal(OpticOps.count(result, ALL_LISTINGS)), 2, RoundingMode.HALF_UP);
 
     System.out.println("Results:");
     System.out.println("  Average price after increase: £" + avgPrice);
@@ -338,20 +328,18 @@ public class AdvancedFluentPatternsExample {
 
     System.out.println("Scenario: Smart inventory management\n");
 
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     // Use fluent for query
     System.out.println("Step 1: Identify low-stock active products");
     List<Product> lowStockProducts =
-        OpticOps.getting(catalogue).allThrough(allProducts).stream()
-            .filter(p -> p.stockLevel() < 20)
-            .filter(p -> p.status() == ProductStatus.ACTIVE)
+        OpticOps.getting(catalogue).allThrough(ALL_LISTINGS).stream()
+            .filter(l -> l.product().stock() < 20)
+            .filter(l -> l.status() == ProductStatus.ACTIVE)
+            .map(ProductListing::product)
             .collect(Collectors.toList());
 
     System.out.println("  Found " + lowStockProducts.size() + " low-stock products:");
     lowStockProducts.forEach(
-        p -> System.out.println("    - " + p.name() + " (stock: " + p.stockLevel() + ")"));
+        p -> System.out.println("    - " + p.name() + " (stock: " + p.stock() + ")"));
     System.out.println();
 
     // Use static for transformation
@@ -359,7 +347,7 @@ public class AdvancedFluentPatternsExample {
     Catalogue updated =
         OpticOps.modifyAll(
             catalogue,
-            allProducts,
+            ALL_PRODUCTS,
             product -> {
               if (lowStockProducts.contains(product)) {
                 // Use static method for simple operation
@@ -373,11 +361,12 @@ public class AdvancedFluentPatternsExample {
               return product;
             });
 
-    // Use fluent for verification
+    // Use fluent for verification, finding the discounted products by sku
     System.out.println("\nStep 3: Verify discounts applied");
+    List<String> lowStockSkus = lowStockProducts.stream().map(Product::sku).toList();
     BigDecimal avgDiscountedPrice =
-        OpticOps.getting(updated).allThrough(allProducts).stream()
-            .filter(lowStockProducts::contains)
+        OpticOps.getting(updated).allThrough(ALL_PRODUCTS).stream()
+            .filter(p -> lowStockSkus.contains(p.sku()))
             .map(p -> OpticOps.get(p, ProductLenses.price()))
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .divide(new BigDecimal(lowStockProducts.size()), 2, RoundingMode.HALF_UP);
@@ -396,9 +385,7 @@ public class AdvancedFluentPatternsExample {
 
     System.out.println("Scenario: Black Friday promotion setup\n");
     System.out.println("Requirements:");
-    System.out.println("  - 20% discount on electronics");
-    System.out.println("  - 15% discount on clothing");
-    System.out.println("  - 10% discount on everything else");
+    System.out.println("  - 20% discount on every eligible product");
     System.out.println("  - Only active products eligible");
     System.out.println("  - Must have sufficient stock (> 5)\n");
 
@@ -429,25 +416,22 @@ public class AdvancedFluentPatternsExample {
     System.out.println();
 
     System.out.println("Phase 3: Results");
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     long promotedCount =
-        OpticOps.getAll(promoted, allProducts).stream()
-            .filter(p -> p.activePromotion().isPresent())
+        OpticOps.getAll(promoted, ALL_LISTINGS).stream()
+            .filter(l -> l.activePromotion().isPresent())
             .count();
 
     System.out.println("  Products on promotion: " + promotedCount);
 
     // Calculate savings
-    List<Product> originalProducts = OpticOps.getAll(catalogue, allProducts);
-    List<Product> promotedProducts = OpticOps.getAll(promoted, allProducts);
+    List<ProductListing> originalListings = OpticOps.getAll(catalogue, ALL_LISTINGS);
+    List<ProductListing> promotedListings = OpticOps.getAll(promoted, ALL_LISTINGS);
 
     BigDecimal totalSavings = BigDecimal.ZERO;
-    for (int i = 0; i < originalProducts.size(); i++) {
-      if (promotedProducts.get(i).activePromotion().isPresent()) {
-        BigDecimal original = originalProducts.get(i).price();
-        BigDecimal discount = promotedProducts.get(i).activePromotion().get().discountPercent();
+    for (int i = 0; i < originalListings.size(); i++) {
+      if (promotedListings.get(i).activePromotion().isPresent()) {
+        BigDecimal original = originalListings.get(i).product().price();
+        BigDecimal discount = promotedListings.get(i).activePromotion().get().discountPercent();
         BigDecimal saving =
             original.multiply(discount.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
         totalSavings = totalSavings.add(saving);
@@ -466,31 +450,24 @@ public class AdvancedFluentPatternsExample {
 
   private static Free<OpticOpKind.Witness, Catalogue> bulkPriceIncreaseProgram(
       Catalogue catalogue, BigDecimal multiplier) {
-    Traversal<Catalogue, BigDecimal> allPrices =
-        CatalogueTraversals.categories()
-            .andThen(CategoryTraversals.products())
-            .andThen(ProductLenses.price().asTraversal());
-
     return OpticPrograms.modifyAll(
         catalogue,
-        allPrices,
+        ALL_PRICES,
         price -> price.multiply(multiplier).setScale(2, RoundingMode.HALF_UP));
   }
 
   private static Free<OpticOpKind.Witness, Catalogue> buildSeasonalPromotionProgram(
       Catalogue catalogue, Promotion promotion) {
-    Traversal<Catalogue, Product> allProducts =
-        CatalogueTraversals.categories().andThen(CategoryTraversals.products());
-
     return OpticPrograms.modifyAll(
         catalogue,
-        allProducts,
-        product -> {
+        ALL_LISTINGS,
+        listing -> {
           // Only apply to active products with sufficient stock
-          if (product.status() == ProductStatus.ACTIVE && product.stockLevel() > 5) {
-            return OpticOps.set(product, ProductLenses.activePromotion(), Optional.of(promotion));
+          if (listing.status() == ProductStatus.ACTIVE && listing.product().stock() > 5) {
+            return OpticOps.set(
+                listing, ProductListingLenses.activePromotion(), Optional.of(promotion));
           }
-          return product;
+          return listing;
         });
   }
 
@@ -502,21 +479,15 @@ public class AdvancedFluentPatternsExample {
     List<Category> categories = new ArrayList<>();
 
     // Electronics category
-    List<Product> electronics = new ArrayList<>();
+    List<ProductListing> electronics = new ArrayList<>();
     electronics.add(
-        new Product(
-            "ELEC-001",
-            "Laptop",
-            new BigDecimal("899.99"),
-            15,
+        new ProductListing(
+            new Product("ELEC-001", "Laptop", new BigDecimal("899.99"), 15),
             ProductStatus.ACTIVE,
             Optional.empty()));
     electronics.add(
-        new Product(
-            "ELEC-002",
-            "Smartphone",
-            new BigDecimal("599.99"),
-            25,
+        new ProductListing(
+            new Product("ELEC-002", "Smartphone", new BigDecimal("599.99"), 25),
             ProductStatus.ACTIVE,
             Optional.of(
                 new Promotion(
@@ -525,61 +496,43 @@ public class AdvancedFluentPatternsExample {
                     LocalDate.now().minusDays(5),
                     LocalDate.now().plusDays(10)))));
     electronics.add(
-        new Product(
-            "ELEC-003",
-            "Tablet",
-            new BigDecimal("399.99"),
-            0,
+        new ProductListing(
+            new Product("ELEC-003", "Tablet", new BigDecimal("399.99"), 0),
             ProductStatus.ACTIVE,
             Optional.empty()));
 
     categories.add(new Category("CAT-001", "Electronics", electronics));
 
     // Clothing category
-    List<Product> clothing = new ArrayList<>();
+    List<ProductListing> clothing = new ArrayList<>();
     clothing.add(
-        new Product(
-            "CLOTH-001",
-            "T-Shirt",
-            new BigDecimal("19.99"),
-            100,
+        new ProductListing(
+            new Product("CLOTH-001", "T-Shirt", new BigDecimal("19.99"), 100),
             ProductStatus.ACTIVE,
             Optional.empty()));
     clothing.add(
-        new Product(
-            "CLOTH-002",
-            "Jeans",
-            new BigDecimal("49.99"),
-            50,
+        new ProductListing(
+            new Product("CLOTH-002", "Jeans", new BigDecimal("49.99"), 50),
             ProductStatus.ACTIVE,
             Optional.empty()));
     clothing.add(
-        new Product(
-            "CLOTH-003",
-            "Jacket",
-            new BigDecimal("89.99"),
-            8,
+        new ProductListing(
+            new Product("CLOTH-003", "Jacket", new BigDecimal("89.99"), 8),
             ProductStatus.ACTIVE,
             Optional.empty()));
 
     categories.add(new Category("CAT-002", "Clothing", clothing));
 
     // Home & Garden category
-    List<Product> homeGarden = new ArrayList<>();
+    List<ProductListing> homeGarden = new ArrayList<>();
     homeGarden.add(
-        new Product(
-            "HOME-001",
-            "Coffee Maker",
-            new BigDecimal("79.99"),
-            20,
+        new ProductListing(
+            new Product("HOME-001", "Coffee Maker", new BigDecimal("79.99"), 20),
             ProductStatus.ACTIVE,
             Optional.empty()));
     homeGarden.add(
-        new Product(
-            "HOME-002",
-            "Blender",
-            new BigDecimal("45.00"),
-            12,
+        new ProductListing(
+            new Product("HOME-002", "Blender", new BigDecimal("45.00"), 12),
             ProductStatus.ACTIVE,
             Optional.empty()));
 
@@ -594,16 +547,11 @@ public class AdvancedFluentPatternsExample {
 
     int totalProducts = 0;
     for (Category cat : catalogue.categories()) {
-      totalProducts += cat.products().size();
+      totalProducts += cat.listings().size();
     }
     System.out.println("  Total products: " + totalProducts);
 
-    Traversal<Catalogue, BigDecimal> allPrices =
-        CatalogueTraversals.categories()
-            .andThen(CategoryTraversals.products())
-            .andThen(ProductLenses.price().asTraversal());
-
-    List<BigDecimal> prices = OpticOps.getAll(catalogue, allPrices);
+    List<BigDecimal> prices = OpticOps.getAll(catalogue, ALL_PRICES);
     BigDecimal avgPrice =
         prices.stream()
             .reduce(BigDecimal.ZERO, BigDecimal::add)

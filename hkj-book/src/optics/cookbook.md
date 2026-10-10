@@ -131,7 +131,7 @@ A `List` component's generated method already steps into the elements, so `Order
 
 ## Recipe 4: Only the elements that match {#matching-elements}
 
-You want to discount only the order lines of four or more items, and leave the others as they are.
+You want to discount only the order lines with a quantity of four or more, and leave the others as they are.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:matching}}

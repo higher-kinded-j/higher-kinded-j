@@ -4,6 +4,8 @@ package org.higherkindedj.example.optics;
 
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -45,7 +47,7 @@ public class SetterUsageExample {
       String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
   @GenerateSetters
-  public record Product(String name, double price, int stock, List<String> tags) {}
+  public record Product(String sku, String name, BigDecimal price, int stock) {}
 
   @GenerateSetters
   public record Inventory(List<Product> products, String warehouseId) {}
@@ -55,9 +57,9 @@ public class SetterUsageExample {
     var settings = new UserSettings("light", true, 14, Map.of("language", "en", "timezone", "UTC"));
     var user = new User("johndoe", "john.doe@example.com", 10, settings);
 
-    var product1 = new Product("Laptop", 999.99, 50, List.of("electronics", "computers"));
-    var product2 = new Product("Keyboard", 79.99, 100, List.of("electronics", "accessories"));
-    var product3 = new Product("Monitor", 299.99, 30, List.of("electronics", "displays"));
+    var product1 = new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 50);
+    var product2 = new Product("KEYBOARD", "Keyboard", new BigDecimal("79.99"), 100);
+    var product3 = new Product("MONITOR", "Monitor", new BigDecimal("299.99"), 30);
     var inventory = new Inventory(List.of(product1, product2, product3), "WH-001");
 
     System.out.println("=== SETTER USAGE EXAMPLE ===\n");
@@ -141,28 +143,33 @@ public class SetterUsageExample {
 
     Setter<List<Product>, Product> productListSetter = Setter.forList();
 
-    Setter<Product, Double> priceSetter =
+    Setter<Product, BigDecimal> priceSetter =
         Setter.fromGetSet(
-            Product::price, (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
+            Product::price, (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
 
     Setter<Product, Integer> stockSetter =
         Setter.fromGetSet(
-            Product::stock, (p, stock) -> new Product(p.name(), p.price(), stock, p.tags()));
+            Product::stock, (p, stock) -> new Product(p.sku(), p.name(), p.price(), stock));
 
-    // Apply 10% discount to all products
+    // Apply 10% discount to all products, rounded to the penny
     Setter<Inventory, Product> allProductsSetter = productsSetter.andThen(productListSetter);
     Inventory discountedInventory =
         allProductsSetter.modify(
-            product -> priceSetter.modify(price -> price * 0.9, product), inventory);
+            product ->
+                priceSetter.modify(
+                    price ->
+                        price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN),
+                    product),
+            inventory);
 
     System.out.println("Original inventory prices:");
     for (Product p : inventory.products()) {
-      System.out.println("  " + p.name() + ": $" + String.format("%.2f", p.price()));
+      System.out.println("  " + p.name() + ": £" + String.format("%.2f", p.price()));
     }
 
     System.out.println("Discounted inventory prices (10% off):");
     for (Product p : discountedInventory.products()) {
-      System.out.println("  " + p.name() + ": $" + String.format("%.2f", p.price()));
+      System.out.println("  " + p.name() + ": £" + String.format("%.2f", p.price()));
     }
 
     // Restock all products
@@ -216,7 +223,7 @@ public class SetterUsageExample {
           }
         };
 
-    Product validProduct = new Product("Test", 10.0, 5, List.of());
+    Product validProduct = new Product("TEST", "Test", new BigDecimal("10.00"), 5);
     Kind<OptionalKind.Witness, Product> validStockResult =
         stockSetter.modifyF(ensurePositiveStock, validProduct, Instances.monadError(optional()));
 
@@ -240,7 +247,7 @@ public class SetterUsageExample {
     // Normalise all product names (trim, capitalise first letter)
     Setter<Product, String> nameSetter =
         Setter.fromGetSet(
-            Product::name, (p, name) -> new Product(name, p.price(), p.stock(), p.tags()));
+            Product::name, (p, name) -> new Product(p.sku(), name, p.price(), p.stock()));
 
     Function<String, String> normalise =
         name -> {
@@ -250,9 +257,9 @@ public class SetterUsageExample {
 
     List<Product> rawProducts =
         List.of(
-            new Product("  LAPTOP  ", 999.99, 50, List.of()),
-            new Product("keyboard", 79.99, 100, List.of()),
-            new Product("MONITOR", 299.99, 30, List.of()));
+            new Product("LAPTOP", "  LAPTOP  ", new BigDecimal("999.99"), 50),
+            new Product("KEYBOARD", "keyboard", new BigDecimal("79.99"), 100),
+            new Product("MONITOR", "MONITOR", new BigDecimal("299.99"), 30));
 
     List<Product> normalisedProducts =
         productListSetter.modify(product -> nameSetter.modify(normalise, product), rawProducts);
@@ -263,10 +270,14 @@ public class SetterUsageExample {
     }
 
     // Apply currency conversion (USD to EUR)
-    double exchangeRate = 0.92;
+    BigDecimal exchangeRate = new BigDecimal("0.92");
     List<Product> euroProducts =
         productListSetter.modify(
-            product -> priceSetter.modify(price -> price * exchangeRate, product), rawProducts);
+            product ->
+                priceSetter.modify(
+                    price -> price.multiply(exchangeRate).setScale(2, RoundingMode.HALF_EVEN),
+                    product),
+            rawProducts);
 
     System.out.println("\nPrices in EUR (rate: " + exchangeRate + "):");
     for (int i = 0; i < rawProducts.size(); i++) {

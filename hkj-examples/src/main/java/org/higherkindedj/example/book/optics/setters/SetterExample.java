@@ -32,7 +32,7 @@ public class SetterExample {
   // A trimmed UserSettings, so the runnable example stays small
   public record UserSettings(String theme, boolean notifications, int fontSize) {}
 
-  public record Product(String name, BigDecimal price, int stock) {}
+  public record Product(String sku, String name, BigDecimal price, int stock) {}
 
   public static void main(String[] args) {
     // === Basic Setters ===
@@ -79,15 +79,16 @@ public class SetterExample {
 
     // === Product Batch Update ===
     Setter<Product, BigDecimal> priceSetter =
-        Setter.fromGetSet(Product::price, (p, price) -> new Product(p.name(), price, p.stock()));
+        Setter.fromGetSet(
+            Product::price, (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
 
     Setter<List<Product>, Product> productsSetter = Setter.forList();
 
     List<Product> products =
         List.of(
-            new Product("Laptop", new BigDecimal("999.99"), 50),
-            new Product("Keyboard", new BigDecimal("79.99"), 100),
-            new Product("Monitor", new BigDecimal("299.99"), 30));
+            new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 50),
+            new Product("KEYBOARD", "Keyboard", new BigDecimal("79.99"), 100),
+            new Product("MONITOR", "Monitor", new BigDecimal("299.99"), 30));
 
     // Apply 10% discount, rounded to the penny
     Function<BigDecimal, BigDecimal> tenPercentOff =
@@ -128,7 +129,8 @@ public class SetterExample {
 
     // === Data Normalisation ===
     Setter<Product, String> nameSetter =
-        Setter.fromGetSet(Product::name, (p, name) -> new Product(name, p.price(), p.stock()));
+        Setter.fromGetSet(
+            Product::name, (p, name) -> new Product(p.sku(), name, p.price(), p.stock()));
 
     Function<String, String> titleCase =
         name -> {
@@ -138,9 +140,9 @@ public class SetterExample {
 
     List<Product> rawProducts =
         List.of(
-            new Product("  LAPTOP  ", new BigDecimal("999.99"), 50),
-            new Product("keyboard", new BigDecimal("79.99"), 100),
-            new Product("MONITOR", new BigDecimal("299.99"), 30));
+            new Product("LAPTOP", "  LAPTOP  ", new BigDecimal("999.99"), 50),
+            new Product("KEYBOARD", "keyboard", new BigDecimal("79.99"), 100),
+            new Product("MONITOR", "MONITOR", new BigDecimal("299.99"), 30));
 
     List<Product> normalisedProducts =
         productsSetter.modify(product -> nameSetter.modify(titleCase, product), rawProducts);

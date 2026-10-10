@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -22,7 +24,7 @@ import org.higherkindedj.optics.util.Traversals;
 public class PartsOfTraversalExample {
 
   @GenerateLenses
-  public record Product(String name, double price, int stockLevel) {}
+  public record Product(String sku, String name, BigDecimal price, int stock) {}
 
   @GenerateLenses
   @GenerateTraversals
@@ -60,25 +62,26 @@ public class PartsOfTraversalExample {
 
     List<Product> products =
         List.of(
-            new Product("Widget", 25.99, 100),
-            new Product("Gadget", 49.99, 50),
-            new Product("Gizmo", 15.50, 200));
+            new Product("WIDGET", "Widget", new BigDecimal("25.99"), 100),
+            new Product("GADGET", "Gadget", new BigDecimal("49.99"), 50),
+            new Product("GIZMO", "Gizmo", new BigDecimal("15.50"), 200));
 
     // Create a traversal for all product prices
-    Traversal<List<Product>, Double> priceTraversal =
+    Traversal<List<Product>, BigDecimal> priceTraversal =
         Traversals.<Product>forList().andThen(ProductLenses.price().asTraversal());
 
     // Convert to a lens on the list of prices
-    Lens<List<Product>, List<Double>> pricesLens = Traversals.partsOf(priceTraversal);
+    Lens<List<Product>, List<BigDecimal>> pricesLens = Traversals.partsOf(priceTraversal);
 
     // Get all prices as a list
-    List<Double> allPrices = pricesLens.get(products);
+    List<BigDecimal> allPrices = pricesLens.get(products);
     System.out.println("All prices: " + allPrices);
 
     // Manipulate the list - apply a 10% discount to all prices
-    List<Double> discountedPrices = new ArrayList<>();
-    for (Double price : allPrices) {
-      discountedPrices.add(price * 0.90);
+    List<BigDecimal> discountedPrices = new ArrayList<>();
+    for (BigDecimal price : allPrices) {
+      discountedPrices.add(
+          price.multiply(new BigDecimal("0.90")).setScale(2, RoundingMode.HALF_EVEN));
     }
 
     // Set the modified prices back
@@ -98,13 +101,13 @@ public class PartsOfTraversalExample {
 
     List<Product> products =
         List.of(
-            new Product("Expensive Widget", 199.99, 10),
-            new Product("Budget Gadget", 9.99, 500),
-            new Product("Mid-range Gizmo", 59.99, 100),
-            new Product("Premium Device", 299.99, 25));
+            new Product("EXPENSIVE-WIDGET", "Expensive Widget", new BigDecimal("199.99"), 10),
+            new Product("BUDGET-GADGET", "Budget Gadget", new BigDecimal("9.99"), 500),
+            new Product("MID-RANGE-GIZMO", "Mid-range Gizmo", new BigDecimal("59.99"), 100),
+            new Product("PREMIUM-DEVICE", "Premium Device", new BigDecimal("299.99"), 25));
 
     // Create a traversal for product prices
-    Traversal<List<Product>, Double> priceTraversal =
+    Traversal<List<Product>, BigDecimal> priceTraversal =
         Traversals.<Product>forList().andThen(ProductLenses.price().asTraversal());
 
     // Sort prices using the convenience method
@@ -156,32 +159,32 @@ public class PartsOfTraversalExample {
     System.out.println();
   }
 
-  // --- SCENARIO 4: Removing Duplicate Tags ---
+  // --- SCENARIO 4: Removing Duplicate Names ---
   private static void distinctWithPartsOf() {
     System.out.println("--- Scenario 4: Removing Duplicate Product Names (Deduplication) ---");
 
     // Scenario: Products with duplicate names that need normalisation
     List<Product> products =
         List.of(
-            new Product("Widget", 25.99, 100),
-            new Product("Gadget", 49.99, 50),
-            new Product("Widget", 30.00, 75), // Duplicate name
-            new Product("Gizmo", 15.50, 200),
-            new Product("Gadget", 55.00, 30)); // Duplicate name
+            new Product("WIDGET", "Widget", new BigDecimal("25.99"), 100),
+            new Product("GADGET", "Gadget", new BigDecimal("49.99"), 50),
+            new Product("WIDGET-XL", "Widget", new BigDecimal("30.00"), 75), // Duplicate name
+            new Product("GIZMO", "Gizmo", new BigDecimal("15.50"), 200),
+            new Product("GADGET-XL", "Gadget", new BigDecimal("55.00"), 30)); // Duplicate name
 
     // Create a traversal for product names
     Traversal<List<Product>, String> nameTraversal =
         Traversals.<Product>forList().andThen(ProductLenses.name().asTraversal());
 
-    // Remove duplicate names
-    List<Product> deduplicatedProducts = Traversals.distinct(nameTraversal, products);
+    // Keeps every product: the distinct names, in first-seen order, are written back over the
+    // first products, and the products after them keep their own names
+    List<Product> distinctNamesFirst = Traversals.distinct(nameTraversal, products);
 
     System.out.println("Original product names:");
     products.forEach(p -> System.out.println("  " + p.name() + " (£" + p.price() + ")"));
 
-    System.out.println("\nAfter deduplication:");
-    deduplicatedProducts.forEach(
-        p -> System.out.println("  " + p.name() + " (£" + p.price() + ")"));
+    System.out.println("\nAfter distinct:");
+    distinctNamesFirst.forEach(p -> System.out.println("  " + p.name() + " (£" + p.price() + ")"));
 
     System.out.println("\nNote: Unique names (Widget, Gadget, Gizmo) are distributed");
     System.out.println("to the first positions. Remaining positions keep their original values.");
@@ -195,10 +198,10 @@ public class PartsOfTraversalExample {
 
     List<Product> products =
         List.of(
-            new Product("zebra Widget", 25.99, 100),
-            new Product("Alpha Gadget", 49.99, 50),
-            new Product("BETA Device", 35.00, 75),
-            new Product("gamma Tool", 15.50, 200));
+            new Product("ZEBRA-WIDGET", "zebra Widget", new BigDecimal("25.99"), 100),
+            new Product("ALPHA-GADGET", "Alpha Gadget", new BigDecimal("49.99"), 50),
+            new Product("BETA-DEVICE", "BETA Device", new BigDecimal("35.00"), 75),
+            new Product("GAMMA-TOOL", "gamma Tool", new BigDecimal("15.50"), 200));
 
     // Create a traversal for product names
     Traversal<List<Product>, String> nameTraversal =
@@ -230,16 +233,16 @@ public class PartsOfTraversalExample {
 
     List<Product> products =
         List.of(
-            new Product("Widget A", 99.99, 0), // Out of stock
-            new Product("Widget B", 25.99, 100),
-            new Product("Widget C", 149.99, 0), // Out of stock
-            new Product("Widget D", 49.99, 50),
-            new Product("Widget E", 75.00, 200));
+            new Product("WIDGET-A", "Widget A", new BigDecimal("99.99"), 0), // Out of stock
+            new Product("WIDGET-B", "Widget B", new BigDecimal("25.99"), 100),
+            new Product("WIDGET-C", "Widget C", new BigDecimal("149.99"), 0), // Out of stock
+            new Product("WIDGET-D", "Widget D", new BigDecimal("49.99"), 50),
+            new Product("WIDGET-E", "Widget E", new BigDecimal("75.00"), 200));
 
     // Create a traversal for prices of in-stock products only
-    Traversal<List<Product>, Double> inStockPrices =
+    Traversal<List<Product>, BigDecimal> inStockPrices =
         Traversals.<Product>forList()
-            .filtered(p -> p.stockLevel() > 0)
+            .filtered(p -> p.stock() > 0)
             .andThen(ProductLenses.price().asTraversal());
 
     // Sort only the in-stock prices
@@ -249,13 +252,13 @@ public class PartsOfTraversalExample {
     products.forEach(
         p ->
             System.out.println(
-                "  " + p.name() + " -> £" + p.price() + " (stock: " + p.stockLevel() + ")"));
+                "  " + p.name() + " -> £" + p.price() + " (stock: " + p.stock() + ")"));
 
     System.out.println("\nAfter sorting only in-stock product prices:");
     result.forEach(
         p ->
             System.out.println(
-                "  " + p.name() + " -> £" + p.price() + " (stock: " + p.stockLevel() + ")"));
+                "  " + p.name() + " -> £" + p.price() + " (stock: " + p.stock() + ")"));
 
     System.out.println("\nNote: Out-of-stock products (A and C) remain unchanged,");
     System.out.println("whilst in-stock product prices are sorted amongst themselves.");
@@ -273,18 +276,18 @@ public class PartsOfTraversalExample {
                 new Category(
                     "Electronics",
                     List.of(
-                        new Product("Laptop", 999.99, 20),
-                        new Product("Tablet", 499.99, 50),
-                        new Product("Phone", 799.99, 100))),
+                        new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 20),
+                        new Product("TABLET", "Tablet", new BigDecimal("499.99"), 50),
+                        new Product("PHONE", "Phone", new BigDecimal("799.99"), 100))),
                 new Category(
                     "Accessories",
                     List.of(
-                        new Product("Charger", 29.99, 500),
-                        new Product("Case", 49.99, 300),
-                        new Product("Cable", 19.99, 1000)))));
+                        new Product("CHARGER", "Charger", new BigDecimal("29.99"), 500),
+                        new Product("CASE", "Case", new BigDecimal("49.99"), 300),
+                        new Product("CABLE", "Cable", new BigDecimal("19.99"), 1000)))));
 
     // Create a deep traversal to all product prices in the catalogue
-    Traversal<Catalogue, Double> allPrices =
+    Traversal<Catalogue, BigDecimal> allPrices =
         CatalogueTraversals.categories()
             .andThen(CategoryTraversals.products())
             .andThen(ProductLenses.price().asTraversal());
@@ -306,10 +309,12 @@ public class PartsOfTraversalExample {
 
     // Demonstrate size mismatch handling
     System.out.println("--- Size Mismatch Demonstration ---");
-    Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
+    Lens<Catalogue, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
 
     // Set fewer values than positions exist
-    List<Double> partialPrices = List.of(100.00, 200.00, 300.00); // Only 3 values for 6 positions
+    // Only 3 values for 6 positions
+    List<BigDecimal> partialPrices =
+        List.of(new BigDecimal("100.00"), new BigDecimal("200.00"), new BigDecimal("300.00"));
     Catalogue partialUpdate = pricesLens.set(partialPrices, catalogue);
 
     System.out.println("Setting only 3 prices for 6 products:");

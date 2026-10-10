@@ -2,7 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.*;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -46,12 +55,21 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class EachInstancesExample {
 
-  // Domain models
-  public record Product(String name, double price) {}
+  // A customer's orders keyed by id, beside the chapter's Order
+  public record OrderIndex(Map<UUID, Order> byId) {}
 
-  public record Order(String id, List<Product> products) {}
+  private static final Customer ADA = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-  public record User(String name, Map<String, Order> orders) {}
+  // One of Ada's orders, placed on the same day, in pounds
+  private static Order order(int number, LineItem... lines) {
+    return new Order(
+        new UUID(0, number),
+        ADA,
+        List.of(lines),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        OrderStatus.NEW);
+  }
 
   public static void main(String[] args) {
     System.out.println("=== Each Typeclass Examples ===\n");
@@ -362,51 +380,60 @@ public class EachInstancesExample {
   private static void demonstrateFocusDslIntegration() {
     System.out.println("--- Focus DSL Integration ---");
 
-    // Create lenses for User -> Map<String, Order>
-    Lens<User, Map<String, Order>> ordersLens =
-        Lens.of(User::orders, (u, o) -> new User(u.name(), o));
+    // Create a lens for OrderIndex -> Map<UUID, Order>
+    Lens<OrderIndex, Map<UUID, Order>> byIdLens =
+        Lens.of(OrderIndex::byId, (index, byId) -> new OrderIndex(byId));
 
-    // Create lens for Order -> List<Product>
-    Lens<Order, List<Product>> productsLens =
-        Lens.of(Order::products, (o, p) -> new Order(o.id(), p));
+    // The lens for Order -> List<LineItem> is generated on the chapter's Order
+    Lens<Order, List<LineItem>> linesLens = OrderLenses.lines();
 
-    // Sample data
-    User user =
-        new User(
-            "Alice",
-            Map.of(
-                "ORD-1",
-                new Order("ORD-1", List.of(new Product("Laptop", 999.99))),
-                "ORD-2",
-                new Order(
-                    "ORD-2",
-                    List.of(new Product("Mouse", 29.99), new Product("Keyboard", 79.99)))));
+    // Sample data: two of Ada's orders, keyed by id in a fixed order
+    Order laptop = order(1, new LineItem("LAPTOP", 1, new BigDecimal("999.99")));
+    Order accessories =
+        order(
+            2,
+            new LineItem("MOUSE", 1, new BigDecimal("29.99")),
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")));
+    Map<UUID, Order> byId = new LinkedHashMap<>();
+    byId.put(laptop.id(), laptop);
+    byId.put(accessories.id(), accessories);
+    OrderIndex index = new OrderIndex(byId);
 
-    // Navigate using Each instances with Focus DSL
-    // User -> Map<String, Order> -> Order (values) -> List<Product> -> Product
-    TraversalPath<User, Order> allOrders =
-        FocusPath.of(ordersLens).each(EachInstances.mapValuesEach());
+    // Navigate using Each instances with Focus DSL: a map is not a container .each() recognises
+    // OrderIndex -> Map<UUID, Order> -> Order (values) -> List<LineItem> -> LineItem
+    TraversalPath<OrderIndex, Order> allOrders =
+        FocusPath.of(byIdLens).each(EachInstances.mapValuesEach());
 
     System.out.println("All orders:");
-    for (Order order : allOrders.getAll(user)) {
-      System.out.println("  " + order.id() + ": " + order.products().size() + " product(s)");
+    for (Order order : allOrders.getAll(index)) {
+      List<String> skus = order.lines().stream().map(LineItem::sku).toList();
+      System.out.println("  " + skus + ": " + order.lines().size() + " line(s)");
     }
 
-    // Navigate deeper: User -> all Orders -> all Products
-    TraversalPath<User, Product> allProducts =
-        allOrders.via(productsLens).each(EachInstances.listEach());
+    // Navigate deeper: OrderIndex -> all Orders -> all LineItems
+    TraversalPath<OrderIndex, LineItem> allLines =
+        allOrders.via(linesLens).each(EachInstances.listEach());
 
-    System.out.println("\nAll products across all orders:");
-    for (Product product : allProducts.getAll(user)) {
-      System.out.printf("  %s: £%.2f%n", product.name(), product.price());
+    System.out.println("\nAll lines across all orders:");
+    for (LineItem line : allLines.getAll(index)) {
+      System.out.printf("  %s: £%.2f%n", line.sku(), line.price());
     }
 
-    // Apply 10% discount to all products
-    User discounted = allProducts.modifyAll(p -> new Product(p.name(), p.price() * 0.9), user);
+    // Apply 10% discount to every line, rounded to the penny
+    OrderIndex discounted =
+        allLines.modifyAll(
+            line ->
+                new LineItem(
+                    line.sku(),
+                    line.quantity(),
+                    line.price()
+                        .multiply(new BigDecimal("0.9"))
+                        .setScale(2, RoundingMode.HALF_EVEN)),
+            index);
 
     System.out.println("\nAfter 10% discount:");
-    for (Product product : allProducts.getAll(discounted)) {
-      System.out.printf("  %s: £%.2f%n", product.name(), product.price());
+    for (LineItem line : allLines.getAll(discounted)) {
+      System.out.printf("  %s: £%.2f%n", line.sku(), line.price());
     }
 
     System.out.println();

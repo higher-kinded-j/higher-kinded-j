@@ -67,15 +67,15 @@ public final class TraversalsBook {
                 new Category(
                     "Electronics",
                     List.of(
-                        new Product("Laptop", new BigDecimal("999.99"), "computers", 3),
-                        new Product("Tablet", new BigDecimal("499.99"), "computers", 8),
-                        new Product("Phone", new BigDecimal("799.99"), "phones", 5))),
+                        new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 3),
+                        new Product("TABLET", "Tablet", new BigDecimal("499.99"), 8),
+                        new Product("PHONE", "Phone", new BigDecimal("799.99"), 5))),
                 new Category(
                     "Accessories",
                     List.of(
-                        new Product("Case", new BigDecimal("29.99"), "phones", 40),
-                        new Product("Charger", new BigDecimal("49.99"), "phones", 25),
-                        new Product("Cable", new BigDecimal("19.99"), "computers", 60)))));
+                        new Product("CASE", "Case", new BigDecimal("29.99"), 40),
+                        new Product("CHARGER", "Charger", new BigDecimal("49.99"), 25),
+                        new Product("CABLE", "Cable", new BigDecimal("19.99"), 60)))));
     // ANCHOR_END: spring_catalogue
     return spring;
   }
@@ -161,7 +161,7 @@ record Team(String name, List<Player> players) {}
 record League(String name, List<Team> teams) {}
 
 @GenerateLenses
-record Product(String name, BigDecimal price, String tag, int stockLevel) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 @GenerateLenses
 @GenerateTraversals

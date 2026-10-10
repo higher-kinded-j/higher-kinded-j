@@ -7,11 +7,11 @@ import java.time.Month;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import org.higherkindedj.example.optics.importoptics.external.BankTransfer;
-import org.higherkindedj.example.optics.importoptics.external.CreditCard;
-import org.higherkindedj.example.optics.importoptics.external.DigitalWallet;
-import org.higherkindedj.example.optics.importoptics.external.OrderStatus;
-import org.higherkindedj.example.optics.importoptics.external.PaymentMethod;
+import org.higherkindedj.example.optics.importoptics.external.BankAccount;
+import org.higherkindedj.example.optics.importoptics.external.CardInstrument;
+import org.higherkindedj.example.optics.importoptics.external.CryptoWallet;
+import org.higherkindedj.example.optics.importoptics.external.PaymentInstrument;
+import org.higherkindedj.example.optics.importoptics.external.TrackingStatus;
 import org.higherkindedj.optics.Prism;
 
 /**
@@ -23,8 +23,8 @@ import org.higherkindedj.optics.Prism;
  *
  * <ul>
  *   <li>JDK enums: {@link DayOfWeek}, {@link Month}, {@link TimeUnit}
- *   <li>Custom sealed interfaces: PaymentMethod
- *   <li>Custom enums: OrderStatus
+ *   <li>Custom sealed interfaces: PaymentInstrument, a payment gateway's SDK type
+ *   <li>Custom enums: TrackingStatus, a courier's SDK type
  * </ul>
  */
 public class ImportOpticsSealedExample {
@@ -39,33 +39,34 @@ public class ImportOpticsSealedExample {
     System.out.println("--- Sealed Interface Prisms (Custom Types) ---\n");
 
     // 1. Create instances of the sealed interface subtypes
-    PaymentMethod creditCard = new CreditCard("4111-1111-1111-1111", "12/25");
-    PaymentMethod bankTransfer = new BankTransfer("12345678", "00-11-22");
-    PaymentMethod digitalWallet = new DigitalWallet("PayPal", "user@paypal.com");
+    PaymentInstrument card = new CardInstrument("tok_visa_4242");
+    PaymentInstrument bankAccount = new BankAccount("GB29NWBK60161331926819");
+    PaymentInstrument cryptoWallet = new CryptoWallet("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq");
 
     // 2. Get the generated prisms for each subtype
-    Prism<PaymentMethod, CreditCard> creditCardPrism = PaymentMethodPrisms.creditCard();
-    Prism<PaymentMethod, BankTransfer> bankTransferPrism = PaymentMethodPrisms.bankTransfer();
-    Prism<PaymentMethod, DigitalWallet> digitalWalletPrism = PaymentMethodPrisms.digitalWallet();
+    Prism<PaymentInstrument, CardInstrument> cardPrism = PaymentInstrumentPrisms.cardInstrument();
+    Prism<PaymentInstrument, BankAccount> bankAccountPrism = PaymentInstrumentPrisms.bankAccount();
+    Prism<PaymentInstrument, CryptoWallet> cryptoWalletPrism =
+        PaymentInstrumentPrisms.cryptoWallet();
 
     // 3. Use getOptional to safely extract subtypes
-    Optional<CreditCard> asCreditCard = creditCardPrism.getOptional(creditCard);
-    System.out.println("Credit card as CreditCard: " + asCreditCard);
+    Optional<CardInstrument> asCard = cardPrism.getOptional(card);
+    System.out.println("Card as CardInstrument: " + asCard);
 
-    Optional<BankTransfer> asBankTransfer = bankTransferPrism.getOptional(creditCard);
-    System.out.println("Credit card as BankTransfer: " + asBankTransfer); // Empty
+    Optional<BankAccount> asBankAccount = bankAccountPrism.getOptional(card);
+    System.out.println("Card as BankAccount: " + asBankAccount); // Empty
 
-    // 4. Use getOrModify for pattern matching
+    // 4. Chain getOptional across the prisms, falling through with or(), to match each subtype
     System.out.println("\nProcessing payments:");
-    for (PaymentMethod payment : new PaymentMethod[] {creditCard, bankTransfer, digitalWallet}) {
+    for (PaymentInstrument payment : new PaymentInstrument[] {card, bankAccount, cryptoWallet}) {
       String description = describePayment(payment);
       System.out.println("  " + description);
     }
 
     // 5. Use build to construct values (upcast)
-    CreditCard newCard = new CreditCard("5500-0000-0000-0004", "06/28");
-    PaymentMethod asPaymentMethod = creditCardPrism.build(newCard);
-    System.out.println("\nBuilt credit card: " + asPaymentMethod);
+    CardInstrument newCard = new CardInstrument("tok_mastercard_4444");
+    PaymentInstrument asInstrument = cardPrism.build(newCard);
+    System.out.println("\nBuilt card instrument: " + asInstrument);
 
     System.out.println();
 
@@ -73,37 +74,38 @@ public class ImportOpticsSealedExample {
     System.out.println("--- Custom Enum Prisms ---\n");
 
     // 6. Get prisms for enum constants
-    Prism<OrderStatus, OrderStatus> pendingPrism = OrderStatusPrisms.pending();
-    Prism<OrderStatus, OrderStatus> shippedPrism = OrderStatusPrisms.shipped();
-    Prism<OrderStatus, OrderStatus> cancelledPrism = OrderStatusPrisms.cancelled();
+    Prism<TrackingStatus, TrackingStatus> pendingPrism = TrackingStatusPrisms.pending();
+    Prism<TrackingStatus, TrackingStatus> inTransitPrism = TrackingStatusPrisms.inTransit();
+    Prism<TrackingStatus, TrackingStatus> returnedPrism = TrackingStatusPrisms.returned();
 
     // 7. Use getOptional to check specific status
-    OrderStatus status1 = OrderStatus.PENDING;
-    OrderStatus status2 = OrderStatus.SHIPPED;
+    TrackingStatus status1 = TrackingStatus.PENDING;
+    TrackingStatus status2 = TrackingStatus.IN_TRANSIT;
 
     System.out.println("Is PENDING pending? " + pendingPrism.getOptional(status1).isPresent());
-    System.out.println("Is SHIPPED pending? " + pendingPrism.getOptional(status2).isPresent());
-    System.out.println("Is SHIPPED shipped? " + shippedPrism.getOptional(status2).isPresent());
+    System.out.println("Is IN_TRANSIT pending? " + pendingPrism.getOptional(status2).isPresent());
+    System.out.println(
+        "Is IN_TRANSIT in transit? " + inTransitPrism.getOptional(status2).isPresent());
     System.out.println();
 
-    // 8. Filter orders by status using prisms
-    OrderStatus[] orders = {
-      OrderStatus.PENDING,
-      OrderStatus.CONFIRMED,
-      OrderStatus.SHIPPED,
-      OrderStatus.PENDING,
-      OrderStatus.DELIVERED,
-      OrderStatus.CANCELLED
+    // 8. Filter parcels by tracking status using prisms
+    TrackingStatus[] parcels = {
+      TrackingStatus.PENDING,
+      TrackingStatus.IN_TRANSIT,
+      TrackingStatus.DELIVERED,
+      TrackingStatus.PENDING,
+      TrackingStatus.DELIVERED,
+      TrackingStatus.RETURNED
     };
 
     long pendingCount =
-        Arrays.stream(orders).filter(s -> pendingPrism.getOptional(s).isPresent()).count();
+        Arrays.stream(parcels).filter(s -> pendingPrism.getOptional(s).isPresent()).count();
 
-    long cancelledCount =
-        Arrays.stream(orders).filter(s -> cancelledPrism.getOptional(s).isPresent()).count();
+    long returnedCount =
+        Arrays.stream(parcels).filter(s -> returnedPrism.getOptional(s).isPresent()).count();
 
-    System.out.println("Pending orders: " + pendingCount);
-    System.out.println("Cancelled orders: " + cancelledCount);
+    System.out.println("Pending parcels: " + pendingCount);
+    System.out.println("Returned parcels: " + returnedCount);
 
     System.out.println("\n=== Example Complete ===");
   }
@@ -174,31 +176,21 @@ public class ImportOpticsSealedExample {
   }
 
   /**
-   * Describes a payment method using prisms for type-safe pattern matching.
+   * Describes a payment instrument using prisms for type-safe pattern matching.
    *
-   * @param payment the payment method to describe
-   * @return a description of the payment method
+   * @param payment the payment instrument to describe
+   * @return a description of the payment instrument
    */
-  private static String describePayment(PaymentMethod payment) {
-    Prism<PaymentMethod, CreditCard> ccPrism = PaymentMethodPrisms.creditCard();
-    Prism<PaymentMethod, BankTransfer> btPrism = PaymentMethodPrisms.bankTransfer();
-    Prism<PaymentMethod, DigitalWallet> dwPrism = PaymentMethodPrisms.digitalWallet();
+  private static String describePayment(PaymentInstrument payment) {
+    Prism<PaymentInstrument, CardInstrument> cardPrism = PaymentInstrumentPrisms.cardInstrument();
+    Prism<PaymentInstrument, BankAccount> bankPrism = PaymentInstrumentPrisms.bankAccount();
+    Prism<PaymentInstrument, CryptoWallet> walletPrism = PaymentInstrumentPrisms.cryptoWallet();
 
-    return ccPrism
+    return cardPrism
         .getOptional(payment)
-        .map(
-            cc ->
-                "Credit Card ending in " + cc.cardNumber().substring(cc.cardNumber().length() - 4))
-        .or(
-            () ->
-                btPrism
-                    .getOptional(payment)
-                    .map(bt -> "Bank Transfer to account " + bt.accountNumber()))
-        .or(
-            () ->
-                dwPrism
-                    .getOptional(payment)
-                    .map(dw -> dw.provider() + " wallet (" + dw.accountEmail() + ")"))
-        .orElse("Unknown payment method");
+        .map(c -> "Card token ending in " + c.token().substring(c.token().length() - 4))
+        .or(() -> bankPrism.getOptional(payment).map(b -> "Bank account " + b.iban()))
+        .or(() -> walletPrism.getOptional(payment).map(w -> "Crypto wallet " + w.address()))
+        .orElse("Unknown payment instrument");
   }
 }

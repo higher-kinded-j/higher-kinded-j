@@ -48,9 +48,11 @@ public class FluentValidationExample {
   // Domain Models
   // ============================================================================
 
-  record UserProfile(String username, String email, int age, String bio) {}
+  // The form a new customer fills in to sign up, every field as entered
+  record SignupForm(String username, String email, int age, String bio) {}
 
-  record OrderForm(String orderId, List<BigDecimal> itemPrices, String customerEmail) {}
+  // An order as entered on a form, in the shape the Deep Validation with modifyF page gives it
+  record OrderForm(String orderId, List<BigDecimal> prices, BigDecimal discount) {}
 
   record AppConfig(String apiEndpoint, int maxConnections, int timeoutSeconds, String logLevel) {}
 
@@ -60,28 +62,28 @@ public class FluentValidationExample {
   // Optics Definitions
   // ============================================================================
 
-  // UserProfile lenses
-  static final Lens<UserProfile, String> USERNAME =
-      Lens.of(UserProfile::username, (u, v) -> new UserProfile(v, u.email(), u.age(), u.bio()));
+  // SignupForm lenses
+  static final Lens<SignupForm, String> USERNAME =
+      Lens.of(SignupForm::username, (u, v) -> new SignupForm(v, u.email(), u.age(), u.bio()));
 
-  static final Lens<UserProfile, String> EMAIL =
-      Lens.of(UserProfile::email, (u, v) -> new UserProfile(u.username(), v, u.age(), u.bio()));
+  static final Lens<SignupForm, String> EMAIL =
+      Lens.of(SignupForm::email, (u, v) -> new SignupForm(u.username(), v, u.age(), u.bio()));
 
-  static final Lens<UserProfile, Integer> AGE =
-      Lens.of(UserProfile::age, (u, v) -> new UserProfile(u.username(), u.email(), v, u.bio()));
+  static final Lens<SignupForm, Integer> AGE =
+      Lens.of(SignupForm::age, (u, v) -> new SignupForm(u.username(), u.email(), v, u.bio()));
 
-  static final Lens<UserProfile, String> BIO =
-      Lens.of(UserProfile::bio, (u, v) -> new UserProfile(u.username(), u.email(), u.age(), v));
+  static final Lens<SignupForm, String> BIO =
+      Lens.of(SignupForm::bio, (u, v) -> new SignupForm(u.username(), u.email(), u.age(), v));
 
   // OrderForm lenses and traversals
   static final Lens<OrderForm, String> ORDER_ID =
-      Lens.of(OrderForm::orderId, (o, v) -> new OrderForm(v, o.itemPrices(), o.customerEmail()));
+      Lens.of(OrderForm::orderId, (o, v) -> new OrderForm(v, o.prices(), o.discount()));
 
-  static final Lens<OrderForm, List<BigDecimal>> ITEM_PRICES =
-      Lens.of(OrderForm::itemPrices, (o, v) -> new OrderForm(o.orderId(), v, o.customerEmail()));
+  static final Lens<OrderForm, List<BigDecimal>> PRICES =
+      Lens.of(OrderForm::prices, (o, v) -> new OrderForm(o.orderId(), v, o.discount()));
 
-  static final Lens<OrderForm, String> CUSTOMER_EMAIL =
-      Lens.of(OrderForm::customerEmail, (o, v) -> new OrderForm(o.orderId(), o.itemPrices(), v));
+  static final Lens<OrderForm, BigDecimal> ORDER_DISCOUNT =
+      Lens.of(OrderForm::discount, (o, v) -> new OrderForm(o.orderId(), o.prices(), v));
 
   static final Traversal<OrderForm, BigDecimal> ALL_ITEM_PRICES =
       new Traversal<OrderForm, BigDecimal>() {
@@ -89,11 +91,10 @@ public class FluentValidationExample {
         public <F extends WitnessArity<TypeArity.Unary>> Kind<F, OrderForm> modifyF(
             Function<BigDecimal, Kind<F, BigDecimal>> f, OrderForm source, Applicative<F> app) {
           BiFunction<OrderForm, List<BigDecimal>, OrderForm> setter =
-              (order, newPrices) ->
-                  new OrderForm(order.orderId(), newPrices, order.customerEmail());
+              (order, newPrices) -> new OrderForm(order.orderId(), newPrices, order.discount());
           return app.map(
               newValues -> setter.apply(source, newValues),
-              Traversals.traverseList(source.itemPrices(), f, app));
+              Traversals.traverseList(source.prices(), f, app));
         }
       };
 
@@ -198,6 +199,16 @@ public class FluentValidationExample {
     return Validated.valid(price);
   }
 
+  // A discount applies only when it is more than nothing and at most £50
+  private static Maybe<BigDecimal> tryApplyDiscount(BigDecimal discount) {
+    if (discount == null
+        || discount.signum() <= 0
+        || discount.compareTo(new BigDecimal("50.00")) > 0) {
+      return Maybe.nothing();
+    }
+    return Maybe.just(discount);
+  }
+
   private static Either<String, BigDecimal> validatePriceEither(BigDecimal price) {
     if (price == null) {
       return Either.left("Price cannot be null");
@@ -269,9 +280,8 @@ public class FluentValidationExample {
 
     // Example 1: modifyEither - Single field validation (success)
     System.out.println("Example 1: Validate email with modifyEither (success case)");
-    UserProfile validUser =
-        new UserProfile("alice123", "alice@example.com", 25, "Software engineer");
-    Either<String, UserProfile> emailResult =
+    SignupForm validUser = new SignupForm("alice123", "alice@example.com", 25, "Software engineer");
+    Either<String, SignupForm> emailResult =
         OpticOps.modifyEither(validUser, EMAIL, FluentValidationExample::validateEmail);
 
     emailResult.fold(
@@ -287,8 +297,8 @@ public class FluentValidationExample {
 
     // Example 2: modifyEither - Single field validation (failure)
     System.out.println("Example 2: Validate email with modifyEither (failure case)");
-    UserProfile invalidUser = new UserProfile("bob456", "invalid-email", 30, "Designer");
-    Either<String, UserProfile> invalidEmailResult =
+    SignupForm invalidUser = new SignupForm("bob456", "invalid-email", 30, "Designer");
+    Either<String, SignupForm> invalidEmailResult =
         OpticOps.modifyEither(invalidUser, EMAIL, FluentValidationExample::validateEmail);
 
     invalidEmailResult.fold(
@@ -304,29 +314,29 @@ public class FluentValidationExample {
 
     // Example 3: modifyMaybe - Optional validation (success)
     System.out.println("Example 3: Validate bio with modifyMaybe (success case)");
-    UserProfile userWithBio =
-        new UserProfile("charlie789", "charlie@example.com", 28, "  Product manager  ");
-    Maybe<UserProfile> bioResult =
+    SignupForm userWithBio =
+        new SignupForm("charlie789", "charlie@example.com", 28, "  Product manager  ");
+    Maybe<SignupForm> bioResult =
         OpticOps.modifyMaybe(userWithBio, BIO, FluentValidationExample::validateBioOptional);
 
     if (bioResult.isNothing()) {
       System.out.println("  ✗ Bio validation failed");
     } else {
-      UserProfile user = bioResult.get();
+      SignupForm user = bioResult.get();
       System.out.println("  ✓ Bio validated and trimmed: \"" + user.bio() + "\"");
     }
     System.out.println();
 
     // Example 4: modifyMaybe - Optional validation (failure)
     System.out.println("Example 4: Validate bio with modifyMaybe (failure case)");
-    UserProfile userWithEmptyBio = new UserProfile("david101", "david@example.com", 35, "   ");
-    Maybe<UserProfile> emptyBioResult =
+    SignupForm userWithEmptyBio = new SignupForm("david101", "david@example.com", 35, "   ");
+    Maybe<SignupForm> emptyBioResult =
         OpticOps.modifyMaybe(userWithEmptyBio, BIO, FluentValidationExample::validateBioOptional);
 
     if (emptyBioResult.isNothing()) {
       System.out.println("  ✗ Bio validation failed (empty bio not allowed)");
     } else {
-      UserProfile user = emptyBioResult.get();
+      SignupForm user = emptyBioResult.get();
       System.out.println("  ✓ Bio validated: \"" + user.bio() + "\"");
     }
     System.out.println();
@@ -341,7 +351,7 @@ public class FluentValidationExample {
                 new BigDecimal("-10.00"), // Invalid: negative
                 new BigDecimal("15000.00"), // Invalid: exceeds max
                 new BigDecimal("25.50")),
-            "customer@example.com");
+            BigDecimal.ZERO);
 
     Validated<List<String>, OrderForm> pricesResult =
         OpticOps.modifyAllValidated(order, ALL_ITEM_PRICES, FluentValidationExample::validatePrice);
@@ -353,7 +363,7 @@ public class FluentValidationExample {
           return null;
         },
         validOrder -> {
-          System.out.println("  ✓ All prices validated: " + validOrder.itemPrices());
+          System.out.println("  ✓ All prices validated: " + validOrder.prices());
           return null;
         });
     System.out.println();
@@ -370,7 +380,7 @@ public class FluentValidationExample {
           return null;
         },
         validOrder -> {
-          System.out.println("  ✓ All prices validated: " + validOrder.itemPrices());
+          System.out.println("  ✓ All prices validated: " + validOrder.prices());
           return null;
         });
     System.out.println();
@@ -385,9 +395,9 @@ public class FluentValidationExample {
 
     // Example 1: throughEither - Fluent single field validation
     System.out.println("Example 1: Validate username with throughEither");
-    UserProfile user = new UserProfile("ab", "test@example.com", 20, "Tester");
+    SignupForm user = new SignupForm("ab", "test@example.com", 20, "Tester");
 
-    Either<String, UserProfile> usernameResult =
+    Either<String, SignupForm> usernameResult =
         OpticOps.modifyingWithValidation(user)
             .throughEither(USERNAME, FluentValidationExample::validateUsername);
 
@@ -404,17 +414,17 @@ public class FluentValidationExample {
 
     // Example 2: throughMaybe - Fluent optional validation
     System.out.println("Example 2: Validate bio with throughMaybe");
-    UserProfile userWithLongBio =
-        new UserProfile("alice123", "alice@example.com", 25, "a".repeat(600));
+    SignupForm userWithLongBio =
+        new SignupForm("alice123", "alice@example.com", 25, "a".repeat(600));
 
-    Maybe<UserProfile> longBioResult =
+    Maybe<SignupForm> longBioResult =
         OpticOps.modifyingWithValidation(userWithLongBio)
             .throughMaybe(BIO, FluentValidationExample::validateBioOptional);
 
     if (longBioResult.isNothing()) {
       System.out.println("  ✗ Bio validation failed (too long)");
     } else {
-      UserProfile validUser = longBioResult.get();
+      SignupForm validUser = longBioResult.get();
       System.out.println("  ✓ Bio validated: " + validUser.bio());
     }
     System.out.println();
@@ -448,7 +458,7 @@ public class FluentValidationExample {
         new OrderForm(
             "ORD-002",
             List.of(new BigDecimal("100.00"), new BigDecimal("-50.00"), new BigDecimal("200.00")),
-            "buyer@example.com");
+            BigDecimal.ZERO);
 
     Either<String, OrderForm> orderResult =
         OpticOps.modifyingWithValidation(invalidOrder)
@@ -460,7 +470,7 @@ public class FluentValidationExample {
           return null;
         },
         validOrder -> {
-          System.out.println("  ✓ All prices validated: " + validOrder.itemPrices());
+          System.out.println("  ✓ All prices validated: " + validOrder.prices());
           return null;
         });
     System.out.println();
@@ -488,7 +498,7 @@ public class FluentValidationExample {
   private static void userRegistrationScenario() {
     System.out.println("Scenario A: User Registration Form Validation\n");
 
-    UserProfile registrationForm = new UserProfile("jo", "not-an-email", 10, "I'm a new user!");
+    SignupForm registrationForm = new SignupForm("jo", "not-an-email", 10, "I'm a new user!");
 
     System.out.println("Registration attempt:");
     System.out.println("  Username: " + registrationForm.username());
@@ -498,16 +508,16 @@ public class FluentValidationExample {
     System.out.println();
 
     // Validate username (short-circuit on failure)
-    Either<String, UserProfile> step1 =
+    Either<String, SignupForm> step1 =
         OpticOps.modifyEither(
             registrationForm, USERNAME, FluentValidationExample::validateUsername);
 
-    Either<String, UserProfile> step2 =
+    Either<String, SignupForm> step2 =
         step1.flatMap(
             profile ->
                 OpticOps.modifyEither(profile, EMAIL, FluentValidationExample::validateEmail));
 
-    Either<String, UserProfile> step3 =
+    Either<String, SignupForm> step3 =
         step2.flatMap(
             profile -> OpticOps.modifyEither(profile, AGE, FluentValidationExample::validateAge));
 
@@ -534,10 +544,10 @@ public class FluentValidationExample {
                 new BigDecimal("149.50"),
                 new BigDecimal("25.00"),
                 new BigDecimal("299.99")),
-            "customer@store.com");
+            new BigDecimal("10.00"));
 
     System.out.println("Processing order: " + order.orderId());
-    System.out.println("  Original prices: " + order.itemPrices());
+    System.out.println("  Original prices: " + order.prices());
     System.out.println();
 
     // Validate all prices (accumulate all errors)
@@ -553,9 +563,17 @@ public class FluentValidationExample {
         },
         validOrder -> {
           System.out.println("✓ Order validated successfully!");
-          BigDecimal total =
-              validOrder.itemPrices().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
-          System.out.println("  Total: $" + total);
+          BigDecimal subtotal =
+              validOrder.prices().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+          System.out.println("  Subtotal: £" + subtotal);
+
+          // The discount goes through its lens: nothing() leaves the order undiscounted
+          Maybe<OrderForm> discounted =
+              OpticOps.modifyMaybe(
+                  validOrder, ORDER_DISCOUNT, FluentValidationExample::tryApplyDiscount);
+          BigDecimal discount = discounted.map(OrderForm::discount).orElse(new BigDecimal("0.00"));
+          System.out.println("  Discount: £" + discount);
+          System.out.println("  Total: £" + subtotal.subtract(discount));
           return null;
         });
   }
@@ -642,10 +660,10 @@ public class FluentValidationExample {
                 new BigDecimal("-100.00"), // Error 1: negative
                 new BigDecimal("20000.00"), // Error 2: exceeds max
                 new BigDecimal("50.00")), // Valid
-            "test@example.com");
+            BigDecimal.ZERO);
 
     System.out.println("Test order with multiple invalid prices:");
-    System.out.println("  Prices: " + testOrder.itemPrices());
+    System.out.println("  Prices: " + testOrder.prices());
     System.out.println();
 
     // Strategy 1: Either (first error only)

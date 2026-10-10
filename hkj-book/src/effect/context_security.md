@@ -897,5 +897,5 @@ Practise security patterns in [Tutorial 04: SecurityContext Patterns](https://gi
 
 ---
 
-**Previous:** [RequestContext Patterns](context_request.md)
+**Previous:** [RequestContext](context_request.md)
 **Next:** [Context vs ConfigContext](context_vs_config.md)

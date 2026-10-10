@@ -636,5 +636,5 @@ moving between Path types.
 
 ---
 
-**Previous:** [VTaskPath](path_vtask.md)
+**Previous:** [VResultPath](path_vresult.md)
 **Next:** [ForPath Comprehension](forpath_comprehension.md)

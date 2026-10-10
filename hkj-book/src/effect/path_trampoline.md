@@ -142,5 +142,5 @@ regardless of recursion depth.
 
 ---
 
-**Previous:** [Custom Paths with `@PathSource`](path_source.md)
+**Previous:** [Custom Paths with @PathSource](path_source.md)
 **Next:** [FreePath](path_free.md)

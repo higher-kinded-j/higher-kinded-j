@@ -4,6 +4,7 @@ package org.higherkindedj.example.optics.extensions;
 
 import static org.higherkindedj.optics.extensions.GetterExtensions.*;
 
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Getter;
 import org.jspecify.annotations.Nullable;
@@ -19,7 +20,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>Chaining operations safely through nullable structures
  *   <li>Providing fallback values with {@code orElse} and {@code orElseGet}
  *   <li>Composing getters for deep navigation
- *   <li>Real-world scenarios: user profiles, API responses, configuration management
+ *   <li>Real-world scenarios: staff profiles, API responses, configuration management
  * </ul>
  *
  * <p>GetterExtensions provides null-safe alternatives to Getter methods, ensuring safe navigation
@@ -28,19 +29,18 @@ import org.jspecify.annotations.Nullable;
  */
 public class GetterExtensionsExample {
 
-  // Domain Models with Nullable Fields
-  record Address(@Nullable String street, String city, @Nullable String zipCode, String country) {}
-
+  // Domain Models with Nullable Fields, around the chapter's Address
   record ContactInfo(@Nullable String phone, @Nullable String email, @Nullable String fax) {}
 
-  record UserProfile(
+  // A company's staff member, as its directory lists them
+  record StaffMember(
       String username,
       String displayName,
       @Nullable String bio,
       @Nullable Address address,
       ContactInfo contactInfo) {}
 
-  record Company(String name, @Nullable UserProfile ceo, @Nullable Address headquarters) {}
+  record Company(String name, @Nullable StaffMember ceo, @Nullable Address headquarters) {}
 
   record ApiResponse<T>(boolean success, @Nullable T data, @Nullable String errorMessage) {}
 
@@ -65,18 +65,18 @@ public class GetterExtensionsExample {
     System.out.println("--- Scenario 1: Basic Null Safety ---");
 
     // Create getters
-    Getter<UserProfile, String> bioGetter = Getter.of(UserProfile::bio);
-    Getter<UserProfile, Address> addressGetter = Getter.of(UserProfile::address);
+    Getter<StaffMember, String> bioGetter = Getter.of(StaffMember::bio);
+    Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
 
-    // User with complete data
+    // A staff member with complete data
     ContactInfo contact1 = new ContactInfo("123-456-7890", "alice@example.com", null);
-    Address address1 = new Address("123 Main St", "New York", "10001", "USA");
-    UserProfile completeProfile =
-        new UserProfile("alice", "Alice Smith", "Software Engineer", address1, contact1);
+    Address address1 = new Address("123 Main St", "New York", "10001");
+    StaffMember completeProfile =
+        new StaffMember("alice", "Alice Smith", "Software Engineer", address1, contact1);
 
-    // User with missing data
+    // A staff member with missing data
     ContactInfo contact2 = new ContactInfo(null, "bob@example.com", null);
-    UserProfile incompleteProfile = new UserProfile("bob", "Bob Jones", null, null, contact2);
+    StaffMember incompleteProfile = new StaffMember("bob", "Bob Jones", null, null, contact2);
 
     // Safe access to bio
     Maybe<String> bio1 = getMaybe(bioGetter, completeProfile);
@@ -110,13 +110,13 @@ public class GetterExtensionsExample {
   private static void demonstrateChaining() {
     System.out.println("--- Scenario 2: Chaining Operations ---");
 
-    Getter<UserProfile, Address> addressGetter = Getter.of(UserProfile::address);
+    Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
     Getter<Address, String> streetGetter = Getter.of(Address::street);
-    Getter<Address, String> zipCodeGetter = Getter.of(Address::zipCode);
+    Getter<Address, String> postcodeGetter = Getter.of(Address::postcode);
 
     ContactInfo contact = new ContactInfo("123-456-7890", "alice@example.com", null);
-    Address address = new Address("123 Main St", "New York", "10001", "USA");
-    UserProfile profile = new UserProfile("alice", "Alice Smith", "Engineer", address, contact);
+    Address address = new Address("123 Main St", "New York", "10001");
+    StaffMember profile = new StaffMember("alice", "Alice Smith", "Engineer", address, contact);
 
     // Chain to get street
     Maybe<String> street =
@@ -124,22 +124,22 @@ public class GetterExtensionsExample {
 
     System.out.println("Street: " + street.orElse("Unknown"));
 
-    // Chain to get ZIP code
-    Maybe<String> zipCode =
-        getMaybe(addressGetter, profile).flatMap(addr -> getMaybe(zipCodeGetter, addr));
+    // Chain to get postcode
+    Maybe<String> postcode =
+        getMaybe(addressGetter, profile).flatMap(addr -> getMaybe(postcodeGetter, addr));
 
-    System.out.println("ZIP Code: " + zipCode.orElse("Unknown"));
+    System.out.println("Postcode: " + postcode.orElse("Unknown"));
 
     // Chain with map for transformation
     Maybe<String> formattedAddress =
         getMaybe(addressGetter, profile)
-            .map(addr -> addr.city() + ", " + addr.country())
+            .map(addr -> addr.street() + ", " + addr.city())
             .map(String::toUpperCase);
 
     System.out.println("Formatted address: " + formattedAddress.orElse("N/A"));
 
     // Handle null in the middle of chain
-    UserProfile profileNoAddress = new UserProfile("bob", "Bob Jones", null, null, contact);
+    StaffMember profileNoAddress = new StaffMember("bob", "Bob Jones", null, null, contact);
 
     Maybe<String> streetMissing =
         getMaybe(addressGetter, profileNoAddress).flatMap(addr -> getMaybe(streetGetter, addr));
@@ -204,19 +204,19 @@ public class GetterExtensionsExample {
   private static void demonstrateComposition() {
     System.out.println("--- Scenario 4: Composition ---");
 
-    Getter<Company, UserProfile> ceoGetter = Getter.of(Company::ceo);
-    Getter<UserProfile, Address> addressGetter = Getter.of(UserProfile::address);
+    Getter<Company, StaffMember> ceoGetter = Getter.of(Company::ceo);
+    Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
     Getter<Address, String> cityGetter = Getter.of(Address::city);
 
     // Compose getters
-    Getter<Company, UserProfile> ceoBioGetter = ceoGetter;
+    Getter<Company, StaffMember> ceoBioGetter = ceoGetter;
     Getter<Company, Address> ceoAddressGetter = ceoGetter.andThen(addressGetter);
 
     ContactInfo contact = new ContactInfo("123-456-7890", "ceo@example.com", null);
-    Address ceoAddress = new Address("456 Executive Blvd", "San Francisco", "94102", "USA");
-    UserProfile ceo = new UserProfile("jdoe", "Jane Doe", "CEO", ceoAddress, contact);
+    Address ceoAddress = new Address("456 Executive Blvd", "San Francisco", "94102");
+    StaffMember ceo = new StaffMember("jdoe", "Jane Doe", "CEO", ceoAddress, contact);
 
-    Address hq = new Address("789 Corporate Way", "Seattle", "98101", "USA");
+    Address hq = new Address("789 Corporate Way", "Seattle", "98101");
     Company company = new Company("TechCorp", ceo, hq);
 
     // Navigate through composed getters with Maybe
@@ -225,17 +225,21 @@ public class GetterExtensionsExample {
     System.out.println("CEO city: " + ceoCity.orElse("Unknown"));
 
     // Deep navigation with flatMap
-    Maybe<String> ceoZipCode =
+    Maybe<String> ceoPostcode =
         getMaybe(ceoGetter, company)
             .flatMap(c -> getMaybe(addressGetter, c))
-            .flatMap(a -> getMaybe(Getter.of(Address::zipCode), a));
+            .flatMap(a -> getMaybe(Getter.of(Address::postcode), a));
 
-    System.out.println("CEO ZIP code: " + ceoZipCode.orElse("Unknown"));
+    System.out.println("CEO postcode: " + ceoPostcode.orElse("Unknown"));
 
-    // Handle missing CEO
+    // Handle missing CEO: chain with flatMap, since the composed getter would read a missing CEO's
+    // address
     Company startupWithoutCEO = new Company("StartupCo", null, null);
 
-    Maybe<String> missingCeoCity = getMaybe(ceoAddressGetter, startupWithoutCEO).map(Address::city);
+    Maybe<String> missingCeoCity =
+        getMaybe(ceoGetter, startupWithoutCEO)
+            .flatMap(c -> getMaybe(addressGetter, c))
+            .map(Address::city);
 
     System.out.println("Startup CEO city: " + missingCeoCity.orElse("No CEO assigned"));
     System.out.println();
@@ -272,22 +276,22 @@ public class GetterExtensionsExample {
     System.out.println("    Error: " + error2.orElse("No error"));
     System.out.println();
 
-    // Scenario B: User Profile Display
-    System.out.println("User Profile Display:");
+    // Scenario B: Staff Profile Display
+    System.out.println("Staff Profile Display:");
 
-    Getter<UserProfile, String> bioGetter = Getter.of(UserProfile::bio);
-    Getter<UserProfile, Address> addressGetter = Getter.of(UserProfile::address);
+    Getter<StaffMember, String> bioGetter = Getter.of(StaffMember::bio);
+    Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
 
     ContactInfo contact1 = new ContactInfo("123-456-7890", "alice@example.com", null);
-    Address address1 = new Address("123 Main St", "New York", "10001", "USA");
-    UserProfile profile1 =
-        new UserProfile("alice", "Alice Smith", "Software Engineer", address1, contact1);
+    Address address1 = new Address("123 Main St", "New York", "10001");
+    StaffMember profile1 =
+        new StaffMember("alice", "Alice Smith", "Software Engineer", address1, contact1);
 
     ContactInfo contact2 = new ContactInfo(null, "bob@example.com", null);
-    UserProfile profile2 = new UserProfile("bob", "Bob Jones", null, null, contact2);
+    StaffMember profile2 = new StaffMember("bob", "Bob Jones", null, null, contact2);
 
-    displayUserProfile(profile1, bioGetter, addressGetter);
-    displayUserProfile(profile2, bioGetter, addressGetter);
+    displayStaffMember(profile1, bioGetter, addressGetter);
+    displayStaffMember(profile2, bioGetter, addressGetter);
     System.out.println();
 
     // Scenario C: Configuration Validation
@@ -300,15 +304,15 @@ public class GetterExtensionsExample {
     // Scenario D: Company Information Display
     System.out.println("Company Information:");
 
-    Getter<Company, UserProfile> ceoGetter = Getter.of(Company::ceo);
+    Getter<Company, StaffMember> ceoGetter = Getter.of(Company::ceo);
     Getter<Company, Address> hqGetter = Getter.of(Company::headquarters);
 
     ContactInfo ceoContact = new ContactInfo("555-0001", "ceo@techcorp.com", null);
-    Address ceoAddress = new Address("100 CEO Lane", "San Francisco", "94102", "USA");
-    UserProfile ceo =
-        new UserProfile("jdoe", "Jane Doe", "Visionary leader", ceoAddress, ceoContact);
+    Address ceoAddress = new Address("100 CEO Lane", "San Francisco", "94102");
+    StaffMember ceo =
+        new StaffMember("jdoe", "Jane Doe", "Visionary leader", ceoAddress, ceoContact);
 
-    Address hq = new Address("200 HQ Plaza", "Seattle", "98101", "USA");
+    Address hq = new Address("200 HQ Plaza", "Seattle", "98101");
     Company company1 = new Company("TechCorp", ceo, hq);
     Company company2 = new Company("StartupCo", null, null);
 
@@ -316,11 +320,11 @@ public class GetterExtensionsExample {
     displayCompanyInfo(company2, ceoGetter, hqGetter);
   }
 
-  private static void displayUserProfile(
-      UserProfile profile,
-      Getter<UserProfile, String> bioGetter,
-      Getter<UserProfile, Address> addressGetter) {
-    System.out.println("  User: " + profile.username());
+  private static void displayStaffMember(
+      StaffMember profile,
+      Getter<StaffMember, String> bioGetter,
+      Getter<StaffMember, Address> addressGetter) {
+    System.out.println("  Staff member: " + profile.username());
     System.out.println("    Display Name: " + profile.displayName());
 
     String bio = getMaybe(bioGetter, profile).orElse("No bio available");
@@ -328,7 +332,7 @@ public class GetterExtensionsExample {
 
     String location =
         getMaybe(addressGetter, profile)
-            .map(a -> a.city() + ", " + a.country())
+            .map(a -> a.city() + " " + a.postcode())
             .orElse("Location not specified");
 
     System.out.println("    Location: " + location);
@@ -354,17 +358,17 @@ public class GetterExtensionsExample {
   }
 
   private static void displayCompanyInfo(
-      Company company, Getter<Company, UserProfile> ceoGetter, Getter<Company, Address> hqGetter) {
+      Company company, Getter<Company, StaffMember> ceoGetter, Getter<Company, Address> hqGetter) {
     System.out.println("  Company: " + company.name());
 
     String ceoName =
-        getMaybe(ceoGetter, company).map(UserProfile::displayName).orElse("No CEO assigned");
+        getMaybe(ceoGetter, company).map(StaffMember::displayName).orElse("No CEO assigned");
 
     System.out.println("    CEO: " + ceoName);
 
     String hqLocation =
         getMaybe(hqGetter, company)
-            .map(a -> a.city() + ", " + a.country())
+            .map(a -> a.city() + " " + a.postcode())
             .orElse("HQ not established");
 
     System.out.println("    Headquarters: " + hqLocation);

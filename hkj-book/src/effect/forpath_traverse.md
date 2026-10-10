@@ -83,4 +83,5 @@ MaybePath<Kind<ListKind.Witness, Integer>> flat =
 
 ---
 
-**Previous:** [ForPath Parallel Composition](forpath_par.md) | **Next:** [Advanced Effects](advanced_effects.md)
+**Previous:** [ForPath Parallel Composition](forpath_par.md)
+**Next:** [Advanced Effects](advanced_effects.md)
