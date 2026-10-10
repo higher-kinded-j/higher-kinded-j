@@ -87,6 +87,24 @@ class SpecCopyStrategyChecksTest {
       }
       """;
 
+  /** A label, a note and an array of parts, each named after the accessor that reads it. */
+  private static final String TAG =
+      """
+      public final class Tag {
+          private final String label;
+          private final String note;
+          private final String[] parts;
+          public Tag(String label, String note, String... parts) {
+              this.label = label;
+              this.note = note;
+              this.parts = parts.clone();
+          }
+          public String label() { return label; }
+          public String note() { return note; }
+          public String[] parts() { return parts.clone(); }
+      }
+      """;
+
   /**
    * Compiles {@code specs} against {@code source} read from a class file javac wrote with {@code
    * options}: with none it keeps no parameter names, with {@code -g} it keeps them.
@@ -3003,8 +3021,10 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("a call javac settles by inference or variable arity is left to javac")
-    void callJavacSettlesByInferenceOrVariableArityIsLeftToJavac() {
+    @DisplayName(
+        "a call javac settles by inference is left to javac, and an array named after nothing"
+            + " takes what the order passes")
+    void callJavacSettlesByInferenceIsLeftToJavac() {
       var compilation =
           compile(
               external(
@@ -3940,7 +3960,9 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("constructors whose names give different orders are refused, offering each")
+    @DisplayName(
+        "constructors whose names give different orders are refused, offering the one that passes"
+            + " every value")
     void constructorsWhoseNamesGiveDifferentOrdersAreRefused() {
       var compilation =
           compile(
@@ -3976,8 +3998,8 @@ class SpecCopyStrategyChecksTest {
                   + " generated lens takes it from the one constructor each of whose parameters is"
                   + " named after an accessor that reads a value it takes, and here their orders"
                   + " differ, so the one to rebuild through has to be written. Write the one the"
-                  + " lens rebuilds through: @ViaConstructor(parameterOrder = {\"x\", \"y\", \"z\"})"
-                  + " or @ViaConstructor(parameterOrder = {\"x\", \"y\"}).");
+                  + " lens rebuilds through: @ViaConstructor(parameterOrder = {\"x\", \"y\","
+                  + " \"z\"}).");
       assertThat(compilation).hadErrorCount(1);
     }
 
@@ -4358,6 +4380,1067 @@ class SpecCopyStrategyChecksTest {
           .hadErrorContaining(
               "the order the parameter names give, {\"fahrenheit\"}, leaves out what"
                   + " 'Temp(int celsius, String unit)' takes.");
+    }
+  }
+
+  @Nested
+  @DisplayName("@ViaConstructor Shorter Constructor")
+  class ViaConstructorShorterConstructor {
+
+    /** Compiles under the same lint with warnings left as warnings, so that one can be read. */
+    private static Compilation compileReporting(JavaFileObject... sources) {
+      return javac()
+          .withProcessors(new ImportOpticsProcessor())
+          .withOptions(LINT.subList(0, 1))
+          .compile(sources);
+    }
+
+    /** A fee whose shorter constructor defaults the currency. */
+    private static final String FEE =
+        """
+        public final class Fee {
+            private final long amount;
+            private final String currency;
+            public Fee(long amount, String currency) {
+                this.amount = amount;
+                this.currency = currency;
+            }
+            public Fee(long amount) { this(amount, "GBP"); }
+            public long amount() { return amount; }
+            public String currency() { return currency; }
+        }
+        """;
+
+    /** A record whose shorter constructor works out the area its canonical one takes. */
+    private static final String RECT =
+        """
+        public record Rect(int w, int h, int area) {
+            public Rect(int w, int h) { this(w, h, w * h); }
+        }
+        """;
+
+    @Test
+    @DisplayName("a written order through a shorter constructor warns, naming the value it resets")
+    void writtenOrderThroughAShorterConstructorWarns() {
+      var compilation =
+          compileReporting(
+              external("Fee", FEE),
+              spec(
+                  "FeeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface FeeOpticsSpec extends OpticsSpec<Fee> {
+                      @ViaConstructor(parameterOrder = {"amount"})
+                      Lens<Fee, Long> amount();
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"amount\"} passes nothing for 'currency()',"
+                  + " which 'Fee(long amount, String currency)' takes. The generated lens rebuilds"
+                  + " through 'new Fee(newValue)', so after every set 'currency()' reads what that"
+                  + " constructor gives it, not what the source held, which breaks the lens laws"
+                  + " unless the constructor derives it from what it is passed. Pass it:"
+                  + " @ViaConstructor(parameterOrder = {\"amount\", \"currency\"}). If the"
+                  + " constructor derives it on purpose, annotate 'amount()'"
+                  + " @SuppressWarnings(\"shorter-constructor\").");
+      assertThat(compilation).hadWarningCount(1);
+      // A warning, so the lens is still written, through the constructor the order names.
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.FeeOptics", "(source, newValue) -> new Fee(newValue)");
+    }
+
+    @Test
+    @DisplayName("a record names each component its shorter constructor leaves out")
+    void recordNamesEachComponentItsShorterConstructorLeavesOut() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Box",
+                  """
+                  public record Box(int w, int h, String label) {
+                      public Box(int w) { this(w, 1, "box"); }
+                  }
+                  """),
+              spec(
+                  "BoxOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BoxOpticsSpec extends OpticsSpec<Box> {
+                      @ViaConstructor(parameterOrder = {"w"})
+                      Lens<Box, Integer> w();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"w\"} passes nothing for 'h()' and 'label()',"
+                  + " which 'Box(int w, int h, String label)' takes. The generated lens rebuilds"
+                  + " through 'new Box(newValue)', so after every set 'h()' and 'label()' read what"
+                  + " that constructor gives them, not what the source held, which breaks the lens"
+                  + " laws unless the constructor derives them from what it is passed. Pass them:"
+                  + " @ViaConstructor(parameterOrder = {\"w\", \"h\", \"label\"}). If the"
+                  + " constructor derives them on purpose, annotate 'w()'"
+                  + " @SuppressWarnings(\"shorter-constructor\").");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName("of several longer constructors, the longest names what the order leaves out")
+    void ofSeveralLongerConstructorsTheLongestNamesWhatTheOrderLeavesOut() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Point3",
+                  """
+                  public final class Point3 {
+                      private final int x;
+                      private final int y;
+                      private final int z;
+                      public Point3(int x) { this(x, 0, 0); }
+                      public Point3(int x, int y) { this(x, y, 0); }
+                      public Point3(int x, int y, int z) {
+                          this.x = x;
+                          this.y = y;
+                          this.z = z;
+                      }
+                      public int x() { return x; }
+                      public int y() { return y; }
+                      public int z() { return z; }
+                  }
+                  """),
+              spec(
+                  "Point3OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Point3OpticsSpec extends OpticsSpec<Point3> {
+                      @ViaConstructor(parameterOrder = {"x"})
+                      Lens<Point3, Integer> x();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"x\"} passes nothing for 'y()' and 'z()', which"
+                  + " 'Point3(int x, int y, int z)' takes.");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "Pass them: @ViaConstructor(parameterOrder = {\"x\", \"y\", \"z\"}).");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "orders read from the names that no constructor takes under the focus are not offered")
+    void ordersReadFromTheNamesThatNoConstructorTakesUnderTheFocusAreNotOffered() {
+      var compilation =
+          compile(
+              external(
+                  "Cube",
+                  """
+                  public final class Cube {
+                      private final int x;
+                      private final int y;
+                      private final int z;
+                      public Cube(int x, int y) { this(x, y, 0); }
+                      public Cube(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+                      public Cube(int... coordinates) { this(coordinates[0], coordinates[1]); }
+                      public int x() { return x; }
+                      public int y() { return y; }
+                      public int z() { return z; }
+                  }
+                  """),
+              spec(
+                  "CubeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CubeOpticsSpec extends OpticsSpec<Cube> {
+                      // A Number is never cast to int, so neither order binds a constructor: each
+                      // call falls to the variable-arity one, whose array takes no Number.
+                      @ViaConstructor
+                      Lens<Cube, Number> x();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: No 'parameterOrder' is written, and more than one constructor of"
+                  + " 'Cube' gives one by its parameter names.");
+      assertThat(compilation).hadErrorCount(1);
+      Assertions.assertThat(compilation.errors().getFirst().getMessage(null))
+          .doesNotContain("@ViaConstructor(parameterOrder =");
+    }
+
+    @Test
+    @DisplayName("the warning offers only an order that passes what it names")
+    void warningOffersOnlyAnOrderThatPassesWhatItNames() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Pin",
+                  """
+                  public final class Pin {
+                      private final String label;
+                      private final String note;
+                      public Pin(String label, String note) { this.label = label; this.note = note; }
+                      public Pin(String label, String... parts) { this(label, ""); }
+                      public String label() { return label; }
+                      public String note() { return note; }
+                      public String[] parts() { return new String[0]; }
+                  }
+                  """),
+              spec(
+                  "PinOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PinOpticsSpec extends OpticsSpec<Pin> {
+                      @ViaConstructor(parameterOrder = {"label"})
+                      Lens<Pin, String> label();
+                  }
+                  """));
+
+      // {"label", "parts"} leaves nothing longer out, but it does not pass 'note()' either.
+      assertThat(compilation)
+          .hadWarningContaining(
+              "Pass it: @ViaConstructor(parameterOrder = {\"label\", \"note\"}).");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName("elements spread into an array count as one place against a longer constructor")
+    void elementsSpreadIntoAnArrayCountAsOnePlaceAgainstALongerConstructor() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Line",
+                  """
+                  public final class Line {
+                      private final String label;
+                      private final String note;
+                      private final String extra;
+                      public Line(String label, String... rest) { this(label, "", ""); }
+                      public Line(String label, String note, String extra) {
+                          this.label = label;
+                          this.note = note;
+                          this.extra = extra;
+                      }
+                      public String label() { return label; }
+                      public String note() { return note; }
+                      public String extra() { return extra; }
+                      public String x() { return ""; }
+                  }
+                  """),
+              spec(
+                  "LineOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LineOpticsSpec extends OpticsSpec<Line> {
+                      @ViaConstructor(parameterOrder = {"label", "x", "x", "x"})
+                      Lens<Line, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"label\", \"x\", \"x\", \"x\"} passes nothing"
+                  + " for 'note()' and 'extra()', which 'Line(String label, String note, String"
+                  + " extra)' takes.");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName("a longer constructor that takes no parameter for the lens may be another view")
+    void longerConstructorThatTakesNoParameterForTheLensMayBeAnotherView() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Price",
+                  """
+                  public final class Price {
+                      private final long cents;
+                      public Price(long cents) { this.cents = cents; }
+                      public Price(long pounds, int pence) { this(pounds * 100 + pence); }
+                      public long cents() { return cents; }
+                      public long pounds() { return cents / 100; }
+                      public int pence() { return (int) (cents % 100); }
+                  }
+                  """),
+              spec(
+                  "PriceOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PriceOpticsSpec extends OpticsSpec<Price> {
+                      @ViaConstructor(parameterOrder = {"cents"})
+                      Lens<Price, Long> cents();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadWarningContaining(
+              "No order passes them with the new value, since 'Price(long pounds, int pence)'"
+                  + " takes no parameter named after 'cents()'. If it reads the same value another"
+                  + " way, annotate 'cents()' @SuppressWarnings(\"shorter-constructor\");"
+                  + " otherwise rebuild 'Price' with @Wither, @ViaBuilder or @ViaCopyAndSet.");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName("a variable-arity constructor passed nothing for its array warns of the array")
+    void variableArityConstructorPassedNothingForItsArrayWarns() {
+      var compilation =
+          compileReporting(
+              external("Tag", TAG),
+              spec(
+                  "TagOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TagOpticsSpec extends OpticsSpec<Tag> {
+                      @ViaConstructor(parameterOrder = {"label", "note"})
+                      Lens<Tag, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaConstructor: 'parameterOrder' {\"label\", \"note\"} passes nothing for"
+                  + " 'parts()', which 'Tag(String label, String note, String... parts)' takes.");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "Pass it: @ViaConstructor(parameterOrder = {\"label\", \"note\", \"parts\"}).");
+      assertThat(compilation).hadWarningCount(1);
+    }
+
+    @Test
+    @DisplayName("@SuppressWarnings on the lens method, or on the spec interface, keeps it quiet")
+    void suppressionOnTheLensMethodOrTheSpecKeepsItQuiet() {
+      var compilation =
+          compile(
+              external("Rect", RECT),
+              external("Fee", FEE),
+              spec(
+                  "RectOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface RectOpticsSpec extends OpticsSpec<Rect> {
+                      // The shorter constructor works the area out, so the lens stays lawful.
+                      @SuppressWarnings("shorter-constructor")
+                      @ViaConstructor(parameterOrder = {"w", "h"})
+                      Lens<Rect, Integer> w();
+                  }
+                  """),
+              spec(
+                  "FeeOpticsSpec",
+                  """
+                  @ImportOptics
+                  @SuppressWarnings("shorter-constructor")
+                  public interface FeeOpticsSpec extends OpticsSpec<Fee> {
+                      @ViaConstructor(parameterOrder = {"amount"})
+                      Lens<Fee, Long> amount();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.RectOptics",
+          "(source, newValue) -> new Rect(newValue, source.h())");
+    }
+
+    @Test
+    @DisplayName("no warning where every value a longer constructor's names take is passed")
+    void noWarningWhereEveryValueALongerConstructorTakesIsPassed() {
+      var compilation =
+          compile(
+              external(
+                  "Temperature",
+                  """
+                  public final class Temperature {
+                      private final double celsius;
+                      public Temperature(double celsius) { this.celsius = celsius; }
+                      public Temperature(float fahrenheit) { this((fahrenheit - 32) * 5 / 9.0); }
+                      public double celsius() { return celsius; }
+                      public float fahrenheit() { return (float) (celsius * 9 / 5 + 32); }
+                  }
+                  """),
+              external(
+                  "Log",
+                  """
+                  public final class Log {
+                      private final String text;
+                      public Log(String text) { this.text = text; }
+                      public Log(String text, Object sink) { this.text = text; }
+                      public String text() { return text; }
+                  }
+                  """),
+              external("Fee", FEE),
+              spec(
+                  "QuietOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface QuietOpticsSpec extends OpticsSpec<Temperature> {
+                      // Two constructors of one length are two views of one value.
+                      @ViaConstructor(parameterOrder = {"celsius"})
+                      Lens<Temperature, Double> celsius();
+                  }
+                  """),
+              spec(
+                  "LogOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LogOpticsSpec extends OpticsSpec<Log> {
+                      // 'sink' is named after nothing the type reads, so nothing is reset.
+                      @ViaConstructor(parameterOrder = {"text"})
+                      Lens<Log, String> text();
+                  }
+                  """),
+              spec(
+                  "FeeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface FeeOpticsSpec extends OpticsSpec<Fee> {
+                      @ViaConstructor(parameterOrder = {"amount", "currency"})
+                      Lens<Fee, Long> amount();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("where no order passes every value, the warning and the derived refusal say how")
+    void whereNoOrderPassesEveryValueTheWarningAndTheDerivedRefusalSayHow() {
+      var compilation =
+          compileReporting(
+              external(
+                  "Owner",
+                  """
+                  public final class Owner {
+                      private final String name;
+                      private final int age;
+                      private final String nickname;
+                      public Owner(String name, int age) { this(name, age, "", null); }
+                      public Owner(String name, int age, String nickname, Object tag) {
+                          this.name = name;
+                          this.age = age;
+                          this.nickname = nickname;
+                      }
+                      public String name() { return name; }
+                      public int age() { return age; }
+                      public String nickname() { return nickname; }
+                  }
+                  """),
+              spec(
+                  "OwnerOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface OwnerOpticsSpec extends OpticsSpec<Owner> {
+                      @ViaConstructor(parameterOrder = {"name", "age"})
+                      Lens<Owner, Integer> age();
+
+                      @ViaConstructor
+                      Lens<Owner, String> name();
+                  }
+                  """));
+
+      // 'tag' is named after nothing, so no order the names give takes the longer constructor.
+      assertThat(compilation)
+          .hadWarningContaining(
+              "If the constructor derives it on purpose, annotate 'age()'"
+                  + " @SuppressWarnings(\"shorter-constructor\").");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "unless the constructor derives it from what it is passed. Write an order that"
+                  + " passes it, or rebuild 'Owner' with @Wither, @ViaBuilder or @ViaCopyAndSet.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Write the order of the constructor the lens should rebuild through as"
+                  + " @ViaConstructor's 'parameterOrder'; to rebuild through the shorter one on"
+                  + " purpose, write out {\"name\", \"age\"} and annotate 'name()'"
+                  + " @SuppressWarnings(\"shorter-constructor\"). Otherwise rebuild 'Owner' with"
+                  + " @Wither, @ViaBuilder or @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an offer that leaves a value out is made only where none passes them all")
+    void offerThatLeavesAValueOutIsMadeOnlyWhereNonePassesThemAll() {
+      var compilation =
+          compile(
+              external(
+                  "Span",
+                  """
+                  public final class Span {
+                      private final int from;
+                      private final int to;
+                      private final String tag;
+                      public Span(int from, int to) { this(from, to, "", null); }
+                      public Span(int from, int to, String tag, Object owner) {
+                          this.from = from;
+                          this.to = to;
+                          this.tag = tag;
+                      }
+                      public int from() { return from; }
+                      public int to() { return to; }
+                      public String tag() { return tag; }
+                  }
+                  """),
+              spec(
+                  "SpanOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SpanOpticsSpec extends OpticsSpec<Span> {
+                      @ViaConstructor(parameterOrder = {"to", "from"})
+                      Lens<Span, Integer> from();
+                  }
+                  """));
+
+      // 'owner' is named after nothing, so the only order the names give is the shorter
+      // constructor's, which leaves 'tag()' out: it is offered all the same, as the one that binds,
+      // with the way to keep the warning it draws quiet.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Pass the arguments where the constructor's parameter names place them:"
+                  + " @ViaConstructor(parameterOrder = {\"from\", \"to\"}). Pasted, an order"
+                  + " offered warns of a value a longer constructor takes that it passes nothing"
+                  + " for; where the shorter one works it out on purpose, annotate 'from()'"
+                  + " @SuppressWarnings(\"shorter-constructor\").");
+      assertThat(compilation).hadErrorCount(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("@ViaConstructor Variable Arity")
+  class ViaConstructorVariableArity {
+
+    @Test
+    @DisplayName("a variable-arity constructor's fixed parameters are held to their names")
+    void variableArityConstructorsFixedParametersAreHeldToTheirNames() {
+      var compilation =
+          compile(
+              external("Tag", TAG),
+              spec(
+                  "TagOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TagOpticsSpec extends OpticsSpec<Tag> {
+                      @ViaConstructor(parameterOrder = {"note", "label"})
+                      Lens<Tag, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.note()' where 'Tag(String label,"
+                  + " String note, String... parts)' takes 'label'. The generated lens rebuilds"
+                  + " through 'new Tag(source.note(), newValue)', and 'label' is named after"
+                  + " 'label()', an accessor of 'Tag' that reads a value it takes. Another value"
+                  + " passed in its place is written into the wrong field, which breaks the lens"
+                  + " laws. Pass the arguments where the constructor's parameter names place them:"
+                  + " @ViaConstructor(parameterOrder = {\"label\", \"note\", \"parts\"}).");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a value passed into an array named after an accessor is refused")
+    void valuePassedIntoAnArrayNamedAfterAnAccessorIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Parts",
+                  """
+                  public final class Parts {
+                      private final String label;
+                      private final String[] parts;
+                      public Parts(String label, String... parts) {
+                          this.label = label;
+                          this.parts = parts.clone();
+                      }
+                      public String label() { return label; }
+                      public String first() { return parts.length == 0 ? "" : parts[0]; }
+                      public String[] parts() { return parts.clone(); }
+                  }
+                  """),
+              spec(
+                  "PartsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PartsOpticsSpec extends OpticsSpec<Parts> {
+                      @ViaConstructor(parameterOrder = {"label", "first"})
+                      Lens<Parts, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.first()' where 'Parts(String"
+                  + " label, String... parts)' takes 'parts'.");
+      assertThat(compilation)
+          .hadErrorContaining("@ViaConstructor(parameterOrder = {\"label\", \"parts\"}).");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an array named after nothing takes what the order passes, and the fix says so")
+    void arrayNamedAfterNothingTakesWhatTheOrderPasses() {
+      var compilation =
+          compile(
+              external(
+                  "Note",
+                  """
+                  public final class Note {
+                      private final String label;
+                      private final String note;
+                      public Note(String label, String note, String... rest) {
+                          this.label = label;
+                          this.note = note;
+                      }
+                      public String label() { return label; }
+                      public String note() { return note; }
+                  }
+                  """),
+              spec(
+                  "NoteOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NoteOpticsSpec extends OpticsSpec<Note> {
+                      @ViaConstructor(parameterOrder = {"note", "label"})
+                      Lens<Note, String> label();
+
+                      @ViaConstructor(parameterOrder = {"label", "note"})
+                      Lens<Note, String> note();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Pass the arguments where the constructor's parameter names place them:"
+                  + " @ViaConstructor(parameterOrder = {\"label\", \"note\"}).");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a variable-arity call whose arguments no constructor takes is refused")
+    void variableArityCallWhoseArgumentsNoConstructorTakesIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Counts",
+                  """
+                  public final class Counts {
+                      private final String label;
+                      public Counts(String label, int... counts) { this.label = label; }
+                      public String label() { return label; }
+                      public String note() { return ""; }
+                  }
+                  """),
+              spec(
+                  "CountsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CountsOpticsSpec extends OpticsSpec<Counts> {
+                      @ViaConstructor(parameterOrder = {"label", "note"})
+                      Lens<Counts, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: No constructor of 'Counts' takes (String, String), the arguments"
+                  + " the generated lens rebuilds it with.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("of two variable-arity constructors, the most specific is held to its names")
+    void ofTwoVariableArityConstructorsTheMostSpecificIsHeldToItsNames() {
+      var pair =
+          external(
+              "Pair",
+              """
+              public final class Pair {
+                  private final String a;
+                  private final String b;
+                  public Pair(String a, Object... rest) { this(a, String.valueOf(rest[0]), 0); }
+                  public Pair(String a, String... rest) { this(a, rest[0], 0); }
+                  private Pair(String a, String b, int unused) {
+                      this.a = a;
+                      this.b = b;
+                  }
+                  public String a() { return a; }
+                  public String b() { return b; }
+              }
+              """);
+      var compilation =
+          compile(
+              pair,
+              spec(
+                  "PairOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PairOpticsSpec extends OpticsSpec<Pair> {
+                      @ViaConstructor(parameterOrder = {"a", "b"})
+                      Lens<Pair, String> a();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PairOptics",
+          "(source, newValue) -> new Pair(newValue, source.b())");
+
+      // javac binds Pair(String, String...), so it is that one's names a swap crosses.
+      var swapped =
+          compile(
+              pair,
+              spec(
+                  "PairOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PairOpticsSpec extends OpticsSpec<Pair> {
+                      @ViaConstructor(parameterOrder = {"b", "a"})
+                      Lens<Pair, String> a();
+                  }
+                  """));
+      assertThat(swapped)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.b()' where 'Pair(String a,"
+                  + " String... rest)' takes 'a'.");
+      // 'rest' is named after nothing, so its element is a place like any other, and the repair
+      // keeps each name once.
+      assertThat(swapped)
+          .hadErrorContaining(
+              "Another value passed in its place is written into the wrong field, which breaks the"
+                  + " lens laws. Pass the arguments where the constructor's parameter names place"
+                  + " them: @ViaConstructor(parameterOrder = {\"a\", \"b\"}).");
+      assertThat(swapped).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a variable-arity overload that cannot take the arguments does not hide one that can")
+    void variableArityOverloadThatCannotTakeTheArgumentsDoesNotHideOneThatCan() {
+      var compilation =
+          compile(
+              external(
+                  "Tally",
+                  """
+                  public final class Tally {
+                      private final String label;
+                      private final String note;
+                      public Tally(String label, String note, String... parts) {
+                          this.label = label;
+                          this.note = note;
+                      }
+                      public Tally(int count, int... sizes) { this("", ""); }
+                      public String label() { return label; }
+                      public String note() { return note; }
+                  }
+                  """),
+              spec(
+                  "TallyOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TallyOpticsSpec extends OpticsSpec<Tally> {
+                      @ViaConstructor(parameterOrder = {"note", "label"})
+                      Lens<Tally, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.note()' where 'Tally(String"
+                  + " label, String note, String... parts)' takes 'label'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("two variable-arity constructors javac cannot choose between are refused")
+    void twoVariableArityConstructorsJavacCannotChooseBetweenAreRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Amb",
+                  """
+                  public final class Amb {
+                      private final String a;
+                      private final String b;
+                      public Amb(String a, Object... rest) { this.a = a; this.b = ""; }
+                      public Amb(Object a, String... rest) { this.a = ""; this.b = ""; }
+                      public String a() { return a; }
+                      public String b() { return b; }
+                  }
+                  """),
+              spec(
+                  "AmbOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface AmbOpticsSpec extends OpticsSpec<Amb> {
+                      @ViaConstructor(parameterOrder = {"a", "b"})
+                      Lens<Amb, String> a();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: The generated call 'new Amb(newValue, source.b())' cannot choose"
+                  + " between 'Amb(String a, Object... rest)' and 'Amb(Object a, String... rest)'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a generic variable-arity constructor beside another is left to javac")
+    void genericVariableArityConstructorBesideAnotherIsLeftToJavac() {
+      var compilation =
+          compile(
+              external(
+                  "Gen",
+                  """
+                  public final class Gen {
+                      private final String a;
+                      private final String b;
+                      public Gen(String a, Object... rest) { this.a = a; this.b = ""; }
+                      @SafeVarargs
+                      public <T extends CharSequence> Gen(String a, T... rest) {
+                          this.a = a;
+                          this.b = String.valueOf(rest[0]);
+                      }
+                      public String a() { return a; }
+                      public String b() { return b; }
+                  }
+                  """),
+              spec(
+                  "GenOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface GenOpticsSpec extends OpticsSpec<Gen> {
+                      @ViaConstructor(parameterOrder = {"a", "b"})
+                      Lens<Gen, String> a();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName(
+        "a generic variable-arity constructor passed its array whole is held at fixed arity")
+    void genericVariableArityConstructorPassedItsArrayWholeIsHeldAtFixedArity() {
+      var compilation =
+          compile(
+              external(
+                  "Words",
+                  """
+                  public final class Words {
+                      private final String label;
+                      private final String[] parts;
+                      @SafeVarargs
+                      public <T extends CharSequence> Words(String label, T... parts) {
+                          this.label = label;
+                          this.parts = new String[parts.length];
+                      }
+                      public String label() { return label; }
+                      public String[] parts() { return parts.clone(); }
+                  }
+                  """),
+              spec(
+                  "WordsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface WordsOpticsSpec extends OpticsSpec<Words> {
+                      @ViaConstructor(parameterOrder = {"label", "parts"})
+                      Lens<Words, String> label();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.WordsOptics",
+          "(source, newValue) -> new Words(newValue, source.parts())");
+    }
+
+    @Test
+    @DisplayName("values passed one by one into an array named after an accessor offer it whole")
+    void valuesPassedOneByOneIntoAnArrayNamedAfterAnAccessorOfferItWhole() {
+      var bundle =
+          external(
+              "Bundle",
+              """
+              public final class Bundle {
+                  private final String label;
+                  private final Object[] parts;
+                  public Bundle(String label, Object... parts) {
+                      this.label = label;
+                      this.parts = parts.clone();
+                  }
+                  public String label() { return label; }
+                  public String x() { return ""; }
+                  public String y() { return ""; }
+                  public Object[] parts() { return parts.clone(); }
+              }
+              """);
+      var compilation =
+          compile(
+              bundle,
+              spec(
+                  "BundleOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BundleOpticsSpec extends OpticsSpec<Bundle> {
+                      @ViaConstructor(parameterOrder = {"label", "x", "y"})
+                      Lens<Bundle, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.x()' where 'Bundle(String label,"
+                  + " Object... parts)' takes 'parts'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Pass the arguments where the constructor's parameter names place them:"
+                  + " @ViaConstructor(parameterOrder = {\"label\", \"parts\"}).");
+      assertThat(compilation).hadErrorCount(1);
+
+      // Each 'parts()' passed into the array would nest the array in itself.
+      var repeated =
+          compile(
+              bundle,
+              spec(
+                  "BundleOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BundleOpticsSpec extends OpticsSpec<Bundle> {
+                      @ViaConstructor(parameterOrder = {"label", "parts", "parts"})
+                      Lens<Bundle, String> label();
+                  }
+                  """));
+      assertThat(repeated)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.parts()' where 'Bundle(String"
+                  + " label, Object... parts)' takes 'parts'. The generated lens rebuilds through"
+                  + " 'new Bundle(newValue, source.parts(), source.parts())', and 'parts' is named"
+                  + " after 'parts()', an accessor of 'Bundle' that reads a value it takes. A value"
+                  + " passed into its array is an element of it, not the array 'parts()' reads,"
+                  + " which breaks the lens laws.");
+      assertThat(repeated).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an array javac would warn of passing whole is not offered")
+    void arrayJavacWouldWarnOfPassingWholeIsNotOffered() {
+      // A String[] passed to an Object... is a single element too, so javac warns of it in the
+      // generated file, and no order offered may draw that.
+      var compilation =
+          compile(
+              external(
+                  "Strings",
+                  """
+                  public final class Strings {
+                      private final String label;
+                      private final Object[] parts;
+                      public Strings(String label, Object... parts) {
+                          this.label = label;
+                          this.parts = parts.clone();
+                      }
+                      public String label() { return label; }
+                      public String x() { return ""; }
+                      public String[] parts() { return new String[0]; }
+                  }
+                  """),
+              spec(
+                  "StringsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface StringsOpticsSpec extends OpticsSpec<Strings> {
+                      @ViaConstructor(parameterOrder = {"label", "x"})
+                      Lens<Strings, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which breaks the lens laws. Rebuild 'Strings' with @Wither, @ViaBuilder or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an order that crosses each constructor inference could pick is refused")
+    void orderThatCrossesEachConstructorInferenceCouldPickIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Mark",
+                  """
+                  public final class Mark {
+                      private final String label;
+                      private final String note;
+                      @SafeVarargs
+                      public <T extends CharSequence> Mark(String label, T... parts) {
+                          this.label = label;
+                          this.note = "";
+                      }
+                      public Mark(String label, String note, String... more) {
+                          this.label = label;
+                          this.note = note;
+                      }
+                      public String label() { return label; }
+                      public String note() { return note; }
+                  }
+                  """),
+              spec(
+                  "MarkOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface MarkOpticsSpec extends OpticsSpec<Mark> {
+                      @ViaConstructor(parameterOrder = {"note", "label"})
+                      Lens<Mark, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' passes 'source.note()' where 'Mark(String label,"
+                  + " T... parts)' takes 'label'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a lens passed into an array is offered no alias of the array's accessor")
+    void lensPassedIntoAnArrayIsOfferedNoAliasOfTheArraysAccessor() {
+      var compilation =
+          compile(
+              external(
+                  "Labels",
+                  """
+                  public final class Labels {
+                      private final String[] labels;
+                      public Labels(String... labels) { this.labels = labels.clone(); }
+                      public String label() { return labels.length == 0 ? "" : labels[0]; }
+                      public String[] labels() { return labels.clone(); }
+                  }
+                  """),
+              spec(
+                  "LabelsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LabelsOpticsSpec extends OpticsSpec<Labels> {
+                      @ViaConstructor(parameterOrder = {"label"})
+                      Lens<Labels, String> label();
+                  }
+                  """));
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'Labels(String... labels)' takes no parameter named after the"
+                  + " lens's own 'label()'.");
+      Assertions.assertThat(compilation.errors().getFirst().getMessage(null))
+          .doesNotContain("name the lens method");
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 

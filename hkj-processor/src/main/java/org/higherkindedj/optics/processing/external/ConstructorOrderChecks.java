@@ -18,6 +18,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -97,6 +98,20 @@ final class ConstructorOrderChecks {
 
   private static final String TAG = "@ViaConstructor";
 
+  /**
+   * The {@code @SuppressWarnings} id that keeps quiet a written order rebuilding through a shorter
+   * constructor on purpose.
+   */
+  static final String SHORTER_CONSTRUCTOR = "shorter-constructor";
+
+  /**
+   * The values an order passes nothing for that a longer constructor takes.
+   *
+   * @param constructor the longer constructor, as the warning names it
+   * @param accessors the accessors that read them, each spelt as an offer spells it
+   */
+  private record LeftOut(ExecutableElement constructor, List<String> accessors) {}
+
   private final Types typeUtils;
   private final Elements elementUtils;
   private final Messager messager;
@@ -132,6 +147,9 @@ final class ConstructorOrderChecks {
         || rebuildsThroughUnfitConstructor(rebuild, order.get(), derived)
         || derived && leavesOutALongerConstructor(rebuild, order.get())) {
       return Optional.empty();
+    }
+    if (!derived) {
+      warnOfValuesLeftOut(rebuild, order.get());
     }
     return order;
   }
@@ -242,10 +260,11 @@ final class ConstructorOrderChecks {
     // Only an order the call would rebuild through a constructor that follows is offered, the
     // longest first; where none is, the focus the getter reads may be what keeps them out.
     List<List<String>> holding =
-        orders.stream()
-            .filter(named -> holds(rebuild, named))
-            .sorted(Comparator.comparingInt((List<String> named) -> named.size()).reversed())
-            .toList();
+        offerable(
+            rebuild,
+            orders.stream()
+                .sorted(Comparator.comparingInt((List<String> named) -> named.size()).reversed())
+                .toList());
     TypeMirror readAsFocus = readAsFocus(rebuild);
     boolean focusFixes =
         !typeUtils.isSameType(readAsFocus, rebuild.focus())
@@ -261,7 +280,7 @@ final class ConstructorOrderChecks {
             + " parameters is named after an accessor that reads a value it takes, and here their"
             + " orders differ, so the one to rebuild through has to be written.",
         !holding.isEmpty()
-            ? "Write the one the lens rebuilds through: " + offered(holding) + "."
+            ? "Write the one the lens rebuilds through: " + pasted(rebuild, holding)
             : focusFixes
                 ? CopyStrategyChecks.declareFocusAs(readAsFocus, fieldName)
                     + "; otherwise "
@@ -291,6 +310,15 @@ final class ConstructorOrderChecks {
       return false;
     }
     String signature = constructorSignature(longer.get());
+    // Written out, the order rebuilds through the shorter one, warning of any value it leaves out.
+    String writtenOut =
+        leftOut(rebuild, order).isEmpty()
+            ? "; written out, " + literal(order) + " rebuilds through the shorter one as it is."
+            : "; to rebuild through the shorter one on purpose, write out "
+                + literal(order)
+                + " and "
+                + annotateToSuppress(rebuild)
+                + ".";
     Diagnostics.error(
         messager,
         rebuild.method(),
@@ -306,12 +334,140 @@ final class ConstructorOrderChecks {
             + signature
             + "' takes more, so a value only it takes may come back reset after every set.",
         "Write the order of the constructor the lens should rebuild through as"
-            + " @ViaConstructor's 'parameterOrder'; written out, "
-            + literal(order)
-            + " rebuilds through the shorter one as it is. Otherwise "
+            + " @ViaConstructor's 'parameterOrder'"
+            + writtenOut
+            + " Otherwise "
             + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
             + ".");
     return true;
+  }
+
+  /**
+   * Warns of a written order that passes nothing for a value the source reads and a longer
+   * constructor takes: rebuilt through the shorter one, that value comes back after every set as
+   * the shorter one gives it. A constructor may derive it on purpose, as a record's convenience
+   * constructor computes a component from the others, so {@code @SuppressWarnings} with {@link
+   * #SHORTER_CONSTRUCTOR} on the lens method, or a declaration enclosing it, keeps it quiet.
+   */
+  private void warnOfValuesLeftOut(Rebuild rebuild, List<String> order) {
+    Optional<LeftOut> leftOut = leftOut(rebuild, order);
+    if (leftOut.isEmpty() || Diagnostics.suppressed(rebuild.method(), SHORTER_CONSTRUCTOR)) {
+      return;
+    }
+    List<String> accessors = leftOut.get().accessors();
+    ExecutableElement longer = leftOut.get().constructor();
+    String named = listed(accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
+    String them = accessors.size() == 1 ? "it" : "them";
+    List<List<String>> offers =
+        namedOrders(rebuild, order).stream()
+            .filter(offer -> offer.containsAll(accessors))
+            .filter(offer -> leftOut(rebuild, offer).isEmpty())
+            .filter(offer -> holds(rebuild, offer))
+            .toList();
+    Diagnostics.warning(
+        messager,
+        rebuild.method(),
+        TAG,
+        "'parameterOrder' "
+            + literal(order)
+            + " passes nothing for "
+            + named
+            + ", which '"
+            + constructorSignature(longer)
+            + "' takes.",
+        "The generated lens rebuilds through '"
+            + callOf(rebuild, order)
+            + "', so after every set "
+            + named
+            + (accessors.size() == 1 ? " reads" : " read")
+            + " what that constructor gives "
+            + them
+            + ", not what the source held, which breaks the lens laws unless the constructor"
+            + " derives "
+            + them
+            + " from what it is passed.",
+        !offers.isEmpty()
+            ? "Pass "
+                + them
+                + ": "
+                + offered(offers)
+                + ". If the constructor derives "
+                + them
+                + " on purpose, "
+                + annotateToSuppress(rebuild)
+                + "."
+            : takesNoParameterForTheLens(rebuild, List.of(longer))
+                // A longer constructor that takes no parameter for the lens may read the same value
+                // another way, as pounds and pence beside cents, so no order can pass it all.
+                ? "No order passes "
+                    + them
+                    + " with the new value, since '"
+                    + constructorSignature(longer)
+                    + "' takes no parameter named after '"
+                    + rebuild.fieldName()
+                    + "()'. If it reads the same value another way, "
+                    + annotateToSuppress(rebuild)
+                    + "; otherwise "
+                    + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                    + "."
+                : "Write an order that passes "
+                    + them
+                    + ", or "
+                    + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                    + ". If the constructor derives "
+                    + them
+                    + " on purpose, "
+                    + annotateToSuppress(rebuild)
+                    + ".");
+  }
+
+  /** The way to keep the warning of a value an order leaves out quiet, as a fix line words it. */
+  private static String annotateToSuppress(Rebuild rebuild) {
+    return "annotate '"
+        + rebuild.fieldName()
+        + "()' @SuppressWarnings(\""
+        + SHORTER_CONSTRUCTOR
+        + "\")";
+  }
+
+  /**
+   * The values an order passes nothing for that a longer constructor takes, read from the longest
+   * that takes any: each parameter named after an accessor that reads a value it takes, none of
+   * whose spellings the order passes. A parameter named after nothing that reads holds nothing the
+   * lens could pass, so it is never one. Of a record's constructors only the canonical one counts,
+   * as for an order read from the names; a variable-arity constructor the order passes nothing into
+   * the array of is longer than the order too.
+   */
+  private Optional<LeftOut> leftOut(Rebuild rebuild, List<String> order) {
+    boolean record = rebuild.source().asElement().getKind() == ElementKind.RECORD;
+    // Elements spread into a variable-arity array are one place, however many the order passes.
+    int places =
+        boundBy(rebuild, order)
+            .filter(constructor -> passesIntoArray(rebuild, constructor, order))
+            .map(constructor -> Math.min(order.size(), constructor.getParameters().size()))
+            .orElse(order.size());
+    return rebuild.constructors().stream()
+        .filter(
+            constructor ->
+                record ? isCanonical(constructor) : constructor.getParameters().size() > places)
+        .sorted(
+            Comparator.comparingInt(
+                    (ExecutableElement constructor) -> constructor.getParameters().size())
+                .reversed())
+        .map(
+            constructor ->
+                new LeftOut(
+                    constructor,
+                    namedReaders(rebuild, constructor).stream()
+                        .filter(
+                            spellings ->
+                                !spellings.isEmpty()
+                                    && spellings.stream().noneMatch(order::contains))
+                        .map(spellings -> spelling(spellings, rebuild.fieldName(), order))
+                        .distinct()
+                        .toList()))
+        .filter(left -> !left.accessors().isEmpty())
+        .findFirst();
   }
 
   /**
@@ -344,43 +500,187 @@ final class ConstructorOrderChecks {
             .collect(Collectors.joining(", ", "(", ")"));
     return switch (CallBinding.resolve(
         typeUtils, rebuild.source(), arguments, rebuild.constructors())) {
-      case CallBinding.Binds(ExecutableElement bound) -> {
-        if (!derived || givesOrder(rebuild, bound, order)) {
-          yield crossesParameterNames(rebuild, bound, order, call);
-        }
-        reportOrderBindingAnother(rebuild, bound, order, call);
-        yield true;
-      }
+      case CallBinding.Binds(ExecutableElement bound) ->
+          rebuildsAgainstItsNames(rebuild, bound, order, call, derived);
       case CallBinding.NoneApplies() -> {
         reportOrderNoConstructorTakes(rebuild, order, call, taken);
         yield true;
       }
       case CallBinding.Ambiguous(List<ExecutableElement> tied) -> {
-        List<String> signatures =
-            tied.stream()
-                .map(constructor -> "'" + constructorSignature(constructor) + "'")
-                .toList();
-        Diagnostics.error(
-            messager,
-            rebuild.method(),
-            TAG,
-            "The generated call '"
-                + call
-                + "' cannot choose between "
-                + String.join(", ", signatures.subList(0, signatures.size() - 1))
-                + " and "
-                + signatures.getLast()
-                + ".",
-            "Each of them takes "
-                + taken
-                + ", the arguments the generated lens rebuilds '"
-                + source
-                + "' with, and none has parameters more specific than every other's.",
-            anotherStrategy(source));
+        reportAmbiguous(rebuild, tied, call, taken);
         yield true;
       }
-      case CallBinding.Undecided(List<ExecutableElement> ignored) -> false;
+      case CallBinding.Undecided(List<ExecutableElement> candidates) -> {
+        Optional<List<ExecutableElement>> choice =
+            variableArityChoice(rebuild, candidates, arguments);
+        if (choice.isEmpty()) {
+          yield false;
+        }
+        yield switch (choice.get().size()) {
+          case 0 -> {
+            reportOrderNoConstructorTakes(rebuild, order, call, taken);
+            yield true;
+          }
+          case 1 -> rebuildsAgainstItsNames(rebuild, choice.get().getFirst(), order, call, derived);
+          default -> {
+            if (!inferredAmong(choice.get())) {
+              reportAmbiguous(rebuild, choice.get(), call, taken);
+              yield true;
+            }
+            // Which one inference picks is javac's to say, but an order that passes an argument
+            // against the names of each crosses the one it picks.
+            if (choice.get().stream()
+                .anyMatch(candidate -> crossingIn(rebuild, candidate, order).isEmpty())) {
+              yield false;
+            }
+            yield crossesParameterNames(rebuild, choice.get().getFirst(), order, call);
+          }
+        };
+      }
     };
+  }
+
+  /** Reports a call javac cannot choose a constructor for, naming each it cannot choose between. */
+  private void reportAmbiguous(
+      Rebuild rebuild, List<ExecutableElement> tied, String call, String taken) {
+    String source = rebuild.sourceName();
+
+    List<String> signatures =
+        tied.stream().map(constructor -> "'" + constructorSignature(constructor) + "'").toList();
+    Diagnostics.error(
+        messager,
+        rebuild.method(),
+        TAG,
+        "The generated call '"
+            + call
+            + "' cannot choose between "
+            + String.join(", ", signatures.subList(0, signatures.size() - 1))
+            + " and "
+            + signatures.getLast()
+            + ".",
+        "Each of them takes "
+            + taken
+            + ", the arguments the generated lens rebuilds '"
+            + source
+            + "' with, and none has parameters more specific than every other's.",
+        anotherStrategy(source));
+  }
+
+  /**
+   * Reports an order whose call binds {@code bound} against what its parameter names say, and
+   * returns whether it did: an order read from the names has to bind a constructor it was read
+   * from, and any order has to pass each parameter named after an accessor that accessor's value.
+   */
+  private boolean rebuildsAgainstItsNames(
+      Rebuild rebuild, ExecutableElement bound, List<String> order, String call, boolean derived) {
+    if (!derived || givesOrder(rebuild, bound, order)) {
+      return crossesParameterNames(rebuild, bound, order, call);
+    }
+    reportOrderBindingAnother(rebuild, bound, order, call);
+    return true;
+  }
+
+  /**
+   * What a call javac leaves undecided chooses between, where every candidate is a variable-arity
+   * constructor: those that take its arguments, narrowed to the most specific where one is (JLS
+   * 15.12.2.5). So no constructor, one that javac binds, or several: ones it cannot choose between,
+   * or where {@link #inferredAmong one declares type variables of its own}, ones it chooses between
+   * by inference this does not repeat. Empty where a candidate is not variable-arity, which is one
+   * javac reached through inference.
+   */
+  private Optional<List<ExecutableElement>> variableArityChoice(
+      Rebuild rebuild, List<ExecutableElement> candidates, List<TypeMirror> arguments) {
+    if (!candidates.stream().allMatch(ExecutableElement::isVarArgs)) {
+      return Optional.empty();
+    }
+    List<ExecutableElement> taking =
+        candidates.stream()
+            .filter(candidate -> takes(parametersRead(rebuild, candidate), arguments))
+            .toList();
+    if (inferredAmong(taking)) {
+      return Optional.of(taking);
+    }
+    List<ExecutableElement> mostSpecific =
+        taking.stream()
+            .filter(
+                candidate ->
+                    taking.stream()
+                        .allMatch(
+                            other ->
+                                other == candidate
+                                    || asSpecific(rebuild, candidate, other, arguments.size())))
+            .toList();
+    return Optional.of(mostSpecific.size() == 1 ? mostSpecific : taking);
+  }
+
+  /**
+   * Whether several constructors a call could bind include one declaring type variables of its own,
+   * which leaves the choice among them to inference.
+   */
+  private static boolean inferredAmong(List<ExecutableElement> constructors) {
+    return constructors.size() > 1
+        && constructors.stream()
+            .anyMatch(constructor -> !constructor.getTypeParameters().isEmpty());
+  }
+
+  /**
+   * Whether a variable-arity constructor takes the arguments: its array passed whole, or the
+   * elements of its array one by one after its fixed parameters. A candidate reaches here with an
+   * argument for each of its fixed parameters at least.
+   */
+  private boolean takes(List<TypeMirror> parameters, List<TypeMirror> arguments) {
+    return takesWhole(parameters, arguments)
+        || IntStream.range(0, arguments.size())
+            .allMatch(at -> typeUtils.isAssignable(arguments.get(at), spreadAt(parameters, at)));
+  }
+
+  /** Whether a constructor takes the arguments at fixed arity, each where its parameter stands. */
+  private boolean takesWhole(List<TypeMirror> parameters, List<TypeMirror> arguments) {
+    return parameters.size() == arguments.size()
+        && IntStream.range(0, arguments.size())
+            .allMatch(at -> typeUtils.isAssignable(arguments.get(at), parameters.get(at)));
+  }
+
+  /**
+   * Whether one variable-arity constructor is as specific as another for a call of {@code arity}
+   * arguments: its parameter at each place, its array's elements standing for those past its fixed
+   * ones, a subtype of the other's there.
+   */
+  private boolean asSpecific(
+      Rebuild rebuild, ExecutableElement constructor, ExecutableElement other, int arity) {
+    List<TypeMirror> mine = parametersRead(rebuild, constructor);
+    List<TypeMirror> theirs = parametersRead(rebuild, other);
+    int places = Math.max(arity, Math.max(mine.size(), theirs.size()));
+    return IntStream.range(0, places)
+        .allMatch(at -> typeUtils.isSubtype(spreadAt(mine, at), spreadAt(theirs, at)));
+  }
+
+  /**
+   * The type a variable-arity constructor takes at a place: a fixed parameter's, or past them, the
+   * element type of its array.
+   */
+  private static TypeMirror spreadAt(List<TypeMirror> parameters, int at) {
+    int last = parameters.size() - 1;
+    return at < last ? parameters.get(at) : ((ArrayType) parameters.get(last)).getComponentType();
+  }
+
+  /**
+   * Whether the call for an order passes a variable-arity constructor its array's elements one by
+   * one rather than the array whole.
+   */
+  private boolean passesIntoArray(
+      Rebuild rebuild, ExecutableElement constructor, List<String> order) {
+    return constructor.isVarArgs()
+        && !takesWhole(parametersRead(rebuild, constructor), argumentsOf(rebuild, order));
+  }
+
+  /**
+   * A constructor's parameters as {@link CallBinding} reads them, on the captured source type, a
+   * constructor's own type variable standing as its erasure.
+   */
+  private List<TypeMirror> parametersRead(Rebuild rebuild, ExecutableElement constructor) {
+    return CallBinding.parametersOf(
+        typeUtils, (DeclaredType) typeUtils.capture(rebuild.source()), constructor);
   }
 
   /**
@@ -472,15 +772,15 @@ final class ConstructorOrderChecks {
    */
   private boolean crossesParameterNames(
       Rebuild rebuild, ExecutableElement bound, List<String> order, String call) {
-    List<List<String>> readers = namedReaders(rebuild, bound);
-    OptionalInt misplaced = firstCrossing(readers, order);
+    List<List<String>> readers = readersAt(rebuild, bound, order);
+    OptionalInt misplaced = crossingIn(rebuild, bound, order);
     if (misplaced.isEmpty()) {
       return false;
     }
     String fieldName = rebuild.fieldName();
     String source = rebuild.sourceName();
     String signature = constructorSignature(bound);
-    List<String> repaired = repaired(readers, fieldName, order);
+    List<String> repaired = repairedFor(rebuild, bound, order);
     if (!repaired.contains(fieldName)) {
       // The repair keeps the lens's value wherever a parameter named after nothing can take it, so
       // here every place the order passes it is a parameter named after another accessor.
@@ -500,13 +800,13 @@ final class ConstructorOrderChecks {
               + "', passing the new value where '"
               + signature
               + "' takes '"
-              + bound.getParameters().get(lens).getSimpleName()
+              + parameterAt(bound, lens).getSimpleName()
               + "', a parameter its name says takes what '"
               + owner
               + "()' reads, not what the lens reads.",
           // A lens named after what the parameter's own accessor reads is an alias of it, unless
-          // that accessor already has its own place in the order.
-          (order.contains(owner)
+          // that accessor already has its own place in the order, or the value goes into an array.
+          (order.contains(owner) || passesIntoArray(rebuild, bound, order)
                   ? ""
                   : "If '"
                       + fieldName
@@ -520,7 +820,7 @@ final class ConstructorOrderChecks {
       return true;
     }
     int at = misplaced.getAsInt();
-    String parameter = bound.getParameters().get(at).getSimpleName().toString();
+    String parameter = parameterAt(bound, at).getSimpleName().toString();
     Diagnostics.error(
         messager,
         rebuild.method(),
@@ -542,8 +842,13 @@ final class ConstructorOrderChecks {
             + readers.get(at).getFirst()
             + "()', an accessor of '"
             + source
-            + "' that reads a value it takes. Another value passed in its place is written into"
-            + " the wrong field, which breaks the lens laws.",
+            + "' that reads a value it takes. "
+            + (at >= bound.getParameters().size() - 1 && passesIntoArray(rebuild, bound, order)
+                ? "A value passed into its array is an element of it, not the array '"
+                    + readers.get(at).getFirst()
+                    + "()' reads, which breaks the lens laws."
+                : "Another value passed in its place is written into the wrong field, which breaks"
+                    + " the lens laws."),
         namedRemedy(rebuild, order, List.of(repaired)).orElse(anotherStrategy(source)));
     return true;
   }
@@ -558,20 +863,32 @@ final class ConstructorOrderChecks {
   private Optional<String> namedRemedy(
       Rebuild rebuild, List<String> written, List<List<String>> preferred) {
     List<List<String>> offers =
-        Stream.concat(preferred.stream(), namedOrders(rebuild, written).stream())
-            .filter(Predicate.not(written::equals))
-            .filter(named -> holds(rebuild, named))
-            .distinct()
-            .toList();
+        offerable(
+            rebuild,
+            Stream.concat(preferred.stream(), namedOrders(rebuild, written).stream())
+                .filter(Predicate.not(written::equals))
+                .distinct()
+                .toList());
     if (!offers.isEmpty()) {
       return Optional.of(
           "Pass the arguments where the constructor's parameter names place them: "
-              + offered(offers)
-              + ".");
+              + pasted(rebuild, offers));
     }
     return takesNoParameterForTheLens(rebuild, rebuild.constructors())
         ? Optional.of(cannotSetFix(rebuild.sourceName(), rebuild.fieldName()))
         : Optional.empty();
+  }
+
+  /**
+   * The orders worth offering to paste: each one the call would rebuild through a constructor that
+   * follows, and where any of them passes every value a longer constructor takes, only those, so
+   * that pasting one draws no warning of what it leaves out.
+   */
+  private List<List<String>> offerable(Rebuild rebuild, List<List<String>> orders) {
+    List<List<String>> holding = orders.stream().filter(order -> holds(rebuild, order)).toList();
+    List<List<String>> whole =
+        holding.stream().filter(order -> leftOut(rebuild, order).isEmpty()).toList();
+    return whole.isEmpty() ? holding : whole;
   }
 
   /** What the lens's own getter reads, as a focus declares it. */
@@ -600,6 +917,50 @@ final class ConstructorOrderChecks {
         .findFirst();
   }
 
+  /**
+   * The first place the call for an order passes an argument against a constructor's parameter
+   * names. A variable-arity constructor passed its array's elements one by one holds its fixed
+   * parameters to their names; where its array is named after an accessor, no value passed into it
+   * is that accessor's array, so the first one crosses, and an order that passes none leaves it to
+   * the warning of what it leaves out.
+   */
+  private OptionalInt crossingIn(
+      Rebuild rebuild, ExecutableElement constructor, List<String> order) {
+    List<List<String>> readers = namedReaders(rebuild, constructor);
+    if (!passesIntoArray(rebuild, constructor, order)) {
+      return firstCrossing(readers, order);
+    }
+    int last = readers.size() - 1;
+    OptionalInt fixed = firstCrossing(readers, order.subList(0, last));
+    return fixed.isPresent() || readers.get(last).isEmpty() || order.size() == last
+        ? fixed
+        : OptionalInt.of(last);
+  }
+
+  /**
+   * A written order put right against a bound constructor's names, as {@link #repaired} puts it. A
+   * variable-arity constructor passed its array's elements one by one has its fixed places put
+   * right, then its array passed whole where it is named after an accessor; where it is named after
+   * nothing, each element is a place named after nothing.
+   */
+  private List<String> repairedFor(Rebuild rebuild, ExecutableElement bound, List<String> order) {
+    List<List<String>> readers = namedReaders(rebuild, bound);
+    String fieldName = rebuild.fieldName();
+    if (!passesIntoArray(rebuild, bound, order)) {
+      return repaired(readers, fieldName, order);
+    }
+    int last = readers.size() - 1;
+    List<String> array = readers.get(last);
+    if (array.isEmpty()) {
+      // Each element takes what the order passes, so the places are put right as one list.
+      return repaired(readersAt(rebuild, bound, order), fieldName, order);
+    }
+    return Stream.concat(
+            repaired(readers.subList(0, last), fieldName, order.subList(0, last)).stream(),
+            Stream.of(spelling(array, fieldName, order)))
+        .toList();
+  }
+
   /** The fix where no constructor takes the lens's own value: a whole fix line. */
   private static String cannotSetFix(String source, String fieldName) {
     return "@ViaConstructor cannot set '"
@@ -618,8 +979,26 @@ final class ConstructorOrderChecks {
    */
   private boolean holds(Rebuild rebuild, List<String> order) {
     return boundBy(rebuild, order)
-        .filter(constructor -> firstCrossing(namedReaders(rebuild, constructor), order).isEmpty())
+        .filter(constructor -> crossingIn(rebuild, constructor, order).isEmpty())
+        .filter(constructor -> !passesInexactArray(rebuild, constructor, order))
         .isPresent();
+  }
+
+  /**
+   * Whether the call for an order passes a variable-arity constructor a whole array javac warns of
+   * in the generated file: one its array's element type also takes as a single element, such as a
+   * {@code String[]} for an {@code Object...}, whose type differs from the array the constructor
+   * takes. Such an order is not offered, since pasting it would draw that warning.
+   */
+  private boolean passesInexactArray(
+      Rebuild rebuild, ExecutableElement constructor, List<String> order) {
+    if (!constructor.isVarArgs() || passesIntoArray(rebuild, constructor, order)) {
+      return false;
+    }
+    TypeMirror array = parametersRead(rebuild, constructor).getLast();
+    TypeMirror passed = argumentsOf(rebuild, order).getLast();
+    return typeUtils.isAssignable(passed, ((ArrayType) array).getComponentType())
+        && !typeUtils.isSameType(typeUtils.erasure(passed), typeUtils.erasure(array));
   }
 
   /** The constructor the generated call for an order binds, where that can be said. */
@@ -627,10 +1006,16 @@ final class ConstructorOrderChecks {
     if (choosesByInference(rebuild, order)) {
       return soleConstructorOfLength(rebuild, order);
     }
-    return CallBinding.resolve(
-                typeUtils, rebuild.source(), argumentsOf(rebuild, order), rebuild.constructors())
-            instanceof CallBinding.Binds(ExecutableElement bound)
-        ? Optional.of(bound)
+    List<TypeMirror> arguments = argumentsOf(rebuild, order);
+    CallBinding binding =
+        CallBinding.resolve(typeUtils, rebuild.source(), arguments, rebuild.constructors());
+    if (binding instanceof CallBinding.Binds(ExecutableElement bound)) {
+      return Optional.of(bound);
+    }
+    return binding instanceof CallBinding.Undecided(List<ExecutableElement> candidates)
+        ? variableArityChoice(rebuild, candidates, arguments)
+            .filter(choice -> choice.size() == 1)
+            .map(List::getFirst)
         : Optional.empty();
   }
 
@@ -745,9 +1130,7 @@ final class ConstructorOrderChecks {
    * type variable stands as its erasure.
    */
   private List<List<String>> namedReaders(Rebuild rebuild, ExecutableElement constructor) {
-    List<TypeMirror> parameters =
-        CallBinding.parametersOf(
-            typeUtils, (DeclaredType) typeUtils.capture(rebuild.source()), constructor);
+    List<TypeMirror> parameters = parametersRead(rebuild, constructor);
     return IntStream.range(0, parameters.size())
         .mapToObj(
             at ->
@@ -763,6 +1146,30 @@ final class ConstructorOrderChecks {
                                 .isPresent())
                     .toList())
         .toList();
+  }
+
+  /**
+   * For each name in an order, the readers of the parameter the call passes it to, as {@link
+   * #namedReaders} reads them. A variable-arity constructor passes every argument after its fixed
+   * parameters into its array, so each of them is held to that parameter's name, and an order that
+   * passes none holds only the fixed ones.
+   */
+  private List<List<String>> readersAt(
+      Rebuild rebuild, ExecutableElement constructor, List<String> order) {
+    List<List<String>> readers = namedReaders(rebuild, constructor);
+    if (!constructor.isVarArgs()) {
+      return readers;
+    }
+    int last = readers.size() - 1;
+    return IntStream.range(0, order.size())
+        .mapToObj(at -> readers.get(Math.min(at, last)))
+        .toList();
+  }
+
+  /** The parameter the call passes the argument at {@code at} to, a variable-arity array's too. */
+  private static VariableElement parameterAt(ExecutableElement constructor, int at) {
+    List<? extends VariableElement> parameters = constructor.getParameters();
+    return parameters.get(Math.min(at, parameters.size() - 1));
   }
 
   /**
@@ -865,11 +1272,34 @@ final class ConstructorOrderChecks {
         : spellings.stream().filter(style::contains).findFirst().orElse(spellings.getFirst());
   }
 
+  /**
+   * Orders {@link #offerable} gives, as a fix line offers them, to the end of the sentence: where
+   * they leave out a value a longer constructor takes, which they do only where every order does,
+   * how to keep the warning that draws quiet.
+   */
+  private String pasted(Rebuild rebuild, List<List<String>> offers) {
+    return offered(offers)
+        + "."
+        + (leftOut(rebuild, offers.getFirst()).isEmpty()
+            ? ""
+            : " Pasted, an order offered warns of a value a longer constructor takes that it passes"
+                + " nothing for; where the shorter one works it out on purpose, "
+                + annotateToSuppress(rebuild)
+                + ".");
+  }
+
   /** Orders as a fix line offers them: each a {@code @ViaConstructor} to paste. */
   private static String offered(List<List<String>> orders) {
     return orders.stream()
         .map(order -> "@ViaConstructor(parameterOrder = " + literal(order) + ")")
         .collect(Collectors.joining(" or "));
+  }
+
+  /** Names as a sentence lists them: {@code 'a()'}, {@code 'a()' and 'b()'}, or with commas. */
+  private static String listed(List<String> names) {
+    return names.size() == 1
+        ? names.getFirst()
+        : String.join(", ", names.subList(0, names.size() - 1)) + " and " + names.getLast();
   }
 
   /** An order as an annotation writes it, {@code {"x", "y"}}. */

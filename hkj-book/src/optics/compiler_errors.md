@@ -83,6 +83,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`parameter named after the lens's own`](#viaconstructor-order) | No constructor takes a parameter for the lens |
 | [`not a constructor it was read from`](#viaconstructor-order) | An order read from names binds another constructor |
 | [`leaves out what '...' takes`](#viaconstructor-order) | An order read from names misses a longer constructor |
+| [`passes nothing for`](#viaconstructor-shorter-constructor) | **Warning.** A written `@ViaConstructor` order rebuilds through a shorter constructor |
 | [`pairs more than one wither with the field`](#importoptics--pairs-more-than-one-wither-with-the-field--a-note) | **Note.** Two withers reach one field name, and one lens is generated |
 | [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
 | [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
@@ -1469,12 +1470,12 @@ interface ParcelOpticsSpec extends OpticsSpec<Parcel> {
 | `cannot choose between 'Duo(int a, Integer b)' and 'Duo(Integer a, int b)'` | More than one constructor takes them, none more closely than the rest |
 | `No 'parameterOrder' is written, and no constructor of` | With no order written, no constructor's names give one; `more than one constructor` when two give different orders |
 | `binds '...', not a constructor it was read from` | The order read from one constructor's names binds another constructor |
-| `leaves out what '...' takes` | The order read from the names is a shorter constructor's, beside a longer one; never for a record |
+| `leaves out what '...' takes` | The order read from the names is a shorter constructor's, beside a longer one; for a record, beside its canonical constructor |
 
 **Fix.** Where the constructor's parameter names give an order the call would rebuild through, the message ends on it, ready to paste: `@ViaConstructor(parameterOrder = {"x", "y"})`. Where the lens's focus is what no constructor takes, it names the type the getter reads, to declare as the focus instead. Where the names give no order, or the order read from them would rebuild through the wrong constructor, write the order of the one the lens should rebuild through. Where no constructor takes the lens's value, or javac cannot choose one, rebuild the source type with `@Wither`, `@ViaBuilder` or `@ViaCopyAndSet`. A lens named after an alias, `price()` for a parameter `cents`, can take the accessor's own name instead. A parameter can be named after an accessor that reads something else, as `Money(long amount, ...)` beside an `amount()` that reads pounds rather than pence. The processor still holds the order to that name, and the lens needs another strategy.
 
 ~~~admonish note title="Why" collapsible=true
-A constructor call checks only types. `Point(int x, int y)` takes `new Point(source.y(), newValue)` as readily as the right order, and the lens then writes each value into the other's field. Setting `x` to 9 on a `Point(1, 2)` gives a `Point(2, 9)`, so a get after the set no longer reads 9. Only the parameter names tell the two apart. So a parameter named after an accessor that reads a value it takes, `x` after `x()`, `getX()` or `isX()`, has to be passed that accessor's value. A parameter named after nothing the type reads leaves its place to the order.
+A constructor call checks only types. `Point(int x, int y)` takes `new Point(source.y(), newValue)` as readily as the right order, and the lens then writes each value into the other's field. Setting `x` to 9 on a `Point(1, 2)` gives a `Point(2, 9)`, so a get after the set no longer reads 9. Only the parameter names tell the two apart. So a parameter named after an accessor that reads a value it takes, `x` after `x()`, `getX()` or `isX()`, has to be passed that accessor's value. A parameter named after nothing the type reads leaves its place to the order. A variable-arity constructor is held the same way: its fixed parameters by their names, and every value passed into its array by the array parameter's.
 
 A constructor compiled from source always carries its names. One read from a class file carries them when it was compiled with `-parameters` or `-g`, and Gradle and Maven pass `-g` by default. Without either, javac reads the names as `arg0` and `arg1`, which name no accessor, so the order you write is held to the types alone, and one left out cannot be read. A record's canonical constructor is read by its components' names, which a class file always keeps.
 ~~~
@@ -1576,6 +1577,43 @@ interface DuoOpticsSpec extends OpticsSpec<Duo> {
 }
 ```
 
+A swap among a variable-arity constructor's fixed parameters, which says `passes 'source.note()' where 'Sticker(String label, String note, String... parts)' takes 'label'`:
+
+<!-- verify:rejects "passes 'source.note()' where 'Sticker(String label, String note, String... parts)' takes 'label'" -->
+```java
+final class Sticker {
+
+    private final String label;
+    private final String note;
+    private final String[] parts;
+
+    Sticker(String label, String note, String... parts) {
+        this.label = label;
+        this.note = note;
+        this.parts = parts.clone();
+    }
+
+    public String label() {
+        return label;
+    }
+
+    public String note() {
+        return note;
+    }
+
+    public String[] parts() {
+        return parts.clone();
+    }
+}
+
+@ImportOptics
+interface StickerOpticsSpec extends OpticsSpec<Sticker> {
+
+    @ViaConstructor(parameterOrder = {"note", "label"})
+    Lens<Sticker, String> label();
+}
+```
+
 No order written, for a lens no constructor takes a parameter for:
 
 <!-- verify:rejects "No constructor of 'Sum' takes a parameter named after the lens's own 'total()'" -->
@@ -1608,6 +1646,55 @@ interface SumOpticsSpec extends OpticsSpec<Sum> {
 
     @ViaConstructor
     Lens<Sum, Integer> total();
+}
+```
+~~~
+
+### "@ViaConstructor: 'parameterOrder' ... passes nothing for '...', which '...' takes" (a warning) {#viaconstructor-shorter-constructor}
+
+A written order rebuilds through the constructor its call binds, even one that takes fewer values than the source holds. Beside `Fee(long amount, String currency)`, `{"amount"}` binds `Fee(long amount)`, and every set then hands back a `Fee` in that constructor's default currency. The warning names each value a longer constructor takes that the order passes nothing for; for a record, each component.
+
+**Fix.** Pass it: where a constructor's names give an order that passes it, the warning offers that order, ready to paste, `@ViaConstructor(parameterOrder = {"amount", "currency"})`. A shorter constructor can work the value out on purpose: a `Rect(int w, int h)` works out the `area` a `Rect(int w, int h, int area)` record holds. Then annotate the lens method `@SuppressWarnings("shorter-constructor")`, or the spec interface to cover each lens it declares.
+
+~~~admonish note title="Why" collapsible=true
+After every set, a value the order leaves out reads what the shorter constructor gives it, not what the source held. Setting `amount` to 9 on a `Fee(100, "EUR")` gives a `Fee(9, "GBP")`, so setting a value the lens has just read changes the source, which a lens may not do. A variable-arity constructor passed nothing for its array is shorter in the same way: `{"label"}` for `Sticker(String label, String... parts)` leaves `parts` empty.
+
+Only the parameter names say which values a longer constructor takes, so a parameter named after nothing the type reads never counts. Two constructors of one length, such as `Temperature(double celsius)` and `Temperature(float fahrenheit)`, are two views of one value rather than a shorter and a longer one. A longer view still warns, as `Amount(long pounds, int pence)` beside `Amount(long cents)` does, and the warning says that no order can pass its values with the lens's own. It is a warning rather than an error because a constructor that works a value out keeps the lens lawful, and only you know which of yours do.
+~~~
+
+For this declaration, the warning reads `'parameterOrder' {"amount"} passes nothing for 'currency()', which 'Fee(long amount, String currency)' takes`.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "passes nothing for 'currency()', which 'Fee(long amount, String currency)' takes" -->
+```java
+final class Fee {
+
+    private final long amount;
+    private final String currency;
+
+    Fee(long amount, String currency) {
+        this.amount = amount;
+        this.currency = currency;
+    }
+
+    Fee(long amount) {
+        this(amount, "GBP");
+    }
+
+    public long amount() {
+        return amount;
+    }
+
+    public String currency() {
+        return currency;
+    }
+}
+
+@ImportOptics
+interface FeeOpticsSpec extends OpticsSpec<Fee> {
+
+    @ViaConstructor(parameterOrder = {"amount"})
+    Lens<Fee, Long> amount();
 }
 ```
 ~~~

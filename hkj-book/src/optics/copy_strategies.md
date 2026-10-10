@@ -210,6 +210,8 @@ Leave it out, as `x()` does, and the order is read from the constructor's parame
 
 Either way, the order is held to the constructor the generated call binds. An order of the wrong length is refused at the spec method. So is one that passes `y()` where the parameter named `x` stands, which would otherwise compile and write each value into the other's field. A parameter named after nothing the type reads leaves its place to the order. See the [`@ViaConstructor` entry](compiler_errors.md#viaconstructor-order) in Compiler Errors.
 
+A written order can rebuild through a shorter constructor, one that works out or defaults a value the source holds. Where a longer constructor takes a value the order passes nothing for, or a record component is left out, the processor warns. After every set, that value reads what the shorter constructor gives it. Pass it, in the order the warning offers where the names give one. Where the constructor works it out on purpose, annotate the lens method `@SuppressWarnings("shorter-constructor")`. A variable-arity constructor is held to its parameter names too, the array's included. See [the warning's entry](compiler_errors.md#viaconstructor-shorter-constructor).
+
 ### `@ViaCopyAndSet`: legacy types with a copy constructor and setters
 
 <!-- verify -->
