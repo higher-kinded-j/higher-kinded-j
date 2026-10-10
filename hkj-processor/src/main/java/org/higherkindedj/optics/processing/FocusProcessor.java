@@ -237,10 +237,11 @@ public class FocusProcessor extends AbstractProcessor {
       // analysis says what that method widens to, and a container it turned away is rejected from
       // the same result, so the method's shape and the diagnostic cannot disagree. A field a
       // navigator did take reaches its element through a container the navigator's guard already
-      // admitted, so there is nothing to report for it.
+      // admitted, so no container is turned away for it. This walk reports any generator conflict
+      // on a static field; the navigator method reports for a field it takes.
       if (method == null) {
         WideningAnalysis.Widening widening =
-            analysis.analyse(
+            analysis.analyseDeclaration(
                 component, stepsIntoContainers(component, widenCollections, navigatorGenerator));
         if (widening.declined() != null) {
           reportUndenotableContainer(component, widening.declined());

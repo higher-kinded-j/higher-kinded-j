@@ -359,6 +359,34 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * The analysis reports a generator conflict from the declaration pass only.
+   *
+   * <p>{@code WideningAnalysis.analyseDeclaration} reports each equal-priority generator conflict
+   * its walk meets against the component, so each further caller would report the same conflict
+   * again. The processor's one pass over a record's components asks it once for each component:
+   * {@code FocusProcessor.generateFocusFile} for a static Focus method, and through {@code
+   * NavigatorClassGenerator.createNavigatorMethod} for a component a navigator method takes. Every
+   * other walk asks {@code analyse}, which reports nothing. Collecting the callers of each step
+   * rather than forbidding the rest also fails the rule if it stops seeing the ones it allows.
+   */
+  @Test
+  @DisplayName("The reporting analysis should run only from the declaration pass")
+  void the_reporting_analysis_should_run_only_from_the_declaration_pass() {
+    assertThat(callersOf(WIDENING_ANALYSIS, "analyseDeclaration"))
+        .as(
+            "ask WideningAnalysis.analyse, which reports nothing, so that a generator conflict is"
+                + " reported once for each component")
+        .isEqualTo(
+            Set.of("FocusProcessor.generateFocusFile", "NavigatorClassGenerator.declaredWidening"));
+    assertThat(callersOf(NAVIGATOR_CLASS_GENERATOR, "declaredWidening"))
+        .as("declaredWidening reports, so only the navigator method the declaration pass asks for")
+        .isEqualTo(Set.of("NavigatorClassGenerator.createNavigatorMethod"));
+    assertThat(callersOf(NAVIGATOR_CLASS_GENERATOR, "createNavigatorMethod"))
+        .as("createNavigatorMethod reports, so only the declaration pass may ask for it")
+        .isEqualTo(Set.of("FocusProcessor.generateFocusFile"));
+  }
+
+  /**
    * Only the guarded lookup asks which file an element was read from.
    *
    * <p>{@code Elements.getFileObjectOf} is a default method that throws unless the compiler
@@ -710,6 +738,27 @@ class ProcessorArchitectureRules {
   /** The methods that may read a choice from the registry: the delegate and the two route sites. */
   private static final Set<String> REGISTRY_READERS =
       Set.of("spiLookup", "generateTraversalsFile", "createTraversal");
+
+  /** The analysis whose {@code analyseDeclaration} reports a generator conflict. */
+  private static final String WIDENING_ANALYSIS =
+      "org.higherkindedj.optics.processing.WideningAnalysis";
+
+  /** The navigator generator, whose navigator method runs the reporting analysis. */
+  private static final String NAVIGATOR_CLASS_GENERATOR =
+      "org.higherkindedj.optics.processing.NavigatorClassGenerator";
+
+  /**
+   * The methods that call or reference {@code owner}'s {@code method}, each as {@code
+   * Class.method}.
+   */
+  private static Set<String> callersOf(String owner, String method) {
+    return StreamSupport.stream(classes.spliterator(), false)
+        .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+        .filter(access -> access.getTarget().getOwner().getName().equals(owner))
+        .filter(access -> access.getTarget().getName().equals(method))
+        .map(access -> access.getOriginOwner().getSimpleName() + "." + access.getOrigin().getName())
+        .collect(Collectors.toSet());
+  }
 
   /** Method calls and method references from {@code javaClass}, which decide targets alike. */
   private static Stream<JavaAccess<?>> callsAndReferencesFrom(JavaClass javaClass) {

@@ -109,7 +109,9 @@ public class NavigatorClassGenerator {
    * What the Focus method for {@code component} on {@code record} widens to.
    *
    * <p>The settings are the declaring record's, not the navigating one's, because the method being
-   * described was generated under them.
+   * described was generated under them. The walk reports nothing, since a navigator walks into the
+   * component again for every route that reaches it; the declaration pass reports any generator
+   * conflict it meets, through {@link #declaredWidening}.
    *
    * @param record the record that declares the component
    * @param component the component
@@ -117,6 +119,22 @@ public class NavigatorClassGenerator {
    */
   private Widening widening(TypeElement record, RecordComponentElement component) {
     return analysis.analyse(component, widensContainers(record, component));
+  }
+
+  /**
+   * {@link #widening}, for the declaration pass over a component a navigator method takes: it
+   * reports against the component each equal-priority generator conflict the walk meets.
+   *
+   * <p>The processor asks for a component's navigator method once, while generating the record that
+   * declares it, and falls back to the static Focus method, which reports for itself, only when
+   * there is none. So this is the one reporting walk for a component a navigator method takes.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the widening its navigator method carries
+   */
+  private Widening declaredWidening(TypeElement record, RecordComponentElement component) {
+    return analysis.analyseDeclaration(component, widensContainers(record, component));
   }
 
   /**
@@ -361,7 +379,7 @@ public class NavigatorClassGenerator {
     TypeMirror reached =
         fieldType.getKind() == TypeKind.DECLARED
                 && !analysis.recognisedContainer(fieldType)
-                && analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
+                && analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
             ? spiElement(fieldType, admitted.generator())
             : fieldType;
     if (reached == null) {
@@ -1323,7 +1341,7 @@ public class NavigatorClassGenerator {
     }
     // A container the analysis turns away gets no navigator: the static method it would compose
     // leaves the container itself in focus, so there is no element to navigate to.
-    return analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
+    return analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
         ? spiNavigableUnder(fieldType, admitted.generator(), fromPackage)
         : null;
   }
@@ -1490,7 +1508,7 @@ public class NavigatorClassGenerator {
         || analysis.recognisedContainer(fieldType)) {
       return false;
     }
-    if (!(analysis.spiLookup(fieldType, null) instanceof SpiLookup.Refused refused)) {
+    if (!(analysis.spiLookup(fieldType) instanceof SpiLookup.Refused refused)) {
       return false;
     }
     // The element must be one a navigator is offered for. One the container gives a wildcard or
@@ -1574,9 +1592,11 @@ public class NavigatorClassGenerator {
                 recordTypeName,
                 constructorArgs,
                 componentName));
+    // The declaration pass reaches this component only here, so this walk is the one that reports
+    // a generator conflict on it; every other walk into the component stays silent.
     String wideningExpression =
         WideningAnalysis.expression(
-            widening(recordElement, component).steps(), args, analysis.targetPackage());
+            declaredWidening(recordElement, component).steps(), args, analysis.targetPackage());
     methodBuilder.addStatement(
         "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
             + wideningExpression
