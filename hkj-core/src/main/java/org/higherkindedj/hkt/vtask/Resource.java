@@ -497,9 +497,11 @@ public final class Resource<A> {
     return exit -> {
       @Nullable Throwable failure = null;
       for (int i = 0; i < held.length; i++) {
-        Allocated<?> next = held[i];
+        // Each release runs with the interrupt status cleared, as Cleanup.withInterruptCleared
+        // runs one, but inline, so a deep composition keeps one stack frame per level
+        boolean interrupted = Thread.interrupted();
         try {
-          Cleanup.withInterruptCleared(() -> next.release().accept(exit));
+          held[i].release().accept(exit);
         } catch (Throwable t) {
           if (failure != null) {
             Cleanup.suppress(t, failure);
@@ -508,6 +510,10 @@ public final class Resource<A> {
             throw new RuntimeException(lastFailed, t);
           }
           failure = t;
+        } finally {
+          if (interrupted) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
       if (failure != null) {

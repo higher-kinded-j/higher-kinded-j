@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -416,18 +417,10 @@ public final class VStreamPar {
     Thread closer =
         Thread.ofVirtual()
             .start(() -> Closing.closeAll(unfinished.toArray(VStream<?>[]::new)).runSafe());
-    joinFully(closer);
-  }
-
-  /**
-   * Waits for {@code thread} to end, even when this thread is interrupted, whether before the wait
-   * or during it. The interrupt status is set again once the thread has ended.
-   */
-  private static void joinFully(Thread thread) {
     boolean interrupted = false;
     while (true) {
       try {
-        thread.join();
+        closer.join();
         break;
       } catch (InterruptedException e) {
         interrupted = true;
@@ -502,9 +495,14 @@ public final class VStreamPar {
               queue.clear();
               // Interrupt the producer so a source blocked in a pull stops; its scope stops the
               // others, then the producer closes the sources that did not finish. Wait for that
-              // even when this thread is interrupted, so the sources are closed when this returns
+              // with an interrupt already pending held back, as cleanup runs, so the sources are
+              // closed when this returns; an interrupt that arrives while waiting stops the wait
               producer.interrupt();
-              joinFully(producer);
+              try {
+                Cleanup.withInterruptCleared(producer::join);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
               return Unit.INSTANCE;
             });
       }

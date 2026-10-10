@@ -404,49 +404,6 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName(
-        "closing a merge waits for its sources to close, even when the closing thread is"
-            + " interrupted")
-    void closeWaitsForSourcesWhenInterrupted() {
-      AtomicBoolean finalised = new AtomicBoolean(false);
-      VStream<Integer> source =
-          VStream.repeat(1)
-              .mapTask(
-                  i ->
-                      VTask.of(
-                          () -> {
-                            Thread.sleep(1);
-                            return i;
-                          }))
-              .onFinalize(
-                  VTask.of(
-                      () -> {
-                        Thread.sleep(20);
-                        finalised.set(true);
-                        return Unit.INSTANCE;
-                      }));
-
-      try {
-        List<Integer> read =
-            VStreamPar.merge(source, VStream.<Integer>empty())
-                .map(
-                    i -> {
-                      Thread.currentThread().interrupt();
-                      return i;
-                    })
-                .take(1)
-                .toList()
-                .run();
-
-        assertThat(read).containsExactly(1);
-        assertThat(finalised).as("the source closed before close() returned").isTrue();
-        assertThat(Thread.currentThread().isInterrupted()).isTrue();
-      } finally {
-        Thread.interrupted();
-      }
-    }
-
-    @Test
     @DisplayName("merge() contains all elements from all sources")
     void mergeContainsAllElements() {
       VStream<String> a = VStream.of("a1", "a2");
@@ -1175,6 +1132,98 @@ class VStreamParTest {
   @Nested
   @DisplayName("merge close() Tests")
   class MergeClose {
+
+    @Test
+    @DisplayName(
+        "close() waits for the sources to close when the closing thread has an interrupt"
+            + " pending")
+    void closeWaitsForSourcesWhenInterrupted() {
+      AtomicBoolean finalised = new AtomicBoolean(false);
+      VStream<Integer> source =
+          VStream.repeat(1)
+              .mapTask(
+                  i ->
+                      VTask.of(
+                          () -> {
+                            Thread.sleep(1);
+                            return i;
+                          }))
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(20);
+                        finalised.set(true);
+                        return Unit.INSTANCE;
+                      }));
+
+      try {
+        List<Integer> read =
+            VStreamPar.merge(source, VStream.<Integer>empty())
+                .map(
+                    i -> {
+                      Thread.currentThread().interrupt();
+                      return i;
+                    })
+                .take(1)
+                .toList()
+                .run();
+
+        assertThat(read).containsExactly(1);
+        assertThat(finalised).as("the source closed before close() returned").isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("an interrupt that arrives while close() waits for the sources stops the wait")
+    void interruptArrivingWhileClosingStopsTheWait() throws InterruptedException {
+      CountDownLatch finaliserStarted = new CountDownLatch(1);
+      CountDownLatch finaliserMayEnd = new CountDownLatch(1);
+      VStream<Integer> source =
+          VStream.repeat(1)
+              .mapTask(
+                  i ->
+                      VTask.of(
+                          () -> {
+                            Thread.sleep(1);
+                            return i;
+                          }))
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        finaliserStarted.countDown();
+                        finaliserMayEnd.await();
+                        return Unit.INSTANCE;
+                      }));
+      AtomicReference<List<Integer>> read = new AtomicReference<>();
+      AtomicBoolean interruptedAfter = new AtomicBoolean(false);
+      Thread reader =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    read.set(
+                        VStreamPar.merge(source, VStream.<Integer>empty()).take(1).toList().run());
+                    interruptedAfter.set(Thread.currentThread().isInterrupted());
+                  });
+
+      try {
+        assertThat(finaliserStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(1))
+            .until(() -> reader.getState() == Thread.State.WAITING);
+        reader.interrupt();
+        reader.join(Duration.ofSeconds(5));
+
+        assertThat(reader.isAlive()).as("close() returned once interrupted").isFalse();
+        assertThat(read.get()).containsExactly(1);
+        assertThat(interruptedAfter).isTrue();
+      } finally {
+        finaliserMayEnd.countDown();
+      }
+    }
 
     @Test
     @DisplayName("close() sets cancelled flag and clears queue")
