@@ -79,7 +79,9 @@ public final class Bulkhead {
    * <p>When the task is executed, it will first acquire a permit from the semaphore. If no permit
    * is available, it waits up to the configured timeout. If the timeout expires or the maximum
    * number of waiters is exceeded, a {@link BulkheadFullException} is thrown. The permit is always
-   * released after the task completes (success or failure).
+   * released after the task completes (success or failure). A failure of the task passes through as
+   * thrown, so a checked exception, such as an {@code IOException} or the {@code
+   * InterruptedException} of a cancelled task, is not wrapped.
    *
    * @param task the task to protect; must not be null
    * @param <A> the result type
@@ -92,7 +94,8 @@ public final class Bulkhead {
   }
 
   /**
-   * Returns a new {@link VTask} protected by this bulkhead with a custom wait timeout.
+   * Returns a new {@link VTask} protected by this bulkhead with a custom wait timeout. It behaves
+   * as {@link #protect} describes, waiting up to {@code waitTimeout} for a permit.
    *
    * @param task the task to protect; must not be null
    * @param waitTimeout how long to wait for a permit; must not be null
@@ -135,7 +138,7 @@ public final class Bulkhead {
       }
 
       try {
-        return task.run();
+        return task.execute();
       } finally {
         semaphore.release();
       }

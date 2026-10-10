@@ -76,7 +76,7 @@ VTask<Result> protectedQuery = dbBulkhead.protect(
 Result result = protectedQuery.run();
 ```
 
-Like `CircuitBreaker.protect()`, the method is generic: one bulkhead can protect calls returning different types.
+Like `CircuitBreaker.protect()`, the method is generic: one bulkhead can protect calls returning different types. The bulkhead passes on the task's failure unchanged, so `runSafe()` gives the task's own exception, such as an `IOException`.
 
 ## Handling Rejection
 

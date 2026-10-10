@@ -4,10 +4,13 @@ package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -554,6 +557,181 @@ class RetryTaskTest {
       assertThat(first).isEqualTo(1);
       assertThat(second).isEqualTo(2);
       assertThat(counter.get()).isEqualTo(2);
+    }
+  }
+
+  @Nested
+  @DisplayName("A task's checked exception, and an interrupt")
+  class CheckedExceptionAndInterruptTests {
+
+    private final RetryPolicy immediate = RetryPolicy.fixed(3, Duration.ZERO);
+
+    @Test
+    @DisplayName("retryOn(IOException.class) retries a task's IOException, and exhaustion holds it")
+    void retryOnSeesTheTasksCheckedException() {
+      AtomicInteger attempts = new AtomicInteger();
+      IOException disk = new IOException("disk");
+      VTask<String> task =
+          () -> {
+            attempts.incrementAndGet();
+            throw disk;
+          };
+
+      assertThatThrownBy(Retry.retryTask(task, immediate.retryOn(IOException.class))::execute)
+          .isInstanceOf(RetryExhaustedException.class)
+          .satisfies(e -> assertThat(e.getCause()).isSameAs(disk));
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("a checked exception the policy does not retry passes through as thrown")
+    void unretriedCheckedExceptionPassesThroughAsThrown() {
+      AtomicInteger attempts = new AtomicInteger();
+      IOException disk = new IOException("disk");
+      VTask<String> task =
+          () -> {
+            attempts.incrementAndGet();
+            throw disk;
+          };
+
+      assertThatThrownBy(
+              Retry.retryTask(task, immediate.retryOn(IllegalStateException.class))::execute)
+          .isSameAs(disk);
+      assertThat(attempts).hasValue(1);
+    }
+
+    private void assertInterruptedAttemptIsNotRunAgain(RetryPolicy policy) {
+      AtomicInteger attempts = new AtomicInteger();
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      VTask<String> task =
+          () -> {
+            attempts.incrementAndGet();
+            throw cancelled;
+          };
+
+      try {
+        assertThatThrownBy(Retry.retryTask(task, policy)::execute)
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts")
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("a task that throws InterruptedException runs once, and the status is set")
+    void interruptedTaskRunsOnce() {
+      assertInterruptedAttemptIsNotRunAgain(immediate);
+    }
+
+    @Test
+    @DisplayName("an InterruptedException stops the retry when the predicate does not select it")
+    void interruptedTaskStopsWhateverThePredicate() {
+      assertInterruptedAttemptIsNotRunAgain(immediate.retryOn(IOException.class));
+    }
+
+    @Test
+    @DisplayName("a Scope that cancels a retried subtask does not wait while it retries")
+    void scopeCancellingARetriedSubtaskDoesNotWaitForRetries() {
+      AtomicInteger attempts = new AtomicInteger();
+      CountDownLatch slowStarted = new CountDownLatch(1);
+      VTask<String> slow =
+          VTask.of(
+              () -> {
+                attempts.incrementAndGet();
+                slowStarted.countDown();
+                Thread.sleep(Duration.ofSeconds(10));
+                return "slow";
+              });
+      VTask<String> fast =
+          VTask.of(
+              () -> {
+                slowStarted.await();
+                return "fast";
+              });
+
+      String winner =
+          Scope.<String>anySucceed().fork(Retry.retryTask(slow, immediate)).fork(fast).join().run();
+
+      assertThat(winner).isEqualTo("fast");
+      assertThat(attempts).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("an attempt that leaves the thread interrupted is not run again with no wait")
+    void attemptLeavingTheStatusSetIsNotRunAgain() {
+      AtomicInteger attempts = new AtomicInteger();
+      IllegalStateException cancelled = new IllegalStateException("cancelled");
+      VTask<String> task =
+          () -> {
+            attempts.incrementAndGet();
+            Thread.currentThread().interrupt(); // caught a cancellation, as Java asks
+            throw cancelled;
+          };
+
+      try {
+        assertThatThrownBy(Retry.retryTask(task, immediate)::execute)
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts")
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("retryTaskWithFallback() falls back from an interrupted attempt, status still set")
+    void fallbackAfterInterruptedAttemptKeepsTheStatus() {
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      AtomicReference<Throwable> seen = new AtomicReference<>();
+      VTask<String> task =
+          () -> {
+            throw cancelled;
+          };
+
+      try {
+        String result =
+            Retry.retryTaskWithFallback(
+                    task,
+                    immediate,
+                    cause -> {
+                      seen.set(cause);
+                      return "fallback";
+                    })
+                .run();
+
+        assertThat(result).isEqualTo("fallback");
+        assertThat(seen.get()).isSameAs(cancelled);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("retryTaskWithRecovery()'s recovery task fails with its exception as thrown")
+    void recoveryTasksCheckedExceptionPassesThrough() {
+      IOException backupDown = new IOException("backup down");
+      VTask<String> task =
+          () -> {
+            throw new IllegalStateException("primary down");
+          };
+
+      assertThatThrownBy(
+              Retry.retryTaskWithRecovery(
+                      task,
+                      immediate,
+                      cause ->
+                          () -> {
+                            throw backupDown;
+                          })
+                  ::execute)
+          .isSameAs(backupDown);
     }
   }
 }

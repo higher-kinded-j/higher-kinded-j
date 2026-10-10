@@ -30,6 +30,16 @@ import org.jspecify.annotations.Nullable;
  * Retry.execute(policy, () -> httpClient.post(url, body));
  * }</pre>
  *
+ * <p>The {@code VTask} methods see a failed attempt's exception as thrown, so a policy that retries
+ * on {@code IOException} retries a task that throws one, and {@link RetryExhaustedException} holds
+ * it as its cause.
+ *
+ * <p>An interrupt stops the retry, whatever the policy's predicate: an attempt that throws {@code
+ * InterruptedException}, or a thread interrupted before the next attempt, while it waits or when
+ * the policy has no delay. The interrupt status is set, and {@link RetryExhaustedException} is
+ * thrown with the attempt's exception as its cause. So {@link #retryTaskWithFallback} and {@link
+ * #retryTaskWithRecovery} fall back, with the status still set.
+ *
  * @see RetryPolicy
  * @see RetryExhaustedException
  */
@@ -56,55 +66,14 @@ public final class Retry {
   public static <A> A execute(RetryPolicy policy, Supplier<A> supplier) {
     Objects.requireNonNull(policy, "policy must not be null");
     Objects.requireNonNull(supplier, "supplier must not be null");
-
-    Throwable lastException = null;
-    int attempt = 0;
-
-    do {
-      attempt++;
-      try {
-        return supplier.get();
-      } catch (Throwable t) {
-        lastException = t;
-
-        // Check if we should retry this exception type
-        if (!policy.shouldRetry(t)) {
-          // Exception doesn't match retry predicate - re-throw immediately
-          if (t instanceof RuntimeException) {
-            throw (RuntimeException) t;
-          } else if (t instanceof Error) {
-            throw (Error) t;
-          } else {
-            throw new RuntimeException(t);
-          }
-        }
-
-        // Check if we've exhausted attempts
-        if (attempt >= policy.maxAttempts()) {
-          break;
-        }
-
-        // Notify retry listener
-        Duration delay = policy.delayForAttempt(attempt);
-        @Nullable Consumer<RetryEvent> listener = policy.retryListener();
-        if (listener != null) {
-          listener.accept(RetryEvent.of(attempt, t, delay));
-        }
-
-        // Wait before next attempt
-        if (!delay.isZero() && !delay.isNegative()) {
-          try {
-            Thread.sleep(delay.toMillis());
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RetryExhaustedException(
-                "Retry interrupted after " + attempt + " attempts", lastException, attempt);
-          }
-        }
-      }
-    } while (true);
-
-    throw RetryExhaustedException.of(lastException, policy.maxAttempts());
+    try {
+      return retrying(policy, supplier::get);
+    } catch (RuntimeException | Error e) {
+      throw e;
+    } catch (Throwable t) {
+      // Only a sneaky throw gets here, since a Supplier declares no checked exception
+      throw new RuntimeException(t);
+    }
   }
 
   /**
@@ -180,7 +149,7 @@ public final class Retry {
   public static <A> VTask<A> retryTask(VTask<A> task, RetryPolicy policy) {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(policy, "policy must not be null");
-    return () -> execute(policy, task::run);
+    return () -> retrying(policy, task);
   }
 
   /**
@@ -219,7 +188,7 @@ public final class Retry {
     Objects.requireNonNull(fallback, "fallback must not be null");
     return () -> {
       try {
-        return execute(policy, task::run);
+        return retrying(policy, task);
       } catch (RetryExhaustedException e) {
         return Objects.requireNonNull(
             fallback.apply(e.getCause()), "fallback must not return null");
@@ -246,12 +215,59 @@ public final class Retry {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return () -> {
       try {
-        return execute(policy, task::run);
+        return retrying(policy, task);
       } catch (RetryExhaustedException e) {
         VTask<A> recoveryTask = recovery.apply(e.getCause());
         Objects.requireNonNull(recoveryTask, "recovery function returned null");
-        return recoveryTask.run();
+        return recoveryTask.execute();
       }
     };
+  }
+
+  // The one retry loop. Each attempt runs with execute(), so its exception reaches the policy's
+  // predicate as thrown: a VTask's checked exception arrives unwrapped
+  private static <A> @Nullable A retrying(RetryPolicy policy, VTask<A> attempt) throws Throwable {
+    int attempts = 0;
+    while (true) {
+      attempts++;
+      try {
+        return attempt.execute();
+      } catch (Throwable t) {
+        // A cancelled attempt is not run again
+        if (t instanceof InterruptedException) {
+          throw interrupted(t, attempts);
+        }
+        if (!policy.shouldRetry(t)) {
+          throw t;
+        }
+        if (attempts >= policy.maxAttempts()) {
+          throw RetryExhaustedException.of(t, policy.maxAttempts());
+        }
+
+        Duration delay = policy.delayForAttempt(attempts);
+        @Nullable Consumer<RetryEvent> listener = policy.retryListener();
+        if (listener != null) {
+          listener.accept(RetryEvent.of(attempts, t, delay));
+        }
+
+        // Wait before the next attempt; an interrupt while waiting, or one already pending when
+        // there is no wait, stops the retry
+        if (!delay.isZero() && !delay.isNegative()) {
+          try {
+            Thread.sleep(delay.toMillis());
+          } catch (InterruptedException e) {
+            throw interrupted(t, attempts);
+          }
+        } else if (Thread.currentThread().isInterrupted()) {
+          throw interrupted(t, attempts);
+        }
+      }
+    }
+  }
+
+  private static RetryExhaustedException interrupted(Throwable last, int attempts) {
+    Thread.currentThread().interrupt();
+    return new RetryExhaustedException(
+        "Retry interrupted after " + attempts + " attempts", last, attempts);
   }
 }
