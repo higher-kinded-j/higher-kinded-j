@@ -49,7 +49,7 @@ VResultPath<E, A> p5 = Path.vresultDefer(() -> decide()); // defer the decision 
 
 ---
 
-## Outcome-aware structured concurrency
+## Outcome-aware structured concurrency {#outcome-aware-structured-concurrency}
 
 The structured-concurrency surface keeps typed failures **in the value channel**: no thrown-and-recovered domain errors, no `instanceof` bridges, no side flags.
 
@@ -75,7 +75,9 @@ VResultPath<OrderError, OrderResult> fulfilled =
 - **`allSucceed`**: fail-fast; the first typed failure cancels the remaining tasks and becomes the result.
 - **`allSucceedAccumulating`**: run everything to completion and collect every typed failure at once.
 - **`withTimeout(duration, onTimeout)`**: a timeout becomes the designated typed error, on the railway.
-- **`bracketOutcome`**: once the resource is acquired, release *always* runs and receives the `Either` outcome (a typed failure from `acquire` skips both `use` and `release`, since nothing was acquired), so confirm-vs-compensate is decided from the result. Defects inside `use` are typed through `onDefect` first, so release observes a typed outcome whenever `onDefect` can build one. If `onDefect` throws or returns null, release still runs and sees `Left(null)`, so decide on `isRight()` or `fold`, not on the error's value. The path then fails with what `onDefect` threw, or with a `NullPointerException` whose cause is the defect. This is the substrate the order example's deferred compensation Saga hangs on.
+- **`bracketOutcome`**: once the resource is acquired, release *always* runs and receives the outcome as an `Either<Maybe<E>, B>`, so confirm-vs-compensate is decided from the result. A typed failure from `acquire` skips both `use` and `release`, since nothing was acquired. This is the substrate the order example's deferred compensation Saga hangs on.
+  - A typed failure from `use` arrives as `Left(Just(error))`. A defect inside `use` is typed through `onDefect` first, so it arrives the same way whenever `onDefect` can build one.
+  - If `onDefect` throws or returns null, release still runs and sees `Left(Nothing)`. The path then fails with what `onDefect` threw, or with a `NullPointerException` whose cause is the defect.
 - **`bracketOutcome` after a cancellation**: release runs with the interrupt status cleared, so a release that blocks is not cut short, and the status is restored afterwards. When `use` throws an `InterruptedException`, the status is set again once release has run, so code after the path still sees it.
 
 ~~~admonish note title="Why these live on VResultPath, not Scope"

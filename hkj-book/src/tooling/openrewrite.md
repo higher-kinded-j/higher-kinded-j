@@ -79,7 +79,7 @@ Three recipe groups are shipped; each one has a composite that runs every recipe
 |-------|-----------|------|
 | Arity migration (0.2.x to 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | rewrites source |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes and null errors |
 
 ### Arity migration (0.2.x to 0.3.0)
 
@@ -131,7 +131,7 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe`, which only marks each null success that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
 
 Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls they rewrite compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
 
@@ -145,6 +145,7 @@ Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the r
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` becomes `CHAINABLE` and `ACCUMULATING` becomes `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` take the function alone, and `stateT.mapT(monad, f)` becomes `stateT.mapT(f)` |
 | `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks a `null` passed to a success factory: `Either.right`, `Try.success`, `Path.right`, `Path.success`, `Path.vresultRight`, `VResultPath.pure`, `TryKindHelper.success`, `EitherT.right` or `ErrorContext.success`. Also marks a `Try.of`, `Try.attempt`, `Path.tryOf` or `TryKindHelper.tryOf` lambda that returns `null`. And it marks `Void` as the success type of an `Either`, `Try`, `EitherT`, `EitherPath`, `TryPath`, `VResultPath` or `ErrorContext`, or as the result of a `VTask`, `VTaskPath`, `IO`, `IOPath`, `FreePath`, `CompletableFuturePath` or `Saga`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
+| `org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe` | Marks a `null`, cast or not, passed as the error to `Either.left`, `EitherT.left`, `Maybe.toEither`, `raiseError` on an `Either` or `EitherT` monad, or a `LensExtensions` or `PrismExtensions` helper, and a `mapLeft` or `bimap` error lambda that returns `null`. Also marks `Void` as the error type of an `Either`, `EitherT`, `EitherMonad` or `EitherTMonad`. Replace each with an error that says what went wrong, or `Unit.INSTANCE` where the error type is `Unit` |
 
 ```kotlin
 rewrite {
@@ -155,7 +156,7 @@ rewrite {
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Three groups, three modes.** Arity migration and 0.5.0 deprecations rewrite source, apart from the null-success marks; the effect algebra helpers only flag call sites because their targets are user-specific generated code.
+* **Three groups, three modes.** Arity migration and 0.5.0 deprecations rewrite source, apart from the null-success and null-error marks; the effect algebra helpers only flag call sites because their targets are user-specific generated code.
 * **Always dry-run first.** `rewriteDryRun` (Gradle) or `mvn rewrite:dryRun` (Maven) shows the diff; `rewriteRun` applies it.
 * **Use the composite recipe.** Activating one of the three composites runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
 * **Recipe coverage tracks the library.** The same migrations also surface as compile-time checks in `hkj-checker`; pick whichever feedback loop fits the team.

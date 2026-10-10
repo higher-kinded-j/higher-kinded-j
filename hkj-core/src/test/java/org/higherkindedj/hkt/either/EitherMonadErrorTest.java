@@ -94,17 +94,11 @@ class EitherMonadErrorTest extends EitherTestBase {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("Error handling with null error values")
-    void errorHandlingWithNullErrors() {
-      Kind<EitherKind.Witness<String>, String> nullError = monadError.raiseError(null);
-
-      // The null error flows through to the handler, which stringifies it as "null".
-      Function<String, Kind<EitherKind.Witness<String>, String>> handler =
-          err -> monadError.of("recovered:" + err);
-
-      var result = monadError.handleErrorWith(nullError, handler);
-
-      assertThatEither(result).isRight().hasRight("recovered:null");
+    @DisplayName("raiseError refuses a null error, since a Left always holds one")
+    void raiseErrorRefusesANullError() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monadError.raiseError(null))
+          .withMessage("EitherMonad.raiseError error cannot be null");
     }
 
     @Test

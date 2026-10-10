@@ -183,7 +183,7 @@ public final class EitherTAssert {
       Assertions.assertThat(error)
           .withFailMessage(
               "Expected Left value to be of type <%s> but was <%s>",
-              type.getName(), error == null ? "null" : error.getClass().getName())
+              type.getName(), error.getClass().getName())
           .isInstanceOf(type);
       return this;
     }

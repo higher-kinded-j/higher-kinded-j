@@ -3,7 +3,6 @@
 package org.higherkindedj.optics.extensions;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -281,14 +280,11 @@ public final class TraversalExtensions {
     /** Every step so far succeeded. */
     record Ok<A extends @Nullable Object>(A value) implements Outcome<A> {}
 
-    /** At least one step failed; the failures may include null, as a {@code Left} may hold. */
-    record Failed<A extends @Nullable Object>(List<@Nullable Object> failures)
-        implements Outcome<A> {}
+    /** At least one step failed, with the failures in the order the steps ran. */
+    record Failed<A extends @Nullable Object>(List<Object> failures) implements Outcome<A> {}
 
-    static <A extends @Nullable Object> Outcome<A> failed(@Nullable Object failure) {
-      List<@Nullable Object> failures = new ArrayList<>(1);
-      failures.add(failure);
-      return new Failed<>(Collections.unmodifiableList(failures));
+    static <A extends @Nullable Object> Outcome<A> failed(Object failure) {
+      return new Failed<>(List.of(failure));
     }
 
     static <A extends @Nullable Object> Outcome<A> narrow(Kind<Witness, A> kind) {
@@ -296,12 +292,12 @@ public final class TraversalExtensions {
     }
 
     @SuppressWarnings("unchecked") // each failure was recorded from an E
-    static <E> E first(List<@Nullable Object> failures) {
+    static <E> E first(List<Object> failures) {
       return (E) failures.getFirst();
     }
 
     @SuppressWarnings("unchecked") // each failure was recorded from an E
-    static <E> List<E> all(List<@Nullable Object> failures) {
+    static <E> List<E> all(List<Object> failures) {
       return (List<E>) (List<?>) failures;
     }
   }
@@ -339,14 +335,14 @@ public final class TraversalExtensions {
           && value instanceof Outcome.Ok<A>(var a)) {
         return new Outcome.Ok<>(f.apply(a));
       }
-      List<@Nullable Object> failures = new ArrayList<>();
+      List<Object> failures = new ArrayList<>();
       if (function instanceof Outcome.Failed<?>(var earlier)) {
         failures.addAll(earlier);
       }
       if (value instanceof Outcome.Failed<?>(var later)) {
         failures.addAll(later);
       }
-      return new Outcome.Failed<>(Collections.unmodifiableList(failures));
+      return new Outcome.Failed<>(List.copyOf(failures));
     }
   }
 }

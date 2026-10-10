@@ -13,7 +13,6 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} interface for the {@link EitherT} monad transformer. The HKT
@@ -182,13 +181,15 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
    * EitherT} wrapping {@code F<Left(error)>}.
    *
    * @param <R> The type parameter for the 'right' side (will be absent).
-   * @param error The 'left' (error) value. Can be null if {@code L} is nullable.
+   * @param error The non-null 'left' (error) value.
    * @return A {@code Kind<EitherTKind.Witness<F, L>, R>} representing {@code F<Left(error)>}. Never
    *     null.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <R> Kind<EitherTKind.Witness<F, L>, R> raiseError(@Nullable L error) {
-    // Either allows null error values - no validation needed
+  @SuppressWarnings("NullableProblems") // Either.Left forbids null
+  public <R> Kind<EitherTKind.Witness<F, L>, R> raiseError(L error) {
+    Validation.coreType().requireError(error, EitherTMonad.class, RAISE_ERROR);
     EitherT<F, L, R> concreteEitherT = EitherT.left(outerMonad, error);
     return EITHER_T.widen(concreteEitherT);
   }

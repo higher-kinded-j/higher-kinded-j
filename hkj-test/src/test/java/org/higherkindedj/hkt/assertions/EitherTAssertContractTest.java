@@ -59,9 +59,6 @@ class EitherTAssertContractTest
   private static final Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> EMPTY =
       empty();
 
-  private static final Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer> L_NULL =
-      left(null);
-
   @Override
   protected Function<
           Kind<EitherTKind.Witness<OptionalKind.Witness, String>, Integer>,
@@ -126,7 +123,6 @@ class EitherTAssertContractTest
         failOnly("hasRightValueOfType wrong type", R_42, a -> a.hasRightValueOfType(String.class)),
         row("hasLeftValueOfType match", L_ERR, R_42, a -> a.hasLeftValueOfType(String.class)),
         failOnly("hasLeftValueOfType wrong type", L_ERR, a -> a.hasLeftValueOfType(Integer.class)),
-        failOnly("hasLeftValueOfType null Left", L_NULL, a -> a.hasLeftValueOfType(Integer.class)),
         row("isEqualToEitherT match", R_42, R_99, a -> a.isEqualToEitherT(R_42)),
         failOnly("isEqualToEitherT null other", R_42, a -> a.isEqualToEitherT(null)));
   }

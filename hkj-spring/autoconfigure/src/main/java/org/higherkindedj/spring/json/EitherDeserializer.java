@@ -99,7 +99,12 @@ public class EitherDeserializer extends StdDeserializer<Either<?, ?>> {
         return ctxt.reportInputMismatch(
             Either.class, "Either with isRight=false must have 'left' field");
       }
-      return Either.left(readAs(ctxt, node.get("left"), leftType));
+      Object error = readAs(ctxt, node.get("left"), leftType);
+      if (error == null) {
+        // Either.left rejects null; report cleanly instead of escaping as an NPE
+        return ctxt.reportInputMismatch(Either.class, "Either 'left' must not be null");
+      }
+      return Either.left(error);
     }
   }
 

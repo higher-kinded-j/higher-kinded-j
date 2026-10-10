@@ -64,7 +64,8 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + "   public <S, F, A> StateT<S, F, A> stateT("
         + "       Function<S, Object> runStateTFn, Monad<F> monadF) { return null; } }",
     "package org.higherkindedj.hkt.either; public interface Either<L, R> {"
-        + " static <L, R> Either<L, R> right(R value) { return null; } }",
+        + " static <L, R> Either<L, R> right(R value) { return null; }"
+        + " static <L, R> Either<L, R> left(L value) { return null; } }",
   };
 
   @Override
@@ -96,6 +97,34 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             class Cancel {
                 /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> cancel() {
                     return /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/Either.right(null);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void marksANullErrorWithoutRewritingIt() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Find {
+                Either<String, Integer> find() {
+                    return Either.left(null);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Find {
+                Either<String, Integer> find() {
+                    return /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/Either.left(null);
                 }
             }
             """));

@@ -253,12 +253,11 @@ class EitherTTest {
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("Edge case: a null Left is lifted, a null Right is refused")
+    @DisplayName("Edge case: a null Left and a null Right are both refused")
     void edgeCase_nullValuesInEither() {
-      EitherT<OptionalKind.Witness, String, String> leftNull = EitherT.left(outerMonad, null);
-      assertThat(leftNull).isNotNull();
-      assertThat(leftNull.value()).isNotNull();
-
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherT.left(outerMonad, null))
+          .withMessage("EitherT.left error cannot be null");
       assertThatNullPointerException()
           .isThrownBy(() -> EitherT.right(outerMonad, null))
           .withMessage("EitherT.right value cannot be null");
@@ -267,7 +266,7 @@ class EitherTTest {
     @Test
     @DisplayName("Edge case: fromEither with Left")
     void edgeCase_fromEitherWithLeft() {
-      Either<String, String> eitherLeft = Either.left(null);
+      Either<String, String> eitherLeft = Either.left("");
       EitherT<OptionalKind.Witness, String, String> fromEitherLeft =
           EitherT.fromEither(outerMonad, eitherLeft);
       assertThat(fromEitherLeft).isNotNull();

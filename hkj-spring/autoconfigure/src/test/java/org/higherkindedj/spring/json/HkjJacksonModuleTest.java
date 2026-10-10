@@ -98,6 +98,16 @@ class HkjJacksonModuleTest {
           .isInstanceOf(MismatchedInputException.class)
           .hasMessageContaining("Either 'right' must not be null");
     }
+
+    @Test
+    @DisplayName("Should report a null left as bad input, since a Left always holds an error")
+    void shouldRejectANullLeft() {
+      String json = "{\"isRight\":false,\"left\":null}";
+
+      assertThatThrownBy(() -> objectMapper.readValue(json, Either.class))
+          .isInstanceOf(MismatchedInputException.class)
+          .hasMessageContaining("Either 'left' must not be null");
+    }
   }
 
   @Nested

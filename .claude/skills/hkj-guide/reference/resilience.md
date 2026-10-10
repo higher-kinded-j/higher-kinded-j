@@ -89,7 +89,7 @@ VResultPath<ApiError, List<Response>> all = VResultPath.allSucceed(tasks);      
 VResultPath<NonEmptyList<ApiError>, List<Response>> every =
     VResultPath.allSucceedAccumulating(tasks);                                        // collect all
 
-VResultPath.bracketOutcome(acquire, use, release, onDefect);  // release sees the Either outcome
+VResultPath.bracketOutcome(acquire, use, release, onDefect);  // release sees Either<Maybe<E>, B>
 ```
 
 Both `firstSuccess` and `allSucceedAccumulating` widen the error to `NonEmptyList<E>`: if nothing

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.extensions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.optics.extensions.PrismExtensions.*;
 
 import java.util.Optional;
@@ -338,6 +339,31 @@ class PrismExtensionsTest {
 
       assertThat(result1).isEqualTo("Success: 42");
       assertThat(result2).isEqualTo("No success");
+    }
+  }
+
+  @Nested
+  @DisplayName("A null error is refused, even when the prism matches")
+  class NullError {
+    @Test
+    @DisplayName("each method names its error parameter")
+    void refusesANullError() {
+      Result result = new Success(25);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> getEither(successPrism, null, result))
+          .withMessage("errorValue must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> getValidated(successPrism, null, result))
+          .withMessage("errorValue must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> modifyEither(successPrism, null, Either::<String, Success>right, result))
+          .withMessage("noMatchError must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> modifyValidated(successPrism, null, Validated::<String, Success>valid, result))
+          .withMessage("noMatchError must not be null");
     }
   }
 }

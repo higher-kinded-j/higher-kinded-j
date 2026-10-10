@@ -27,7 +27,10 @@ description: >-
   levels they generate, CHAINABLE and RECOVERABLE. Drops the Monad argument
   from StateT construction and StateT.mapT. Finally marks each null passed
   to a success factory, Try.of supplier returning null, and Either, Try or
-  Path typed with Void, since a Right or Success always holds a value.
+  Path typed with Void, since a Right or Success always holds a value. It
+  also marks each null given as an error, as to Either.left or raiseError,
+  each mapLeft or bimap error lambda returning null, and Either typed with a
+  Void error, since a Left always holds an error.
 tags:
   - higher-kinded-j
   - migration
@@ -40,6 +43,7 @@ recipeList:
   - org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe
   - org.higherkindedj.openrewrite.RemoveStateTMonadArgument
   - org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe
+  - org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe
 
 ---
 type: specs.openrewrite.org/v1beta/recipe

@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.function.Function4;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements {@link MonadError} for {@link Either}, with a fixed "Left" type {@code L} serving as
@@ -179,12 +178,14 @@ public class EitherMonad<L> extends EitherFunctor<L>
    * Raises an error in the {@code Kind<EitherKind.Witness<L>, R>} context by creating a "Left"
    * value.
    *
-   * @param error The error value of type {@code L}. Can be null if {@code L} is nullable.
+   * @param error The non-null error value of type {@code L}.
    * @return A {@code Kind<EitherKind.Witness<L>, R>} representing {@code Left(error)}.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<EitherKind.Witness<L>, A> raiseError(@Nullable L error) {
-    // Either allows null error values - no validation needed
+  @SuppressWarnings("NullableProblems") // Either.Left forbids null
+  public <A> Kind<EitherKind.Witness<L>, A> raiseError(L error) {
+    Validation.coreType().requireError(error, EitherMonad.class, RAISE_ERROR);
     return EITHER.widen(Either.left(error));
   }
 

@@ -52,7 +52,7 @@ Three levels of nesting, three different recovery rules, and the business logic 
 
 `MonadError` extends `Monad` with two operations that turn try/catch inside out.
 
-1. **`raiseError(E error)`** constructs a failed computation by lifting an error into the monadic context.
+1. **`raiseError(E error)`** constructs a failed computation by lifting an error into the monadic context. `Either`, `EitherT`, `Try`, `Validated`, `CompletableFuture` and `VTask` refuse a null error, since their failure always holds one. `Maybe` and `Optional`, whose error is `Unit`, ignore it.
 2. **`handleErrorWith(fa, handler)`** inspects a failure and provides a fallback computation.
 
 ```

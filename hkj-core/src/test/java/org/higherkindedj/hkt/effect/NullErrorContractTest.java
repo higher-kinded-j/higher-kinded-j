@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 /**
  * An error must not be null, whether a caller passes it or a caller's function builds it. An eager
  * path refuses a null where the call is written; a deferred path fails with it when it runs.
+ *
+ * <p>A {@code Left} itself refuses a null error, so no path can be handed one. That rule, and the
+ * core factories and functions that build a {@code Left}, are pinned beside their other behaviour,
+ * in {@code EitherTest}, {@code EitherMonadErrorTest}, {@code EitherTTest} and {@code MaybeTest}.
  */
 @DisplayName("An error, or a function that builds one, must not be null")
 class NullErrorContractTest {
@@ -58,23 +62,6 @@ class NullErrorContractTest {
               () ->
                   GenericPath.<EitherKind.Witness<String>, String, Integer>raiseError(null, monad))
           .withMessage("error must not be null");
-    }
-
-    @Test
-    @DisplayName("an Either holding a null error cannot enter a path")
-    void aLeftNullCannotEnterAPath() {
-      Either<String, Integer> leftNull = Either.left(null);
-
-      assertThatNullPointerException()
-          .isThrownBy(() -> Path.either(leftNull))
-          .withMessage("either must not hold a null error");
-      assertThatNullPointerException()
-          .isThrownBy(() -> Path.vresultEither(leftNull))
-          .withMessage("either must not hold a null error");
-      assertThatNullPointerException()
-          .isThrownBy(() -> ErrorContext.fromEither(leftNull))
-          .withMessage("either must not hold a null error");
-      assertThat(Path.either(Either.<String, Integer>right(1)).run().isRight()).isTrue();
     }
 
     @Test

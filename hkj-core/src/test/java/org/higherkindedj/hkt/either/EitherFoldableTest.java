@@ -155,16 +155,6 @@ class EitherFoldableTest extends EitherTestBase {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("foldMap() with null error in Left")
-    void foldMapWithNullErrorInLeft() {
-      Kind<EitherKind.Witness<String>, Integer> leftNull = EITHER.widen(Either.left(null));
-      Monoid<String> stringMonoid = Monoids.string();
-
-      String result = foldable.foldMap(stringMonoid, TestFunctions.INT_TO_STRING, leftNull);
-      assertThat(result).isEqualTo(stringMonoid.empty());
-    }
-
-    @Test
     @DisplayName("foldMap() with complex transformations")
     void foldMapWithComplexTransformations() {
       Monoid<String> stringMonoid = Monoids.string();

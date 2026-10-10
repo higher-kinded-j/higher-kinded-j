@@ -161,7 +161,7 @@ EitherPath<String, Config> withMessage =
     tryConfig.toEitherPath(Throwable::toString);
 ```
 
-The function must not return null, and a null is refused with a `NullPointerException` rather than becoming a `Left(null)`. `Throwable::getMessage` returns null for an exception built without a message, so describe the exception another way.
+The function must not return null: a `Left` always holds an error, so a null is refused with a `NullPointerException`. `Throwable::getMessage` returns null for an exception built without a message, so describe the exception another way.
 
 ### TryPath → MaybePath
 

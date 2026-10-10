@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VResultPath;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.resilience.Bulkhead;
 import org.higherkindedj.hkt.resilience.BulkheadConfig;
@@ -140,7 +141,7 @@ class Fixture {
   static final Function<Session, VResultPath<ApiError, Response>> use =
       session -> Path.vresultRight(new Response(200));
 
-  static final BiFunction<Session, Either<ApiError, Response>, VTask<Session>> release =
+  static final BiFunction<Session, Either<Maybe<ApiError>, Response>, VTask<Session>> release =
       (session, outcome) -> VTask.succeed(session);
 
   static final Function<Throwable, ApiError> onDefect = t -> new ApiError.Rejected(t.getMessage());

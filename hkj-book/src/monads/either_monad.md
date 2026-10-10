@@ -55,7 +55,7 @@ Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. T
 
 ---
 
-## Creating Instances
+## Creating Instances {#creating-instances}
 
 <!-- verify -->
 ```java
@@ -67,6 +67,8 @@ Either<String, Unit> saved = Either.right(Unit.INSTANCE);
 ```
 
 A `Right` always holds a value, so `Either.right(null)` throws `NullPointerException`, and so does a `map` whose function returns null. A step with nothing to return gives `Unit.INSTANCE`. For a value that may be missing, lift through [`Maybe`](./maybe_monad.md) first or convert with `Maybe::toEither`, so the `Left` says why it is missing.
+
+A `Left` always holds an error in the same way. `Either.left(null)`, `raiseError(null)` and a `mapLeft` whose function returns null all throw `NullPointerException`. An error with no detail to carry is `Unit.INSTANCE`, typed `Either<Unit, A>`.
 
 ---
 
