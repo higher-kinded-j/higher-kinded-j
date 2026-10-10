@@ -1117,10 +1117,10 @@ class CompletableFuturePathTest {
       assertThatThrownBy(() -> path.join(Duration.ofSeconds(5)))
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(InterruptedException.class);
+      // join(Duration) restores the interrupt status: clear it, or interrupter.join can throw
+      assertThat(Thread.interrupted()).isTrue();
 
       interrupter.join();
-      // Clear the interrupted flag
-      Thread.interrupted();
     }
   }
 }
