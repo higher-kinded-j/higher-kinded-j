@@ -1725,7 +1725,7 @@ public class FocusProcessorNavigatorTest {
     }
 
     @Test
-    @DisplayName("a dependency that never ran the processor keeps the plain path, with a note")
+    @DisplayName("a dependency that never ran the processor gives no navigator, with a note")
     void aDependencyWithoutTheProcessorKeepsThePlainPath() throws IOException {
       // The annotation survives compilation, so it is present on a record whose module never
       // generated a Focus class. Navigating into it would compose a class nobody wrote.
@@ -1742,6 +1742,9 @@ public class FocusProcessorNavigatorTest {
               "Navigator for field 'headquarters' is not generated: com.upstream.Address carries"
                   + " @GenerateFocus, but no public com.upstream.AddressFocus is on this module's"
                   + " compile classpath");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "until then CompanyFocus.headquarters() returns FocusPath<Company, Address>.");
     }
 
     @Test
@@ -1814,8 +1817,25 @@ public class FocusProcessorNavigatorTest {
               @GenerateFocus(generateNavigators = true)
               public record Directory(Map<String, Address> offices) {}
               """);
+      JavaFileObject wideDirectory =
+          JavaFileObjects.forSourceString(
+              "com.downstream.WideDirectory",
+              """
+              package com.downstream;
+
+              import com.upstream.Address;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true, widenCollections = true)
+              public record WideDirectory(Map<String, Address> offices) {}
+              """);
       Compilation downstream =
-          compile(true, List.of(module("upstream", false, List.of(), ADDRESS)), directory);
+          compile(
+              true,
+              List.of(module("upstream", false, List.of(), ADDRESS)),
+              directory,
+              wideDirectory);
       assertThat(downstream).succeeded();
 
       assertGeneratedCodeDoesNotContain(
@@ -1824,6 +1844,15 @@ public class FocusProcessorNavigatorTest {
           .hadNoteContaining(
               "Navigator for field 'offices' is not generated: com.upstream.Address carries"
                   + " @GenerateFocus, but no public com.upstream.AddressFocus");
+      // The note names the path each method returns: the map itself, unless the record widens it.
+      assertThat(downstream)
+          .hadNoteContaining(
+              "until then DirectoryFocus.offices() returns FocusPath<Directory, Map<String,"
+                  + " Address>>.");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "until then WideDirectoryFocus.offices() returns TraversalPath<WideDirectory,"
+                  + " Address>.");
     }
 
     @Test
@@ -1872,11 +1901,18 @@ public class FocusProcessorNavigatorTest {
       assertThat(downstream).succeeded();
 
       // Boxed<?> gets no navigator even once Boxed's companion is published, so the note names the
-      // wildcard rather than telling the author to publish one, which would change nothing.
+      // wildcard as the reason. Writing the type it offers is not enough on its own, so the offer
+      // names the companion that type would also need, rather than promising a navigator.
       assertThat(downstream)
           .hadNoteContaining(
               "Navigator for field 'boxed' is not generated: a navigator into Boxed has to name one"
                   + " type for each of its type parameters, which Boxed<?> does not.");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Write Boxed<Object>, or another concrete instantiation, in place of Boxed<?>. A"
+                  + " navigator into Boxed also needs a public com.upstream.BoxedFocus on this"
+                  + " module's compile classpath: add hkj-processor to the annotation processor path"
+                  + " of the module declaring Boxed, and rebuild it.");
       Assertions.assertThat(downstream.notes())
           .noneMatch(note -> note.getMessage(null).contains("no public com.upstream.BoxedFocus"));
     }

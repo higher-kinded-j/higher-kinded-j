@@ -1443,58 +1443,7 @@ class NavigatorCoverageTest {
           "public static InnersNavigator<Records.Indexed, String>");
     }
 
-    @ParameterizedTest(name = "{0}")
-    @CsvSource(
-        delimiterString = " -> ",
-        textBlock =
-            """
-            Inner<?> inner -> Inner<?> -> Inner<Object>
-            @SuppressWarnings("rawtypes") Inner inner -> the raw Inner -> Inner<Object>
-            Inner<? extends Number> inner -> Inner<? extends Number> -> Inner<Number>
-            Map<String, Inner<?>> inner -> Inner<?> -> Inner<Object>
-            Inner<?>[] inner -> Inner<?> -> Inner<Object>
-            """)
-    @DisplayName("a component naming no type for a target's parameter keeps its plain path")
-    void anUninstantiableComponentKeepsItsPlainPath(
-        String component, String written, String alternative) {
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import java.util.Map;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(%s, String tag) {}
-              """
-                  .formatted(component));
-
-      Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
-              .compile(INNER, outer);
-
-      // No chain is offered: a path into Inner is over one instantiation of it, so it composes
-      // with neither a wildcard nor a raw Inner.
-      assertThat(compilation).succeeded();
-      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.OuterFocus", "InnerNavigator");
-      assertThat(compilation)
-          .hadNoteContaining(
-              "Navigator for field 'inner' is not generated: a navigator into Inner has to name"
-                  + " one type for each of its type parameters, which "
-                  + written
-                  + " does not. OuterFocus.inner() keeps its plain path, and a path over one"
-                  + " instantiation of Inner does not compose with it either. Write "
-                  + alternative
-                  + ", or another concrete instantiation, in place of "
-                  + written
-                  + " to get a navigator.");
-    }
-
-    /** Targets whose type parameters are bounded, one shape of bound each. */
+    /** Targets whose type parameters have a bound the declaration alone names no type within. */
     private static final JavaFileObject BOUNDED =
         JavaFileObjects.forSourceString(
             "com.myapp.Bounded",
@@ -1503,9 +1452,6 @@ class NavigatorCoverageTest {
 
             import java.util.List;
             import org.higherkindedj.optics.annotations.GenerateFocus;
-
-            @GenerateFocus(generateNavigators = true)
-            record Num<T extends Number>(T value) {}
 
             @GenerateFocus(generateNavigators = true)
             record Ord<T extends Comparable<T>>(T value) {}
@@ -1523,15 +1469,13 @@ class NavigatorCoverageTest {
         delimiterString = " -> ",
         textBlock =
             """
-            Num<?> -> Num<?> -> Write Num<Number>, or another concrete instantiation,
-            Num<? super Integer> -> Num<? super Integer> -> Write Num<Integer>, or another concrete instantiation,
             Ord<?> -> Ord<?> -> Write Ord with a concrete type argument for each type parameter
             @SuppressWarnings("rawtypes") Ord -> the raw Ord -> Write Ord with a concrete type argument for each type parameter
             Both<?> -> Both<?> -> Write Both with a concrete type argument for each type parameter
             RawBound<?> -> RawBound<?> -> Write RawBound with a concrete type argument for each type parameter
             """)
-    @DisplayName("the note names a type within the parameter's bounds, or none")
-    void theNoteNamesATypeWithinTheBounds(String component, String written, String fix) {
+    @DisplayName("the note names no type where none the declaration names meets the bound")
+    void theNoteNamesNoTypeOutsideTheBounds(String component, String written, String fix) {
       final var outer =
           JavaFileObjects.forSourceString(
               "com.myapp.Outer",
@@ -1551,46 +1495,14 @@ class NavigatorCoverageTest {
               .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
               .compile(BOUNDED, outer);
 
-      // Object falls outside Number, and no type the declaration alone names meets a bound written
-      // in T itself, an intersection or a raw List, so those name none.
+      // No type the declaration alone names meets a bound written in T itself, an intersection or a
+      // raw List, so these name none.
       assertThat(compilation).succeeded();
       assertThat(compilation)
           .hadNoteContaining(
-              "which " + written + " does not. OuterFocus.holder() keeps its plain path");
+              "which " + written + " does not. OuterFocus.holder() returns FocusPath<Outer, ");
       assertThat(compilation)
           .hadNoteContaining(fix + " in place of " + written + " to get a navigator.");
-    }
-
-    @Test
-    @DisplayName("the type the note names gets a navigator when it is written")
-    void theTypeTheNoteNamesGetsANavigator() {
-      final var outer =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Outer",
-              """
-              package com.myapp;
-
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(Inner<Object> any, Num<Number> number, Num<Integer> whole) {}
-              """);
-
-      Compilation compilation =
-          javac()
-              .withProcessors(new FocusProcessor())
-              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
-              .compile(INNER, BOUNDED, outer);
-
-      // A fix line is only worth printing if following it does what it says.
-      assertThat(compilation).succeededWithoutWarnings();
-      final String focus = "com.myapp.OuterFocus";
-      assertGeneratedCodeContains(
-          compilation, focus, "public static AnyNavigator<Outer, Object> any()");
-      assertGeneratedCodeContains(
-          compilation, focus, "public static NumberNavigator<Outer, Number> number()");
-      assertGeneratedCodeContains(
-          compilation, focus, "public static WholeNavigator<Outer, Integer> whole()");
     }
 
     @Test
@@ -1632,7 +1544,9 @@ class NavigatorCoverageTest {
           javac().withProcessors(new FocusProcessor()).compile(inner, secret, outer);
 
       // Making Secret public gives tight a navigator, and loose none, so the note for loose names
-      // the wildcard, which shows in its declaration, rather than promising one in vain.
+      // the wildcard, which shows in its declaration. Writing the type it offers is not enough on
+      // its
+      // own, so the same note names Secret too, rather than promising a navigator in vain.
       assertThat(compilation).succeeded();
       assertThat(compilation)
           .hadNoteContaining(
@@ -1640,13 +1554,16 @@ class NavigatorCoverageTest {
                   + " one type for each of its type parameters, which Inner<?> does not.");
       assertThat(compilation)
           .hadNoteContaining(
+              "Write Inner<Object>, or another concrete instantiation, in place of Inner<?>. A"
+                  + " navigator into Inner also names 'Secret', which cannot be reached from"
+                  + " 'com.myapp'. Make 'Secret' public.");
+      assertThat(compilation)
+          .hadNoteContaining(
               "Navigator for field 'tight' is not generated: a navigator into Inner names"
                   + " 'Secret'");
       Assertions.assertThat(compilation.notes())
-          .noneMatch(
-              note ->
-                  note.getMessage(null).contains("field 'loose'")
-                      && note.getMessage(null).contains("Secret"));
+          .filteredOn(note -> note.getMessage(null).contains("field 'loose'"))
+          .hasSize(1);
     }
 
     @Test

@@ -27,6 +27,7 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.processing.WideningAnalysis.SpiLookup;
+import org.higherkindedj.optics.processing.WideningAnalysis.Step;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
@@ -73,8 +74,8 @@ import org.higherkindedj.optics.processing.util.Reachability;
  * <p>A target with type parameters of its own gets a navigator that declares them after the source,
  * {@code InnerNavigator<S, T>}, and a component reaching it passes the type arguments it was
  * declared with: {@code Inner<String> inner} gives {@code InnerNavigator<Outer, String>}. A
- * component with none it can pass, a wildcard ({@code Inner<?>}) or a raw {@code Inner}, keeps its
- * plain path.
+ * component with none it can pass, a wildcard ({@code Inner<?>}) or a raw {@code Inner}, gets no
+ * navigator, and its method is the path its declaration widens to.
  */
 public class NavigatorClassGenerator {
 
@@ -206,8 +207,9 @@ public class NavigatorClassGenerator {
       Target target = navigatorTarget(recordElement, component);
       if (target == null) {
         switch (skippedTarget(recordElement, component)) {
-          case Reach.Uninstantiable(Target uninstantiable) ->
-              reportUninstantiableTargetSkipped(recordElement, component, uninstantiable);
+          case Reach.Uninstantiable(Target uninstantiable, Reach instantiated) ->
+              reportUninstantiableTargetSkipped(
+                  recordElement, component, uninstantiable, instantiated);
           case Reach.Unpublished(TypeElement unpublished) ->
               reportUnpublishedTargetSkipped(recordElement, component, unpublished);
           case Reach.Hidden hidden -> reportHiddenTargetSkipped(recordElement, component, hidden);
@@ -232,16 +234,26 @@ public class NavigatorClassGenerator {
    * companion to compose, is reported the same way.
    *
    * <p>This reason is given ahead of a missing or unreachable companion, because it shows in the
-   * declaration and holds however the target's module was built. No chain is offered in place of
-   * the navigator, because none compiles: a path into the target is over one instantiation of it,
-   * which a wildcard or a raw type is not.
+   * declaration and holds however the target's module was built. A missing or unreachable companion
+   * still stands in the way of the instantiation the note offers, so the offer names it rather than
+   * promising a navigator.
+   *
+   * <p>No chain through the target's companion is offered, because none compiles: each of its paths
+   * starts from one instantiation of the target, which a wildcard or a raw type is not. A lens from
+   * the type as declared does compose, so the note says so wherever the component's own method
+   * focuses on that type, which it does not for a container the method does not step into.
    *
    * @param recordElement the record declaring the component
    * @param component the component whose navigator was not generated
    * @param target the target as the component reaches it, already found uninstantiable
+   * @param instantiated what a concrete instantiation of the target would reach: {@code Navigable},
+   *     {@code Unpublished} or {@code Hidden}
    */
   private void reportUninstantiableTargetSkipped(
-      TypeElement recordElement, RecordComponentElement component, Target target) {
+      TypeElement recordElement,
+      RecordComponentElement component,
+      Target target,
+      Reach instantiated) {
 
     String componentName = component.getSimpleName().toString();
     String name = target.record().getSimpleName().toString();
@@ -249,6 +261,30 @@ public class NavigatorClassGenerator {
         ProcessorUtils.isRaw(target.type())
             ? "the raw " + name
             : ProcessorUtils.simpleTypeName(target.type());
+    MethodPath method = methodPath(recordElement, component);
+    boolean overTarget = processingEnv.getTypeUtils().isSameType(method.focus(), target.type());
+    String outcome =
+        switch (instantiated) {
+          case Reach.Unpublished(TypeElement unpublished) ->
+              ". A navigator into "
+                  + name
+                  + " also needs a public "
+                  + focusClassOf(unpublished).canonicalName()
+                  + " on this module's compile classpath: add hkj-processor to the annotation"
+                  + " processor path of the module declaring "
+                  + name
+                  + ", and rebuild it.";
+          case Reach.Hidden hidden ->
+              ". A navigator into "
+                  + name
+                  + " also names '"
+                  + hidden.hidden().getSimpleName()
+                  + "', which cannot be reached from '"
+                  + companionPackage(recordElement)
+                  + "'. "
+                  + reachabilityFix(recordElement, hidden);
+          default -> " to get a navigator.";
+        };
     processingEnv
         .getMessager()
         .printMessage(
@@ -263,9 +299,18 @@ public class NavigatorClassGenerator {
                 + focusClassOf(recordElement).simpleName()
                 + "."
                 + componentName
-                + "() keeps its plain path, and a path over one instantiation of "
-                + name
-                + " does not compose with it either. "
+                + "() returns "
+                + method.description()
+                + " instead. "
+                + (overTarget
+                    ? "A path from one instantiation of "
+                        + name
+                        + " does not compose with it, but a lens you write from "
+                        + written
+                        + " does, through "
+                        + (method.nullable() ? ".some(Affines.nullable()).via()" : ".via()")
+                        + ". "
+                    : "")
                 + ProcessorUtils.concreteAlternative(target.type())
                     .map(
                         alternative ->
@@ -274,7 +319,7 @@ public class NavigatorClassGenerator {
                         "Write " + name + " with a concrete type argument for each type parameter")
                 + " in place of "
                 + written
-                + " to get a navigator.",
+                + outcome,
             component);
   }
 
@@ -312,7 +357,9 @@ public class NavigatorClassGenerator {
                 + focusClassOf(recordElement).simpleName()
                 + "."
                 + componentName
-                + "() keeps its plain path.",
+                + "() returns "
+                + methodPath(recordElement, component).description()
+                + ".",
             component);
   }
 
@@ -320,7 +367,7 @@ public class NavigatorClassGenerator {
    * Says why a component asking for a navigator did not get one, when the navigator would name a
    * type this Focus class's package cannot reach: the target record, or one of its components, is
    * {@code private} or hidden in another package. The Focus class itself can still name the target,
-   * so the component keeps its plain path.
+   * so the component keeps its own method.
    *
    * @param recordElement the record declaring the component
    * @param component the component whose navigator was not generated
@@ -343,17 +390,78 @@ public class NavigatorClassGenerator {
                 + "', which cannot be reached from '"
                 + companionPackage(recordElement)
                 + "'. "
-                + Reachability.fix(
-                    processingEnv.getElementUtils(),
-                    hidden.hidden(),
-                    new Reachability.Target(
-                        companionPackage(recordElement), "", home -> Optional.empty()))
+                + reachabilityFix(recordElement, hidden)
                 + " Until then "
                 + focusClassOf(recordElement).simpleName()
                 + "."
                 + componentName
-                + "() keeps its plain path.",
+                + "() returns "
+                + methodPath(recordElement, component).description()
+                + ".",
             component);
+  }
+
+  /**
+   * What makes the type a navigator into a hidden target names reachable from this Focus class's
+   * package.
+   */
+  private String reachabilityFix(TypeElement recordElement, Reach.Hidden hidden) {
+    return Reachability.fix(
+        processingEnv.getElementUtils(),
+        hidden.hidden(),
+        new Reachability.Target(companionPackage(recordElement), "", home -> Optional.empty()));
+  }
+
+  /**
+   * A component's own Focus method, as a note names it in place of the navigator it was not given.
+   *
+   * @param tier the path type the method returns
+   * @param source the record the path starts from
+   * @param focus the type the path focuses on
+   * @param nullable whether that focus may be null, as an element written {@code @Nullable} may
+   */
+  private record MethodPath(Tier tier, TypeMirror source, TypeMirror focus, boolean nullable) {
+
+    /** The method's return type as its signature spells it: {@code AffinePath<Outer, Inner<?>>}. */
+    String description() {
+      return tier.description()
+          + "<"
+          + ProcessorUtils.simpleTypeName(source)
+          + ", "
+          + (nullable ? "@Nullable " : "")
+          + ProcessorUtils.simpleTypeName(focus)
+          + ">";
+    }
+  }
+
+  /**
+   * What a component's own Focus method returns, read from the widening it carries.
+   *
+   * <p>A component without a navigator is not always a plain path over itself: a {@code @Nullable}
+   * one widens through {@code .nullable()}, an {@code Either} through its own step, and a {@code
+   * Map} or an array steps into its element under {@code widenCollections}.
+   *
+   * <p>The focus is what the last layer the walk peeled unwraps to. A component a note is about
+   * reaches its record directly or as an SPI container's element, so the walk meets two kinds of
+   * layer on the way: {@code .nullable()}, which rules out the component's own null and leaves it
+   * in focus, and the container's step, which records the element it unwraps to. A {@code Kind}
+   * layer, which records its element only by name, never reaches a navigable record.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the method's path type, source and focus
+   */
+  private MethodPath methodPath(TypeElement record, RecordComponentElement component) {
+    Widening widening = widening(record, component);
+    TypeMirror focus = component.asType();
+    boolean nullable = false;
+    for (Step step : widening.steps()) {
+      if (step.innerType() != null) {
+        focus = step.innerType();
+        nullable = NullableAnnotations.isNullable(focus);
+      }
+    }
+    return new MethodPath(widening.tier(), record.asType(), focus, nullable);
   }
 
   /**
@@ -390,11 +498,11 @@ public class NavigatorClassGenerator {
     }
     return switch (reach) {
       case Reach.Navigable(TypeElement navigable) ->
-          new Reach.Uninstantiable(new Target(navigable, (DeclaredType) reached));
+          new Reach.Uninstantiable(new Target(navigable, (DeclaredType) reached), reach);
       case Reach.Unpublished(TypeElement unpublished) ->
-          new Reach.Uninstantiable(new Target(unpublished, (DeclaredType) reached));
+          new Reach.Uninstantiable(new Target(unpublished, (DeclaredType) reached), reach);
       case Reach.Hidden(TypeElement hidden, TypeElement _) ->
-          new Reach.Uninstantiable(new Target(hidden, (DeclaredType) reached));
+          new Reach.Uninstantiable(new Target(hidden, (DeclaredType) reached), reach);
       default -> reach;
     };
   }
@@ -1390,9 +1498,10 @@ public class NavigatorClassGenerator {
 
     /**
      * An annotated record a component gives a wildcard or no type arguments, so that no navigator
-     * into it can be instantiated. Only {@code skippedTarget} answers this, never {@code reach}.
+     * into it can be instantiated, with what a concrete instantiation would reach. Only {@code
+     * skippedTarget} answers this, never {@code reach}.
      */
-    record Uninstantiable(Target target) implements Reach {}
+    record Uninstantiable(Target target, Reach instantiated) implements Reach {}
 
     /** Anything else. */
     record None() implements Reach {}

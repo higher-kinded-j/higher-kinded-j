@@ -103,10 +103,17 @@ Navigators are generated for **nested record** fields (`UserFocus.address().city
 SPI container types holding one; `List`, `Set`, `Optional` and `Maybe` fields are widened instead,
 so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
 field's type arguments: `Revision<EmailAddress> email` chains as `.email().current()`. A field that
-names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, keeps a plain
-path to the whole value, and the processor says so in a note. No `.via(RevisionFocus...)` chain
-reaches inside that path either; declare the field with concrete type arguments
-(`Revision<EmailAddress>`) to get the navigator.
+names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, gets no
+navigator, and the processor says so in a note naming the path its method returns. No
+`.via(RevisionFocus...)` chain reaches inside that path either. Declare the field with concrete type
+arguments (`Revision<EmailAddress>`) to get the navigator, or compose a lens you write from
+`Revision<?>` itself, as the note offers unless the field is a `Map` or array left unwidened:
+
+```java
+Lens<Revision<?>, Object> current =
+    Lens.of(Revision::current, (revision, value) -> new Revision<>(value, revision.changedAt()));
+Object value = ContactHistoryFocus.lastEdit().via(current).get(history);
+```
 
 A navigator method composes the static Focus method for the field it navigates to, so the two always
 report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one
@@ -114,7 +121,7 @@ source type further out.
 
 The nested record may live in a dependency, provided that module ran hkj-processor: the navigator
 composes the `Focus` class the dependency published, whichever processor version built it. A
-dependency without the processor keeps the plain path, and a field whose type is not on this
+dependency without the processor gives no navigator, and a field whose type is not on this
 module's compile classpath is left out of the navigator; the processor says which in a note.
 
 ---

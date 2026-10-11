@@ -759,7 +759,8 @@ class CompanionReachabilityTest {
                     .isEqualTo(
                         "Navigator for field 'item' is not generated: a navigator into Item names"
                             + " 'Sku', which cannot be reached from 'com.example'. Make 'Sku'"
-                            + " public. Until then OrderFocus.item() keeps its plain path.");
+                            + " public. Until then OrderFocus.item() returns FocusPath<Order,"
+                            + " Item>.");
               });
     }
   }
