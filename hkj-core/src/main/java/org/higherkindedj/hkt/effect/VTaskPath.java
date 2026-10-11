@@ -298,8 +298,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * run().runSafe()} preserves the checked {@code TimeoutException}, while the path-level {@code
    * unsafeRun()}/{@code runSafe()} wrap it per {@code VTask.run()} conventions. An interrupt of the
    * caller is passed on to the computation, and the {@code InterruptedException} surfaces once it
-   * stops, or the budget runs out: as thrown from {@code run()}, and wrapped, with the interrupt
-   * status set, from the path-level {@code unsafeRun()}/{@code runSafe()}.
+   * stops, or the budget runs out: as thrown from {@code run()}, held by {@code run().runSafe()},
+   * and wrapped by the path-level {@code unsafeRun()}/{@code runSafe()}. Each of the last three
+   * sets the interrupt status.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget

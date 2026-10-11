@@ -39,10 +39,12 @@ public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A
   private void materialise() {
     if (!hasMaterialised) {
       isNotNull();
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       try {
         materialisedElements = actual.toList().run();
         materialisedException = null;
       } catch (Throwable t) {
+        Interrupts.clearAfterCancellation(interruptedBefore, t);
         materialisedElements = null;
         materialisedException = t;
       }

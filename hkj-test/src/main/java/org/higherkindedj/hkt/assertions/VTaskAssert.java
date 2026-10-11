@@ -192,16 +192,16 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
    * Invokes {@code actual.runSafe()} at most once across the lifetime of this assert. Subsequent
    * calls reuse the cached result so chaining {@code runSafeSucceeds().runSafeFails()...} does not
    * re-execute the underlying VTask. {@code runSafe()} sets the thread's interrupt status for an
-   * {@code InterruptedException}; the assert clears what it set, so the test thread is not left
-   * interrupted.
+   * {@code InterruptedException}; the assert clears the status after such a failure, unless the
+   * thread was interrupted before the run.
    */
   private void runSafeOnce() {
     isNotNull();
     if (!hasRunSafe) {
       boolean interruptedBefore = Thread.currentThread().isInterrupted();
       runSafeResult = actual.runSafe();
-      if (!interruptedBefore && runSafeResult instanceof Try.Failure<T>(InterruptedException _)) {
-        Thread.interrupted();
+      if (runSafeResult instanceof Try.Failure<T>(Throwable failure)) {
+        Interrupts.clearAfterCancellation(interruptedBefore, failure);
       }
       hasRunSafe = true;
     }

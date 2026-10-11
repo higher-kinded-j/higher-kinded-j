@@ -166,4 +166,18 @@ class VTaskContextAssertContractTest
         .withExceptionType(NullPointerException.class)
         .withExceptionMessage("callable must not return null");
   }
+
+  @Test
+  @DisplayName("fails() on an InterruptedException leaves the test thread uninterrupted")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VTaskContextAssert.assertThatVTaskContext(
+              VTaskContext.<Integer>fail(new InterruptedException("cancelled")))
+          .fails();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }

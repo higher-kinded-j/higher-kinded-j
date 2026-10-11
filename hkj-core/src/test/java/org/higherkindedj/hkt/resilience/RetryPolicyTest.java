@@ -213,9 +213,21 @@ class RetryPolicyTest {
           RetryPolicy.exponentialBackoffWithJitter(5, huge)
               .withMaxDelay(ChronoUnit.FOREVER.getDuration());
 
-      assertThat(linear.delayForAttempt(3)).isEqualTo(Duration.ofMillis(Long.MAX_VALUE - 1));
+      assertThat(linear.delayForAttempt(3)).isEqualTo(Duration.ofNanos(Long.MAX_VALUE - 1));
       assertThat(jittered.delayForAttempt(3))
-          .isBetween(Duration.ZERO, Duration.ofMillis(Long.MAX_VALUE - 1));
+          .isBetween(Duration.ZERO, Duration.ofNanos(Long.MAX_VALUE - 1));
+    }
+
+    @Test
+    @DisplayName("delayForAttempt() keeps a sub-millisecond delay for every attempt")
+    void delayForAttemptKeepsSubMillisecondDelays() {
+      Duration halfMillisecond = Duration.ofNanos(500_000);
+      RetryPolicy fixed = RetryPolicy.fixed(4, halfMillisecond);
+      RetryPolicy exponential = RetryPolicy.exponentialBackoff(4, Duration.ofNanos(1_500_000));
+
+      assertThat(fixed.delayForAttempt(2)).isEqualTo(halfMillisecond);
+      assertThat(fixed.delayForAttempt(3)).isEqualTo(halfMillisecond);
+      assertThat(exponential.delayForAttempt(2)).isEqualTo(Duration.ofNanos(3_000_000));
     }
 
     @Test

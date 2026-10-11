@@ -92,4 +92,17 @@ class VStreamAssertContractTest extends AssertContract<VStream<Integer>, VStream
     Assertions.assertThatExceptionOfType(AssertionError.class)
         .isThrownBy(() -> VStreamAssert.assertThatVStream(FAIL_ISE).producesElements(1));
   }
+
+  @Test
+  @DisplayName("failsOnPull() on an InterruptedException leaves the test thread uninterrupted")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VStreamAssert.assertThatVStream(VStream.<Integer>fail(new InterruptedException("cancelled")))
+          .failsOnPull();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }

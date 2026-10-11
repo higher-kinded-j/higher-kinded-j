@@ -420,28 +420,27 @@ public final class RetryPolicy {
 
     // Durations convert saturating, and the products are taken in double, whose cast to long
     // saturates too, so a delay too long for a long caps rather than overflows
-    long initialMillis = TimeUnit.MILLISECONDS.convert(initialDelay);
-    long delayMillis;
+    long initialNanos = TimeUnit.NANOSECONDS.convert(initialDelay);
+    long delayNanos;
     if (backoffStrategy == BackoffStrategy.LINEAR) {
       // Linear: initialDelay * attemptNumber
-      delayMillis = (long) ((double) initialMillis * attemptNumber);
+      delayNanos = (long) ((double) initialNanos * attemptNumber);
     } else {
       // Exponential: initialDelay * multiplier^(attemptNumber-1)
       double multiplier = Math.pow(backoffMultiplier, attemptNumber - 1);
-      delayMillis = (long) (initialMillis * multiplier);
+      delayNanos = (long) (initialNanos * multiplier);
     }
 
     // Cap at maxDelay, leaving room for the jitter's inclusive bound
-    delayMillis =
-        Math.min(
-            delayMillis, Math.min(TimeUnit.MILLISECONDS.convert(maxDelay), Long.MAX_VALUE - 1));
+    delayNanos =
+        Math.min(delayNanos, Math.min(TimeUnit.NANOSECONDS.convert(maxDelay), Long.MAX_VALUE - 1));
 
     // Apply jitter if enabled (full jitter: 0 to delay)
-    if (useJitter && delayMillis > 0) {
-      delayMillis = ThreadLocalRandom.current().nextLong(delayMillis + 1);
+    if (useJitter && delayNanos > 0) {
+      delayNanos = ThreadLocalRandom.current().nextLong(delayNanos + 1);
     }
 
-    return Duration.ofMillis(delayMillis);
+    return Duration.ofNanos(delayNanos);
   }
 
   // ===== Validation =====

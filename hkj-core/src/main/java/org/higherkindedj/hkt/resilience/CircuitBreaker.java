@@ -149,13 +149,14 @@ public final class CircuitBreaker {
       // Reject if still OPEN
       if (current.status() == Status.OPEN) {
         rejectedCalls.incrementAndGet();
-        long remainingNanos =
+        // In saturating nanoseconds, with a wall clock that stepped back counted as no time
+        long elapsedNanos =
             Math.max(
                 0,
                 TimeUnit.NANOSECONDS.convert(
-                    config
-                        .openDuration()
-                        .minus(Duration.between(current.lastStateChange(), Instant.now()))));
+                    Duration.between(current.lastStateChange(), Instant.now())));
+        long remainingNanos =
+            Math.max(0, TimeUnit.NANOSECONDS.convert(config.openDuration()) - elapsedNanos);
         throw new CircuitOpenException(Status.OPEN, Duration.ofNanos(remainingNanos));
       }
 

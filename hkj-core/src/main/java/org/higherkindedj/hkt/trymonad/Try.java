@@ -102,7 +102,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     try {
       return new Success<>(Objects.requireNonNull(supplier.get(), "supplier must not return null"));
     } catch (Exception e) {
-      return new Failure<>(e);
+      return caught(e);
     }
   }
 
@@ -119,7 +119,8 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * exceptions.
    *
    * <p>{@link Error} and other non-{@link Exception} {@link Throwable}s are <b>not</b> caught and
-   * will propagate out of this method.
+   * will propagate out of this method. An {@link InterruptedException} is caught with the thread's
+   * interrupt status set again, so the cancellation it reports is not lost.
    *
    * <h2>Example</h2>
    *
@@ -141,7 +142,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     try {
       return new Success<>(Objects.requireNonNull(supplier.get(), "supplier must not return null"));
     } catch (Exception e) {
-      return new Failure<>(e);
+      return caught(e);
     }
   }
 
@@ -189,6 +190,18 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
   @SuppressWarnings("unchecked") // sealed + immutable: covariant reinterpretation is unobservable
   private static <U> Try<U> covary(Try<? extends U> t) {
     return (Try<U>) t;
+  }
+
+  /**
+   * Captures a caught exception as a {@link Failure}. An {@link InterruptedException} sets the
+   * thread's interrupt status again, as code that catches one and does not rethrow it should, so
+   * the cancellation it reports is not lost.
+   */
+  private static <U> Try<U> caught(Exception e) {
+    if (e instanceof InterruptedException) {
+      Thread.currentThread().interrupt();
+    }
+    return new Failure<>(e);
   }
 
   /**
@@ -462,7 +475,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
         return new Success<>(
             Objects.requireNonNull(mapper.apply(value), "mapper must not return null"));
       } catch (Exception e) {
-        return new Failure<>(e);
+        return caught(e);
       }
     }
 
@@ -473,7 +486,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
       try {
         result = mapper.apply(value);
       } catch (Exception e) {
-        return new Failure<>(e);
+        return caught(e);
       }
 
       Validation.function().requireNonNullResult(result, "mapper", FLAT_MAP);
@@ -564,7 +577,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
             Objects.requireNonNull(
                 recoveryFunction.apply(cause), "recoveryFunction must not return null"));
       } catch (Exception e) {
-        return new Failure<>(e);
+        return caught(e);
       }
     }
 
@@ -576,7 +589,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
       try {
         result = recoveryFunction.apply(cause);
       } catch (Exception e) {
-        return new Failure<>(e);
+        return caught(e);
       }
       Validation.function().requireNonNullResult(result, "recoveryFunction", RECOVER_WITH);
       return covary(result);
