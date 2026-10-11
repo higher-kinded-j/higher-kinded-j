@@ -574,6 +574,44 @@ class CompletableFuturePathTest {
     }
 
     @Test
+    @DisplayName(
+        "withTimeout() and completeOnTimeout() leave this path alone when the time runs out")
+    void timeoutsLeaveThisPathAlone() {
+      CompletableFuturePath<String> source =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      CompletableFuturePath<String> timed = source.withTimeout(Duration.ofMillis(20));
+
+      assertThatThrownBy(timed::join)
+          .isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(TimeoutException.class);
+      assertThat(source.toCompletableFuture()).isNotDone();
+
+      CompletableFuturePath<String> other =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+
+      assertThat(other.completeOnTimeout("default", Duration.ofMillis(20)).join())
+          .isEqualTo("default");
+      assertThat(other.toCompletableFuture()).isNotDone();
+    }
+
+    @Test
+    @DisplayName("a timed path and this path still cancel each other")
+    void aTimedPathAndThisPathCancelEachOther() {
+      CompletableFuturePath<String> source =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      source.withTimeout(Duration.ofMinutes(1)).toCompletableFuture().cancel(true);
+
+      assertThat(source.toCompletableFuture()).isCancelled();
+
+      CompletableFuturePath<String> other =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      CompletableFuturePath<String> otherTimed = other.withTimeout(Duration.ofMinutes(1));
+      other.toCompletableFuture().cancel(true);
+
+      assertThat(otherTimed.toCompletableFuture()).isCancelled();
+    }
+
+    @Test
     @DisplayName("onExecutor() switches executor for subsequent operations")
     void onExecutorSwitchesExecutor() {
       var executor = Executors.newSingleThreadExecutor();

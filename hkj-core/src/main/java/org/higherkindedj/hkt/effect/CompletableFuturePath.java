@@ -437,7 +437,9 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Adds a timeout to this computation.
    *
-   * <p>If the timeout is exceeded, the future completes exceptionally with a TimeoutException.
+   * <p>If the timeout is exceeded, the new path's future completes exceptionally with a
+   * TimeoutException. This path is left as it is: its future mirrors into the new path's, as {@link
+   * #fromFuture} describes, so the timeout completes only the new path.
    *
    * @param timeout the maximum duration; must not be null
    * @return a new CompletableFuturePath with timeout
@@ -446,11 +448,16 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   public CompletableFuturePath<A> withTimeout(Duration timeout) {
     Objects.requireNonNull(timeout, "timeout must not be null");
     return new CompletableFuturePath<>(
-        future.orTimeout(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
+        fromFuture(future)
+            .future
+            .orTimeout(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
   }
 
   /**
    * Returns a default value if this computation times out.
+   *
+   * <p>This path is left as it is: the default completes only the new path, as {@link #withTimeout}
+   * describes.
    *
    * @param defaultValue the value to return on timeout; must not be null
    * @param timeout the timeout duration; must not be null
@@ -461,8 +468,10 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
     Objects.requireNonNull(defaultValue, "defaultValue must not be null");
     Objects.requireNonNull(timeout, "timeout must not be null");
     return new CompletableFuturePath<>(
-        future.completeOnTimeout(
-            defaultValue, TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
+        fromFuture(future)
+            .future
+            .completeOnTimeout(
+                defaultValue, TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
   }
 
   /**
