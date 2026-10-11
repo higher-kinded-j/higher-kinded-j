@@ -63,8 +63,8 @@ import java.lang.annotation.Target;
  * {@code Focus}. Navigability is decided by asking the component's type whether it carries this
  * annotation, which a type read from a jar can only answer if the annotation outlived the
  * compilation that declared it. The module declaring the record must also run the processor: a
- * navigator composes the {@code Focus} class that module generated, and keeps the plain path, with
- * a note, when there is none.
+ * navigator composes the {@code Focus} class that module generated, so where there is none the
+ * field gets no navigator, and a note says why.
  *
  * @see GenerateFocus#generateNavigators()
  * @see GenerateFocus#maxNavigatorDepth()

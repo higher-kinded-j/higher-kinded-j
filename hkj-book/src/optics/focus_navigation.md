@@ -152,7 +152,7 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart LR
     accTitle: Which fields get a navigator
-    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments keeps a plain path to the whole value. Anything else keeps a plain path chained with via.
+    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments gets no navigator, so chain a lens you write with via. Anything else keeps a plain path chained with via.
     F{"The field's<br/>type is..."}
     F --- R1["a record with<br/>@GenerateFocus, its Focus<br/>class generated and each<br/>type parameter named"]
     F --- R2["an SPI container<br/>whose element is<br/>such a record"]
@@ -162,7 +162,7 @@ flowchart LR
     R1 --> N["Navigator<br/>chain with<br/>a method call"]
     R2 --> N
     R3 --> W["Widened path<br/>chain with .via()"]
-    R4 --> Q["Plain path<br/>to the whole value"]
+    R4 --> Q["No navigator<br/>chain a lens you<br/>write with .via()"]
     R5 --> P["Plain path<br/>chain with .via()"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
@@ -286,7 +286,7 @@ For the full treatment, including stack-safe operations on large lists, see [Lis
 
 Three things can keep such a navigator from being generated in full, and the processor says which in a note against the field:
 
-- **The dependency did not run the processor.** Its records carry the annotation but it generated no `Focus` classes, so there is nothing to compose, and the field keeps its plain path.
+- **The dependency did not run the processor.** Its records carry the annotation but it generated no `Focus` classes, so there is nothing to compose, and the field gets no navigator.
 - **A field names a type this module cannot see.** A dependency's record may use a type from one of *its* dependencies that is not on this module's compile classpath. That field is left out of the navigator, and the rest are generated as usual.
 - **The dependency's `Focus` class does not match its record.** A companion generated from an older version of the record, or a class of the same name the processor did not write, has no method a navigator can compose for some field. That field is left out, and rebuilding the dependency with the processor restores it.
 
@@ -342,9 +342,9 @@ FocusPath<ContactHistory, EmailAddress> current = ContactHistoryFocus.email().cu
 
 A type variable of the declaring record is passed on the same way, and so is an argument that carries a wildcard of its own, such as `List<?>`. An SPI container's element follows the same rule.
 
-A field that names no single type for one of those parameters keeps its plain path. That is a wildcard such as `lastEdit`'s `Revision<?>` or `Revision<? extends EmailAddress>`, or a raw `Revision`. No chain through `RevisionFocus` reaches inside it either, because each of its paths is over one instantiation of `Revision`. The processor says so in a note against the field. Where the parameter's bound is a type it can write, the note names a type to use instead:
+A field that names no single type for one of those parameters gets no navigator. That is a wildcard such as `lastEdit`'s `Revision<?>` or `Revision<? extends EmailAddress>`, or a raw `Revision`. No chain through `RevisionFocus` reaches inside it either, because each of its paths starts from one instantiation of `Revision`. The processor says so in a note against the field. Where the parameter's bound is a type it can write, the note names a type to use instead:
 
-<!-- verify:reports "which Revision<?> does not" -->
+<!-- verify:reports "returns FocusPath<ContactHistory, Revision<?>> instead. A path from one instantiation of Revision does not compose with it, but a lens you write from Revision<?> does, through .via()." -->
 ```java
 @GenerateFocus(generateNavigators = true)
 record Revision<T>(T current, Instant changedAt) {}
@@ -354,10 +354,10 @@ record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instan
 ```
 
 ```
-Note: Navigator for field 'lastEdit' is not generated: a navigator into Revision has to name one type for each of its type parameters, which Revision<?> does not. ContactHistoryFocus.lastEdit() keeps its plain path, and a path over one instantiation of Revision does not compose with it either. Write Revision<Object>, or another concrete instantiation, in place of Revision<?> to get a navigator.
+Note: Navigator for field 'lastEdit' is not generated: a navigator into Revision has to name one type for each of its type parameters, which Revision<?> does not. ContactHistoryFocus.lastEdit() returns FocusPath<ContactHistory, Revision<?>> instead. A path from one instantiation of Revision does not compose with it, but a lens you write from Revision<?> does, through .via(). Write Revision<Object>, or another concrete instantiation, in place of Revision<?> to get a navigator.
 ```
 
-To reach inside the field as declared, wildcard included, write a lens over its type, as [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows.
+The note names the path the field's method returns, which follows the field's [path widening](#path-widening). Where that path focuses on the record, a lens you write from `Revision<?>` composes with it, as [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows. If the focus may be null, as an element written `@Nullable` may, the note puts `.some(Affines.nullable())` before the lens. Without `widenCollections`, a `Map` or an array keeps a path to the whole container, so its note offers only the type to write. If the record's companion is also missing or out of reach, the offer says what else a navigator needs.
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 
