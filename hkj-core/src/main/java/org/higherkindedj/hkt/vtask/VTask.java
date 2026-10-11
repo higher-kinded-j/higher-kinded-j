@@ -245,8 +245,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * exceptions in {@link VTaskExecutionException}, this method preserves the original exception
    * type in the {@code Try.Failure}. A {@code Try.Success} always holds a value, so a task that
    * returns {@code null} gives a {@code Try.Failure} holding a {@link NullPointerException}. An
-   * {@link InterruptedException} comes back as the failure itself, and the thread's interrupt
-   * status is not set, so check for one before carrying on; {@link #run()} sets it.
+   * {@link InterruptedException} comes back as the failure itself, with the thread's interrupt
+   * status set again, as {@link #run()} sets it, so the cancellation it reports is not lost.
    *
    * @return A {@link Try} containing either the successful result or the failure. Never null.
    */
@@ -256,6 +256,9 @@ public interface VTask<A> extends VTaskKind<A> {
           Objects.requireNonNull(
               execute(), "the task returned null, and a Success always holds a value"));
     } catch (Throwable t) {
+      if (t instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       return Try.failure(t);
     }
   }

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
@@ -287,6 +288,18 @@ class BulkheadTest {
   @Nested
   @DisplayName("Timeout Tests")
   class TimeoutTests {
+
+    @Test
+    @DisplayName(
+        "protectWithTimeout() takes a free permit under a wait too long to count in nanoseconds")
+    void protectWithTimeoutAcceptsAHugeWait() {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+
+      VTask<String> task =
+          bulkhead.protectWithTimeout(VTask.succeed("ok"), ChronoUnit.FOREVER.getDuration());
+
+      assertThat(task.run()).isEqualTo("ok");
+    }
 
     @Test
     @DisplayName("protect() throws BulkheadFullException when timeout expires")

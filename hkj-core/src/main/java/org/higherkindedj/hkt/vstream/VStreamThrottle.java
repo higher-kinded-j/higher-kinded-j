@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.vstream.VStream.Step;
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -57,7 +58,8 @@ public final class VStreamThrottle {
     }
 
     // Every consumption starts from this state, in which no window is open yet
-    return throttleWithState(stream, maxElements, window.toNanos(), new WindowState(0, 0));
+    return throttleWithState(
+        stream, maxElements, TimeUnit.NANOSECONDS.convert(window), new WindowState(0, 0));
   }
 
   /**

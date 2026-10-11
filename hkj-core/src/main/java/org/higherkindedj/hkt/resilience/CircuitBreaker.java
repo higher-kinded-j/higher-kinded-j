@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.resilience;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -151,10 +152,10 @@ public final class CircuitBreaker {
         long remainingNanos =
             Math.max(
                 0,
-                config
-                    .openDuration()
-                    .minus(Duration.between(current.lastStateChange(), Instant.now()))
-                    .toNanos());
+                TimeUnit.NANOSECONDS.convert(
+                    config
+                        .openDuration()
+                        .minus(Duration.between(current.lastStateChange(), Instant.now()))));
         throw new CircuitOpenException(Status.OPEN, Duration.ofNanos(remainingNanos));
       }
 

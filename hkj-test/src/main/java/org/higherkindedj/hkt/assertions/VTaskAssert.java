@@ -42,7 +42,11 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
     super(actual, VTaskAssert.class);
   }
 
-  /** Executes the VTask and prepares for assertions on the result. */
+  /**
+   * Executes the VTask and prepares for assertions on the result. The task runs with {@code
+   * execute()}, so the thread's interrupt status is left as the task leaves it, where {@code run()}
+   * would set it for an {@code InterruptedException}.
+   */
   public VTaskAssert<T> whenRun() {
     isNotNull();
     if (!hasBeenExecuted) {
@@ -50,7 +54,7 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
       VTask<T> wrappedTask =
           actual.peek(ignored -> wasExecutedOnVirtualThread = Thread.currentThread().isVirtual());
       try {
-        executedValue = wrappedTask.run();
+        executedValue = wrappedTask.execute();
         executedException = null;
       } catch (VTaskExecutionException e) {
         executedValue = null;
@@ -187,12 +191,18 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
   /**
    * Invokes {@code actual.runSafe()} at most once across the lifetime of this assert. Subsequent
    * calls reuse the cached result so chaining {@code runSafeSucceeds().runSafeFails()...} does not
-   * re-execute the underlying VTask.
+   * re-execute the underlying VTask. {@code runSafe()} sets the thread's interrupt status for an
+   * {@code InterruptedException}; the assert clears what it set, so the test thread is not left
+   * interrupted.
    */
   private void runSafeOnce() {
     isNotNull();
     if (!hasRunSafe) {
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       runSafeResult = actual.runSafe();
+      if (!interruptedBefore && runSafeResult instanceof Try.Failure<T>(InterruptedException _)) {
+        Thread.interrupted();
+      }
       hasRunSafe = true;
     }
   }

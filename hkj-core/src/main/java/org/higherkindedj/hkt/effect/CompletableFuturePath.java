@@ -223,7 +223,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   public A join(Duration timeout) throws TimeoutException {
     Objects.requireNonNull(timeout, "timeout must not be null");
     try {
-      return future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      return future.get(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS);
     } catch (ExecutionException e) {
       throw new CompletionException(e.getCause());
     } catch (InterruptedException e) {
@@ -445,7 +445,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
    */
   public CompletableFuturePath<A> withTimeout(Duration timeout) {
     Objects.requireNonNull(timeout, "timeout must not be null");
-    return new CompletableFuturePath<>(future.orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS));
+    return new CompletableFuturePath<>(
+        future.orTimeout(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
   }
 
   /**
@@ -460,7 +461,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
     Objects.requireNonNull(defaultValue, "defaultValue must not be null");
     Objects.requireNonNull(timeout, "timeout must not be null");
     return new CompletableFuturePath<>(
-        future.completeOnTimeout(defaultValue, timeout.toMillis(), TimeUnit.MILLISECONDS));
+        future.completeOnTimeout(
+            defaultValue, TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
   }
 
   /**

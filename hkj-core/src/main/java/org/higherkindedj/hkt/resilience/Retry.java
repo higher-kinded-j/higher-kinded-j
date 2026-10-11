@@ -266,7 +266,7 @@ public final class Retry {
         // one that arrived while the listener ran when there is no wait
         if (!delay.isZero() && !delay.isNegative()) {
           try {
-            Thread.sleep(delay.toMillis());
+            Thread.sleep(delay);
           } catch (InterruptedException e) {
             throw retryInterrupted(t, attempts);
           }

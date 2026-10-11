@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
@@ -312,6 +313,23 @@ class VTaskTest {
     }
 
     @Test
+    @DisplayName(
+        "runSafe() returns an InterruptedException as the failure, with the status set again")
+    void runSafeReturnsInterruptAndSetsStatus() {
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      VTask<Integer> task = VTask.fail(cancelled);
+
+      try {
+        Try<Integer> result = task.runSafe();
+
+        assertThat(result).isEqualTo(Try.failure(cancelled));
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("runSafe() returns Success for successful task")
     void runSafeReturnsSuccessForSuccessfulTask() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
@@ -571,6 +589,15 @@ class VTaskTest {
       VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
 
       assertThatVTask(withTimeout).fails().withMessage("Task error");
+    }
+
+    @Test
+    @DisplayName("timeout() accepts a duration too long to count in nanoseconds")
+    void timeoutAcceptsAHugeDuration() {
+      VTask<Integer> withTimeout =
+          VTask.succeed(TEST_VALUE).timeout(ChronoUnit.FOREVER.getDuration());
+
+      assertThat(withTimeout.run()).isEqualTo(TEST_VALUE);
     }
 
     @Test

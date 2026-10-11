@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.resilience;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
@@ -417,18 +418,23 @@ public final class RetryPolicy {
       return initialDelay;
     }
 
+    // Durations convert saturating, and the products are taken in double, whose cast to long
+    // saturates too, so a delay too long for a long caps rather than overflows
+    long initialMillis = TimeUnit.MILLISECONDS.convert(initialDelay);
     long delayMillis;
     if (backoffStrategy == BackoffStrategy.LINEAR) {
       // Linear: initialDelay * attemptNumber
-      delayMillis = initialDelay.toMillis() * attemptNumber;
+      delayMillis = (long) ((double) initialMillis * attemptNumber);
     } else {
       // Exponential: initialDelay * multiplier^(attemptNumber-1)
       double multiplier = Math.pow(backoffMultiplier, attemptNumber - 1);
-      delayMillis = (long) (initialDelay.toMillis() * multiplier);
+      delayMillis = (long) (initialMillis * multiplier);
     }
 
-    // Cap at maxDelay
-    delayMillis = Math.min(delayMillis, maxDelay.toMillis());
+    // Cap at maxDelay, leaving room for the jitter's inclusive bound
+    delayMillis =
+        Math.min(
+            delayMillis, Math.min(TimeUnit.MILLISECONDS.convert(maxDelay), Long.MAX_VALUE - 1));
 
     // Apply jitter if enabled (full jitter: 0 to delay)
     if (useJitter && delayMillis > 0) {

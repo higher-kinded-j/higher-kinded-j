@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -332,6 +333,26 @@ class CircuitBreakerTest {
   @Nested
   @DisplayName("Timeout Tests")
   class TimeoutTests {
+
+    @Test
+    @DisplayName(
+        "an open circuit reports retryAfter under an openDuration too long for nanoseconds")
+    void rejectsWithRetryAfterUnderAHugeOpenDuration() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .openDuration(ChronoUnit.FOREVER.getDuration())
+                  .callTimeout(GENEROUS_TIMEOUT)
+                  .build());
+      breaker.tripOpen();
+
+      VTask<String> task = breaker.protect(VTask.succeed("should not reach"));
+
+      assertThatThrownBy(task::run)
+          .isInstanceOfSatisfying(
+              CircuitOpenException.class,
+              open -> assertThat(open.retryAfter()).isGreaterThan(Duration.ofDays(365)));
+    }
 
     @Test
     @DisplayName("circuit remains OPEN before open duration elapses")

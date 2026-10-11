@@ -10,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -468,6 +469,69 @@ class ApplicativeMonadDefaultMethodsTest {
 
       Maybe<String> maybe = MAYBE.narrow(result);
       assertThat(maybe.isNothing()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("MonadError.recoverWith (default) Tests")
+  class RecoverWithDefaultTests {
+
+    // Implements only MonadError's abstract methods, so recoverWith runs the interface's default
+    private final MonadError<MaybeKind.Witness, Unit> abstractOnly =
+        new MonadError<>() {
+          @Override
+          public <A> Kind<MaybeKind.Witness, A> of(@Nullable A value) {
+            return monad.of(value);
+          }
+
+          @Override
+          public <A, B> Kind<MaybeKind.Witness, B> map(
+              Function<? super A, ? extends B> f, Kind<MaybeKind.Witness, A> fa) {
+            return monad.map(f, fa);
+          }
+
+          @Override
+          public <A, B> Kind<MaybeKind.Witness, B> ap(
+              Kind<MaybeKind.Witness, ? extends Function<A, B>> ff, Kind<MaybeKind.Witness, A> fa) {
+            return monad.ap(ff, fa);
+          }
+
+          @Override
+          public <A, B> Kind<MaybeKind.Witness, B> flatMap(
+              Function<? super A, ? extends Kind<MaybeKind.Witness, B>> f,
+              Kind<MaybeKind.Witness, A> ma) {
+            return monad.flatMap(f, ma);
+          }
+
+          @Override
+          public <A> Kind<MaybeKind.Witness, A> raiseError(@Nullable Unit error) {
+            return monad.raiseError(error);
+          }
+
+          @Override
+          public <A> Kind<MaybeKind.Witness, A> handleErrorWith(
+              Kind<MaybeKind.Witness, A> ma,
+              Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler) {
+            return monad.handleErrorWith(ma, handler);
+          }
+        };
+
+    @Test
+    @DisplayName("recoverWith should return the fallback for an error")
+    void recoverWithReturnsFallbackForError() {
+      Kind<MaybeKind.Witness, Integer> result =
+          abstractOnly.recoverWith(MAYBE.widen(Maybe.nothing()), MAYBE.widen(Maybe.just(7)));
+
+      assertThat(MAYBE.narrow(result).orElse(-1)).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("recoverWith should keep a successful value")
+    void recoverWithKeepsSuccess() {
+      Kind<MaybeKind.Witness, Integer> result =
+          abstractOnly.recoverWith(MAYBE.widen(Maybe.just(1)), MAYBE.widen(Maybe.just(7)));
+
+      assertThat(MAYBE.narrow(result).orElse(-1)).isEqualTo(1);
     }
   }
 }

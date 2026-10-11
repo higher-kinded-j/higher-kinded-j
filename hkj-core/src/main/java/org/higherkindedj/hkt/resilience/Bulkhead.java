@@ -126,7 +126,8 @@ public final class Bulkhead {
         waitingCount.incrementAndGet();
       }
       try {
-        boolean acquired = semaphore.tryAcquire(waitTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        boolean acquired =
+            semaphore.tryAcquire(TimeUnit.NANOSECONDS.convert(waitTimeout), TimeUnit.NANOSECONDS);
         if (!acquired) {
           throw new BulkheadFullException(config.maxConcurrent(), waitingCount.get() - 1);
         }

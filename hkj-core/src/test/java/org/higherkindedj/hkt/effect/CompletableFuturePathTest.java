@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -172,6 +173,14 @@ class CompletableFuturePathTest {
       String result = path.join(Duration.ofSeconds(1));
 
       assertThat(result).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("join(Duration) accepts a timeout too long to count in nanoseconds")
+    void joinWithAHugeDuration() throws TimeoutException {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+
+      assertThat(path.join(ChronoUnit.FOREVER.getDuration())).isEqualTo(TEST_VALUE);
     }
 
     @Test
@@ -552,6 +561,16 @@ class CompletableFuturePathTest {
           path.completeOnTimeout("default", Duration.ofSeconds(1));
 
       assertThat(result.join()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("withTimeout() and completeOnTimeout() accept a timeout too long for nanoseconds")
+    void timeoutsAcceptAHugeDuration() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+      Duration forever = ChronoUnit.FOREVER.getDuration();
+
+      assertThat(path.withTimeout(forever).join()).isEqualTo(TEST_VALUE);
+      assertThat(path.completeOnTimeout("default", forever).join()).isEqualTo(TEST_VALUE);
     }
 
     @Test
