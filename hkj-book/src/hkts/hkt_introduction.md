@@ -191,6 +191,5 @@ While Higher-Kinded-J introduces some boilerplate compared to languages with nat
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
-**Next:** [Concepts](core-concepts.md)
-
+**Previous:** [Higher-Kinded Types](ch_intro.md)
+**Next:** [Core Concepts](core-concepts.md)

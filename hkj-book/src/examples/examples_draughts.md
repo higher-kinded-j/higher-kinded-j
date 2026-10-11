@@ -255,5 +255,5 @@ hkj-examples/src/main/java/org/higherkindedj/example/draughts/
 
 ---
 
-**Previous:** [Order Processing Workflow](examples_order.md)
+**Previous:** [Concurrency and Scale](../hkts/order-concurrency.md)
 **Next:** [Building the Game](../hkts/draughts.md)

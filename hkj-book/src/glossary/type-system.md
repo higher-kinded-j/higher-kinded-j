@@ -434,3 +434,7 @@ Functor<ListKind.Witness> listFunctor = Instances.functor(list());
 
 **Related:** [TypeArity](#typearity), [Witness Type](#witness-type), [Type Arity](../hkts/type-arity.md)
 
+---
+
+**Previous:** [Glossary](../glossary.md)
+**Next:** [Type Classes](type-classes.md)

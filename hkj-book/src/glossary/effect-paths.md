@@ -627,3 +627,7 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execu
 
 **Related:** [VResultPath](../effect/path_vresult.md), [Path](#path), [Railway-Oriented Programming](#railway-oriented-programming), [Either](data-effects.md#either), [Resilience Combinators](concurrency.md#resilience-combinators)
 
+---
+
+**Previous:** [Data & Effect Types](data-effects.md)
+**Next:** [Optics & Mapping](optics.md)

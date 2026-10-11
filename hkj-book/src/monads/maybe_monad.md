@@ -444,5 +444,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 
 ---
 
-**Previous:** [List](list_monad.md)
+**Previous:** [NonEmptyList](nonemptylist_monad.md)
 **Next:** [Optional](optional_monad.md)

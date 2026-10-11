@@ -569,3 +569,7 @@ Order result = pipeline.apply(order);
 
 **Related:** [Semigroup and Monoid](../functional/semigroup_and_monoid.md), [Monoid](#monoid), [Edits](optics.md#edits)
 
+---
+
+**Previous:** [Type System & HKT](type-system.md)
+**Next:** [Data & Effect Types](data-effects.md)

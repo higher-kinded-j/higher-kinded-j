@@ -306,5 +306,5 @@ Remember: the goal isn't to memorise every detail. It's to develop an intuition 
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
-**Next:** [Core Types: Foundations Journey](coretypes/foundations_journey.md)
+**Previous:** [Hands-On Learning](ch_intro.md)
+**Next:** [Core Types](coretypes/ch_intro.md)

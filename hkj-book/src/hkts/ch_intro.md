@@ -60,12 +60,13 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 ## Section Contents
 
 1. [HKT Introduction](hkt_introduction.md) - The analogy: higher-kinded types are to types what higher-order functions are to functions
-2. [Concepts](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern
+2. [Core Concepts](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern
 3. [Usage Guide](usage-guide.md) - Working with Kind in practice
 4. [Basic HKT Examples](hkt_basic_examples.md) - Seeing HKT simulation in action
 5. [Quick Reference](quick_reference.md) - Essential patterns at a glance
-6. [Extending](extending-simulation.md) - Adding HKT support to your own types
+6. [Extending the Simulation](extending-simulation.md) - Adding HKT support to your own types
 
 ---
 
+**Previous:** [Lifting the Hood](lifting_the_hood.md)
 **Next:** [HKT Introduction](hkt_introduction.md)

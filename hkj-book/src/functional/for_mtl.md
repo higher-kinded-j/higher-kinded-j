@@ -133,4 +133,5 @@ For a complete API reference, side-by-side comparison with `For`, and guidance o
 
 ---
 
-**Previous:** [Optics Integration](for_optics.md) | **Next:** [ForState: Named State Comprehensions](forstate_comprehension.md)
+**Previous:** [Optics Integration](for_optics.md)
+**Next:** [ForState Comprehension](forstate_comprehension.md)

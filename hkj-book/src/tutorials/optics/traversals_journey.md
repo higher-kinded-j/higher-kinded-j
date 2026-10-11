@@ -206,5 +206,5 @@ After completing this journey:
 
 ---
 
-**Previous:** [Optics: Lens & Prism](lens_prism_journey.md)
-**Next:** [Optics: Fluent & Free DSL](fluent_free_journey.md)
+**Previous:** [Lens & Prism](lens_prism_journey.md)
+**Next:** [Fluent & Free DSL](fluent_free_journey.md)

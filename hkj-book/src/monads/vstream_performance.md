@@ -228,4 +228,4 @@ on the table. Start with the recommendations in the
 ---
 
 **Previous:** [Parallel Operations](vstream_parallel.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [Resource-Safe Streaming](vstream_resources.md)

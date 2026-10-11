@@ -60,5 +60,5 @@ This earlier series explores the foundational ideas that inspired Higher-Kinded-
 
 ---
 
-**Previous:** [Const](monads/const_type.md)
+**Previous:** [Reference](reference_intro.md)
 **Next:** [Glossary](glossary.md)

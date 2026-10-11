@@ -74,4 +74,5 @@ Kind<MaybeKind.Witness, Kind<ListKind.Witness, Integer>> result =
 
 ---
 
-**Previous:** [Parallel Composition](for_par.md) | **Next:** [Optics Integration](for_optics.md)
+**Previous:** [Parallel Composition](for_par.md)
+**Next:** [Optics Integration](for_optics.md)

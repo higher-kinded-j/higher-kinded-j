@@ -185,5 +185,5 @@ Focus: Master virtual threads, structured concurrency, and resource management t
 
 ---
 
-**Previous:** [Expression: ForState](expression/forstate_journey.md)
+**Previous:** [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md)
 **Next:** [Solutions Guide](solutions_guide.md)

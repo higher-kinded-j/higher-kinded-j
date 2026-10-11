@@ -720,3 +720,7 @@ String rendered = email.build(addr);   // always succeeds
 
 **Related:** [ValidatedPrism](../optics/validated_prism.md), [Prism](#prism), [FieldError](#fielderror), [Validated](data-effects.md#validated)
 
+---
+
+**Previous:** [Effect Paths & Handlers](effect-paths.md)
+**Next:** [Concurrency & Resilience](concurrency.md)

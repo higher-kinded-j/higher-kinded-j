@@ -212,3 +212,8 @@ The Effect API is the layer that lets us write the One Line, Six Layers expressi
 ---
 
 **See also:** [Effect Path Overview](../../effect/effect_path_overview.md) · [ForPath Comprehension](../../effect/forpath_comprehension.md) · [Effect Contexts](../../effect/effect_contexts.md) · [One Line, Six Layers](../../hkts/one_line_six_layers.md)
+
+---
+
+**Previous:** [Effect API](effect_journey.md)
+**Next:** [Monad Transformers](../transformers/transformers_journey.md)

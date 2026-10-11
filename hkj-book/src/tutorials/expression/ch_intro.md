@@ -13,4 +13,5 @@ For-comprehensions are the idiom that turns chains of `flatMap` into something t
 
 ---
 
+**Previous:** [Boundary Mapping](../optics/boundary_mapping_journey.md)
 **Next:** [ForState](forstate_journey.md)

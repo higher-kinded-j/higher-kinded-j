@@ -1,6 +1,6 @@
 # Quick Reference
 
-You've walked through nine pipeline stages, fourteen HKJ features, and enough concurrent
+You've walked through the nine stages of the [Market Data Pipeline](examples_market_data.md), fourteen HKJ features, and enough concurrent
 plumbing to make a thread pool blush. This page is the one you bookmark. Come back here
 when you're adapting the pipeline to your own domain, when you can't remember whether you
 need `parEvalMap` or `parEvalMapUnordered`, or when you just want to find the right source
@@ -190,4 +190,5 @@ Monday morning is a little less terrifying.
 
 ---
 
-**Previous:** [Alerts and Resilience](market_alerts.md) | **Up:** [Market Data Pipeline](examples_market_data.md)
+**Previous:** [Alerts and Resilience](market_alerts.md)
+**Next:** [Portfolio Risk Analysis](examples_portfolio_risk.md)

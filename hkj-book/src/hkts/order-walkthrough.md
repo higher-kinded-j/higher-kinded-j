@@ -259,5 +259,5 @@ The pyramid of doom we started with was not a failure of Java. It was a failure 
 
 ---
 
-**Previous:** [Usage Guide](usage-guide.md)
+**Previous:** [Order Processing Workflow](../examples/examples_order.md)
 **Next:** [Effect Composition](order-composition.md)

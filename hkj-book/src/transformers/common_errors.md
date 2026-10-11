@@ -315,5 +315,5 @@ If you genuinely need to combine two effect layers, typed errors *and* absence i
 
 ---
 
-**Previous:** [Combining Capabilities](mtl_combining.md)
+**Previous:** [Axes of Transformer Transformation](transformer_axes.md)
 **Next:** [Capstone: A Multi-Capability Workflow](transformer_capstone.md)

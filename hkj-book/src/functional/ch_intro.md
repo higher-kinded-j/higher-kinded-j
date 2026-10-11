@@ -101,4 +101,5 @@ Write once. Use everywhere the capability exists.
 
 ---
 
+**Previous:** [Foundations FAQ](../hkts/faq.md)
 **Next:** [Functional API](functional_api.md)

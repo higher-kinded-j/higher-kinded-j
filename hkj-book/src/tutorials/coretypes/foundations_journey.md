@@ -226,5 +226,5 @@ After completing this journey:
 
 ---
 
-**Previous:** [Interactive Tutorials](../tutorials_intro.md)
-**Next:** [Core Types: Error Handling](error_handling_journey.md)
+**Previous:** [Core Types](ch_intro.md)
+**Next:** [Foundations Cheatsheet](foundations_cheatsheet.md)

@@ -116,3 +116,8 @@ Tutorials 02-04 cover the lower three layers of the One Line, Six Layers diagram
 ---
 
 **See also:** [Functor](../../functional/functor.md) · [Applicative](../../functional/applicative.md) · [Monad](../../functional/monad.md) · [Lifting the Hood](../../hkts/lifting_the_hood.md) · [Foundations FAQ](../../hkts/faq.md)
+
+---
+
+**Previous:** [Foundations](foundations_journey.md)
+**Next:** [Error Handling](error_handling_journey.md)

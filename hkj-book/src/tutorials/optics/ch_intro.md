@@ -56,4 +56,5 @@ At a glance:
 
 ---
 
+**Previous:** [Effect Handlers](../effecthandlers/ch_intro.md)
 **Next:** [Lens & Prism](lens_prism_journey.md)

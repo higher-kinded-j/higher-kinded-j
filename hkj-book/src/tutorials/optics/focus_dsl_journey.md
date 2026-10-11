@@ -333,5 +333,5 @@ Two journeys remain in the Optics track. You now understand:
 
 ---
 
-**Previous:** [Optics: Fluent & Free DSL](fluent_free_journey.md)
-**Next:** [Optics: Batching & Coupled Updates](batching_journey.md)
+**Previous:** [Fluent & Free DSL](fluent_free_journey.md)
+**Next:** [Batching & Coupled Updates](batching_journey.md)

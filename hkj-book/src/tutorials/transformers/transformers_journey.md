@@ -150,5 +150,5 @@ After completing the transformers journey:
 
 ---
 
-**Previous:** [Effect API](../effect/effect_journey.md)
-**Next:** [Concurrency: VTask](../concurrency/vtask_journey.md)
+**Previous:** [Effect API Cheatsheet](../effect/effect_cheatsheet.md)
+**Next:** [Concurrency](../concurrency/ch_intro.md)

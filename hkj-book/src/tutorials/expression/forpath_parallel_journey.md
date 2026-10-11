@@ -67,5 +67,5 @@ Master parallel composition across multiple Path types, from simple value combin
 
 ---
 
-**Previous:** [Expression: ForState](forstate_journey.md)
+**Previous:** [ForState](forstate_journey.md)
 **Next:** [Resilience Patterns](../resilience/resilience_journey.md)

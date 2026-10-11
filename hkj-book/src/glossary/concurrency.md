@@ -70,11 +70,6 @@ VTask<Result> result = connResource.use(conn ->
 
 ---
 
-**Previous:** [More Functional Thinking](../reading.md)
-**Next:** [Release History](../release-history.md)
-
----
-
 ## Circuit Breaker
 
 **Definition:** A resilience pattern that remembers recent failures and stops calling a dependency that is clearly down, so a system does not waste effort on doomed requests whilst a service recovers. It is a state machine across three states: **closed** (calls flow), **open** (calls are rejected immediately once failures cross a threshold), and **half-open** (after a timeout, a single probe is allowed; success closes the breaker, failure re-opens it). Applied as `withCircuitBreaker` in the resilience vocabulary.
@@ -312,3 +307,7 @@ List<VTask<Result>> tasks = ids.stream()
 
 **Related:** [VTask](../monads/vtask_monad.md), [Structured Concurrency](#structured-concurrency)
 
+---
+
+**Previous:** [Optics & Mapping](optics.md)
+**Next:** [Release History](../release-history.md)

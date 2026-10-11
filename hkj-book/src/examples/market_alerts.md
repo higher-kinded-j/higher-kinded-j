@@ -392,4 +392,5 @@ benefits:
 
 ---
 
-**Previous:** [Building the Pipeline](market_building.md) | **Next:** [Quick Reference →](market_reference.md)
+**Previous:** [Building the Pipeline](market_building.md)
+**Next:** [Quick Reference](market_reference.md)

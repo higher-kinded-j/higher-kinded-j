@@ -78,5 +78,5 @@ A record with a cross-field invariant (a `Range` where `lo <= hi`) breaks under 
 
 ---
 
-**Previous:** [Optics: Focus DSL](focus_dsl_journey.md)
-**Next:** [Optics: Boundary Mapping](boundary_mapping_journey.md)
+**Previous:** [Focus DSL](focus_dsl_journey.md)
+**Next:** [Boundary Mapping](boundary_mapping_journey.md)

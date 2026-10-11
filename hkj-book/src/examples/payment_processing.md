@@ -414,4 +414,4 @@ Because programs are data, they can be traversed and analysed before any side ef
 
 ---
 
-Previous: [Portfolio Risk Analysis](examples_portfolio_risk.md)
+**Previous:** [Portfolio Risk Analysis](examples_portfolio_risk.md)

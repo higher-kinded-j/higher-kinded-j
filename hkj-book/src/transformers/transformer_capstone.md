@@ -253,4 +253,3 @@ The Effect Path version pays nothing for that polymorphism it never uses, and re
 ---
 
 **Previous:** [Common Compiler Errors](common_errors.md)
-**Next:** [Foundations](../hkts/foundations_intro.md)

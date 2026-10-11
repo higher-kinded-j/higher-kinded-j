@@ -39,5 +39,5 @@ Each tutorial opens with a Pain → Promise header showing the imperative-Java p
 
 ---
 
-**Previous:** [Context Journey](../context/ch_intro.md)
-**Next:** [Optics Journeys](../optics/ch_intro.md)
+**Previous:** [Context](../context/ch_intro.md)
+**Next:** [Optics](../optics/ch_intro.md)

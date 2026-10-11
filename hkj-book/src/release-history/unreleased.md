@@ -121,6 +121,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **Javadoc examples name monoids that exist** ([#1056](https://github.com/higher-kinded-j/higher-kinded-j/pull/1056)). `Fold`, `IndexedFold`, `TraversalPath`, `ConstApplicative` and the Focus package overview show `Monoids.integerAddition()` and its siblings, where they named `Monoids.intSum()` and `Monoid.of`.
 - **The programs the Optics chapter links follow its order service too** ([#1086](https://github.com/higher-kinded-j/higher-kinded-j/pull/1086)). Filtered Optics now filters an order's lines, orders and customers. The example programs a page links to give the cast's names the cast's shapes, and `Product` has one shape throughout. The compiler-error examples on both chapters' message pages keep those shapes too. See [Filtered Optics](../optics/filtered_optics.md).
 - **The Effect chapter's Previous and Next links follow its contents** ([#1086](https://github.com/higher-kinded-j/higher-kinded-j/pull/1086)). Fifteen pages had stale links, and one gap skipped VResultPath. The book check now holds the chapter to its contents.
+- **Every chapter's Previous and Next links follow its contents** ([#1093](https://github.com/higher-kinded-j/higher-kinded-j/pull/1093)). Eighty pages across seven more chapters had stale or missing links, several skipping a page added since. The book check now finds every chapter itself, so a new one is held to its contents too.
 
 ---
 

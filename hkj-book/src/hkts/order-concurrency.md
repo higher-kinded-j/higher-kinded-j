@@ -389,4 +389,4 @@ VResultPath<MyDomainError, List<Result>> all =
 ---
 
 **Previous:** [Production Patterns](order-production.md)
-**Next:** [Draughts Game](draughts.md)
+**Next:** [Draughts Game](../examples/examples_draughts.md)

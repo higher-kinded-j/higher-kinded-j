@@ -140,5 +140,5 @@ The Optics chapter's capstone as exercises, on its running example: an order, an
 
 ---
 
-**Previous:** [Optics: Batching & Coupled Updates](batching_journey.md)
-**Next:** [Expression: ForState](../expression/forstate_journey.md)
+**Previous:** [Batching & Coupled Updates](batching_journey.md)
+**Next:** [Expression](../expression/ch_intro.md)

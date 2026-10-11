@@ -79,4 +79,5 @@ For `par()` with Effect Path types (no manual Kind extraction), see [ForPath Par
 
 ---
 
-**Previous:** [For Comprehension](for_comprehension.md) | **Next:** [Traverse Within Comprehensions](for_traverse.md)
+**Previous:** [For Comprehension](for_comprehension.md)
+**Next:** [Traverse Within Comprehensions](for_traverse.md)

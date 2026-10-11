@@ -49,3 +49,8 @@ Lenses, prisms, traversals, the Focus DSL, and record mapping.
 Virtual-thread concurrency, structured scopes, and resilience.
 
 [Bracket Pattern](glossary/concurrency.md#bracket-pattern), [Bulkhead](glossary/concurrency.md#bulkhead), [Circuit Breaker](glossary/concurrency.md#circuit-breaker), [Resilience Combinators](glossary/concurrency.md#resilience-combinators), [Resource (VTask)](glossary/concurrency.md#resource-vtask), [Scope](glossary/concurrency.md#scope), [ScopeJoiner](glossary/concurrency.md#scopejoiner), [Structured Concurrency](glossary/concurrency.md#structured-concurrency), [Virtual Thread](glossary/concurrency.md#virtual-thread)
+
+---
+
+**Previous:** [More Functional Thinking](reading.md)
+**Next:** [Type System & HKT](glossary/type-system.md)

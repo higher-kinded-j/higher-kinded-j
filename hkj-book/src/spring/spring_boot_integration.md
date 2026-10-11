@@ -1576,5 +1576,5 @@ Get started today by adding the dependency and returning functional types from y
 
 ---
 
-**Previous:** [Introduction](ch_intro.md)
+**Previous:** [Spring Integration](ch_intro.md)
 **Next:** [Declarative HTTP Clients](declarative_http_clients.md)

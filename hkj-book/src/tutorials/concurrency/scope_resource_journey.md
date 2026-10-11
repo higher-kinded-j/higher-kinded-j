@@ -342,9 +342,9 @@ After completing this journey:
 3. **Combine with VTaskPath**: Use Scope and Resource with the fluent Effect Path API
 4. **Build Real Applications**: Transaction management, connection pooling, parallel validation
 
+**Related**: [VTask Journey](vtask_journey.md) | [Structured Concurrency](../../monads/vtask_scope.md) | [Resource Management](../../monads/vtask_resource.md) | [VTaskPath](../../effect/path_vtask.md)
+
 ---
 
-**Previous:** [Concurrency: VTask](vtask_journey.md)
-**Next:** [Optics: Lens & Prism](../optics/lens_prism_journey.md)
-
-**Related**: [VTask Journey](vtask_journey.md) | [Structured Concurrency](../../monads/vtask_scope.md) | [Resource Management](../../monads/vtask_resource.md) | [VTaskPath](../../effect/path_vtask.md)
+**Previous:** [VTask](vtask_journey.md)
+**Next:** [Context](../context/ch_intro.md)
