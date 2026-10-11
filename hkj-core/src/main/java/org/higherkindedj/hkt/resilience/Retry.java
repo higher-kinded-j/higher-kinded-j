@@ -237,7 +237,7 @@ public final class Retry {
 
   // The one retry loop. Each attempt runs with execute(), so its exception reaches the policy's
   // predicate as thrown: a VTask's checked exception arrives unwrapped
-  private static <A> @Nullable A retrying(RetryPolicy policy, VTask<A> attempt) throws Throwable {
+  private static <A> A retrying(RetryPolicy policy, VTask<A> attempt) throws Throwable {
     int attempts = 0;
     while (true) {
       attempts++;

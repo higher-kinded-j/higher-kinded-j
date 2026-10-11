@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
@@ -44,8 +45,9 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
 
   /**
    * Executes the VTask and prepares for assertions on the result. The task runs with {@code
-   * execute()}, so the thread's interrupt status is left as the task leaves it, where {@code run()}
-   * would set it for an {@code InterruptedException}.
+   * execute()}, and a null result fails as {@code run()} fails it. The thread's interrupt status is
+   * left as the task leaves it, where {@code run()} would set it for an {@code
+   * InterruptedException}.
    */
   public VTaskAssert<T> whenRun() {
     isNotNull();
@@ -54,7 +56,9 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
       VTask<T> wrappedTask =
           actual.peek(ignored -> wasExecutedOnVirtualThread = Thread.currentThread().isVirtual());
       try {
-        executedValue = wrappedTask.execute();
+        executedValue =
+            Objects.requireNonNull(
+                wrappedTask.execute(), "the task returned null, and a VTask always gives a value");
         executedException = null;
       } catch (VTaskExecutionException e) {
         executedValue = null;
