@@ -137,7 +137,9 @@ public record CircuitBreakerConfig(
     }
 
     /**
-     * Sets the predicate that determines which exceptions count as failures.
+     * Sets the predicate that determines which exceptions count as failures. An exception it does
+     * not select counts as a success. The breaker never asks it about an {@code
+     * InterruptedException}: a cancelled call counts as neither.
      *
      * @param predicate the failure predicate; must not be null
      * @return this builder

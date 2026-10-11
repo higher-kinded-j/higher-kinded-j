@@ -9,6 +9,8 @@ import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -550,6 +552,44 @@ class VTaskTest {
       VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
 
       assertThatVTask(withTimeout).fails().withMessage("Task error");
+    }
+
+    @Test
+    @DisplayName("timeout() reports a TimeoutException from the task as the time running out")
+    void timeoutReportsTasksOwnTimeoutAsExpiry() {
+      VTask<Integer> task = VTask.fail(new TimeoutException("the task's own"));
+      VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
+
+      assertThatVTask(withTimeout)
+          .fails()
+          .withExceptionType(TimeoutException.class)
+          .withMessage("VTask timed out after PT1S");
+    }
+
+    @Test
+    @DisplayName("timeout() passes an interrupt of the waiting thread on, and throws it at once")
+    void timeoutPassesInterruptOn() throws InterruptedException {
+      CountDownLatch taskInterrupted = new CountDownLatch(1);
+      VTask<Integer> slowTask =
+          VTask.of(
+              () -> {
+                try {
+                  Thread.sleep(3000);
+                  return TEST_VALUE;
+                } catch (InterruptedException e) {
+                  taskInterrupted.countDown();
+                  throw e;
+                }
+              });
+      VTask<Integer> withTimeout = slowTask.timeout(Duration.ofSeconds(10));
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(withTimeout::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(taskInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
     }
   }
 

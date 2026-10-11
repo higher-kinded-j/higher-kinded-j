@@ -368,6 +368,12 @@ public interface VTask<A> extends VTaskKind<A> {
   /**
    * Creates a new task that fails if this task does not complete within the specified duration.
    *
+   * <p>This task runs on a new virtual thread. When the time runs out, the new task fails with a
+   * {@link TimeoutException}, and this task is not interrupted: it keeps running unobserved. An
+   * interrupt of the thread waiting for the result is passed on to this task, and the new task
+   * throws the {@link InterruptedException} at once, so a cancellation reaches this task as it
+   * would with no timeout.
+   *
    * @param duration The maximum time to wait. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
    * @throws NullPointerException if {@code duration} is null.
@@ -375,13 +381,29 @@ public interface VTask<A> extends VTaskKind<A> {
   default VTask<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
+      CompletableFuture<A> outcome = new CompletableFuture<>();
+      Thread running =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      outcome.complete(execute());
+                    } catch (Throwable t) {
+                      outcome.completeExceptionally(t);
+                    }
+                  });
       try {
-        return runAsync().orTimeout(duration.toMillis(), TimeUnit.MILLISECONDS).join();
-      } catch (CompletionException e) {
+        return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
+      } catch (TimeoutException e) {
+        throw new TimeoutException("VTask timed out after " + duration);
+      } catch (ExecutionException e) {
         if (e.getCause() instanceof TimeoutException) {
           throw new TimeoutException("VTask timed out after " + duration);
         }
         throw e.getCause();
+      } catch (InterruptedException e) {
+        running.interrupt();
+        throw e;
       }
     };
   }

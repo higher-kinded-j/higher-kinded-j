@@ -115,7 +115,7 @@ VTask<Response> resilientCall = Resilience.<Response>builder(
 Response response = resilientCall.run();
 ```
 
-The builder methods can be called in any order; patterns are always applied in the correct sequence.
+The builder methods can be called in any order; patterns are always applied in the correct sequence. The fallback runs for any failure but an `InterruptedException`, which passes through, so a cancelled call stays cancelled.
 
 ~~~admonish tip title="Why this matters"
 The ordering bug is silent: hand-wired resilience with retry accidentally inside the breaker compiles, runs, and even works in tests, then misreports service health in production, where one logical failure counts once instead of once per attempt. `ResilienceBuilder` makes that mistake unrepresentable: whatever order you call the methods in, the layers land as timeout, bulkhead, retry, breaker. The principle is the same as the mapper's [truthful tiers](../mapping/tiers.md): make the wrong composition unrepresentable rather than documented.

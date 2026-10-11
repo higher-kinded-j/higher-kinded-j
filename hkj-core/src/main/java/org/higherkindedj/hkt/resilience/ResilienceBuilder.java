@@ -134,6 +134,11 @@ public final class ResilienceBuilder<A> {
   /**
    * Adds a fallback function that produces a value when the protected operation fails.
    *
+   * <p>An {@code InterruptedException} is a cancellation, not a failure, so it passes through as
+   * thrown, and the fallback does not run. A retry that an interrupt stops between attempts throws
+   * {@link RetryExhaustedException}, which reaches the fallback, as it does in {@link
+   * Retry#retryTaskWithFallback}.
+   *
    * @param fallbackFn the fallback function; must not be null, and must not return null: a null
    *     result fails the task with a {@link NullPointerException}
    * @return this builder
@@ -172,11 +177,21 @@ public final class ResilienceBuilder<A> {
 
     @Nullable Function<Throwable, A> fallbackFn = fallback;
     if (fallbackFn != null) {
-      result =
-          result.recover(
-              t -> Objects.requireNonNull(fallbackFn.apply(t), "fallbackFn must not return null"));
+      result = fallingBack(result, fallbackFn);
     }
 
     return result;
+  }
+
+  private static <A> VTask<A> fallingBack(VTask<A> task, Function<Throwable, A> fallback) {
+    return () -> {
+      try {
+        return task.execute();
+      } catch (InterruptedException cancelled) {
+        throw cancelled;
+      } catch (Throwable t) {
+        return Objects.requireNonNull(fallback.apply(t), "fallbackFn must not return null");
+      }
+    };
   }
 }

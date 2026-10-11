@@ -779,6 +779,56 @@ class CircuitBreakerTest {
   }
 
   @Nested
+  @DisplayName("Cancellation Tests")
+  class CancellationTests {
+
+    @Test
+    @DisplayName("a call that throws InterruptedException counts as neither success nor failure")
+    void cancelledCallIsNotRecorded() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      VTask<String> task = breaker.protect(VTask.fail(cancelled));
+
+      assertThatThrownBy(task::execute).isSameAs(cancelled);
+      CircuitBreakerMetrics metrics = breaker.metrics();
+      assertThat(metrics.totalCalls()).isEqualTo(1);
+      assertThat(metrics.successfulCalls()).isZero();
+      assertThat(metrics.failedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("an interrupted caller stops waiting at once, and the call sees the interrupt")
+    void interruptedCallerCancelsTheCall() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      CountDownLatch callInterrupted = new CountDownLatch(1);
+      VTask<String> task =
+          breaker.protect(
+              VTask.of(
+                  () -> {
+                    try {
+                      Thread.sleep(3000);
+                      return "finished";
+                    } catch (InterruptedException e) {
+                      callInterrupted.countDown();
+                      throw e;
+                    }
+                  }));
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(task::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(callInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(breaker.metrics().failedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+  }
+
+  @Nested
   @DisplayName("Generic Protect Tests")
   class GenericProtectTests {
 
@@ -909,16 +959,15 @@ class CircuitBreakerTest {
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("protectWithFallback re-throws non-CircuitOpenException as RuntimeException")
-    void protectWithFallbackRethrowsNonCircuitException() {
+    @DisplayName("protectWithFallback passes a checked exception through as thrown")
+    void protectWithFallbackPassesCheckedExceptionThrough() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
 
-      // Use a checked exception (not RuntimeException) to exercise the wrapping branch
-      Exception checkedException = new Exception("checked error");
+      IOException checkedException = new IOException("disk");
       VTask<String> task =
           breaker.protectWithFallback(VTask.fail(checkedException), ex -> "fallback");
 
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).hasCause(checkedException);
+      assertThatThrownBy(task::execute).isSameAs(checkedException);
     }
 
     @Test
