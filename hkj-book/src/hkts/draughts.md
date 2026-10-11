@@ -851,4 +851,5 @@ The `GameLogic` class is completely pure; you can test the entire rules engine b
 
 ---
 
-**Previous:** [Draughts (Checkers) Game](../examples/examples_draughts.md)
+**Previous:** [Draughts Game](../examples/examples_draughts.md)
+**Next:** [Market Data Pipeline](../examples/examples_market_data.md)

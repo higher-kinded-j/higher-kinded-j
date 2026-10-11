@@ -424,4 +424,5 @@ the grouping predicate.
 
 ---
 
-**Previous:** [Market Data Pipeline](examples_market_data.md) | **Next:** [Alerts and Resilience →](market_alerts.md)
+**Previous:** [Market Data Pipeline](examples_market_data.md)
+**Next:** [Alerts and Resilience](market_alerts.md)

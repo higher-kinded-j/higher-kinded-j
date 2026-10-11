@@ -548,4 +548,4 @@ public static <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> normalis
 ---
 
 **Previous:** [Basic HKT Examples](hkt_basic_examples.md)
-**Next:** [Extending](extending-simulation.md)
+**Next:** [Extending the Simulation](extending-simulation.md)

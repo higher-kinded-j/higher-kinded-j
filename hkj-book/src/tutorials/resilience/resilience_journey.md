@@ -92,3 +92,8 @@ Each tutorial has a corresponding solution file under `hkj-examples/src/test/jav
 | `Tutorial02_Saga.java` | `solutions/resilience/Tutorial02_Saga_Solution.java` |
 | `Tutorial03_RetryBulkheadResilience.java` | `solutions/resilience/Tutorial03_RetryBulkheadResilience_Solution.java` |
 | `Tutorial04_PathResilience.java` | `solutions/resilience/Tutorial04_PathResilience_Solution.java` |
+
+---
+
+**Previous:** [ForPath Parallel](../expression/forpath_parallel_journey.md)
+**Next:** [Capstone: One Line, Six Layers Grows Up](../capstone/capstone_journey.md)

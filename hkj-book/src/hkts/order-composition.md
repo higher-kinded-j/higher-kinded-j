@@ -327,5 +327,5 @@ The `fold()` method handles both cases: on error, it recovers with a "no notific
 
 ---
 
-**Previous:** [Order Workflow Overview](order-walkthrough.md)
+**Previous:** [Order Walkthrough](order-walkthrough.md)
 **Next:** [Production Patterns](order-production.md)

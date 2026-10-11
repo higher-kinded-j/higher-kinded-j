@@ -249,4 +249,5 @@ The `For` builder in `higher-kinded-j` provides the same expressive power throug
 
 ---
 
-**Previous:** [Natural Transformation](natural_transformation.md) | **Next:** [Parallel Composition](for_par.md)
+**Previous:** [Natural Transformation](natural_transformation.md)
+**Next:** [Parallel Composition](for_par.md)

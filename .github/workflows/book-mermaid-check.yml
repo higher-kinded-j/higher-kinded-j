@@ -1,6 +1,6 @@
 name: Book Checks
 
-# Three things the published book cannot tell you are broken until a reader
+# Four things the published book cannot tell you are broken until a reader
 # sees them, so they fail the PR instead:
 #   - every ```mermaid fence in hkj-book/src is parsed against the pinned
 #     browser-side mermaid library, catching a diagram syntax error before it
@@ -8,10 +8,12 @@ name: Book Checks
 #   - every heading is checked for raw HTML, because a bare <S> in a heading is
 #     the <s> element and silently strikes through the rest of the page;
 #   - every cross-reference is resolved, because a link into a heading that has
-#     been reworded lands the reader at the top of the page and says nothing.
-# One more reports without failing: the prose of the book's pages is measured
-# against the style guide's readability limits and compared with a committed
-# baseline, so a pull request that adds a long sentence says so in its checks.
+#     been reworded lands the reader at the top of the page and says nothing;
+#   - every chapter's Previous and Next links are checked against SUMMARY.md,
+#     because a page added or moved there leaves its neighbours linking past it.
+# The prose of the book's pages is also measured against the style guide's
+# readability limits and compared with a committed baseline, so a pull request
+# that raises a page's count of long sentences fails and says where.
 # No branches filter on pull_request: stacked PRs are checked too.
 on:
   pull_request:
@@ -76,10 +78,12 @@ jobs:
       - name: Parse-check mermaid diagrams
         run: node .github/scripts/mermaid-check/check.cjs
 
-      # Last, and even when a check before it failed, so a pull request sees every rise at once.
+      # Even when a check before it failed, so a pull request sees every stale footer at once.
       - name: Check chapter footers against SUMMARY.md
-        run: python3 .github/scripts/chapter_footers.py optics mapping effect --check
+        if: ${{ !cancelled() }}
+        run: python3 .github/scripts/chapter_footers.py --all --check
 
+      # Last, and even when a check before it failed, so a pull request sees every rise at once.
       - name: Check readability against the baseline
         if: ${{ !cancelled() }}
         run: node .github/scripts/book-readability-check.cjs --strict

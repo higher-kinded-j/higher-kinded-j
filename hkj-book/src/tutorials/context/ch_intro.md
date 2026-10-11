@@ -41,5 +41,5 @@ Each tutorial opens with a Pain → Promise header showing the imperative-Java p
 
 ---
 
-**Previous:** [Concurrency: Scope & Resource](../concurrency/scope_resource_journey.md)
-**Next:** [Optics Journeys](../optics/ch_intro.md)
+**Previous:** [Scope & Resource](../concurrency/scope_resource_journey.md)
+**Next:** [Effect Handlers](../effecthandlers/ch_intro.md)

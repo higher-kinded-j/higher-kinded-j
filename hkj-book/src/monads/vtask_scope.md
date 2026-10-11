@@ -312,5 +312,5 @@ Practise Scope patterns in [TutorialScope](https://github.com/higher-kinded-j/hi
 
 ---
 
-**Previous:** [VTask Monad](vtask_monad.md)
+**Previous:** [VTask](vtask_monad.md)
 **Next:** [Resource Management](vtask_resource.md)

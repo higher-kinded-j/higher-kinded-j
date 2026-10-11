@@ -212,4 +212,5 @@ hkj-examples/src/main/java/org/higherkindedj/example/order/
 
 ---
 
-**Next:** [Draughts Game](examples_draughts.md)
+**Previous:** [Examples Gallery](ch_intro.md)
+**Next:** [Order Walkthrough](../hkts/order-walkthrough.md)

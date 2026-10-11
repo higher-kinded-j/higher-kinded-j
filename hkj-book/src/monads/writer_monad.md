@@ -270,5 +270,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 
 ---
 
-**Previous:** [Performance](vstream_performance.md)
+**Previous:** [Advanced Features](vstream_advanced.md)
 **Next:** [Const](const_type.md)

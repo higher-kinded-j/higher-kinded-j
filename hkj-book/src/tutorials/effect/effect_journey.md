@@ -195,5 +195,5 @@ After completing the Effect API journey:
 
 ---
 
-**Previous:** [Core Types: Advanced](../coretypes/advanced_journey.md)
-**Next:** [Concurrency: VTask](../concurrency/vtask_journey.md)
+**Previous:** [Advanced Patterns](../coretypes/advanced_journey.md)
+**Next:** [Effect API Cheatsheet](effect_cheatsheet.md)

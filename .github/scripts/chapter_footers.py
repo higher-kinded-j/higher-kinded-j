@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Keep a chapter's Previous/Next footers in step with SUMMARY.md.
 
-    python3 .github/scripts/chapter_footers.py CHAPTER [CHAPTER ...] [--check]
+    python3 .github/scripts/chapter_footers.py (CHAPTER [CHAPTER ...] | --all) [--check]
 
 A chapter is named as book_sources names it: the directory of its first page (``optics``,
 ``mapping``). Its pages are every SUMMARY.md entry indented under that first one, in order. As the
 Style Guide's Navigation Links say, the first page gets only a Next link, the last only a Previous
-link, and every other page both, each linking the neighbour's SUMMARY title.
+link, and every other page both, each linking the neighbour's SUMMARY title. --all names every
+chapter of two or more pages but those in UNCHECKED, so a chapter added to SUMMARY.md is checked too.
 
 Run it after reordering SUMMARY.md. With --check it changes nothing, lists every footer that is out
 of date, and exits 1 if there is one. A page whose Previous or Next line is not at its end is
@@ -23,7 +24,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from book_sources import read_summary  # noqa: E402
 
 SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../hkj-book/src"))
-NAV = re.compile(r"^\*\*(Previous|Next):\*\*")
+NAV = re.compile(r"^\**(Previous|Next):\**\s*\[")
+# Project Info's other pages are copied from the repository root when the book deploys.
+UNCHECKED = {"project-info"}
 
 
 def link(from_page, to_page):
@@ -53,13 +56,19 @@ def rewrite(text, new_footer):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("chapters", nargs="+", help="chapter names, such as optics or mapping")
+    parser.add_argument("chapters", nargs="*", help="chapter names, such as optics or mapping")
+    parser.add_argument("--all", action="store_true", help="every chapter of two or more pages")
     parser.add_argument("--check", action="store_true", help="report, change nothing")
     args = parser.parse_args()
 
     chapters = {chapter.slug: chapter for chapter in read_summary(SRC)}
+    if args.all == bool(args.chapters):
+        parser.error("name chapters, or pass --all")
+    names = args.chapters or [
+        slug for slug, chapter in chapters.items() if len(chapter.pages) > 1 and slug not in UNCHECKED
+    ]
     status = 0
-    for name in args.chapters:
+    for name in names:
         chapter = chapters.get(name)
         if chapter is None:
             sys.exit(f"No chapter '{name}' in SUMMARY.md; chapters are: {', '.join(sorted(chapters))}")

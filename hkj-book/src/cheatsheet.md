@@ -194,4 +194,4 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 ---
 
 **Previous:** [Quickstart](quickstart.md)
-**Next:** [Effect Path API](effect/ch_intro.md)
+**Next:** [Where to Start](where_to_start.md)

@@ -851,5 +851,5 @@ Practise Context patterns in [Tutorial 01: Context Basics](https://github.com/hi
 
 ---
 
-**Previous:** [Reader Monad](reader_monad.md)
-**Next:** [State Monad](state_monad.md)
+**Previous:** [Reader](reader_monad.md)
+**Next:** [State](state_monad.md)

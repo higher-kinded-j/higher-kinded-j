@@ -236,4 +236,3 @@ The next time you find yourself writing similar functions that differ only in th
 
 **Previous:** [Selective](selective.md)
 **Next:** [Bifunctor](bifunctor.md)
-

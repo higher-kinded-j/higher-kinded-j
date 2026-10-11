@@ -71,7 +71,7 @@ like Cats and ZIO flexible in Scala, now available in Java.
 
 ~~~admonish tip title="See Also"
 - [HKT Introduction](../hkts/hkt_introduction.md): Higher-kinded type basics
-- [Extending](../hkts/extending-simulation.md): Creating custom types
+- [Extending the Simulation](../hkts/extending-simulation.md): Creating custom types
 - [Custom Paths with `@PathSource`](path_source.md): A named Path class generated for your own effect
 ~~~
 

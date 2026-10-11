@@ -218,4 +218,4 @@ Add to `.gitignore` only if your team prefers not to commit generated files. In 
 ---
 
 **Previous:** [PCollections Optics](pcollections_optics.md)
-**Next:** [Integration Guides](../spring/ch_intro.md)
+**Next:** [Testing With hkj-test](test_assertions.md)

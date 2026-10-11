@@ -126,5 +126,5 @@ If you do need a transformer:
 
 ---
 
-**Previous:** [Monad Transformers Introduction](ch_intro.md)
+**Previous:** [Monad Transformers & MTL](ch_intro.md)
 **Next:** [Quickstart](quickstart.md)

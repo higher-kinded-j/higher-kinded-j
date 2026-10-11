@@ -214,9 +214,11 @@ Every content page (except chapter introductions) should end with Previous/Next 
 Notes:
 - The first page in a chapter should only have a **Next** link
 - The last page in a chapter should only have a **Previous** link
-- Chapter introduction pages (`ch_intro.md`) should only have a **Next** link
+- A top-level chapter's introduction (`ch_intro.md`) should only have a **Next** link
 - A [group introduction](#group-introductions) is a page in its chapter's reading order, so it carries both links
 - Exception: a chapter **nested inside another chapter's reading order** (per SUMMARY.md) links both ways at its boundaries, so its `ch_intro.md` carries a Previous link to the preceding sibling page and its last page a Next link onward, each reciprocated by the neighbouring page
+- Each link's text is the neighbour's SUMMARY.md title, so a title there follows [Link Text](#link-text): "Advanced Patterns", not "Advanced"
+- After adding, moving or renaming a page in SUMMARY.md, regenerate the footers with `python3 .github/scripts/chapter_footers.py --all`. `hkj-book/check.sh` and CI check every chapter of two or more pages, but Project Info, whose pages are copied in when the book deploys
 
 ## Content Patterns
 
@@ -435,7 +437,7 @@ At release:
 3. **Start a fresh `unreleased.md` for the next version.** Keep the skeleton: the title, the not-released line, At a glance, the area headings, and the Upgrading section's headings and tables, emptied.
 4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, and the legacy-anchor entry for the old unreleased heading.
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
-6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links. The previous newest release's Previous link then names it, the one edit a released page takes.
+6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
 
 ### Headings and Subtitles
 

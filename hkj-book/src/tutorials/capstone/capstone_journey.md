@@ -59,8 +59,9 @@ A single test file and a matching solution file. Exercises 1-3 build the pipelin
 - Read the production order example: [`hkj-examples/src/main/java/org/higherkindedj/example/order`](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/order). Same shape, more services.
 - Replace the in-memory repo with a real database access via `VTaskPath`, add a saga around payment + shipment, log every step through an audit interpreter (Effect Handlers journey).
 - Use `OpticsSpecInterfaces` (Optics Tutorial 16) to lift third-party domain objects (Jackson POJOs, jOOQ records) into the same pipeline.
+- Read [One Line, Six Layers](../../hkts/one_line_six_layers.md), the opening of the Foundations chapter, for the theory under the expression.
 
 ---
 
-**Previous:** [Effect Handlers Journey](../effecthandlers/ch_intro.md)
-**Next:** [Foundations chapter](../../hkts/foundations_intro.md) - the theory underneath
+**Previous:** [Resilience Patterns](../resilience/resilience_journey.md)
+**Next:** [Learning Paths](../learning_paths.md)

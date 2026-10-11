@@ -270,9 +270,9 @@ After completing this journey:
 3. **Explore VTaskPath Documentation**: See the full VTaskPath API → [VTaskPath Guide](../../effect/path_vtask.md)
 4. **Learn Effect Contexts**: Use VTaskContext for dependency injection → [Effect Contexts](../../effect/effect_contexts.md)
 
+**Related**: [VTask Guide](../../monads/vtask_monad.md) | [VTaskPath Guide](../../effect/path_vtask.md) | [Monad Guide](../../functional/monad.md) | [Effect Path Overview](../../effect/effect_path_overview.md)
+
 ---
 
-**Previous:** [Effect API](../effect/effect_journey.md)
+**Previous:** [Concurrency](ch_intro.md)
 **Next:** [Scope & Resource](scope_resource_journey.md)
-
-**Related**: [VTask Guide](../../monads/vtask_monad.md) | [VTaskPath Guide](../../effect/path_vtask.md) | [Monad Guide](../../functional/monad.md) | [Effect Path Overview](../../effect/effect_path_overview.md)

@@ -13,4 +13,5 @@ Two journeys on virtual threads and structured concurrency. Scope & Resource bui
 
 ---
 
+**Previous:** [Monad Transformers](../transformers/transformers_journey.md)
 **Next:** [VTask](vtask_journey.md)

@@ -71,5 +71,5 @@ Master the complete ForState API through progressive exercises, including the `t
 
 ---
 
-**Previous:** [Optics: Boundary Mapping](../optics/boundary_mapping_journey.md)
-**Next:** [Expression: ForPath Parallel](forpath_parallel_journey.md)
+**Previous:** [Expression](ch_intro.md)
+**Next:** [ForPath Parallel](forpath_parallel_journey.md)

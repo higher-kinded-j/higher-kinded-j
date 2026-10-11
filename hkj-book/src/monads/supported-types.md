@@ -159,4 +159,5 @@ Practise with concrete types in [Tutorial 06: Concrete Types](https://github.com
 
 ---
 
+**Previous:** [Core Types](ch_intro.md)
 **Next:** [CompletableFuture](cf_monad.md)

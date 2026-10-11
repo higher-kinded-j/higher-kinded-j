@@ -239,5 +239,5 @@ After completing this journey:
 
 ---
 
-**Previous:** [Scope & Resource](../concurrency/scope_resource_journey.md)
-**Next:** [Optics: Traversals & Practice](traversals_journey.md)
+**Previous:** [Optics](ch_intro.md)
+**Next:** [Traversals & Practice](traversals_journey.md)

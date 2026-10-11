@@ -207,5 +207,5 @@ After completing this journey:
 
 ---
 
-**Previous:** [Optics: Traversals & Practice](traversals_journey.md)
-**Next:** [Optics: Focus DSL](focus_dsl_journey.md)
+**Previous:** [Traversals & Practice](traversals_journey.md)
+**Next:** [Focus DSL](focus_dsl_journey.md)

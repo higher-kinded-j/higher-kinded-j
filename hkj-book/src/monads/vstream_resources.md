@@ -206,4 +206,5 @@ latest run, so if you run its pulled `VTask` more than once, close the tail of e
 
 ---
 
-**Previous:** [VStream: Performance](vstream_performance.md) | **Next:** [VStream: Advanced Features](vstream_advanced.md)
+**Previous:** [Performance](vstream_performance.md)
+**Next:** [Advanced Features](vstream_advanced.md)

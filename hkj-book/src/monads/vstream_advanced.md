@@ -307,4 +307,5 @@ VStreamPath<Integer> path = ctx.toPath();
 
 ---
 
-**Previous:** [VStream: Resource-Safe Streaming](vstream_resources.md) | **Next:** [Writer](writer_monad.md)
+**Previous:** [Resource-Safe Streaming](vstream_resources.md)
+**Next:** [Writer](writer_monad.md)

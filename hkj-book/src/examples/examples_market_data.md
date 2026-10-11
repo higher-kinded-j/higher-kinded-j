@@ -262,4 +262,5 @@ Every HKJ feature used in the pipeline, mapped to the stage where it appears:
 
 ---
 
-**Next:** [Building the Pipeline →](market_building.md)
+**Previous:** [Building the Game](../hkts/draughts.md)
+**Next:** [Building the Pipeline](market_building.md)

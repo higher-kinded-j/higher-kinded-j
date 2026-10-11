@@ -148,4 +148,5 @@ Everything that follows is, in some sense, a footnote on that one line.
 
 ---
 
-**Next:** [Higher-Kinded Types](ch_intro.md)
+**Previous:** [Foundations](foundations_intro.md)
+**Next:** [Lifting the Hood](lifting_the_hood.md)
