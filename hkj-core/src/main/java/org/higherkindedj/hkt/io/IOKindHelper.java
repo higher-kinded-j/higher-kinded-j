@@ -62,7 +62,8 @@ public enum IOKindHelper implements IOConverterOps {
    * delaying the execution of a {@link Supplier}.
    *
    * @param <A> The result type of the computation.
-   * @param thunk The supplier to delay. Must not be null.
+   * @param thunk The supplier to delay. Must not be null, and must not return null: a null result
+   *     fails the computation with a {@link NullPointerException}.
    * @return A non-null {@link Kind<IOKind.Witness, A>} representing the delayed computation.
    * @throws NullPointerException if {@code thunk} is null.
    */

@@ -685,6 +685,21 @@ class CircuitBreakerTest {
     }
 
     @Test
+    @DisplayName("a fallback that returns null fails the task")
+    void fallbackReturningNullFailsTheTask() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+
+      causeFailures(breaker, 1);
+
+      VTask<String> task =
+          breaker.protectWithFallback(VTask.succeed("should not reach"), ex -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(task::run)
+          .withMessage("fallback must not return null");
+    }
+
+    @Test
     @DisplayName("fallback receives CircuitOpenException")
     void fallbackReceivesCircuitOpenException() {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));

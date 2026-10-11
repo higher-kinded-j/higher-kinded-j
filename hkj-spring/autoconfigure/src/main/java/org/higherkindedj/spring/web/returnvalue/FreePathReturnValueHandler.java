@@ -110,8 +110,8 @@ public class FreePathReturnValueHandler implements HandlerMethodReturnValueHandl
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Interpret the program via the boundary. Not through runSafe: a Try cannot hold the null a
-    // program may still give, which answers like a void method.
+    // Interpret the program via the boundary. A program never gives null: a step that would give
+    // one fails the run instead.
     Object value;
     try {
       value = boundary.run(freePath.toFree());

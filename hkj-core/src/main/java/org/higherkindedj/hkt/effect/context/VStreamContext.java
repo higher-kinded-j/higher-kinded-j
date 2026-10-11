@@ -111,9 +111,10 @@ public final class VStreamContext<A> {
   /**
    * Creates a VStreamContext containing a single element.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param <A> the element type
    * @return a new VStreamContext with one element
+   * @throws NullPointerException if value is null
    */
   public static <A> VStreamContext<A> pure(A value) {
     return new VStreamContext<>(Path.vstreamPure(value));

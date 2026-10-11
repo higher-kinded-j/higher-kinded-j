@@ -88,15 +88,6 @@ class StateMonadTest extends StateTestBase<Integer> {
     }
 
     @Test
-    @DisplayName("of() allows null value")
-    void ofAllowsNullValue() {
-      Kind<StateKind.Witness<Integer>, String> kind = monad.of(null);
-      StateTuple<Integer, String> result = runState(kind, getInitialState());
-
-      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
-    }
-
-    @Test
     @DisplayName("map() applies function to result value and keeps state transition")
     void mapAppliesFunctionToResultValue() {
       State<Integer, Integer> incrementState = State.of(s -> new StateTuple<>(s + 1, s + 1));

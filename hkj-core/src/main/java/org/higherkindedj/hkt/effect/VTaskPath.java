@@ -148,7 +148,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -185,7 +185,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
    * alternative value.
    *
-   * @param recovery the function to apply if an exception occurs; must not be null
+   * @param recovery the function to apply if an exception occurs; must not be null, and must not
+   *     return null
    * @return a VTaskPath that will recover from exceptions
    * @throws NullPointerException if recovery is null
    */
@@ -231,9 +232,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside a VTask context. The lens operation is deferred along with the VTask computation.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
-   * null focus becomes.
+   * <p>A VTask always gives a value, so this form takes a focus that is never null and fails on a
+   * null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath, Supplier)}, which says what a null focus becomes.
    *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
@@ -383,7 +384,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * Combines this path with another in parallel on virtual threads.
    *
    * @param other the other VTaskPath; must not be null
-   * @param combiner function to combine results; must not be null
+   * @param combiner function to combine results; must not be null, and must not return null
    * @param <B> the other result type
    * @param <C> the combined result type
    * @return a new VTaskPath combining both results

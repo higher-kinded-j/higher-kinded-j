@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -406,21 +407,30 @@ class ReaderTMonadTest
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("of with null value returns empty Optional")
-    void of_withNullValue() {
-      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, Integer> result =
-          readerTMonad.of(null);
-      assertThat(unwrapKindToOptional(result)).isEmpty();
+    @DisplayName("of refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void of_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> readerTMonad.of(null))
+          .withMessage("ReaderTMonad.of value cannot be null");
     }
 
     @Test
-    @DisplayName("map with null-returning function returns empty Optional")
-    @SuppressWarnings("NullableProblems") // the mapper deliberately returns null
-    void map_withNullReturningFunction() {
+    @DisplayName("map and ap fail when their function returns null, whatever the outer monad does")
+    @SuppressWarnings("NullableProblems") // the function deliberately returns null
+    void mapAndApRefuseANullResult() {
       Function<Integer, @Nullable String> nullFunc = _ -> null;
-      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String> result =
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String> mapped =
           readerTMonad.map(nullFunc, validKind);
-      assertThat(unwrapKindToOptional(result)).isEmpty();
+      Kind<ReaderTKind.Witness<OptionalKind.Witness, String>, String> applied =
+          readerTMonad.ap(readerTMonad.of(nullFunc), validKind);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> unwrapKindToOptional(mapped))
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> unwrapKindToOptional(applied))
+          .withMessage("f must not return null");
     }
 
     @Test

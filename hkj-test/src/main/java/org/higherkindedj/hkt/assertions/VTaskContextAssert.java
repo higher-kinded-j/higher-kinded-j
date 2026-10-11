@@ -10,6 +10,7 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.effect.context.VTaskContext;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -39,10 +40,10 @@ public class VTaskContextAssert<T> extends AbstractAssert<VTaskContextAssert<T>,
   private VTaskContextAssert<T> ensureExecuted() {
     if (!hasBeenExecuted) {
       long startNanos = System.nanoTime();
-      Outcome<T> result = execute(actual);
+      Try<T> result = actual.run();
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-      executedValue = result.value();
-      executedException = result.failure();
+      executedValue = result.foldFailureFirst(e -> null, v -> v);
+      executedException = result.foldFailureFirst(e -> e, v -> null);
       hasBeenExecuted = true;
     }
     return this;
@@ -159,23 +160,23 @@ public class VTaskContextAssert<T> extends AbstractAssert<VTaskContextAssert<T>,
     ensureExecuted();
     Objects.requireNonNull(other, "other VTaskContext must not be null");
 
-    Outcome<T> otherResult = execute(other);
-    boolean otherSucceeded = otherResult.failure() == null;
+    Try<T> otherResult = other.run();
+    boolean otherSucceeded = otherResult.isSuccess();
 
     if (executedException != null) {
-      T otherValue = otherResult.value();
+      T otherValue = otherResult.foldFailureFirst(e -> null, v -> v);
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskContexts to fail, but other succeeded with: %s", otherValue)
           .isFalse();
     } else {
-      String otherFailureMessage = otherSucceeded ? null : otherResult.failure().getMessage();
+      String otherFailureMessage = otherResult.foldFailureFirst(Throwable::getMessage, v -> null);
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskContexts to succeed, but other failed with: %s",
               otherFailureMessage)
           .isTrue();
-      T otherSuccessValue = otherResult.value();
+      T otherSuccessValue = otherResult.orElse(null);
       Assertions.assertThat(otherSuccessValue)
           .withFailMessage(
               "Expected equivalent values but got <%s> and <%s>", executedValue, otherSuccessValue)
@@ -183,19 +184,4 @@ public class VTaskContextAssert<T> extends AbstractAssert<VTaskContextAssert<T>,
     }
     return this;
   }
-
-  /**
-   * Runs {@code target} as {@code runSafe()} would, catching any exception, but hands back a null
-   * result as a success: a VTask may still give one, where a {@code Try.Success} may not.
-   */
-  private static <T> Outcome<T> execute(VTaskContext<T> target) {
-    try {
-      return new Outcome<>(target.runOrThrow(), null);
-    } catch (Exception e) {
-      return new Outcome<>(null, e);
-    }
-  }
-
-  /** The value or the failure of one run. */
-  private record Outcome<T>(T value, Throwable failure) {}
 }

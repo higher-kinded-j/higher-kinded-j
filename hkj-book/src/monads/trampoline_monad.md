@@ -85,7 +85,7 @@ That is it. No restructuring, no cleverness. Follow these three steps and your f
 | Component | Role |
 |-----------|------|
 | `Trampoline<A>` | Sealed interface with three variants: `Done<A>` (final value), `More<A>` (suspended thunk), `FlatMap<A,B>` (monadic bind) |
-| `Trampoline.done(value)` | Create a completed computation holding a final value |
+| `Trampoline.done(value)` | Create a completed computation holding a final value, which must not be null |
 | `Trampoline.defer(supplier)` | Suspend a computation for later evaluation: the key to stack safety |
 | `trampoline.run()` | Execute the trampoline iteratively and return the final result |
 | `trampoline.map(f)` | Transform the eventual result without executing yet |

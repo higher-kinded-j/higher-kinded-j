@@ -80,6 +80,10 @@ import org.jspecify.annotations.Nullable;
 @NullMarked
 public final class OpticPrograms {
 
+  /** What an interpreter reports when a get reads a null focus, which no Free program can hold. */
+  static final String NULL_GET_FOCUS =
+      "the focus read by get is null: read a focus that may be absent with OpticPrograms.preview";
+
   private OpticPrograms() {
     throw new UnsupportedOperationException("Utility class");
   }

@@ -10,7 +10,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for IO type class tests.
@@ -61,8 +60,7 @@ abstract class IOTestBase extends TypeClassTestBase<IOKind.Witness, Integer, Str
    * @param value The value to wrap in an IO
    * @return An IO Kind containing the specified value
    */
-  @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-  protected <A> Kind<IOKind.Witness, A> ioKind(@Nullable A value) {
+  protected <A> Kind<IOKind.Witness, A> ioKind(A value) {
     return IO_OP.widen(IO.delay(() -> value));
   }
 

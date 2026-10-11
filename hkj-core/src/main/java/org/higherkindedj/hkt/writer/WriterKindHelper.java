@@ -69,11 +69,12 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @param <W> The type of the accumulated log/output.
    * @param <A> The type of the computed value.
    * @param monoidW The {@link Monoid} instance for the log type {@code W}. Must be non-null.
-   * @param value The computed value. Can be {@code @Nullable}.
+   * @param value The computed value. Must not be null.
    * @return A {@code Kind<WriterKind.Witness<W>, A>} representing the value with an empty log.
    *     Never null.
+   * @throws NullPointerException if {@code monoidW} or {@code value} is null.
    */
-  public <W, A> Kind<WriterKind.Witness<W>, A> value(Monoid<W> monoidW, @Nullable A value) {
+  public <W, A> Kind<WriterKind.Witness<W>, A> value(Monoid<W> monoidW, A value) {
     return this.widen(Writer.value(monoidW, value));
   }
 
@@ -117,11 +118,11 @@ public enum WriterKindHelper implements WriterConverterOps {
    * @param <A> The type of the computed value.
    * @param kind The {@code Kind<WriterKind.Witness<W>, A>} holding the {@code Writer} computation.
    *     Must be non-null.
-   * @return The computed value {@code A}. Can be null if the Writer wrapped a null value.
+   * @return The non-null computed value {@code A}.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if the input {@code kind} is
    *     invalid.
    */
-  public <W, A> @Nullable A run(Kind<WriterKind.Witness<W>, A> kind) {
+  public <W, A> A run(Kind<WriterKind.Witness<W>, A> kind) {
     return this.narrow(kind).run();
   }
 

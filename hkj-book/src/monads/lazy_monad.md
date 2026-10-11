@@ -76,6 +76,8 @@ Contrast this with a raw `Supplier<T>`, which re-executes on every `.get()` call
 - **`force(kind)`**: unwrap and evaluate, returning the cached result or throwing the cached exception
 - **`widen(lazy)`** / **`narrow(kind)`**: convert between `Lazy<A>` and `Kind<LazyKind.Witness, A>`
 
+A `Lazy` always gives a value. `now(null)` throws at the call, and a computation or `map` function that returns null makes `force()` throw, naming that function. The failure is memoised like any other exception. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
 ~~~admonish note title="How Lazy Evaluation Works"
 ```
 defer(() -> compute())          force()            force()

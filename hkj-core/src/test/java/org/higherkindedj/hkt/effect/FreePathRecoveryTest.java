@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.free.test.IdentityKindHelper.IDENTITY;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
@@ -186,6 +187,24 @@ class FreePathRecoveryTest {
       Try<String> tryResult = TRY.narrow(result);
       assertThat(tryResult.isSuccess()).isTrue();
       assertThat(tryResult.orElse(null)).isEqualTo("default: service down");
+    }
+
+    @Test
+    @DisplayName("recover fails naming its handler when the handler returns null")
+    void recoverRefusesANullFromItsHandler() {
+      FreePath<IdentityKind.Witness, String> path =
+          FreePath.liftF(IDENTITY.widen(new Identity<>("request")), identityMonad);
+
+      Kind<TryKind.Witness, String> result =
+          path.recover(e -> null).toFree().foldMap(failingInterp, tryMonad);
+
+      assertThatTry(TRY.narrow(result))
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("handler must not return null"));
     }
 
     @Test

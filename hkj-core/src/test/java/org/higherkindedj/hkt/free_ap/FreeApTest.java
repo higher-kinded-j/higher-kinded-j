@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free_ap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
@@ -68,13 +69,21 @@ class FreeApTest {
     }
 
     @Test
-    @DisplayName("pure allows null values")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify it is accepted
-    void pureAllowsNull() {
-      FreeAp<MaybeKind.Witness, String> freeAp = FreeAp.pure(null);
+    @DisplayName("pure refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> FreeAp.pure(null))
+          .withMessage("FreeAp.pure value cannot be null");
+    }
 
-      assertThat(freeAp).isInstanceOf(FreeAp.Pure.class);
-      assertThat(((FreeAp.Pure<?, String>) freeAp).value()).isNull();
+    @Test
+    @DisplayName("A Pure built directly refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureRecordRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new FreeAp.Pure<MaybeKind.Witness, String>(null))
+          .withMessage("FreeAp.construction value cannot be null");
     }
 
     @Test
@@ -190,6 +199,18 @@ class FreeApTest {
       Kind<MaybeKind.Witness, String> result = mapped.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(result).get()).isEqualTo("11"); // (5 * 2) + 1
     }
+
+    @Test
+    @DisplayName("map fails, naming f, when f returns null")
+    @SuppressWarnings("DataFlowIssue") // the mapper returns null to verify the refusal
+    void mapFailsWhenFunctionReturnsNull() {
+      FreeAp<MaybeKind.Witness, String> mapped =
+          FreeAp.<MaybeKind.Witness, Integer>pure(5).map(_ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> mapped.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE))
+          .withMessage("f must not return null");
+    }
   }
 
   // ============================================================================
@@ -293,6 +314,20 @@ class FreeApTest {
       Kind<MaybeKind.Witness, Integer> interpreted =
           result.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE);
       assertThat(MAYBE.narrow(interpreted).isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("map2 fails, naming combine, when combine returns null")
+    @SuppressWarnings("DataFlowIssue") // the combiner returns null to verify the refusal
+    void map2FailsWhenCombineReturnsNull() {
+      FreeAp<MaybeKind.Witness, Integer> a = FreeAp.pure(10);
+      FreeAp<MaybeKind.Witness, Integer> b = FreeAp.pure(5);
+
+      FreeAp<MaybeKind.Witness, Integer> result = a.map2(b, (_, _) -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> result.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE))
+          .withMessage("combine must not return null");
     }
   }
 

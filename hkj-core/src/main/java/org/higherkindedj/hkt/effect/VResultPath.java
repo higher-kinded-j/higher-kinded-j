@@ -542,9 +542,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * @return an EitherPath containing the produced Either
    */
   public EitherPath<E, A> toEitherPath() {
-    Either<E, A> result =
-        Objects.requireNonNull(task.run(), "VTask must not produce a null Either");
-    return new EitherPath<>(result);
+    return new EitherPath<>(task.run());
   }
 
   /**

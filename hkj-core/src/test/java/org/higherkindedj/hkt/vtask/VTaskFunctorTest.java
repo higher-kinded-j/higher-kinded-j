@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
@@ -70,15 +71,15 @@ class VTaskFunctorTest {
     }
 
     @Test
-    @DisplayName("map() with null value in VTask")
-    void mapWithNullValueInVTask() {
-      Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(null));
-      Function<Integer, String> nullSafeMapper = String::valueOf;
+    @DisplayName("map() fails the task when its function returns null")
+    void mapFailsOnANullResult() {
+      Kind<VTaskKind.Witness, Integer> kind = VTASK.widen(VTask.succeed(TEST_VALUE));
 
-      Kind<VTaskKind.Witness, String> result = functor.map(nullSafeMapper, kind);
+      Kind<VTaskKind.Witness, String> result = functor.map(_ -> null, kind);
 
-      VTask<String> vtask = VTASK.narrow(result);
-      assertThat(vtask.run()).isEqualTo("null");
+      assertThatNullPointerException()
+          .isThrownBy(VTASK.narrow(result)::run)
+          .withMessage("f must not return null");
     }
 
     @Test

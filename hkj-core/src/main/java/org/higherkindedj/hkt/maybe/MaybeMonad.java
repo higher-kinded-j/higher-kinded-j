@@ -102,16 +102,17 @@ public class MaybeMonad extends MaybeFunctor
   // --- MonadError Methods ---
 
   /**
-   * Lifts the error state (Nothing) into the Maybe context. The input 'error' (Unit) is ignored,
-   * but {@link Unit#INSTANCE} should be passed for consistency.
+   * Lifts the error state (Nothing) into the Maybe context. A Nothing carries no detail, so the
+   * error is {@link Unit#INSTANCE}.
    *
    * @param <A> The phantom type parameter of the value
-   * @param error The error value (Unit, typically {@link Unit#INSTANCE})
+   * @param error The error value, {@link Unit#INSTANCE}. Must not be null.
    * @return A Kind representing Nothing
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<MaybeKind.Witness, A> raiseError(@Nullable Unit error) {
-    // Note: For Unit error type, no validation needed - Unit is always valid
+  public <A> Kind<MaybeKind.Witness, A> raiseError(Unit error) {
+    Validation.coreType().requireError(error, MaybeMonad.class, RAISE_ERROR);
     return MAYBE.nothing();
   }
 

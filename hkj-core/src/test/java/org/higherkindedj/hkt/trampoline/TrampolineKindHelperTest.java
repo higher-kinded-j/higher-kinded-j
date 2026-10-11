@@ -87,13 +87,12 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("done() helper accepts null values")
-    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
-    void doneHelperAcceptsNull() {
-      Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.done(null);
-
-      Trampoline<String> trampoline = TRAMPOLINE.narrow(kind);
-      assertThat(trampoline.run()).isNull();
+    @DisplayName("done() helper refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void doneHelperRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> TRAMPOLINE.done(null))
+          .withMessage("Trampoline.done value cannot be null");
     }
   }
 
@@ -215,17 +214,6 @@ class TrampolineKindHelperTest extends TrampolineTestBase {
   @Nested
   @DisplayName("Additional Edge Cases")
   class AdditionalEdgeCases {
-
-    @Test
-    @DisplayName("widen and narrow with null value trampolines")
-    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
-    void widenAndNarrowWithNullValues() {
-      Trampoline<String> trampoline = Trampoline.done(null);
-      Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.widen(trampoline);
-      Trampoline<String> result = TRAMPOLINE.narrow(kind);
-
-      assertThat(result.run()).isNull();
-    }
 
     @Test
     @DisplayName("done helper with complex types")

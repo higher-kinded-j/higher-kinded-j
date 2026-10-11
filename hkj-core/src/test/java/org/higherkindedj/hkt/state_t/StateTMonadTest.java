@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -23,7 +24,6 @@ import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.contract.Category;
 import org.higherkindedj.hkt.test.contract.TypeClassContract;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -179,18 +179,32 @@ class StateTMonadTest
     }
 
     @Test
-    @DisplayName("map should handle null result by converting to state tuple")
-    @SuppressWarnings("NullableProblems") // the mapper deliberately returns null to verify wrapping
-    void map_shouldHandleNullResult() {
+    @DisplayName("map fails when run if its mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void map_failsWhenMapperReturnsNull() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> input = pureT(10);
-      Function<Integer, @Nullable String> nullReturningMapper = _ -> null;
+      Function<Integer, String> nullReturningMapper = _ -> null;
 
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, String> result =
           stateTMonad.map(nullReturningMapper, input);
 
-      Optional<StateTuple<String, String>> tuple = unwrapKindToOptionalStateTuple(result);
-      assertThat(tuple).isPresent();
-      assertThat(tuple.get().value()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> unwrapKindToOptionalStateTuple(result))
+          .withMessage("f must not return null");
+    }
+
+    @Test
+    @DisplayName("ap fails when run if the applied function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void ap_failsWhenFunctionReturnsNull() {
+      Function<Integer, String> nullReturningFunction = _ -> null;
+
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, String> result =
+          stateTMonad.ap(pureT(nullReturningFunction), pureT(10));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> unwrapKindToOptionalStateTuple(result))
+          .withMessage("f must not return null");
     }
   }
 
@@ -413,15 +427,12 @@ class StateTMonadTest
   class EdgeCaseTests {
 
     @Test
-    @DisplayName("of with null value")
-    void of_withNullValue() {
-      var result = stateTMonad.of(null);
-      assertThat(unwrapKindToOptionalStateTuple(result))
-          .hasValueSatisfying(
-              tuple -> {
-                assertThat(tuple.value()).isNull();
-                assertThat(tuple.state()).isEqualTo("initial");
-              });
+    @DisplayName("of refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void of_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> stateTMonad.of(null))
+          .withMessage("StateTMonad.of value cannot be null");
     }
 
     @Test

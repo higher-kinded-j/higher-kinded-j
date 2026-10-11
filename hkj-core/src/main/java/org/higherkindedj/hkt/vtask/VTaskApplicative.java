@@ -2,13 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vtask;
 
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} type class for {@link VTask}, using {@link VTaskKind.Witness}
@@ -40,15 +40,18 @@ public class VTaskApplicative extends VTaskFunctor implements Applicative<VTaskK
    * immediately return the given value when executed.
    *
    * <p>This operation delays the evaluation of the value until {@code run()} is called, maintaining
-   * the lazy semantics of VTask. The lifted value can be {@code null}.
+   * the lazy semantics of VTask.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift into the VTask context. Can be {@code null}.
+   * @param value The non-null value to lift into the VTask context, since a VTask always gives one.
    * @return A {@code Kind<VTaskKind.Witness, A>} representing a VTask computation that returns
    *     {@code value}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<VTaskKind.Witness, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // VTask forbids null
+  public <A> Kind<VTaskKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, VTaskApplicative.class, OF);
     return VTASK.widen(VTask.succeed(value));
   }
 

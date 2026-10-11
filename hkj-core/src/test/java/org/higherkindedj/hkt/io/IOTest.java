@@ -47,12 +47,13 @@ class IOTest {
     }
 
     @Test
-    @DisplayName("delay() can create IO with null value")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void delayCanCreateIOWithNullValue() {
+    @DisplayName("delay() fails the computation when its thunk returns null")
+    void delayFailsOnANullResult() {
       IO<String> io = IO.delay(() -> null);
 
-      assertThatIO(io).hasValueNull();
+      assertThatNullPointerException()
+          .isThrownBy(io::unsafeRunSync)
+          .withMessage("thunk must not return null");
     }
 
     @Test
@@ -252,17 +253,6 @@ class IOTest {
       assertThatIO(sequence).hasValue(Unit.INSTANCE);
       assertThat(log.toString()).isEqualTo("12");
     }
-
-    @Test
-    @DisplayName("asUnit() with null value returns Unit")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void asUnitWithNullValueReturnsUnit() {
-      IO<String> io = IO.delay(() -> null);
-
-      IO<Unit> unitIO = io.asUnit();
-
-      assertThatIO(unitIO).hasValue(Unit.INSTANCE);
-    }
   }
 
   @Nested
@@ -293,6 +283,16 @@ class IOTest {
       // Execute and verify
       assertThatIO(mapped).hasValue("1");
       assertThat(counter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("map() fails the computation when its function returns null")
+    void mapFailsOnANullResult() {
+      IO<String> mapped = IO.delay(() -> TEST_VALUE).map(_ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(mapped::unsafeRunSync)
+          .withMessage("f must not return null");
     }
 
     @Test
@@ -511,17 +511,6 @@ class IOTest {
       assertThatThrownBy(failingIO::unsafeRunSync)
           .isInstanceOf(RuntimeException.class)
           .hasMessage("Execution error");
-    }
-
-    @Test
-    @DisplayName("unsafeRunSync() returns null if computation produces null")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void unsafeRunSyncReturnsNullIfComputationProducesNull() {
-      IO<String> io = IO.delay(() -> null);
-
-      String result = io.unsafeRunSync();
-
-      assertThat(result).isNull();
     }
   }
 

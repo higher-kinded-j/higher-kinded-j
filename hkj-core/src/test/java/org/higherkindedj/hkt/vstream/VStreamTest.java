@@ -40,14 +40,6 @@ class VStreamTest {
     }
 
     @Test
-    @DisplayName("of(value) with null produces single null element")
-    void ofNullValueProducesSingleNull() {
-      VStream<String> stream = VStream.of((String) null);
-      List<String> result = stream.toList().run();
-      assertThat(result).containsExactly((String) null);
-    }
-
-    @Test
     @DisplayName("of(varargs) produces elements in order")
     void ofVarargsProducesElementsInOrder() {
       assertThatVStream(VStream.of(1, 2, 3)).producesElements(1, 2, 3);
@@ -1401,6 +1393,127 @@ class VStreamTest {
       taken.close().run();
 
       assertThat(finalized).isTrue();
+    }
+  }
+
+  // ===== A stream never holds null =====
+
+  @Nested
+  @DisplayName("A stream never holds null")
+  class NullElements {
+
+    @Test
+    @DisplayName("A factory given an element refuses a null one at the call")
+    void factoriesRefuseANullElement() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of((String) null))
+          .withMessage("VStream.of value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1, null, 3))
+          .withMessage("VStream.of element cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.<String>succeed(null))
+          .withMessage("VStream.succeed value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.<String>repeat(null))
+          .withMessage("VStream.repeat value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.<Integer>iterate(null, x -> x + 1))
+          .withMessage("VStream.iterate seed cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).prepend(null))
+          .withMessage("VStream.prepend value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).append(null))
+          .withMessage("VStream.append value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).fold(null, Integer::sum))
+          .withMessage("VStream.fold identity cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).<Integer>foldLeft(null, (acc, a) -> acc))
+          .withMessage("VStream.foldLeft initial cannot be null");
+    }
+
+    @Test
+    @DisplayName("A step and an unfold seed refuse a null element when built")
+    void stepsRefuseANullElement() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new VStream.Step.Emit<String>(null, VStream.empty()))
+          .withMessage("VStream.construction value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new VStream.Seed<String, Integer>(null, 1))
+          .withMessage("VStream.construction value cannot be null");
+    }
+
+    @Test
+    @DisplayName("A null element from a list, iterator or Java stream fails the stream when pulled")
+    void sourcesFailAtANullElement() {
+      VStream<Integer> fromList = VStream.fromList(Arrays.asList(1, null, 3));
+
+      assertThat(fromList.take(1).toList().run()).containsExactly(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> fromList.toList().run())
+          .withMessage("VStream.fromList element cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.fromIterator(Arrays.asList(1, null).iterator()).toList().run())
+          .withMessage("VStream.fromIterator element cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.fromStream(Stream.of(1, null)).toList().run())
+          .withMessage("VStream.fromStream element cannot be null");
+    }
+
+    @Test
+    @DisplayName("A function that returns null fails the stream when that element is pulled")
+    void functionsMustNotReturnNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.<String>generate(() -> null).take(1).toList().run())
+          .withMessage("supplier must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.iterate(1, x -> x == 1 ? 2 : null).take(2).toList().run())
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).map(x -> (String) null).toList().run())
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> VStream.of(1).zipWith(VStream.of(2), (a, b) -> (Integer) null).toList().run())
+          .withMessage("combiner must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  VStream.<Integer>fail(new IllegalStateException("failed"))
+                      .recover(e -> null)
+                      .toList()
+                      .run())
+          .withMessage("recoveryFunction must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1, 2).<Integer>mapChunked(2, chunk -> null).toList().run())
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).fold(0, (a, b) -> null).run())
+          .withMessage("op must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStream.of(1).<Integer>foldLeft(0, (acc, a) -> null).run())
+          .withMessage("f must not return null");
+    }
+
+    @Test
+    @DisplayName("In fused maps, a null from an earlier function stops the later ones")
+    void fusedMapsCheckEachResult() {
+      AtomicBoolean laterCalled = new AtomicBoolean(false);
+      VStream<Integer> fused =
+          VStream.of(1)
+              .map(x -> (Integer) null)
+              .map(
+                  x -> {
+                    laterCalled.set(true);
+                    return x + 1;
+                  });
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> fused.toList().run())
+          .withMessage("f must not return null");
+      assertThat(laterCalled).isFalse();
     }
   }
 }

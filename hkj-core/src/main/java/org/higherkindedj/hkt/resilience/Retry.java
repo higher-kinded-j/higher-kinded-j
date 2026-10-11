@@ -206,7 +206,8 @@ public final class Retry {
    * @param task the task to retry; must not be null
    * @param policy the retry policy; must not be null
    * @param fallback a function that produces a fallback value from the last exception; must not be
-   *     null
+   *     null, and must not return null: a null result fails the task with a {@link
+   *     NullPointerException}
    * @param <A> the result type
    * @return a new VTask that retries, then falls back on exhaustion
    * @throws NullPointerException if any argument is null
@@ -220,7 +221,8 @@ public final class Retry {
       try {
         return execute(policy, task::run);
       } catch (RetryExhaustedException e) {
-        return fallback.apply(e.getCause());
+        return Objects.requireNonNull(
+            fallback.apply(e.getCause()), "fallback must not return null");
       }
     };
   }

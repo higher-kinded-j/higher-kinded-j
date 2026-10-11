@@ -139,6 +139,9 @@ The publisher is subscribed to immediately. Incoming elements are buffered in a 
 push-based delivery to pull-based consumption. Closing the VStream cancels the subscription, so
 `events.take(5)` stops the publisher once it has its five elements.
 
+The Flow rules forbid a null element, and so does a VStream. A publisher that sends one has its
+subscription cancelled, and the stream fails with `VStream.fromPublisher element cannot be null`.
+
 ### Round-Trip
 
 <!-- verify -->
@@ -203,7 +206,7 @@ Transformations to `Stream` or `List` materialise the entire VStream. For infini
 use `take()` first.
 ~~~
 
-## PathProvider SPI Registration
+## PathProvider SPI Registration {#pathprovider-spi-registration}
 
 `VStreamPathProvider` registers VStream with the PathProvider SPI, enabling dynamic path
 creation via `Path.from()`:
@@ -220,6 +223,8 @@ Optional<Chainable<String>> path =
 ```
 
 The provider is registered in `META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider` and in the `provides` clause of `hkj-core`'s `module-info`, so `Path.from()` finds it whether `hkj-core` is on the classpath or the module path. When a `PathProvider` of your own lives in a module with a `module-info`, register it both ways: in the services file, which is read when the jar is on the classpath, and with `provides org.higherkindedj.hkt.effect.spi.PathProvider with ...;` in `module-info.java`, which is all `ServiceLoader` reads when the jar is on the module path.
+
+A provider whose effect can fail overrides `monadError()` to return its `MonadError` in an `Optional`. The default is empty, as for `VStream`, and `supportsRecovery()` says which. `PathRegistry.unregister` gives the provider it removed in an `Optional` too.
 
 ## VStreamContext: Layer 2 API
 

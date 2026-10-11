@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.writer_t;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -15,7 +16,6 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements {@link Monad} and {@link MonadWriter} for the {@link WriterT} monad transformer.
@@ -57,19 +57,22 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
   /**
    * Lifts a pure value into the {@code WriterT} context with empty output.
    *
-   * @param value The value to lift.
+   * @param value The value to lift. Must not be null.
    * @param <A> The type of the value.
    * @return A {@code Kind} representing a {@code WriterT} with the given value and empty output.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<WriterTKind.Witness<F, W>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // WriterT forbids null
+  public <A> Kind<WriterTKind.Witness<F, W>, A> of(A value) {
+    Validation.coreType().requireValue(value, WRITER_T_MONAD_CLASS, OF);
     return WRITER_T.widen(WriterT.of(outerMonad, monoid, value));
   }
 
   /**
    * Maps a function over the value in a {@code WriterT}, preserving the output.
    *
-   * @param f The function to apply to the value. Must not be null.
+   * @param f The function to apply to the value. Must not be null, and must not return null.
    * @param fa The {@code WriterT} to map over. Must not be null.
    * @param <A> The original value type.
    * @param <B> The new value type.
@@ -82,7 +85,12 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
 
     WriterT<F, W, A> writerT = WRITER_T.narrow(fa);
     Kind<F, Pair<B, W>> mapped =
-        outerMonad.map(p -> Pair.of(f.apply(p.first()), p.second()), writerT.run());
+        outerMonad.map(
+            p ->
+                Pair.of(
+                    Objects.requireNonNull(f.apply(p.first()), "f must not return null"),
+                    p.second()),
+            writerT.run());
     return WRITER_T.widen(new WriterT<>(mapped));
   }
 
@@ -94,7 +102,8 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
    * @param fa The {@code WriterT} containing the argument. Must not be null.
    * @param <A> The input type of the function.
    * @param <B> The output type of the function.
-   * @return A new {@code WriterT} with the applied result and combined output.
+   * @return A new {@code WriterT} with the applied result and combined output. When run, it throws
+   *     {@link NullPointerException} if the wrapped function returns null.
    */
   @Override
   public <A, B> Kind<WriterTKind.Witness<F, W>, B> ap(
@@ -111,7 +120,9 @@ public class WriterTMonad<F extends WitnessArity<TypeArity.Unary>, W>
             pf ->
                 outerMonad.map(
                     pa -> {
-                      B value = pf.first().apply(pa.first());
+                      B value =
+                          Objects.requireNonNull(
+                              pf.first().apply(pa.first()), "f must not return null");
                       W combined = monoid.combine(pf.second(), pa.second());
                       return Pair.of(value, combined);
                     },

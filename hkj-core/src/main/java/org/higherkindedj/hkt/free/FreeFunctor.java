@@ -10,7 +10,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Functor} type class for {@link FreeKind}.
@@ -39,7 +38,8 @@ public class FreeFunctor<F extends WitnessArity<TypeArity.Unary>>
    *
    * @param <A> The type of the value in the input Free
    * @param <B> The type of the value in the resulting Free
-   * @param f The function to apply to the value. Must not be null.
+   * @param f The function to apply to the value. Must not be null, and must not return null; a null
+   *     result fails the program with a NullPointerException when it is interpreted.
    * @param fa The input FreeKind. Must not be null.
    * @return A new FreeKind with the function applied
    * @throws NullPointerException if f or fa is null
@@ -47,7 +47,7 @@ public class FreeFunctor<F extends WitnessArity<TypeArity.Unary>>
    */
   @Override
   public <A, B> Kind<FreeKind.Witness<F>, B> map(
-      Function<? super A, ? extends @Nullable B> f, Kind<FreeKind.Witness<F>, A> fa) {
+      Function<? super A, ? extends B> f, Kind<FreeKind.Witness<F>, A> fa) {
     Validation.function().validateMap(f, fa);
 
     Free<F, A> freeA = FREE.narrow(fa);

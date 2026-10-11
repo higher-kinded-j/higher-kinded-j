@@ -110,14 +110,12 @@ class FreeFactoryTest {
     }
 
     @Test
-    @DisplayName("pure() with null value")
-    @SuppressWarnings("DataFlowIssue") // Free may legitimately hold a null value
-    void pureWithNullValue() {
-      Free<IdKind.Witness, String> result = factory.pure(null);
-
-      assertThat(result).isInstanceOf(Free.Pure.class);
-      String value = interpret(result);
-      assertThat(value).isNull();
+    @DisplayName("pure() refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> factory.pure(null))
+          .withMessage("Free.pure value cannot be null");
     }
 
     @Test

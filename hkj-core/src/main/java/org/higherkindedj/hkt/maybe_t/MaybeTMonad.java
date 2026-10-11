@@ -163,16 +163,17 @@ public class MaybeTMonad<F extends WitnessArity<TypeArity.Unary>>
   /**
    * Raises an error in the {@code Kind<MaybeTKind.Witness<F>, A>} context. For {@code MaybeT}, an
    * error is represented by the {@code Nothing} state, so this method returns a {@code Kind}
-   * wrapping {@code F<Nothing>}. The provided {@code error} of type {@link Unit} (typically {@link
-   * Unit#INSTANCE}) is ignored.
+   * wrapping {@code F<Nothing>}. A Nothing carries no detail, so the error is {@link
+   * Unit#INSTANCE}.
    *
    * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
-   * @param error The error value ({@link Unit#INSTANCE}).
+   * @param error The error value, {@link Unit#INSTANCE}. Must not be null.
    * @return A {@code Kind<MaybeTKind.Witness<F>, A>} representing {@code F<Nothing>}.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<MaybeTKind.Witness<F>, A> raiseError(@Nullable Unit error) {
-    // Note: error parameter is ignored since Nothing doesn't carry error information
+  public <A> Kind<MaybeTKind.Witness<F>, A> raiseError(Unit error) {
+    Validation.coreType().requireError(error, MAYBE_T_MONAD_CLASS, RAISE_ERROR);
     return MAYBE_T.widen(MaybeT.nothing(outerMonad));
   }
 

@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import java.io.ByteArrayInputStream;
@@ -105,6 +106,18 @@ class HkjClientSseTest {
     VStreamPath<Tick> path = HkjClientExchange.vstream(source, Tick.class, mapper);
 
     assertThatVStreamPath(path).failsOnMaterialise();
+  }
+
+  @Test
+  @DisplayName("fails to materialise on a frame whose data is JSON null")
+  void nullFrameFails() {
+    Supplier<InputStream> source = sse("data: {\"n\":1}\n\ndata: null\n\n");
+
+    VStreamPath<Tick> path = HkjClientExchange.vstream(source, Tick.class, mapper);
+
+    assertThatThrownBy(() -> path.toList().unsafeRun())
+        .isInstanceOf(SseStreamException.class)
+        .hasMessage("SSE frame data is null, and a stream holds no null element");
   }
 
   @Test

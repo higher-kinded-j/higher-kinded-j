@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
@@ -24,6 +25,9 @@ import org.jspecify.annotations.Nullable;
  *       concurrent scenarios.
  *   <li><b>Exception Handling:</b> If the computation throws an exception, it is cached and
  *       re-thrown on each {@code force()} call.
+ *   <li><b>Always a Value:</b> A Lazy never holds {@code null}. A computation or function that
+ *       returns {@code null} fails with a {@link NullPointerException} naming it, cached like any
+ *       other exception.
  * </ul>
  *
  * @param <A> The type of the value produced.
@@ -44,7 +48,8 @@ public final class Lazy<A> {
   /**
    * Creates a Lazy instance that will evaluate the given ThrowableSupplier when forced.
    *
-   * @param computation The ThrowableSupplier to evaluate lazily. Must not be null.
+   * @param computation The ThrowableSupplier to evaluate lazily. Must not be null, and must not
+   *     return null; a null result fails the Lazy with a {@link NullPointerException} when forced.
    * @param <A> The value type.
    * @return A new Lazy instance. Never null.
    * @throws NullPointerException if computation is null.
@@ -61,11 +66,13 @@ public final class Lazy<A> {
    * set {@code evaluated = true} and assign the value directly, bypassing lazy evaluation. The
    * lambda exists only to satisfy the constructor's requirement for a ThrowableSupplier.
    *
-   * @param value The already computed value. Can be {@code null}.
+   * @param value The already computed value. Must not be null.
    * @param <A> The value type.
    * @return A new Lazy instance holding the pre-computed value. Never null.
+   * @throws NullPointerException if value is null.
    */
-  public static <A> Lazy<A> now(@Nullable A value) {
+  public static <A> Lazy<A> now(A value) {
+    Validation.coreType().requireValue(value, LAZY_CLASS, NOW);
     // The lambda is never invoked - we set evaluated=true immediately below
     Lazy<A> lazy = new Lazy<>(() -> value);
     lazy.value = value;
@@ -79,10 +86,11 @@ public final class Lazy<A> {
    * evaluation happens only once. If the computation fails, the exception is cached and re-thrown
    * on subsequent calls.
    *
-   * @return The computed value. Can be {@code null} depending on type {@code A}.
-   * @throws Throwable if the lazy computation fails.
+   * @return The computed value. Never null.
+   * @throws Throwable if the lazy computation fails, including a {@link NullPointerException} when
+   *     it returns null.
    */
-  public @Nullable A force() throws Throwable {
+  public A force() throws Throwable {
     if (!evaluated) {
       synchronized (this) {
         if (!evaluated) {
@@ -90,7 +98,8 @@ public final class Lazy<A> {
             if (computation instanceof FlatMapComputation<?, ?>) {
               this.value = evaluateFlatMapChain();
             } else {
-              this.value = computation.get();
+              this.value =
+                  Objects.requireNonNull(computation.get(), "computation must not return null");
             }
             this.exception = null;
           } catch (Throwable t) {
@@ -102,10 +111,12 @@ public final class Lazy<A> {
         }
       }
     }
-    if (this.exception != null) {
-      throw this.exception;
+    Throwable failure = this.exception;
+    if (failure != null) {
+      throw failure;
     }
-    return this.value;
+    // Evaluated without a failure, so the value is set
+    return Objects.requireNonNull(this.value);
   }
 
   /** Iteratively evaluates a chain of flatMap operations to avoid stack overflow. */
@@ -143,14 +154,16 @@ public final class Lazy<A> {
    * maintaining laziness. The mapping function itself should not throw checked exceptions unless
    * they are caught or wrapped. Exceptions from the original Lazy's force() are propagated.
    *
-   * @param f The mapping function. Must not be null.
+   * @param f The mapping function. Must not be null, and must not return null; a null result fails
+   *     the Lazy with a {@link NullPointerException} when forced.
    * @param <B> The result type of the mapping function.
    * @return A new Lazy computation for the mapped value. Never null.
    * @throws NullPointerException if f is null.
    */
   public <B> Lazy<B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return Lazy.defer(() -> f.apply(this.force()));
+    return Lazy.defer(
+        () -> Objects.requireNonNull(f.apply(this.force()), "f must not return null"));
   }
 
   /**
@@ -174,7 +187,7 @@ public final class Lazy<A> {
       Lazy<A> source, Function<? super A, ? extends Lazy<? extends B>> function)
       implements ThrowableSupplier<B> {
     @Override
-    public @Nullable B get() throws Throwable {
+    public B get() throws Throwable {
       // Direct evaluation fallback — not used when force() detects the chain
       Lazy<? extends B> nextLazy = function.apply(source.force());
       Validation.function().requireNonNullResult(nextLazy, "f", FLAT_MAP);

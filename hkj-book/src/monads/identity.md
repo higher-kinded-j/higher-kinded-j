@@ -77,6 +77,8 @@ String value = idString.value(); // "Hello, Identity!"
 Id<Integer> idInt = Id.of(123);
 Id<String> idNull = Id.of(null); // Id can wrap null
 ```
+
+`Id` is the one type here that holds a null, since every optic's `modify` runs through it. [`IdPath`](../effect/path_id.md) does not: `Path.id(null)` throws, as every lazy Path's factory does.
 ~~~
 
 ~~~admonish example title="Monadic Operations with IdMonad"

@@ -78,12 +78,12 @@ class StateApplicativeTest extends StateTestBase<Integer> {
     }
 
     @Test
-    @DisplayName("of should handle null value")
-    void ofShouldHandleNullValue() {
-      Kind<StateKind.Witness<Integer>, String> kind = applicative.of(null);
-
-      StateTuple<Integer, String> result = runState(kind, getInitialState());
-      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
+    @DisplayName("of refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("StateApplicative.of value cannot be null");
     }
 
     @Test
@@ -153,22 +153,23 @@ class StateApplicativeTest extends StateTestBase<Integer> {
 
   // The standard ap/map2 null-argument validations are covered by the contract in StateMonadTest
   // (the State Monad extends this Applicative). Only the State-specific deferred null-check below —
-  // a State wrapping a null function — is kept here.
+  // a wrapped function that returns null — is kept here.
   @Nested
   @DisplayName("Applicative Validations")
   class ApplicativeValidations {
 
     @Test
-    @DisplayName("ap should validate function in State is non-null")
-    void apShouldValidateFunctionInStateIsNonNull() {
-      State<Integer, Function<Integer, String>> nullFunc = State.pure(null);
-      Kind<StateKind.Witness<Integer>, Function<Integer, String>> ff = STATE.widen(nullFunc);
+    @DisplayName("ap fails when run if the wrapped function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void apFailsWhenWrappedFunctionReturnsNull() {
+      State<Integer, Function<Integer, String>> nullResult = State.pure(_ -> null);
+      Kind<StateKind.Witness<Integer>, Function<Integer, String>> ff = STATE.widen(nullResult);
 
       Kind<StateKind.Witness<Integer>, String> result = applicative.ap(ff, validKind);
 
       assertThatNullPointerException()
           .isThrownBy(() -> runState(result, getInitialState()))
-          .withMessageContaining("Function wrapped in State for 'ap' was null");
+          .withMessage("f must not return null");
     }
   }
 

@@ -21,8 +21,8 @@ class ReaderAssertContractTest
   private static final Reader<String, String> CONST_X = Reader.of(env -> "X");
   // Constant 'Y' (different from CONST_X)
   private static final Reader<String, String> CONST_Y = Reader.of(env -> "Y");
-  // Returns null
-  private static final Reader<String, String> NULL_R = Reader.of(env -> null);
+  // A hand-written Reader is the one way left to give null
+  private static final Reader<String, String> NULL_R = env -> null;
   // Stateful (impure) — returns different value on second call
   private static final AtomicInteger N = new AtomicInteger();
 
@@ -44,7 +44,6 @@ class ReaderAssertContractTest
             ECHO,
             CONST_X,
             a -> a.whenRunWith("hello").produces("hello")),
-        row("whenRunWith.producesNull", NULL_R, ECHO, a -> a.whenRunWith("hello").producesNull()),
         row(
             "whenRunWith.producesNonNull",
             ECHO,

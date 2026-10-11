@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
+import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
@@ -81,7 +82,8 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
    * @param ff A {@link Kind} representing {@code Reader<R, Function<A, B>>}. Must not be null.
    * @param <A> The input type of the function (the type inside {@code Left} of the Choice).
    * @param <B> The output type and the type inside {@code Right} of the Choice.
-   * @return A {@link Kind} representing {@code Reader<R, B>}. Never null.
+   * @return A {@link Kind} representing {@code Reader<R, B>}. Never null. When run, it throws
+   *     {@link NullPointerException} if the function returns null.
    * @throws NullPointerException if {@code fab} or {@code ff} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fab} or {@code ff} cannot
    *     be unwrapped.
@@ -103,13 +105,13 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
 
           // If choice is Right(b), we already have our value
           if (choice.isRight()) {
-            return choice.getRight();
+            return requireNonNull(choice.getRight(), "choice must not hold a null Right value");
           }
 
           // Choice is Left(a), so we need to apply the function
           A value = choice.getLeft();
           Function<A, B> function = readerFunction.run(r);
-          return function.apply(value);
+          return requireNonNull(function.apply(value), "function must not return null");
         };
 
     return READER.widen(readerB);
@@ -127,7 +129,8 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
    * @param <A> The type inside {@code Left} of the Choice.
    * @param <B> The type inside {@code Right} of the Choice.
    * @param <C> The result type.
-   * @return A {@link Kind} representing {@code Reader<R, C>}. Never null.
+   * @return A {@link Kind} representing {@code Reader<R, C>}. Never null. When run, it throws
+   *     {@link NullPointerException} if the handler it applies returns null.
    */
   @Override
   public <A, B, C> Kind<ReaderKind.Witness<R>, C> branch(
@@ -149,10 +152,12 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
 
           if (choice.isLeft()) {
             Function<A, C> leftFunc = leftHandler.run(r);
-            return leftFunc.apply(choice.getLeft());
+            return requireNonNull(
+                leftFunc.apply(choice.getLeft()), "leftHandler must not return null");
           } else {
             Function<B, C> rightFunc = rightHandler.run(r);
-            return rightFunc.apply(choice.getRight());
+            return requireNonNull(
+                rightFunc.apply(choice.getRight()), "rightHandler must not return null");
           }
         };
 

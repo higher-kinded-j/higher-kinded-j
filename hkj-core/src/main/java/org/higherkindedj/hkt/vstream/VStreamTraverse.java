@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -120,7 +121,16 @@ public enum VStreamTraverse implements Traverse<VStreamKind.Witness> {
 
     for (A a : elements) {
       Kind<G, ? extends B> effectOfB = f.apply(a);
-      result = applicative.map2(result, effectOfB, (flist, b) -> flist.cons((B) b)); // O(1) prepend
+      // O(1) prepend; a stream never holds null, whatever the applicative allows
+      result =
+          applicative.map2(
+              result,
+              effectOfB,
+              (flist, b) ->
+                  flist.cons(
+                      (B)
+                          Objects.requireNonNull(
+                              b, "VStreamTraverse.traverse element cannot be null")));
     }
 
     // Reverse the cons-list to restore original order, convert to List, then to VStream

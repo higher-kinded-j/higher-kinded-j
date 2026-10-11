@@ -40,13 +40,21 @@ class TrampolineTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("done() accepts null values")
-    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
-    void doneAcceptsNull() {
-      Trampoline<String> trampoline = Trampoline.done(null);
+    @DisplayName("done() refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void doneRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Trampoline.done(null))
+          .withMessage("Trampoline.done value cannot be null");
+    }
 
-      assertThat(trampoline).isInstanceOf(Trampoline.Done.class);
-      assertThat(trampoline.run()).isNull();
+    @Test
+    @DisplayName("A Done built directly refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void doneRecordRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Trampoline.Done<String>(null))
+          .withMessage("Trampoline.construction value cannot be null");
     }
 
     @Test

@@ -1503,18 +1503,6 @@ class TraversalsTest {
     class EdgeCasesTests {
 
       @Test
-      @DisplayName("should handle states that return null values")
-      void shouldHandleNullValues() {
-        final List<State<Integer, String>> states =
-            List.of(State.pure("non-null"), State.pure(null), State.pure("another-non-null"));
-
-        final State<Integer, List<String>> sequenced = invokeSequenceStateList(states);
-        final StateTuple<Integer, List<String>> result = sequenced.run(0);
-
-        assertThat(result.value()).containsExactly("non-null", null, "another-non-null");
-      }
-
-      @Test
       @DisplayName("should handle all states returning same value")
       void shouldHandleAllSameValue() {
         final List<State<Integer, String>> states =

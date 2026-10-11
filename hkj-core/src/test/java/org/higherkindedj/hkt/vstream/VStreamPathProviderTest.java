@@ -81,12 +81,11 @@ class VStreamPathProviderTest {
     }
 
     @Test
-    @DisplayName("monadError() returns null (default)")
-    @SuppressWarnings("DataFlowIssue") // monadError() returns null by default here
-    void monadErrorReturnsNull() {
+    @DisplayName("monadError() returns empty (default)")
+    void monadErrorReturnsEmpty() {
       VStreamPathProvider provider = new VStreamPathProvider();
 
-      assertThat(provider.monadError()).isNull();
+      assertThat(provider.monadError()).isEmpty();
     }
 
     @Test

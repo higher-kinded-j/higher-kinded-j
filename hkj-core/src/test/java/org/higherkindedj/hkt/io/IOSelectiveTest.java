@@ -675,6 +675,40 @@ class IOSelectiveTest extends IOTestBase {
     }
 
     @Test
+    @DisplayName("select() and branch() fail the computation when the value they give is null")
+    @SuppressWarnings("DataFlowIssue") // the nulls are given deliberately to verify rejection
+    void selectAndBranchRefuseANullResult() {
+      Choice<Integer, String> leftChoice = Selective.left(DEFAULT_IO_VALUE);
+      Choice<Integer, String> rightChoice = Selective.right("right-value");
+      Choice<Integer, String> nullRightChoice = Selective.right(null);
+      Function<Integer, String> leftToNull = _ -> null;
+      Function<String, String> rightToNullFunction = _ -> null;
+      Kind<IOKind.Witness, Choice<Integer, String>> left = IO_OP.widen(IO.delay(() -> leftChoice));
+      Kind<IOKind.Witness, Choice<Integer, String>> right =
+          IO_OP.widen(IO.delay(() -> rightChoice));
+      Kind<IOKind.Witness, Choice<Integer, String>> nullRight =
+          IO_OP.widen(IO.delay(() -> nullRightChoice));
+      Kind<IOKind.Witness, Function<Integer, String>> toNull =
+          IO_OP.widen(IO.delay(() -> leftToNull));
+      Kind<IOKind.Witness, Function<String, String>> rightToNull =
+          IO_OP.widen(IO.delay(() -> rightToNullFunction));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> narrowToIO(selective.select(left, toNull)).unsafeRunSync())
+          .withMessage("function must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> narrowToIO(selective.select(nullRight, toNull)).unsafeRunSync())
+          .withMessage("choice must not hold a null Right value");
+      assertThatNullPointerException()
+          .isThrownBy(() -> narrowToIO(selective.branch(left, toNull, rightToNull)).unsafeRunSync())
+          .withMessage("leftHandler must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> narrowToIO(selective.branch(right, toNull, rightToNull)).unsafeRunSync())
+          .withMessage("rightHandler must not return null");
+    }
+
+    @Test
     @DisplayName("whenS_ discards non-Unit result correctly")
     void whenSDiscardsNonUnitResult() {
       AtomicInteger counter = new AtomicInteger(0);

@@ -574,6 +574,60 @@ class ReaderSelectiveTest extends ReaderTestBase {
     }
 
     @Test
+    @DisplayName("select() fails when run if the function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void selectFailsWhenFunctionReturnsNull() {
+      Function<Integer, String> nullResult = _ -> null;
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          selective.select(choiceLeftKind, READER.widen(Reader.constant(nullResult)));
+
+      Reader<TestConfig, String> reader = READER.narrow(result);
+      assertThatNullPointerException()
+          .isThrownBy(() -> reader.run(TEST_CONFIG))
+          .withMessage("function must not return null");
+    }
+
+    @Test
+    @DisplayName("select() fails when run if the choice holds a null Right value")
+    @SuppressWarnings("DataFlowIssue") // null is held deliberately to verify rejection
+    void selectFailsWhenTheRightValueIsNull() {
+      Choice<Integer, String> nullRight = Selective.right(null);
+      Function<Integer, String> unused = i -> "n";
+      Kind<ReaderKind.Witness<TestConfig>, String> result =
+          selective.select(
+              READER.widen(Reader.constant(nullRight)), READER.widen(Reader.constant(unused)));
+
+      Reader<TestConfig, String> reader = READER.narrow(result);
+      assertThatNullPointerException()
+          .isThrownBy(() -> reader.run(TEST_CONFIG))
+          .withMessage("choice must not hold a null Right value");
+    }
+
+    @Test
+    @DisplayName("branch() fails when run if the handler it applies returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void branchFailsWhenHandlerReturnsNull() {
+      Function<Integer, String> nullLeft = _ -> null;
+      Function<String, String> nullRight = _ -> null;
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> nullLeftKind =
+          READER.widen(Reader.constant(nullLeft));
+      Kind<ReaderKind.Witness<TestConfig>, Function<String, String>> nullRightKind =
+          READER.widen(Reader.constant(nullRight));
+
+      Reader<TestConfig, String> left =
+          READER.narrow(selective.branch(choiceLeftKind, nullLeftKind, rightHandlerKind));
+      Reader<TestConfig, String> right =
+          READER.narrow(selective.branch(choiceRightKind, leftHandlerKind, nullRightKind));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> left.run(TEST_CONFIG))
+          .withMessage("leftHandler must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> right.run(TEST_CONFIG))
+          .withMessage("rightHandler must not return null");
+    }
+
+    @Test
     @DisplayName("Multiple runs of same selective Reader produce consistent results")
     void multipleRunsProduceConsistentResults() {
       Kind<ReaderKind.Witness<TestConfig>, Integer> result =

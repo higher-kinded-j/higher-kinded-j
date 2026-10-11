@@ -13,7 +13,6 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a lazy computation that, when executed, runs on a Java virtual thread and produces a
@@ -39,6 +38,9 @@ import org.jspecify.annotations.Nullable;
  *       #map(Function)}, {@link #flatMap(Function)}, and other combinators.
  *   <li><b>HKT Integration:</b> {@code VTask<A>} directly extends {@link VTaskKind VTaskKind<A>},
  *       making it a first-class participant in the Higher-Kinded-J HKT simulation.
+ *   <li><b>Always a value:</b> a task that succeeds gives a value, never {@code null}. A step that
+ *       produces {@code null} fails the task with a {@link NullPointerException} naming that step.
+ *       A task with nothing to return gives {@link Unit#INSTANCE}, as {@link #exec(Runnable)} does.
  * </ul>
  *
  * <p><b>Example:</b>
@@ -75,10 +77,10 @@ public interface VTask<A> extends VTaskKind<A> {
    * to throw checked exceptions. The public execution methods ({@link #run()}, {@link #runSafe()},
    * {@link #runAsync()}) handle exception translation at the boundary.
    *
-   * @return The result of the computation of type {@code A}.
+   * @return The result of the computation of type {@code A}. Never null.
    * @throws Throwable If the computation fails.
    */
-  @Nullable A execute() throws Throwable;
+  A execute() throws Throwable;
 
   /**
    * Returns this VTask as a {@link Callable} for use with {@code StructuredTaskScope.fork()}.
@@ -110,39 +112,44 @@ public interface VTask<A> extends VTaskKind<A> {
    * Creates a {@code VTask<A>} from a {@link Callable}. The callable will be executed on a virtual
    * thread when the task is run.
    *
-   * @param callable The computation to execute. Must not be null.
+   * @param callable The computation to execute. Must not be null, and must not return null: a null
+   *     result fails the task with a {@link NullPointerException}.
    * @param <A> The type of the value produced by the callable.
    * @return A new {@code VTask<A>} representing the deferred computation. Never null.
    * @throws NullPointerException if {@code callable} is null.
    */
   static <A> VTask<A> of(Callable<A> callable) {
     Objects.requireNonNull(callable, "callable cannot be null");
-    return callable::call;
+    return () -> Objects.requireNonNull(callable.call(), "callable must not return null");
   }
 
   /**
    * Creates a {@code VTask<A>} that defers a computation described by the given {@link Supplier}.
    * This is the primary way to lift an arbitrary block of code into a {@code VTask} context.
    *
-   * @param thunk A {@link Supplier} that produces a value of type {@code A}. Must not be null.
+   * @param thunk A {@link Supplier} that produces a value of type {@code A}. Must not be null, and
+   *     must not return null: a null result fails the task with a {@link NullPointerException}.
    * @param <A> The type of the value produced.
    * @return A new {@code VTask<A>} representing the deferred computation. Never null.
    * @throws NullPointerException if {@code thunk} is null.
    */
   static <A> VTask<A> delay(Supplier<A> thunk) {
     Validation.function().require(thunk, "thunk", DELAY);
-    return thunk::get;
+    return () -> Objects.requireNonNull(thunk.get(), "thunk must not return null");
   }
 
   /**
    * Creates a {@code VTask<A>} that immediately succeeds with the given value when executed. This
    * is the "pure" or "return" operation for the VTask monad.
    *
-   * @param value The value to wrap. Can be {@code null}.
+   * @param value The value to wrap. Must not be null; a task with nothing to return gives {@link
+   *     Unit#INSTANCE}.
    * @param <A> The type of the value.
    * @return A new {@code VTask<A>} that succeeds with the given value. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <A> VTask<A> succeed(@Nullable A value) {
+  static <A> VTask<A> succeed(A value) {
+    Validation.coreType().requireValue(value, VTask.class, SUCCEED);
     return () -> value;
   }
 
@@ -184,7 +191,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p>In virtual thread contexts, blocking operations automatically unmount from the carrier
    * thread, so this marker is primarily for documentation and potential future optimisations.
    *
-   * @param callable The blocking computation. Must not be null.
+   * @param callable The blocking computation. Must not be null, and must not return null: a null
+   *     result fails the task with a {@link NullPointerException}.
    * @param <A> The type of the value produced.
    * @return A new {@code VTask<A>} representing the blocking computation. Never null.
    * @throws NullPointerException if {@code callable} is null.
@@ -192,7 +200,7 @@ public interface VTask<A> extends VTaskKind<A> {
   static <A> VTask<A> blocking(Callable<A> callable) {
     Objects.requireNonNull(callable, "callable cannot be null");
     // Virtual threads handle blocking automatically, but we mark it for clarity
-    return callable::call;
+    return () -> Objects.requireNonNull(callable.call(), "callable must not return null");
   }
 
   // ===== EXECUTION METHODS =====
@@ -209,13 +217,15 @@ public interface VTask<A> extends VTaskKind<A> {
    * functional error handling that preserves the original exception type, use {@link #runSafe()}
    * instead.
    *
-   * @return The result of the computation of type {@code A}.
+   * @return The result of the computation of type {@code A}. Never null.
    * @throws VTaskExecutionException if the computation throws a checked exception
-   * @throws RuntimeException if the computation throws an unchecked exception
+   * @throws RuntimeException if the computation throws an unchecked exception, including a {@link
+   *     NullPointerException} if a hand-written task returns null
    */
-  default @Nullable A run() {
+  default A run() {
     try {
-      return execute();
+      return Objects.requireNonNull(
+          execute(), "the task returned null, and a VTask always gives a value");
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable t) {
@@ -250,13 +260,16 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p>The computation starts immediately on a virtual thread. The returned future can be used to
    * wait for the result or combine with other asynchronous operations.
    *
-   * @return A {@link CompletableFuture} that will complete with the result. Never null.
+   * @return A {@link CompletableFuture} that will complete with the result. Never null. A
+   *     hand-written task that returns null completes it exceptionally with a {@link
+   *     NullPointerException}.
    */
   default CompletableFuture<A> runAsync() {
     return CompletableFuture.supplyAsync(
         () -> {
           try {
-            return execute();
+            return Objects.requireNonNull(
+                execute(), "the task returned null, and a VTask always gives a value");
           } catch (Throwable t) {
             throw new CompletionException(t);
           }
@@ -270,14 +283,15 @@ public interface VTask<A> extends VTaskKind<A> {
    * Transforms the result of this {@code VTask} using the provided mapping function, without
    * altering its effectful nature. This is the Functor {@code map} operation for {@code VTask}.
    *
-   * @param f A function to apply to the result. Must not be null.
+   * @param f A function to apply to the result. Must not be null, and must not return null: a null
+   *     result fails the task with a {@link NullPointerException}.
    * @param <B> The type of the transformed value.
    * @return A new {@code VTask<B>} that applies the function to the result. Never null.
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> VTask<B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return () -> f.apply(this.execute());
+    return () -> Objects.requireNonNull(f.apply(this.execute()), "f must not return null");
   }
 
   /**
@@ -378,7 +392,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * Recovers from a failure by applying the given function to the exception.
    *
    * @param recoveryFunction A function that produces a recovery value from the exception. Must not
-   *     be null.
+   *     be null, and must not return null: a null result fails the task with a {@link
+   *     NullPointerException}.
    * @return A new {@code VTask<A>} that recovers from failures. Never null.
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
@@ -388,7 +403,8 @@ public interface VTask<A> extends VTaskKind<A> {
       try {
         return this.execute();
       } catch (Throwable t) {
-        return recoveryFunction.apply(t);
+        return Objects.requireNonNull(
+            recoveryFunction.apply(t), "recoveryFunction must not return null");
       }
     };
   }

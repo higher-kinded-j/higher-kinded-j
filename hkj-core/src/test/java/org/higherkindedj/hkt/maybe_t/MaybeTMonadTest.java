@@ -575,10 +575,11 @@ class MaybeTMonadTest
     }
 
     @Test
-    @DisplayName("raiseError with null error")
+    @DisplayName("raiseError refuses a null error")
     void raiseError_withNullError() {
-      Kind<MaybeTKind.Witness<OptionalKind.Witness>, Integer> result = maybeTMonad.raiseError(null);
-      assertThatMaybeT(result, MaybeTMonadTest.this::unwrapOuterOptional).isPresentNothing();
+      assertThatThrownBy(() -> maybeTMonad.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("MaybeTMonad.raiseError error cannot be null");
     }
   }
 }

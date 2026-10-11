@@ -14,9 +14,6 @@ import org.higherkindedj.hkt.vtask.VTask;
  */
 final class DistinctStream<A> extends DerivedStream<A, A> {
 
-  /** Stands for a null element, which a {@link ConcurrentHashMap} cannot hold as a key. */
-  private static final Object NULL_ELEMENT = new Object();
-
   private final long position;
   private final ConcurrentHashMap<Object, Long> firstSeen;
 
@@ -34,8 +31,7 @@ final class DistinctStream<A> extends DerivedStream<A, A> {
             step ->
                 switch (step) {
                   case Step.Emit<A> e -> {
-                    Object key = e.value() == null ? NULL_ELEMENT : e.value();
-                    Long first = firstSeen.putIfAbsent(key, position);
+                    Long first = firstSeen.putIfAbsent(e.value(), position);
                     VStream<A> tail = new DistinctStream<>(e.tail(), position + 1, firstSeen);
                     yield first == null || first == position
                         ? new Step.Emit<>(e.value(), tail)

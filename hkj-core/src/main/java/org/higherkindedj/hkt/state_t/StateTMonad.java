@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -11,7 +12,6 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a {@link Monad} instance for the {@link StateT} monad transformer.
@@ -69,12 +69,15 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
    * produce the value {@code a} and leave the state {@code s} unchanged. The operation is performed
    * within the context of the underlying monad {@code F} using its {@code of} method.
    *
-   * @param a The pure value to lift. Can be {@code null}.
+   * @param a The pure value to lift. Must not be {@code null}.
    * @param <A> The type of the value.
    * @return A {@code StateT<S, F, A>} instance representing the lifted value.
+   * @throws NullPointerException if {@code a} is null.
    */
   @Override
-  public <A> Kind<StateTKind.Witness<S, F>, A> of(@Nullable A a) {
+  @SuppressWarnings("NullableProblems") // StateT forbids null
+  public <A> Kind<StateTKind.Witness<S, F>, A> of(A a) {
+    Validation.coreType().requireValue(a, STATE_T_MONAD_CLASS, OF);
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, a));
     return StateT.<S, F, A>create(runFn);
   }
@@ -83,11 +86,13 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
    * Transforms the value type of a {@code StateT<S, F, A>} from {@code A} to {@code B} using the
    * provided function {@code f}, without altering the state transformation behaviour.
    *
-   * @param f The function to apply to the value. Must not be {@code null}.
+   * @param f The function to apply to the value. Must not be {@code null}, and must not return
+   *     null.
    * @param fa The {@code StateT<S, F, A>} instance whose value is to be transformed.
    * @param <A> The original value type.
    * @param <B> The new value type.
-   * @return A new {@code StateT<S, F, B>} instance.
+   * @return A new {@code StateT<S, F, B>} instance. When run, it throws {@link
+   *     NullPointerException} if {@code f} returns null.
    * @throws NullPointerException if {@code f} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code fa} is not a valid {@code
    *     StateT} representation.
@@ -101,7 +106,11 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
     Function<S, Kind<F, StateTuple<S, B>>> newRunFn =
         s ->
             monadF.map(
-                stateTuple -> StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),
+                stateTuple ->
+                    StateTuple.of(
+                        stateTuple.state(),
+                        Objects.requireNonNull(
+                            f.apply(stateTuple.value()), "f must not return null")),
                 stateT.runStateT(s));
     return StateT.<S, F, B>create(newRunFn);
   }
@@ -123,23 +132,18 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
    * All operations are performed within the context of the underlying monad {@code F}, using its
    * {@code flatMap} and {@code map} methods.
    *
-   * <p><b>Important Note on Nulls:</b> The value {@code valA} extracted from the second computation
-   * ({@code fa}) may be {@code null}. This implementation passes this potentially null value
-   * directly to the function extracted from the first computation ({@code ff}). It is the
-   * developer's responsibility to ensure that the provided function can handle a {@code null} input
-   * if the preceding computations can result in a {@code null} value. Failure to do so may result
-   * in a {@code NullPointerException} during execution.
+   * <p>A {@link StateTuple} never holds null, so the function and its argument are never null. The
+   * function must not return null either: when run, the result throws {@link NullPointerException}
+   * if it does.
    *
-   * @param ff The {@code StateT<S, F, Function<A, B>>} containing the function to apply. The
-   *     function wrapped within the StateT must not be null.
+   * @param ff The {@code StateT<S, F, Function<A, B>>} containing the function to apply.
    * @param fa The {@code StateT<S, F, A>} containing the value to which the function is applied.
    *     Must not be {@code null}.
    * @param <A> The type of the input value for the function.
    * @param <B> The type of the result of the function application.
    * @return A new {@code StateT<S, F, B>} instance representing the result of applying the function
    *     and sequencing the state transformations.
-   * @throws NullPointerException if {@code ff}, {@code fa}, or the function wrapped within {@code
-   *     ff} is {@code null}.
+   * @throws NullPointerException if {@code ff} or {@code fa} is {@code null}.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} is not
    *     a valid {@code StateT} representation.
    */
@@ -160,14 +164,14 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
                   Function<A, B> function = tupleF.value();
                   S s1 = tupleF.state();
 
-                  Validation.function().require(function, "wrapped function", AP);
-
                   Kind<F, StateTuple<S, A>> resultA = stateTa.runStateT(s1);
 
                   return monadF.map(
                       tupleA -> {
                         S s2 = tupleA.state();
-                        B finalValue = function.apply(tupleA.value());
+                        B finalValue =
+                            Objects.requireNonNull(
+                                function.apply(tupleA.value()), "f must not return null");
                         return StateTuple.of(s2, finalValue);
                       },
                       resultA);

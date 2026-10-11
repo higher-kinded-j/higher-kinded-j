@@ -91,14 +91,15 @@ public final class WriterPath<W, A> implements Chainable<A> {
   /**
    * Creates a WriterPath with a value and empty log.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param monoid the Monoid for combining logs; must not be null
    * @param <W> the log type
    * @param <A> the value type
    * @return a WriterPath with the given value and empty log
-   * @throws NullPointerException if monoid is null
+   * @throws NullPointerException if value or monoid is null
    */
   public static <W, A> WriterPath<W, A> pure(A value, Monoid<W> monoid) {
+    Objects.requireNonNull(value, "value must not be null");
     Objects.requireNonNull(monoid, "monoid must not be null");
     return new WriterPath<>(Writer.value(monoid, value), monoid);
   }
@@ -121,15 +122,16 @@ public final class WriterPath<W, A> implements Chainable<A> {
   /**
    * Creates a WriterPath from a value and output.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param log the log to produce; must not be null
    * @param monoid the Monoid for combining logs; must not be null
    * @param <W> the log type
    * @param <A> the value type
    * @return a WriterPath with the given value and log
-   * @throws NullPointerException if log or monoid is null
+   * @throws NullPointerException if value, log or monoid is null
    */
   public static <W, A> WriterPath<W, A> writer(A value, W log, Monoid<W> monoid) {
+    Objects.requireNonNull(value, "value must not be null");
     Objects.requireNonNull(log, "log must not be null");
     Objects.requireNonNull(monoid, "monoid must not be null");
     return new WriterPath<>(new Writer<>(log, value), monoid);
@@ -178,7 +180,9 @@ public final class WriterPath<W, A> implements Chainable<A> {
   @Override
   public <B> WriterPath<W, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new WriterPath<>(writer.map(mapper), monoid);
+    return new WriterPath<>(
+        writer.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")),
+        monoid);
   }
 
   @Override
@@ -204,7 +208,10 @@ public final class WriterPath<W, A> implements Chainable<A> {
     WriterPath<W, B> typedOther = (WriterPath<W, B>) otherWriter;
 
     W combinedLog = monoid.combine(this.writer.log(), typedOther.writer.log());
-    C combinedValue = combiner.apply(this.writer.value(), typedOther.writer.value());
+    C combinedValue =
+        Objects.requireNonNull(
+            combiner.apply(this.writer.value(), typedOther.writer.value()),
+            "combiner must not return null");
 
     return new WriterPath<>(new Writer<>(combinedLog, combinedValue), monoid);
   }
@@ -214,7 +221,7 @@ public final class WriterPath<W, A> implements Chainable<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -231,7 +238,9 @@ public final class WriterPath<W, A> implements Chainable<A> {
     W combinedLog =
         monoid.combine(monoid.combine(this.writer.log(), second.writer.log()), third.writer.log());
     D combinedValue =
-        combiner.apply(this.writer.value(), second.writer.value(), third.writer.value());
+        Objects.requireNonNull(
+            combiner.apply(this.writer.value(), second.writer.value(), third.writer.value()),
+            "combiner must not return null");
 
     return new WriterPath<>(new Writer<>(combinedLog, combinedValue), monoid);
   }
@@ -329,31 +338,20 @@ public final class WriterPath<W, A> implements Chainable<A> {
   /**
    * Converts to a MaybePath, discarding the log.
    *
-   * <p>If the value is null, returns an empty MaybePath.
-   *
-   * @return a MaybePath containing the value if non-null
+   * @return a MaybePath containing the value
    */
   public MaybePath<A> toMaybePath() {
-    A val = value();
-    return val != null ? new MaybePath<>(Maybe.just(val)) : new MaybePath<>(Maybe.nothing());
+    return new MaybePath<>(Maybe.just(value()));
   }
 
   /**
    * Converts to an EitherPath, discarding the log.
    *
-   * <p>A Right always holds a value, so a null value throws: {@code
-   * toMaybePath().toEitherPath(error)} gives a Left for it instead.
-   *
    * @param <E> the error type
    * @return an EitherPath containing the value as Right
-   * @throws NullPointerException if the value is null
    */
   public <E> EitherPath<E, A> toEitherPath() {
-    return new EitherPath<>(
-        Either.right(
-            Objects.requireNonNull(
-                value(),
-                "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it")));
+    return new EitherPath<>(Either.right(value()));
   }
 
   // ===== Object methods =====

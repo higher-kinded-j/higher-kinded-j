@@ -17,6 +17,7 @@ import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /** Tests for the Free monad DSL {@link OpticPrograms} and interpreters. */
@@ -916,6 +917,28 @@ class OpticProgramsTest {
         assertThrowsExactly(InvocationTargetException.class, constructor::newInstance);
     assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
     assertEquals("Utility class", exception.getCause().getMessage());
+  }
+
+  @Test
+  void testInterpretersNameANullGetFocus() {
+    record Box(@Nullable String label) {}
+    Lens<Box, String> label = Lens.of(Box::label, (box, value) -> new Box(value));
+    Free<OpticOpKind.Witness, String> program = OpticPrograms.get(new Box(null), label);
+    String refused =
+        "the focus read by get is null: read a focus that may be absent with"
+            + " OpticPrograms.preview";
+
+    NullPointerException direct =
+        assertThrows(NullPointerException.class, () -> OpticInterpreters.direct().run(program));
+    NullPointerException logged =
+        assertThrows(NullPointerException.class, () -> OpticInterpreters.logging().run(program));
+    ValidationOpticInterpreter.ValidationResult validated =
+        OpticInterpreters.validating().validate(program);
+
+    assertEquals(refused, direct.getMessage());
+    assertEquals(refused, logged.getMessage());
+    assertFalse(validated.isValid());
+    assertEquals(List.of("GET operation failed: " + refused), validated.errors());
   }
 
   @Test

@@ -126,8 +126,7 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    * Interprets and executes a Free program, capturing any exception as a {@code Try.Failure}.
    *
    * <p>Never throws. Returns {@code Try.success(result)} on success or {@code
-   * Try.failure(exception)} if the interpreter throws. A {@code Success} always holds a value, so a
-   * program that returns null gives a {@code Failure} holding a {@link NullPointerException}.
+   * Try.failure(exception)} if the interpreter throws.
    *
    * @param program the Free monad program to interpret and execute
    * @param <A> the result type
@@ -136,10 +135,7 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    */
   public <A> Try<A> runSafe(Free<F, A> program) {
     Objects.requireNonNull(program, "program must not be null");
-    return Try.of(
-        () ->
-            Objects.requireNonNull(
-                run(program), "the program returned null, and a Success always holds a value"));
+    return Try.of(() -> run(program));
   }
 
   /**
@@ -197,11 +193,14 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    * @param io the IO action to execute and embed
    * @param <A> the result type
    * @return a Free program containing the IO action's result
-   * @throws NullPointerException if io is null
+   * @throws NullPointerException if io is null, or returns null
    */
   public <A> Free<F, A> embed(IO<A> io) {
     Objects.requireNonNull(io, "io must not be null");
-    return Free.pure(io.unsafeRunSync());
+    return Free.pure(
+        Objects.requireNonNull(
+            io.unsafeRunSync(),
+            "the IO returned null, and an EffectBoundary always gives a value"));
   }
 
   /**
@@ -214,12 +213,15 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    * @param functor the Functor instance for the effect algebra F
    * @param <A> the result type
    * @return a FreePath containing the IO action's result
-   * @throws NullPointerException if io or functor is null
+   * @throws NullPointerException if io or functor is null, or io returns null
    */
   public <A> FreePath<F, A> embedPath(IO<A> io, Functor<F> functor) {
     Objects.requireNonNull(io, "io must not be null");
     Objects.requireNonNull(functor, "functor must not be null");
-    return FreePath.pure(io.unsafeRunSync(), functor);
+    return FreePath.pure(
+        Objects.requireNonNull(
+            io.unsafeRunSync(), "the IO returned null, and an EffectBoundary always gives a value"),
+        functor);
   }
 
   /**

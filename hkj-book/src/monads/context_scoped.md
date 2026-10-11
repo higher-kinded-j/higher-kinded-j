@@ -242,6 +242,8 @@ Context<String, String> getTraceId = Context.ask(AppContext.TRACE_ID);
 
 `Context.ask(key)` returns a `Context<R, R>`; it reads the value and returns it unchanged.
 
+A `Context` always gives a value, so `ask` on a key bound to null fails with a `NullPointerException`. Read a key that may hold null with `asks`, turning it into a `Maybe` or a `boolean`, as [`principalIfPresent`](../effect/context_security.md#principalifpresent-optional-access) does.
+
 ### Reading and Transforming with Context.asks
 
 Often you want to read and immediately transform:

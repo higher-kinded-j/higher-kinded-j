@@ -31,9 +31,6 @@ class ReaderTest extends ReaderTestBase {
   private final Reader<TestConfig, String> getUrlReader = urlReader();
   private final Reader<TestConfig, Integer> getMaxConnectionsReader = maxConnectionsReader();
 
-  @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
-  private final Reader<TestConfig, String> urlNullReader = readerOf(_ -> null);
-
   // The Functor/Monad type-class contracts and laws live in ReaderFunctorTest / ReaderMonadTest;
   // this suite focuses on the Reader type's own factory, run, and combinator methods.
   private final ReaderFunctor<TestConfig> functor = new ReaderFunctor<>();
@@ -44,15 +41,10 @@ class ReaderTest extends ReaderTestBase {
 
     @Test
     @DisplayName("of() creates correct Reader instances with all value types")
-    @SuppressWarnings("DataFlowIssue") // a null-valued Reader is intentional here
     void ofCreatesCorrectInstances() {
       // Non-null values
       Reader<TestConfig, String> urlReader = Reader.of(TestConfig::url);
       assertThatReader(urlReader).whenRunWith(TEST_CONFIG).produces(DEFAULT_URL);
-
-      // Null returning function
-      Reader<TestConfig, String> nullReader = Reader.of(_ -> null);
-      assertThatReader(nullReader).whenRunWith(TEST_CONFIG).producesNull();
 
       // Complex types
       Reader<TestConfig, Integer> maxConnectionsReader = Reader.of(TestConfig::maxConnections);
@@ -69,6 +61,17 @@ class ReaderTest extends ReaderTestBase {
     }
 
     @Test
+    @DisplayName("of() fails when run if its function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void ofFailsWhenFunctionReturnsNull() {
+      Reader<TestConfig, String> nullReader = readerOf(_ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> nullReader.run(TEST_CONFIG))
+          .withMessage("runFunction must not return null");
+    }
+
+    @Test
     @DisplayName("constant() creates correct Reader instances with all value types")
     void constantCreatesCorrectInstances() {
       // Non-null values
@@ -76,10 +79,6 @@ class ReaderTest extends ReaderTestBase {
       assertThatReader(constantInt).whenRunWith(TEST_CONFIG).produces(42);
       assertThatReader(constantInt).whenRunWith(ALTERNATIVE_CONFIG).produces(42);
       assertThatReader(constantInt).isConstantFor(TEST_CONFIG, ALTERNATIVE_CONFIG);
-
-      // Null values
-      Reader<TestConfig, String> constantNull = Reader.constant(null);
-      assertThatReader(constantNull).whenRunWith(TEST_CONFIG).producesNull();
 
       // Complex types
       TestConfig constantConfig = new TestConfig("constant", 999);
@@ -90,6 +89,15 @@ class ReaderTest extends ReaderTestBase {
       assertThatReader(constantComplex)
           .whenRunWith(ALTERNATIVE_CONFIG)
           .satisfies(result -> assertThat(result).isSameAs(constantConfig));
+    }
+
+    @Test
+    @DisplayName("constant() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void constantRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Reader.constant(null))
+          .withMessage("Reader.constant value cannot be null");
     }
 
     @Test
@@ -349,13 +357,6 @@ class ReaderTest extends ReaderTestBase {
     }
 
     @Test
-    @DisplayName("run() handles null results correctly")
-    void runHandlesNullResults() {
-      assertThatReader(urlNullReader).whenRunWith(TEST_CONFIG).producesNull();
-      assertThatReader(urlNullReader).whenRunWith(ALTERNATIVE_CONFIG).producesNull();
-    }
-
-    @Test
     @DisplayName("run() passes different environments correctly")
     void runPassesDifferentEnvironments() {
       Reader<TestConfig, String> reader =
@@ -529,16 +530,6 @@ class ReaderTest extends ReaderTestBase {
 
       // Exception thrown when run
       assertThatThrownBy(() -> unitReader.run(TEST_CONFIG)).isSameAs(testException);
-    }
-
-    @Test
-    @DisplayName("asUnit() handles null results correctly")
-    void asUnitHandlesNullResultsCorrectly() {
-      Reader<TestConfig, String> nullReader = Reader.constant(null);
-      Reader<TestConfig, Unit> unitReader = nullReader.asUnit();
-
-      // Should still return Unit.INSTANCE even though underlying result is null
-      assertThatReader(unitReader).whenRunWith(TEST_CONFIG).produces(Unit.INSTANCE);
     }
 
     @Test

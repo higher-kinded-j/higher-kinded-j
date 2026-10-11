@@ -8,9 +8,11 @@ import static org.higherkindedj.hkt.util.validation.Operation.FOLD_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.LIFT_F;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
+import static org.higherkindedj.hkt.util.validation.Operation.PURE;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -110,10 +112,15 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    *
    * <p>A computation that immediately produces a value without any effects.
    *
+   * @param value The value. Must not be null.
    * @param <F> The functor type
    * @param <A> The value type
    */
-  record Pure<F extends WitnessArity<TypeArity.Unary>, A>(A value) implements FreeAp<F, A> {}
+  record Pure<F extends WitnessArity<TypeArity.Unary>, A>(A value) implements FreeAp<F, A> {
+    public Pure {
+      Validation.coreType().requireValue(value, FreeAp.class, CONSTRUCTION);
+    }
+  }
 
   /**
    * Suspended computation lifting a single instruction in F.
@@ -152,12 +159,14 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
   /**
    * Creates a FreeAp from a pure value.
    *
-   * @param value The value to lift
+   * @param value The value to lift. Must not be null.
    * @param <F> The functor type
    * @param <A> The value type
    * @return A FreeAp containing the pure value
+   * @throws NullPointerException if value is null
    */
   static <F extends WitnessArity<TypeArity.Unary>, A> FreeAp<F, A> pure(A value) {
+    Validation.coreType().requireValue(value, FreeAp.class, PURE);
     return new Pure<>(value);
   }
 
@@ -178,7 +187,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
   /**
    * Maps a function over the result of this FreeAp.
    *
-   * @param f The function to apply. Must not be null.
+   * @param f The function to apply. Must not be null, and must not return null; a null result fails
+   *     the interpretation with a NullPointerException.
    * @param <B> The result type
    * @return A new FreeAp with the function applied
    * @throws NullPointerException if f is null
@@ -194,7 +204,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    * <p>This is the core applicative operation. The function and this value are <em>independent</em>
    * computations - neither depends on the other's result.
    *
-   * @param ff The FreeAp containing the function. Must not be null.
+   * @param ff The FreeAp containing the function. Must not be null, and its function must not
+   *     return null; a null result fails the interpretation with a NullPointerException.
    * @param <B> The result type
    * @return A new FreeAp representing the application
    * @throws NullPointerException if ff is null
@@ -213,7 +224,8 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    * <p>Both computations are independent and can be executed in parallel.
    *
    * @param fb The other FreeAp. Must not be null.
-   * @param combine The function to combine results. Must not be null.
+   * @param combine The function to combine results. Must not be null, and must not return null; a
+   *     null result fails the interpretation with a NullPointerException.
    * @param <B> The type of the other value
    * @param <C> The result type
    * @return A new FreeAp combining both values
@@ -223,7 +235,9 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
       FreeAp<F, B> fb, BiFunction<? super A, ? super B, ? extends C> combine) {
     Validation.FUNCTION.require(fb, "fb", MAP_2);
     Validation.FUNCTION.require(combine, "combine", MAP_2);
-    return fb.ap(this.map(a -> b -> combine.apply(a, b)));
+    return fb.ap(
+        this.map(
+            a -> b -> Objects.requireNonNull(combine.apply(a, b), "combine must not return null")));
   }
 
   /**
@@ -323,10 +337,18 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
       // ff nodes are typically Pure/Lift but could be nested Ap (handled by recursion)
       Kind<G, Function<Object, Object>> gf =
           (Kind<G, Function<Object, Object>>) interpretFreeAp(ffNode, transform, applicative);
-      result = (Kind<G, Object>) applicative.ap(gf, result);
+      result = (Kind<G, Object>) applicative.ap(applicative.map(FreeAp::nonNullResult, gf), result);
     }
 
     return (Kind<G, A>) result;
+  }
+
+  /**
+   * Wraps an applied function so a null result fails the interpretation, whichever applicative runs
+   * it, since a FreeAp's value is never null.
+   */
+  private static Function<Object, Object> nonNullResult(Function<Object, Object> function) {
+    return a -> Objects.requireNonNull(function.apply(a), "f must not return null");
   }
 
   /**

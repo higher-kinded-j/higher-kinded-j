@@ -3,12 +3,12 @@
 package org.higherkindedj.hkt.state;
 
 import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Applicative implementation for {@link State}, using {@link StateKind.Witness} as the HKT marker.
@@ -27,11 +27,14 @@ public class StateApplicative<S> extends StateFunctor<S>
    * A>}. The state remains unchanged.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift. Can be {@code null}.
+   * @param value The value to lift. Must not be {@code null}.
    * @return A {@code Kind<StateKind.Witness<S>, A>} representing {@code State.pure(value)}.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<StateKind.Witness<S>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // State forbids null
+  public <A> Kind<StateKind.Witness<S>, A> of(A value) {
+    Validation.coreType().requireValue(value, StateApplicative.class, OF);
     return STATE.pure(value);
   }
 
@@ -45,9 +48,9 @@ public class StateApplicative<S> extends StateFunctor<S>
    * @param <B> The output type of the function.
    * @param ff The {@code Kind<StateKind.Witness<S>, Function<A, B>>} containing the function.
    * @param fa The {@code Kind<StateKind.Witness<S>, A>} containing the value.
-   * @return A new {@code Kind<StateKind.Witness<S>, B>} resulting from the application.
-   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function wrapped in
-   *     the State is null.
+   * @return A new {@code Kind<StateKind.Witness<S>, B>} resulting from the application. When run,
+   *     it throws {@link NullPointerException} if the wrapped function returns null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
    *     be unwrapped to valid {@code State} representations.
    */
@@ -64,17 +67,7 @@ public class StateApplicative<S> extends StateFunctor<S>
         State.of(
             initialState -> {
               StateTuple<S, ? extends Function<A, B>> resultF = stateF.run(initialState);
-              Function<A, B> func = resultF.value();
-              S stateS1 = resultF.state();
-
-              StateTuple<S, A> resultA = stateA.run(stateS1);
-              A val = resultA.value();
-              S stateS2 = resultA.state();
-
-              if (func == null) {
-                throw new NullPointerException("Function wrapped in State for 'ap' was null");
-              }
-              return new StateTuple<>(func.apply(val), stateS2);
+              return stateA.map(resultF.value()).run(resultF.state());
             });
 
     return STATE.widen(stateB);

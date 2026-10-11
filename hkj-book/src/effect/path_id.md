@@ -20,6 +20,8 @@ IdPath<String> id = Path.id("hello");
 IdPath<User> fromId = Path.idPath(idUser);
 ```
 
+An `IdPath` always holds a value, so `Path.id(null)` throws, and so does `Path.idPath` given an `Id` holding null. The plain [`Id`](../monads/identity.md) holds a null, since every optic's `modify` runs through it.
+
 ---
 
 ## Core Operations

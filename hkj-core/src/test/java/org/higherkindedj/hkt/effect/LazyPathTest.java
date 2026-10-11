@@ -483,13 +483,11 @@ class LazyPathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() converts to Nothing for null")
-    void toMaybePathConvertsToNothing() {
-      LazyPath<String> path = Path.lazyNow(null);
-
-      MaybePath<String> result = path.toMaybePath();
-
-      assertThat(result.run().isNothing()).isTrue();
+    @DisplayName("a lazy value is never null, so lazyNow refuses one")
+    void lazyNowRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.lazyNow(null))
+          .withMessage("value must not be null");
     }
 
     @Test
@@ -585,6 +583,18 @@ class LazyPathTest {
               });
 
       assertThatThrownBy(path::get).isInstanceOf(RuntimeException.class).hasMessage("test error");
+    }
+
+    @Test
+    @DisplayName(
+        "deferThrowable gives its supplier's value, and fails when the supplier returns null")
+    void deferThrowableChecksItsSupplier() {
+      LazyPath<String> missing = LazyPath.deferThrowable(() -> null);
+
+      assertThat(LazyPath.deferThrowable(() -> "value").get()).isEqualTo("value");
+      assertThatNullPointerException()
+          .isThrownBy(missing::get)
+          .withMessage("supplier must not return null");
     }
 
     @Test

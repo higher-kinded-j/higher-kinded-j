@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
@@ -37,6 +38,10 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *       a first-class participant in the Higher-Kinded-J HKT simulation. This means widen/narrow
  *       operations via {@link IOKindHelper} have zero runtime overhead (simple type-safe casts
  *       rather than wrapper object allocation).
+ *   <li><b>Always a value:</b> a computation gives a value, never {@code null}. A step that
+ *       produces {@code null} fails the computation with a {@link NullPointerException} naming that
+ *       step. A computation with nothing to return gives {@link Unit#INSTANCE}, as {@link
+ *       #fromRunnable(Runnable)} does.
  * </ul>
  *
  * <p><b>Example:</b>
@@ -90,8 +95,8 @@ public interface IO<A> extends IOKind<A> {
    * blocking operations, this method will block the calling thread. Any exceptions thrown by the
    * underlying computation will propagate out of this method.
    *
-   * @return The result of the computation of type {@code A}. If {@code A} is {@link Unit}, this
-   *     typically returns {@link Unit#INSTANCE}.
+   * @return The result of the computation of type {@code A}. Never null. If {@code A} is {@link
+   *     Unit}, this returns {@link Unit#INSTANCE}.
    */
   A unsafeRunSync();
 
@@ -105,14 +110,15 @@ public interface IO<A> extends IOKind<A> {
    * effects) into an {@code IO} context, making it lazy and composable.
    *
    * @param thunk A {@link Supplier} that, when called, will execute the desired computation and
-   *     produce a value of type {@code A}. Must not be null.
+   *     produce a value of type {@code A}. Must not be null, and must not return null: a null
+   *     result fails the computation with a {@link NullPointerException}.
    * @param <A> The type of the value produced by the thunk.
    * @return A new {@code IO<A>} instance representing the deferred computation. Never null.
    * @throws NullPointerException if {@code thunk} is null.
    */
   static <A> IO<A> delay(Supplier<A> thunk) {
     Validation.function().require(thunk, "thunk", DELAY);
-    return thunk::get;
+    return () -> Objects.requireNonNull(thunk.get(), "thunk must not return null");
   }
 
   /**
@@ -127,7 +133,8 @@ public interface IO<A> extends IOKind<A> {
    * map(f)} represents {@code effectfulGetA().thenApply(f)}.
    *
    * @param f A non-null function to apply to the result of this {@code IO} computation. It takes a
-   *     value of type {@code A} and returns a value of type {@code B}.
+   *     value of type {@code A} and returns a value of type {@code B}, never null: a null result
+   *     fails the computation with a {@link NullPointerException}.
    * @param <B> The type of the value produced by the mapping function and thus by the new {@code
    *     IO}.
    * @return A new {@code IO<B>} that, when run, will execute this {@code IO}'s computation and then
@@ -136,7 +143,7 @@ public interface IO<A> extends IOKind<A> {
    */
   default <B> IO<B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return IO.delay(() -> f.apply(this.unsafeRunSync()));
+    return () -> Objects.requireNonNull(f.apply(this.unsafeRunSync()), "f must not return null");
   }
 
   /**

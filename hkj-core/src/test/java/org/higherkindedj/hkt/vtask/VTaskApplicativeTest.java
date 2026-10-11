@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
@@ -39,12 +40,12 @@ class VTaskApplicativeTest {
     }
 
     @Test
-    @DisplayName("of() handles null value")
-    void ofHandlesNullValue() {
-      Kind<VTaskKind.Witness, String> kind = applicative.of(null);
-
-      VTask<String> vtask = VTASK.narrow(kind);
-      assertThat(vtask.run()).isNull();
+    @DisplayName("of() refuses a null value at the call, since a VTask always gives one")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("VTaskApplicative.of value cannot be null");
     }
 
     @Test

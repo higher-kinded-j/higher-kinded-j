@@ -176,16 +176,17 @@ public class OptionalTMonad<F extends WitnessArity<TypeArity.Unary>>
   /**
    * Raises an error in the {@code Kind<OptionalTKind.Witness<F>, A>} context. For {@code
    * OptionalT}, an error is represented by the {@code empty} state, so this method returns a {@code
-   * Kind} wrapping {@code F<Optional.empty()>}. The provided {@code error} of type {@link Unit}
-   * (typically {@link Unit#INSTANCE}) is ignored.
+   * Kind} wrapping {@code F<Optional.empty()>}. An empty Optional carries no detail, so the error
+   * is {@link Unit#INSTANCE}.
    *
    * @param <A> The type parameter for the resulting {@code Kind}, though it will be empty.
-   * @param error The error value ({@link Unit#INSTANCE}). Must be non-null.
+   * @param error The error value, {@link Unit#INSTANCE}. Must not be null.
    * @return A {@code Kind<OptionalTKind.Witness<F>, A>} representing {@code F<Optional.empty()>}.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(@Nullable Unit error) {
-    // Note: error parameter is ignored since Optional.empty() doesn't carry error information
+  public <A> Kind<OptionalTKind.Witness<F>, A> raiseError(Unit error) {
+    Validation.coreType().requireError(error, OPTIONAL_T_MONAD_CLASS, RAISE_ERROR);
     return OPTIONAL_T.widen(OptionalT.none(outerMonad));
   }
 

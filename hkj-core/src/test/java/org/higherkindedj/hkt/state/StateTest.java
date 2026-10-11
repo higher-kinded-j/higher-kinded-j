@@ -29,7 +29,6 @@ class StateTest extends StateTestBase<Integer> {
 
   private final State<Integer, Integer> incrementState =
       State.of(s -> new StateTuple<>(s + 1, s + 1));
-  private final State<Integer, Integer> nullValueState = State.pure(null);
 
   // The Functor/Monad type-class contracts and laws live in StateFunctorTest / StateMonadTest;
   // this suite focuses on the State type's own factory, run, and combinator methods.
@@ -57,13 +56,6 @@ class StateTest extends StateTestBase<Integer> {
       StateTuple<Integer, String> result = state.run(getInitialState());
 
       assertThatStateTuple(result).hasValue("Value:10").hasState(11);
-
-      // Function returning null value
-      Function<Integer, StateTuple<Integer, String>> nullFunc = s -> new StateTuple<>(null, s);
-      State<Integer, String> nullState = State.of(nullFunc);
-      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
-
-      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
 
       // Complex state transformation
       Function<Integer, StateTuple<Integer, List<Integer>>> listFunc =
@@ -94,12 +86,6 @@ class StateTest extends StateTestBase<Integer> {
 
       assertThatStateTuple(result).hasValue("Result").hasState(getInitialState());
 
-      // Null value
-      State<Integer, String> nullState = State.pure(null);
-      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
-
-      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
-
       // Complex value
       List<String> list = List.of("a", "b", "c");
       State<Integer, List<String>> listState = State.pure(list);
@@ -114,6 +100,15 @@ class StateTest extends StateTestBase<Integer> {
       StateTuple<Integer, Unit> unitResult = unitState.run(getInitialState());
 
       assertThatStateTuple(unitResult).hasValue(Unit.INSTANCE).hasState(getInitialState());
+    }
+
+    @Test
+    @DisplayName("pure() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> State.pure(null))
+          .withMessage("State.pure value cannot be null");
     }
 
     @Test
@@ -181,7 +176,6 @@ class StateTest extends StateTestBase<Integer> {
 
     @Test
     @DisplayName("inspect() applies function to state, returns result, preserves state")
-    @SuppressWarnings("DataFlowIssue") // null-returning inspection is intentional
     void inspectReadsStateWithoutModifying() {
       Function<Integer, String> checkEven = s -> (s % 2 == 0) ? "Even" : "Odd";
       State<Integer, String> state = State.inspect(checkEven);
@@ -193,13 +187,17 @@ class StateTest extends StateTestBase<Integer> {
       StateTuple<Integer, String> resultOdd = state.run(7);
 
       assertThatStateTuple(resultOdd).hasValue("Odd").hasState(7);
+    }
 
-      // Null-returning inspection
-      Function<Integer, String> nullReturning = _ -> null;
-      State<Integer, String> nullState = State.inspect(nullReturning);
-      StateTuple<Integer, String> nullResult = nullState.run(getInitialState());
+    @Test
+    @DisplayName("inspect() fails when run if its function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void inspectFailsWhenFunctionReturnsNull() {
+      State<Integer, String> nullState = State.inspect(_ -> null);
 
-      assertThatStateTuple(nullResult).hasNullValue().hasState(getInitialState());
+      assertThatNullPointerException()
+          .isThrownBy(() -> nullState.run(getInitialState()))
+          .withMessage("f must not return null");
     }
 
     @Test
@@ -239,14 +237,6 @@ class StateTest extends StateTestBase<Integer> {
       StateTuple<Integer, String> result2 = computation.run(result1.state());
       assertThatStateTuple(result2).hasValue("Step:10").hasState(20);
     }
-
-    @Test
-    @DisplayName("run() handles null values correctly")
-    void runHandlesNullValues() {
-      StateTuple<Integer, Integer> result = nullValueState.run(getInitialState());
-
-      assertThatStateTuple(result).hasNullValue().hasState(getInitialState());
-    }
   }
 
   @Nested
@@ -269,12 +259,6 @@ class StateTest extends StateTestBase<Integer> {
       assertThatStateTuple(listResult)
           .hasValueSatisfying(list -> assertThat(list).containsExactly(11, 22, 33))
           .hasState(11);
-
-      // Null-safe transformation
-      State<Integer, String> nullMapped = nullValueState.map(String::valueOf);
-      StateTuple<Integer, String> nullResult = nullMapped.run(getInitialState());
-
-      assertThatStateTuple(nullResult).hasValue("null").hasState(getInitialState());
     }
 
     @Test
@@ -309,13 +293,14 @@ class StateTest extends StateTestBase<Integer> {
     }
 
     @Test
-    @DisplayName("map() handles null-returning functions")
-    void mapHandlesNullReturningFunctions() {
+    @DisplayName("map() fails when run if its function returns null")
+    void mapFailsWhenFunctionReturnsNull() {
       Function<Integer, String> nullReturningMapper = TestFunctions.nullReturningFunction();
       State<Integer, String> result = incrementState.map(nullReturningMapper);
 
-      StateTuple<Integer, String> tuple = result.run(getInitialState());
-      assertThatStateTuple(tuple).hasNullValue().hasState(11);
+      assertThatNullPointerException()
+          .isThrownBy(() -> result.run(getInitialState()))
+          .withMessage("f must not return null");
     }
   }
 
@@ -412,19 +397,12 @@ class StateTest extends StateTestBase<Integer> {
   class StateTupleTests {
 
     @Test
-    @DisplayName("StateTuple constructor allows null value")
-    void constructorAllowsNullValue() {
-      StateTuple<String, Integer> tuple = new StateTuple<>(null, "newState");
-      assertThatStateTuple(tuple).hasNullValue().hasState("newState");
-    }
-
-    @Test
     @DisplayName("StateTuple constructor requires non-null state")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void constructorRequiresNonNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> new StateTuple<>("value", null))
-          .withMessageContaining("StateTuple.construction value cannot be null");
+          .withMessage("StateTuple.construction state cannot be null");
     }
 
     @Test
@@ -432,10 +410,6 @@ class StateTest extends StateTestBase<Integer> {
     void ofFactoryCreatesCorrectly() {
       StateTuple<Integer, String> tuple = StateTuple.of(42, "test");
       assertThatStateTuple(tuple).hasValue("test").hasState(42);
-
-      // With null value
-      StateTuple<Integer, String> nullTuple = StateTuple.of(42, null);
-      assertThatStateTuple(nullTuple).hasNullValue().hasState(42);
     }
 
     @Test
@@ -444,7 +418,7 @@ class StateTest extends StateTestBase<Integer> {
     void ofRequiresNonNullState() {
       assertThatNullPointerException()
           .isThrownBy(() -> StateTuple.of(null, "value"))
-          .withMessageContaining("StateTuple.of value cannot be null");
+          .withMessage("StateTuple.of state cannot be null");
     }
 
     @Test
@@ -454,17 +428,12 @@ class StateTest extends StateTestBase<Integer> {
       StateTuple<String, Integer> t1b = new StateTuple<>(1, "s");
       StateTuple<String, Integer> t2 = new StateTuple<>(2, "s");
       StateTuple<String, Integer> t3 = new StateTuple<>(1, "t");
-      StateTuple<String, Integer> t4 = new StateTuple<>(null, "s");
-      StateTuple<String, Integer> t5 = new StateTuple<>(null, "s");
 
       assertThat(t1a).isEqualTo(t1b);
       assertThat(t1a).hasSameHashCodeAs(t1b);
 
       assertThat(t1a).isNotEqualTo(t2);
       assertThat(t1a).isNotEqualTo(t3);
-      assertThat(t1a).isNotEqualTo(t4);
-      assertThat(t4).isEqualTo(t5);
-      assertThat(t4).hasSameHashCodeAs(t5);
 
       assertThat(t1a).isNotEqualTo(null);
     }
@@ -474,9 +443,6 @@ class StateTest extends StateTestBase<Integer> {
     void toStringProvidesUsefulRepresentation() {
       StateTuple<String, Integer> tuple = new StateTuple<>(123, "myState");
       assertThat(tuple.toString()).isEqualTo("StateTuple[value=123, state=myState]");
-
-      StateTuple<String, Integer> tupleNull = new StateTuple<>(null, "state2");
-      assertThat(tupleNull.toString()).isEqualTo("StateTuple[value=null, state=state2]");
     }
   }
 

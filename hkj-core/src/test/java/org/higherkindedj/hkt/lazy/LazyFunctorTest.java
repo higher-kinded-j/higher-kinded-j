@@ -145,16 +145,18 @@ class LazyFunctorTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("map should handle null results correctly")
-    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises Lazy.map's null handling
-    void mapShouldHandleNullResultsCorrectly() throws Throwable {
+    @DisplayName("map fails, naming f, when f returns null")
+    @SuppressWarnings("DataFlowIssue") // the mapper returns null to verify the refusal
+    void mapFailsWhenFunctionReturnsNull() {
       Kind<LazyKind.Witness, Integer> kind = nowKind(DEFAULT_LAZY_VALUE);
       Function<Integer, String> nullMapper = _ -> null;
 
       Kind<LazyKind.Witness, String> mapped = functor.map(nullMapper, kind);
       Lazy<String> result = narrowToLazy(mapped);
 
-      assertThat(result.force()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(result::force)
+          .withMessage("f must not return null");
     }
   }
 

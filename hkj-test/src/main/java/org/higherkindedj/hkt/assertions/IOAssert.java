@@ -91,17 +91,6 @@ public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
     return this;
   }
 
-  /** Verifies that the IO produces a null value. */
-  public IOAssert<T> hasValueNull() {
-    whenExecuted();
-    Assertions.assertThat(executedException)
-        .withFailMessage(
-            "Expected IO to produce null but it threw an exception: %s", executedException)
-        .isNull();
-    Assertions.assertThat(executedValue).as("IO value").isNull();
-    return this;
-  }
-
   /** Verifies that the IO throws an exception of the expected type. */
   public IOAssert<T> throwsException(Class<? extends Throwable> expectedType) {
     whenExecuted();

@@ -72,15 +72,12 @@ class LazyTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("now should create evaluated Lazy with null")
-    void nowShouldCreateEvaluatedLazyWithNull() throws Throwable {
-      COUNTER.set(0);
-      Lazy<String> lazy = Lazy.now(null);
-
-      assertThat(COUNTER.get()).isZero();
-      assertThatLazy(lazy).hasNullValue();
-      assertThat(COUNTER.get()).isZero();
-      assertThat(lazy.toString()).isEqualTo("Lazy[null]");
+    @DisplayName("now refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void nowRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Lazy.now(null))
+          .withMessage("Lazy.now value cannot be null");
     }
   }
 
@@ -116,18 +113,20 @@ class LazyTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("force should cache and return null value")
-    void forceShouldCacheAndReturnNullValue() throws Throwable {
+    @DisplayName("force fails, and caches the failure, when the computation returns null")
+    void forceFailsWhenComputationReturnsNull() {
       COUNTER.set(0);
       Lazy<String> lazy = Lazy.defer(nullSupplier());
 
-      // First force
-      assertThat(lazy.force()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(lazy::force)
+          .withMessage("computation must not return null");
       assertThat(COUNTER.get()).isEqualTo(1);
 
-      // Second force - memoised null
-      assertThat(lazy.force()).isNull();
+      // Second force - memoised failure
+      assertThatNullPointerException().isThrownBy(lazy::force);
       assertThat(COUNTER.get()).isEqualTo(1);
+      assertThatLazy(lazy).hasFailed();
     }
 
     @Test
@@ -418,23 +417,6 @@ class LazyTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("Should memoise null value")
-    void shouldMemoiseNullValue() throws Throwable {
-      AtomicInteger counter = new AtomicInteger(0);
-      Lazy<String> lazy =
-          Lazy.defer(
-              () -> {
-                counter.incrementAndGet();
-                return null;
-              });
-
-      lazy.force();
-      lazy.force();
-
-      assertThat(counter.get()).isEqualTo(1);
-    }
-
-    @Test
     @DisplayName("Should memoise exception")
     void shouldMemoiseException() {
       AtomicInteger counter = new AtomicInteger(0);
@@ -680,14 +662,6 @@ class LazyTest extends LazyTestBase {
       Lazy<String> lazy = Lazy.now("hello");
       ThrowableSupplier<?> computation = getComputation(lazy);
       assertThat(computation.get()).isEqualTo("hello");
-    }
-
-    @Test
-    @DisplayName("now(null) supplier returns null when called directly")
-    void nowSupplierReturnsNull() throws Throwable {
-      Lazy<String> lazy = Lazy.now(null);
-      ThrowableSupplier<?> computation = getComputation(lazy);
-      assertThat(computation.get()).isNull();
     }
 
     @Test

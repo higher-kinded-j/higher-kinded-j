@@ -14,7 +14,6 @@ class StateAssertContractTest
 
   private static final StateTuple<Integer, String> T_OK = new StateTuple<>("ok", 42);
   private static final StateTuple<Integer, String> T_OTHER = new StateTuple<>("other", 99);
-  private static final StateTuple<Integer, String> T_NULL_VALUE = new StateTuple<>(null, 42);
 
   @Override
   protected Function<StateTuple<Integer, String>, StateAssert<Integer, String>> entry() {
@@ -44,8 +43,7 @@ class StateAssertContractTest
                     s -> {
                       throw new AssertionError("inner");
                     })),
-        row("hasValueNonNull", T_OK, T_NULL_VALUE, StateAssert::hasValueNonNull),
-        passOnly("hasStateNonNull", T_OK, StateAssert::hasStateNonNull),
-        row("hasNullValue", T_NULL_VALUE, T_OK, StateAssert::hasNullValue));
+        passOnly("hasValueNonNull", T_OK, StateAssert::hasValueNonNull),
+        passOnly("hasStateNonNull", T_OK, StateAssert::hasStateNonNull));
   }
 }

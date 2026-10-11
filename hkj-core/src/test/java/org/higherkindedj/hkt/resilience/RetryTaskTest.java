@@ -209,6 +209,19 @@ class RetryTaskTest {
     }
 
     @Test
+    @DisplayName("retryTaskWithFallback() fails when the fallback returns null")
+    void retryTaskWithFallbackFailsOnANullFallback() {
+      RetryPolicy policy = RetryPolicy.fixed(2, Duration.ofMillis(1));
+      VTask<String> task = VTask.fail(new RuntimeException("always"));
+
+      VTask<String> retried = Retry.retryTaskWithFallback(task, policy, cause -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(retried::run)
+          .withMessage("fallback must not return null");
+    }
+
+    @Test
     @DisplayName("retryTaskWithFallback() validates null arguments")
     void retryTaskWithFallbackValidatesNullArguments() {
       RetryPolicy policy = RetryPolicy.fixed(3, Duration.ofMillis(1));

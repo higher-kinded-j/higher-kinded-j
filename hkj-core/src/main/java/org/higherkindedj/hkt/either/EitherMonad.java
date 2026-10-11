@@ -183,7 +183,6 @@ public class EitherMonad<L> extends EitherFunctor<L>
    * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  @SuppressWarnings("NullableProblems") // Either.Left forbids null
   public <A> Kind<EitherKind.Witness<L>, A> raiseError(L error) {
     Validation.coreType().requireError(error, EitherMonad.class, RAISE_ERROR);
     return EITHER.widen(Either.left(error));

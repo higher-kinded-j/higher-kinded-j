@@ -278,9 +278,10 @@ public final class HkjClientExchange {
   /**
    * Resolves a completed SSE frame, shared by the blank-line frame boundary and end-of-input so the
    * terminal decision lives in one place: an {@code error} event fails with {@link
-   * SseStreamException}; a non-{@code complete} frame carrying data decodes into a {@link
-   * VStream.Seed}; anything else (a {@code complete} frame, or a frame with no data) yields empty.
-   * The caller decides what empty means — continue reading mid-stream, or finish at end-of-input.
+   * SseStreamException}, as does a frame whose data is JSON {@code null}; a non-{@code complete}
+   * frame carrying data decodes into a {@link VStream.Seed}; anything else (a {@code complete}
+   * frame, or a frame with no data) yields empty. The caller decides what empty means — continue
+   * reading mid-stream, or finish at end-of-input.
    */
   private static <T> Optional<VStream.Seed<T, BufferedReader>> emitDataFrame(
       @Nullable String event,
@@ -293,7 +294,12 @@ public final class HkjClientExchange {
       throw new SseStreamException(payload);
     }
     if (!"complete".equals(event) && !data.isEmpty()) {
-      return Optional.of(new VStream.Seed<>(mapper.readValue(payload, elementType), reader));
+      @Nullable T element = mapper.readValue(payload, elementType);
+      // A stream holds no null element, so a frame whose data is JSON null is a bad frame
+      if (element == null) {
+        throw new SseStreamException("SSE frame data is null, and a stream holds no null element");
+      }
+      return Optional.of(new VStream.Seed<>(element, reader));
     }
     return Optional.empty();
   }

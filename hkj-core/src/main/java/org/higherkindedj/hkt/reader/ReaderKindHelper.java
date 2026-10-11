@@ -67,8 +67,10 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *
    * @param <R> The type of the environment required by the {@code Reader}.
    * @param <A> The type of the value produced by the {@code Reader}.
-   * @param runFunction The non-null function {@code (R -> A)} defining the reader's computation.
+   * @param runFunction The non-null function {@code (R -> A)} defining the reader's computation. It
+   *     must not return null.
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the {@code Reader}.
+   *     When run, it throws {@link NullPointerException} if {@code runFunction} returns null.
    * @throws NullPointerException if {@code runFunction} is null.
    */
   public <R, A> Kind<ReaderKind.Witness<R>, A> reader(Function<R, A> runFunction) {
@@ -82,11 +84,12 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *
    * @param <R> The type of the environment (which will be ignored by the {@code Reader}).
    * @param <A> The type of the constant value.
-   * @param value The constant value to be returned by the {@code Reader}.
+   * @param value The non-null constant value to be returned by the {@code Reader}.
    * @return A new, non-null {@code Kind<ReaderKind.Witness<R>, A>} representing the constant {@code
    *     Reader}.
+   * @throws NullPointerException if {@code value} is null.
    */
-  public <R, A> Kind<ReaderKind.Witness<R>, A> constant(@Nullable A value) {
+  public <R, A> Kind<ReaderKind.Witness<R>, A> constant(A value) {
     return this.widen(Reader.constant(value));
   }
 
@@ -116,7 +119,7 @@ public enum ReaderKindHelper implements ReaderConverterOps {
    *     invalid.
    * @throws NullPointerException if {@code environment} is {@code null}.
    */
-  public <R, A> @Nullable A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
+  public <R, A> A runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment) {
     Validation.kind().requireNonNull(kind, RUN_READER);
     // Note: We don't validate environment as null here since Reader interface allows @NonNull R
     // but the specific nullability contract depends on the design of the environment type R

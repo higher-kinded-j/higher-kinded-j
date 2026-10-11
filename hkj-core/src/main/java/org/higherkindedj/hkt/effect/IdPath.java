@@ -63,10 +63,11 @@ public final class IdPath<A> implements Chainable<A> {
   /**
    * Creates a new IdPath wrapping the given Id.
    *
-   * @param value the Id to wrap; must not be null
+   * @param value the Id to wrap; must not be null, and must not hold null
    */
   IdPath(Id<A> value) {
     this.value = Objects.requireNonNull(value, "value must not be null");
+    Objects.requireNonNull(value.value(), "the Id holds null, and an IdPath always holds a value");
   }
 
   /**
@@ -94,32 +95,22 @@ public final class IdPath<A> implements Chainable<A> {
   /**
    * Converts this IdPath to a MaybePath.
    *
-   * <p>The resulting MaybePath will contain the value (Just) since IdPath always has a value. If
-   * the value is null, the result is Nothing.
+   * <p>The resulting MaybePath will contain the value (Just) since IdPath always has a value.
    *
    * @return a MaybePath containing the value
    */
   public MaybePath<A> toMaybePath() {
-    A v = value.value();
-    return v != null ? new MaybePath<>(Maybe.just(v)) : new MaybePath<>(Maybe.nothing());
+    return new MaybePath<>(Maybe.just(value.value()));
   }
 
   /**
    * Converts this IdPath to an EitherPath.
    *
-   * <p>A value that is not null gives a Right. A Right always holds a value, so a null value
-   * throws: {@code toMaybePath().toEitherPath(error)} gives a Left for it instead.
-   *
    * @param <E> the error type for the resulting EitherPath
    * @return an EitherPath containing the value as Right
-   * @throws NullPointerException if the value is null
    */
   public <E> EitherPath<E, A> toEitherPath() {
-    return new EitherPath<>(
-        Either.right(
-            Objects.requireNonNull(
-                value.value(),
-                "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it")));
+    return new EitherPath<>(Either.right(value.value()));
   }
 
   // ===== Composable implementation =====
@@ -127,7 +118,8 @@ public final class IdPath<A> implements Chainable<A> {
   @Override
   public <B> IdPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new IdPath<>(value.map(mapper));
+    return new IdPath<>(
+        value.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -152,7 +144,11 @@ public final class IdPath<A> implements Chainable<A> {
     @SuppressWarnings("unchecked")
     IdPath<B> typedOther = (IdPath<B>) otherId;
 
-    return new IdPath<>(Id.of(combiner.apply(this.value.value(), typedOther.value.value())));
+    return new IdPath<>(
+        Id.of(
+            Objects.requireNonNull(
+                combiner.apply(this.value.value(), typedOther.value.value()),
+                "combiner must not return null")));
   }
 
   /**
@@ -160,7 +156,7 @@ public final class IdPath<A> implements Chainable<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -175,7 +171,10 @@ public final class IdPath<A> implements Chainable<A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     return new IdPath<>(
-        Id.of(combiner.apply(this.value.value(), second.value.value(), third.value.value())));
+        Id.of(
+            Objects.requireNonNull(
+                combiner.apply(this.value.value(), second.value.value(), third.value.value()),
+                "combiner must not return null")));
   }
 
   // ===== Chainable implementation =====
@@ -222,18 +221,22 @@ public final class IdPath<A> implements Chainable<A> {
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside an Id context.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath)}, which reads a null focus as
-   * Nothing.
+   * <p>An IdPath always holds a value, so this form takes a focus that is never null and throws on
+   * a null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath)}, which reads a null focus as Nothing.
    *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new IdPath containing the focused value
-   * @throws NullPointerException if path is null
+   * @throws NullPointerException if path is null, or the focus is null
    */
   public <B> IdPath<B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return new IdPath<>(
+        Id.of(
+            Objects.requireNonNull(
+                path.get(value.value()),
+                "the focus is null: use focus(path.nullable()) to give a Nothing for it")));
   }
 
   /**

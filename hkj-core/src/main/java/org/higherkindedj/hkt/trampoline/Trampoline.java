@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -103,17 +104,17 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
    * Represents a completed computation that holds a final value.
    *
    * @param <A> The type of the value held.
-   * @param value The final value of the computation. Can be {@code null} if {@code A} is a nullable
-   *     type.
+   * @param value The final value of the computation. Must not be {@code null}.
    */
   record Done<A>(A value) implements Trampoline<A> {
     /**
-     * Compact constructor for validation.
+     * Compact constructor with validation.
      *
-     * @param value The value to hold (may be null for nullable types).
+     * @param value The value to hold. Must not be null.
+     * @throws NullPointerException if {@code value} is {@code null}.
      */
     public Done {
-      // No validation needed - value can be null for nullable types
+      Validation.coreType().requireValue(value, TRAMPOLINE_CLASS, CONSTRUCTION);
     }
   }
 
@@ -166,11 +167,13 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
    * Creates a completed {@code Trampoline} with the given value.
    *
    * @param <A> The type of the value.
-   * @param value The final value. Can be {@code null} if {@code A} is a nullable type.
+   * @param value The final value. Must not be {@code null}.
    * @return A {@code Trampoline} that immediately completes with the given value. Never {@code
    *     null}.
+   * @throws NullPointerException if {@code value} is {@code null}.
    */
   static <A> Trampoline<A> done(A value) {
+    Validation.coreType().requireValue(value, TRAMPOLINE_CLASS, DONE);
     return new Done<>(value);
   }
 
@@ -200,14 +203,15 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
    * does not increase stack depth.
    *
    * @param <B> The type of the value produced by the mapping function.
-   * @param f The mapping function. Must not be {@code null}.
+   * @param f The mapping function. Must not be {@code null}, and must not return {@code null}; a
+   *     null result makes {@link #run()} throw a {@link NullPointerException}.
    * @return A new {@code Trampoline} that will apply the mapping function to the result. Never
    *     {@code null}.
    * @throws NullPointerException if {@code f} is {@code null}.
    */
   default <B> Trampoline<B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return flatMap(a -> done(f.apply(a)));
+    return flatMap(a -> done(Objects.requireNonNull(f.apply(a), "f must not return null")));
   }
 
   /**
@@ -315,7 +319,7 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
    * cast to the {@link Continuation.FlatMapCont#apply(Object)} method, making the type erasure
    * explicit, documented, and verified to be safe.
    *
-   * @return The final computed value. Can be {@code null} if {@code A} is a nullable type.
+   * @return The final computed value. Never {@code null}.
    */
   default A run() {
     Trampoline<?> current = this;
@@ -350,7 +354,7 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
   /**
    * Evaluates this {@code Trampoline} and returns the result. Alias for {@link #run()}.
    *
-   * @return The final computed value. Can be {@code null} if {@code A} is a nullable type.
+   * @return The final computed value. Never {@code null}.
    */
   default A runT() {
     return run();

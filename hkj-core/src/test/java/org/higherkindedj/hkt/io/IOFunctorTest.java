@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
@@ -101,14 +102,13 @@ class IOFunctorTest extends IOTestBase {
     }
 
     @Test
-    @DisplayName("map() with null value in IO")
-    void mapWithNullValueInIO() {
-      Kind<IOKind.Witness, Integer> nullKind = ioKind(null);
-      Function<Integer, String> nullSafeMapper = String::valueOf;
+    @DisplayName("map() fails the computation when its function returns null")
+    void mapFailsOnANullResult() {
+      Kind<IOKind.Witness, String> result = functor.map(_ -> null, validKind);
 
-      Kind<IOKind.Witness, String> result = functor.map(nullSafeMapper, nullKind);
-
-      assertThatIO(narrowToIO(result)).hasValue("null");
+      assertThatNullPointerException()
+          .isThrownBy(narrowToIO(result)::unsafeRunSync)
+          .withMessage("f must not return null");
     }
 
     @Test

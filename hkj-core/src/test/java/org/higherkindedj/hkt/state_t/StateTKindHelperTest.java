@@ -60,20 +60,6 @@ class StateTKindHelperTest {
     }
 
     @Test
-    @DisplayName("widen should convert StateT with null value to StateTKind")
-    void widen_nonNullStateTNullValue_shouldReturnStateTKind() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(s, null));
-      StateT<String, OptionalKind.Witness, Integer> concreteStateT = createStateT(runFn);
-
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> wrapped =
-          STATE_T.widen(concreteStateT);
-
-      assertThat(wrapped).isNotNull().isInstanceOf(StateTKind.class);
-      assertThat(STATE_T.narrow(wrapped)).isSameAs(concreteStateT);
-    }
-
-    @Test
     @DisplayName("widen should throw NullPointerException when given null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void widen_nullStateT_shouldThrowNullPointerException() {
@@ -135,20 +121,6 @@ class StateTKindHelperTest {
     void roundTrip_shouldPreserveIdentity() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s, 42));
-      StateT<String, OptionalKind.Witness, Integer> original = createStateT(runFn);
-
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> widened =
-          STATE_T.widen(original);
-      StateT<String, OptionalKind.Witness, Integer> narrowed = STATE_T.narrow(widened);
-
-      assertThat(narrowed).isSameAs(original);
-    }
-
-    @Test
-    @DisplayName("widen then narrow should preserve identity for null value")
-    void roundTrip_nullValue_shouldPreserveIdentity() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(s, null));
       StateT<String, OptionalKind.Witness, Integer> original = createStateT(runFn);
 
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> widened =

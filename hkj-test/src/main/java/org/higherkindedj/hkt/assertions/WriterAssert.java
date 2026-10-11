@@ -56,13 +56,6 @@ public class WriterAssert<W, A> extends AbstractAssert<WriterAssert<W, A>, Write
     return this;
   }
 
-  /** Verifies that the Writer has a null value. */
-  public WriterAssert<W, A> hasNullValue() {
-    isNotNull();
-    Assertions.assertThat(actual.value()).as("Writer value").isNull();
-    return this;
-  }
-
   /** Verifies that the Writer has a non-null value. */
   public WriterAssert<W, A> hasNonNullValue() {
     isNotNull();

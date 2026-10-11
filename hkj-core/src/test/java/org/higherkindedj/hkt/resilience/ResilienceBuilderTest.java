@@ -310,6 +310,18 @@ class ResilienceBuilderTest {
     }
 
     @Test
+    @DisplayName("A fallback that returns null fails the task")
+    void fallbackReturningNullFailsTheTask() {
+      VTask<String> task = VTask.fail(new RuntimeException("boom"));
+
+      VTask<String> resilient = Resilience.<String>builder(task).withFallback(ex -> null).build();
+
+      assertThatNullPointerException()
+          .isThrownBy(resilient::run)
+          .withMessage("fallbackFn must not return null");
+    }
+
+    @Test
     @DisplayName("Fallback receives the causing exception")
     void fallbackReceivesCausingException() {
       RuntimeException cause = new RuntimeException("original error");

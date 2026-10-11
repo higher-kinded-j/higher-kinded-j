@@ -91,15 +91,16 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p>Note: The stream is materialised to a list to allow multiple terminal operations.
    *
-   * @param stream the stream to wrap; must not be null
+   * @param stream the stream to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a StreamPath wrapping the stream
-   * @throws NullPointerException if stream is null
+   * @throws NullPointerException if stream is null, or contains null
    */
   public static <A> StreamPath<A> of(Stream<A> stream) {
     Objects.requireNonNull(stream, "stream must not be null");
     // Materialise to allow multiple uses
-    List<A> materialized = stream.collect(Collectors.toList());
+    List<A> materialized =
+        stream.map(a -> Objects.requireNonNull(a, "stream must not contain null")).toList();
     return new StreamPath<>(materialized::stream);
   }
 
@@ -108,50 +109,66 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p>The supplier is called fresh each time a terminal operation is performed.
    *
-   * @param supplier the stream supplier; must not be null
+   * <p>A null element fails the stream when it is consumed.
+   *
+   * @param supplier the stream supplier; must not be null, and its streams must not contain null
    * @param <A> the element type
    * @return a StreamPath using the supplier
    * @throws NullPointerException if supplier is null
    */
   public static <A> StreamPath<A> fromSupplier(Supplier<Stream<A>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new StreamPath<>(supplier);
+    return new StreamPath<>(
+        () ->
+            supplier
+                .get()
+                .map(a -> Objects.requireNonNull(a, "supplier's stream must not contain null")));
   }
 
   /**
    * Creates a StreamPath from a list.
    *
-   * @param list the list to wrap; must not be null
+   * <p>A null element fails the stream when it is consumed.
+   *
+   * @param list the list to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a StreamPath streaming the list
    * @throws NullPointerException if list is null
    */
   public static <A> StreamPath<A> fromList(List<A> list) {
     Objects.requireNonNull(list, "list must not be null");
-    return new StreamPath<>(list::stream);
+    return new StreamPath<>(
+        () -> list.stream().map(a -> Objects.requireNonNull(a, "list must not contain null")));
   }
 
   /**
    * Creates a StreamPath from varargs.
    *
-   * @param elements the elements
+   * @param elements the elements; must not be null, and must not contain null
    * @param <A> the element type
    * @return a StreamPath containing the elements
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> StreamPath<A> of(A... elements) {
-    List<A> list = Arrays.asList(elements);
+    Objects.requireNonNull(elements, "elements must not be null");
+    List<A> list =
+        Arrays.stream(elements)
+            .map(a -> Objects.requireNonNull(a, "elements must not contain null"))
+            .toList();
     return new StreamPath<>(list::stream);
   }
 
   /**
    * Creates a StreamPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a StreamPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> StreamPath<A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new StreamPath<>(() -> Stream.of(value));
   }
 
@@ -170,15 +187,19 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p><b>Warning:</b> This creates an infinite stream. Use {@link #take(long)} to limit.
    *
-   * @param seed the initial value
-   * @param f the function to generate next values; must not be null
+   * @param seed the initial value; must not be null
+   * @param f the function to generate next values; must not be null, and must not return null
    * @param <A> the element type
    * @return an infinite StreamPath
-   * @throws NullPointerException if f is null
+   * @throws NullPointerException if seed or f is null
    */
   public static <A> StreamPath<A> iterate(A seed, UnaryOperator<A> f) {
+    Objects.requireNonNull(seed, "seed must not be null");
     Objects.requireNonNull(f, "f must not be null");
-    return new StreamPath<>(() -> Stream.iterate(seed, f));
+    return new StreamPath<>(
+        () ->
+            Stream.iterate(
+                seed, a -> Objects.requireNonNull(f.apply(a), "f must not return null")));
   }
 
   /**
@@ -186,14 +207,17 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p><b>Warning:</b> This creates an infinite stream. Use {@link #take(long)} to limit.
    *
-   * @param supplier the element supplier; must not be null
+   * @param supplier the element supplier; must not be null, and must not return null
    * @param <A> the element type
    * @return an infinite StreamPath
    * @throws NullPointerException if supplier is null
    */
   public static <A> StreamPath<A> generate(Supplier<A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new StreamPath<>(() -> Stream.generate(supplier));
+    return new StreamPath<>(
+        () ->
+            Stream.generate(
+                () -> Objects.requireNonNull(supplier.get(), "supplier must not return null")));
   }
 
   // ===== Terminal Operations =====
@@ -239,7 +263,11 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   @Override
   public <B> StreamPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new StreamPath<>(() -> streamSupplier.get().map(mapper));
+    return new StreamPath<>(
+        () ->
+            streamSupplier
+                .get()
+                .map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -269,7 +297,13 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
           List<A> thisElements = this.toList();
           List<B> otherElements = typedOther.toList();
           return thisElements.stream()
-              .flatMap(a -> otherElements.stream().map(b -> combiner.apply(a, b)));
+              .flatMap(
+                  a ->
+                      otherElements.stream()
+                          .map(
+                              b ->
+                                  Objects.requireNonNull(
+                                      combiner.apply(a, b), "combiner must not return null")));
         });
   }
 

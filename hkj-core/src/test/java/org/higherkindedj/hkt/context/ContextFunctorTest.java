@@ -141,32 +141,14 @@ class ContextFunctorTest {
   class EdgeCases {
 
     @Test
-    @DisplayName("map() should handle null values in Context")
-    @SuppressWarnings("ConstantValue") // succeed(null) feeds a null value the mapper must handle
-    void map_shouldHandleNullValues() {
-      Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.succeed(null);
-
-      Kind<ContextKind.Witness<String>, String> kindB =
-          functor.map(s -> s == null ? "was-null" : s, kindA);
-
-      Context<String, String> ctx = CONTEXT.narrow(kindB);
-      String result = ctx.run();
-
-      assertThat(result).isEqualTo("was-null");
-    }
-
-    @Test
-    @DisplayName("map() should handle mapper returning null")
-    @SuppressWarnings("DataFlowIssue") // mapper deliberately returns null to verify pass-through
-    void map_shouldHandleMapperReturningNull() {
+    @DisplayName("map() fails when its mapper returns null")
+    void map_failsWhenMapperReturnsNull() {
       Kind<ContextKind.Witness<String>, String> kindA = CONTEXT.succeed("test");
 
       Kind<ContextKind.Witness<String>, String> kindB = functor.map(_ -> null, kindA);
 
       Context<String, String> ctx = CONTEXT.narrow(kindB);
-      String result = ctx.run();
-
-      assertThat(result).isNull();
+      assertThatNullPointerException().isThrownBy(ctx::run).withMessage("f must not return null");
     }
   }
 }

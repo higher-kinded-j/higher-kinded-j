@@ -436,16 +436,19 @@ public final class Path {
    * Creates an IOPath with a deferred computation.
    *
    * <p>The supplier is not executed until {@link IOPath#unsafeRun()} or {@link IOPath#runSafe()} is
-   * called.
+   * called. An IO always gives a value, so a supplier that returns null fails the path with a
+   * {@link NullPointerException} when it runs; for a step with nothing to return, use {@link
+   * #ioRunnable(Runnable)}.
    *
-   * @param supplier the computation to defer; must not be null
+   * @param supplier the computation to defer; must not be null, and must not return null
    * @param <A> the type of the result
    * @return an IOPath representing the deferred computation
    * @throws NullPointerException if supplier is null
    */
   public static <A> IOPath<A> io(Supplier<A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new IOPath<>(IO.delay(supplier));
+    return new IOPath<>(
+        IO.delay(() -> Objects.requireNonNull(supplier.get(), "supplier must not return null")));
   }
 
   /**
@@ -466,13 +469,16 @@ public final class Path {
   /**
    * Creates an IOPath containing a pure value.
    *
-   * <p>The value is already computed; no side effects occur when this IOPath is run.
+   * <p>The value is already computed; no side effects occur when this IOPath is run. For a step
+   * with nothing to return, pass {@link Unit#INSTANCE}.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param <A> the type of the value
    * @return an IOPath that immediately produces the value when run
+   * @throws NullPointerException if value is null
    */
   public static <A> IOPath<A> ioPure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new IOPath<>(IO.delay(() -> value));
   }
 
@@ -495,9 +501,11 @@ public final class Path {
    * Creates a VTaskPath with a deferred computation that executes on a virtual thread.
    *
    * <p>The callable is not executed until {@link VTaskPath#unsafeRun()} or {@link
-   * VTaskPath#runSafe()} is called.
+   * VTaskPath#runSafe()} is called. A VTask always gives a value, so a callable that returns null
+   * fails the path with a {@link NullPointerException} when it runs; for a step with nothing to
+   * return, use {@link #vtaskExec(Runnable)}.
    *
-   * @param callable the computation to defer; must not be null
+   * @param callable the computation to defer; must not be null, and must not return null
    * @param <A> the type of the result
    * @return a VTaskPath representing the deferred computation
    * @throws NullPointerException if callable is null
@@ -525,13 +533,16 @@ public final class Path {
   /**
    * Creates a VTaskPath containing a pure value.
    *
-   * <p>The value is already computed; no side effects occur when this VTaskPath is run.
+   * <p>The value is already computed; no side effects occur when this VTaskPath is run. For a step
+   * with nothing to return, pass {@link Unit#INSTANCE}.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param <A> the type of the value
    * @return a VTaskPath that immediately produces the value when run
+   * @throws NullPointerException if value is null
    */
   public static <A> VTaskPath<A> vtaskPure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new DefaultVTaskPath<>(VTask.succeed(value));
   }
 
@@ -783,21 +794,25 @@ public final class Path {
   /**
    * Creates an IdPath containing the given value.
    *
-   * @param value the value to wrap
+   * <p>An IdPath always holds a value. For a value that may be missing, use {@link #maybe(Object)}.
+   *
+   * @param value the value to wrap; must not be null
    * @param <A> the type of the value
    * @return an IdPath containing the value
+   * @throws NullPointerException if value is null
    */
-  public static <A> IdPath<A> id(@Nullable A value) {
+  public static <A> IdPath<A> id(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new IdPath<>(Id.of(value));
   }
 
   /**
    * Creates an IdPath from an existing Id.
    *
-   * @param id the Id to wrap; must not be null
+   * @param id the Id to wrap; must not be null, and must not hold null
    * @param <A> the type of the value
    * @return an IdPath wrapping the Id
-   * @throws NullPointerException if id is null
+   * @throws NullPointerException if id is null, or holds null
    */
   public static <A> IdPath<A> idPath(Id<A> id) {
     Objects.requireNonNull(id, "id must not be null");
@@ -895,10 +910,11 @@ public final class Path {
   /**
    * Creates a ReaderPath that returns a pure value, ignoring the environment.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param <R> the environment type (phantom)
    * @param <A> the value type
    * @return a ReaderPath that always returns the given value
+   * @throws NullPointerException if value is null
    */
   public static <R, A> ReaderPath<R, A> readerPure(A value) {
     return ReaderPath.pure(value);
@@ -946,10 +962,11 @@ public final class Path {
   /**
    * Creates a WithStatePath that returns a pure value without modifying state.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param <S> the state type
    * @param <A> the value type
    * @return a WithStatePath that always returns the given value
+   * @throws NullPointerException if value is null
    */
   public static <S, A> WithStatePath<S, A> statePure(A value) {
     return WithStatePath.pure(value);
@@ -1010,12 +1027,12 @@ public final class Path {
   /**
    * Creates a WriterPath with a pure value and empty log.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param monoid the Monoid for log accumulation; must not be null
    * @param <W> the log type
    * @param <A> the value type
    * @return a WriterPath with empty log
-   * @throws NullPointerException if monoid is null
+   * @throws NullPointerException if value or monoid is null
    */
   public static <W, A> WriterPath<W, A> writerPure(A value, Monoid<W> monoid) {
     return WriterPath.pure(value, monoid);
@@ -1052,9 +1069,10 @@ public final class Path {
   /**
    * Creates an already-evaluated LazyPath.
    *
-   * @param value the value
+   * @param value the value; must not be null
    * @param <A> the value type
    * @return a LazyPath holding the value
+   * @throws NullPointerException if value is null
    */
   public static <A> LazyPath<A> lazyNow(A value) {
     return LazyPath.now(value);
@@ -1063,7 +1081,7 @@ public final class Path {
   /**
    * Creates a LazyPath that defers computation.
    *
-   * @param supplier the computation to defer; must not be null
+   * @param supplier the computation to defer; must not be null, and must not return null
    * @param <A> the value type
    * @return a LazyPath that defers computation
    * @throws NullPointerException if supplier is null
@@ -1077,6 +1095,12 @@ public final class Path {
   /**
    * Creates a CompletableFuturePath from an existing CompletableFuture.
    *
+   * <p>A CompletableFuturePath always gives a value, so a future that completes with null fails the
+   * path with a {@link NullPointerException}. For a future with nothing to return, such as one from
+   * {@link CompletableFuture#runAsync(Runnable)}, map its result to {@link Unit#INSTANCE} first.
+   * The path holds a future that mirrors the one given: it completes, fails or is cancelled as the
+   * given one does, and cancelling it cancels the given one too.
+   *
    * @param future the CompletableFuture to wrap; must not be null
    * @param <A> the value type
    * @return a CompletableFuturePath wrapping the future
@@ -1089,9 +1113,10 @@ public final class Path {
   /**
    * Creates an already-completed CompletableFuturePath.
    *
-   * @param value the completed value
+   * @param value the completed value; must not be null
    * @param <A> the value type
    * @return a completed CompletableFuturePath
+   * @throws NullPointerException if value is null
    */
   public static <A> CompletableFuturePath<A> futureCompleted(A value) {
     return CompletableFuturePath.completed(value);
@@ -1112,7 +1137,7 @@ public final class Path {
   /**
    * Creates a CompletableFuturePath from an async computation.
    *
-   * @param supplier the async computation; must not be null
+   * @param supplier the async computation; must not be null, and must not return null
    * @param <A> the value type
    * @return a CompletableFuturePath running asynchronously
    * @throws NullPointerException if supplier is null
@@ -1236,10 +1261,10 @@ public final class Path {
    *
    * <p>Note: The stream is materialised for reusability.
    *
-   * @param stream the stream to wrap; must not be null
+   * @param stream the stream to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a StreamPath wrapping the stream
-   * @throws NullPointerException if stream is null
+   * @throws NullPointerException if stream is null, or contains null
    */
   public static <A> StreamPath<A> stream(Stream<A> stream) {
     return StreamPath.of(stream);
@@ -1248,7 +1273,8 @@ public final class Path {
   /**
    * Creates a StreamPath from a List.
    *
-   * @param list the list to stream; must not be null
+   * @param list the list to stream; must not be null, and must not contain null, which fails the
+   *     stream when it is consumed
    * @param <A> the element type
    * @return a StreamPath streaming the list
    * @throws NullPointerException if list is null
@@ -1260,9 +1286,10 @@ public final class Path {
   /**
    * Creates a StreamPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a StreamPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> StreamPath<A> streamPure(A value) {
     return StreamPath.pure(value);
@@ -1283,11 +1310,11 @@ public final class Path {
    *
    * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
    *
-   * @param seed the initial value
-   * @param f the iteration function; must not be null
+   * @param seed the initial value; must not be null
+   * @param f the iteration function; must not be null, and must not return null
    * @param <A> the element type
    * @return an infinite StreamPath
-   * @throws NullPointerException if f is null
+   * @throws NullPointerException if seed or f is null
    */
   public static <A> StreamPath<A> streamIterate(A seed, UnaryOperator<A> f) {
     return StreamPath.iterate(seed, f);
@@ -1313,10 +1340,10 @@ public final class Path {
   /**
    * Creates a VStreamPath from the given elements.
    *
-   * @param elements the elements to include; must not be null
+   * @param elements the elements to include; must not be null, and must not contain null
    * @param <A> the element type
    * @return a VStreamPath containing the elements
-   * @throws NullPointerException if elements is null
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> VStreamPath<A> vstreamOf(A... elements) {
@@ -1329,7 +1356,8 @@ public final class Path {
    *
    * <p>The list is iterated lazily; it is not copied.
    *
-   * @param list the list to stream; must not be null
+   * @param list the list to stream; must not be null, and must not contain null, which fails the
+   *     stream when it is pulled
    * @param <A> the element type
    * @return a VStreamPath streaming the list
    * @throws NullPointerException if list is null
@@ -1342,11 +1370,13 @@ public final class Path {
   /**
    * Creates a VStreamPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a VStreamPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> VStreamPath<A> vstreamPure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new DefaultVStreamPath<>(VStream.of(value));
   }
 
@@ -1365,13 +1395,14 @@ public final class Path {
    *
    * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
    *
-   * @param seed the initial value
-   * @param f the iteration function; must not be null
+   * @param seed the initial value; must not be null
+   * @param f the iteration function; must not be null, and must not return null
    * @param <A> the element type
    * @return an infinite VStreamPath
-   * @throws NullPointerException if f is null
+   * @throws NullPointerException if seed or f is null
    */
   public static <A> VStreamPath<A> vstreamIterate(A seed, UnaryOperator<A> f) {
+    Objects.requireNonNull(seed, "seed must not be null");
     Objects.requireNonNull(f, "f must not be null");
     return new DefaultVStreamPath<>(VStream.iterate(seed, f));
   }
@@ -1381,7 +1412,7 @@ public final class Path {
    *
    * <p><b>Warning:</b> Use {@code take()} to limit infinite streams.
    *
-   * @param supplier the element supplier; must not be null
+   * @param supplier the element supplier; must not be null, and must not return null
    * @param <A> the element type
    * @return an infinite VStreamPath
    * @throws NullPointerException if supplier is null
@@ -1510,9 +1541,10 @@ public final class Path {
   /**
    * Creates a TrampolinePath with an immediate value.
    *
-   * @param value the completed value
+   * @param value the completed value; must not be null
    * @param <A> the value type
    * @return a TrampolinePath containing the value
+   * @throws NullPointerException if value is null
    */
   public static <A> TrampolinePath<A> trampolineDone(A value) {
     return TrampolinePath.done(value);
@@ -1550,12 +1582,12 @@ public final class Path {
   /**
    * Creates a FreePath containing a pure value.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param functor the Functor instance for F; must not be null
    * @param <F> the functor witness type
    * @param <A> the value type
    * @return a FreePath containing the value
-   * @throws NullPointerException if functor is null
+   * @throws NullPointerException if value or functor is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> freePure(
       A value, Functor<F> functor) {
@@ -1597,12 +1629,12 @@ public final class Path {
   /**
    * Creates a FreeApPath containing a pure value.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param functor the Functor instance for F; must not be null
    * @param <F> the functor witness type
    * @param <A> the value type
    * @return a FreeApPath containing the value
-   * @throws NullPointerException if functor is null
+   * @throws NullPointerException if value or functor is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> freeApPure(
       A value, Functor<F> functor) {

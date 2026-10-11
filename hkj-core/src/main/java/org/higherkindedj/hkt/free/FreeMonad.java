@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Monad implementation for {@link FreeKind}.
@@ -36,11 +35,14 @@ public class FreeMonad<F extends WitnessArity<TypeArity.Unary>> extends FreeFunc
    * Lifts a pure value into the Free monad context.
    *
    * @param <A> The type of the value
-   * @param value The value to lift, can be null
+   * @param value The value to lift. Must not be null.
    * @return A Kind representing Pure(value)
+   * @throws NullPointerException if value is null
    */
   @Override
-  public <A> Kind<FreeKind.Witness<F>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Free.Pure forbids null
+  public <A> Kind<FreeKind.Witness<F>, A> of(A value) {
+    Validation.coreType().requireValue(value, FreeMonad.class, OF);
     return FREE.widen(Free.pure(value));
   }
 

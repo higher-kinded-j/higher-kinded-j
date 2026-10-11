@@ -19,7 +19,6 @@ class WriterAssertContractTest
   private static final Writer<String, Integer> W_LOG_99 = new Writer<>("log", 99);
   private static final Writer<String, Integer> W_OTHER_42 = new Writer<>("other", 42);
   private static final Writer<String, Integer> W_EMPTY_LOG = new Writer<>("", 42);
-  private static final Writer<String, Integer> W_NULL_VAL = new Writer<>("log", null);
 
   @Override
   protected Function<Writer<String, Integer>, WriterAssert<String, Integer>> entry() {
@@ -31,8 +30,7 @@ class WriterAssertContractTest
     return Stream.of(
         row("hasLog match", W_LOG_42, W_OTHER_42, a -> a.hasLog("log")),
         row("hasValue match", W_LOG_42, W_LOG_99, a -> a.hasValue(42)),
-        row("hasNullValue", W_NULL_VAL, W_LOG_42, WriterAssert::hasNullValue),
-        row("hasNonNullValue", W_LOG_42, W_NULL_VAL, WriterAssert::hasNonNullValue),
+        passOnly("hasNonNullValue", W_LOG_42, WriterAssert::hasNonNullValue),
         row("hasEmptyLog", W_EMPTY_LOG, W_LOG_42, WriterAssert::hasEmptyLog),
         passOnly("satisfiesLog passes", W_LOG_42, a -> a.satisfiesLog(l -> {})),
         failOnly(

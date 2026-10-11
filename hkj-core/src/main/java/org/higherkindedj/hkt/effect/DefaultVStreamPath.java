@@ -56,7 +56,8 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   @Override
   public <B> VStreamPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new DefaultVStreamPath<>(stream.map(mapper));
+    return new DefaultVStreamPath<>(
+        stream.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -113,7 +114,11 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
     @SuppressWarnings("unchecked")
     VStreamPath<B> typedOther = (VStreamPath<B>) otherVStream;
 
-    return new DefaultVStreamPath<>(stream.zipWith(typedOther.run(), combiner::apply));
+    return new DefaultVStreamPath<>(
+        stream.zipWith(
+            typedOther.run(),
+            (a, b) ->
+                Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
   }
 
   @Override
@@ -129,7 +134,12 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
     VStream<D> zipped =
         stream
             .zipWith(second.run(), Pair::new)
-            .zipWith(third.run(), (pair, c) -> combiner.apply(pair.first(), pair.second(), c));
+            .zipWith(
+                third.run(),
+                (pair, c) ->
+                    Objects.requireNonNull(
+                        combiner.apply(pair.first(), pair.second(), c),
+                        "combiner must not return null"));
 
     return new DefaultVStreamPath<>(zipped);
   }
@@ -184,12 +194,14 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
 
   @Override
   public VTaskPath<A> fold(A identity, BinaryOperator<A> op) {
+    Objects.requireNonNull(identity, "identity must not be null");
     Objects.requireNonNull(op, "op must not be null");
     return new DefaultVTaskPath<>(stream.fold(identity, op));
   }
 
   @Override
   public <B> VTaskPath<B> foldLeft(B identity, BiFunction<B, A, B> f) {
+    Objects.requireNonNull(identity, "identity must not be null");
     Objects.requireNonNull(f, "f must not be null");
     return new DefaultVTaskPath<>(stream.foldLeft(identity, f));
   }
@@ -278,7 +290,9 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   @Override
   public VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
-    return new DefaultVStreamPath<>(stream.recover(recovery));
+    return new DefaultVStreamPath<>(
+        stream.recover(
+            t -> Objects.requireNonNull(recovery.apply(t), "recovery must not return null")));
   }
 
   @Override
@@ -340,7 +354,10 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   @Override
   public <B> VStreamPath<B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a), "the focus is null: use focus(path.nullable()) to leave it out"));
   }
 
   @Override

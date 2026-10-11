@@ -109,6 +109,8 @@ Kind<IOKind.Witness, Long> currentTime = IO_OP.delay(System::currentTimeMillis);
 ```
 
 None of these execute when created. The `Supplier` inside `delay` is stored, not called.
+
+An IO always gives a value, so `printHello` returns `Unit.INSTANCE` rather than `null`. A supplier or `map` function that returns null fails the IO when it runs, naming that function, and `ioMonad.of(null)` throws at the call. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 ~~~
 
 ~~~admonish example title="Executing IO Actions"

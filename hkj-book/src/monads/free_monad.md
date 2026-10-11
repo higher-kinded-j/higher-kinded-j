@@ -90,6 +90,8 @@ That is the Free monad's value: **write once, interpret many ways**.
 | `Free.liftF(fa, functor)` | Lifts a single instruction into a Free program |
 | `free.foldMap(transform, monad)` | Interprets the program using a natural transformation, stack-safe via Trampoline |
 
+A program always gives a value: `Free.pure(null)` throws at the call, and a `map` function that returns null fails the program when it is interpreted. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
 ~~~admonish note title="How foldMap Works"
 ```
 Free program (tree):                  foldMap walks it:

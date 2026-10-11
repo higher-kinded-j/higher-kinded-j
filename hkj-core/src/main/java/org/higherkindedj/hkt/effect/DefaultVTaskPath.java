@@ -74,7 +74,8 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public <B> VTaskPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new DefaultVTaskPath<>(value.map(mapper));
+    return new DefaultVTaskPath<>(
+        value.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -103,7 +104,12 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     @SuppressWarnings("unchecked")
     VTaskPath<B> typedOther = (VTaskPath<B>) otherVTask;
 
-    return new DefaultVTaskPath<>(Par.map2(this.run(), typedOther.run(), combiner));
+    return new DefaultVTaskPath<>(
+        Par.map2(
+            this.run(),
+            typedOther.run(),
+            (a, b) ->
+                Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
   }
 
   @Override
@@ -116,7 +122,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     // Adapt the combiner to match Par.map3's invariant signature
-    Function3<A, B, C, D> adaptedCombiner = (a, b, c) -> combiner.apply(a, b, c);
+    Function3<A, B, C, D> adaptedCombiner =
+        (a, b, c) ->
+            Objects.requireNonNull(combiner.apply(a, b, c), "combiner must not return null");
     return new DefaultVTaskPath<>(Par.map3(this.run(), second.run(), third.run(), adaptedCombiner));
   }
 
@@ -178,7 +186,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public VTaskPath<A> handleError(Function<? super Throwable, ? extends A> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
-    return new DefaultVTaskPath<>(value.recover(recovery));
+    return new DefaultVTaskPath<>(
+        value.recover(
+            t -> Objects.requireNonNull(recovery.apply(t), "recovery must not return null")));
   }
 
   @Override
@@ -213,7 +223,12 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public <B> VTaskPath<B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), exceptionIfAbsent) to fail with an"
+                    + " exception of your own"));
   }
 
   @Override
@@ -277,10 +292,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
         VTask.delay(
             () -> {
               try {
-                return Either.right(
-                    Objects.requireNonNull(
-                        this.unsafeRun(),
-                        "the computation returned null, and a Right always holds a value"));
+                return Either.right(this.unsafeRun());
               } catch (Throwable t) {
                 return Either.left(
                     ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));

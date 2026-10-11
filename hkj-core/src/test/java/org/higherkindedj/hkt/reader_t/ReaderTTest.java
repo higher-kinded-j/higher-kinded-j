@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -98,6 +99,17 @@ class ReaderTTest {
           ReaderT.reader(outerMonad, simpleFunction);
 
       assertThat(unwrapT(rt)).isPresent().contains(environment.length());
+    }
+
+    @Test
+    @DisplayName("reader fails when run if its function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void reader_failsWhenFunctionReturnsNull() {
+      ReaderT<OptionalKind.Witness, String, Integer> rt = ReaderT.reader(outerMonad, _ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> unwrapT(rt))
+          .withMessage("f must not return null");
     }
 
     @Test

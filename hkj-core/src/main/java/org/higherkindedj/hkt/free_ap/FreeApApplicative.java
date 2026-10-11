@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.free_ap;
 
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP_2;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -12,7 +14,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Applicative instance for FreeAp.
@@ -90,12 +91,15 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
   /**
    * Lifts a pure value into FreeAp.
    *
-   * @param value The value to lift (can be null if A allows null)
+   * @param value The value to lift. Must not be null.
    * @param <A> The type of the value
    * @return A FreeAp containing the pure value
+   * @throws NullPointerException if value is null
    */
   @Override
-  public <A> Kind<FreeApKind.Witness<F>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // FreeAp.Pure forbids null
+  public <A> Kind<FreeApKind.Witness<F>, A> of(A value) {
+    Validation.coreType().requireValue(value, FreeApApplicative.class, OF);
     return FREE_AP.widen(FreeAp.pure(value));
   }
 
@@ -106,7 +110,8 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
    * computations do not depend on each other and can potentially be executed in parallel by smart
    * interpreters.
    *
-   * @param ff The FreeAp containing the function. Must not be null.
+   * @param ff The FreeAp containing the function. Must not be null, and its function must not
+   *     return null; a null result fails the interpretation with a NullPointerException.
    * @param fa The FreeAp containing the value. Must not be null.
    * @param <A> The input type of the function
    * @param <B> The output type of the function
@@ -150,6 +155,7 @@ public class FreeApApplicative<F extends WitnessArity<TypeArity.Unary>> extends 
     Validation.kind().requireNonNull(fb, MAP_2, "second");
     Validation.function().require(f, "combining function", MAP_2);
 
-    return ap(map(a -> b -> f.apply(a, b), fa), fb);
+    return ap(
+        map(a -> b -> Objects.requireNonNull(f.apply(a, b), "f must not return null"), fa), fb);
   }
 }

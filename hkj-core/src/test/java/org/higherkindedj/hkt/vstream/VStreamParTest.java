@@ -930,23 +930,6 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("merge handles null element values through the merge queue")
-    void mergeHandlesNullElementValues() {
-      // VStream.Step.Emit allows @Nullable value; exercises MergeSignal.Element(@Nullable)
-      VStream<String> withNull =
-          VStream.defer(
-              () -> {
-                VStream<String> tail = VStream.of("b");
-                return () -> VTask.succeed(new VStream.Step.Emit<>(null, tail));
-              });
-      VStream<String> plain = VStream.of("c");
-
-      List<String> result = VStreamPar.merge(withNull, plain).toList().run();
-
-      assertThat(result).containsExactlyInAnyOrder(null, "b", "c");
-    }
-
-    @Test
     @DisplayName("merge handles empty sources mixed with non-empty sources")
     void mergeEmptyAndNonEmptySources() {
       // Empty sources send SourceDone immediately, exercising the SourceDone → Skip
@@ -1418,6 +1401,36 @@ class VStreamParTest {
       VStream<Integer> result = VStreamPar.parEvalMapUnordered(stream, 3, _ -> null);
 
       assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("A hand-written task that returns null fails parEvalMap, in order or not")
+    @SuppressWarnings("DataFlowIssue") // the task deliberately returns null
+    void aTaskThatReturnsNullFailsTheStream() {
+      VTask<Integer> returnsNull = () -> null;
+
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> VStreamPar.parEvalMap(VStream.of(1, 2), 2, _ -> returnsNull).toList().run())
+          .withMessage("the task returned null, and a VTask always gives a value");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  VStreamPar.parEvalMapUnordered(VStream.of(1, 2), 2, _ -> returnsNull)
+                      .toList()
+                      .run())
+          .withMessage("the task returned null, and a VTask always gives a value");
+    }
+
+    @Test
+    @DisplayName("parEvalFlatMap fails when its function returns null")
+    @SuppressWarnings("DataFlowIssue") // the function deliberately returns null
+    void parEvalFlatMapRefusesANullStream() {
+      VStream<Integer> result = VStreamPar.parEvalFlatMap(VStream.of(1), 2, _ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> result.toList().run())
+          .withMessage("f must not return null");
     }
 
     @Test

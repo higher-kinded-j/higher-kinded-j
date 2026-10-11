@@ -82,7 +82,7 @@ public final class VTaskContext<A> {
    *
    * <p>The computation is not executed until {@link #run()} or similar methods are called.
    *
-   * @param callable the computation to execute; must not be null
+   * @param callable the computation to execute; must not be null, and must not return null
    * @param <A> the result type
    * @return a new VTaskContext wrapping the computation
    * @throws NullPointerException if callable is null
@@ -111,9 +111,10 @@ public final class VTaskContext<A> {
    *
    * <p>The value is already computed; no side effects occur when this context is run.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param <A> the value type
    * @return a new VTaskContext that immediately produces the value when run
+   * @throws NullPointerException if value is null
    */
   public static <A> VTaskContext<A> pure(A value) {
     return new VTaskContext<>(Path.vtaskPure(value));
@@ -237,7 +238,8 @@ public final class VTaskContext<A> {
    * <p>If this context fails, the recovery function is applied to produce a success value. If this
    * context succeeds, it is returned unchanged.
    *
-   * @param recovery the function to apply to the error to produce a value; must not be null
+   * @param recovery the function to apply to the error to produce a value; must not be null, and
+   *     must not return null
    * @return a context containing either the original value or the recovered value
    * @throws NullPointerException if recovery is null
    */
@@ -353,9 +355,8 @@ public final class VTaskContext<A> {
    * Executes the computation eagerly and returns the result wrapped in a Try.
    *
    * <p>This is the primary execution method. It runs the VTask immediately and captures the result
-   * or any exception in a Try. A Success always holds a value, so a computation that returns null
-   * gives a Failure holding a {@link NullPointerException}; {@link #runOrThrow()}, {@link
-   * #runOrElse(Object)} and {@link #runOrElseGet(Function)} hand the null back instead.
+   * or any exception in a Try. A VTask always gives a value, so a computation that returns null
+   * fails with a {@link NullPointerException}, here and in the other run methods.
    *
    * @return a Try containing the result or exception
    */
@@ -390,10 +391,12 @@ public final class VTaskContext<A> {
   /**
    * Executes the computation and returns the result, or a default on failure.
    *
-   * @param defaultValue the value to return if the computation fails
+   * @param defaultValue the value to return if the computation fails; must not be null
    * @return the success value or the default
+   * @throws NullPointerException if defaultValue is null
    */
   public A runOrElse(A defaultValue) {
+    Objects.requireNonNull(defaultValue, "defaultValue must not be null");
     try {
       return path.unsafeRun();
     } catch (Exception e) {
@@ -404,16 +407,17 @@ public final class VTaskContext<A> {
   /**
    * Executes the computation and returns the result, or applies a handler on failure.
    *
-   * @param errorHandler the function to apply to the error to produce a value; must not be null
+   * @param errorHandler the function to apply to the error to produce a value; must not be null,
+   *     and must not return null
    * @return the success value or the result of the error handler
-   * @throws NullPointerException if errorHandler is null
+   * @throws NullPointerException if errorHandler is null, or returns null
    */
   public A runOrElseGet(Function<? super Throwable, ? extends A> errorHandler) {
     Objects.requireNonNull(errorHandler, "errorHandler must not be null");
     try {
       return path.unsafeRun();
     } catch (Exception e) {
-      return errorHandler.apply(e);
+      return Objects.requireNonNull(errorHandler.apply(e), "errorHandler must not return null");
     }
   }
 

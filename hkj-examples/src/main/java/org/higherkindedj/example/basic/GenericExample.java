@@ -68,9 +68,9 @@ public class GenericExample {
     // checkedKind now represents Kind<OptionalKind.Witness, String> containing Optional.of("Long
     // enough")
 
-    // --- Using MonadError (for Optional, error type is Void) ---
+    // --- Using MonadError (for Optional, error type is Unit) ---
     Kind<OptionalKind.Witness, String> emptyKind =
-        optionalMonad.raiseError(null); // Represents Optional.empty()
+        optionalMonad.raiseError(Unit.INSTANCE); // Represents Optional.empty()
     // Handle the empty case (error state) using handleError
     Kind<OptionalKind.Witness, String> handledKind =
         optionalMonad.handleError(

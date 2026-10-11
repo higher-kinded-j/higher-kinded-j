@@ -319,6 +319,9 @@ final class FirstSuccessEitherJoiner<E, T>
 @SuppressWarnings("preview")
 final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
 
+  private static final String NULL_TASK_RESULT =
+      "the task returned null, and a VTask always gives a value";
+
   private final JoinerSource<T, List<T>> joiners = new JoinerSource<>(AllSucceedJoiner::newJoiner);
 
   @Override
@@ -352,7 +355,10 @@ final class AllSucceedJoiner<T> implements ScopeJoiner<T, List<T>> {
       @Override
       public List<T> result() throws Throwable {
         // Extract values from Subtasks and collect to List
-        return builtIn.result().map(StructuredTaskScope.Subtask::get).toList();
+        return builtIn
+            .result()
+            .map(subtask -> Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT))
+            .toList();
       }
     };
   }
@@ -446,6 +452,9 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
 @SuppressWarnings("preview")
 final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>, List<T>>> {
 
+  private static final String NULL_TASK_RESULT =
+      "the task returned null, and a VTask always gives a value";
+
   private final JoinerSource<T, Validated<List<E>, List<T>>> joiners;
 
   AccumulatingJoiner(Function<Throwable, E> errorMapper) {
@@ -488,6 +497,9 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
           for (StructuredTaskScope.Subtask<? extends T> subtask : allSubtasks) {
             if (subtask.state() == StructuredTaskScope.Subtask.State.FAILED) {
               errors.add(errorMapper.apply(subtask.exception()));
+            } else if (subtask.get() == null) {
+              // A hand-written task may still return null, which counts as a failure
+              errors.add(errorMapper.apply(new NullPointerException(NULL_TASK_RESULT)));
             } else {
               successes.add(subtask.get());
             }

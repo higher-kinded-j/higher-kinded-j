@@ -75,6 +75,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class VStreamPar {
 
+  private static final String NULL_TASK_RESULT =
+      "the task returned null, and a VTask always gives a value";
+
   private VStreamPar() {
     // Utility class - prevent instantiation
   }
@@ -87,7 +90,7 @@ public final class VStreamPar {
    */
   private sealed interface MergeSignal<A> {
     /** An element produced by a source stream. */
-    record Element<A>(@Nullable A value) implements MergeSignal<A> {}
+    record Element<A>(A value) implements MergeSignal<A> {}
 
     /** A source stream has been exhausted. */
     record SourceDone<A>() implements MergeSignal<A> {}
@@ -247,7 +250,10 @@ public final class VStreamPar {
     }
 
     // Create sub-streams concurrently, then concatenate lazily without materialising
-    return parEvalMap(stream, concurrency, a -> VTask.of(() -> f.apply(a)))
+    return parEvalMap(
+            stream,
+            concurrency,
+            a -> VTask.of(() -> Objects.requireNonNull(f.apply(a), "f must not return null")))
         .flatMap(Function.identity());
   }
 
@@ -641,7 +647,8 @@ public final class VStreamPar {
 
             List<B> results = new ArrayList<>(subtasks.size());
             for (var subtask : subtasks) {
-              results.add(subtask.get());
+              // A task written by hand can still return null
+              results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
             }
             return results;
           } catch (StructuredTaskScope.FailedException e) {
@@ -676,7 +683,8 @@ public final class VStreamPar {
             // Collect results — subtask.get() throws if the subtask failed
             List<B> results = new ArrayList<>(subtasks.size());
             for (var subtask : subtasks) {
-              results.add(subtask.get());
+              // A task written by hand can still return null
+              results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
             }
             return results;
           } catch (StructuredTaskScope.FailedException e) {

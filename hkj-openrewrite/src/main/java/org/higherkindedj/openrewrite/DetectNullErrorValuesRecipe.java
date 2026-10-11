@@ -20,17 +20,17 @@ import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.SearchResult;
 
 /**
- * Recipe that marks the code a null error breaks from 0.5.0, where a {@code Left} always holds an
- * error.
+ * Recipe that marks the code a null error breaks from 0.5.0, where an error is never null: a {@code
+ * Left} always holds one, and every {@code raiseError} refuses null.
  *
  * <h2>Detection Pattern</h2>
  *
  * <ul>
  *   <li>A {@code null} literal, cast or not, passed as the error to {@code Either.left}, {@code
- *       EitherT.left}, {@code Maybe.toEither}, {@code raiseError} on an {@code Either} or {@code
- *       EitherT} monad, or the {@code getEither}, {@code getValidated}, {@code modifyEither} and
- *       {@code modifyValidated} helpers of {@code LensExtensions} and {@code PrismExtensions}.
- *       These now throw {@code NullPointerException}.
+ *       EitherT.left}, {@code Maybe.toEither}, {@code raiseError} on any {@code MonadError}, or the
+ *       {@code getEither}, {@code getValidated}, {@code modifyEither} and {@code modifyValidated}
+ *       helpers of {@code LensExtensions} and {@code PrismExtensions}. These now throw {@code
+ *       NullPointerException}.
  *   <li>A lambda given as the error function of {@code Either.mapLeft} or {@code Either.bimap} that
  *       returns a {@code null} literal. It now throws, where it built a {@code Left(null)}.
  *   <li>An {@code Either}, {@code EitherT}, {@code EitherMonad} or {@code EitherTMonad} whose error
@@ -73,11 +73,6 @@ public class DetectNullErrorValuesRecipe extends Recipe {
           new MethodMatcher("org.higherkindedj.hkt.either.Either mapLeft(..)"),
           new MethodMatcher("org.higherkindedj.hkt.either.Either bimap(..)"));
 
-  private static final Set<String> EITHER_MONADS =
-      Set.of(
-          "org.higherkindedj.hkt.either.EitherMonad",
-          "org.higherkindedj.hkt.either_t.EitherTMonad");
-
   /** Each type whose error type argument is {@code Void}, with that argument's position. */
   private static final Map<String, Integer> ERROR_TYPES =
       Map.of(
@@ -86,14 +81,13 @@ public class DetectNullErrorValuesRecipe extends Recipe {
           "org.higherkindedj.hkt.either_t.EitherT", 1,
           "org.higherkindedj.hkt.either_t.EitherTMonad", 1);
 
-  private static final Set<String> EITHER_WITNESSES =
-      Set.of(
-          "org.higherkindedj.hkt.either.EitherKind.Witness",
-          "org.higherkindedj.hkt.either_t.EitherTKind.Witness");
-
   static final String NULL_ERROR =
       "A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where"
           + " the error type is Unit";
+
+  static final String NULL_RAISED_ERROR =
+      "An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the"
+          + " error type is Unit";
 
   static final String NULL_ERROR_FUNCTION =
       "Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE"
@@ -108,9 +102,9 @@ public class DetectNullErrorValuesRecipe extends Recipe {
 
   @Override
   public String getDescription() {
-    return "Marks a null passed to Either.left, EitherT.left, Maybe.toEither, an Either monad's"
+    return "Marks a null passed to Either.left, EitherT.left, Maybe.toEither, any MonadError's"
         + " raiseError or an optics helper's error, a mapLeft or bimap error lambda that returns"
-        + " null, and an Either typed with a Void error. From 0.5.0 a Left always holds an error.";
+        + " null, and an Either typed with a Void error. From 0.5.0 an error is never null.";
   }
 
   @Override
@@ -136,8 +130,8 @@ public class DetectNullErrorValuesRecipe extends Recipe {
             && isNullLiteral(args.get(1))) {
           return SearchResult.found(mi, NULL_ERROR);
         }
-        if (RAISE_ERROR.matches(mi) && isNullLiteral(args.getFirst()) && onAnEitherMonad(mi)) {
-          return SearchResult.found(mi, NULL_ERROR);
+        if (RAISE_ERROR.matches(mi) && isNullLiteral(args.getFirst())) {
+          return SearchResult.found(mi, NULL_RAISED_ERROR);
         }
         if (ERROR_MAPPERS.stream().anyMatch(m -> m.matches(mi))
             && args.getFirst() instanceof J.Lambda lambda
@@ -165,26 +159,5 @@ public class DetectNullErrorValuesRecipe extends Recipe {
         return pt;
       }
     };
-  }
-
-  /**
-   * Whether {@code raiseError} is called on an {@code EitherMonad} or {@code EitherTMonad}, or a
-   * subtype such as {@code EitherSelective}, or on a {@code MonadError} whose witness is an {@code
-   * Either} one. Other monads, such as {@code Optional}'s, take a {@code Unit} error and are left
-   * alone.
-   */
-  private static boolean onAnEitherMonad(J.MethodInvocation mi) {
-    if (mi.getSelect() == null) {
-      return false;
-    }
-    JavaType receiver = mi.getSelect().getType();
-    if (EITHER_MONADS.stream().anyMatch(monad -> TypeUtils.isAssignableTo(monad, receiver))) {
-      return true;
-    }
-    return receiver instanceof JavaType.Parameterized parameterized
-        && !parameterized.getTypeParameters().isEmpty()
-        && TypeUtils.asFullyQualified(parameterized.getTypeParameters().getFirst())
-            instanceof JavaType.FullyQualified witness
-        && EITHER_WITNESSES.contains(witness.getFullyQualifiedName().replace('$', '.'));
   }
 }

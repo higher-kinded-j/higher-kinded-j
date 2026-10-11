@@ -372,6 +372,139 @@ class NullableFocusNullnessTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName("an error is never null, so no MonadError raises a nullable one")
+    void raiseErrorRefusesANullableError() {
+      JavaFileObject raises =
+          source(
+              "com.example.Raises",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.MonadError;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.WitnessArity;
+              import org.higherkindedj.hkt.id.IdMonad;
+              import org.higherkindedj.hkt.maybe.MaybeMonad;
+              import org.higherkindedj.hkt.maybe_t.MaybeTMonad;
+              import org.higherkindedj.hkt.optional.OptionalMonad;
+              import org.higherkindedj.hkt.optional_t.OptionalTMonad;
+              import org.jspecify.annotations.Nullable;
+
+              class Raises {
+                static <F extends WitnessArity<TypeArity.Unary>, E> void raise(
+                    MonadError<F, E> errors, @Nullable E raw, @Nullable Unit none) {
+                  errors.<String>raiseError(raw);
+                  MaybeMonad.INSTANCE.<String>raiseError(none);
+                  OptionalMonad.INSTANCE.<String>raiseError(none);
+                  new MaybeTMonad<>(IdMonad.instance()).<String>raiseError(none);
+                  new OptionalTMonad<>(IdMonad.instance()).<String>raiseError(none);
+                }
+              }
+              """);
+
+      Compilation compilation = compileChecked(raises);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(5);
+      assertThat(compilation)
+          .hadErrorContaining("passing @Nullable parameter 'raw' where @NonNull is required")
+          .inFile(raises)
+          .onLine(17);
+      for (int line = 18; line <= 21; line++) {
+        assertThat(compilation)
+            .hadErrorContaining("passing @Nullable parameter 'none' where @NonNull is required")
+            .inFile(raises)
+            .onLine(line);
+      }
+    }
+
+    @Test
+    @DisplayName("a lazy computation always gives a value, so a nullable one cannot build it")
+    void aComputationRefusesANullableValue() {
+      // A value factory takes a non-null value, and a hand-written task or IO must return one
+      JavaFileObject builds =
+          source(
+              "com.example.Computes",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.Path;
+              import org.higherkindedj.hkt.io.IO;
+              import org.higherkindedj.hkt.lazy.Lazy;
+              import org.higherkindedj.hkt.state.State;
+              import org.higherkindedj.hkt.vstream.VStream;
+              import org.higherkindedj.hkt.vtask.VTask;
+              import org.jspecify.annotations.Nullable;
+
+              class Computes {
+                static void build(@Nullable String raw) {
+                  VTask.<String>succeed(raw);
+                  State.<Integer, String>pure(raw);
+                  Lazy.<String>now(raw);
+                  VStream.<String>succeed(raw);
+                  Path.<String>ioPure(raw);
+                  VTask<String> task = () -> raw;
+                  IO<String> io = () -> raw;
+                }
+              }
+              """);
+
+      Compilation compilation = compileChecked(builds);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(7);
+      for (int line = 13; line <= 17; line++) {
+        assertThat(compilation)
+            .hadErrorContaining("passing @Nullable parameter 'raw' where @NonNull is required")
+            .inFile(builds)
+            .onLine(line);
+      }
+      for (int line = 18; line <= 19; line++) {
+        assertThat(compilation)
+            .hadErrorContaining("returning @Nullable expression")
+            .inFile(builds)
+            .onLine(line);
+      }
+    }
+
+    @Test
+    @DisplayName("the value a lazy computation hands back needs no null check")
+    void aComputationHandsBackANonNullValue() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.ReadsComputations",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.lazy.Lazy;
+                  import org.higherkindedj.hkt.reader.Reader;
+                  import org.higherkindedj.hkt.state.State;
+                  import org.higherkindedj.hkt.vtask.VTask;
+                  import org.higherkindedj.hkt.writer.Writer;
+
+                  class ReadsComputations {
+                    static int read(
+                        VTask<String> task,
+                        Lazy<String> lazy,
+                        State<Integer, String> state,
+                        Reader<Integer, String> reader,
+                        Writer<String, String> writer)
+                        throws Throwable {
+                      return task.run().length()
+                          + lazy.force().length()
+                          + state.run(0).value().length()
+                          + reader.run(0).length()
+                          + writer.run().length();
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 
   @Nested

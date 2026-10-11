@@ -75,15 +75,16 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   /**
    * Creates a FreePath containing a pure value.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param functor the Functor instance for F; must not be null
    * @param <F> the functor witness type
    * @param <A> the value type
    * @return a FreePath containing the value
-   * @throws NullPointerException if functor is null
+   * @throws NullPointerException if value or functor is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreePath<F, A> pure(
       A value, Functor<F> functor) {
+    Objects.requireNonNull(value, "value must not be null");
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreePath<>(Free.pure(value), functor);
   }
@@ -204,7 +205,9 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   @Override
   public <B> FreePath<F, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new FreePath<>(free.map(mapper), functor);
+    return new FreePath<>(
+        free.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")),
+        functor);
   }
 
   @Override
@@ -231,7 +234,11 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
     }
 
     FreePath<F, B> typedOther = (FreePath<F, B>) otherFree;
-    return via(a -> typedOther.map(b -> combiner.apply(a, b)));
+    return via(
+        a ->
+            typedOther.map(
+                b ->
+                    Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
   }
 
   // ===== Chainable Implementation =====
@@ -294,12 +301,17 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
    * interpretation, if the target monad is a {@link org.higherkindedj.hkt.MonadError MonadError}
    * with {@code Throwable} error type, the handler is invoked on any failure.
    *
-   * @param handler The recovery function, mapping the error to a pure value
+   * @param handler The recovery function, mapping the error to a pure value; it must not return
+   *     null
    * @return A new FreePath with error recovery
    */
   public FreePath<F, A> recover(Function<? super Throwable, ? extends A> handler) {
     Objects.requireNonNull(handler, "handler must not be null");
-    return handleError(Throwable.class, e -> FreePath.pure(handler.apply(e), functor));
+    return handleError(
+        Throwable.class,
+        e ->
+            FreePath.pure(
+                Objects.requireNonNull(handler.apply(e), "handler must not return null"), functor));
   }
 
   /**

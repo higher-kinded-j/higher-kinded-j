@@ -5,6 +5,7 @@ package org.higherkindedj.optics.free;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -15,7 +16,6 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Logging interpreter for optic programs that records all operations.
@@ -56,7 +56,7 @@ public final class LoggingOpticInterpreter {
    * @return The result of executing the program
    */
   @SuppressWarnings("unchecked")
-  public <A> @Nullable A run(Free<OpticOpKind.Witness, A> program) {
+  public <A> A run(Free<OpticOpKind.Witness, A> program) {
     // Natural transformation from OpticOp to Id monad (with logging)
     Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
         kind -> {
@@ -90,7 +90,7 @@ public final class LoggingOpticInterpreter {
   // from capture variables, and the method bodies contain no explicit casts.
 
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-    A value = op.optic().get(op.source());
+    A value = Objects.requireNonNull(op.optic().get(op.source()), OpticPrograms.NULL_GET_FOCUS);
     log.add(String.format("GET: %s -> %s", opticName(op.optic()), value));
     return value;
   }

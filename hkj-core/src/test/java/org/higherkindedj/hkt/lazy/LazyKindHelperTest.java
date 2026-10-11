@@ -193,12 +193,12 @@ class LazyKindHelperTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("now should wrap null value")
-    void nowShouldWrapNullValue() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = LAZY.now(null);
-      Lazy<String> lazy = narrowToLazy(kind);
-
-      assertThat(lazy.force()).isNull();
+    @DisplayName("now refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void nowRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> LAZY.now(null))
+          .withMessage("Lazy.now value cannot be null");
     }
   }
 
@@ -250,14 +250,6 @@ class LazyKindHelperTest extends LazyTestBase {
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void forceShouldThrowKindUnwrapExceptionIfKindIsInvalid() {
       assertThatThrownBy(() -> LAZY.force(null)).isInstanceOf(KindUnwrapException.class);
-    }
-
-    @Test
-    @DisplayName("force should handle null results correctly")
-    void forceShouldHandleNullResultsCorrectly() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = LAZY.defer(() -> null);
-
-      assertThat(forceLazy(kind)).isNull();
     }
   }
 

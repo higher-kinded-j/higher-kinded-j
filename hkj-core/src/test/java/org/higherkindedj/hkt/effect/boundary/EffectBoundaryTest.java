@@ -219,7 +219,7 @@ class EffectBoundaryTest {
     }
 
     @Test
-    @DisplayName("Should return Try.Failure for a program that returns null")
+    @DisplayName("Should return Try.Failure naming the function for a map that returns null")
     void shouldReturnFailureForANullResult() {
       Free<TestOpKind.Witness, String> program = store("hello").map(s -> null);
       assertThatTry(boundary.runSafe(program))
@@ -228,7 +228,7 @@ class EffectBoundaryTest {
               e ->
                   assertThat(e)
                       .isInstanceOf(NullPointerException.class)
-                      .hasMessage("the program returned null, and a Success always holds a value"));
+                      .hasMessage("f must not return null"));
     }
 
     @Test
@@ -358,6 +358,16 @@ class EffectBoundaryTest {
     void shouldRejectNullIO() {
       assertThatNullPointerException().isThrownBy(() -> boundary.embed(null));
     }
+
+    @Test
+    @DisplayName("Should refuse a null from an IO written by hand")
+    void shouldRefuseANullFromAHandWrittenIO() {
+      IO<String> raw = () -> null;
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> boundary.embed(raw))
+          .withMessage("the IO returned null, and an EffectBoundary always gives a value");
+    }
   }
 
   @Nested
@@ -377,6 +387,16 @@ class EffectBoundaryTest {
     @DisplayName("Should reject null IO")
     void shouldRejectNullIO() {
       assertThatNullPointerException().isThrownBy(() -> boundary.embedPath(null, TEST_FUNCTOR));
+    }
+
+    @Test
+    @DisplayName("Should refuse a null from an IO written by hand")
+    void shouldRefuseANullFromAHandWrittenIO() {
+      IO<String> raw = () -> null;
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> boundary.embedPath(raw, TEST_FUNCTOR))
+          .withMessage("the IO returned null, and an EffectBoundary always gives a value");
     }
 
     @Test

@@ -1230,6 +1230,43 @@ class VStreamReactiveTest {
     }
 
     @Test
+    @DisplayName("fromPublisher() fails the stream at a null element, and throws one back")
+    @SuppressWarnings("DataFlowIssue") // the publisher deliberately sends null
+    void fromPublisherRefusesANullElement() {
+      AtomicBoolean cancelled = new AtomicBoolean(false);
+      AtomicReference<Throwable> thrownBack = new AtomicReference<>();
+      Flow.Publisher<String> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
+
+                  @Override
+                  public void cancel() {
+                    cancelled.set(true);
+                  }
+                });
+            subscriber.onNext("a");
+            try {
+              subscriber.onNext(null);
+            } catch (NullPointerException e) {
+              thrownBack.set(e);
+            }
+          };
+
+      VStream<String> stream = VStreamReactive.fromPublisher(publisher, 4);
+
+      assertThat(thrownBack.get())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("VStream.fromPublisher element cannot be null");
+      assertThat(cancelled).isTrue();
+      assertThatNullPointerException()
+          .isThrownBy(() -> stream.toList().run())
+          .withMessage("VStream.fromPublisher element cannot be null");
+    }
+
+    @Test
     @DisplayName("fromPublisher() validates positive buffer size")
     void fromPublisherValidatesPositiveBufferSize() {
       try (SubmissionPublisher<String> publisher = new SubmissionPublisher<>()) {

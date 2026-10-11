@@ -69,9 +69,9 @@ Every pull from a VStream answers exactly one question: *what happened when I as
 
 ```java
 sealed interface Step<A> {
-    record Emit<A>(@Nullable A value, VStream<A> tail) implements Step<A> {}
-    record Done<A>()                                    implements Step<A> {}
-    record Skip<A>(VStream<A> tail)                     implements Step<A> {}
+    record Emit<A>(A value, VStream<A> tail) implements Step<A> {}
+    record Done<A>()                          implements Step<A> {}
+    record Skip<A>(VStream<A> tail)           implements Step<A> {}
 }
 ```
 
@@ -99,7 +99,7 @@ sealed interface Step<A> {
 
 | Step | Meaning |
 |------|---------|
-| `Emit(value, tail)` | Here is a value, and here is the rest of the stream |
+| `Emit(value, tail)` | Here is a value, never null, and here is the rest of the stream |
 | `Done()` | The stream is exhausted; stop pulling |
 | `Skip(tail)` | No value this time (e.g. filtered out); advance to the tail |
 
@@ -130,6 +130,8 @@ VStream<Integer> range = VStream.range(1, 6); // 1, 2, 3, 4, 5
 // Empty stream
 VStream<Integer> empty = VStream.empty();
 ```
+
+A stream never holds a null element. `VStream.of(null)` throws at the call, and a null in a list, iterator or Java `Stream` fails the stream when that element is pulled: `VStream.fromList element cannot be null`. A function given to `map`, `zipWith` or `recover` that returns null fails it too, closing what the stream opened. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 
 ### From Sequences That Never End
 
@@ -177,7 +179,7 @@ VStream<String> pages = VStream.unfold(1, page ->
 The `Seed<A, S>` record carries both the emitted value and the next state:
 
 ```java
-public record Seed<A, S>(@Nullable A value, S next) {}
+public record Seed<A, S>(A value, S next) {}
 ```
 
 Each call to the unfold function advances the state and either emits a value or signals completion:

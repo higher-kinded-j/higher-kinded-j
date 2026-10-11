@@ -203,16 +203,18 @@ class ReaderFunctorTest extends ReaderTestBase {
   class EdgeCasesAndBoundaryConditions {
 
     @Test
-    @DisplayName("map() handles null results correctly")
-    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises the Reader's null handling
-    void mapHandlesNullResultsCorrectly() {
+    @DisplayName("map() fails when run if its mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void mapFailsWhenMapperReturnsNull() {
       Function<Integer, String> nullReturningMapper = _ -> null;
 
       Kind<ReaderKind.Witness<TestConfig>, String> result =
           functor.map(nullReturningMapper, validKind);
 
       Reader<TestConfig, String> reader = narrowToReader(result);
-      assertThatReader(reader).whenRunWith(TEST_CONFIG).producesNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> reader.run(TEST_CONFIG))
+          .withMessage("f must not return null");
     }
 
     @Test

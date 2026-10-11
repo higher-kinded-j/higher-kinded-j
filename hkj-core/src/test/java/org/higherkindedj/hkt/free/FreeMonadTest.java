@@ -167,6 +167,24 @@ class FreeMonadTest extends FreeTestBase {
     }
 
     @Test
+    @DisplayName("of() refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.of(null))
+          .withMessage("FreeMonad.of value cannot be null");
+    }
+
+    @Test
+    @DisplayName("A Pure built directly refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureRecordRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Free.Pure<IdentityKind.Witness, String>(null))
+          .withMessage("Free.construction value cannot be null");
+    }
+
+    @Test
     @DisplayName("map() transforms the result value")
     void mapTransformsResultValue() {
       Kind<FreeKind.Witness<IdentityKind.Witness>, String> result =
@@ -174,6 +192,18 @@ class FreeMonadTest extends FreeTestBase {
 
       String value = runFree(narrowToFree(result));
       assertThat(value).isEqualTo("mapped:" + DEFAULT_VALUE);
+    }
+
+    @Test
+    @DisplayName("map() fails, naming f, when f returns null")
+    @SuppressWarnings("DataFlowIssue") // the mapper returns null to verify the refusal
+    void mapFailsWhenFunctionReturnsNull() {
+      Function<Integer, String> nullMapper = _ -> null;
+      Free<IdentityKind.Witness, String> free = narrowToFree(monad.map(nullMapper, validKind));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> runFree(free))
+          .withMessage("f must not return null");
     }
 
     @Test

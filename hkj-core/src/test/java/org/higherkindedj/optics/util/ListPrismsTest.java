@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -713,6 +714,21 @@ class ListPrismsTest {
       String result = ListPrisms.foldRight(list, "", (s, acc) -> s + acc);
 
       assertThat(result).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName(
+        "foldRight refuses a null initial value, and a combining function that returns null")
+    @SuppressWarnings("DataFlowIssue") // the nulls are given deliberately to verify rejection
+    void foldRight_refusesANull() {
+      List<String> list = List.of("a", "b");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPrisms.foldRight(list, null, (s, acc) -> s + acc))
+          .withMessage("initial must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPrisms.<String, String>foldRight(list, "", (s, acc) -> null))
+          .withMessage("f must not return null");
     }
 
     @Test

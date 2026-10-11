@@ -99,12 +99,14 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
   /**
    * Creates a MutableContext containing the given value without changing state.
    *
-   * @param value the value to contain
+   * @param value the value to contain; must not be null
    * @param <S> the state type
    * @param <A> the value type
    * @return a new MutableContext containing the value
+   * @throws NullPointerException if value is null
    */
   public static <S, A> MutableContext<IOKind.Witness, S, A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     StateT<S, IOKind.Witness, A> transformer =
         StateT.create(s -> IO_OP.widen(IO.delay(() -> StateTuple.of(s, value))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);

@@ -82,14 +82,13 @@ class FreePathReturnValueHandlerTest {
   }
 
   @Test
-  @DisplayName("a program that returns null writes no body at the resolved status, as void does")
-  void writesNoBodyForANullValue() throws Exception {
+  @DisplayName("a program whose step returns null writes the failure status")
+  void writesTheFailureForANullValue() throws Exception {
     handler.handleReturnValue(program(() -> null), returnType, mavContainer, webRequest);
 
-    verify(response).setStatus(HttpStatus.OK.value());
-    verify(response, never()).setContentType(anyString());
+    verify(response).setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
     printWriter.flush();
-    assertThat(stringWriter.toString()).isEmpty();
+    assertThat(stringWriter.toString()).contains("\"success\":false");
   }
 
   @Test

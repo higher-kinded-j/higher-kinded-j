@@ -76,7 +76,8 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
    *
    * <p>The function is applied to the configuration when the context is run.
    *
-   * @param computation the function from config to value; must not be null
+   * @param computation the function from config to value; must not be null, and must not return
+   *     null
    * @param <R> the configuration type
    * @param <A> the value type
    * @return a new ConfigContext wrapping the computation
@@ -85,7 +86,10 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
   public static <R, A> ConfigContext<IOKind.Witness, R, A> io(Function<R, A> computation) {
     Objects.requireNonNull(computation, "computation must not be null");
 
-    ReaderT<IOKind.Witness, R, A> transformer = ReaderT.reader(IOMonad.INSTANCE, computation);
+    ReaderT<IOKind.Witness, R, A> transformer =
+        ReaderT.reader(
+            IOMonad.INSTANCE,
+            r -> Objects.requireNonNull(computation.apply(r), "computation must not return null"));
     return new ConfigContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -94,7 +98,8 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
    *
    * <p>This allows the computation itself to be deferred until the IO is run.
    *
-   * @param computation the function from config to a deferred value supplier; must not be null
+   * @param computation the function from config to a deferred value supplier; must not be null, and
+   *     the supplier must not return null
    * @param <R> the configuration type
    * @param <A> the value type
    * @return a new ConfigContext wrapping the deferred computation
@@ -105,7 +110,15 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
     Objects.requireNonNull(computation, "computation must not be null");
 
     ReaderT<IOKind.Witness, R, A> transformer =
-        ReaderT.of(r -> IO_OP.widen(IO.delay(computation.apply(r))));
+        ReaderT.of(
+            r -> {
+              Supplier<A> supplier = computation.apply(r);
+              return IO_OP.widen(
+                  IO.delay(
+                      () ->
+                          Objects.requireNonNull(
+                              supplier.get(), "computation's supplier must not return null")));
+            });
     return new ConfigContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -125,12 +138,14 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
   /**
    * Creates a ConfigContext containing the given value, ignoring the configuration.
    *
-   * @param value the value to contain
+   * @param value the value to contain; must not be null
    * @param <R> the configuration type
    * @param <A> the value type
    * @return a new ConfigContext containing the value
+   * @throws NullPointerException if value is null
    */
   public static <R, A> ConfigContext<IOKind.Witness, R, A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     ReaderT<IOKind.Witness, R, A> transformer = ReaderT.of(r -> IO_OP.widen(IO.delay(() -> value)));
     return new ConfigContext<>(transformer, IOMonad.INSTANCE);
   }

@@ -73,11 +73,4 @@ public class StateAssert<S, A> extends AbstractAssert<StateAssert<S, A>, StateTu
     Assertions.assertThat(actual.state()).as("StateTuple state").isNotNull();
     return this;
   }
-
-  /** Verifies that the StateTuple has a null value. */
-  public StateAssert<S, A> hasNullValue() {
-    isNotNull();
-    Assertions.assertThat(actual.value()).as("StateTuple value").isNull();
-    return this;
-  }
 }

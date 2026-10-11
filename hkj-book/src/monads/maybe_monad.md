@@ -115,9 +115,9 @@ Lifts a value into `Kind<MaybeKind.Witness, A>`. Uses `Maybe.fromNullable()` int
   Kind<MaybeKind.Witness, String> kindNullFromMonad = maybeMonad.of(null);   // Nothing
   ```
 ~~~
-~~~admonish  title="_maybeMonad.raiseError(@Nullable Unit error)_"
+~~~admonish  title="_maybeMonad.raiseError(Unit error)_"
 
-Creates a `Kind<MaybeKind.Witness, E>` representing `Nothing`. The `error` (Unit) argument is ignored.
+Creates a `Kind<MaybeKind.Witness, A>` representing `Nothing`. A `Nothing` carries no detail, so the error is `Unit.INSTANCE`, and a null error throws.
   <!-- verify -->
   ```java
   Kind<MaybeKind.Witness, Double> errorKind = maybeMonad.raiseError(Unit.INSTANCE); // Nothing

@@ -97,13 +97,12 @@ class TrampolineMonadTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("of() accepts null values")
-    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
-    void ofAcceptsNull() {
-      Kind<TrampolineKind.Witness, String> kind = monad.of(null);
-
-      Trampoline<String> trampoline = TRAMPOLINE.narrow(kind);
-      assertThat(trampoline.run()).isNull();
+    @DisplayName("of() refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.of(null))
+          .withMessage("TrampolineMonad.of value cannot be null");
     }
   }
 
@@ -316,16 +315,6 @@ class TrampolineMonadTest extends TrampolineTestBase {
   class EdgeCasesAndCoverage {
 
     @Test
-    @DisplayName("of() with null creates trampoline with null value")
-    @SuppressWarnings("DataFlowIssue") // a Trampoline may legitimately hold a null value
-    void ofWithNullCreatesNullTrampoline() {
-      Kind<TrampolineKind.Witness, String> kind = monad.of(null);
-
-      Trampoline<String> trampoline = TRAMPOLINE.narrow(kind);
-      assertThat(trampoline.run()).isNull();
-    }
-
-    @Test
     @DisplayName("flatMap with deferred computation")
     void flatMapWithDeferredComputation() {
       Kind<TrampolineKind.Witness, Integer> kind =
@@ -336,16 +325,17 @@ class TrampolineMonadTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("ap with null values")
-    @SuppressWarnings("ConstantValue") // the value Trampoline deliberately carries a null
-    void apWithNullValues() {
-      Kind<TrampolineKind.Witness, String> value = monad.of(null);
-      Kind<TrampolineKind.Witness, Function<String, String>> func =
-          monad.of(x -> x == null ? "was null" : x);
+    @DisplayName("ap fails, as map does, when the function returns null")
+    @SuppressWarnings("DataFlowIssue") // the function returns null to verify the refusal
+    void apFailsWhenFunctionReturnsNull() {
+      Kind<TrampolineKind.Witness, String> value = monad.of("value");
+      Kind<TrampolineKind.Witness, Function<String, String>> func = monad.of(_ -> null);
 
-      Kind<TrampolineKind.Witness, String> result = monad.ap(func, value);
+      Trampoline<String> result = TRAMPOLINE.narrow(monad.ap(func, value));
 
-      assertThat(TRAMPOLINE.narrow(result).run()).isEqualTo("was null");
+      assertThatNullPointerException()
+          .isThrownBy(result::run)
+          .withMessage("f must not return null");
     }
 
     @Test

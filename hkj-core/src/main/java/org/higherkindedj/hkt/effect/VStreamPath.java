@@ -152,7 +152,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -241,21 +241,21 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   /**
    * Left-folds all elements with the given identity and operator.
    *
-   * @param identity the initial accumulator value
-   * @param op the binary operator; must not be null
+   * @param identity the initial accumulator value; must not be null
+   * @param op the binary operator; must not be null, and must not return null
    * @return a VTaskPath that produces the fold result
-   * @throws NullPointerException if op is null
+   * @throws NullPointerException if identity or op is null
    */
   VTaskPath<A> fold(A identity, BinaryOperator<A> op);
 
   /**
    * Left-folds all elements with the given initial value and accumulator function.
    *
-   * @param identity the initial accumulator value
-   * @param f the accumulator function; must not be null
+   * @param identity the initial accumulator value; must not be null
+   * @param f the accumulator function; must not be null, and must not return null
    * @param <B> the type of the accumulator
    * @return a VTaskPath that produces the fold result
-   * @throws NullPointerException if f is null
+   * @throws NullPointerException if identity or f is null
    */
   <B> VTaskPath<B> foldLeft(B identity, BiFunction<B, A, B> f);
 
@@ -413,9 +413,9 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * Applies a {@link FocusPath} to each element, extracting a focused value. Since FocusPath always
    * succeeds, every element produces a result.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath)}, which leaves an element with a
-   * null focus out.
+   * <p>A stream's elements are never null, so this form takes a focus that is never null and fails
+   * the stream on a null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath)}, which leaves an element with a null focus out.
    *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
@@ -491,7 +491,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    *
    * <p>If pulling an element fails, the recovery function produces a replacement.
    *
-   * @param recovery the recovery function; must not be null
+   * @param recovery the recovery function; must not be null, and must not return null
    * @return a new VStreamPath with error recovery
    */
   VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery);

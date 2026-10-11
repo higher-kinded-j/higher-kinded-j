@@ -169,15 +169,17 @@ class TrampolineFunctorTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("map with null result value")
-    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises Trampoline.map's null path
-    void mapWithNullResultValue() {
+    @DisplayName("map fails, naming f, when f returns null")
+    @SuppressWarnings("DataFlowIssue") // the mapper returns null to verify the refusal
+    void mapFailsWhenFunctionReturnsNull() {
       Kind<TrampolineKind.Witness, String> kind = TRAMPOLINE.widen(Trampoline.done("test"));
       Function<String, String> nullMapper = _ -> null;
       Kind<TrampolineKind.Witness, String> mapped = functor.map(nullMapper, kind);
 
       Trampoline<String> result = TRAMPOLINE.narrow(mapped);
-      assertThat(result.run()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(result::run)
+          .withMessage("f must not return null");
     }
   }
 

@@ -170,12 +170,12 @@ ValidationOpticInterpreter.ValidationResult validation =
 ## Common Pitfalls
 
 ### 1. Null Checks in Validation Interpreter
-**Problem**: NPE when using Free Monad DSL with validation interpreter.
+**Problem**: A `get` over a field that holds null fails. The direct and logging interpreters throw `NullPointerException`, and the validation interpreter records an error.
 
-**Solution**: Validation returns null for `get` operations. Always null-check:
+**Solution**: A Free program always gives a value, so an interpreter refuses a `get` that reads null, and the message names `OpticPrograms.preview`. Read a field that may be null with `preview`, passing a lens as `lens.asFold()`. It reads a null as absent and gives an `Optional`:
 ```java
-.flatMap(value -> {
-    if (value != null && value.equals("expected")) {
+.flatMap(maybeValue -> {
+    if (maybeValue.isPresent() && maybeValue.get().equals("expected")) {
         // ...
     }
 })

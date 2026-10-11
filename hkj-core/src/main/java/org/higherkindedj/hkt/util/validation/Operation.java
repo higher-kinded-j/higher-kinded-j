@@ -111,7 +111,14 @@ public enum Operation {
   AND_THEN("andThen"),
   COMPOSE("compose"),
   WIDEN("widen"),
-  NARROW("narrow");
+  NARROW("narrow"),
+  SUCCEED("succeed"),
+  PURE("pure"),
+  NOW("now"),
+  CONSTANT("constant"),
+  DONE("done"),
+  REPEAT("repeat"),
+  ITERATE("iterate");
 
   Operation(String label) {
     this.label = label;

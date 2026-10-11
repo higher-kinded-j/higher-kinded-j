@@ -115,11 +115,11 @@ public final class SecurityContext {
    * @return A Context containing the Principal, or failing with {@link UnauthenticatedException}.
    */
   public static Context<Principal, Principal> requireAuthenticated() {
-    return Context.<Principal>ask(PRINCIPAL)
+    return principalIfPresent()
         .flatMap(
             principal ->
-                principal != null
-                    ? Context.succeed(principal)
+                principal.isJust()
+                    ? Context.succeed(principal.get())
                     : Context.fail(new UnauthenticatedException("Authentication required")));
   }
 

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -55,6 +56,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Par {
 
+  private static final String NULL_TASK_RESULT =
+      "the task returned null, and a VTask always gives a value";
+
   private Par() {
     // Utility class - prevent instantiation
   }
@@ -79,8 +83,8 @@ public final class Par {
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        var subtaskA = scope.fork(taskA.asCallable());
-        var subtaskB = scope.fork(taskB.asCallable());
+        var subtaskA = scope.fork(checked(taskA));
+        var subtaskB = scope.fork(checked(taskB));
 
         scope.join();
 
@@ -115,9 +119,9 @@ public final class Par {
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        var subtaskA = scope.fork(taskA.asCallable());
-        var subtaskB = scope.fork(taskB.asCallable());
-        var subtaskC = scope.fork(taskC.asCallable());
+        var subtaskA = scope.fork(checked(taskA));
+        var subtaskB = scope.fork(checked(taskB));
+        var subtaskC = scope.fork(checked(taskC));
 
         scope.join();
 
@@ -136,7 +140,8 @@ public final class Par {
    * @param <R> The type of the combined result.
    * @param taskA The first task. Must not be null.
    * @param taskB The second task. Must not be null.
-   * @param combiner The function to combine the results. Must not be null.
+   * @param combiner The function to combine the results. Must not be null, and must not return
+   *     null: a null result fails the task with a {@link NullPointerException}.
    * @return A {@code VTask} that produces the combined result. Never null.
    * @throws NullPointerException if any argument is null.
    */
@@ -149,12 +154,13 @@ public final class Par {
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        var subtaskA = scope.fork(taskA.asCallable());
-        var subtaskB = scope.fork(taskB.asCallable());
+        var subtaskA = scope.fork(checked(taskA));
+        var subtaskB = scope.fork(checked(taskB));
 
         scope.join();
 
-        return combiner.apply(subtaskA.get(), subtaskB.get());
+        return Objects.requireNonNull(
+            combiner.apply(subtaskA.get(), subtaskB.get()), "combiner must not return null");
       } catch (StructuredTaskScope.FailedException e) {
         throw e.getCause();
       }
@@ -171,7 +177,8 @@ public final class Par {
    * @param taskA The first task. Must not be null.
    * @param taskB The second task. Must not be null.
    * @param taskC The third task. Must not be null.
-   * @param combiner The function to combine the results. Must not be null.
+   * @param combiner The function to combine the results. Must not be null, and must not return
+   *     null: a null result fails the task with a {@link NullPointerException}.
    * @return A {@code VTask} that produces the combined result. Never null.
    * @throws NullPointerException if any argument is null.
    */
@@ -185,13 +192,15 @@ public final class Par {
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        var subtaskA = scope.fork(taskA.asCallable());
-        var subtaskB = scope.fork(taskB.asCallable());
-        var subtaskC = scope.fork(taskC.asCallable());
+        var subtaskA = scope.fork(checked(taskA));
+        var subtaskB = scope.fork(checked(taskB));
+        var subtaskC = scope.fork(checked(taskC));
 
         scope.join();
 
-        return combiner.apply(subtaskA.get(), subtaskB.get(), subtaskC.get());
+        return Objects.requireNonNull(
+            combiner.apply(subtaskA.get(), subtaskB.get(), subtaskC.get()),
+            "combiner must not return null");
       } catch (StructuredTaskScope.FailedException e) {
         throw e.getCause();
       }
@@ -223,7 +232,7 @@ public final class Par {
       try (var scope =
           StructuredTaskScope.open(StructuredTaskScope.Joiner.<A>anySuccessfulResultOrThrow())) {
         for (VTask<A> task : racing) {
-          scope.fork(task.asCallable());
+          scope.fork(checked(task));
         }
 
         return scope.join();
@@ -258,7 +267,7 @@ public final class Par {
         List<StructuredTaskScope.Subtask<A>> subtasks = new ArrayList<>(forking.size());
 
         for (VTask<A> task : forking) {
-          subtasks.add(scope.fork(task.asCallable()));
+          subtasks.add(scope.fork(checked(task)));
         }
 
         scope.join();
@@ -306,7 +315,7 @@ public final class Par {
         for (A item : processing) {
           VTask<B> task = f.apply(item);
           Objects.requireNonNull(task, "function returned null task for item: " + item);
-          subtasks.add(scope.fork(task.asCallable()));
+          subtasks.add(scope.fork(checked(task)));
         }
 
         scope.join();
@@ -320,6 +329,15 @@ public final class Par {
         throw e.getCause();
       }
     };
+  }
+
+  /**
+   * The task as a callable for a scope, refusing the null a hand-written task may still return, so
+   * the subtask fails as it would on any other failure.
+   */
+  private static <A> Callable<A> checked(VTask<A> task) {
+    VTask<A> refusingNull = () -> Objects.requireNonNull(task.execute(), NULL_TASK_RESULT);
+    return refusingNull.asCallable();
   }
 
   private static <A> List<VTask<A>> copyOfTasks(List<VTask<A>> tasks) {

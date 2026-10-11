@@ -10,7 +10,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -946,6 +945,33 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
+    @DisplayName("map, zipWith and recover close the rest when their function returns null")
+    void nullValueFromFunctionCloses() {
+      AtomicInteger mapRuns = new AtomicInteger();
+      AtomicInteger zipRuns = new AtomicInteger();
+      AtomicInteger recoverRuns = new AtomicInteger();
+
+      VStream<Integer> mapped = deferredFinalised(mapRuns).map(x -> null);
+      VStream<Integer> zipped =
+          deferredFinalised(zipRuns).zipWith(VStream.of(1, 2, 3), (a, b) -> null);
+      VStream<Integer> recovered =
+          pullFailingAt(1, deferredFinalised(recoverRuns)).recover(e -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> mapped.toList().run())
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> zipped.toList().run())
+          .withMessage("combiner must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> recovered.toList().run())
+          .withMessage("recoveryFunction must not return null");
+      assertThat(mapRuns).hasValue(1);
+      assertThat(zipRuns).hasValue(1);
+      assertThat(recoverRuns).hasValue(1);
+    }
+
+    @Test
     @DisplayName("a failed mapTask task closes the rest it carries, when nothing resumes from it")
     void failedTaskClosesCarriedRest() {
       AtomicInteger runs = new AtomicInteger();
@@ -1157,12 +1183,10 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("distinct keeps one null, and passes over skipped steps")
-    void distinctHandlesNullAndSkips() {
-      VStream<Integer> withNulls = VStream.fromList(Arrays.asList(null, 1, null, 1));
+    @DisplayName("distinct passes over skipped steps")
+    void distinctPassesOverSkips() {
       VStream<Integer> withSkips = VStream.of(1, 2, 1, 3).filter(x -> x != 2);
 
-      assertThat(withNulls.distinct().toList().run()).containsExactly(null, 1);
       assertThat(withSkips.distinct().toList().run()).containsExactly(1, 3);
     }
 

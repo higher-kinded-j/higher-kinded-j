@@ -87,8 +87,8 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * );
    * }</pre>
    *
-   * <p>A {@code Success} always holds a value, so a computation that returns {@code null} gives a
-   * {@code Failure} holding a {@link NullPointerException}.
+   * <p>A {@code Success} always holds a value, so a hand-written computation that returns {@code
+   * null} gives a {@code Failure} holding a {@link NullPointerException}.
    *
    * @return a {@code Try} containing either the result or the exception
    */
@@ -111,7 +111,7 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * }</pre>
    *
    * @param recovery function applied to any thrown {@link Throwable} to produce a fallback value;
-   *     must not be {@code null}
+   *     must not be {@code null}, and must not return {@code null}
    * @return an effect that yields either the original result or the recovery value
    * @throws NullPointerException if {@code recovery} is {@code null}
    */

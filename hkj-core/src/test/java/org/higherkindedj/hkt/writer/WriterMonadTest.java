@@ -100,12 +100,6 @@ class WriterMonadTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("of() allows null values")
-    void ofAllowsNullValues() {
-      assertThatWriter(narrowToWriter(monad.of(null))).hasEmptyLog().hasNullValue();
-    }
-
-    @Test
     @DisplayName("map() applies the function and preserves the log")
     void mapAppliesFunctionAndPreservesLog() {
       var result = monad.map(validMapper, validKind);
@@ -159,16 +153,6 @@ class WriterMonadTest extends WriterTestBase {
     void flatMapWithEmptyLogPreservation() {
       var result = monad.flatMap(x -> monad.of(x + 1), monad.of(1));
       assertThatWriter(narrowToWriter(result)).hasEmptyLog().hasValue(2);
-    }
-
-    @Test
-    @DisplayName("flatMap() passes a null value through the chain")
-    void flatMapHandlesNullValueInChain() {
-      Kind<WriterKind.Witness<String>, Integer> nullKind = WRITER.widen(writerOf("null;", null));
-
-      var result =
-          monad.flatMap(i -> WRITER.widen(writerOf("process;", String.valueOf(i))), nullKind);
-      assertThatWriter(narrowToWriter(result)).hasLog("null;process;").hasValue("null");
     }
 
     @Test

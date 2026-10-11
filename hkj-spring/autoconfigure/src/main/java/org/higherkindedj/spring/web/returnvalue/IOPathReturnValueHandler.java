@@ -96,8 +96,8 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
     int successStatus =
         SuccessStatusResolver.resolveSuccessStatus(returnType, HttpStatus.OK.value());
 
-    // Execute the deferred IO at the edge. Not through runSafe: a Try cannot hold the null an IO
-    // may still give, which answers like a void method.
+    // Execute the deferred IO at the edge. An IO written by hand that returns null fails here too,
+    // since an IOPath always gives a value.
     Object value;
     try {
       value = ioPath.unsafeRun();

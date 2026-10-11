@@ -100,42 +100,48 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p>The value is immediately available without any computation.
    *
-   * @param value the already-computed value
+   * @param value the already-computed value; must not be null
    * @param <A> the value type
    * @return a LazyPath holding the pre-computed value
+   * @throws NullPointerException if value is null
    */
   public static <A> LazyPath<A> now(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new LazyPath<>(Lazy.now(value));
   }
 
   /**
    * Creates a LazyPath that defers computation until first access.
    *
-   * <p>The supplier will be called at most once when the value is first requested.
+   * <p>The supplier will be called at most once when the value is first requested. A supplier that
+   * returns null fails the path with a {@link NullPointerException} when it is forced.
    *
-   * @param supplier the supplier for the value; must not be null
+   * @param supplier the supplier for the value; must not be null, and must not return null
    * @param <A> the value type
    * @return a LazyPath that defers computation
    * @throws NullPointerException if supplier is null
    */
   public static <A> LazyPath<A> defer(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new LazyPath<>(Lazy.defer(() -> supplier.get()));
+    return new LazyPath<>(
+        Lazy.defer(() -> Objects.requireNonNull(supplier.get(), "supplier must not return null")));
   }
 
   /**
    * Creates a LazyPath that defers computation which may throw.
    *
-   * <p>The supplier will be called at most once when the value is first requested.
+   * <p>The supplier will be called at most once when the value is first requested. A supplier that
+   * returns null fails the path with a {@link NullPointerException} when it is forced.
    *
-   * @param supplier the supplier for the value; must not be null
+   * @param supplier the supplier for the value; must not be null, and must not return null
    * @param <A> the value type
    * @return a LazyPath that defers computation
    * @throws NullPointerException if supplier is null
    */
   public static <A> LazyPath<A> deferThrowable(ThrowableSupplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new LazyPath<>(Lazy.defer(supplier));
+    return new LazyPath<>(
+        Lazy.defer(() -> Objects.requireNonNull(supplier.get(), "supplier must not return null")));
   }
 
   // ===== Terminal Operations =====
@@ -194,7 +200,8 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
   @Override
   public <B> LazyPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new LazyPath<>(lazy.map(mapper));
+    return new LazyPath<>(
+        lazy.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -228,7 +235,7 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
             () -> {
               A a = this.lazy.force();
               B b = typedOther.lazy.force();
-              return combiner.apply(a, b);
+              return Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null");
             }));
   }
 
@@ -239,7 +246,7 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -259,7 +266,8 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
               A a = this.lazy.force();
               B b = second.lazy.force();
               C c = third.lazy.force();
-              return combiner.apply(a, b, c);
+              return Objects.requireNonNull(
+                  combiner.apply(a, b, c), "combiner must not return null");
             }));
   }
 
@@ -326,30 +334,24 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Converts to a MaybePath.
    *
-   * <p>Forces evaluation. If the value is null, returns an empty MaybePath.
+   * <p>Forces evaluation. A lazy value is never null, so the MaybePath always holds it.
    *
-   * @return a MaybePath containing the value if non-null
+   * @return a MaybePath containing the value
    */
   public MaybePath<A> toMaybePath() {
-    A val = get();
-    return val != null ? new MaybePath<>(Maybe.just(val)) : new MaybePath<>(Maybe.nothing());
+    return new MaybePath<>(Maybe.just(get()));
   }
 
   /**
    * Converts to a TryPath.
    *
-   * <p>Forces evaluation. If the computation throws, the exception is captured in the TryPath. A
-   * Success always holds a value, so a null value gives a Failure holding a {@link
-   * NullPointerException}.
+   * <p>Forces evaluation. If the computation throws, the exception is captured in the TryPath.
    *
    * @return a TryPath containing Success if computation succeeds, Failure otherwise
    */
   public TryPath<A> toTryPath() {
     try {
-      return new TryPath<>(
-          Try.success(
-              Objects.requireNonNull(
-                  lazy.force(), "the lazy value is null, and a Success always holds a value")));
+      return new TryPath<>(Try.success(lazy.force()));
     } catch (Throwable t) {
       return new TryPath<>(Try.failure(t));
     }

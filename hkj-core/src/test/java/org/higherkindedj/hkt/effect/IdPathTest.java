@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.id.Id;
@@ -36,11 +35,14 @@ class IdPathTest {
     }
 
     @Test
-    @DisplayName("Path.id() accepts null value")
-    void pathIdAcceptsNullValue() {
-      IdPath<String> path = Path.id(null);
-
-      assertThat(path.run().value()).isNull();
+    @DisplayName("an IdPath always holds a value, so id and idPath refuse a null one")
+    void pathIdRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.id(null))
+          .withMessage("value must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.idPath(Id.of(null)))
+          .withMessage("the Id holds null, and an IdPath always holds a value");
     }
 
     @Test
@@ -282,16 +284,6 @@ class IdPathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() converts to Nothing for null value")
-    void toMaybePathConvertsToNothing() {
-      IdPath<String> path = Path.id(null);
-
-      MaybePath<String> result = path.toMaybePath();
-
-      assertThat(result.run().isNothing()).isTrue();
-    }
-
-    @Test
     @DisplayName("toEitherPath() converts to Right for non-null value")
     void toEitherPathConvertsToRight() {
       IdPath<String> path = Path.id(TEST_VALUE);
@@ -300,18 +292,6 @@ class IdPathTest {
 
       assertThat(result.run().isRight()).isTrue();
       assertThat(result.run().getRight()).isEqualTo(TEST_VALUE);
-    }
-
-    @Test
-    @DisplayName("toEitherPath() refuses a null value and names the route that gives a Left")
-    void toEitherPathRefusesNullValue() {
-      IdPath<String> path = Path.id(null);
-
-      assertThatNullPointerException()
-          .isThrownBy(path::toEitherPath)
-          .withMessage(
-              "the value is null: use toMaybePath().toEitherPath(error) to give a Left for it");
-      assertThatEither(path.toMaybePath().toEitherPath("absent").run()).hasLeft("absent");
     }
   }
 
@@ -325,12 +305,9 @@ class IdPathTest {
       IdPath<String> path1 = Path.id(TEST_VALUE);
       IdPath<String> path2 = Path.id(TEST_VALUE);
       IdPath<String> path3 = Path.id("different");
-      IdPath<String> nullPath1 = Path.id(null);
-      IdPath<String> nullPath2 = Path.id(null);
 
       assertThat(path1).isEqualTo(path2);
       assertThat(path1).isNotEqualTo(path3);
-      assertThat(nullPath1).isEqualTo(nullPath2);
     }
 
     @Test

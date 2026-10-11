@@ -4,6 +4,7 @@ package org.higherkindedj.example.effect;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.effect.LazyPath;
 
 /**
@@ -194,15 +195,16 @@ public class LazyPathExample {
     // Pattern 3: Breaking circular dependencies
     System.out.println("\nCircular Dependency Breaking:");
 
-    // Service A depends on B, B depends on A
-    // Use lazy to break the cycle
+    // Service A depends on B, and B depends on A. Each holds the other lazily, so A is built
+    // first and B reads it only when asked.
     // Note: ServiceA and ServiceB are defined at class level to allow mutual references
+    AtomicReference<ServiceA> serviceA = new AtomicReference<>();
+    LazyPath<ServiceB> lazyB =
+        LazyPath.defer(() -> new ServiceB(LazyPath.defer(serviceA::get), "ServiceB"));
+    serviceA.set(new ServiceA(lazyB, "ServiceA"));
 
-    // Create services with lazy references
-    LazyPath<ServiceB> lazyB = LazyPath.defer(() -> new ServiceB(LazyPath.now(null), "ServiceB"));
-
-    // In real code, you'd wire these properly - this just demonstrates the pattern
-    System.out.println("Services can be created with lazy cross-references");
+    System.out.println(serviceA.get().callB());
+    System.out.println(lazyB.get().callA());
 
     System.out.println();
   }

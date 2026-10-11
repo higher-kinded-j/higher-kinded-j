@@ -192,15 +192,16 @@ public class OptionalMonad extends OptionalFunctor
 
   /**
    * Raises an error in the {@code OptionalKind} context, which corresponds to an empty {@code
-   * Optional}. The error parameter (of type {@link Unit}) is typically {@link Unit#INSTANCE}.
+   * Optional}. An empty Optional carries no detail, so the error is {@link Unit#INSTANCE}.
    *
    * @param <A> The phantom type of the value for the resulting empty {@code OptionalKind}.
-   * @param error The error value (typically {@link Unit#INSTANCE}). Must be non-null.
+   * @param error The error value, {@link Unit#INSTANCE}. Must not be null.
    * @return A non-null {@code Kind<OptionalKind.Witness, A>} representing {@code Optional.empty()}.
+   * @throws NullPointerException if {@code error} is null.
    */
   @Override
   public <A> Kind<OptionalKind.Witness, A> raiseError(Unit error) {
-    // No need to validate the Unit parameter as it's a marker type
+    Validation.coreType().requireError(error, OptionalMonad.class, RAISE_ERROR);
     return OPTIONAL.widen(Optional.empty());
   }
 

@@ -52,18 +52,18 @@ The core type is the `State<S, A>` functional interface:
 public interface State<S, A> {
 
   // Represents the result: final value A and final state S
-  record StateTuple<S, A>(@Nullable A value, @NonNull S state) { /* ... */ }
+  record StateTuple<S, A>(@NonNull A value, @NonNull S state) { /* ... */ }
 
   // The core function: Initial State -> (Result Value, Final State)
   @NonNull StateTuple<S, A> run(@NonNull S initialState);
 
   // Static factories
   static <S, A> @NonNull State<S, A> of(@NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction);
-  static <S, A> @NonNull State<S, A> pure(@Nullable A value); // Creates State(s -> (value, s))
+  static <S, A> @NonNull State<S, A> pure(@NonNull A value); // Creates State(s -> (value, s))
   static <S> @NonNull State<S, S> get();                      // Creates State(s -> (s, s))
   static <S> @NonNull State<S, Unit> set(@NonNull S newState); // Creates State(s -> (Unit.INSTANCE, newState))
   static <S> @NonNull State<S, Unit> modify(@NonNull Function<@NonNull S, @NonNull S> f); // Creates State(s -> (Unit.INSTANCE, f(s)))
-  static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @Nullable A> f); // Creates State(s -> (f(s), s))
+  static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @NonNull A> f); // Creates State(s -> (f(s), s))
 
   // Instance methods for composition
   default <B> @NonNull State<S, B> map(@NonNull Function<? super A, ? extends B> f);
@@ -81,6 +81,10 @@ public interface State<S, A> {
 * `inspect(Function<S, A> f)`: Creates a computation that applies a function `f` to the current state to calculate a *result value*`A`, leaving the state unchanged.
 * `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
 * `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
+
+### A State Always Gives a Value {#a-state-always-gives-a-value}
+
+A `StateTuple` always holds a value, so `pure(null)` and `new StateTuple<>(null, s)` throw at the call. A function given to `inspect` or `map` that returns null fails the computation when it runs, naming that function. A step with nothing to return gives `Unit.INSTANCE`, as `set` and `modify` do. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 
 ## State Components
 

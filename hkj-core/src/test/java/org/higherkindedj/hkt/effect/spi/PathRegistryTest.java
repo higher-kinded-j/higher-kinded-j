@@ -95,14 +95,31 @@ class PathRegistryTest {
     }
 
     @Test
-    @DisplayName("unregister() removes provider from registry")
+    @DisplayName("unregister() removes provider from registry and returns it")
     void unregisterRemovesProvider() {
-      PathRegistry.register(new MaybePathProvider());
+      MaybePathProvider provider = new MaybePathProvider();
+      PathRegistry.register(provider);
       assertThat(PathRegistry.hasProvider(MaybeKind.Witness.class)).isTrue();
 
-      PathRegistry.unregister(MaybeKind.Witness.class);
+      Optional<PathProvider<?>> removed = PathRegistry.unregister(MaybeKind.Witness.class);
 
+      assertThat(removed).containsSame(provider);
       assertThat(PathRegistry.hasProvider(MaybeKind.Witness.class)).isFalse();
+    }
+
+    @Test
+    @DisplayName("unregister() returns empty for unregistered type")
+    void unregisterReturnsEmptyForUnregisteredType() {
+      assertThat(PathRegistry.unregister(MaybeKind.Witness.class)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("unregister() removes a provider the ServiceLoader finds, and it stays removed")
+    void unregisterRemovesServiceLoadedProvider() {
+      Optional<PathProvider<?>> removed = PathRegistry.unregister(OptionalKind.Witness.class);
+
+      assertThat(removed).containsInstanceOf(TestOptionalPathProvider.class);
+      assertThat(PathRegistry.hasProvider(OptionalKind.Witness.class)).isFalse();
     }
 
     @Test
@@ -225,15 +242,15 @@ class PathRegistryTest {
   class PathProviderDefaultMethodsTests {
 
     @Test
-    @DisplayName("monadError() returns null by default")
-    void monadErrorReturnsNullByDefault() {
+    @DisplayName("monadError() returns empty by default")
+    void monadErrorReturnsEmptyByDefault() {
       MaybePathProvider provider = new MaybePathProvider();
 
-      assertThat(provider.monadError()).isNull();
+      assertThat(provider.monadError()).isEmpty();
     }
 
     @Test
-    @DisplayName("supportsRecovery() returns false when monadError() is null")
+    @DisplayName("supportsRecovery() returns false when monadError() is empty")
     void supportsRecoveryReturnsFalseByDefault() {
       MaybePathProvider provider = new MaybePathProvider();
 
@@ -249,9 +266,9 @@ class PathRegistryTest {
     }
 
     @Test
-    @DisplayName("supportsRecovery() returns true when monadError() returns non-null")
+    @DisplayName("supportsRecovery() returns true when monadError() returns an instance")
     void supportsRecoveryReturnsTrueWhenMonadErrorProvided() {
-      // Create a provider that overrides monadError() to return a non-null value
+      // Create a provider that overrides monadError() to return an instance
       PathProvider<MaybeKind.Witness> providerWithRecovery =
           new PathProvider<>() {
             @Override
@@ -273,9 +290,9 @@ class PathRegistryTest {
 
             @Override
             @SuppressWarnings("unchecked")
-            public <E> MonadError<MaybeKind.Witness, E> monadError() {
+            public <E> Optional<MonadError<MaybeKind.Witness, E>> monadError() {
               // MaybeMonad implements MonadError<MaybeKind.Witness, Unit>
-              return (MonadError<MaybeKind.Witness, E>) Instances.monadError(maybe());
+              return Optional.of((MonadError<MaybeKind.Witness, E>) Instances.monadError(maybe()));
             }
           };
 

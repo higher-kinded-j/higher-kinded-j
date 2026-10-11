@@ -236,16 +236,6 @@ class LazyMonadTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("of() allows null value")
-    @SuppressWarnings("DataFlowIssue") // Lazy may legitimately hold a null value
-    void ofAllowsNullValue() throws Throwable {
-      Kind<LazyKind.Witness, String> kind = lazyMonad.of(null);
-      assertThatLazy(narrowToLazy(kind)).whenForcedHasValue(null);
-      assertThat(counterA.get()).isZero();
-      assertThat(counterF.get()).isZero();
-    }
-
-    @Test
     @DisplayName("map() propagates exception from original Lazy")
     void mapPropagatesExceptionFromOriginalLazy() {
       RuntimeException ex = new RuntimeException("OriginalFail");

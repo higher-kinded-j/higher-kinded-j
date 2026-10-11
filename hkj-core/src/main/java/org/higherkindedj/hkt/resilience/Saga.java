@@ -148,14 +148,17 @@ public final class Saga<A> {
   /**
    * Transforms the saga's result without adding a new step.
    *
-   * @param f the mapping function
+   * @param f the mapping function; must not return null, as a null result fails the saga like a
+   *     throw from {@code f} does
    * @param <B> the new result type
    * @return a new Saga with the transformed result
    */
   public <B> Saga<B> map(Function<A, B> f) {
     Objects.requireNonNull(f, "f must not be null");
     SagaRunner<A> selfRunner = this.runner;
-    return new Saga<>(tracker -> f.apply(selfRunner.execute(tracker)));
+    return new Saga<>(
+        tracker ->
+            Objects.requireNonNull(f.apply(selfRunner.execute(tracker)), "f must not return null"));
   }
 
   /**
@@ -203,6 +206,10 @@ public final class Saga<A> {
    * compensations succeed, the original exception is thrown. If compensations also fail, a {@link
    * SagaExecutionException} is thrown containing the {@link SagaError}.
    *
+   * <p>A saga always gives a value, so a {@link #map(Function)} whose function returns null fails
+   * the saga as a throw from that function would: its completed steps are compensated. Return
+   * {@link org.higherkindedj.hkt.Unit#INSTANCE} from a saga with nothing to return.
+   *
    * @return a VTask that executes the saga
    */
   public VTask<A> run() {
@@ -237,9 +244,9 @@ public final class Saga<A> {
    * left side contains a {@link SagaError} on failure; the right side contains the result on
    * success.
    *
-   * <p>A {@code Right} always holds a value, so a saga whose result is null is treated as a
-   * failure: its completed steps are compensated, and the {@code Left} holds a {@link
-   * NullPointerException} reported against the step named {@code "result"}. Return {@link
+   * <p>A saga always gives a value, so a {@link #map(Function)} whose function returns null fails
+   * the saga, as {@link #run()} treats it: its completed steps are compensated, and the {@code
+   * Left} holds the {@link NullPointerException}. Return {@link
    * org.higherkindedj.hkt.Unit#INSTANCE} from a saga with nothing to return.
    *
    * @return a VTask producing Either with the saga result or error
@@ -263,14 +270,6 @@ public final class Saga<A> {
         }
         SagaError sagaError = compensate(completedSteps, originalError, failedStepName);
         return Either.left(sagaError);
-      }
-      if (result == null) {
-        // Compensated like a failed step, so a retry of the whole saga starts from a clean state
-        NullPointerException refused =
-            new NullPointerException(
-                "the saga's result is null, and a Right always holds a value: return Unit from a"
-                    + " saga with nothing to return");
-        return Either.left(compensate(completedSteps, refused, "result"));
       }
       return Either.right(result);
     };
