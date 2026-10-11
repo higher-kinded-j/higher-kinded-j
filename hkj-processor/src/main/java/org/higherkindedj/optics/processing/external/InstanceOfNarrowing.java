@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Parameterizable;
 import javax.lang.model.element.TypeElement;
@@ -421,16 +423,19 @@ final class InstanceOfNarrowing {
    * type.
    *
    * <p>A wildcard the source writes among its class's own arguments, or those of a class around it,
-   * pins nothing, and the match rules nothing out from it. Every other position is part of a type
-   * the source fixes exactly. Where neither side names a type variable, that type is compared
-   * whole: no {@code Node<List<String>>} is a {@code Node<Set<String>>}, a {@code Node<List<?>>} or
-   * a {@code Node<List<? extends Number>>}. Where one does, the match goes position by position,
-   * and two classes, arrays or primitives that differ clash, as does a wildcard against one of
-   * them, unless javac reads the two as one type argument, as it reads {@code ? super Object} as
-   * {@code Object}. Against a type, a type variable clashes only with a primitive, since it stands
-   * for some reference type the match cannot see. Against a wildcard inside an argument, the
-   * target's own variable clashes as well, since a type argument is never a wildcard. The source's
-   * variable rules nothing out, and what it stands for is left to the checks that follow.
+   * pins nothing, and rules out only a class or array outside its bounds: no {@code Node<? extends
+   * Number>} is a {@code Node<Object>}. Every other position is part of a type the source fixes
+   * exactly. Where neither side names a type variable, that type is compared whole: no {@code
+   * Node<List<String>>} is a {@code Node<Set<String>>}, a {@code Node<List<?>>} or a {@code
+   * Node<List<? extends Number>>}. Where one does, the match goes position by position, and two
+   * classes, arrays or primitives that differ clash, as does a wildcard against one of them, unless
+   * javac reads the two as one type argument, as it reads {@code ? super Object} as {@code Object}.
+   * Inside an argument, such a wildcard pins a variable to that type. Against a type, a type
+   * variable clashes only with a primitive, since it stands for some reference type the match
+   * cannot see. Against any other wildcard inside an argument, the target's own variable clashes as
+   * well, since a type argument is never a wildcard. The source's variable rules nothing out, and
+   * what it stands for is left to the checks that follow, as is a {@code ? super} wildcard javac
+   * reads otherwise than the model can.
    *
    * @param pattern the hierarchy as the target declares it, or null when the target does not reach
    *     the source element at all
@@ -454,11 +459,14 @@ final class InstanceOfNarrowing {
           // can be. Pinned, it would be handed to a builder that only takes reference types.
           clashes.add(new Clash(Optional.of(new PrimitiveArgument(variable, actual))));
         } else if (wildcardInsideAnArgument(actual, depth)
-            && !standsForOneType((WildcardType) actual)) {
+            && standsForOneType((WildcardType) actual)) {
+          // javac reads ? super Object as Object, and so does the match.
+          bind(matched, variable, ((WildcardType) actual).getSuperBound());
+        } else if (wildcardInsideAnArgument(actual, depth)) {
           // A type argument is a type, never a wildcard: no List<X> is exactly the type List<?>.
           clashes.add(new Clash(Optional.empty()));
         } else {
-          matched.computeIfAbsent(variable.asElement(), key -> new ArrayList<>()).add(actual);
+          bind(matched, variable, actual);
         }
       }
       // Same class, argument for argument. A raw extends clause on the way to the source names
@@ -471,19 +479,29 @@ final class InstanceOfNarrowing {
         // From an argument down, a type that names no variable is exactly the type it writes.
         if (depth > 0
             && !ProcessorUtils.namesTypeVariable(declared)
-            && !ProcessorUtils.namesTypeVariable(actualDeclared)) {
+            && !ProcessorUtils.namesTypeVariable(actualDeclared)
+            && !holdsAnArgumentJavacReadsOtherwise(declared)
+            && !holdsAnArgumentJavacReadsOtherwise(actualDeclared)) {
           // Its wildcards and raw types included: no List<?> is a List<? extends Number>.
           if (!typeUtils.isSameType(declared, actualDeclared)) {
             clashes.add(new Clash(Optional.empty()));
           }
         } else if (declared.getTypeArguments().size() == actualDeclared.getTypeArguments().size()) {
+          List<? extends TypeParameterElement> parameters =
+              ((TypeElement) declared.asElement()).getTypeParameters();
           for (int index = 0; index < declared.getTypeArguments().size(); index++) {
-            match(
-                declared.getTypeArguments().get(index),
-                actualDeclared.getTypeArguments().get(index),
-                depth + 1,
-                matched,
-                clashes);
+            TypeMirror argument = declared.getTypeArguments().get(index);
+            TypeMirror actualArgument = actualDeclared.getTypeArguments().get(index);
+            if (readOtherwiseByJavac(parameters.get(index), argument)
+                || readOtherwiseByJavac(parameters.get(index), actualArgument)) {
+              // Nothing is ruled out here, and a variable is matched to the wildcard as it is,
+              // which pins nothing.
+              if (argument instanceof TypeVariable variable) {
+                bind(matched, variable, actualArgument);
+              }
+              continue;
+            }
+            match(argument, actualArgument, depth + 1, matched, clashes);
           }
           // An inner class's enclosing instantiation is part of its type: Outer<X>.Base matched
           // against Outer<String>.Base pins X as surely as an argument would.
@@ -514,12 +532,19 @@ final class InstanceOfNarrowing {
     }
   }
 
+  /** Records one more position a type variable was matched at. */
+  private static void bind(
+      Map<Element, List<TypeMirror>> matched, TypeVariable variable, TypeMirror binding) {
+    matched.computeIfAbsent(variable.asElement(), key -> new ArrayList<>()).add(binding);
+  }
+
   /**
    * Whether two positions the match takes no further are types that differ: two classes, arrays or
    * primitives that are not the same type, or, where neither names a type variable, a wildcard that
    * is part of a type against one of them, or against another such wildcard, that javac does not
    * read as the same type argument. The target's wildcards are all part of the type it declares;
-   * the source's are only below its class's own arguments.
+   * the source's are only below its class's own arguments. A wildcard among those own arguments
+   * differs only from a class or array it does not contain.
    */
   private boolean differ(TypeMirror pattern, TypeMirror actual, int depth) {
     if (hasFixedShape(pattern) && hasFixedShape(actual)) {
@@ -530,9 +555,15 @@ final class InstanceOfNarrowing {
     if (ProcessorUtils.namesTypeVariable(pattern) || ProcessorUtils.namesTypeVariable(actual)) {
       return false;
     }
+    // javac casts from a source's wildcard only to a type the wildcard contains: no
+    // Node<? extends Number> is a Node<Object>.
+    if (depth == 1 && actual.getKind() == TypeKind.WILDCARD) {
+      return hasFixedShape(pattern) && !typeUtils.contains(actual, pattern);
+    }
+    // What is left against a wildcard of the target's is a class or an array, or a wildcard
+    // inside one of the source's arguments.
     if (pattern.getKind() == TypeKind.WILDCARD) {
-      return (hasFixedShape(actual) || wildcardInsideAnArgument(actual, depth))
-          && !oneTypeArgument(pattern, actual);
+      return !oneTypeArgument(pattern, actual);
     }
     return wildcardInsideAnArgument(actual, depth) && !oneTypeArgument(actual, pattern);
   }
@@ -543,6 +574,43 @@ final class InstanceOfNarrowing {
    */
   private boolean standsForOneType(WildcardType wildcard) {
     return wildcard.getSuperBound() != null && oneTypeArgument(wildcard, wildcard.getSuperBound());
+  }
+
+  /**
+   * Whether javac reads an argument otherwise than the model does. javac reads a {@code ? super L}
+   * against its parameter's bound with the class's arguments in place, so {@code PB<Object, ? super
+   * Object>} for {@code PB<A, B extends A>} is one type to javac; the model reads it against the
+   * declared bound, {@code A}, and cannot tell. Such an argument is left to javac, as is any type
+   * that holds one.
+   */
+  private static boolean readOtherwiseByJavac(TypeParameterElement parameter, TypeMirror argument) {
+    return argument instanceof WildcardType wildcard
+        && wildcard.getSuperBound() != null
+        && parameter.getBounds().stream().anyMatch(ProcessorUtils::namesTypeVariable);
+  }
+
+  /** Whether a type holds, at any depth, an argument javac reads otherwise than the model does. */
+  static boolean holdsAnArgumentJavacReadsOtherwise(TypeMirror type) {
+    return switch (type.getKind()) {
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        List<? extends TypeParameterElement> parameters =
+            ((TypeElement) declared.asElement()).getTypeParameters();
+        List<? extends TypeMirror> arguments = declared.getTypeArguments();
+        yield IntStream.range(0, arguments.size())
+                .anyMatch(
+                    index -> readOtherwiseByJavac(parameters.get(index), arguments.get(index)))
+            || Stream.concat(Stream.of(declared.getEnclosingType()), arguments.stream())
+                .anyMatch(InstanceOfNarrowing::holdsAnArgumentJavacReadsOtherwise);
+      }
+      case ARRAY -> holdsAnArgumentJavacReadsOtherwise(((ArrayType) type).getComponentType());
+      case WILDCARD ->
+          Stream.concat(
+                  Stream.ofNullable(((WildcardType) type).getExtendsBound()),
+                  Stream.ofNullable(((WildcardType) type).getSuperBound()))
+              .anyMatch(InstanceOfNarrowing::holdsAnArgumentJavacReadsOtherwise);
+      default -> false;
+    };
   }
 
   /**

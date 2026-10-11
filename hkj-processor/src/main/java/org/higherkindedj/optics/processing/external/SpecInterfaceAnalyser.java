@@ -653,7 +653,14 @@ public class SpecInterfaceAnalyser {
         // whichever one narrowed it. Asked after the hint, so a method carrying none is told that
         // first: it is the nearer problem.
         if (!typeUtils.isAssignable(focusType, sourceType)) {
-          reportFocusThatCannotBuildTheSource(method, specInterface, sourceType, focusType);
+          reportFocusThatCannotBuildTheSource(
+              method,
+              specInterface,
+              sourceType,
+              focusType,
+              prismResult.get().kind() == PrismHintKind.INSTANCE_OF
+                  ? Optional.of(prismResult.get().info().targetType())
+                  : Optional.empty());
           return Optional.empty();
         }
         prismHint = prismResult.get().kind();
@@ -820,20 +827,28 @@ public class SpecInterfaceAnalyser {
    * value the getter read. That only stands up {@code Prism.build} when the focus is a type the
    * source accepts. A focus that is a value rather than a variant of the source - {@code
    * Prism<JsonNode, String>} - has no build side the processor could write, and reaches javac as an
-   * error inside a file the author never wrote (issue #755).
+   * error inside a file the author never wrote.
+   *
+   * <p>Where what an {@code @InstanceOf} test earns is no source either, no focus could take it and
+   * still be one, and asking for one would send the reader to the message that refused the last.
+   * The line offers {@link #noFocus}'s remedies instead.
    *
    * @param method the offending optic method
    * @param specInterface the spec declaring it, for the name the user reads
    * @param sourceType the source type {@code S}
    * @param focusType the focus type the prism promises
+   * @param tested what an {@code @InstanceOf} test narrows to, or empty for {@code @MatchWhen}
    */
   private void reportFocusThatCannotBuildTheSource(
       ExecutableElement method,
       TypeElement specInterface,
       TypeMirror sourceType,
-      TypeMirror focusType) {
+      TypeMirror focusType,
+      Optional<TypeMirror> tested) {
 
     String source = ProcessorUtils.simpleTypeName(sourceType);
+    Optional<NoFocus> noFocus =
+        tested.flatMap(narrowed -> noFocus(narrowed, sourceType, Optional.empty()));
     Diagnostics.error(
         messager,
         method,
@@ -850,13 +865,84 @@ public class SpecInterfaceAnalyser {
         "A prism runs both ways, and the generated one builds back with identity: it returns the"
             + " value it narrowed. That is only a '"
             + source
-            + "' when the focus is one, and nothing else here could rebuild one.",
-        "Focus a type that is a '"
-            + source
-            + "' - the variant, not the value it carries - or, where the value is the point, write"
-            + " the prism by hand with Prism.of and a build side that constructs a '"
-            + source
-            + "'.");
+            + "' when the focus is one"
+            + noFocus
+                .map(
+                    reason ->
+                        ", and what the test earns, '"
+                            + reason.earned()
+                            + "', is no '"
+                            + source
+                            + "' either, so no focus could take it and still be one.")
+                .orElse(", and nothing else here could rebuild one."),
+        noFocus
+            .map(NoFocus::fix)
+            .orElse(
+                "Focus a type that is a '"
+                    + source
+                    + "' - the variant, not the value it carries - or, where the value is the"
+                    + " point, write the prism by hand with Prism.of and a build side that"
+                    + " constructs a '"
+                    + source
+                    + "'."));
+  }
+
+  /**
+   * Why no focus will do, and what will, where what an {@code @InstanceOf} test earns is no source.
+   *
+   * @param earned what the test earns, as the reader reads it
+   * @param fix another class, or the prism on a spec of its own over the type the class declares
+   */
+  private record NoFocus(String earned, String fix) {}
+
+  /**
+   * What a message offers where what an {@code @InstanceOf} test earns is no source, so no focus
+   * could take it and still be one, or empty where a focus could.
+   *
+   * <p>The remedy names the type to declare: the class as the source's class, which every value of
+   * it is. A spec of its own over that type leaves the spec's other methods the source they were
+   * written for. Where the focus the method declares is a source, its class is the other remedy.
+   * Where either type holds a {@code ? super} argument javac reads otherwise than the model can,
+   * the model's verdict that no focus will do is not javac's, and nothing is claimed.
+   *
+   * @param tested what the test earns
+   * @param sourceType the source type {@code S}
+   * @param focusType the focus the method declares, where naming its class is a remedy
+   * @return the clause and the line, or empty where some focus could do
+   */
+  private Optional<NoFocus> noFocus(
+      TypeMirror tested, TypeMirror sourceType, Optional<TypeMirror> focusType) {
+    if (typeUtils.isAssignable(tested, sourceType)) {
+      return Optional.empty();
+    }
+    // Only a declared type reaches here: an array is always an Object, Cloneable and Serializable,
+    // the only sources an array target passes the subtype check for.
+    DeclaredType target = (DeclaredType) typeUtils.asElement(tested).asType();
+    TypeMirror declared =
+        ProcessorUtils.supertypeOf(
+            typeUtils, target, (TypeElement) typeUtils.asElement(sourceType));
+    if (InstanceOfNarrowing.holdsAnArgumentJavacReadsOtherwise(sourceType)
+        || InstanceOfNarrowing.holdsAnArgumentJavacReadsOtherwise(declared)) {
+      return Optional.empty();
+    }
+    String other =
+        focusType
+            .filter(focus -> typeUtils.isAssignable(focus, sourceType))
+            .map(focus -> "Name the class the focus declares in @InstanceOf")
+            .orElse("Name another class in @InstanceOf");
+    return Optional.of(
+        new NoFocus(
+            ProcessorUtils.simpleTypeName(tested),
+            other + ", or " + specOfItsOwn(target, declared) + "."));
+  }
+
+  /** The prism on a spec of its own over the type a class declares, which every value of it is. */
+  private static String specOfItsOwn(TypeMirror target, TypeMirror declared) {
+    return "declare the prism on a spec of its own over '"
+        + ProcessorUtils.simpleTypeName(declared)
+        + "', which every '"
+        + ProcessorUtils.simpleTypeName(target)
+        + "' is";
   }
 
   /**
@@ -929,9 +1015,9 @@ public class SpecInterfaceAnalyser {
         why,
         "Name a class in @InstanceOf that a '"
             + source
-            + "' can be, or declare the prism on a spec of its own, whose source type a '"
-            + target
-            + "' can be.");
+            + "' can be, or "
+            + specOfItsOwn(neverMatches.target(), neverMatches.declared())
+            + ".");
   }
 
   /**
@@ -1126,8 +1212,12 @@ public class SpecInterfaceAnalyser {
    * <p>Two ways to get there, and they want different remedies. The class constant is raw, so a
    * target parameter the source type pins nothing to is checked by nothing: {@code Circle<X>
    * extends Shape} narrowed from {@code Shape} passes for every instantiation, and a focus of
-   * {@code Circle<T>} would hand the wrong one back to fail on the first read (issue #733). The
-   * other way is a target that simply is not one the focus accepts, which is a naming mistake.
+   * {@code Circle<T>} would hand the wrong one back to fail on the first read. The other way is a
+   * target that simply is not one the focus accepts, which is a naming mistake.
+   *
+   * <p>Either way, a focus is only worth offering where what the test earns is a source the prism
+   * could build back. Where it is not, no focus could take it and still be one, and the line offers
+   * {@link #noFocus}'s remedies instead, rather than a focus the next check would refuse.
    *
    * @param method the offending optic method
    * @param specInterface the spec declaring it, for the name the user reads
@@ -1145,10 +1235,18 @@ public class SpecInterfaceAnalyser {
     String declaration = specInterface.getSimpleName() + "." + method.getSimpleName();
     String tested = ProcessorUtils.simpleTypeName(narrowing.testedType());
     String focus = ProcessorUtils.simpleTypeName(focusType);
+    String source = ProcessorUtils.simpleTypeName(sourceType);
 
-    if (!narrowing.freeParameters().isEmpty()
-        && typeUtils.isAssignable(
-            typeUtils.erasure(narrowing.testedType()), typeUtils.erasure(focusType))) {
+    boolean free =
+        !narrowing.freeParameters().isEmpty()
+            && typeUtils.isAssignable(
+                typeUtils.erasure(narrowing.testedType()), typeUtils.erasure(focusType));
+    // Where the focus declares the test's own class, naming that class again is no remedy.
+    Optional<NoFocus> noFocus =
+        noFocus(
+            narrowing.testedType(), sourceType, free ? Optional.empty() : Optional.of(focusType));
+
+    if (free) {
       Diagnostics.error(
           messager,
           method,
@@ -1161,18 +1259,22 @@ public class SpecInterfaceAnalyser {
               + " narrow to.",
           "@InstanceOf carries a class constant, which is raw, so the test runs after erasure and"
               + " '"
-              + ProcessorUtils.simpleTypeName(sourceType)
+              + source
               + "' pins nothing to "
               + String.join(", ", narrowing.freeParameters())
               + ": every instantiation passes it, and would be handed back as '"
               + focus
-              + "' to fail on the first read.",
-          "Narrow through a predicate and getter of '"
-              + ProcessorUtils.simpleTypeName(sourceType)
-              + "' with @MatchWhen, which reads the argument off the source rather than inventing"
-              + " it, or declare the focus as '"
-              + tested
-              + "', which is what the test earns.");
+              + "' to fail on the first read."
+              + noFocus.map(reason -> noFocusClause(reason, source)).orElse(""),
+          noFocus
+              .map(NoFocus::fix)
+              .orElse(
+                  "Narrow through a predicate and getter of '"
+                      + source
+                      + "' with @MatchWhen, which reads the argument off the source rather than"
+                      + " inventing it, or declare the focus as '"
+                      + tested
+                      + "', which is what the test earns."));
       return;
     }
 
@@ -1182,11 +1284,24 @@ public class SpecInterfaceAnalyser {
         "@InstanceOf",
         "'" + declaration + "' narrows to '" + tested + "', which is not a '" + focus + "'.",
         "The prism hands back the value the test narrowed, so the class the annotation names has"
-            + " to be one the focus type accepts.",
-        "Name the class the focus declares in @InstanceOf, or declare the focus as a supertype of"
-            + " '"
-            + tested
-            + "'.");
+            + " to be one the focus type accepts."
+            + noFocus.map(reason -> noFocusClause(reason, source)).orElse(""),
+        noFocus
+            .map(NoFocus::fix)
+            .orElse(
+                "Name the class the focus declares in @InstanceOf, or declare the focus as a"
+                    + " supertype of '"
+                    + tested
+                    + "'."));
+  }
+
+  /** The sentence that says no focus could take what the test earns and still be a source. */
+  private static String noFocusClause(NoFocus reason, String source) {
+    return " What the test earns, '"
+        + reason.earned()
+        + "', is no '"
+        + source
+        + "', so no focus could take it and still be one.";
   }
 
   // ----- Traversal Hint Parsing -----

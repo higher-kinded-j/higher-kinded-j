@@ -8016,7 +8016,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Structural first-order unification of a declared mirror against a use-site mirror, binding the
    * declared side's type variables. ERROR kinds step aside (never a spurious match); bindings must
-   * stay consistent across repeated occurrences.
+   * stay consistent across repeated occurrences. A type variable stands for a reference type, so it
+   * never unifies with a primitive: {@code Page<T[]>} does not cover a {@code Page<int[]>}.
    */
   private boolean unify(TypeMirror declared, TypeMirror actual, Map<Element, TypeMirror> bindings) {
     Types types = processingEnv.getTypeUtils();
@@ -8027,6 +8028,9 @@ public class MappingProcessor extends AbstractProcessor {
       return false;
     }
     if (declared instanceof TypeVariable variable) {
+      if (actual.getKind().isPrimitive()) {
+        return false;
+      }
       TypeMirror existing = bindings.get(variable.asElement());
       if (existing != null) {
         return types.isSameType(existing, actual);

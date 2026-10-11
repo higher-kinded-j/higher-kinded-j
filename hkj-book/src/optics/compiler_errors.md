@@ -877,7 +877,7 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
 The class `@InstanceOf` names is a subtype of the source's class, but its own declaration writes a different type where the source type writes one, so no value of the source would pass the test.
 
-**Fix.** Name a class in `@InstanceOf` that the source type can be, or declare the prism on a spec of its own, whose source type the class can be. `NodeOpticsSpec` keeps the source its other methods were written for:
+**Fix.** Name a class in `@InstanceOf` that the source type can be, or declare the prism on a spec of its own over the type the class declares, which the message names: `Node<Y[]>` for a `Grid<Y>`. `NodeOpticsSpec` keeps the source its other methods were written for:
 
 <!-- verify -->
 ```java
@@ -895,15 +895,15 @@ interface NodeOpticsSpec extends OpticsSpec<Node<int[]>> {
 }
 
 @ImportOptics
-interface GridOpticsSpec extends OpticsSpec<Node<Integer[]>> {
+interface GridOpticsSpec<Y> extends OpticsSpec<Node<Y[]>> {
 
     @InstanceOf(Grid.class)
-    Prism<Node<Integer[]>, Grid<Integer>> grid();
+    Prism<Node<Y[]>, Grid<Y>> grid();
 }
 ```
 
 ~~~admonish note title="Why" collapsible=true
-A type argument has to be exactly the type the source writes in its place. A `Grid<Y>` is a `Node<Y[]>`, which is a `Node<int[]>` only with `Y` as `int`, and a type argument is never a primitive. The same holds wherever no choice of the class's parameters makes the type it declares the source type. A `Box<X> extends Node<List<X>>` is never a `Node<Set<String>>`, nor a `Node<List<?>>`, since no `List<X>` is exactly the type `List<?>`. A `Twin<X> extends Node<Pair<X, X>>` is never a `Node<Pair<String, Integer>>`. The prism would never match, so one of the two declarations is the mistake, and the processor says so at the spec method. A type variable in the source, or a wildcard the source writes as one of its own arguments, could stand for many types. The processor leaves those to the checks that follow, unless a primitive stands against the variable.
+A type argument has to be exactly the type the source writes in its place. A `Grid<Y>` is a `Node<Y[]>`, which is a `Node<int[]>` only with `Y` as `int`, and a type argument is never a primitive. The same holds wherever no choice of the class's parameters makes the type it declares the source type. A `Box<X> extends Node<List<X>>` is never a `Node<Set<String>>`, nor a `Node<List<?>>`, since no `List<X>` is exactly the type `List<?>`. A `Twin<X> extends Node<Pair<X, X>>` is never a `Node<Pair<String, Integer>>`. The prism would never match, so one of the two declarations is the mistake, and the processor says so at the spec method. A wildcard the source writes as one of its own arguments admits any type within its bounds, so only a type outside them is refused: no `Node<? extends Number>` is a `Node<Object>`. A type variable in the source could stand for any class, so it rules nothing out unless a primitive stands against it.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -927,6 +927,8 @@ interface NodeOpticsSpec extends OpticsSpec<Node<int[]>> {
 The prism promises a type argument the test cannot check.
 
 **Fix.** Declare the focus as `Circle<?>`, which is what the test earns, or narrow through a predicate and getter of the source type with `@MatchWhen`, which reads the argument off the source rather than inventing it. Where the source type does carry the argument, as in a `Circle<X> implements Shape<X>` reached from `Shape<T>`, the prism may promise it and the generated test names it. See [Spec Interfaces](optics_spec_interfaces.md#parameterised-targets).
+
+Where what the test earns is no source type, no focus would build the source back: a `Box<?>` is no `Node<U>` for `Box<X> extends Node<List<X>>`. The message then offers another class, or the prism on a spec of its own over `Node<List<X>>`, as for [a test that would never match](#instanceof-never-matches).
 
 ~~~admonish note title="Why" collapsible=true
 `@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
@@ -1014,7 +1016,7 @@ interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
 
 The class the annotation names is not one the prism's focus type accepts.
 
-**Fix.** Name the class the focus declares, or declare the focus as a supertype of the narrowed type. A prism whose focus is deliberately wider than the test is fine, as in `@InstanceOf(ArrayList.class) Prism<Collection<T>, List<T>>`; it is only a focus the narrowed value cannot be assigned to that is rejected.
+**Fix.** Name the class the focus declares, or declare the focus as a supertype of the narrowed type. A prism whose focus is deliberately wider than the test is fine, as in `@InstanceOf(ArrayList.class) Prism<Collection<T>, List<T>>`; it is only a focus the narrowed value cannot be assigned to that is rejected. Where the narrowed type is no source type, no supertype of it would do. The message then offers another class, the focus's own where that is a source type, or a spec of its own over the type the narrowed class declares.
 
 ~~~admonish note title="Why" collapsible=true
 Either the two are unrelated, or the source type pins the target's argument to something the focus does not agree with: `OpticsSpec<Node<String>>` narrowed to `Leaf` can only be a `Leaf<String>`, whatever a `Prism<Node<String>, Leaf<U>>` says.
@@ -1828,7 +1830,7 @@ class CounterImports {}
 
 A prism runs both ways, and the generated one builds back with identity: it returns the value it narrowed.
 
-**Fix.** Focus the variant that carries the value, `TextNode` rather than `String`, and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+**Fix.** Focus the variant that carries the value, `TextNode` rather than `String`, and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`. Where what an `@InstanceOf` test earns is no source type, no focus could take it and still be one. The message then offers another class, or a spec of its own over the type the class declares.
 
 ~~~admonish note title="Why" collapsible=true
 That is only a source when the focus is one, so a focus that is a *value* rather than a variant has no build side the processor could write: `Prism<JsonNode, String>` would need to rebuild a `JsonNode` from a bare `String`, and nothing in the declaration says how. The requirement belongs to the prism rather than to either hint, so `@InstanceOf` and `@MatchWhen` are both held to it. That includes an `@InstanceOf` whose narrowing is sound but reaches the focus through a supertype the source does not share, `Prism<Base, Marker>` for a `Sub implements Base, Marker`.
