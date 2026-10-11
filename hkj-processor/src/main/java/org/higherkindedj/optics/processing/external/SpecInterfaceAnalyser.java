@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing.external;
 
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
@@ -11,6 +12,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -765,6 +767,10 @@ public class SpecInterfaceAnalyser {
             method, specInterface, sourceType, targetType, narrowing.unwritableBounds().getFirst());
         return Optional.empty();
       }
+      if (!narrowing.outOfBounds().isEmpty()) {
+        reportOutOfBound(method, specInterface, sourceType, narrowing);
+        return Optional.empty();
+      }
       if (!typeUtils.isAssignable(narrowing.testedType(), focusType)) {
         reportUntestableInstanceOf(method, specInterface, sourceType, focusType, narrowing);
         return Optional.empty();
@@ -889,6 +895,149 @@ public class SpecInterfaceAnalyser {
         "Narrow through a predicate and getter of '"
             + source
             + "' with @MatchWhen, or write the prism by hand.");
+  }
+
+  /**
+   * Reports an {@code @InstanceOf} target the source pins an argument outside its bound: javac
+   * refuses the test that would name it, in a file the author never wrote.
+   *
+   * <p>The message names every bound the argument has to meet. Where one bound on a spec parameter
+   * would bring every argument within, the fix line gives that declaration; anywhere else it offers
+   * another class or {@code @MatchWhen}, leaving the reader the bounds to work from. A {@code
+   * List<U>} outside a {@code List<? extends Number>} is in that second case: whether a bound on
+   * {@code U} helps depends on where the bound's wildcards stand, which the line does not guess at.
+   *
+   * @param method the offending optic method
+   * @param specInterface the spec declaring it, for the name the user reads
+   * @param sourceType the source type {@code S}
+   * @param narrowing what the test earns, with at least one parameter pinned outside its bound
+   */
+  private void reportOutOfBound(
+      ExecutableElement method,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      InstanceOfNarrowing.Narrowing narrowing) {
+
+    InstanceOfNarrowing.OutOfBound outOfBound = narrowing.outOfBounds().getFirst();
+    TypeMirror argument = outOfBound.argument();
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String named = ProcessorUtils.simpleTypeName(argument);
+    String matchWhen = "narrow through a predicate and getter of '" + source + "' with @MatchWhen.";
+    Optional<TypeMirror> declarable =
+        argument instanceof TypeVariable variable
+            ? boundToDeclare(variable, narrowing.outOfBounds())
+            : Optional.empty();
+    String fix =
+        declarable
+            .map(
+                bound ->
+                    "Declare "
+                        + named
+                        + " as '"
+                        + named
+                        + " extends "
+                        + ProcessorUtils.simpleTypeName(bound)
+                        + "' in '"
+                        + specInterface.getSimpleName()
+                        + "', or "
+                        + matchWhen)
+            .orElse("Name a class in @InstanceOf that a '" + source + "' can be, or " + matchWhen);
+    Diagnostics.error(
+        messager,
+        method,
+        "@InstanceOf",
+        "'"
+            + specInterface.getSimpleName()
+            + "."
+            + method.getSimpleName()
+            + "' tests '"
+            + ProcessorUtils.simpleTypeName(narrowing.testedType())
+            + "', where "
+            + outOfBound.declaration()
+            + " and "
+            + named
+            + " is not a '"
+            + strongest(outOfBound.bounds().stream()).stream()
+                .map(ProcessorUtils::simpleTypeName)
+                .collect(Collectors.joining(" & "))
+            + "'.",
+        "javac refuses a type argument outside its parameter's bound, so the generated test would"
+            + " not compile.",
+        fix);
+  }
+
+  /**
+   * The one bound a spec's type parameter can be declared with to bring every argument outside its
+   * bound within, or empty where one bound will not do.
+   *
+   * <p>It is offered only where declaring it is plainly right. Every argument outside its bound is
+   * this variable, and each of their bounds reads without naming the target. Those bounds come down
+   * to one type once any another implies is dropped. That type is not raw, nor a type variable
+   * bounded by this one, which would close a cycle. And it implies every bound the variable
+   * declares already, so declaring it alone keeps them. Two bounds or more can clash in ways only
+   * javac settles, a generic interface inherited twice or two methods of one signature, so they are
+   * left to the bounds the message lists.
+   */
+  private Optional<TypeMirror> boundToDeclare(
+      TypeVariable variable, List<InstanceOfNarrowing.OutOfBound> outOfBounds) {
+    if (!outOfBounds.stream()
+        .allMatch(
+            outOfBound ->
+                outOfBound.complete() && typeUtils.isSameType(outOfBound.argument(), variable))) {
+      return Optional.empty();
+    }
+    List<TypeMirror> needed =
+        strongest(outOfBounds.stream().flatMap(outOfBound -> outOfBound.bounds().stream()));
+    if (needed.size() != 1) {
+      return Optional.empty();
+    }
+    TypeMirror bound = needed.getFirst();
+    boolean writable =
+        switch (bound.getKind()) {
+          case DECLARED -> ProcessorUtils.firstRawIn(bound) == null;
+          case TYPEVAR -> !boundedBy((TypeVariable) bound, variable);
+          // An array bounds no type parameter.
+          default -> false;
+        };
+    boolean keepsItsBounds =
+        ((TypeParameterElement) variable.asElement())
+            .getBounds().stream().allMatch(declared -> typeUtils.isSubtype(bound, declared));
+    return writable && keepsItsBounds ? Optional.of(bound) : Optional.empty();
+  }
+
+  /**
+   * The types, each once, less any that another of them implies: {@code Integer} for {@code Number}
+   * and {@code Integer}, {@code Comparable<U>} for {@code Object & Comparable<U>}.
+   */
+  private List<TypeMirror> strongest(Stream<TypeMirror> types) {
+    List<TypeMirror> distinct = new ArrayList<>();
+    types.forEach(
+        type -> {
+          if (distinct.stream().noneMatch(kept -> typeUtils.isSameType(kept, type))) {
+            distinct.add(type);
+          }
+        });
+    return distinct.stream()
+        .filter(
+            type ->
+                distinct.stream()
+                    .noneMatch(other -> other != type && typeUtils.isSubtype(other, type)))
+        .toList();
+  }
+
+  /**
+   * Whether a type variable is bounded by another through a chain of type variables: declaring
+   * {@code U extends V} closes a cycle where {@code V} is bounded by {@code U}.
+   */
+  private static boolean boundedBy(TypeVariable from, TypeVariable variable) {
+    TypeMirror current = from;
+    while (current instanceof TypeVariable link) {
+      if (link.asElement().equals(variable.asElement())) {
+        return true;
+      }
+      current = link.getUpperBound();
+    }
+    return false;
   }
 
   /**

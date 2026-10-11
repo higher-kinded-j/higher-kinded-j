@@ -9,7 +9,12 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.optics.processing.ImportOpticsProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -152,22 +157,125 @@ class InstanceOfNarrowingTest {
           }
           """);
 
+  /** Classes whose parameters bound the arguments a test may pin, in each way javac reads one. */
+  private static final JavaFileObject LIMITS =
+      JavaFileObjects.forSourceString(
+          "com.external.Limits",
+          """
+          package com.external;
+
+          import java.io.Serializable;
+          import java.util.List;
+
+          public class Limits {
+              public static class Numeric<Y extends Number> extends Node<Y> {}
+
+              public static class Ordered<Y extends Comparable<Y>> extends Node<Y> {}
+
+              public static class Measured<Y extends Number & Comparable<Y>> extends Node<Y> {}
+
+              public static class NumberLists<Y extends List<? extends Number>> extends Node<Y> {}
+
+              public static class Comparing<A extends Comparable<A>, B extends List<? extends A>>
+                  extends Node<B> {}
+
+              public static class Partly<
+                      A extends Number & Serializable, Y extends Number & Comparable<? extends A>>
+                  extends Node<Y> {}
+
+              public static class Same<A, B extends A> extends Node<Pair<A, B>> {}
+
+              public static class Clashing<A extends Integer, B extends String>
+                  extends Node<Pair<A, B>> {}
+
+              public static class Mixed<A extends Number, B extends CharSequence>
+                  extends Node<Pair<A, B>> {}
+
+              public static class Maximal<Y extends Object & Comparable<Y>> extends Node<Y> {}
+
+              public static class Narrowed<A extends Number, B extends Integer>
+                  extends Node<Pair<A, B>> {}
+
+              public static class Twins<A extends Number, B extends Number> extends Node<Pair<A, B>> {}
+
+              @SuppressWarnings("rawtypes")
+              public static class RawBound<Y extends List> extends Node<Y> {}
+
+              public static class Scoped<X> {
+                  public class In<Q> {}
+
+                  public static class Target<A, B extends In<A>> extends Node<Pair<A, B>> {}
+              }
+
+              public static class Listed<A, B extends List<A>> extends Node<B> {}
+
+              public static class UpperListed<A extends Number, B extends List<? extends A>>
+                  extends Node<B> {}
+
+              public static class MeetListed<A extends Number & Serializable, B extends List<? extends A>>
+                  extends Node<B> {}
+
+              public static class LowerListed<A extends Number, B extends List<? super A>>
+                  extends Node<B> {}
+
+              public static class LowerArray<A, B extends List<? super A[]>> extends Node<B> {}
+
+              public static class MemberArray<A, B extends Outer<? super A[]>.Base> extends Node<B> {}
+
+              public static class PairedUpper<A, B extends List<? extends A>> extends Node<Pair<A, B>> {}
+
+              public static class PairedLower<A, B extends List<? super A>> extends Node<Pair<A, B>> {}
+
+              public static class PairedArray<A, B extends List<A[]>> extends Node<Pair<A, B>> {}
+
+              public static class PairedMember<A, B extends Outer<A>.Base> extends Node<Pair<A, B>> {}
+
+              public static class Ranked<X extends Comparable<X>> {
+                  public class Pin extends Node<X> {}
+              }
+
+              public static class Lettered<Y extends CharSequence> {
+                  public class Sub extends Outer<Y>.Base {
+                      public Sub(Outer<Y> outer) {
+                          outer.super();
+                      }
+                  }
+              }
+          }
+          """);
+
+  /** The interface a spec body declares, which names the file it is compiled from. */
+  private static final Pattern SPEC_NAME = Pattern.compile("public interface (\\w+)");
+
   /**
-   * Compiles a spec interface body, with the generated source held to the lints a consuming build
-   * turns on: a narrowing the processor could not justify must not reach the user as a warning it
-   * has silenced on their behalf.
+   * Compiles spec interface bodies, each in a file of its own named for the interface it declares,
+   * with the generated source held to the lints a consuming build turns on: a narrowing the
+   * processor could not justify must not reach the user as a warning it has silenced on their
+   * behalf.
    */
-  private Compilation compile(String specBody) {
-    var specInterface =
-        JavaFileObjects.forSourceString(
-            "com.myapp.SubjectOpticsSpec",
-            """
+  private Compilation compile(String... specBodies) {
+    Stream<JavaFileObject> fixtures =
+        Stream.of(SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, OUTER, DEPENDENT, LIMITS);
+    Stream<JavaFileObject> specs =
+        Arrays.stream(specBodies)
+            .map(
+                specBody ->
+                    JavaFileObjects.forSourceString(
+                        "com.myapp."
+                            + SPEC_NAME
+                                .matcher(specBody)
+                                .results()
+                                .findFirst()
+                                .orElseThrow()
+                                .group(1),
+                        """
             package com.myapp;
 
             import com.external.Circle;
             import com.external.Dependent;
             import com.external.Grid;
             import com.external.Leaf;
+            import com.external.Limits;
             import com.external.Node;
             import com.external.Outer;
             import com.external.Pair;
@@ -183,13 +291,12 @@ class InstanceOfNarrowingTest {
             @ImportOptics
             %s
             """
-                .formatted(specBody));
+                            .formatted(specBody)));
 
     return javac()
         .withProcessors(new ImportOpticsProcessor())
         .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
-        .compile(
-            SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, OUTER, DEPENDENT, specInterface);
+        .compile(Stream.concat(fixtures, specs).toList());
   }
 
   @Nested
@@ -765,34 +872,31 @@ class InstanceOfNarrowingTest {
     void rejectsAPinnedParameterBoundedByAFreeOne() {
       // Each test would write a wildcard for X, and a bound that is that wildcard leaves nothing an
       // argument could be within: javac refuses Outer<?>.Bounded<U>, whatever the focus declares.
-      var ownBound =
+      var compilation =
           compile(
               """
-              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+              public interface BoundedOpticsSpec<U> extends OpticsSpec<Node<U>> {
                   @InstanceOf(Outer.Bounded.class)
                   Prism<Node<U>, Node<U>> bounded();
-              }""");
-      var enclosingBound =
-          compile(
+              }""",
               """
-              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+              public interface InWOpticsSpec<U> extends OpticsSpec<Node<U>> {
                   @InstanceOf(Dependent.InW.class)
                   Prism<Node<U>, Node<U>> inW();
               }""");
 
-      assertThat(ownBound).failed();
-      assertThat(ownBound)
+      assertThat(compilation).failed();
+      assertThat(compilation)
           .hadErrorContaining(
-              "'SubjectOpticsSpec.bounded' tests 'Outer.Bounded', where Y extends X and 'Node<U>'"
+              "'BoundedOpticsSpec.bounded' tests 'Outer.Bounded', where Y extends X and 'Node<U>'"
                   + " pins nothing to Outer's X.");
-      assertThat(ownBound).hadErrorContaining("with @MatchWhen, or write the prism by hand.");
-      assertThat(ownBound).hadErrorCount(1);
-      assertThat(enclosingBound).failed();
-      assertThat(enclosingBound)
+      assertThat(compilation).hadErrorContaining("with @MatchWhen, or write the prism by hand.");
+      // W is Dependent's, and named so, since the target may declare a W of its own.
+      assertThat(compilation)
           .hadErrorContaining(
-              "'SubjectOpticsSpec.inW' tests 'Dependent.InW', where W extends X and 'Node<U>'"
-                  + " pins nothing to Dependent's X.");
-      assertThat(enclosingBound).hadErrorCount(1);
+              "'InWOpticsSpec.inW' tests 'Dependent.InW', where Dependent's W extends X and"
+                  + " 'Node<U>' pins nothing to Dependent's X.");
+      assertThat(compilation).hadErrorCount(2);
     }
 
     @Test
@@ -836,6 +940,540 @@ class InstanceOfNarrowingTest {
       assertThat(compilation).succeededWithoutWarnings();
       assertGeneratedCodeContains(
           compilation, "com.myapp.SubjectOptics", "source instanceof Outer.Inner<U>");
+    }
+  }
+
+  @Nested
+  @DisplayName("the source pins an argument outside its parameter's bound")
+  class Bounds {
+
+    @Test
+    @DisplayName("rejects the test javac would refuse, at the declaration")
+    void rejectsAnArgumentOutsideItsBound() {
+      // Numeric's Y extends Number, and nothing says the U it is pinned to is one: javac refuses
+      // Limits.Numeric<U>, so the generated file would not compile.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Numeric.class)
+                  Prism<Node<U>, Node<U>> numeric();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.numeric' tests 'Limits.Numeric<U>', where Y extends Number and U"
+                  + " is not a 'Number'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "javac refuses a type argument outside its parameter's bound, so the generated test"
+                  + " would not compile.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare U as 'U extends Number' in 'SubjectOpticsSpec', or narrow through a"
+                  + " predicate and getter of 'Node<U>' with @MatchWhen.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("writes the test once the spec bounds the argument, as the fix line says")
+    void writesTheTestOnceTheSpecBoundsTheArgument() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U extends Number> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Numeric.class)
+                  Prism<Node<U>, Limits.Numeric<U>> numeric();
+              }""",
+              """
+              public interface MeasuredOpticsSpec<U extends Number & Comparable<U>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Measured.class)
+                  Prism<Node<U>, Limits.Measured<U>> measured();
+              }""",
+              """
+              public interface SameOpticsSpec<T, U extends T> extends OpticsSpec<Node<Pair<T, U>>> {
+                  @InstanceOf(Limits.Same.class)
+                  Prism<Node<Pair<T, U>>, Limits.Same<T, U>> same();
+              }""",
+              """
+              public interface MixedOpticsSpec<U extends Number & CharSequence>
+                  extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Mixed.class)
+                  Prism<Node<Pair<U, U>>, Limits.Mixed<U, U>> mixed();
+              }""",
+              """
+              public interface NarrowedOpticsSpec<U extends Integer>
+                  extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Narrowed.class)
+                  Prism<Node<Pair<U, U>>, Limits.Narrowed<U, U>> narrowed();
+              }""",
+              """
+              public interface MaximalOpticsSpec<U extends Comparable<U>> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Maximal.class)
+                  Prism<Node<U>, Limits.Maximal<U>> maximal();
+              }""");
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Limits.Numeric<U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MeasuredOptics", "source instanceof Limits.Measured<U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SameOptics", "source instanceof Limits.Same<T, U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MixedOptics", "source instanceof Limits.Mixed<U, U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.NarrowedOptics", "source instanceof Limits.Narrowed<U, U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MaximalOptics", "source instanceof Limits.Maximal<U> t");
+    }
+
+    @Test
+    @DisplayName("offers another class where no bound the spec writes would bring it within")
+    void rejectsAnArgumentNoBoundOnTheSpecCouldHelp() {
+      // A is pinned to Number, so B's bound reads List<? extends Number>, and List<String> is no
+      // such list whatever the spec declares.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec
+                  extends OpticsSpec<Node<Pair<Number, List<String>>>> {
+                  @InstanceOf(Limits.PairedUpper.class)
+                  Prism<Node<Pair<Number, List<String>>>, Node<Pair<Number, List<String>>>> paired();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.paired' tests 'Limits.PairedUpper<Number, List<String>>', where B"
+                  + " extends List<? extends A> and List<String> is not a 'List<? extends"
+                  + " Number>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name a class in @InstanceOf that a 'Node<Pair<Number, List<String>>>' can be, or"
+                  + " narrow through a predicate and getter of 'Node<Pair<Number,"
+                  + " List<String>>>' with @MatchWhen.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("reads a bound that names a parameter the test leaves free as javac does")
+    void readsABoundNamingAFreeParameterAsJavacDoes() {
+      // A is free, so the test writes ? for it: B extends List<A> reads List<?>. As a wildcard's
+      // bound javac reads a free A its own way: List<? super A> reads List<?>, and List<? extends
+      // A> reads List<? extends Number>, from the bound A declares, which a List<String> is not.
+      var compilation =
+          compile(
+              """
+              public interface ListedOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Listed.class)
+                  Prism<Node<U>, Node<U>> listed();
+              }""",
+              """
+              public interface LowerOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.LowerListed.class)
+                  Prism<Node<U>, Node<U>> lower();
+              }""",
+              """
+              public interface UpperOpticsSpec<U extends List<String>> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.UpperListed.class)
+                  Prism<Node<U>, Node<U>> upper();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ListedOpticsSpec.listed' tests 'Limits.Listed<?, U>', where B extends List<A> and U"
+                  + " is not a 'List<?>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'LowerOpticsSpec.lower' tests 'Limits.LowerListed<?, U>', where B extends List<?"
+                  + " super A> and U is not a 'List<?>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UpperOpticsSpec.upper' tests 'Limits.UpperListed<?, U>', where B extends List<?"
+                  + " extends A> and U is not a 'List<? extends Number>'.");
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName("checks the arguments it pins on an enclosing class too")
+    void checksTheArgumentsItPinsOnAnEnclosingClass() {
+      var compilation =
+          compile(
+              """
+              public interface RankedOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Ranked.Pin.class)
+                  Prism<Node<U>, Node<U>> pin();
+              }""",
+              """
+              public interface LetteredOpticsSpec extends OpticsSpec<Outer<Object>.Base> {
+                  @InstanceOf(Limits.Lettered.Sub.class)
+                  Prism<Outer<Object>.Base, Outer<Object>.Base> sub();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'RankedOpticsSpec.pin' tests 'Limits.Ranked<U>.Pin', where Ranked's X extends"
+                  + " Comparable<X> and U is not a 'Comparable<U>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'LetteredOpticsSpec.sub' tests 'Limits.Lettered<Object>.Sub', where Lettered's Y"
+                  + " extends CharSequence and Object is not a 'CharSequence'.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("names every bound the argument has to meet, not only the one it misses")
+    void namesEveryBoundTheArgumentHasToMeet() {
+      // U is a Number already, so it misses only Comparable<U>, but the message names both: the
+      // reader declaring U from it keeps the Number. Two bounds get no declaration of their own.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U extends Number> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Measured.class)
+                  Prism<Node<U>, Node<U>> measured();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "where Y extends Number & Comparable<Y> and U is not a 'Number & Comparable<U>'.");
+      assertThat(compilation)
+          .hadErrorContaining("Name a class in @InstanceOf that a 'Node<U>' can be");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "declares a spec parameter with the one bound every argument outside its own needs")
+    void declaresASpecParameterWithTheOneBoundNeeded() {
+      // Same's B extends A, and A is pinned to T. Narrowed pins both parameters to U, and Integer
+      // implies Number, so U needs Integer alone, which keeps a Number it declares already. Twins
+      // asks for Number twice. Maximal's Object adds nothing to its Comparable<Y>.
+      var compilation =
+          compile(
+              """
+              public interface SameOpticsSpec<T, U> extends OpticsSpec<Node<Pair<T, U>>> {
+                  @InstanceOf(Limits.Same.class)
+                  Prism<Node<Pair<T, U>>, Node<Pair<T, U>>> same();
+              }""",
+              """
+              public interface NarrowedOpticsSpec<U> extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Narrowed.class)
+                  Prism<Node<Pair<U, U>>, Node<Pair<U, U>>> narrowed();
+              }""",
+              """
+              public interface KeptOpticsSpec<U extends Number> extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Narrowed.class)
+                  Prism<Node<Pair<U, U>>, Node<Pair<U, U>>> narrowed();
+              }""",
+              """
+              public interface TwinsOpticsSpec<U> extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Twins.class)
+                  Prism<Node<Pair<U, U>>, Node<Pair<U, U>>> twins();
+              }""",
+              """
+              public interface MaximalOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Maximal.class)
+                  Prism<Node<U>, Node<U>> maximal();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("Declare U as 'U extends T' in 'SameOpticsSpec', or narrow");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare U as 'U extends Integer' in 'NarrowedOpticsSpec', or narrow");
+      assertThat(compilation)
+          .hadErrorContaining("Declare U as 'U extends Integer' in 'KeptOpticsSpec', or narrow");
+      assertThat(compilation)
+          .hadErrorContaining("Declare U as 'U extends Number' in 'TwinsOpticsSpec', or narrow");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "where Y extends Object & Comparable<Y> and U is not a 'Comparable<U>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare U as 'U extends Comparable<U>' in 'MaximalOpticsSpec', or narrow");
+      assertThat(compilation).hadErrorCount(5);
+    }
+
+    @Test
+    @DisplayName("offers another class where no one bound on a spec parameter would do")
+    void offersAnotherClassWhereNoOneBoundWouldDo() {
+      // In turn: an argument that is not a spec parameter; a bound read with the target's own A in
+      // it; a bound arm no type writes; an array, which bounds no type parameter; two bounds, which
+      // may clash in ways only javac settles; a bound that does not imply the one U declares
+      // already, Comparable<U> beside Comparable<String> or Number beside CharSequence; a bound
+      // naming the X of a class around a static member; a raw bound, which -Werror refuses; a
+      // bound closing a cycle; and a second argument, String, that no bound on U helps.
+      var compilation =
+          compile(
+              """
+              public interface NumberListsOpticsSpec<U> extends OpticsSpec<Node<List<U>>> {
+                  @InstanceOf(Limits.NumberLists.class)
+                  Prism<Node<List<U>>, Node<List<U>>> numberLists();
+              }""",
+              """
+              public interface ComparingOpticsSpec<U extends List<Integer>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Comparing.class)
+                  Prism<Node<U>, Node<U>> comparing();
+              }""",
+              """
+              public interface PartlyOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Partly.class)
+                  Prism<Node<U>, Node<U>> partly();
+              }""",
+              """
+              public interface ArrayOpticsSpec<U> extends OpticsSpec<Node<Pair<String[], U>>> {
+                  @InstanceOf(Limits.Same.class)
+                  Prism<Node<Pair<String[], U>>, Node<Pair<String[], U>>> same();
+              }""",
+              """
+              public interface ClashingOpticsSpec<U> extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Clashing.class)
+                  Prism<Node<Pair<U, U>>, Node<Pair<U, U>>> clashing();
+              }""",
+              """
+              public interface TwiceOpticsSpec<U extends Comparable<String>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Ordered.class)
+                  Prism<Node<U>, Node<U>> ordered();
+              }""",
+              """
+              public interface MixedOpticsSpec<U extends CharSequence>
+                  extends OpticsSpec<Node<Pair<U, U>>> {
+                  @InstanceOf(Limits.Mixed.class)
+                  Prism<Node<Pair<U, U>>, Node<Pair<U, U>>> mixed();
+              }""",
+              """
+              public interface ScopedOpticsSpec<U> extends OpticsSpec<Node<Pair<String, U>>> {
+                  @InstanceOf(Limits.Scoped.Target.class)
+                  Prism<Node<Pair<String, U>>, Node<Pair<String, U>>> scoped();
+              }""",
+              """
+              public interface RawOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.RawBound.class)
+                  Prism<Node<U>, Node<U>> raw();
+              }""",
+              """
+              public interface CycleOpticsSpec<T extends U, U> extends OpticsSpec<Node<Pair<T, U>>> {
+                  @InstanceOf(Limits.Same.class)
+                  Prism<Node<Pair<T, U>>, Node<Pair<T, U>>> same();
+              }""",
+              """
+              public interface StringOpticsSpec<U> extends OpticsSpec<Node<Pair<U, String>>> {
+                  @InstanceOf(Limits.Narrowed.class)
+                  Prism<Node<Pair<U, String>>, Node<Pair<U, String>>> narrowed();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'NumberListsOpticsSpec.numberLists' tests 'Limits.NumberLists<List<U>>', where Y"
+                  + " extends List<? extends Number> and List<U> is not a 'List<? extends"
+                  + " Number>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name a class in @InstanceOf that a 'Node<List<U>>' can be, or narrow through a"
+                  + " predicate and getter of 'Node<List<U>>' with @MatchWhen.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ComparingOpticsSpec.comparing' tests 'Limits.Comparing<?, U>', where B extends"
+                  + " List<? extends A> and U is not a 'List<? extends Comparable<A>>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'PartlyOpticsSpec.partly' tests 'Limits.Partly<?, U>', where Y extends Number &"
+                  + " Comparable<? extends A> and U is not a 'Number'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ArrayOpticsSpec.same' tests 'Limits.Same<String[], U>', where B extends A and U"
+                  + " is not a 'String[]'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ClashingOpticsSpec.clashing' tests 'Limits.Clashing<U, U>', where A extends"
+                  + " Integer and U is not a 'Integer'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'TwiceOpticsSpec.ordered' tests 'Limits.Ordered<U>', where Y extends Comparable<Y>"
+                  + " and U is not a 'Comparable<U>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'MixedOpticsSpec.mixed' tests 'Limits.Mixed<U, U>', where A extends Number and U"
+                  + " is not a 'Number'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ScopedOpticsSpec.scoped' tests 'Limits.Scoped.Target<String, U>', where B extends"
+                  + " Limits.Scoped<X>.In<A> and U is not a 'Limits.Scoped<X>.In<String>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name a class in @InstanceOf that a 'Node<Pair<String, U>>' can be, or narrow"
+                  + " through a predicate and getter of 'Node<Pair<String, U>>' with @MatchWhen.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'RawOpticsSpec.raw' tests 'Limits.RawBound<U>', where Y extends List and U is not a"
+                  + " 'List'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'CycleOpticsSpec.same' tests 'Limits.Same<T, U>', where B extends A and U is not a"
+                  + " 'T'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'StringOpticsSpec.narrowed' tests 'Limits.Narrowed<U, String>', where A extends"
+                  + " Number and U is not a 'Number'.");
+      assertThat(compilation).hadErrorCount(11);
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(Locale.ROOT).contains("Declare "));
+    }
+
+    @Test
+    @DisplayName(
+        "leaves javac to refuse a bound naming a member of a generic class through a raw one")
+    void leavesAnImproperlyFormedBoundToJavac() {
+      // Raw.In<A> gives In type arguments under a raw Raw, which javac refuses as improperly
+      // formed and no type builder writes: the check stands aside rather than failing on it.
+      var raw =
+          JavaFileObjects.forSourceString(
+              "com.external.Raw",
+              """
+              package com.external;
+
+              public class Raw<X> {
+                  public class In<Q> {}
+              }
+              """);
+      var malformed =
+          JavaFileObjects.forSourceString(
+              "com.external.Malformed",
+              """
+              package com.external;
+
+              @SuppressWarnings("rawtypes")
+              public class Malformed<A, B extends Raw.In<A>> extends Node<B> {}
+              """);
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Malformed;
+              import com.external.Node;
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Malformed.class)
+                  Prism<Node<U>, Node<U>> malformed();
+              }""");
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(NODE, raw, malformed, specInterface);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("improperly formed type");
+    }
+
+    @Test
+    @DisplayName("writes every test javac accepts, leaving it a bound the check cannot read")
+    void writesEveryTestJavacAccepts() {
+      // Each argument is within its bound as javac reads it. MeetListed's A is bounded by an
+      // intersection, and LowerArray and MemberArray name an array of a free A: no type writes
+      // javac's reading of those, so the check leaves them to javac, which accepts these.
+      var compilation =
+          compile(
+              """
+              public interface ListedOpticsSpec<U extends List<Integer>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.Listed.class)
+                  Prism<Node<U>, Limits.Listed<?, U>> listed();
+
+                  @InstanceOf(Limits.UpperListed.class)
+                  Prism<Node<U>, Limits.UpperListed<?, U>> upper();
+
+                  @InstanceOf(Limits.MeetListed.class)
+                  Prism<Node<U>, Limits.MeetListed<?, U>> meet();
+
+                  @InstanceOf(Limits.LowerListed.class)
+                  Prism<Node<U>, Limits.LowerListed<?, U>> lower();
+              }""",
+              """
+              public interface LowerArrayOpticsSpec<U extends List<Object>>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.LowerArray.class)
+                  Prism<Node<U>, Limits.LowerArray<?, U>> lowerArray();
+              }""",
+              """
+              public interface MemberArrayOpticsSpec<U extends Outer<Object>.Base>
+                  extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Limits.MemberArray.class)
+                  Prism<Node<U>, Limits.MemberArray<?, U>> memberArray();
+              }""",
+              """
+              public interface PairedUpperOpticsSpec
+                  extends OpticsSpec<Node<Pair<Integer, List<Integer>>>> {
+                  @InstanceOf(Limits.PairedUpper.class)
+                  Prism<Node<Pair<Integer, List<Integer>>>, Limits.PairedUpper<Integer, List<Integer>>>
+                      upper();
+              }""",
+              """
+              public interface PairedLowerOpticsSpec
+                  extends OpticsSpec<Node<Pair<Integer, List<Number>>>> {
+                  @InstanceOf(Limits.PairedLower.class)
+                  Prism<Node<Pair<Integer, List<Number>>>, Limits.PairedLower<Integer, List<Number>>>
+                      lower();
+              }""",
+              """
+              public interface PairedArrayOpticsSpec
+                  extends OpticsSpec<Node<Pair<String, List<String[]>>>> {
+                  @InstanceOf(Limits.PairedArray.class)
+                  Prism<Node<Pair<String, List<String[]>>>, Limits.PairedArray<String, List<String[]>>>
+                      array();
+              }""",
+              """
+              public interface PairedMemberOpticsSpec
+                  extends OpticsSpec<Node<Pair<String, Outer<String>.Base>>> {
+                  @InstanceOf(Limits.PairedMember.class)
+                  Prism<
+                          Node<Pair<String, Outer<String>.Base>>,
+                          Limits.PairedMember<String, Outer<String>.Base>>
+                      member();
+              }""",
+              """
+              public interface OrderedOpticsSpec extends OpticsSpec<Node<String>> {
+                  @InstanceOf(Limits.Ordered.class)
+                  Prism<Node<String>, Limits.Ordered<String>> ordered();
+              }""");
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ListedOptics", "source instanceof Limits.UpperListed<?, U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ListedOptics", "source instanceof Limits.MeetListed<?, U> t");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LowerArrayOptics", "source instanceof Limits.LowerArray<?, U> t");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.MemberArrayOptics",
+          "source instanceof Limits.MemberArray<?, U> t");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PairedLowerOptics",
+          "source instanceof Limits.PairedLower<Integer, List<Number>> t");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.PairedMemberOptics",
+          "source instanceof Limits.PairedMember<String, Outer<String>.Base> t");
     }
   }
 

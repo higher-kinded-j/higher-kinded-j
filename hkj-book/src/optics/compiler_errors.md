@@ -56,7 +56,8 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`which the spec declares static` or `private`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
 | [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
-| [`where Y extends X and`](#instanceof-unwritable-bound) | A pinned parameter is bounded by one the source leaves free |
+| [`so the bound has nothing to name`](#instanceof-unwritable-bound) | A pinned parameter is bounded by one the source leaves free |
+| [`outside its parameter's bound`](#instanceof-out-of-bound) | An argument the source pins breaks its bound |
 | [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
 | [`narrows to '...', which is not a '...'`](#instanceof--narrows-to--which-is-not-a-) | The `@InstanceOf` class is not assignable to the declared focus |
 | [`does not resolve to a type`](#viacopyandset-copyconstructor-names--which-does-not-resolve-to-a-type) | `copyConstructor` is not a fully qualified class name |
@@ -901,7 +902,7 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 
 ### "@InstanceOf: '...' tests 'Outer.Inner', where Y extends X and '...' pins nothing to Outer's X" {#instanceof-unwritable-bound}
 
-A parameter the test pins is bounded by a parameter the source pins nothing to. A bound that only names it, such as `Y extends List<X>`, is fine.
+A parameter the test pins is bounded by a parameter the source pins nothing to. A bound that only names it, such as `Y extends List<X>`, reads as `List<?>`, and the argument the source pins has to be within it, as [an argument outside its bound](#instanceof-out-of-bound) explains.
 
 **Fix.** Narrow through a predicate and getter of the source type with `@MatchWhen`, or write the prism by hand with `Prism.of`. Where you can change the classes, a source that pins `X` as well lets the test name it.
 
@@ -924,6 +925,37 @@ interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
 
     @InstanceOf(Outer.Inner.class)
     Prism<Node<U>, Node<U>> inner();
+}
+```
+~~~
+
+### "@InstanceOf: '...' tests '...', where Y extends Number and U is not a 'Number'" {#instanceof-out-of-bound}
+
+The source pins a parameter of the class `@InstanceOf` names to an argument outside that parameter's bound.
+
+**Fix.** The message ends in one of two lines:
+
+- **It declares a spec parameter where one bound will do.** The declaration, as in `interface NodeOpticsSpec<U extends Number>`, keeps every bound the parameter has, so it can replace the one there.
+- **Otherwise it offers another class for `@InstanceOf`.** The message still lists every bound the argument has to meet, so a spec that can take them all may declare them itself, as in `U extends Number & Comparable<U>`.
+
+Either way, `@MatchWhen` narrows through a predicate and getter of the source type instead.
+
+~~~admonish note title="Why" collapsible=true
+The test names the type a matching value must be, so `Gauge.class` narrowed from a `Node<U>` is tested as `Gauge<U>`. javac refuses a type argument outside its parameter's bound, and with `Y extends Number` and nothing said about `U`, the generated file would not compile. No `Node<U>` can be a `Gauge` unless `U` is a `Number`, which is why a bound on the spec is the fix. javac reads a parameter the source leaves free as the `?` the test writes for it. In `class Rack<A, B extends List<A>> extends Node<B>`, the argument the source pins to `B` has to be a `List<?>`.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "where Y extends Number and U is not a 'Number'" -->
+```java
+class Node<U> {}
+
+class Gauge<Y extends Number> extends Node<Y> {}
+
+@ImportOptics
+interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
+
+    @InstanceOf(Gauge.class)
+    Prism<Node<U>, Node<U>> gauge();
 }
 ```
 ~~~

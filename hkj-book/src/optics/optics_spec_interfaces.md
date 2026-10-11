@@ -265,7 +265,26 @@ interface NodeOpticsSpec extends OpticsSpec<Node<String>> {
 }
 ```
 
-Where the source pins `Outer`'s argument, through `Node<X>` in the class's own clause or through a source that is an inner class of `Outer` too, the test names it, as in `Outer<String>.Sub`. An inner class whose parameter's bound is one the source leaves free, as in `Inner<Y extends X>`, has no test that can be written, and is [refused](compiler_errors.md#instanceof-unwritable-bound).
+Where the source pins `Outer`'s argument, through `Node<X>` in the class's own clause or through a source that is an inner class of `Outer` too, the test names it, as in `Outer<String>.Sub`. An inner class whose parameter's bound is one the source leaves free, as in `Inner<Y extends X>`, has no test that can be written, and the processor refuses it, as [a bound the source leaves free](compiler_errors.md#instanceof-unwritable-bound) explains.
+
+A pinned argument must also be within its parameter's bound, since javac refuses the test otherwise. `Gauge<Y extends Number> extends Node<Y>` reached from a `Node<U>` is tested as `Gauge<U>`, so the spec declares `U extends Number` for the prism to be written:
+
+<!-- verify -->
+```java
+class Node<U> {}
+
+class Gauge<Y extends Number> extends Node<Y> {}
+
+@ImportOptics
+interface NodeOpticsSpec<U extends Number> extends OpticsSpec<Node<U>> {
+
+    @InstanceOf(Gauge.class)
+    Prism<Node<U>, Gauge<U>> gauge();
+    // generates: source instanceof Gauge<U> t ? Optional.of(t) : Optional.empty()
+}
+```
+
+Left unbounded, `U` makes the processor refuse the prism at the spec method, as it does for a class no instantiation of the source can be, such as `Gauge` reached from a `Node<String>`. Where one bound will do, the message gives the declaration to write, as [an argument outside its bound](compiler_errors.md#instanceof-out-of-bound) shows.
 
 ---
 

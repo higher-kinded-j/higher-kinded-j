@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -560,7 +561,9 @@ public final class ProcessorUtils {
       return false;
     }
     return variables.stream().allMatch(variable -> admits(types, variable, inferred))
-        && types.isSubtype(substitute(types, returned, inferred), owner);
+        && substitute(types, returned, inferred, List.of())
+            .map(substituted -> types.isSubtype(substituted, owner))
+            .orElse(false);
   }
 
   /**
@@ -572,52 +575,126 @@ public final class ProcessorUtils {
       Types types, TypeVariable variable, Map<Element, TypeMirror> inferred) {
     TypeMirror argument = inferred.get(variable.asElement());
     return boundsOf(variable).stream()
-        .allMatch(bound -> types.isSubtype(argument, substitute(types, bound, inferred)));
+        .allMatch(
+            bound ->
+                substitute(types, bound, inferred, List.of())
+                    .map(substituted -> types.isSubtype(argument, substituted))
+                    .orElse(false));
   }
 
   /**
-   * {@code type} with each type variable {@code inferred} names replaced by what it stands for.
+   * {@code type} as javac reads it with each variable {@code pinned} names replaced by the type it
+   * stands for and each of {@code free} by an unbounded wildcard, or empty where {@link
+   * Types#getDeclaredType}, {@link Types#getArrayType} and {@link Types#getWildcardType} can write
+   * no such type.
    *
-   * <p>A type that names none of them is handed back as it is, never rebuilt, so a shape the
-   * builders would reject, such as a wildcard nested in a wildcard's bound, is left alone. One that
-   * names one is a type variable, an array, a wildcard or a declared type, and is rebuilt around
-   * its substituted parts, the enclosing type included.
+   * <p>This is javac's own substitution, the one it checks a parameterised type's arguments against
+   * their bounds with (JLS 4.5): a free variable reads as the wildcard written in its place, so
+   * {@code List<X>} reads as {@code List<?>}. As a wildcard's bound javac reads a free variable its
+   * own way, {@code ? super X} as {@code ?} and {@code ? extends X} as {@code ? extends} the bound
+   * {@code X} declares, unsubstituted. A free variable anywhere else, an array's component or the
+   * whole of {@code type}, leaves no type to write. Neither does an extends bound whose declared
+   * bound is an intersection, nor a member of a generic class named through a raw one, {@code
+   * Gen.In<X>}, which javac refuses as improperly formed.
+   *
+   * <p>A type that names none of the variables is handed back as it is, never rebuilt, so a shape
+   * those builders would reject, such as a wildcard nested in a wildcard's bound, is left alone. An
+   * intersection is read arm by arm, as {@link TypeParameterElement#getBounds()} hands a bound
+   * over: passed whole, it would come back as its erasure.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param type the type to read, never an intersection; must not be null
+   * @param pinned each variable to replace, by its element, with the reference type it stands for,
+   *     never a wildcard; must not be null
+   * @param free the variables to read as wildcards, none of them in {@code pinned}; must not be
+   *     null
+   * @return the reading, or empty where there is no type to write
+   * @since 0.5.0
    */
-  private static TypeMirror substitute(
-      Types types, TypeMirror type, Map<Element, TypeMirror> inferred) {
-    if (inferred.keySet().stream().noneMatch(variable -> mentions(type, variable))) {
+  public static Optional<TypeMirror> substitute(
+      Types types,
+      TypeMirror type,
+      Map<? extends Element, ? extends TypeMirror> pinned,
+      Collection<? extends Element> free) {
+    return Optional.ofNullable(substituted(types, type, pinned, free));
+  }
+
+  /** {@link #substitute(Types, TypeMirror, Map, Collection)}, with null for empty. */
+  private static TypeMirror substituted(
+      Types types,
+      TypeMirror type,
+      Map<? extends Element, ? extends TypeMirror> pinned,
+      Collection<? extends Element> free) {
+    if (Stream.concat(pinned.keySet().stream(), free.stream())
+        .noneMatch(variable -> mentions(type, variable))) {
       return type;
     }
     return switch (type.getKind()) {
-      case TYPEVAR -> inferred.get(((TypeVariable) type).asElement());
-      case ARRAY ->
-          types.getArrayType(substitute(types, ((ArrayType) type).getComponentType(), inferred));
-      case WILDCARD -> {
-        WildcardType wildcard = (WildcardType) type;
-        yield types.getWildcardType(
-            substituteBound(types, wildcard.getExtendsBound(), inferred),
-            substituteBound(types, wildcard.getSuperBound(), inferred));
+      // A free variable reads as a wildcard only as a type argument, which the declared arm writes.
+      case TYPEVAR -> pinned.get(((TypeVariable) type).asElement());
+      case ARRAY -> {
+        TypeMirror component =
+            substituted(types, ((ArrayType) type).getComponentType(), pinned, free);
+        yield component == null ? null : types.getArrayType(component);
       }
+      case WILDCARD -> substitutedWildcard(types, (WildcardType) type, pinned, free);
       default -> {
         // The one shape left that can name a variable, since a bound's intersection arrives
         // split into its arms.
         DeclaredType declared = (DeclaredType) type;
-        TypeMirror[] arguments =
-            declared.getTypeArguments().stream()
-                .map(argument -> substitute(types, argument, inferred))
-                .toArray(TypeMirror[]::new);
-        TypeMirror enclosing = substitute(types, declared.getEnclosingType(), inferred);
         TypeElement element = (TypeElement) declared.asElement();
-        yield enclosing.getKind() == TypeKind.DECLARED
-            ? types.getDeclaredType((DeclaredType) enclosing, element, arguments)
-            : types.getDeclaredType(element, arguments);
+        if (!instantiated(declared.getEnclosingType())
+            && instantiated(((DeclaredType) element.asType()).getEnclosingType())) {
+          yield null;
+        }
+        TypeMirror enclosing = substituted(types, declared.getEnclosingType(), pinned, free);
+        List<TypeMirror> arguments = new ArrayList<>();
+        for (TypeMirror argument : declared.getTypeArguments()) {
+          arguments.add(
+              argument instanceof TypeVariable variable && free.contains(variable.asElement())
+                  ? types.getWildcardType(null, null)
+                  : substituted(types, argument, pinned, free));
+        }
+        if (enclosing == null || arguments.contains(null)) {
+          yield null;
+        }
+        // A top-level or static class's enclosing type is a NoType, which names no containing type.
+        yield types.getDeclaredType(
+            enclosing instanceof DeclaredType containing ? containing : null,
+            element,
+            arguments.toArray(TypeMirror[]::new));
       }
     };
   }
 
-  private static TypeMirror substituteBound(
-      Types types, TypeMirror bound, Map<Element, TypeMirror> inferred) {
-    return bound == null ? null : substitute(types, bound, inferred);
+  /** A wildcard that names a variable, as {@link #substituted} reads it. */
+  private static TypeMirror substitutedWildcard(
+      Types types,
+      WildcardType wildcard,
+      Map<? extends Element, ? extends TypeMirror> pinned,
+      Collection<? extends Element> free) {
+    // The wildcard names a variable, so it has a bound, and only one.
+    TypeMirror extendsBound = wildcard.getExtendsBound();
+    TypeMirror bound = extendsBound != null ? extendsBound : wildcard.getSuperBound();
+    if (bound instanceof TypeVariable variable && free.contains(variable.asElement())) {
+      if (extendsBound == null) {
+        return types.getWildcardType(null, null);
+      }
+      TypeMirror declared = variable.getUpperBound();
+      return declared instanceof IntersectionType ? null : types.getWildcardType(declared, null);
+    }
+    TypeMirror read = substituted(types, bound, pinned, free);
+    if (read == null) {
+      return null;
+    }
+    return extendsBound != null
+        ? types.getWildcardType(read, null)
+        : types.getWildcardType(null, read);
+  }
+
+  /** Whether an enclosing type, a NoType included, carries an instantiation. */
+  private static boolean instantiated(TypeMirror enclosing) {
+    return enclosing instanceof DeclaredType declared && carriesInstantiation(declared);
   }
 
   /**

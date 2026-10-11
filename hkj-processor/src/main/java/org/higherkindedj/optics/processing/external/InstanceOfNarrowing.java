@@ -4,10 +4,12 @@ package org.higherkindedj.optics.processing.external;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Parameterizable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -37,10 +39,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * {@code SubtypePrismGenerator} names a permitted subtype of a sealed interface the same way, from
  * what the subtype's clause binds rather than from a match against the source.
  *
- * <p>This class answers with that type and says which parameters it had to leave free. Whether the
- * answer is the type the prism promised is {@link SpecInterfaceAnalyser}'s question to ask: a
- * {@code Prism<Shape, Circle<T>>} asks for a {@code T} the test cannot deliver, and is rejected at
- * the declaration rather than left to fail on the first read (issue #733).
+ * <p>This class answers with that type and says which parameters it had to leave free, which
+ * parameters it pins have a bound it cannot write, and which arguments it pins javac would refuse
+ * as outside their bounds. Whether the answer is the type the prism promised is {@link
+ * SpecInterfaceAnalyser}'s question to ask: a {@code Prism<Shape, Circle<T>>} asks for a {@code T}
+ * the test cannot deliver, and is rejected at the declaration rather than left to fail on the first
+ * read (issue #733).
  */
 final class InstanceOfNarrowing {
 
@@ -67,9 +71,14 @@ final class InstanceOfNarrowing {
    * @param unwritableBounds the parameters the test pins whose bound is one it leaves free, in
    *     declaration order; the tested type cannot be written for any of them, because the wildcard
    *     leaves the bound nothing to name
+   * @param outOfBounds the parameters the test pins to an argument outside their bounds, in
+   *     declaration order; javac refuses the tested type for any of them
    */
   record Narrowing(
-      TypeMirror testedType, List<String> freeParameters, List<UnwritableBound> unwritableBounds) {}
+      TypeMirror testedType,
+      List<String> freeParameters,
+      List<UnwritableBound> unwritableBounds,
+      List<OutOfBound> outOfBounds) {}
 
   /**
    * A parameter the test pins whose bound is a parameter it leaves free.
@@ -78,6 +87,21 @@ final class InstanceOfNarrowing {
    * @param free the free parameters that bound it, as {@link Narrowing#freeParameters} names them
    */
   record UnwritableBound(String declaration, List<String> free) {}
+
+  /**
+   * A parameter the test pins to an argument outside its bound.
+   *
+   * @param declaration the parameter as declared, such as {@code Y extends Number}, an enclosing
+   *     class's qualified as {@link Narrowing#freeParameters} qualifies it
+   * @param argument the type the source pins it to
+   * @param bounds each bound of the parameter that can be read as javac reads it against the test's
+   *     arguments, at least one of which the argument is outside
+   * @param complete whether those are all of its bounds, and none names a type parameter of the
+   *     target or of a class around it, as javac's reading of {@code ? extends X} can; only then
+   *     does a bound the spec declares answer every one of them
+   */
+  record OutOfBound(
+      String declaration, TypeMirror argument, List<TypeMirror> bounds, boolean complete) {}
 
   /**
    * Narrows the {@code @InstanceOf} target as far as the source type allows.
@@ -97,18 +121,19 @@ final class InstanceOfNarrowing {
       return new Narrowing(
           typeUtils.getArrayType(component.testedType()),
           component.freeParameters(),
-          component.unwritableBounds());
+          component.unwritableBounds(),
+          component.outOfBounds());
     }
     // A primitive component, or anything else a class constant can name that carries no arguments.
     if (!(targetType instanceof DeclaredType declaredTarget)) {
-      return new Narrowing(targetType, List.of(), List.of());
+      return new Narrowing(targetType, List.of(), List.of(), List.of());
     }
     // The element's own prototype, not the annotation's raw mirror, is what carries the enclosing
     // class's parameters as well as the target's: Outer<X>.Inner<Y> for Outer.Inner.class.
     TypeElement targetElement = (TypeElement) declaredTarget.asElement();
     DeclaredType prototype = (DeclaredType) targetElement.asType();
     if (!ProcessorUtils.carriesInstantiation(prototype)) {
-      return new Narrowing(targetType, List.of(), List.of());
+      return new Narrowing(targetType, List.of(), List.of(), List.of());
     }
 
     Map<Element, List<TypeMirror>> matched = new HashMap<>();
@@ -118,12 +143,14 @@ final class InstanceOfNarrowing {
     TypeMirror asSource = ProcessorUtils.supertypeOf(typeUtils, prototype, sourceTypeElement);
     match(asSource, sourceType, matched);
 
+    Map<TypeParameterElement, TypeMirror> pinned = new LinkedHashMap<>();
     List<TypeParameterElement> free = new ArrayList<>();
-    DeclaredType tested = instantiate(prototype, matched, free);
+    DeclaredType tested = instantiate(prototype, matched, pinned, free);
     return new Narrowing(
         tested,
         free.stream().map(parameter -> nameOf(parameter, targetElement)).toList(),
-        unwritableBounds(targetElement, free));
+        unwritableBounds(targetElement, free),
+        outOfBounds(targetElement, pinned, free));
   }
 
   /**
@@ -132,9 +159,9 @@ final class InstanceOfNarrowing {
    * <p>The bound itself, not one that merely names it. A free parameter is written as a wildcard,
    * so {@code Y extends X} becomes a bound of the wildcard's capture, which no argument the test
    * could write is within; javac refuses {@code Outer<?>.Inner<U>}. A bound that only names it,
-   * {@code Y extends List<X>}, becomes {@code List<?>}, which javac checks the argument against as
-   * usual. A permitted subtype on the sealed route is refused for either, because its prism
-   * redeclares the parameter with a bound that has to name {@code X}.
+   * {@code Y extends List<X>}, becomes {@code List<?>}, which {@link #outOfBounds} checks the
+   * argument against, as javac does. A permitted subtype on the sealed route is refused for either,
+   * because its prism redeclares the parameter with a bound that has to name {@code X}.
    *
    * @param targetElement the target class
    * @param free the parameters left as wildcards
@@ -158,17 +185,76 @@ final class InstanceOfNarrowing {
                           (TypeParameterElement) ((TypeVariable) bound).asElement(), targetElement))
               .toList();
       if (!named.isEmpty()) {
-        unwritable.add(
-            new UnwritableBound(
-                parameter.getSimpleName()
-                    + " extends "
-                    + parameter.getBounds().stream()
-                        .map(ProcessorUtils::simpleTypeName)
-                        .collect(Collectors.joining(" & ")),
-                named));
+        unwritable.add(new UnwritableBound(declarationOf(parameter, targetElement), named));
       }
     }
     return List.copyOf(unwritable);
+  }
+
+  /**
+   * Each parameter the test pins to an argument outside its bound.
+   *
+   * <p>javac checks every argument of the tested type against its parameter's bounds, read with
+   * each parameter replaced by the argument the test writes for it (JLS 4.5), and refuses the test
+   * in the generated file when one is outside. It refuses {@code Lim<U>} for {@code Lim<Y extends
+   * Number>} and an unbounded {@code U}, and the {@code Third<Object>} that a {@code Third<Y
+   * extends CharSequence>.Sub3} reached from an {@code Outer<Object>.Base} would be named under.
+   * {@link ProcessorUtils#substitute(Types, TypeMirror, Map, java.util.Collection)} reads each
+   * bound as javac does; a bound it cannot write is left to javac, and a bound that is a free
+   * parameter is {@link #unwritableBounds}' to report. Every argument here is a type, never a
+   * wildcard: {@link #agree} pins nothing to a source's wildcard.
+   *
+   * @param targetElement the target class
+   * @param pinned each parameter the test pins, to the argument it pins it to, enclosing classes'
+   *     first
+   * @param free the parameters left as wildcards
+   * @return the offending parameters, in declaration order, enclosing classes' first
+   */
+  private List<OutOfBound> outOfBounds(
+      TypeElement targetElement,
+      Map<TypeParameterElement, TypeMirror> pinned,
+      List<TypeParameterElement> free) {
+    // Every type parameter a bound could name, a static member's outer classes' included: javac
+    // leaves an outer parameter in a bound such as In<A>, read as Outer<X>.In<A>.
+    List<TypeParameterElement> declaredAround = new ArrayList<>();
+    for (Element element = targetElement;
+        element instanceof Parameterizable declaring;
+        element = element.getEnclosingElement()) {
+      declaredAround.addAll(declaring.getTypeParameters());
+    }
+    List<OutOfBound> outside = new ArrayList<>();
+    for (Map.Entry<TypeParameterElement, TypeMirror> entry : pinned.entrySet()) {
+      TypeMirror argument = entry.getValue();
+      List<TypeMirror> bounds =
+          entry.getKey().getBounds().stream()
+              .flatMap(bound -> ProcessorUtils.substitute(typeUtils, bound, pinned, free).stream())
+              .toList();
+      if (bounds.stream().anyMatch(bound -> !typeUtils.isSubtype(argument, bound))) {
+        boolean complete =
+            bounds.size() == entry.getKey().getBounds().size()
+                && bounds.stream()
+                    .noneMatch(
+                        bound ->
+                            declaredAround.stream()
+                                .anyMatch(parameter -> ProcessorUtils.mentions(bound, parameter)));
+        outside.add(
+            new OutOfBound(
+                declarationOf(entry.getKey(), targetElement), argument, bounds, complete));
+      }
+    }
+    return List.copyOf(outside);
+  }
+
+  /**
+   * A parameter as declared, such as {@code Y extends Number & Comparable<Y>}, named as {@link
+   * #nameOf} names it.
+   */
+  private static String declarationOf(TypeParameterElement parameter, TypeElement targetElement) {
+    return nameOf(parameter, targetElement)
+        + " extends "
+        + parameter.getBounds().stream()
+            .map(ProcessorUtils::simpleTypeName)
+            .collect(Collectors.joining(" & "));
   }
 
   /**
@@ -188,19 +274,21 @@ final class InstanceOfNarrowing {
    *
    * @param prototype the target's prototype, or one of its enclosing types
    * @param matched the positions each type variable was matched against
+   * @param pinned each parameter pinned, to the argument it is pinned to, added to in place
    * @param free the parameters left as wildcards, added to in place
    * @return the instantiated type
    */
   private DeclaredType instantiate(
       DeclaredType prototype,
       Map<Element, List<TypeMirror>> matched,
+      Map<TypeParameterElement, TypeMirror> pinned,
       List<TypeParameterElement> free) {
     // A link that carries no instantiation, a static member's NoType included, contributes nothing
     // to write: the element alone names it.
     DeclaredType containing =
         prototype.getEnclosingType() instanceof DeclaredType enclosing
                 && ProcessorUtils.carriesInstantiation(enclosing)
-            ? instantiate(enclosing, matched, free)
+            ? instantiate(enclosing, matched, pinned, free)
             : null;
     List<? extends TypeMirror> parameters = prototype.getTypeArguments();
     TypeMirror[] arguments = new TypeMirror[parameters.size()];
@@ -212,6 +300,7 @@ final class InstanceOfNarrowing {
         free.add(parameter);
         arguments[index] = typeUtils.getWildcardType(null, null);
       } else {
+        pinned.put(parameter, bindings.getFirst());
         arguments[index] = bindings.getFirst();
       }
     }
