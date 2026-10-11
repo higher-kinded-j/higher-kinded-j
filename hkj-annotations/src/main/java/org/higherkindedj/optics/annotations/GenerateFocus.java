@@ -131,7 +131,9 @@ public @interface GenerateFocus {
   /**
    * When true, fields of SPI-registered ZERO_OR_MORE container types (e.g., Eclipse Collections
    * {@code ImmutableList}, Guava {@code ImmutableSet}, {@code Map}, arrays) will automatically
-   * return {@code TraversalPath} instead of {@code FocusPath}.
+   * return {@code TraversalPath} instead of {@code FocusPath}. An array of a primitive type, such
+   * as {@code int[]}, stays a {@code FocusPath}: {@code EachInstances.arrayEach()} is {@code
+   * Each<A[], A>}, and no primitive is an {@code A}.
    *
    * <p>By default this is false, preserving backwards compatibility: ZERO_OR_MORE SPI types remain
    * as {@code FocusPath}, and users must manually call {@code .each(eachInstance)} for traversal.

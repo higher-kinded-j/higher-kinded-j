@@ -46,7 +46,7 @@ A Focus path does for your records what the JPA metamodel or QueryDSL's Q-types 
 Collections, optionals and sealed types extend the same pattern, and [Find your field](#find-your-field) gives the spelling for each. You almost never have to compose lenses by hand to get useful work done.
 
 ~~~admonish tip title="Why this matters"
-The field's declared type decides the path type at compile time, so the path says how many values it can reach. An `Optional`, a `Maybe` or a field with a recognised `@Nullable` gives an `AffinePath`, never a `FocusPath` whose `get` quietly returns null. A `List`, `Set` or `Collection` gives a `TraversalPath`, which has no singular `get`. Mistakes of that shape are compilation errors, not production ones. The guarantee covers the shapes the processor recognises. A field that holds null without saying so gets a plain `FocusPath`, and so does a `Map` or an array unless the annotation sets `widenCollections = true`; [Find your field](#find-your-field) marks each.
+The field's declared type decides the path type at compile time, so the path says how many values it can reach. An `Optional`, a `Maybe` or a field with a recognised `@Nullable` gives an `AffinePath`, never a `FocusPath` whose `get` quietly returns null. A `List`, `Set` or `Collection` gives a `TraversalPath`, which has no singular `get`. Mistakes of that shape are compilation errors, not production ones. The guarantee covers the shapes the processor recognises. A field that holds null without saying so gets a plain `FocusPath`, and so does a `Map` or an array of a reference type unless the annotation sets `widenCollections = true`; [Find your field](#find-your-field) marks each.
 ~~~
 
 ---

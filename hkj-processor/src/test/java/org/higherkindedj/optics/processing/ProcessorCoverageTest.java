@@ -914,32 +914,6 @@ class ProcessorCoverageTest {
   }
 
   @Nested
-  @DisplayName("FocusProcessor array field widening")
-  class FocusProcessorArrayWidening {
-
-    @Test
-    @DisplayName("should handle String[] field generating FocusPath")
-    void shouldHandleStringArrayField() {
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.ArrayWiden",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(widenCollections = true)
-              public record ArrayWiden(String name, String[] tags) {}
-              """);
-
-      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
-
-      assertThat(compilation).succeeded();
-      // Array fields without SPI generator produce a plain FocusPath with the array type
-      assertGeneratedCodeContains(
-          compilation, "com.example.ArrayWidenFocus", "FocusPath<ArrayWiden, String[]> tags()");
-    }
-  }
-
-  @Nested
   @DisplayName("ImportOpticsProcessor edge cases")
   class ImportOpticsEdgeCases {
 

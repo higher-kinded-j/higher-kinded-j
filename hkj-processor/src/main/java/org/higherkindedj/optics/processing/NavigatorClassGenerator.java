@@ -377,10 +377,9 @@ public class NavigatorClassGenerator {
     }
     TypeMirror fieldType = component.asType();
     TypeMirror reached =
-        fieldType.getKind() == TypeKind.DECLARED
-                && !analysis.recognisedContainer(fieldType)
+        WideningAnalysis.spiCandidate(fieldType)
                 && analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
-            ? spiElement(fieldType, admitted.generator())
+            ? WideningAnalysis.spiElement(fieldType, admitted.generator())
             : fieldType;
     if (reached == null) {
       return new Reach.None();
@@ -1333,10 +1332,10 @@ public class NavigatorClassGenerator {
    * <p>Every site that asks reads the answer from here, so the navigator class, the method's return
    * type and the wrapping decision cannot disagree about which fields have one. Hardcoded
    * Optional/Collection fields are excluded because they widen through their own path and never get
-   * a navigator class.
+   * a navigator class. An array is an SPI container like any other, focused on its component type.
    */
   private Target spiNavigable(TypeMirror fieldType, String fromPackage) {
-    if (fieldType.getKind() != TypeKind.DECLARED || analysis.recognisedContainer(fieldType)) {
+    if (!WideningAnalysis.spiCandidate(fieldType)) {
       return null;
     }
     // A container the analysis turns away gets no navigator: the static method it would compose
@@ -1347,32 +1346,17 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * The navigable element a declared, non-hardcoded container focuses on under {@code generator},
-   * or {@code null} when there is none.
+   * The navigable element a non-hardcoded container focuses on under {@code generator}, or {@code
+   * null} when there is none.
    *
    * <p>Split from {@link #spiNavigable} so that {@link #widensUndenotableSpiContainer} can ask the
    * same question of a generator the lookup refused.
    */
   private Target spiNavigableUnder(
       TypeMirror fieldType, TraversableGenerator generator, String fromPackage) {
-    TypeMirror innerType = spiElement(fieldType, generator);
+    TypeMirror innerType = WideningAnalysis.spiElement(fieldType, generator);
     TypeElement element = innerType == null ? null : navigableTypeElement(innerType, fromPackage);
     return element == null ? null : new Target(element, (DeclaredType) innerType);
-  }
-
-  /**
-   * The element type a declared, non-hardcoded container focuses on under {@code generator}, or
-   * {@code null} when it names none.
-   */
-  private static TypeMirror spiElement(TypeMirror fieldType, TraversableGenerator generator) {
-    List<? extends TypeMirror> typeArgs = ((DeclaredType) fieldType).getTypeArguments();
-    int focusIdx = generator.getFocusTypeArgumentIndex();
-    if (focusIdx >= typeArgs.size()) {
-      return null; // a raw container carries no type argument
-    }
-    // The argument is resolved first: `Map<String, ? extends Address>` focuses on Address, and
-    // an unbounded or super-bounded wildcard resolves to no type at all.
-    return ProcessorUtils.resolveWildcard(typeArgs.get(focusIdx));
   }
 
   /**
@@ -1503,9 +1487,8 @@ public class NavigatorClassGenerator {
     // navigable field never reaches the SPI question, and Optional and the collections widen
     // through their own path.
     if (!shouldGenerateNavigator(record, component)
-        || fieldType.getKind() != TypeKind.DECLARED
         || navigableTypeElement(fieldType, companionPackage(record)) != null
-        || analysis.recognisedContainer(fieldType)) {
+        || !WideningAnalysis.spiCandidate(fieldType)) {
       return false;
     }
     if (!(analysis.spiLookup(fieldType) instanceof SpiLookup.Refused refused)) {
@@ -1597,6 +1580,13 @@ public class NavigatorClassGenerator {
     String wideningExpression =
         WideningAnalysis.expression(
             declaredWidening(recordElement, component).steps(), args, analysis.targetPackage());
+    // The navigator reads the components of each element it reaches, so an element the container
+    // declares nullable is passed over when it is null rather than read.
+    Target element = spiNavigable(component.asType(), companionPackage(recordElement));
+    if (element != null && NullableAnnotations.isNullable(element.type())) {
+      args.add(WideningAnalysis.AFFINES_CLASS);
+      wideningExpression += ".some($T.nullable())";
+    }
     methodBuilder.addStatement(
         "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
             + wideningExpression

@@ -45,7 +45,7 @@ record Team(String name, Set<Skill> skills, Collection<String> tags) {}
 
 @GenerateLenses
 @GenerateFocus(widenCollections = true)
-record WidenedEmployee(String name, Map<String, Integer> scores) {}
+record WidenedEmployee(String name, Map<String, Integer> scores, String[] tags, int[] levels) {}
 
 record Leaf(String name) {}
 

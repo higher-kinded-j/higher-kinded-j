@@ -74,7 +74,9 @@ class GeneratedFocusSourceCompilesTest {
                   "Collection<Leaf>",
                   "Kind<ListKind.Witness, Leaf>",
                   "Kind<EitherKind.Witness<String>, Leaf>",
-                  "Leaf[]")),
+                  "Leaf[]",
+                  "Leaf[][]",
+                  "List<Leaf>[]")),
           new Shape(
               "wildcard in the focused type argument",
               List.of(
@@ -146,7 +148,12 @@ class GeneratedFocusSourceCompilesTest {
                   "Optional<Kind<ListKind.Witness, ? extends Leaf>>",
                   "Kind<EitherKind.Witness<?>, Leaf>",
                   "Kind<EitherKind.Witness<? extends CharSequence>, Leaf>",
-                  "Kind<? extends EitherKind.Witness<?>, Leaf>")));
+                  "Kind<? extends EitherKind.Witness<?>, Leaf>",
+                  "List<? extends Leaf>[]",
+                  "Set<? extends Leaf>[]",
+                  "Map<String, ? extends Leaf>[]",
+                  "Either<String, ?>[]",
+                  "Set[]")));
 
   /** The widening settings a container can be read under. */
   private static final List<String> SETTINGS =
@@ -253,6 +260,7 @@ class GeneratedFocusSourceCompilesTest {
           // A ZERO_OR_MORE SPI container is not widened by the static method on its own. With
           // navigators it is, which is why that setting is absent here and rejected instead.
           new StillCompiles("Map<String, ? extends Leaf> f", ""),
+          new StillCompiles("Set<?>[] f", ""),
           // Nothing beneath an un-widened container is asked for an optic either.
           new StillCompiles("Map<String, Either<String, ? extends Leaf>> f", ""),
           new StillCompiles(
@@ -339,6 +347,9 @@ class GeneratedFocusSourceCompilesTest {
           new Rejected(
               "Either<String, Map<String, ?>> f", "widenCollections = true", "Map<String, ?>"),
           new Rejected("Optional<Optional<Either<String, ?>>> f", "", "Either<String, ?>"),
+          // An array is met under the settings a Map is, and its element is judged as any other.
+          new Rejected("Set<?>[] f", "widenCollections = true", "Set<?>"),
+          new Rejected("Set[] f", "widenCollections = true", "Set"),
           // A @Nullable component turned away at its outermost layer still widens through
           // .nullable(), and is rejected all the same.
           new Rejected("@Nullable Set<?> f", "", "Set<?>"));

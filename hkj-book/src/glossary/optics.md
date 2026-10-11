@@ -517,7 +517,7 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 
 ## Path widening
 
-**Definition:** How a path's type follows the shape of the field it reaches. A field that may hold nothing, such as an `Optional` or a component with a recognised `@Nullable`, widens a path to an `AffinePath`. One that may hold many, such as a `List`, widens it to a `TraversalPath`. Composing keeps the wider of the two types. The processor settles it at compile time from the declared type, so a nullable field nobody annotated with a recognised `@Nullable` stays a `FocusPath`, and you chain `.nullable()` for it. A `Map` or an array stays a `FocusPath` too, unless the annotation sets `widenCollections = true`.
+**Definition:** How a path's type follows the shape of the field it reaches. A field that may hold nothing, such as an `Optional` or a component with a recognised `@Nullable`, widens a path to an `AffinePath`. One that may hold many, such as a `List`, widens it to a `TraversalPath`. Composing keeps the wider of the two types. The processor settles it at compile time from the declared type, so a nullable field nobody annotated with a recognised `@Nullable` stays a `FocusPath`, and you chain `.nullable()` for it. A `Map` or an array of a reference type stays a `FocusPath` too, unless the annotation sets `widenCollections = true`.
 
 **Related:** [Focus path type](#focus-path-type), [Collections, Optionals and Sealed Types](../optics/focus_navigation.md#path-widening)
 

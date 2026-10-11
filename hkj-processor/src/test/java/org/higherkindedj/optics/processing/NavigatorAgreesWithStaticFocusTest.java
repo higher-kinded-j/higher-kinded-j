@@ -55,15 +55,25 @@ class NavigatorAgreesWithStaticFocusTest {
           new Shape("Either<String, String> either", "either"),
           new Shape("Kind<ListKind.Witness, String> members", "members"),
           new Shape("String[] array", "array"),
+          new Shape("String @Nullable [] nullableArray", "nullableArray"),
+          new Shape("int[] counts", "counts"),
+          new Shape("@Nullable List<String> nullableList", "nullableList"),
           new Shape("@Nullable String nickname", "nickname"),
           new Shape("Leaf leaf", "leaf"),
           new Shape("Optional<Leaf> optionalLeaf", "optionalLeaf"),
           new Shape("List<Leaf> leaves", "leaves"),
           new Shape("Map<String, Leaf> leafMap", "leafMap"),
+          new Shape("Leaf[] leafArray", "leafArray"),
+          new Shape("@Nullable Map<String, Leaf> nullableLeafMap", "nullableLeafMap"),
+          new Shape("Leaf @Nullable [] nullableLeafArray", "nullableLeafArray"),
+          new Shape("@Nullable Leaf[] nullableLeaves", "nullableLeaves"),
           new Shape("ArrayList<Leaf> leafArrayList", "leafArrayList"),
           new Shape("Either<String, Leaf> eitherLeaf", "eitherLeaf"),
           new Shape("Box<String> box", "box"),
           new Shape("Map<String, Box<String>> boxMap", "boxMap"),
+          new Shape("Box<String>[] boxArray", "boxArray"),
+          new Shape("Box<?>[] looseBoxArray", "looseBoxArray"),
+          new Shape("@SuppressWarnings(\"rawtypes\") Box[] rawBoxArray", "rawBoxArray"),
           new Shape("Either<String, Box<String>> eitherBox", "eitherBox"),
           new Shape("Box<?> looseBox", "looseBox"),
           new Shape("@SuppressWarnings(\"rawtypes\") Box rawBox", "rawBox"),
@@ -176,9 +186,19 @@ class NavigatorAgreesWithStaticFocusTest {
         .containsEntry("box", "BoxNavigator<_, String>")
         .containsEntry("boxMap", "BoxMapNavigator<_, String>")
         .containsEntry("looseBox", "FocusPath<_, Box<?>>")
+        .containsEntry("leafArray", "LeafArrayNavigator<_>")
+        .containsEntry("nullableLeaves", "NullableLeavesNavigator<_>")
+        .containsEntry("counts", "FocusPath<_, int[]>")
+        .containsEntry("boxArray", "BoxArrayNavigator<_, String>")
+        .containsEntry("nullableList", "TraversalPath<_, String>")
         .containsEntry(
             "map",
-            widenCollections ? "TraversalPath<_, String>" : "FocusPath<_, Map<String, String>>");
+            widenCollections ? "TraversalPath<_, String>" : "FocusPath<_, Map<String, String>>")
+        .containsEntry(
+            "array", widenCollections ? "TraversalPath<_, String>" : "FocusPath<_, String[]>")
+        .containsEntry(
+            "nullableArray",
+            widenCollections ? "TraversalPath<_, String>" : "AffinePath<_, String[]>");
   }
 
   @Test

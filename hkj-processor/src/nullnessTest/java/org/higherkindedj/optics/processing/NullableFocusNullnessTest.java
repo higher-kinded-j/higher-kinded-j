@@ -1306,5 +1306,77 @@ class NullableFocusNullnessTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName(
+        "@GenerateFocus: a nullable container, a nullable inner one, and nullable elements")
+    void focusRulesOutANullContainer() {
+      // A container the path steps into is ruled out first when it may be null, at any layer, and a
+      // navigator passes over a null element, so each path arrives at a non-null focus.
+      Compilation compilation =
+          compileChecked(
+              List.of(new FocusProcessor()),
+              source(
+                  "com.example.Shelf",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.jspecify.annotations.Nullable;
+
+                  @GenerateFocus(widenCollections = true)
+                  public record Shelf(
+                      @Nullable List<String> names,
+                      String @Nullable [] tags,
+                      List<@Nullable List<String>> rows,
+                      String[] @Nullable [] grid) {}
+                  """),
+              source(
+                  "com.example.Leaf",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus
+                  public record Leaf(String name) {}
+                  """),
+              source(
+                  "com.example.Crate",
+                  """
+                  package com.example;
+
+                  import java.util.Map;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.jspecify.annotations.Nullable;
+
+                  @GenerateFocus(generateNavigators = true)
+                  public record Crate(@Nullable Leaf[] row, Map<String, @Nullable Leaf> byName) {}
+                  """),
+              source(
+                  "com.example.Uses",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.optics.focus.TraversalPath;
+
+                  class Uses {
+                    static void use(Shelf shelf, Crate crate) {
+                      TraversalPath<Shelf, String> names = ShelfFocus.names();
+                      TraversalPath<Shelf, String> tags = ShelfFocus.tags();
+                      TraversalPath<Shelf, String> rows = ShelfFocus.rows();
+                      TraversalPath<Shelf, String> grid = ShelfFocus.grid();
+                      List<String> all = names.getAll(shelf);
+                      TraversalPath<Crate, String> row = CrateFocus.row().name();
+                      TraversalPath<Crate, String> byName = CrateFocus.byName().name();
+                      List<String> read = row.getAll(crate);
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 }
