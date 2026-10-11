@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -493,10 +494,12 @@ public final class VStreamPar {
               cancelled.set(true);
               queue.clear();
               // Interrupt the producer so a source blocked in a pull stops; its scope stops the
-              // others, then the producer closes the sources that did not finish
+              // others, then the producer closes the sources that did not finish. Wait for that
+              // with an interrupt already pending held back, as cleanup runs, so the sources are
+              // closed when this returns; an interrupt that arrives while waiting stops the wait
               producer.interrupt();
               try {
-                producer.join();
+                Cleanup.withInterruptCleared(producer::join);
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
               }

@@ -398,6 +398,74 @@ class VStreamBracketTest {
   }
 
   @Nested
+  @DisplayName("Interrupt status")
+  class InterruptStatusTests {
+
+    /** A release that blocks, as a call to a remote service does, and records that it finished. */
+    private VTask<Unit> blockingRelease(AtomicBoolean released) {
+      return VTask.of(
+          () -> {
+            Thread.sleep(1);
+            released.set(true);
+            return Unit.INSTANCE;
+          });
+    }
+
+    @Test
+    @DisplayName(
+        "a release that blocks finishes after a read that completes with the interrupt status"
+            + " set, and the status is restored")
+    void blockingReleaseFinishesAfterReadThatKeptTheInterrupt() {
+      AtomicBoolean released = new AtomicBoolean(false);
+
+      VStream<String> stream =
+          VStream.bracket(
+              VTask.succeed("connection"),
+              _ ->
+                  VStream.of("a")
+                      .map(
+                          a -> {
+                            Thread.currentThread().interrupt();
+                            return a;
+                          }),
+              _ -> blockingRelease(released));
+
+      try {
+        assertThat(stream.toList().run()).containsExactly("a");
+        assertThat(released).isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a finaliser that blocks finishes when a part-read stream is closed with the interrupt"
+            + " status set, and the status is restored")
+    void blockingFinalizerFinishesWhenClosedWithTheInterruptSet() {
+      AtomicBoolean finalized = new AtomicBoolean(false);
+
+      VStream<Integer> stream =
+          VStream.of(1, 2)
+              .onFinalize(blockingRelease(finalized))
+              .map(
+                  i -> {
+                    Thread.currentThread().interrupt();
+                    return i;
+                  });
+
+      try {
+        assertThat(stream.take(1).toList().run()).containsExactly(1);
+        assertThat(finalized).isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("Explicit Close")
   class ExplicitCloseTests {
 

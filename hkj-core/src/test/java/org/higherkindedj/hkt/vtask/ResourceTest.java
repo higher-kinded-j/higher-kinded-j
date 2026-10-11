@@ -380,6 +380,132 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName(
+        "use() releases with the interrupt status cleared after a use that returns with it set,"
+            + " then restores it")
+    void useReleasesUninterruptedAfterUseThatKeptTheInterrupt() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+      Resource<String> resource =
+          Resource.make(
+              () -> "test",
+              _ -> interruptedDuringRelease.set(Thread.currentThread().isInterrupted()));
+
+      VTask<String> task =
+          resource.use(
+              _ ->
+                  VTask.of(
+                      () -> {
+                        Thread.currentThread().interrupt();
+                        return "fallback";
+                      }));
+
+      String result;
+      boolean interruptedAfterUse;
+      try {
+        result = task.run();
+      } finally {
+        interruptedAfterUse = Thread.interrupted();
+      }
+      assertThat(result).isEqualTo("fallback");
+      assertThat(interruptedAfterUse).as("interrupt status restored after the release").isTrue();
+      assertThat(interruptedDuringRelease).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "use() runs every release of a composed Resource with the interrupt status cleared after a"
+            + " use that returns with it set")
+    void useReleasesComposedResourceUninterruptedAfterUseThatKeptTheInterrupt() {
+      List<String> releasedInterrupted = new ArrayList<>();
+      Resource<String> first =
+          Resource.make(
+              () -> "first",
+              _ -> releasedInterrupted.add("first: " + Thread.currentThread().isInterrupted()));
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              _ -> releasedInterrupted.add("second: " + Thread.currentThread().isInterrupted()));
+
+      VTask<String> task =
+          first
+              .and(second)
+              .withFinalizer(
+                  () ->
+                      releasedInterrupted.add(
+                          "finaliser: " + Thread.currentThread().isInterrupted()))
+              .use(
+                  _ ->
+                      VTask.of(
+                          () -> {
+                            Thread.currentThread().interrupt();
+                            return "fallback";
+                          }));
+
+      try {
+        assertThat(task.run()).isEqualTo("fallback");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(releasedInterrupted)
+          .containsExactly("second: false", "first: false", "finaliser: false");
+    }
+
+    @Test
+    @DisplayName(
+        "a release of a composed Resource that is interrupted cuts short neither the next release"
+            + " nor the finaliser")
+    void interruptedReleaseDoesNotCutShortTheNext() {
+      List<String> seen = new ArrayList<>();
+      Resource<String> first =
+          Resource.make(
+              () -> "first", _ -> seen.add("first: " + Thread.currentThread().isInterrupted()));
+      Resource<String> second =
+          Resource.make(
+              () -> "second",
+              _ -> {
+                // a release that caught an interrupt sets the status again
+                Thread.currentThread().interrupt();
+                seen.add("second interrupted");
+              });
+
+      VTask<String> task =
+          first
+              .and(second)
+              .withFinalizer(() -> seen.add("finaliser: " + Thread.currentThread().isInterrupted()))
+              .use(_ -> VTask.succeed("done"));
+
+      try {
+        assertThat(task.run()).isEqualTo("done");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(seen).containsExactly("second interrupted", "first: false", "finaliser: false");
+    }
+
+    @Test
+    @DisplayName("the release after an onFailure action that is interrupted is not cut short")
+    void releaseAfterInterruptedOnFailureActionRunsUninterrupted() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+      Resource<String> resource =
+          Resource.make(
+                  () -> "test",
+                  _ -> interruptedDuringRelease.set(Thread.currentThread().isInterrupted()))
+              .onFailure(_ -> Thread.currentThread().interrupt());
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("use failed")));
+
+      try {
+        assertThatThrownBy(task::run).hasMessage("use failed");
+        assertThat(interruptedDuringRelease).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("use() validates non-null function")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void useValidatesNonNullFunction() {

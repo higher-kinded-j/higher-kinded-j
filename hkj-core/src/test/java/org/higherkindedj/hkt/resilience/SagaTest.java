@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.higherkindedj.hkt.Unit;
@@ -501,6 +502,82 @@ class SagaTest {
 
       // step-c failed, so steps b and a are compensated in reverse
       assertThat(compensated).containsExactly("comp-b", "comp-a");
+    }
+  }
+
+  @Nested
+  @DisplayName("Compensation after a cancellation")
+  class CompensationAfterCancellationTests {
+
+    @Test
+    @DisplayName(
+        "a compensation that blocks finishes after a step fails having left the thread"
+            + " interrupted, and the status is restored")
+    void blockingCompensationFinishesAfterCancelledStep() {
+      AtomicBoolean refunded = new AtomicBoolean(false);
+
+      Saga<String> saga =
+          Saga.of(
+                  VTask.of(() -> "seat"),
+                  (String seat) ->
+                      VTask.of(
+                          () -> {
+                            Thread.sleep(1);
+                            refunded.set(true);
+                            return Unit.INSTANCE;
+                          }))
+              .andThen(
+                  _ ->
+                      Saga.of(
+                          VTask.<String>of(
+                              () -> {
+                                Thread.currentThread().interrupt();
+                                throw new IllegalStateException("cancelled");
+                              }),
+                          v -> {}));
+
+      Either<SagaError, String> result;
+      boolean interruptedAfterSaga;
+      try {
+        result = saga.runSafe().run();
+      } finally {
+        interruptedAfterSaga = Thread.interrupted();
+      }
+
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft().allCompensationsSucceeded()).isTrue();
+      assertThat(refunded).isTrue();
+      assertThat(interruptedAfterSaga).as("interrupt status restored after compensation").isTrue();
+    }
+
+    @Test
+    @DisplayName("a compensation runs with the interrupt status cleared after a cancelled step")
+    void compensationRunsUninterruptedAfterCancelledStep() {
+      AtomicBoolean interruptedDuringCompensation = new AtomicBoolean(true);
+
+      Saga<String> saga =
+          Saga.of(
+                  VTask.of(() -> "seat"),
+                  (Consumer<String>)
+                      seat ->
+                          interruptedDuringCompensation.set(Thread.currentThread().isInterrupted()))
+              .andThen(
+                  _ ->
+                      Saga.of(
+                          VTask.<String>of(
+                              () -> {
+                                Thread.currentThread().interrupt();
+                                throw new IllegalStateException("cancelled");
+                              }),
+                          v -> {}));
+
+      try {
+        assertThatThrownBy(() -> saga.run().run()).hasMessage("cancelled");
+        assertThat(interruptedDuringCompensation).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 

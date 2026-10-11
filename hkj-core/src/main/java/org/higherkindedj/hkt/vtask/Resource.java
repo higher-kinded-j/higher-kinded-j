@@ -86,9 +86,11 @@ import org.jspecify.annotations.Nullable;
  * <h2>Cancellation</h2>
  *
  * <p>When used with structured concurrency, Resource respects task cancellation. A cancelled task
- * fails, so its acquired resources are still released. Cleanup after a failed use runs with the
- * thread's interrupt status cleared, so a blocking release is not cut short, and the status is
- * restored afterwards.
+ * fails, so its acquired resources are still released. Cleanup runs with the thread's interrupt
+ * status cleared, whether the use failed or succeeded, so a blocking release is not cut short, and
+ * the status is restored afterwards. That includes a use that catches a cancellation, sets the
+ * status again and returns. Each release and finaliser of a composed Resource runs this way, so one
+ * that is interrupted does not cut short the ones after it.
  *
  * @param <A> the type of the managed resource
  * @see VTask
@@ -237,7 +239,7 @@ public final class Resource<A> {
         releaseAfter(failure, allocated);
         throw failure;
       }
-      allocated.release().accept(Exit.SUCCEEDED);
+      Cleanup.withInterruptCleared(() -> allocated.release().accept(Exit.SUCCEEDED));
       return result;
     };
   }
@@ -423,7 +425,7 @@ public final class Resource<A> {
                 Cleanup.afterFailure(failure, finalizer::run);
                 throw failure;
               }
-              finalizer.run();
+              Cleanup.withInterruptCleared(finalizer::run);
             });
   }
 
@@ -460,7 +462,7 @@ public final class Resource<A> {
                   throw failure;
                 }
               }
-              allocated.release().accept(exit);
+              Cleanup.withInterruptCleared(() -> allocated.release().accept(exit));
             });
   }
 
@@ -495,6 +497,9 @@ public final class Resource<A> {
     return exit -> {
       @Nullable Throwable failure = null;
       for (int i = 0; i < held.length; i++) {
+        // Each release runs with the interrupt status cleared, as Cleanup.withInterruptCleared
+        // runs one, but inline, so a deep composition keeps one stack frame per level
+        boolean interrupted = Thread.interrupted();
         try {
           held[i].release().accept(exit);
         } catch (Throwable t) {
@@ -505,6 +510,10 @@ public final class Resource<A> {
             throw new RuntimeException(lastFailed, t);
           }
           failure = t;
+        } finally {
+          if (interrupted) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
       if (failure != null) {

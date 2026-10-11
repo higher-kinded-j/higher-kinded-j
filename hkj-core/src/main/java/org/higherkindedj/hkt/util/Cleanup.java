@@ -16,10 +16,12 @@ import org.jspecify.annotations.Nullable;
  * the rule is the same for all of them. Each keeps its own form for a checked exception, and its
  * own order among several releases, such as the composed releases of a {@code Resource}. {@code
  * VResultPath.bracketOutcome} reports its release's defect instead, keeping any pending failure
- * with {@link #keep}, and runs its release through {@link #withInterruptCleared}.
+ * with {@link #keep}, and runs its release through {@link #withInterruptCleared}. A {@code Saga}
+ * runs each compensation through it too.
  *
- * <p>Cleanup after a failure runs with the thread's interrupt status cleared, so cleanup after a
- * cancelled computation is not cut short. The status is restored afterwards. When {@link
+ * <p>Cleanup runs with the thread's interrupt status cleared, whether the work failed or succeeded,
+ * so cleanup after a cancelled computation is not cut short. That includes work that caught the
+ * cancellation, set the status again, and returned. The status is restored afterwards. When {@link
  * #afterFailure} suppresses an {@link InterruptedException} from the cleanup, it sets the status;
  * one wrapped in another exception, as a composed {@code Resource} or a {@code VStream} wraps it,
  * does not set it.
@@ -37,22 +39,25 @@ public final class Cleanup {
   /**
    * A step of cleanup, which may throw a checked exception, as {@link AutoCloseable#close()} may,
    * or any {@link Throwable}, as a {@code VTask} may.
+   *
+   * @param <X> the type of exception the cleanup may throw
    */
   @FunctionalInterface
-  public interface Action {
+  public interface Action<X extends Throwable> {
 
     /**
      * Runs the cleanup.
      *
-     * @throws Throwable if the cleanup fails
+     * @throws X if the cleanup fails
      */
-    void run() throws Throwable;
+    void run() throws X;
   }
 
   /**
    * Runs {@code work}, then {@code cleanup}, whether the work succeeded or failed. If the work
    * fails, its failure is rethrown once the cleanup has run, with anything the cleanup throws
-   * suppressed onto it. If the work succeeds, a failure of the cleanup is the one thrown.
+   * suppressed onto it. If the work succeeds, a failure of the cleanup is the one thrown. Either
+   * way, the cleanup runs with the interrupt status cleared, which is restored afterwards.
    *
    * @param work the work to run
    * @param cleanup the cleanup to run after it
@@ -68,7 +73,7 @@ public final class Cleanup {
       afterFailure(failure, () -> cleanup.run());
       throw failure;
     }
-    cleanup.run();
+    withInterruptCleared(cleanup::run);
     return result;
   }
 
@@ -81,7 +86,7 @@ public final class Cleanup {
    * @param failure the failure the cleanup follows
    * @param cleanup the cleanup to run
    */
-  public static void afterFailure(Throwable failure, Action cleanup) {
+  public static void afterFailure(Throwable failure, Action<?> cleanup) {
     try {
       withInterruptCleared(cleanup);
     } catch (Throwable secondary) {
@@ -99,9 +104,10 @@ public final class Cleanup {
    * caller receives the exception itself.
    *
    * @param cleanup the cleanup to run
-   * @throws Throwable what the cleanup throws
+   * @param <X> the type of exception the cleanup may throw
+   * @throws X what the cleanup throws
    */
-  public static void withInterruptCleared(Action cleanup) throws Throwable {
+  public static <X extends Throwable> void withInterruptCleared(Action<X> cleanup) throws X {
     boolean interrupted = Thread.interrupted();
     try {
       cleanup.run();
