@@ -6,12 +6,15 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
@@ -293,6 +296,22 @@ class VTaskTest {
     }
 
     @Test
+    @DisplayName("run() wraps an InterruptedException and sets the interrupt status again")
+    void runWrapsInterruptAndSetsStatus() {
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      VTask<Integer> task = VTask.fail(cancelled);
+
+      try {
+        assertThatThrownBy(task::run)
+            .isInstanceOf(VTaskExecutionException.class)
+            .hasCauseReference(cancelled);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("runSafe() returns Success for successful task")
     void runSafeReturnsSuccessForSuccessfulTask() {
       VTask<Integer> task = VTask.succeed(TEST_VALUE);
@@ -567,29 +586,113 @@ class VTaskTest {
     }
 
     @Test
-    @DisplayName("timeout() passes an interrupt of the waiting thread on, and throws it at once")
-    void timeoutPassesInterruptOn() throws InterruptedException {
-      CountDownLatch taskInterrupted = new CountDownLatch(1);
+    @DisplayName("timeout() passes the task's own future exceptions through as thrown")
+    void timeoutPassesFutureExceptionsThrough() {
+      CompletionException completion = new CompletionException(new IOException("disk"));
+      CancellationException cancellation = new CancellationException("the task's own");
+
+      assertThatThrownBy(VTask.<Integer>fail(completion).timeout(Duration.ofSeconds(1))::execute)
+          .isSameAs(completion);
+      assertThatThrownBy(VTask.<Integer>fail(cancellation).timeout(Duration.ofSeconds(1))::execute)
+          .isSameAs(cancellation);
+    }
+
+    @Test
+    @DisplayName("timeout() does not interrupt the task when the time runs out")
+    void timeoutDoesNotInterruptOnExpiry() throws InterruptedException {
+      CountDownLatch finished = new CountDownLatch(1);
+      AtomicBoolean interrupted = new AtomicBoolean(false);
       VTask<Integer> slowTask =
           VTask.of(
               () -> {
                 try {
+                  Thread.sleep(300);
+                  return TEST_VALUE;
+                } catch (InterruptedException e) {
+                  interrupted.set(true);
+                  throw e;
+                } finally {
+                  finished.countDown();
+                }
+              });
+
+      assertThatVTask(slowTask.timeout(Duration.ofMillis(50)))
+          .fails()
+          .withExceptionType(TimeoutException.class);
+      assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(interrupted).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "timeout() passes an interrupt of the waiting thread on, and throws it once the task stops")
+    void timeoutPassesInterruptOnAndWaitsForTheTask() throws InterruptedException {
+      CountDownLatch started = new CountDownLatch(1);
+      AtomicBoolean cleanedUp = new AtomicBoolean(false);
+      VTask<Integer> slowTask =
+          VTask.of(
+              () -> {
+                started.countDown();
+                try {
                   Thread.sleep(3000);
                   return TEST_VALUE;
                 } catch (InterruptedException e) {
-                  taskInterrupted.countDown();
+                  Thread.sleep(100); // cleanup that takes a while
+                  cleanedUp.set(true);
                   throw e;
                 }
               });
       VTask<Integer> withTimeout = slowTask.timeout(Duration.ofSeconds(10));
+      Thread caller = Thread.currentThread();
+      Thread canceller =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      started.await();
+                      caller.interrupt();
+                    } catch (InterruptedException ignored) {
+                      // not interrupted: nothing else touches this thread
+                    }
+                  });
 
-      Thread.currentThread().interrupt();
       try {
         assertThatThrownBy(withTimeout::execute).isInstanceOf(InterruptedException.class);
+        assertThat(cleanedUp).isTrue();
       } finally {
         Thread.interrupted();
       }
-      assertThat(taskInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
+      canceller.join();
+    }
+
+    @Test
+    @DisplayName(
+        "timeout() waits for a task that ignores the interrupt only until the time runs out")
+    void timeoutWaitsOnlyUntilTheTimeRunsOut() {
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTask<Integer> stubbornTask =
+          VTask.of(
+              () -> {
+                long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
+                while (System.nanoTime() < end) {
+                  try {
+                    Thread.sleep(Duration.ofNanos(Math.max(1, end - System.nanoTime())));
+                  } catch (InterruptedException ignored) {
+                    // this task ignores a cancellation
+                  }
+                }
+                finished.set(true);
+                return TEST_VALUE;
+              });
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(stubbornTask.timeout(Duration.ofMillis(200))::execute)
+            .isInstanceOf(InterruptedException.class);
+        assertThat(finished).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 

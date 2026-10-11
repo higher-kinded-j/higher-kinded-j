@@ -11,8 +11,9 @@ import java.time.Instant;
  * performing: how many calls have been made, how many succeeded or failed, how many were rejected
  * because the circuit was open, and when the last state change occurred.
  *
- * @param totalCalls total number of calls attempted (including rejected)
- * @param successfulCalls number of calls that completed successfully
+ * @param totalCalls total number of calls attempted (including rejected and cancelled)
+ * @param successfulCalls number of calls recorded as successes, including those whose exception the
+ *     failure predicate does not select
  * @param failedCalls number of calls that failed (counted as failures by the predicate)
  * @param rejectedCalls number of calls rejected because the circuit was open
  * @param stateTransitions total number of state transitions

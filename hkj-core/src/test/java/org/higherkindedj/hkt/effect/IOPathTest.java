@@ -1311,6 +1311,36 @@ class IOPathTest {
     }
 
     @Test
+    @DisplayName("withTimeout under withRetry: an interrupted caller stops the retry after one run")
+    void withTimeoutUnderRetryStopsOnInterrupt() {
+      AtomicInteger runs = new AtomicInteger();
+      IOPath<Integer> retried =
+          Path.io(
+                  () -> {
+                    runs.incrementAndGet();
+                    try {
+                      Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                    }
+                    return 1;
+                  })
+              .withTimeout(Duration.ofSeconds(10))
+              .withRetry(RetryPolicy.fixed(3, Duration.ZERO));
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatExceptionOfType(RetryExhaustedException.class)
+            .isThrownBy(retried::unsafeRun)
+            .withMessage("Retry interrupted after 1 attempts");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
     @DisplayName("withTimeout: a runtime exception from the computation propagates unchanged")
     void withTimeoutPropagatesRuntimeException() {
       IOPath<Integer> failing =

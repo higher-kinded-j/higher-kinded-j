@@ -215,7 +215,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p><b>Exception handling:</b> Unchecked exceptions ({@link RuntimeException} and {@link Error})
    * are thrown directly. Checked exceptions are wrapped in {@link VTaskExecutionException}. For
    * functional error handling that preserves the original exception type, use {@link #runSafe()}
-   * instead.
+   * instead. An {@link InterruptedException} is wrapped too, with the thread's interrupt status set
+   * again, so the cancellation it reports is not lost.
    *
    * @return The result of the computation of type {@code A}. Never null.
    * @throws VTaskExecutionException if the computation throws a checked exception
@@ -229,6 +230,9 @@ public interface VTask<A> extends VTaskKind<A> {
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable t) {
+      if (t instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new VTaskExecutionException(t);
     }
   }
@@ -368,11 +372,16 @@ public interface VTask<A> extends VTaskKind<A> {
   /**
    * Creates a new task that fails if this task does not complete within the specified duration.
    *
-   * <p>This task runs on a new virtual thread. When the time runs out, the new task fails with a
-   * {@link TimeoutException}, and this task is not interrupted: it keeps running unobserved. An
-   * interrupt of the thread waiting for the result is passed on to this task, and the new task
-   * throws the {@link InterruptedException} at once, so a cancellation reaches this task as it
-   * would with no timeout.
+   * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
+   * bindings. When the time runs out, the new task fails with a {@link TimeoutException}, and this
+   * task is not interrupted: it keeps running unobserved. A {@code TimeoutException} this task
+   * throws itself is reported as the time running out too. Any other failure passes through as
+   * thrown.
+   *
+   * <p>An interrupt of the thread waiting for the result is passed on to this task. The new task
+   * then waits for this task to stop, though not past the time limit, and throws the {@link
+   * InterruptedException}, so a cancellation reaches this task, and its cleanup, as it would with
+   * no timeout.
    *
    * @param duration The maximum time to wait. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
@@ -381,6 +390,8 @@ public interface VTask<A> extends VTaskKind<A> {
   default VTask<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
+      long budget = TimeUnit.NANOSECONDS.convert(duration);
+      long start = System.nanoTime();
       CompletableFuture<A> outcome = new CompletableFuture<>();
       Thread running =
           Thread.ofVirtual()
@@ -389,11 +400,12 @@ public interface VTask<A> extends VTaskKind<A> {
                     try {
                       outcome.complete(execute());
                     } catch (Throwable t) {
-                      outcome.completeExceptionally(t);
+                      // get() removes exactly this layer, so the task's own exception arrives as is
+                      outcome.completeExceptionally(new CompletionException(t));
                     }
                   });
       try {
-        return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
+        return outcome.get(budget, TimeUnit.NANOSECONDS);
       } catch (TimeoutException e) {
         throw new TimeoutException("VTask timed out after " + duration);
       } catch (ExecutionException e) {
@@ -403,6 +415,12 @@ public interface VTask<A> extends VTaskKind<A> {
         throw e.getCause();
       } catch (InterruptedException e) {
         running.interrupt();
+        // Wait for the task to stop, ignoring further interrupts, but not past the time limit
+        long left = budget - (System.nanoTime() - start);
+        outcome
+            .handle((value, failure) -> Boolean.TRUE)
+            .completeOnTimeout(Boolean.FALSE, left, TimeUnit.NANOSECONDS)
+            .join();
         throw e;
       }
     };

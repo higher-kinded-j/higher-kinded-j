@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -471,6 +472,60 @@ class ResilienceBuilderTest {
       assertThat(fallbackCalls.get()).isZero();
       assertThat(cb.metrics().failedCalls()).isZero();
       assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("A bulkhead wait an interrupt stops reaches the fallback, with the status set")
+    void interruptedBulkheadWaitReachesFallback() {
+      AtomicReference<Throwable> fallbackSaw = new AtomicReference<>();
+      VTask<String> resilient =
+          Resilience.<String>builder(VTask.succeed("primary"))
+              .withBulkhead(Bulkhead.withMaxConcurrent(1))
+              .withFallback(
+                  ex -> {
+                    fallbackSaw.set(ex);
+                    return "fallback";
+                  })
+              .build();
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThat(resilient.run()).isEqualTo("fallback");
+        assertThat(fallbackSaw.get()).isInstanceOf(BulkheadFullException.class);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("With a timeout, an interrupted caller's InterruptedException skips the fallback")
+    void interruptedCallerWithTimeoutSkipsFallback() {
+      AtomicInteger fallbackCalls = new AtomicInteger(0);
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                Thread.sleep(3000);
+                return "finished";
+              });
+      VTask<String> resilient =
+          Resilience.<String>builder(task)
+              .withTimeout(Duration.ofSeconds(10))
+              .withBulkhead(Bulkhead.withMaxConcurrent(1))
+              .withFallback(
+                  ex -> {
+                    fallbackCalls.incrementAndGet();
+                    return "fallback";
+                  })
+              .build();
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(resilient::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(fallbackCalls.get()).isZero();
     }
   }
 

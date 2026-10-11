@@ -186,8 +186,8 @@ log.info("Circuit breaker: total={}, success={}, failed={}, rejected={}, transit
 
 | Metric | Description |
 |--------|-------------|
-| `totalCalls` | Total calls attempted (including rejected) |
-| `successfulCalls` | Calls that completed successfully |
+| `totalCalls` | Total calls attempted (including rejected and cancelled) |
+| `successfulCalls` | Calls recorded as successes, including those whose exception `recordFailure` does not select |
 | `failedCalls` | Calls that failed (counted by the failure predicate) |
 | `rejectedCalls` | Calls rejected because the circuit was open |
 | `stateTransitions` | Number of state transitions |

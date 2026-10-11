@@ -204,16 +204,10 @@ public class CircuitBreakerExample {
             });
 
     // protectWithFallback: when the circuit is open, return a cached/default response
-    // instead of throwing CircuitOpenException
+    // instead of throwing CircuitOpenException; any other failure passes through
     VTask<String> withFallback =
         breaker.protectWithFallback(
-            unreliableService,
-            ex -> {
-              if (ex instanceof CircuitOpenException) {
-                return "{\"source\": \"cache\", \"data\": \"stale but available\"}";
-              }
-              return "{\"error\": \"" + ex.getMessage() + "\"}";
-            });
+            unreliableService, ex -> "{\"source\": \"cache\", \"data\": \"stale but available\"}");
 
     // First 2 calls will fail and count toward the threshold
     for (int i = 1; i <= 5; i++) {

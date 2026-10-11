@@ -747,16 +747,40 @@ class CircuitBreakerTest {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
 
       AtomicInteger fallbackCount = new AtomicInteger(0);
+      RuntimeException appError = new RuntimeException("app error");
       VTask<String> task =
           breaker.protectWithFallback(
-              VTask.fail(new RuntimeException("app error")),
+              VTask.fail(appError),
               ex -> {
                 fallbackCount.incrementAndGet();
                 return "fallback";
               });
 
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).hasMessage("app error");
+      assertThatThrownBy(task::run).isSameAs(appError);
       assertThat(fallbackCount.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("fallback passes a checked exception through as thrown")
+    void fallbackPassesCheckedExceptionThrough() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
+
+      IOException checkedException = new IOException("disk");
+      VTask<String> task =
+          breaker.protectWithFallback(VTask.fail(checkedException), ex -> "fallback");
+
+      assertThatThrownBy(task::execute).isSameAs(checkedException);
+    }
+
+    @Test
+    @DisplayName("fallback passes an Error through as thrown")
+    void fallbackPassesErrorThrough() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
+
+      Error fatal = new Error("fatal");
+      VTask<String> task = breaker.protectWithFallback(VTask.fail(fatal), ex -> "fallback");
+
+      assertThatThrownBy(task::execute).isSameAs(fatal);
     }
 
     @Test
@@ -799,7 +823,7 @@ class CircuitBreakerTest {
     }
 
     @Test
-    @DisplayName("an interrupted caller stops waiting at once, and the call sees the interrupt")
+    @DisplayName("an interrupted caller cancels the call, which is recorded as neither outcome")
     void interruptedCallerCancelsTheCall() throws InterruptedException {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
       CountDownLatch callInterrupted = new CountDownLatch(1);
@@ -823,6 +847,7 @@ class CircuitBreakerTest {
         Thread.interrupted();
       }
       assertThat(callInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(breaker.metrics().successfulCalls()).isZero();
       assertThat(breaker.metrics().failedCalls()).isZero();
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
     }
@@ -957,29 +982,6 @@ class CircuitBreakerTest {
   @Nested
   @DisplayName("Edge Case Tests")
   class EdgeCaseTests {
-
-    @Test
-    @DisplayName("protectWithFallback passes a checked exception through as thrown")
-    void protectWithFallbackPassesCheckedExceptionThrough() {
-      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
-
-      IOException checkedException = new IOException("disk");
-      VTask<String> task =
-          breaker.protectWithFallback(VTask.fail(checkedException), ex -> "fallback");
-
-      assertThatThrownBy(task::execute).isSameAs(checkedException);
-    }
-
-    @Test
-    @DisplayName("protectWithFallback re-throws RuntimeException directly for non-circuit errors")
-    void protectWithFallbackRethrowsRuntimeExceptionDirectly() {
-      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
-
-      RuntimeException runtimeEx = new RuntimeException("app error");
-      VTask<String> task = breaker.protectWithFallback(VTask.fail(runtimeEx), ex -> "fallback");
-
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).isSameAs(runtimeEx);
-    }
 
     @Test
     @DisplayName("concurrent CAS contention during OPEN->HALF_OPEN transition")
