@@ -34,10 +34,12 @@ public class VStreamPathAssert<A> extends AbstractAssert<VStreamPathAssert<A>, V
   private void materialise() {
     if (!hasMaterialised) {
       isNotNull();
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       try {
         materialisedElements = actual.toList().unsafeRun();
         materialisedException = null;
       } catch (Throwable t) {
+        Interrupts.clearAfterCancellation(interruptedBefore, t);
         materialisedElements = null;
         materialisedException = t;
       }

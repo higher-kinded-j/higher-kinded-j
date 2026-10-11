@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.resilience;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -114,6 +115,10 @@ public final class CircuitBreaker {
    *
    * <p>The call timeout from the configuration is applied using {@code VTask.timeout()}.
    *
+   * <p>A call cancelled by an interrupt counts as neither a success nor a failure, whatever {@link
+   * CircuitBreakerConfig#recordFailure()} says, since it tells nothing about the protected service.
+   * Its {@code InterruptedException} passes through as thrown.
+   *
    * @param task the task to protect; must not be null
    * @param <A> the result type
    * @return a new VTask protected by this circuit breaker
@@ -144,13 +149,14 @@ public final class CircuitBreaker {
       // Reject if still OPEN
       if (current.status() == Status.OPEN) {
         rejectedCalls.incrementAndGet();
-        long remainingNanos =
+        // In saturating nanoseconds, with a wall clock that stepped back counted as no time
+        long elapsedNanos =
             Math.max(
                 0,
-                config
-                    .openDuration()
-                    .minus(Duration.between(current.lastStateChange(), Instant.now()))
-                    .toNanos());
+                TimeUnit.NANOSECONDS.convert(
+                    Duration.between(current.lastStateChange(), Instant.now())));
+        long remainingNanos =
+            Math.max(0, TimeUnit.NANOSECONDS.convert(config.openDuration()) - elapsedNanos);
         throw new CircuitOpenException(Status.OPEN, Duration.ofNanos(remainingNanos));
       }
 
@@ -159,6 +165,9 @@ public final class CircuitBreaker {
         A result = task.timeout(config.callTimeout()).execute();
         onSuccess();
         return result;
+      } catch (InterruptedException cancelled) {
+        // A cancelled call says nothing about the service, so it is not recorded
+        throw cancelled;
       } catch (Throwable t) {
         if (config.recordFailure().test(t)) {
           onFailure();
@@ -175,6 +184,8 @@ public final class CircuitBreaker {
    * Returns a new {@link VTask} protected by this circuit breaker, with a fallback value when the
    * circuit is open.
    *
+   * <p>Any other failure passes through as thrown, as it does from {@link #protect}.
+   *
    * @param task the task to protect; must not be null
    * @param fallback function to produce a fallback value when the circuit is open; must not be
    *     null, and must not return null: a null result fails the task with a {@link
@@ -186,14 +197,14 @@ public final class CircuitBreaker {
   public <A> VTask<A> protectWithFallback(VTask<A> task, Function<Throwable, A> fallback) {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(fallback, "fallback must not be null");
-    return protect(task)
-        .recover(
-            ex -> {
-              if (ex instanceof CircuitOpenException) {
-                return Objects.requireNonNull(fallback.apply(ex), "fallback must not return null");
-              }
-              throw (ex instanceof RuntimeException re) ? re : new RuntimeException(ex);
-            });
+    VTask<A> protectedTask = protect(task);
+    return () -> {
+      try {
+        return protectedTask.execute();
+      } catch (CircuitOpenException open) {
+        return Objects.requireNonNull(fallback.apply(open), "fallback must not return null");
+      }
+    };
   }
 
   // ===== State Inspection =====

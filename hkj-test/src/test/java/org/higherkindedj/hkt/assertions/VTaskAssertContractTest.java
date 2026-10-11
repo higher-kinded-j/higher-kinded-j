@@ -115,6 +115,36 @@ class VTaskAssertContractTest
   }
 
   @Test
+  @DisplayName(
+      "fails() and runSafeFails() leave the test thread uninterrupted for an InterruptedException")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VTaskAssert.assertThatVTask(VTask.<Integer>fail(new InterruptedException("cancelled")))
+          .fails()
+          .withExceptionType(InterruptedException.class)
+          .runSafeFails();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  @DisplayName("runSafeFails() keeps an interrupt status the test thread already had")
+  void interrupt_status_already_set_is_kept() {
+    Thread.currentThread().interrupt();
+    try {
+      VTaskAssert.assertThatVTask(VTask.<Integer>fail(new InterruptedException("cancelled")))
+          .runSafeFails();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
   void runSafeSucceeds_fails_for_failed_task() {
     Assertions.assertThatExceptionOfType(AssertionError.class)
         .isThrownBy(() -> VTaskAssert.assertThatVTask(FAIL_ISE.get()).runSafeSucceeds());
@@ -148,10 +178,9 @@ class VTaskAssertContractTest
   }
 
   @Test
-  void whenRun_unwraps_VTaskExecutionException_to_original_checked_cause() {
-    // VTask.of accepts a Callable, which can throw checked exceptions. The default run()
-    // wraps the checked exception in a VTaskExecutionException; the assertion's whenRun
-    // catches that and exposes the original cause.
+  void whenRun_reports_the_original_checked_exception() {
+    // VTask.of accepts a Callable, which can throw checked exceptions; whenRun runs the task
+    // with execute(), so the assertion sees the original exception.
     IOException original = new IOException("checked-fail");
     VTask<Integer> task =
         VTask.of(
@@ -159,6 +188,20 @@ class VTaskAssertContractTest
               throw original;
             });
     VTaskAssert<Integer> a = VTaskAssert.assertThatVTask(task);
+    Assertions.assertThat(a.getException()).isSameAs(original);
+  }
+
+  @Test
+  void whenRun_unwraps_VTaskExecutionException_to_original_checked_cause() {
+    // A task that runs another with run() throws that task's checked exception wrapped in a
+    // VTaskExecutionException; whenRun exposes the original cause.
+    IOException original = new IOException("inner-fail");
+    VTask<Integer> inner =
+        VTask.of(
+            () -> {
+              throw original;
+            });
+    VTaskAssert<Integer> a = VTaskAssert.assertThatVTask(VTask.of(inner::run));
     Assertions.assertThat(a.getException()).isSameAs(original);
   }
 

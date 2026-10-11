@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -191,6 +192,43 @@ class RetryPolicyTest {
   @Nested
   @DisplayName("Delay Calculations")
   class DelayCalculationsTests {
+
+    @Test
+    @DisplayName("delayForAttempt() backs off under an unbounded maxDelay")
+    void delayForAttemptUnderAnUnboundedMaxDelay() {
+      RetryPolicy policy =
+          RetryPolicy.exponentialBackoff(5, Duration.ofMillis(100))
+              .withMaxDelay(ChronoUnit.FOREVER.getDuration());
+
+      assertThat(policy.delayForAttempt(3)).isEqualTo(Duration.ofMillis(400));
+    }
+
+    @Test
+    @DisplayName("delayForAttempt() caps a delay too long for a long rather than overflowing")
+    void delayForAttemptCapsAHugeDelay() {
+      Duration huge = Duration.ofMillis(Long.MAX_VALUE / 2 + 1);
+      RetryPolicy linear =
+          RetryPolicy.linear(5, huge).withMaxDelay(ChronoUnit.FOREVER.getDuration());
+      RetryPolicy jittered =
+          RetryPolicy.exponentialBackoffWithJitter(5, huge)
+              .withMaxDelay(ChronoUnit.FOREVER.getDuration());
+
+      assertThat(linear.delayForAttempt(3)).isEqualTo(Duration.ofNanos(Long.MAX_VALUE - 1));
+      assertThat(jittered.delayForAttempt(3))
+          .isBetween(Duration.ZERO, Duration.ofNanos(Long.MAX_VALUE - 1));
+    }
+
+    @Test
+    @DisplayName("delayForAttempt() keeps a sub-millisecond delay for every attempt")
+    void delayForAttemptKeepsSubMillisecondDelays() {
+      Duration halfMillisecond = Duration.ofNanos(500_000);
+      RetryPolicy fixed = RetryPolicy.fixed(4, halfMillisecond);
+      RetryPolicy exponential = RetryPolicy.exponentialBackoff(4, Duration.ofNanos(1_500_000));
+
+      assertThat(fixed.delayForAttempt(2)).isEqualTo(halfMillisecond);
+      assertThat(fixed.delayForAttempt(3)).isEqualTo(halfMillisecond);
+      assertThat(exponential.delayForAttempt(2)).isEqualTo(Duration.ofNanos(3_000_000));
+    }
 
     @Test
     @DisplayName("delayForAttempt() returns initial delay for first attempt")

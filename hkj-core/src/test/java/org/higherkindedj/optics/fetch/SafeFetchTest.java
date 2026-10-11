@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -281,6 +282,21 @@ class SafeFetchTest {
           SafeFetch.runAsync(program, fast, new ConcurrentHashMap<>(), Duration.ofSeconds(5)).get();
 
       assertThat(outcome.isRight()).isTrue();
+      assertThat(outcome.getRight().value()).isEqualTo("V");
+    }
+
+    @Test
+    @DisplayName("a deadline too long to count in nanoseconds does not throw")
+    void deadlineTooLongForNanosSucceeds() throws Exception {
+      Fetch<String, String, String> program = Fetch.fetch("k");
+      BatchLoader<String, String> fast =
+          keys -> CompletableFuture.completedFuture(Map.of("k", "V"));
+
+      Either<Throwable, Fetch.RunResult<String, String>> outcome =
+          SafeFetch.runAsync(
+                  program, fast, new ConcurrentHashMap<>(), ChronoUnit.FOREVER.getDuration())
+              .get();
+
       assertThat(outcome.getRight().value()).isEqualTo("V");
     }
 

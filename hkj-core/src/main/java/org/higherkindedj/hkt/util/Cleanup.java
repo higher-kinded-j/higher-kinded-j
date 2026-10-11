@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
  * so cleanup after a cancelled computation is not cut short. That includes work that caught the
  * cancellation, set the status again, and returned. The status is restored afterwards. When {@link
  * #afterFailure} suppresses an {@link InterruptedException} from the cleanup, it sets the status;
- * one wrapped in another exception, as a composed {@code Resource} or a {@code VStream} wraps it,
- * does not set it.
+ * one wrapped in another exception, as a composed {@code Resource} wraps it, does not set it. A
+ * {@code VStream} finaliser runs through {@code VTask.run()}, which sets it as it wraps one.
  *
  * <p>An exception that more than one run throws, such as the one a {@code VTask.fail} holds,
  * gathers the suppressed exceptions of every run whose cleanup fails, as it would under

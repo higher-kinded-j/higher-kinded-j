@@ -141,7 +141,7 @@ VTask<String> resilient2 = Retry.retryTask(
     RetryPolicy.exponentialBackoff(3, Duration.ofSeconds(1)));
 ```
 
-Both forms return a lazy `VTask`. Nothing executes until you call `run()`, `runSafe()`, or `runAsync()`.
+Both forms return a lazy `VTask`. Nothing executes until you call `run()`, `runSafe()`, or `runAsync()`. The policy's predicate sees the exception the task threw, so `retryOn(IOException.class)` retries a task that throws `IOException`.
 
 ### Retry with Fallback
 
@@ -269,6 +269,8 @@ try {
     // Handle the last failure specifically
 }
 ```
+
+An interrupt ends the retry early, whatever the policy's predicate. An attempt that throws `InterruptedException` is not run again, and the exception reaches you as thrown, as it would with no retry. A thread interrupted before the next attempt stops the retry too: the interrupt status is set, and `RetryExhaustedException` is thrown with the last attempt's exception as its cause. So a [`Scope`](../monads/vtask_scope.md) that cancels a retried task does not wait for further attempts. After an interrupt a recovery task does not start, since a cancelled retry starts no new work. A fallback, or a `bracketOutcome` `onDefect` that maps `InterruptedException`, can check `Thread.currentThread().isInterrupted()` to tell this cancellation from exhaustion.
 
 ---
 

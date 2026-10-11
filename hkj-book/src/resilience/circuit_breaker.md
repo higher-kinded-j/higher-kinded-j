@@ -68,7 +68,7 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 | `callTimeout` | 10s | Timeout applied to each protected call |
 | `recordFailure` | all exceptions | Predicate determining which exceptions count |
 
-The `recordFailure` predicate is important: not every exception means the service is unhealthy. A `400 Bad Request` or a business validation error reflects a problem with the *request*, not the *service*. Only count failures that indicate the service itself is struggling.
+The `recordFailure` predicate is important: not every exception means the service is unhealthy. A `400 Bad Request` or a business validation error reflects a problem with the *request*, not the *service*. Only count failures that indicate the service itself is struggling. A cancelled call counts as neither a success nor a failure, whatever `recordFailure` says, and its `InterruptedException` passes through.
 
 ## Creating a Circuit Breaker
 
@@ -116,6 +116,8 @@ VTask<String> withFallback = paymentBreaker.protectWithFallback(
     VTask.of(() -> paymentService.getStatus(orderId)),
     ex -> "status-unavailable");
 ```
+
+The fallback runs only for `CircuitOpenException`. Any other failure passes through as thrown.
 
 Or compose with `recover()` for more control:
 
@@ -184,8 +186,8 @@ log.info("Circuit breaker: total={}, success={}, failed={}, rejected={}, transit
 
 | Metric | Description |
 |--------|-------------|
-| `totalCalls` | Total calls attempted (including rejected) |
-| `successfulCalls` | Calls that completed successfully |
+| `totalCalls` | Total calls attempted (including rejected and cancelled) |
+| `successfulCalls` | Calls recorded as successes, including those whose exception `recordFailure` does not select |
 | `failedCalls` | Calls that failed (counted by the failure predicate) |
 | `rejectedCalls` | Calls rejected because the circuit was open |
 | `stateTransitions` | Number of state transitions |

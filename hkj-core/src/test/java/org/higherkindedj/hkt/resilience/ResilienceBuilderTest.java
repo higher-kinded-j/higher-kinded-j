@@ -5,7 +5,10 @@ package org.higherkindedj.hkt.resilience;
 import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -401,6 +404,128 @@ class ResilienceBuilderTest {
       String result = resilient.run();
 
       assertThat(result).isEqualTo("circuit open fallback");
+    }
+
+    @Test
+    @DisplayName("Fallback is not invoked for an InterruptedException, which passes through")
+    void fallbackNotInvokedForCancellation() {
+      AtomicInteger fallbackCalls = new AtomicInteger(0);
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      VTask<String> resilient =
+          Resilience.<String>builder(VTask.fail(cancelled))
+              .withFallback(
+                  ex -> {
+                    fallbackCalls.incrementAndGet();
+                    return "fallback";
+                  })
+              .build();
+
+      assertThatThrownBy(resilient::execute).isSameAs(cancelled);
+      assertThat(fallbackCalls.get()).isZero();
+    }
+  }
+
+  @Nested
+  @DisplayName("Cancellation Tests")
+  class CancellationTests {
+
+    @Test
+    @DisplayName("An interrupted caller cancels a call behind a breaker, and it is not retried")
+    void interruptedCallerCancelsTheProtectedCall() throws InterruptedException {
+      AtomicInteger attempts = new AtomicInteger(0);
+      AtomicInteger fallbackCalls = new AtomicInteger(0);
+      CountDownLatch callInterrupted = new CountDownLatch(1);
+      CircuitBreaker cb = CircuitBreaker.create(shortCbConfig(1));
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                attempts.incrementAndGet();
+                try {
+                  Thread.sleep(3000);
+                  return "finished";
+                } catch (InterruptedException e) {
+                  callInterrupted.countDown();
+                  throw e;
+                }
+              });
+
+      VTask<String> resilient =
+          Resilience.<String>builder(task)
+              .withCircuitBreaker(cb)
+              .withRetry(RetryPolicy.fixed(3, Duration.ZERO))
+              .withFallback(
+                  ex -> {
+                    fallbackCalls.incrementAndGet();
+                    return "fallback";
+                  })
+              .build();
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(resilient::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(callInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(attempts.get()).isEqualTo(1);
+      assertThat(fallbackCalls.get()).isZero();
+      assertThat(cb.metrics().failedCalls()).isZero();
+      assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("A bulkhead wait an interrupt stops reaches the fallback, with the status set")
+    void interruptedBulkheadWaitReachesFallback() {
+      AtomicReference<Throwable> fallbackSaw = new AtomicReference<>();
+      VTask<String> resilient =
+          Resilience.<String>builder(VTask.succeed("primary"))
+              .withBulkhead(Bulkhead.withMaxConcurrent(1))
+              .withFallback(
+                  ex -> {
+                    fallbackSaw.set(ex);
+                    return "fallback";
+                  })
+              .build();
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThat(resilient.run()).isEqualTo("fallback");
+        assertThat(fallbackSaw.get()).isInstanceOf(BulkheadFullException.class);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("With a timeout, an interrupted caller's InterruptedException skips the fallback")
+    void interruptedCallerWithTimeoutSkipsFallback() {
+      AtomicInteger fallbackCalls = new AtomicInteger(0);
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                Thread.sleep(3000);
+                return "finished";
+              });
+      VTask<String> resilient =
+          Resilience.<String>builder(task)
+              .withTimeout(Duration.ofSeconds(10))
+              .withBulkhead(Bulkhead.withMaxConcurrent(1))
+              .withFallback(
+                  ex -> {
+                    fallbackCalls.incrementAndGet();
+                    return "fallback";
+                  })
+              .build();
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(resilient::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(fallbackCalls.get()).isZero();
     }
   }
 

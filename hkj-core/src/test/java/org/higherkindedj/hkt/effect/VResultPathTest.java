@@ -2137,6 +2137,62 @@ class VResultPathTest {
     }
 
     @Test
+    @DisplayName("an InterruptedException from a use run through withBulkhead sets the status")
+    void interruptedExceptionThroughBulkheadSetsTheStatus() {
+      try {
+        Either<String, String> result =
+            VResultPath.bracketOutcome(
+                    VResultPath.<String, String>pure("seat"),
+                    seat ->
+                        VResultPath.<String, String>fromVTask(
+                                VTask.of(
+                                    () -> {
+                                      throw new InterruptedException("sleep interrupted");
+                                    }))
+                            .withBulkhead(Bulkhead.withMaxConcurrent(1)),
+                    (seat, outcome) -> VTask.succeed("released"),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("sleep interrupted");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a use run through withRetry that throws InterruptedException runs once, and sets the status")
+    void interruptedExceptionThroughRetryRunsOnce() {
+      AtomicInteger attempts = new AtomicInteger();
+      try {
+        Either<String, String> result =
+            VResultPath.bracketOutcome(
+                    VResultPath.<String, String>pure("seat"),
+                    seat ->
+                        VResultPath.<String, String>fromVTask(
+                                VTask.of(
+                                    () -> {
+                                      attempts.incrementAndGet();
+                                      throw new InterruptedException("sleep interrupted");
+                                    }))
+                            .withRetry(RetryPolicy.fixed(3, Duration.ZERO)),
+                    (seat, outcome) -> VTask.succeed("released"),
+                    Throwable::getMessage)
+                .run()
+                .run();
+
+        assertThatEither(result).isLeft().hasLeft("sleep interrupted");
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("in a Scope whose timeout cancels the use, a release that blocks finishes")
     void blockingReleaseFinishesWhenScopeTimeoutCancelsTheUse() {
       CountDownLatch useStarted = new CountDownLatch(1);

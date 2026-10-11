@@ -662,7 +662,9 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * TimeoutException} thrown by code <em>inside</em> the step is indistinguishable from the budget
    * expiring, so it is also mapped to {@code onTimeout}; and the step runs on a fresh virtual
    * thread, so caller {@code ThreadLocal}s and {@code ScopedValue} bindings are not visible inside
-   * it, and interrupting the caller is not delivered to the step (the wait runs to the budget).
+   * it. An interrupt of the caller is passed on to the step: once the step stops, or the budget
+   * runs out, this method throws a {@code VTaskExecutionException} wrapping the {@code
+   * InterruptedException}, with the interrupt status set.
    *
    * @param step the computation to bound; must not be null
    * @param duration the time budget; must not be null

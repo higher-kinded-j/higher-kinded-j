@@ -8,6 +8,9 @@ package org.higherkindedj.hkt.resilience;
  * <p>This exception wraps the last exception encountered during retry attempts and includes
  * information about the number of attempts made.
  *
+ * <p>It is also thrown when a thread interrupted between attempts stops a retry early. The
+ * interrupt status is then set, and {@link #getAttempts()} counts the attempts made.
+ *
  * <h2>Example</h2>
  *
  * <pre>{@code

@@ -744,7 +744,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * interrupted - it keeps running unobserved after the typed timeout is returned (bound its side
    * effects accordingly, e.g. with {@link #bracketOutcome}); and a {@code TimeoutException} thrown
    * by code <em>inside</em> the pipeline is indistinguishable from the budget expiring, so it is
-   * also mapped to {@code onTimeout}.
+   * also mapped to {@code onTimeout}. An interrupt of the caller is passed on to the computation,
+   * and its {@code InterruptedException} is thrown once the computation stops, or the budget runs
+   * out; it is not mapped to {@code onTimeout}.
    *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not
@@ -942,7 +944,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * {@code release} has run, as Java asks of code that catches one; one wrapped in another
    * exception does not set it. So the caller still sees an interrupt that {@code use} threw or left
    * pending. If the pipeline must distinguish cancellation from domain failure, map it to a
-   * dedicated error in {@code onDefect}.
+   * dedicated error in {@code onDefect}. A use run through {@code withRetry} and cancelled between
+   * attempts reaches {@code onDefect} as a {@code RetryExhaustedException} with the status set, so
+   * check {@code Thread.currentThread().isInterrupted()} there too.
    *
    * @param acquire produces the resource; must not be null
    * @param use consumes the resource; must not be null

@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -332,6 +333,26 @@ class CircuitBreakerTest {
   @Nested
   @DisplayName("Timeout Tests")
   class TimeoutTests {
+
+    @Test
+    @DisplayName(
+        "an open circuit reports retryAfter under an openDuration too long for nanoseconds")
+    void rejectsWithRetryAfterUnderAHugeOpenDuration() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .openDuration(ChronoUnit.FOREVER.getDuration())
+                  .callTimeout(GENEROUS_TIMEOUT)
+                  .build());
+      breaker.tripOpen();
+
+      VTask<String> task = breaker.protect(VTask.succeed("should not reach"));
+
+      assertThatThrownBy(task::run)
+          .isInstanceOfSatisfying(
+              CircuitOpenException.class,
+              open -> assertThat(open.retryAfter()).isGreaterThan(Duration.ofDays(365)));
+    }
 
     @Test
     @DisplayName("circuit remains OPEN before open duration elapses")
@@ -747,16 +768,40 @@ class CircuitBreakerTest {
       CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
 
       AtomicInteger fallbackCount = new AtomicInteger(0);
+      RuntimeException appError = new RuntimeException("app error");
       VTask<String> task =
           breaker.protectWithFallback(
-              VTask.fail(new RuntimeException("app error")),
+              VTask.fail(appError),
               ex -> {
                 fallbackCount.incrementAndGet();
                 return "fallback";
               });
 
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).hasMessage("app error");
+      assertThatThrownBy(task::run).isSameAs(appError);
       assertThat(fallbackCount.get()).isZero();
+    }
+
+    @Test
+    @DisplayName("fallback passes a checked exception through as thrown")
+    void fallbackPassesCheckedExceptionThrough() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
+
+      IOException checkedException = new IOException("disk");
+      VTask<String> task =
+          breaker.protectWithFallback(VTask.fail(checkedException), ex -> "fallback");
+
+      assertThatThrownBy(task::execute).isSameAs(checkedException);
+    }
+
+    @Test
+    @DisplayName("fallback passes an Error through as thrown")
+    void fallbackPassesErrorThrough() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
+
+      Error fatal = new Error("fatal");
+      VTask<String> task = breaker.protectWithFallback(VTask.fail(fatal), ex -> "fallback");
+
+      assertThatThrownBy(task::execute).isSameAs(fatal);
     }
 
     @Test
@@ -775,6 +820,57 @@ class CircuitBreakerTest {
 
       assertThatNullPointerException()
           .isThrownBy(() -> breaker.protectWithFallback(VTask.succeed("ok"), null));
+    }
+  }
+
+  @Nested
+  @DisplayName("Cancellation Tests")
+  class CancellationTests {
+
+    @Test
+    @DisplayName("a call that throws InterruptedException counts as neither success nor failure")
+    void cancelledCallIsNotRecorded() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      VTask<String> task = breaker.protect(VTask.fail(cancelled));
+
+      assertThatThrownBy(task::execute).isSameAs(cancelled);
+      CircuitBreakerMetrics metrics = breaker.metrics();
+      assertThat(metrics.totalCalls()).isEqualTo(1);
+      assertThat(metrics.successfulCalls()).isZero();
+      assertThat(metrics.failedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("an interrupted caller cancels the call, which is recorded as neither outcome")
+    void interruptedCallerCancelsTheCall() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      CountDownLatch callInterrupted = new CountDownLatch(1);
+      VTask<String> task =
+          breaker.protect(
+              VTask.of(
+                  () -> {
+                    try {
+                      Thread.sleep(3000);
+                      return "finished";
+                    } catch (InterruptedException e) {
+                      callInterrupted.countDown();
+                      throw e;
+                    }
+                  }));
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(task::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(callInterrupted.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(breaker.metrics().successfulCalls()).isZero();
+      assertThat(breaker.metrics().failedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
     }
   }
 
@@ -907,30 +1003,6 @@ class CircuitBreakerTest {
   @Nested
   @DisplayName("Edge Case Tests")
   class EdgeCaseTests {
-
-    @Test
-    @DisplayName("protectWithFallback re-throws non-CircuitOpenException as RuntimeException")
-    void protectWithFallbackRethrowsNonCircuitException() {
-      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
-
-      // Use a checked exception (not RuntimeException) to exercise the wrapping branch
-      Exception checkedException = new Exception("checked error");
-      VTask<String> task =
-          breaker.protectWithFallback(VTask.fail(checkedException), ex -> "fallback");
-
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).hasCause(checkedException);
-    }
-
-    @Test
-    @DisplayName("protectWithFallback re-throws RuntimeException directly for non-circuit errors")
-    void protectWithFallbackRethrowsRuntimeExceptionDirectly() {
-      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(5, 1));
-
-      RuntimeException runtimeEx = new RuntimeException("app error");
-      VTask<String> task = breaker.protectWithFallback(VTask.fail(runtimeEx), ex -> "fallback");
-
-      assertThatThrownBy(task::run).isInstanceOf(RuntimeException.class).isSameAs(runtimeEx);
-    }
 
     @Test
     @DisplayName("concurrent CAS contention during OPEN->HALF_OPEN transition")

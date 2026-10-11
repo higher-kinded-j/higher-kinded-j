@@ -730,8 +730,11 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
    * interrupted; a {@code TimeoutException} thrown inside the computation is indistinguishable from
    * the budget expiring; and the computation runs on a fresh virtual thread, so caller {@code
-   * ThreadLocal}s and {@code ScopedValue} bindings are not visible inside it. To land a timeout on
-   * the typed channel instead, use {@link EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   * ThreadLocal}s and {@code ScopedValue} bindings are not visible inside it. An interrupt of the
+   * caller is passed on to the computation: once it stops, or the budget runs out, this path fails
+   * with a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
+   * interrupt status set. To land a timeout on the typed channel instead, use {@link
+   * EitherPath#withTimeout(Supplier, Duration, Supplier)}.
    *
    * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
    * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()

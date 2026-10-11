@@ -53,7 +53,11 @@ public class VResultPathAssert<E, A>
   private VResultPathAssert<E, A> ensureExecuted() {
     if (!hasBeenExecuted) {
       long startNanos = System.nanoTime();
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       Try<Either<E, A>> outcome = actual.run().runSafe();
+      if (outcome instanceof Try.Failure<Either<E, A>>(Throwable defect)) {
+        Interrupts.clearAfterCancellation(interruptedBefore, defect);
+      }
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
       executedResult = outcome.foldFailureFirst(e -> null, r -> r);
       executedDefect = outcome.foldFailureFirst(e -> e, r -> null);

@@ -488,5 +488,55 @@ class RetryTest {
       assertThat(testThread.isAlive()).isFalse();
       assertThat(attempts.get()).isEqualTo(1); // Only one attempt before interrupt
     }
+
+    @Test
+    @DisplayName("execute() with no wait stops once an attempt leaves the thread interrupted")
+    void executeStopsWithNoWaitWhenTheStatusIsSet() {
+      AtomicInteger attempts = new AtomicInteger();
+      IllegalStateException cancelled = new IllegalStateException("cancelled");
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    Retry.execute(
+                        RetryPolicy.fixed(3, Duration.ZERO),
+                        () -> {
+                          attempts.incrementAndGet();
+                          Thread.currentThread().interrupt(); // caught a cancellation
+                          throw cancelled;
+                        }))
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts")
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("execute() sets the interrupt status when it wraps a sneaky InterruptedException")
+    void executeSetsTheStatusForASneakyInterruptedException() {
+      AtomicInteger attempts = new AtomicInteger();
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    Retry.execute(
+                        RetryPolicy.fixed(3, Duration.ZERO),
+                        () -> {
+                          attempts.incrementAndGet();
+                          throw sneakyThrow(cancelled);
+                        }))
+            .isExactlyInstanceOf(RuntimeException.class)
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 }

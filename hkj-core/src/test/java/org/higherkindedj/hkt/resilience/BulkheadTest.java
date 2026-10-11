@@ -4,7 +4,9 @@ package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
@@ -286,6 +288,18 @@ class BulkheadTest {
   @Nested
   @DisplayName("Timeout Tests")
   class TimeoutTests {
+
+    @Test
+    @DisplayName(
+        "protectWithTimeout() takes a free permit under a wait too long to count in nanoseconds")
+    void protectWithTimeoutAcceptsAHugeWait() {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+
+      VTask<String> task =
+          bulkhead.protectWithTimeout(VTask.succeed("ok"), ChronoUnit.FOREVER.getDuration());
+
+      assertThat(task.run()).isEqualTo("ok");
+    }
 
     @Test
     @DisplayName("protect() throws BulkheadFullException when timeout expires")
@@ -639,6 +653,20 @@ class BulkheadTest {
           .isThrownBy(() -> Bulkhead.create(null))
           .withMessageContaining("config must not be null");
     }
+
+    @Test
+    @DisplayName("a protected task's checked exception arrives as thrown, not wrapped")
+    void taskCheckedExceptionArrivesAsThrown() {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      IOException disk = new IOException("disk");
+      VTask<String> task =
+          () -> {
+            throw disk;
+          };
+
+      assertThatThrownBy(bulkhead.protect(task)::execute).isSameAs(disk);
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
   }
 
   @Nested
@@ -731,6 +759,26 @@ class BulkheadTest {
       taskFinish.countDown();
 
       assertThat(exceptionCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a protected task's InterruptedException arrives as thrown, and the permit is freed")
+    void taskInterruptedExceptionArrivesAsThrown() {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(1);
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      VTask<String> task =
+          () -> {
+            throw cancelled;
+          };
+
+      try {
+        assertThatThrownBy(bulkhead.protect(task)::execute).isSameAs(cancelled);
+        assertThat(bulkhead.availablePermits()).isEqualTo(1);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 

@@ -10,16 +10,17 @@ import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Railway-aware retry lowering shared by {@link EitherPath} and {@link VResultPath}.
  *
  * <p>This lives in {@code hkt.effect} rather than {@code hkt.resilience} deliberately: the
  * architecture rules keep the resilience primitives agnostic of specific carriers such as {@link
- * Either}, so the typed-error awareness is layered here, on top of the single retry loop in {@link
- * Retry#execute}. A retry-selected {@code Left} is lowered into the exception channel through the
- * stackless {@link LeftRetrySignal} and restored on the way out - one implementation, several entry
- * points.
+ * Either}, so the typed-error awareness is layered here, on top of the single retry loop behind
+ * {@link Retry#execute} and {@link Retry#retryTask}. A retry-selected {@code Left} is lowered into
+ * the exception channel through the stackless {@link LeftRetrySignal} and restored on the way out -
+ * one implementation, several entry points.
  */
 final class RailwayRetry {
 
@@ -34,8 +35,8 @@ final class RailwayRetry {
    * <p>When the attempts are exhausted while retrying a selected {@code Left}, the <em>last</em>
    * {@code Left} is returned - typed errors stay on the typed channel rather than becoming a thrown
    * {@link RetryExhaustedException}. Exhaustion on a thrown exception still throws, exactly as
-   * {@link Retry#execute} does. If the retry sleep is interrupted mid-typed-retry the last {@code
-   * Left} is likewise returned, with the thread's interrupt status restored.
+   * {@link Retry#execute} does. If the thread is interrupted between typed retries, the last {@code
+   * Left} is likewise returned, with the thread's interrupt status set.
    *
    * <p>Retry listeners registered via {@link RetryPolicy#onRetry} fire for typed retries too; the
    * event's exception is an internal signal whose message names the selected error.
@@ -45,50 +46,68 @@ final class RailwayRetry {
     Objects.requireNonNull(policy, "policy must not be null");
     Objects.requireNonNull(retryOn, "retryOn must not be null");
     Objects.requireNonNull(supplier, "supplier must not be null");
-    RetryPolicy adapted =
-        policy.retryIf(t -> t instanceof LeftRetrySignal || policy.shouldRetry(t));
     try {
-      return Retry.execute(
-          adapted,
-          () -> {
-            Either<E, A> outcome = Objects.requireNonNull(supplier.get(), "supplier returned null");
-            if (outcome.isLeft() && retryOn.test(outcome.getLeft())) {
-              throw new LeftRetrySignal(outcome);
-            }
-            return outcome;
-          });
+      return Retry.execute(signalling(policy), () -> signalIfSelected(supplier.get(), retryOn));
     } catch (RetryExhaustedException exhausted) {
-      if (exhausted.getCause() instanceof LeftRetrySignal signal) {
-        @SuppressWarnings("unchecked") // signal carries the Either it was constructed with
-        Either<E, A> last = (Either<E, A>) signal.outcome();
-        return last;
-      }
-      throw exhausted;
+      return lastLeft(exhausted);
     } catch (LeftRetrySignal escaped) {
       // A retry listener may rethrow event.lastException() (a plausible abort idiom); the signal
       // must never reach user code, so restore the typed Left it was carrying.
-      @SuppressWarnings("unchecked") // signal carries the Either it was constructed with
-      Either<E, A> last = (Either<E, A>) escaped.outcome();
-      return last;
+      return escaped.outcome();
     }
   }
 
   /**
-   * Returns a lazy {@link VTask} applying {@link #executeEither} to the given typed-error task -
-   * the railway-aware sibling of {@link Retry#retryTask}.
+   * Returns a lazy {@link VTask} applying {@link #executeEither}'s rules to the given typed-error
+   * task - the railway-aware sibling of {@link Retry#retryTask}. It retries through {@code
+   * retryTask}, so the task's exception reaches the policy's predicate as thrown, and an interrupt
+   * stops the retry as {@link Retry} describes.
    */
   static <E, A> VTask<Either<E, A>> retryTaskEither(
       VTask<Either<E, A>> task, Predicate<? super E> retryOn, RetryPolicy policy) {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(retryOn, "retryOn must not be null");
     Objects.requireNonNull(policy, "policy must not be null");
-    return () -> executeEither(policy, retryOn, task::run);
+    VTask<Either<E, A>> retried =
+        Retry.retryTask(() -> signalIfSelected(task.execute(), retryOn), signalling(policy));
+    return () -> {
+      try {
+        return retried.execute();
+      } catch (RetryExhaustedException exhausted) {
+        return lastLeft(exhausted);
+      } catch (LeftRetrySignal escaped) {
+        // As in executeEither: a listener that rethrows the signal gets its Left back
+        return escaped.outcome();
+      }
+    };
+  }
+
+  // The policy, extended to retry the signal that carries a selected Left
+  private static RetryPolicy signalling(RetryPolicy policy) {
+    return policy.retryIf(t -> t instanceof LeftRetrySignal || policy.shouldRetry(t));
+  }
+
+  private static <E, A> Either<E, A> signalIfSelected(
+      @Nullable Either<E, A> outcome, Predicate<? super E> retryOn) {
+    Either<E, A> returned = Objects.requireNonNull(outcome, "supplier returned null");
+    if (returned.isLeft() && retryOn.test(returned.getLeft())) {
+      throw new LeftRetrySignal(returned);
+    }
+    return returned;
+  }
+
+  // The last selected Left when the retry ran out on one, else the exhaustion itself
+  private static <E, A> Either<E, A> lastLeft(RetryExhaustedException exhausted) {
+    if (exhausted.getCause() instanceof LeftRetrySignal signal) {
+      return signal.outcome();
+    }
+    throw exhausted;
   }
 
   /**
    * Stackless internal signal lowering a retry-selected {@code Left} into the exception channel so
-   * the single retry loop in {@link Retry#execute} serves both channels. Never escapes {@link
-   * #executeEither}.
+   * the single retry loop in {@link Retry} serves both channels. Never escapes {@link
+   * #executeEither} or {@link #retryTaskEither} unwrapped.
    */
   static final class LeftRetrySignal extends RuntimeException {
     private final Either<?, ?> outcome;
@@ -98,8 +117,9 @@ final class RailwayRetry {
       this.outcome = outcome;
     }
 
-    Either<?, ?> outcome() {
-      return outcome;
+    @SuppressWarnings("unchecked") // the signal carries the Either it was constructed with
+    private <E, A> Either<E, A> outcome() {
+      return (Either<E, A>) outcome;
     }
 
     @Override

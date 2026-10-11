@@ -6,11 +6,13 @@ import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VResultPath;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
 /** Coverage contract for {@link VResultPathAssert}. See {@link AssertContract}. */
 @DisplayName("VResultPathAssert contract")
@@ -104,5 +106,20 @@ class VResultPathAssertContractTest
             "completesWithin generous bound", RIGHT, a -> a.completesWithin(Duration.ofMinutes(1))),
         failOnly(
             "completesWithin tight bound", SLOW, a -> a.completesWithin(Duration.ofMillis(1))));
+  }
+
+  @Test
+  @DisplayName("hasDefect() on an InterruptedException leaves the test thread uninterrupted")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VResultPathAssert.assertThatVResultPath(
+              Path.vresult(
+                  VTask.<Either<String, Integer>>fail(new InterruptedException("cancelled"))))
+          .hasDefect();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
   }
 }

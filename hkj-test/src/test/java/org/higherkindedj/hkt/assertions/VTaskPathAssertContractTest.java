@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.assertions;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -148,5 +149,27 @@ class VTaskPathAssertContractTest
             () ->
                 VTaskPathAssert.assertThatVTaskPath(Path.vtaskFail(new RuntimeException("x")))
                     .hasValue(42));
+  }
+
+  @Test
+  @DisplayName("fails() on an InterruptedException leaves the test thread uninterrupted")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VTaskPathAssert.assertThatVTaskPath(
+              Path.<Integer>vtaskFail(new InterruptedException("cancelled")))
+          .fails();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  @DisplayName("fails() on a wrapped checked exception leaves the interrupt status alone")
+  void checked_failure_leaves_interrupt_status_alone() {
+    VTaskPathAssert.assertThatVTaskPath(Path.<Integer>vtaskFail(new IOException("disk"))).fails();
+
+    Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
   }
 }

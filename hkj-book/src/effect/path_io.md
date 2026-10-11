@@ -189,7 +189,7 @@ IOPath<String> resilient = Path.io(() -> callFlakyService())
     .withBulkhead(serviceBulkhead);                          // cap concurrent callers
 ```
 
-`IOPath` has no typed error channel, so failures surface on the failure channel: `withTimeout` fails with a `CompletionException` wrapping the `TimeoutException` (the same surfacing as `CompletableFuturePath.withTimeout`), an open circuit throws `CircuitOpenException`, and a full bulkhead throws `BulkheadFullException`. The timed-out computation is not interrupted; it keeps running unobserved. To land a timeout or rejection as a typed `Left` instead, use the static `EitherPath` combinators (`EitherPath.withTimeout(step, duration, onTimeout)` and friends).
+`IOPath` has no typed error channel, so failures surface on the failure channel: `withTimeout` fails with a `CompletionException` wrapping the `TimeoutException` (the same surfacing as `CompletableFuturePath.withTimeout`), an open circuit throws `CircuitOpenException`, and a full bulkhead throws `BulkheadFullException`. The timed-out computation is not interrupted; it keeps running unobserved. An interrupt of the caller does reach it, and surfaces as a `VTaskExecutionException` wrapping the `InterruptedException`, with the interrupt status set. To land a timeout or rejection as a typed `Left` instead, use the static `EitherPath` combinators (`EitherPath.withTimeout(step, duration, onTimeout)` and friends).
 
 See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table, and [Patterns and Recipes](patterns.md) for more recipes.
 

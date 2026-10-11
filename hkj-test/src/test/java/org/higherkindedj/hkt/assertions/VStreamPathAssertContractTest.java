@@ -96,4 +96,19 @@ class VStreamPathAssertContractTest
                           throw new AssertionError("inner");
                         }));
   }
+
+  @Test
+  @DisplayName(
+      "failsOnMaterialise() on an InterruptedException leaves the test thread uninterrupted")
+  void interrupt_failure_leaves_thread_uninterrupted() {
+    try {
+      VStreamPathAssert.assertThatVStreamPath(
+              Path.vstream(VStream.<Integer>fail(new InterruptedException("cancelled"))))
+          .failsOnMaterialise();
+
+      Assertions.assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }

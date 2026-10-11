@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -215,7 +216,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p><b>Exception handling:</b> Unchecked exceptions ({@link RuntimeException} and {@link Error})
    * are thrown directly. Checked exceptions are wrapped in {@link VTaskExecutionException}. For
    * functional error handling that preserves the original exception type, use {@link #runSafe()}
-   * instead.
+   * instead. An {@link InterruptedException} the computation throws is wrapped too, with the
+   * thread's interrupt status set again, so the cancellation it reports is not lost.
    *
    * @return The result of the computation of type {@code A}. Never null.
    * @throws VTaskExecutionException if the computation throws a checked exception
@@ -229,6 +231,9 @@ public interface VTask<A> extends VTaskKind<A> {
     } catch (RuntimeException | Error e) {
       throw e;
     } catch (Throwable t) {
+      if (t instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new VTaskExecutionException(t);
     }
   }
@@ -239,7 +244,9 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p>This is the preferred method for error handling. Unlike {@link #run()}, which wraps checked
    * exceptions in {@link VTaskExecutionException}, this method preserves the original exception
    * type in the {@code Try.Failure}. A {@code Try.Success} always holds a value, so a task that
-   * returns {@code null} gives a {@code Try.Failure} holding a {@link NullPointerException}.
+   * returns {@code null} gives a {@code Try.Failure} holding a {@link NullPointerException}. An
+   * {@link InterruptedException} comes back as the failure itself, with the thread's interrupt
+   * status set again, as {@link #run()} sets it, so the cancellation it reports is not lost.
    *
    * @return A {@link Try} containing either the successful result or the failure. Never null.
    */
@@ -249,6 +256,9 @@ public interface VTask<A> extends VTaskKind<A> {
           Objects.requireNonNull(
               execute(), "the task returned null, and a Success always holds a value"));
     } catch (Throwable t) {
+      if (t instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       return Try.failure(t);
     }
   }
@@ -368,6 +378,18 @@ public interface VTask<A> extends VTaskKind<A> {
   /**
    * Creates a new task that fails if this task does not complete within the specified duration.
    *
+   * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
+   * bindings. When the time runs out, the new task fails with a {@link TimeoutException}, and this
+   * task is not interrupted: it keeps running unobserved. A {@code TimeoutException} this task
+   * throws itself is reported as the time running out too. Any other failure passes through as
+   * thrown.
+   *
+   * <p>An interrupt of the thread waiting for the result is passed on to this task. The new task
+   * then waits for this task to stop, though not past the time limit, so its cleanup can run, and
+   * throws the {@link InterruptedException} whatever this task returns. A failure this task throws
+   * meanwhile, other than an {@code InterruptedException}, is added to it as suppressed. A further
+   * interrupt during that wait sets the thread's interrupt status again.
+   *
    * @param duration The maximum time to wait. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
    * @throws NullPointerException if {@code duration} is null.
@@ -375,13 +397,41 @@ public interface VTask<A> extends VTaskKind<A> {
   default VTask<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
+      long budget = TimeUnit.NANOSECONDS.convert(duration);
+      long start = System.nanoTime();
+      CompletableFuture<A> outcome = new CompletableFuture<>();
+      Thread running =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      outcome.complete(execute());
+                    } catch (Throwable t) {
+                      // get() removes exactly this layer, so the task's own exception arrives as is
+                      outcome.completeExceptionally(new CompletionException(t));
+                    }
+                  });
       try {
-        return runAsync().orTimeout(duration.toMillis(), TimeUnit.MILLISECONDS).join();
-      } catch (CompletionException e) {
+        return outcome.get(budget, TimeUnit.NANOSECONDS);
+      } catch (TimeoutException e) {
+        throw new TimeoutException("VTask timed out after " + duration);
+      } catch (ExecutionException e) {
         if (e.getCause() instanceof TimeoutException) {
           throw new TimeoutException("VTask timed out after " + duration);
         }
         throw e.getCause();
+      } catch (InterruptedException e) {
+        running.interrupt();
+        // Wait for the task to stop, ignoring further interrupts, but not past the time limit, and
+        // keep a failure it throws meanwhile, such as a failed rollback
+        long left = Math.max(budget, 0L) - (System.nanoTime() - start);
+        outcome
+            .handle((value, failure) -> Optional.ofNullable(failure).map(Throwable::getCause))
+            .completeOnTimeout(Optional.empty(), left, TimeUnit.NANOSECONDS)
+            .join()
+            .filter(late -> !(late instanceof InterruptedException))
+            .ifPresent(e::addSuppressed);
+        throw e;
       }
     };
   }

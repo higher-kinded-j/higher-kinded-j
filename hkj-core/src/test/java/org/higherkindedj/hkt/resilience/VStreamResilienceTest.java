@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -244,6 +245,15 @@ class VStreamResilienceTest {
       List<Integer> result = throttled.toList().run();
 
       assertThat(result).containsExactlyElementsOf(input);
+    }
+
+    @Test
+    @DisplayName("Throttle accepts a window too long to count in nanoseconds")
+    void throttleAcceptsAHugeWindow() {
+      VStream<Integer> throttled =
+          VStreamThrottle.throttle(VStream.of(1, 2), 5, ChronoUnit.FOREVER.getDuration());
+
+      assertThat(throttled.toList().run()).containsExactly(1, 2);
     }
 
     @Test

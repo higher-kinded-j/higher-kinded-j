@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -285,6 +286,98 @@ class RailwayRetryTest {
               immediate);
       assertThat(task.run().getRight()).isEqualTo(5);
       assertThat(attempts).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("exhaustion while retrying a selected Left returns the last Left")
+    void selectedLeftExhaustionReturnsLastLeft() {
+      AtomicInteger attempts = new AtomicInteger();
+      VTask<Either<String, Integer>> task =
+          RailwayRetry.retryTaskEither(
+              VTask.of(() -> Either.left("transient-" + attempts.incrementAndGet())),
+              e -> true,
+              immediate);
+      assertThat(task.run().getLeft()).isEqualTo("transient-3");
+    }
+
+    @Test
+    @DisplayName("a listener that rethrows the signal never leaks it - the typed Left is restored")
+    void listenerRethrowingSignalRestoresTypedLeft() {
+      RetryPolicy aborting =
+          immediate.onRetry(
+              event -> {
+                if (event.lastException() instanceof RuntimeException rethrown) {
+                  throw rethrown;
+                }
+              });
+      VTask<Either<String, Integer>> task =
+          RailwayRetry.retryTaskEither(VTask.succeed(Either.left("typed")), e -> true, aborting);
+      assertThat(task.run().getLeft()).isEqualTo("typed");
+    }
+
+    @Test
+    @DisplayName("a task's checked exception reaches the policy's predicate as thrown")
+    void checkedExceptionReachesThePredicate() {
+      AtomicInteger attempts = new AtomicInteger();
+      IOException disk = new IOException("disk");
+      VTask<Either<String, Integer>> task =
+          RailwayRetry.retryTaskEither(
+              () -> {
+                attempts.incrementAndGet();
+                throw disk;
+              },
+              e -> false,
+              immediate.retryOn(IOException.class));
+      assertThatThrownBy(task::execute)
+          .isInstanceOf(RetryExhaustedException.class)
+          .satisfies(e -> assertThat(e.getCause()).isSameAs(disk));
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName(
+        "a task that throws InterruptedException runs once, and the exception passes through")
+    void interruptedTaskRunsOnce() {
+      AtomicInteger attempts = new AtomicInteger();
+      InterruptedException cancelled = new InterruptedException("cancelled");
+      VTask<Either<String, Integer>> task =
+          RailwayRetry.retryTaskEither(
+              () -> {
+                attempts.incrementAndGet();
+                throw cancelled;
+              },
+              e -> true,
+              immediate);
+      try {
+        assertThatThrownBy(task::execute).isSameAs(cancelled);
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("a selected Left from an attempt that sets the interrupt status is returned")
+    void selectedLeftWithTheStatusSetIsReturned() {
+      AtomicInteger attempts = new AtomicInteger();
+      VTask<Either<String, Integer>> task =
+          RailwayRetry.retryTaskEither(
+              VTask.of(
+                  () -> {
+                    attempts.incrementAndGet();
+                    Thread.currentThread().interrupt(); // caught a cancellation
+                    return Either.left("transient");
+                  }),
+              e -> true,
+              immediate);
+      try {
+        assertThat(task.run().getLeft()).isEqualTo("transient");
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
     }
 
     @Test

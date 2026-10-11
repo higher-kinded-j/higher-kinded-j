@@ -79,7 +79,7 @@ public final class SafeFetch {
     } catch (RuntimeException failure) {
       return CompletableFuture.completedFuture(Either.left(failure));
     }
-    return railwayify(run.orTimeout(timeout.toNanos(), TimeUnit.NANOSECONDS));
+    return railwayify(run.orTimeout(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS));
   }
 
   /**

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.resilience;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
@@ -13,7 +14,9 @@ import org.jspecify.annotations.Nullable;
  * A configurable policy for retry behaviour.
  *
  * <p>{@code RetryPolicy} defines how operations should be retried: how many times, with what delay
- * between attempts, and which exceptions should trigger retries.
+ * between attempts, and which exceptions should trigger retries. {@link Retry} never retries an
+ * {@code InterruptedException}, whatever the predicate: an interrupt stops the retry, as {@link
+ * Retry} describes.
  *
  * <h2>Built-in Policies</h2>
  *
@@ -415,25 +418,29 @@ public final class RetryPolicy {
       return initialDelay;
     }
 
-    long delayMillis;
+    // Durations convert saturating, and the products are taken in double, whose cast to long
+    // saturates too, so a delay too long for a long caps rather than overflows
+    long initialNanos = TimeUnit.NANOSECONDS.convert(initialDelay);
+    long delayNanos;
     if (backoffStrategy == BackoffStrategy.LINEAR) {
       // Linear: initialDelay * attemptNumber
-      delayMillis = initialDelay.toMillis() * attemptNumber;
+      delayNanos = (long) ((double) initialNanos * attemptNumber);
     } else {
       // Exponential: initialDelay * multiplier^(attemptNumber-1)
       double multiplier = Math.pow(backoffMultiplier, attemptNumber - 1);
-      delayMillis = (long) (initialDelay.toMillis() * multiplier);
+      delayNanos = (long) (initialNanos * multiplier);
     }
 
-    // Cap at maxDelay
-    delayMillis = Math.min(delayMillis, maxDelay.toMillis());
+    // Cap at maxDelay, leaving room for the jitter's inclusive bound
+    delayNanos =
+        Math.min(delayNanos, Math.min(TimeUnit.NANOSECONDS.convert(maxDelay), Long.MAX_VALUE - 1));
 
     // Apply jitter if enabled (full jitter: 0 to delay)
-    if (useJitter && delayMillis > 0) {
-      delayMillis = ThreadLocalRandom.current().nextLong(delayMillis + 1);
+    if (useJitter && delayNanos > 0) {
+      delayNanos = ThreadLocalRandom.current().nextLong(delayNanos + 1);
     }
 
-    return Duration.ofMillis(delayMillis);
+    return Duration.ofNanos(delayNanos);
   }
 
   // ===== Validation =====

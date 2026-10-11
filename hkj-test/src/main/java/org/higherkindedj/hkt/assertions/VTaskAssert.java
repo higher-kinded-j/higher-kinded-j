@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
@@ -42,7 +43,12 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
     super(actual, VTaskAssert.class);
   }
 
-  /** Executes the VTask and prepares for assertions on the result. */
+  /**
+   * Executes the VTask and prepares for assertions on the result. The task runs with {@code
+   * execute()}, and a null result fails as {@code run()} fails it. The thread's interrupt status is
+   * left as the task leaves it, where {@code run()} would set it for an {@code
+   * InterruptedException}.
+   */
   public VTaskAssert<T> whenRun() {
     isNotNull();
     if (!hasBeenExecuted) {
@@ -50,7 +56,9 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
       VTask<T> wrappedTask =
           actual.peek(ignored -> wasExecutedOnVirtualThread = Thread.currentThread().isVirtual());
       try {
-        executedValue = wrappedTask.run();
+        executedValue =
+            Objects.requireNonNull(
+                wrappedTask.execute(), "the task returned null, and a VTask always gives a value");
         executedException = null;
       } catch (VTaskExecutionException e) {
         executedValue = null;
@@ -187,12 +195,18 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
   /**
    * Invokes {@code actual.runSafe()} at most once across the lifetime of this assert. Subsequent
    * calls reuse the cached result so chaining {@code runSafeSucceeds().runSafeFails()...} does not
-   * re-execute the underlying VTask.
+   * re-execute the underlying VTask. {@code runSafe()} sets the thread's interrupt status for an
+   * {@code InterruptedException}; the assert clears the status after such a failure, unless the
+   * thread was interrupted before the run.
    */
   private void runSafeOnce() {
     isNotNull();
     if (!hasRunSafe) {
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       runSafeResult = actual.runSafe();
+      if (runSafeResult instanceof Try.Failure<T>(Throwable failure)) {
+        Interrupts.clearAfterCancellation(interruptedBefore, failure);
+      }
       hasRunSafe = true;
     }
   }

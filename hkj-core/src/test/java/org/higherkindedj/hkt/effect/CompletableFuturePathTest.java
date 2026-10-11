@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -172,6 +173,14 @@ class CompletableFuturePathTest {
       String result = path.join(Duration.ofSeconds(1));
 
       assertThat(result).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("join(Duration) accepts a timeout too long to count in nanoseconds")
+    void joinWithAHugeDuration() throws TimeoutException {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+
+      assertThat(path.join(ChronoUnit.FOREVER.getDuration())).isEqualTo(TEST_VALUE);
     }
 
     @Test
@@ -552,6 +561,54 @@ class CompletableFuturePathTest {
           path.completeOnTimeout("default", Duration.ofSeconds(1));
 
       assertThat(result.join()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("withTimeout() and completeOnTimeout() accept a timeout too long for nanoseconds")
+    void timeoutsAcceptAHugeDuration() {
+      CompletableFuturePath<String> path = CompletableFuturePath.completed(TEST_VALUE);
+      Duration forever = ChronoUnit.FOREVER.getDuration();
+
+      assertThat(path.withTimeout(forever).join()).isEqualTo(TEST_VALUE);
+      assertThat(path.completeOnTimeout("default", forever).join()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName(
+        "withTimeout() and completeOnTimeout() leave this path alone when the time runs out")
+    void timeoutsLeaveThisPathAlone() {
+      CompletableFuturePath<String> source =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      CompletableFuturePath<String> timed = source.withTimeout(Duration.ofMillis(20));
+
+      assertThatThrownBy(timed::join)
+          .isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(TimeoutException.class);
+      assertThat(source.toCompletableFuture()).isNotDone();
+
+      CompletableFuturePath<String> other =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+
+      assertThat(other.completeOnTimeout("default", Duration.ofMillis(20)).join())
+          .isEqualTo("default");
+      assertThat(other.toCompletableFuture()).isNotDone();
+    }
+
+    @Test
+    @DisplayName("a timed path and this path still cancel each other")
+    void aTimedPathAndThisPathCancelEachOther() {
+      CompletableFuturePath<String> source =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      source.withTimeout(Duration.ofMinutes(1)).toCompletableFuture().cancel(true);
+
+      assertThat(source.toCompletableFuture()).isCancelled();
+
+      CompletableFuturePath<String> other =
+          CompletableFuturePath.fromFuture(new CompletableFuture<>());
+      CompletableFuturePath<String> otherTimed = other.withTimeout(Duration.ofMinutes(1));
+      other.toCompletableFuture().cancel(true);
+
+      assertThat(otherTimed.toCompletableFuture()).isCancelled();
     }
 
     @Test

@@ -200,6 +200,25 @@ class TryTest extends TryTestBase {
     }
 
     @Test
+    @DisplayName("attempt() captures an InterruptedException with the interrupt status set again")
+    void attempt_shouldCaptureInterruptAndSetStatus() {
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      try {
+        Try<String> result =
+            Try.attempt(
+                () -> {
+                  throw cancelled;
+                });
+
+        assertThat(result).isEqualTo(Try.failure(cancelled));
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("attempt() should create Failure when CheckedSupplier throws RuntimeException")
     void attempt_shouldCreateFailureWhenCheckedSupplierThrowsRuntimeException() {
       Try<String> result =

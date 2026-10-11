@@ -47,7 +47,11 @@ public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTask
   private VTaskPathAssert<T> ensureExecuted() {
     if (!hasBeenExecuted) {
       long startNanos = System.nanoTime();
+      boolean interruptedBefore = Thread.currentThread().isInterrupted();
       Try<T> result = actual.runSafe();
+      if (result instanceof Try.Failure<T>(Throwable failure)) {
+        Interrupts.clearAfterCancellation(interruptedBefore, failure);
+      }
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
       executedValue = result.foldFailureFirst(e -> null, v -> v);
       executedException = result.foldFailureFirst(e -> e, v -> null);
