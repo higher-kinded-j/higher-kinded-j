@@ -445,6 +445,119 @@ class ProcessorUtilsTest {
     }
   }
 
+  /**
+   * Contract tests for {@link ProcessorUtils#namesTypeVariable}, driven through a real compilation
+   * so the type mirrors are javac's own. Each probe method's single parameter type is the type to
+   * search; the last two are read off the subject's intersection-bounded parameters instead.
+   */
+  @Nested
+  @DisplayName("namesTypeVariable")
+  class NamesTypeVariable {
+
+    /** Captures whether each probe type names a type variable, keyed by method name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, Boolean> names = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          TypeMirror searched = method.getParameters().getFirst().asType();
+          names.put(method.getSimpleName().toString(), ProcessorUtils.namesTypeVariable(searched));
+        }
+        for (TypeParameterElement parameter : subject.getTypeParameters().subList(1, 3)) {
+          TypeMirror intersection =
+              ((javax.lang.model.type.TypeVariable) parameter.asType()).getUpperBound();
+          names.put(
+              parameter.getSimpleName().toString(), ProcessorUtils.namesTypeVariable(intersection));
+        }
+        return false;
+      }
+    }
+
+    /** Compiles the subject once and hands back the processor holding the answers. */
+    private CapturingProcessor probe() {
+      var outer =
+          JavaFileObjects.forSourceString(
+              "com.test.Outer",
+              """
+              package com.test;
+              public class Outer<X> {
+                  public class Inner {}
+              }
+              """);
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.List;
+              @SuppressWarnings("rawtypes")
+              public interface Subject<
+                  T, V extends Runnable & List<T>, W extends Runnable & Comparable<String>> {
+                  void variable(T p);
+                  void argument(List<T> p);
+                  void arrayComponent(T[] p);
+                  void extendsWildcard(List<? extends T> p);
+                  void superWildcard(List<? super T> p);
+                  void enclosingType(Outer<T>.Inner p);
+                  void unboundedWildcard(List<?> p);
+                  void extendsWildcardOfAClass(List<? extends Number> p);
+                  void superWildcardOfAClass(List<? super Number> p);
+                  void enclosingClass(Outer<String>.Inner p);
+                  void classArray(String[] p);
+                  void unrelated(String p);
+                  void primitive(int p);
+                  void rawDeclared(List p);
+              }
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(outer, subject);
+      return processor;
+    }
+
+    @Test
+    @DisplayName("finds a type variable wherever it is written")
+    void findsATypeVariableWhereverItIsWritten() {
+      assertThat(probe().names)
+          .containsEntry("variable", true)
+          .containsEntry("argument", true)
+          .containsEntry("arrayComponent", true)
+          .containsEntry("extendsWildcard", true)
+          .containsEntry("superWildcard", true)
+          .containsEntry("enclosingType", true)
+          .containsEntry("V", true);
+    }
+
+    @Test
+    @DisplayName("answers false for a type that names none")
+    void answersFalseForATypeThatNamesNone() {
+      assertThat(probe().names)
+          .containsEntry("unboundedWildcard", false)
+          .containsEntry("extendsWildcardOfAClass", false)
+          .containsEntry("superWildcardOfAClass", false)
+          .containsEntry("enclosingClass", false)
+          .containsEntry("classArray", false)
+          .containsEntry("unrelated", false)
+          .containsEntry("primitive", false)
+          .containsEntry("rawDeclared", false)
+          .containsEntry("W", false);
+    }
+  }
+
   /** Contract tests for {@link ProcessorUtils#sumTypeAsNamedBy}, against javac's own mirrors. */
   @Nested
   @DisplayName("sumTypeAsNamedBy")

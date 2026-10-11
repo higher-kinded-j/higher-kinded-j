@@ -762,6 +762,11 @@ public class SpecInterfaceAnalyser {
       // The class constant is raw, so the arguments of the type handed back are only ever the
       // ones the source pins down. What the test earns is what the prism may promise.
       var narrowing = instanceOfNarrowing.narrow(targetType, sourceType, sourceTypeElement);
+      if (narrowing.neverMatches().isPresent()) {
+        reportNeverMatches(
+            method, specInterface, sourceType, targetType, narrowing.neverMatches().orElseThrow());
+        return Optional.empty();
+      }
       if (!narrowing.unwritableBounds().isEmpty()) {
         reportUnwritableBound(
             method, specInterface, sourceType, targetType, narrowing.unwritableBounds().getFirst());
@@ -852,6 +857,81 @@ public class SpecInterfaceAnalyser {
             + " the prism by hand with Prism.of and a build side that constructs a '"
             + source
             + "'.");
+  }
+
+  /**
+   * Reports an {@code @InstanceOf} target that no value of the source can be: its own declaration
+   * makes it a type the source is not, whatever its arguments, so the test would never match.
+   *
+   * <p>No focus would do. The target's wildcard type is not a source the prism could build back,
+   * and the source is not what the test narrows to, so the focus checks would only send the reader
+   * from one to the other. One of the two declarations is the mistake, and the line offers both
+   * remedies: a class the source can be, or a spec of its own over a source the class can be, which
+   * leaves the spec's other methods as they are.
+   *
+   * @param method the offending optic method
+   * @param specInterface the spec declaring it, for the name the user reads
+   * @param sourceType the source type {@code S}
+   * @param targetType the class the annotation names
+   * @param neverMatches the target under its own parameters and as the source's class, and the
+   *     first parameter a primitive stands against, where primitives alone rule the source out
+   */
+  private void reportNeverMatches(
+      ExecutableElement method,
+      TypeElement specInterface,
+      TypeMirror sourceType,
+      TypeMirror targetType,
+      InstanceOfNarrowing.NeverMatches neverMatches) {
+
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String target = ProcessorUtils.simpleTypeName(targetType);
+    String declared = ProcessorUtils.simpleTypeName(neverMatches.declared());
+    String every =
+        "Every '"
+            + ProcessorUtils.simpleTypeName(neverMatches.target())
+            + "' is a '"
+            + declared
+            + "', ";
+    String why =
+        neverMatches
+            .primitiveArgument()
+            .map(
+                argument ->
+                    every
+                        + "which is a '"
+                        + source
+                        + "' only with '"
+                        + ProcessorUtils.simpleTypeName(argument.parameter())
+                        + "' as '"
+                        + ProcessorUtils.simpleTypeName(argument.primitive())
+                        + "', and a type argument is never a primitive: the test would never"
+                        + " match.")
+            .orElse(
+                every
+                    + "and no '"
+                    + declared
+                    + "' is a '"
+                    + source
+                    + "': the test would never match.");
+    Diagnostics.error(
+        messager,
+        method,
+        "@InstanceOf",
+        "'"
+            + specInterface.getSimpleName()
+            + "."
+            + method.getSimpleName()
+            + "' tests '"
+            + target
+            + "', which no '"
+            + source
+            + "' can be.",
+        why,
+        "Name a class in @InstanceOf that a '"
+            + source
+            + "' can be, or declare the prism on a spec of its own, whose source type a '"
+            + target
+            + "' can be.");
   }
 
   /**

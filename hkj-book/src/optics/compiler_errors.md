@@ -56,6 +56,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`which the spec declares static` or `private`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
 | [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
+| [`which no '...' can be`](#instanceof-never-matches) | No value of the source can be the class |
 | [`so the bound has nothing to name`](#instanceof-unwritable-bound) | A pinned parameter is bounded by one the source leaves free |
 | [`outside its parameter's bound`](#instanceof-out-of-bound) | An argument the source pins breaks its bound |
 | [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
@@ -868,6 +869,55 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
     @InstanceOf(String.class)
     Prism<Payment, String> text();
+}
+```
+~~~
+
+### "@InstanceOf: '...' tests 'Grid', which no '...' can be" {#instanceof-never-matches}
+
+The class `@InstanceOf` names is a subtype of the source's class, but its own declaration writes a different type where the source type writes one, so no value of the source would pass the test.
+
+**Fix.** Name a class in `@InstanceOf` that the source type can be, or declare the prism on a spec of its own, whose source type the class can be. `NodeOpticsSpec` keeps the source its other methods were written for:
+
+<!-- verify -->
+```java
+class Node<T> {}
+
+class Grid<Y> extends Node<Y[]> {}
+
+class Counts extends Node<int[]> {}
+
+@ImportOptics
+interface NodeOpticsSpec extends OpticsSpec<Node<int[]>> {
+
+    @InstanceOf(Counts.class)
+    Prism<Node<int[]>, Counts> counts();
+}
+
+@ImportOptics
+interface GridOpticsSpec extends OpticsSpec<Node<Integer[]>> {
+
+    @InstanceOf(Grid.class)
+    Prism<Node<Integer[]>, Grid<Integer>> grid();
+}
+```
+
+~~~admonish note title="Why" collapsible=true
+A type argument has to be exactly the type the source writes in its place. A `Grid<Y>` is a `Node<Y[]>`, which is a `Node<int[]>` only with `Y` as `int`, and a type argument is never a primitive. The same holds wherever no choice of the class's parameters makes the type it declares the source type. A `Box<X> extends Node<List<X>>` is never a `Node<Set<String>>`, nor a `Node<List<?>>`, since no `List<X>` is exactly the type `List<?>`. A `Twin<X> extends Node<Pair<X, X>>` is never a `Node<Pair<String, Integer>>`. The prism would never match, so one of the two declarations is the mistake, and the processor says so at the spec method. A type variable in the source, or a wildcard the source writes as one of its own arguments, could stand for many types. The processor leaves those to the checks that follow, unless a primitive stands against the variable.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "tests 'Grid', which no" -->
+```java
+class Node<T> {}
+
+class Grid<Y> extends Node<Y[]> {}
+
+@ImportOptics
+interface NodeOpticsSpec extends OpticsSpec<Node<int[]>> {
+
+    @InstanceOf(Grid.class)
+    Prism<Node<int[]>, Node<int[]>> grid();
 }
 ```
 ~~~
