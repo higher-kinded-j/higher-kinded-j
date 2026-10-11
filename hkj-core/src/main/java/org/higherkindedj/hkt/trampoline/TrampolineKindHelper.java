@@ -63,9 +63,10 @@ public enum TrampolineKindHelper implements TrampolineConverterOps {
    *
    * @param <A> The element type. The provided {@code value} must conform to this type.
    * @param value The value to be wrapped in a {@link Trampoline.Done} and then as a {@link Kind}.
-   *     Can be {@code null} if {@code A} is a nullable type.
+   *     Must not be {@code null}.
    * @return A {@link Kind}&lt;{@link TrampolineKind.Witness}, A&gt; representing {@code
    *     Done(value)}.
+   * @throws NullPointerException if {@code value} is {@code null} (enforced by Trampoline.done).
    */
   public <A> Kind<TrampolineKind.Witness, A> done(A value) {
     return this.widen(Trampoline.done(value));

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.free;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -13,7 +14,6 @@ import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Direct interpreter for optic programs that executes operations immediately.
@@ -40,7 +40,7 @@ public final class DirectOpticInterpreter {
    * @return The result of executing the program
    */
   @SuppressWarnings("unchecked")
-  public <A> @Nullable A run(Free<OpticOpKind.Witness, A> program) {
+  public <A> A run(Free<OpticOpKind.Witness, A> program) {
     // Natural transformation from OpticOp to Id monad
     Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
         kind -> {
@@ -74,7 +74,7 @@ public final class DirectOpticInterpreter {
   // from capture variables, and the method bodies contain no explicit casts.
 
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-    return op.optic().get(op.source());
+    return Objects.requireNonNull(op.optic().get(op.source()), OpticPrograms.NULL_GET_FOCUS);
   }
 
   private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {

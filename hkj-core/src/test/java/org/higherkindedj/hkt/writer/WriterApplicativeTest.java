@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
@@ -75,9 +76,12 @@ class WriterApplicativeTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("of() allows null values")
-    void ofHandlesNullValues() {
-      assertThatWriter(narrowToWriter(applicative.of(null))).hasEmptyLog().hasNullValue();
+    @DisplayName("of() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("WriterApplicative.of value cannot be null");
     }
 
     @Test
@@ -116,36 +120,29 @@ class WriterApplicativeTest extends WriterTestBase {
   class EdgeCasesTests {
 
     @Test
-    @DisplayName("ap() keeps both logs when the function result is null")
-    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
-    void apHandlesNullFunctionResult() {
+    @DisplayName("ap() refuses a null result from the function")
+    @SuppressWarnings("DataFlowIssue") // the function deliberately returns null
+    void apRefusesNullFunctionResult() {
+      Function<Integer, String> nullResult = _ -> null;
       Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          WRITER.widen(writerOf("Func;", _ -> null));
+          WRITER.widen(writerOf("Func;", nullResult));
       Kind<WriterKind.Witness<String>, Integer> valueKind = WRITER.widen(writerOf("Value;", 10));
 
-      var result = applicative.ap(funcKind, valueKind);
-      assertThatWriter(narrowToWriter(result)).hasLog("Func;Value;").hasNullValue();
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.ap(funcKind, valueKind))
+          .withMessage("f must not return null");
     }
 
     @Test
-    @DisplayName("ap() passes a null input value through to the function")
-    void apHandlesNullInputValue() {
-      Kind<WriterKind.Witness<String>, Function<Integer, String>> funcKind =
-          WRITER.widen(writerOf("Func;", i -> "Got:" + i));
-      Kind<WriterKind.Witness<String>, Integer> valueKind = WRITER.widen(writerOf("Value;", null));
-
-      var result = applicative.ap(funcKind, valueKind);
-      assertThatWriter(narrowToWriter(result)).hasLog("Func;Value;").hasValue("Got:null");
-    }
-
-    @Test
-    @DisplayName("map2() keeps both logs when the combiner returns null")
-    void map2HandlesNullCombiningFunctionResult() {
+    @DisplayName("map2() refuses a null result from the combiner")
+    @SuppressWarnings("DataFlowIssue") // the combiner deliberately returns null
+    void map2RefusesNullCombinerResult() {
       Kind<WriterKind.Witness<String>, Integer> first = WRITER.widen(writerOf("Log1;", 10));
       Kind<WriterKind.Witness<String>, Integer> second = WRITER.widen(writerOf("Log2;", 20));
 
-      var result = applicative.map2(first, second, (_, _) -> null);
-      assertThatWriter(narrowToWriter(result)).hasLog("Log1;Log2;").hasNullValue();
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.map2(first, second, (_, _) -> null))
+          .withMessage("f must not return null");
     }
 
     @Test

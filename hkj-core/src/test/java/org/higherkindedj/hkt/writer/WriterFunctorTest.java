@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.WriterAssert.assertThatWriter;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
@@ -75,17 +76,11 @@ class WriterFunctorTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("map() passes a null value through to the mapper")
-    void mapHandlesNullValue() {
-      var result = functor.map(i -> "Got:" + i, WRITER.widen(writerOf("NullValue;", null)));
-      assertThatWriter(narrowToWriter(result)).hasLog("NullValue;").hasValue("Got:null");
-    }
-
-    @Test
-    @DisplayName("map() preserves the log when the mapper returns null")
-    void mapHandlesFunctionReturningNull() {
-      var result = functor.map(TestFunctions.nullReturningFunction(), defaultKind());
-      assertThatWriter(narrowToWriter(result)).hasLog(DEFAULT_LOG).hasNullValue();
+    @DisplayName("map() refuses a null result from the mapper")
+    void mapRefusesNullResult() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> functor.map(TestFunctions.nullReturningFunction(), defaultKind()))
+          .withMessage("f must not return null");
     }
   }
 

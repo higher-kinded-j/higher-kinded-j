@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.reader_t;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -101,15 +102,17 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
    * @param <A> The type of the value produced by the function {@code f} and lifted into {@code F}.
    * @param outerMonad The {@link Monad} instance for the outer type {@code F}. Must not be null.
    * @param f The function {@code R_ENV -> A} which computes a value from the environment. Must not
-   *     be null.
-   * @return A new {@link ReaderT} instance. Never null.
+   *     be null, and must not return null.
+   * @return A new {@link ReaderT} instance. Never null. When run, it throws {@link
+   *     NullPointerException} if {@code f} returns null.
    * @throws NullPointerException if {@code outerMonad} or {@code f} is null.
    */
   public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A> ReaderT<F, R_ENV, A> reader(
       Monad<F> outerMonad, Function<R_ENV, A> f) {
     Validation.transformer().requireOuterMonad(outerMonad, READER_T_CLASS, READER);
     Validation.function().require(f, "environment function", READER);
-    return new ReaderT<>(r -> outerMonad.of(f.apply(r)));
+    return new ReaderT<>(
+        r -> outerMonad.of(Objects.requireNonNull(f.apply(r), "f must not return null")));
   }
 
   /**

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.free_ap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -110,12 +111,46 @@ class FreeApApplicativeTest {
     }
 
     @Test
+    @DisplayName("of refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("FreeApApplicative.of value cannot be null");
+    }
+
+    @Test
     @DisplayName("map2 combines two values")
     void map2CombinesTwoValues() {
       Kind<FreeApKind.Witness<MaybeKind.Witness>, String> result =
           applicative.map2(validKind, validKind2, combiningFunction);
 
       assertThat(interpret(result)).isEqualTo("42+10");
+    }
+
+    @Test
+    @DisplayName("map2 fails, naming f, when the combining function returns null")
+    @SuppressWarnings("DataFlowIssue") // the combiner returns null to verify the refusal
+    void map2FailsWhenCombiningFunctionReturnsNull() {
+      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> result =
+          applicative.map2(validKind, validKind2, (_, _) -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> interpret(result))
+          .withMessage("f must not return null");
+    }
+
+    @Test
+    @DisplayName("ap fails, naming f, when the applied function returns null")
+    @SuppressWarnings("DataFlowIssue") // the function returns null to verify the refusal
+    void apFailsWhenTheFunctionReturnsNull() {
+      Function<Integer, String> toNull = _ -> null;
+      Kind<FreeApKind.Witness<MaybeKind.Witness>, String> result =
+          applicative.ap(applicative.of(toNull), validKind);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> interpret(result))
+          .withMessage("f must not return null");
     }
   }
 

@@ -253,6 +253,8 @@ CompletableFuturePath<Order> orderPath = CompletableFuturePath.fromFuture(findUs
     .via(u -> CompletableFuturePath.fromFuture(createOrder(u)));
 ```
 
+A `CompletableFuturePath` always gives a value, so a future that completes with null fails the path. Map a `runAsync` future to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`. The path holds a future that depends on the one given, and cancelling the path's future cancels the given one too. `CompletableFutureMonad` keeps the JDK's null.
+
 See [Migration Cookbook: Recipe 4](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for a complete before/after walkthrough, and [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
 ~~~
 

@@ -84,12 +84,12 @@ class LazyApplicativeTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("of should handle null values")
-    void ofShouldHandleNullValues() throws Throwable {
-      Kind<LazyKind.Witness, Integer> kind = applicative.of(null);
-      Lazy<Integer> lazy = narrowToLazy(kind);
-
-      assertThat(lazy.force()).isNull();
+    @DisplayName("of refuses a null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("LazyMonad.of value cannot be null");
     }
   }
 
@@ -188,6 +188,17 @@ class LazyApplicativeTest extends LazyTestBase {
 
       Lazy<String> lazy = narrowToLazy(result);
       assertThatLazy(lazy).whenForcedThrows(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("ap fails, as map does, when the function returns null")
+    @SuppressWarnings("DataFlowIssue") // the function returns null to verify the refusal
+    void apFailsWhenFunctionReturnsNull() {
+      Function<Integer, String> nullFunc = _ -> null;
+      Kind<LazyKind.Witness, String> result =
+          applicative.ap(nowKind(nullFunc), nowKind(DEFAULT_LAZY_VALUE));
+
+      assertThatLazy(narrowToLazy(result)).whenForcedThrowsWithMessage("f must not return null");
     }
   }
 

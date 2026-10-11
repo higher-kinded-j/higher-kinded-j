@@ -95,12 +95,6 @@ public class ReaderAssert<R, A> extends AbstractAssert<ReaderAssert<R, A>, Reade
       return this;
     }
 
-    /** Verifies that the Reader produces a null value. */
-    public ReaderResultAssert<R, A> producesNull() {
-      Assertions.assertThat(actual).as("Reader result").isNull();
-      return this;
-    }
-
     /** Verifies that the Reader produces a non-null value. */
     public ReaderResultAssert<R, A> producesNonNull() {
       Assertions.assertThat(actual).as("Reader result").isNotNull();

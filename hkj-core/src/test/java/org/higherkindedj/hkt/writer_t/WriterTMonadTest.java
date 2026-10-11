@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.writer_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.writer_t.WriterTKindHelper.WRITER_T;
@@ -93,13 +94,12 @@ class WriterTMonadTest {
     }
 
     @Test
-    @DisplayName("of with null should work")
-    @SuppressWarnings("DataFlowIssue") // of(null) deliberately wraps a null value
-    void of_withNull() {
-      var result = writerMonad.of(null);
-      var pair = run(result);
-      assertThat(pair.first()).isNull();
-      assertThat(pair.second()).isEmpty();
+    @DisplayName("of refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void of_refusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> writerMonad.of(null))
+          .withMessage("WriterTMonad.of value cannot be null");
     }
   }
 
@@ -125,6 +125,21 @@ class WriterTMonadTest {
       var pair = run(result);
       assertThat(pair.first()).isEqualTo(43);
       assertThat(pair.second()).isEqualTo("log:");
+    }
+
+    @Test
+    @DisplayName("map and ap refuse a null result from their function")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void mapAndAp_refuseNullResult() {
+      var initial = writerMonad.of(10);
+      Function<Integer, String> nullResult = _ -> null;
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> run(writerMonad.map(nullResult, initial)))
+          .withMessage("f must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> run(writerMonad.ap(writerMonad.of(nullResult), initial)))
+          .withMessage("f must not return null");
     }
   }
 

@@ -187,7 +187,6 @@ public class EitherTMonad<F extends WitnessArity<TypeArity.Unary>, L>
    * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  @SuppressWarnings("NullableProblems") // Either.Left forbids null
   public <R> Kind<EitherTKind.Witness<F, L>, R> raiseError(L error) {
     Validation.coreType().requireError(error, EitherTMonad.class, RAISE_ERROR);
     EitherT<F, L, R> concreteEitherT = EitherT.left(outerMonad, error);

@@ -4,25 +4,25 @@ package org.higherkindedj.architecture;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
  * Architecture rules enforcing @NullMarked package annotation patterns.
  *
- * <p>In higher-kinded-j, all packages should use @NullMarked annotation from JSpecify to enable
- * null-safety checking at the package level. This rule verifies that:
- *
- * <ul>
- *   <li>All HKT packages have a package-info.java with @NullMarked
- *   <li>The package-info.java files contain the @NullMarked annotation
- * </ul>
+ * <p>In higher-kinded-j, every package uses the @NullMarked annotation from JSpecify in its
+ * package-info.java. The module-info carries it too, but a nullness checker reading the jar from
+ * the classpath, such as NullAway, ignores the module's annotation and reads only the package's.
+ * This rule verifies that every package of hkj-core and hkj-api that holds a source file has a
+ * package-info.java, and that it carries @NullMarked.
  *
  * <p>Note: This test uses file system checks rather than ArchUnit because ArchUnit's
  * ClassFileImporter does not load package-info.class files by default.
@@ -30,75 +30,48 @@ import org.junit.jupiter.api.Test;
 @DisplayName("NullMarked Package Annotation Rules")
 class NullMarkedPackageRules {
 
-  /** Base path for hkj-core main sources. */
-  private static final String HKJ_CORE_MAIN = "hkj-core/src/main/java/org/higherkindedj/hkt";
-
-  /** Base path for hkj-api main sources. */
-  private static final String HKJ_API_MAIN = "hkj-api/src/main/java/org/higherkindedj";
+  /** The main source roots whose every package must be {@code @NullMarked}. */
+  private static final List<String> SOURCE_ROOTS =
+      List.of("hkj-core/src/main/java", "hkj-api/src/main/java");
 
   /**
-   * Core HKT packages that must have @NullMarked via package-info.java.
+   * Verify that every package has a package-info.java with {@code @NullMarked}.
    *
-   * <p>These are the primary type packages in hkj-core.
-   */
-  private static final String[] CORE_HKT_PACKAGES = {
-    "maybe",
-    "either",
-    "eitherf",
-    "error",
-    "trymonad",
-    "time",
-    "validated",
-    "list",
-    "optional",
-    "id",
-    "inject",
-    "state",
-    "state_op",
-    "reader",
-    "writer",
-    "io",
-    "lazy",
-    "free",
-    "free_ap",
-    "future",
-    "stream",
-    "trampoline"
-  };
-
-  /**
-   * Verify that package-info.java files exist for core HKT types.
-   *
-   * <p>This test checks that package-info.java files exist for core HKT packages and contain the
-   * {@code @NullMarked} annotation.
+   * <p>A package is any directory under a source root that holds a Java source file other than
+   * package-info.java or module-info.java.
    */
   @Test
-  @DisplayName("Core HKT packages should have package-info.java with @NullMarked")
-  void core_hkt_packages_should_have_nullmarked() throws IOException {
+  @DisplayName("Every hkj-core and hkj-api package should have package-info.java with @NullMarked")
+  void every_package_should_have_nullmarked() throws IOException {
     Path projectRoot = findProjectRoot();
+    List<String> scanned = new ArrayList<>();
     List<String> missingPackages = new ArrayList<>();
     List<String> missingNullMarked = new ArrayList<>();
 
-    for (String pkg : CORE_HKT_PACKAGES) {
-      Path packageInfoPath =
-          projectRoot.resolve(HKJ_CORE_MAIN).resolve(pkg).resolve("package-info.java");
-
-      if (!Files.exists(packageInfoPath)) {
-        missingPackages.add("org.higherkindedj.hkt." + pkg);
-      } else {
-        // Check if the file contains @NullMarked
-        String content = Files.readString(packageInfoPath);
-        if (!content.contains("@NullMarked")
-            && !content.contains("@org.jspecify.annotations.NullMarked")) {
-          missingNullMarked.add("org.higherkindedj.hkt." + pkg);
+    for (String root : SOURCE_ROOTS) {
+      Path sourceRoot = projectRoot.resolve(root);
+      for (Path directory : packageDirectories(sourceRoot)) {
+        String pkg = sourceRoot.relativize(directory).toString().replace(File.separatorChar, '.');
+        scanned.add(pkg);
+        Path packageInfoPath = directory.resolve("package-info.java");
+        if (!Files.exists(packageInfoPath)) {
+          missingPackages.add(pkg);
+        } else if (!isNullMarked(Files.readString(packageInfoPath))) {
+          missingNullMarked.add(pkg);
         }
       }
     }
 
+    // A scan that finds nothing would pass while checking nothing.
+    assertTrue(
+        scanned.contains("org.higherkindedj.hkt.either")
+            && scanned.contains("org.higherkindedj.hkt"),
+        "The scan did not find the hkj-core and hkj-api packages under " + SOURCE_ROOTS);
+
     StringBuilder errors = new StringBuilder();
 
     if (!missingPackages.isEmpty()) {
-      errors.append("The following core HKT packages are missing package-info.java:\n");
+      errors.append("The following packages are missing package-info.java:\n");
       missingPackages.forEach(pkg -> errors.append("  - ").append(pkg).append("\n"));
     }
 
@@ -118,46 +91,34 @@ class NullMarkedPackageRules {
   }
 
   /**
-   * Verify that hkj-api packages have @NullMarked annotations.
+   * Lists the directories under a source root that hold a Java source file other than
+   * package-info.java or module-info.java.
    *
-   * <p>The API module defines core interfaces like Functor, Applicative, Monad.
+   * @param sourceRoot the source root to walk
+   * @return each package directory, once, in order
    */
-  @Test
-  @DisplayName("HKJ-API packages should have package-info.java with @NullMarked")
-  void api_packages_should_have_nullmarked() throws IOException {
-    Path projectRoot = findProjectRoot();
-    Path hktPackageInfo = projectRoot.resolve(HKJ_API_MAIN).resolve("hkt/package-info.java");
-    Path opticsPackageInfo = projectRoot.resolve(HKJ_API_MAIN).resolve("optics/package-info.java");
-
-    List<String> missingOrInvalid = new ArrayList<>();
-
-    checkPackageInfo(hktPackageInfo, "org.higherkindedj.hkt (api)", missingOrInvalid);
-    checkPackageInfo(opticsPackageInfo, "org.higherkindedj.optics (api)", missingOrInvalid);
-
-    assertTrue(
-        missingOrInvalid.isEmpty(),
-        "The following API packages are missing package-info.java or @NullMarked:\n"
-            + String.join("\n", missingOrInvalid));
+  private static List<Path> packageDirectories(Path sourceRoot) throws IOException {
+    try (Stream<Path> files = Files.walk(sourceRoot)) {
+      return files
+          .filter(file -> file.getFileName().toString().endsWith(".java"))
+          .filter(file -> !file.getFileName().toString().equals("package-info.java"))
+          .filter(file -> !file.getFileName().toString().equals("module-info.java"))
+          .map(Path::getParent)
+          .distinct()
+          .sorted()
+          .toList();
+    }
   }
 
   /**
-   * Check if a package-info.java file exists and contains @NullMarked.
+   * Whether a package-info.java source carries {@code @NullMarked}.
    *
-   * @param packageInfoPath path to the package-info.java file
-   * @param packageName the package name for error reporting
-   * @param errors list to add error messages to
+   * @param content the source text
+   * @return true if the annotation is present
    */
-  private void checkPackageInfo(Path packageInfoPath, String packageName, List<String> errors)
-      throws IOException {
-    if (!Files.exists(packageInfoPath)) {
-      errors.add("  - " + packageName + " (missing package-info.java)");
-    } else {
-      String content = Files.readString(packageInfoPath);
-      if (!content.contains("@NullMarked")
-          && !content.contains("@org.jspecify.annotations.NullMarked")) {
-        errors.add("  - " + packageName + " (missing @NullMarked annotation)");
-      }
-    }
+  private static boolean isNullMarked(String content) {
+    return content.contains("@NullMarked")
+        || content.contains("@org.jspecify.annotations.NullMarked");
   }
 
   /**

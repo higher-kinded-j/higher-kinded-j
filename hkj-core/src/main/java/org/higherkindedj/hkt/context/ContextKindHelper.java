@@ -102,10 +102,11 @@ public enum ContextKindHelper implements ContextConverterOps {
    *
    * @param <R> The phantom type parameter for the scoped value.
    * @param <A> The type of the value.
-   * @param value The value to wrap. May be null.
+   * @param value The value to wrap. Must not be null.
    * @return A new Kind representing a pure Context.
+   * @throws NullPointerException if value is null.
    */
-  public <R, A> Kind<ContextKind.Witness<R>, A> succeed(@Nullable A value) {
+  public <R, A> Kind<ContextKind.Witness<R>, A> succeed(A value) {
     return widen(Context.succeed(value));
   }
 
@@ -128,10 +129,10 @@ public enum ContextKindHelper implements ContextConverterOps {
    * @param <R> The type of the scoped value.
    * @param <A> The type of the result.
    * @param kind The Kind holding the Context. Must not be null.
-   * @return The result of running the Context.
+   * @return The result of running the Context. Never null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if kind is invalid.
    */
-  public <R, A> @Nullable A runContext(Kind<ContextKind.Witness<R>, A> kind) {
+  public <R, A> A runContext(Kind<ContextKind.Witness<R>, A> kind) {
     Validation.kind().requireNonNull(kind, Operation.RUN);
     return narrow(kind).run();
   }

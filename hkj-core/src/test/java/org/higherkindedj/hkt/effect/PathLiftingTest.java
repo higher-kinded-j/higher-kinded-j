@@ -536,15 +536,14 @@ class PathLiftingTest {
       }
 
       @Test
-      @DisplayName("treats null value as Nothing since Maybe.just rejects null")
+      @DisplayName("treats a null result as a failure, so gives Nothing")
       void treatsNullAsNothing() {
         IOPath<String> io = Path.io(() -> null);
 
         IOPath<Maybe<String>> maybe = io.asMaybe();
 
         Maybe<String> result = maybe.unsafeRun();
-        // Maybe.just(null) throws NullPointerException, which asMaybe() catches
-        // and converts to Nothing
+        // The supplier's null fails the IO, and asMaybe() turns the failure into Nothing
         assertThat(result.isNothing()).isTrue();
       }
     }

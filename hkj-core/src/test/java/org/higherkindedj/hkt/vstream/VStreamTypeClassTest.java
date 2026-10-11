@@ -19,6 +19,8 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
@@ -86,6 +88,14 @@ class VStreamTypeClassTest {
       Kind<VStreamKind.Witness, Integer> result = applicative.of(42);
 
       assertThat(VSTREAM.narrow(result).toList().run()).containsExactly(42);
+    }
+
+    @Test
+    @DisplayName("of refuses a null value, since a stream never holds null")
+    void ofRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("VStreamApplicative.of value cannot be null");
     }
 
     @Test
@@ -351,6 +361,16 @@ class VStreamTypeClassTest {
           OptionalKindHelper.OPTIONAL.narrow(result);
 
       assertThat(optResult).isEmpty();
+    }
+
+    @Test
+    @DisplayName("traverse refuses a null element from an applicative that allows one")
+    void traverseRefusesANullElement() {
+      Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> traverse.traverse(IdMonad.instance(), i -> Id.<String>of(null), stream))
+          .withMessage("VStreamTraverse.traverse element cannot be null");
     }
 
     @Test

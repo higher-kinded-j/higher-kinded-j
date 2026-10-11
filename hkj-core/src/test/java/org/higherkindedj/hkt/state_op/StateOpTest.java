@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.state_op;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
@@ -63,6 +64,28 @@ class StateOpTest {
       EachInstances.<String>listEach().each();
 
   private static final Person INITIAL_PERSON = new Person("Alice", 30, List.of("admin", "user"));
+
+  @Nested
+  @DisplayName("A null value")
+  class NullValues {
+
+    @Test
+    @DisplayName("view refuses a null focus, and over a function that returns null, naming each")
+    void viewAndOverRefuseANull() {
+      Person unnamed = new Person(null, 30, List.of());
+      StateOp<Person, String> view = new StateOp.View<>(NAME_GETTER, Function.identity());
+      StateOp<Person, String> over = new StateOp.Over<>(NAME_LENS, _ -> null, Function.identity());
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> view.interpretState(unnamed))
+          .withMessage(
+              "the focus read by view is null: for a focus that may be absent, view a Getter that"
+                  + " wraps it in an Optional");
+      assertThatNullPointerException()
+          .isThrownBy(() -> over.interpretState(INITIAL_PERSON))
+          .withMessage("f must not return null");
+    }
+  }
 
   // ===== StateOp construction =====
 

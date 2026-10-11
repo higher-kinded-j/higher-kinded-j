@@ -41,11 +41,11 @@ The core type is the `Reader<R, A>` functional interface:
 ```java
 @FunctionalInterface
 public interface Reader<R, A> {
-  @Nullable A run(@NonNull R r); // The core function: Environment -> Value
+  @NonNull A run(@NonNull R r); // The core function: Environment -> Value
 
   // Static factories
   static <R, A> @NonNull Reader<R, A> of(@NonNull Function<R, A> runFunction);
-  static <R, A> @NonNull Reader<R, A> constant(@Nullable A value);
+  static <R, A> @NonNull Reader<R, A> constant(@NonNull A value);
   static <R> @NonNull Reader<R, R> ask();
 
   // Instance methods (for composition)
@@ -60,6 +60,8 @@ public interface Reader<R, A> {
 * `ask()`: Creates a `Reader` that simply returns the environment itself as the result.
 * `map(Function<A, B>)`: Transforms the result `A` to `B`*after* the reader is run, without affecting the required environment `R`.
 * `flatMap(Function<A, Reader<R, B>>)`: Sequences computations. It runs the first reader, uses its result `A` to create a *second* reader (`Reader<R, B>`), and then runs that second reader with the *original* environment `R`.
+
+A `Reader` always gives a value. `constant(null)` throws at the call, and a function given to `of` or `map` that returns null fails the reader when it runs, naming that function. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 
 ## Reader Components
 

@@ -91,9 +91,10 @@ public final class FreeFactory<F extends WitnessArity<TypeArity.Unary>> {
    * <p>This is equivalent to {@link Free#pure(Object)} but with improved type inference. The
    * functor type {@code F} is automatically inferred from this factory instance.
    *
-   * @param value The value to wrap. Can be null.
+   * @param value The value to wrap. Must not be null.
    * @param <A> The type of the value
    * @return A {@link Free} monad containing the pure value. Never null.
+   * @throws NullPointerException if value is null (enforced by Free.pure)
    */
   public <A> Free<F, A> pure(A value) {
     return Free.pure(value);

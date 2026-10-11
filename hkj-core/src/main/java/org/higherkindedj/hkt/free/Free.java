@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.free;
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 import static org.higherkindedj.hkt.util.validation.Operation.FOLD_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.FROM_KIND;
+import static org.higherkindedj.hkt.util.validation.Operation.PURE;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
@@ -54,10 +56,15 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
   /**
    * Terminal case representing a pure value.
    *
+   * @param value The value. Must not be null.
    * @param <F> The functor type
    * @param <A> The value type
    */
-  record Pure<F extends WitnessArity<TypeArity.Unary>, A>(A value) implements Free<F, A> {}
+  record Pure<F extends WitnessArity<TypeArity.Unary>, A>(A value) implements Free<F, A> {
+    public Pure {
+      Validation.coreType().requireValue(value, Free.class, CONSTRUCTION);
+    }
+  }
 
   /**
    * Suspended computation wrapping a single instruction in F.
@@ -127,12 +134,14 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
   /**
    * Creates a Free monad from a pure value.
    *
-   * @param value The value to lift
+   * @param value The value to lift. Must not be null.
    * @param <F> The functor type
    * @param <A> The value type
    * @return A Free monad containing the value
+   * @throws NullPointerException if value is null
    */
   static <F extends WitnessArity<TypeArity.Unary>, A> Free<F, A> pure(A value) {
+    Validation.coreType().requireValue(value, Free.class, PURE);
     return new Pure<>(value);
   }
 
@@ -166,12 +175,13 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
   /**
    * Maps a function over the result of this Free monad.
    *
-   * @param f The function to apply
+   * @param f The function to apply. Must not return null; a null result fails the program with a
+   *     NullPointerException when it is interpreted.
    * @param <B> The result type
    * @return A new Free monad with the function applied
    */
   default <B> Free<F, B> map(Function<? super A, ? extends B> f) {
-    return flatMap(a -> pure(f.apply(a)));
+    return flatMap(a -> pure(Objects.requireNonNull(f.apply(a), "f must not return null")));
   }
 
   /**

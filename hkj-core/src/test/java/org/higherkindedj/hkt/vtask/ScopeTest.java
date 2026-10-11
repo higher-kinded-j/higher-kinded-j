@@ -581,15 +581,17 @@ class ScopeTest {
 
     @Test
     @DisplayName("a joiner that throws is reported, and the run does not wait out its timeout")
-    @SuppressWarnings("DataFlowIssue") // the subtask deliberately returns null
+    @SuppressWarnings("DataFlowIssue") // a hand-written subtask returns null
     void aJoinerThatThrowsIsReported() {
       List<Throwable> reported = new CopyOnWriteArrayList<>();
       Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
       Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> reported.add(failure));
+      // A hand-written task, so the subtask succeeds with null and the joiner throws reading it
+      VTask<Either<String, String>> nullResult = () -> null;
       VTask<Either<List<String>, String>> race =
           Scope.withJoiner(ScopeJoiner.<String, String>firstSuccessEither())
               .timeout(Duration.ofMinutes(1))
-              .fork(VTask.<Either<String, String>>of(() -> null))
+              .fork(nullResult)
               .join();
 
       try {
@@ -772,6 +774,26 @@ class ScopeTest {
 
       assertThat(either.isLeft()).isTrue();
       assertThat(either.getLeft()).hasMessageContaining("error");
+    }
+
+    @Test
+    @DisplayName(
+        "allSucceed fails, and accumulating records an error, for a hand-written task's null")
+    @SuppressWarnings("DataFlowIssue") // a hand-written task returning null is what is refused
+    void aNullResultFailsAllSucceedAndIsAnAccumulatedError() {
+      VTask<String> nullResult = () -> null;
+      String refused = "the task returned null, and a VTask always gives a value";
+      Scope<String, Validated<List<String>, List<String>>> accumulating =
+          Scope.accumulating(Throwable::getMessage);
+
+      VTask<List<String>> all =
+          Scope.<String>allSucceed().fork(VTask.succeed("a")).fork(nullResult).join();
+      Validated<List<String>, List<String>> accumulated =
+          accumulating.fork(VTask.succeed("a")).fork(nullResult).join().run();
+
+      assertThatNullPointerException().isThrownBy(all::run).withMessage(refused);
+      assertThat(accumulated.isInvalid()).isTrue();
+      assertThat(accumulated.getError()).containsExactly(refused);
     }
 
     @Test

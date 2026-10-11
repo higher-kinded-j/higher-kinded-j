@@ -308,8 +308,16 @@ class OptionalTMonadTest {
     @DisplayName("raiseError should create an inner None Kind (F<Optional.empty>) for OptionalT")
     void raiseError_createsInnerNone() {
       Kind<OptionalTKind.Witness<OptionalKind.Witness>, String> errorKind =
-          optionalTMonad.raiseError(null); // No cast needed, optionalTMonad is already MonadError
+          optionalTMonad.raiseError(Unit.INSTANCE);
       assertThatOptionalT(errorKind, OptionalTMonadTest.this::unwrapOuterOptional).isPresentNone();
+    }
+
+    @Test
+    @DisplayName("raiseError refuses a null error")
+    void raiseError_refusesNull() {
+      assertThatThrownBy(() -> optionalTMonad.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("OptionalTMonad.raiseError error cannot be null");
     }
 
     @Test

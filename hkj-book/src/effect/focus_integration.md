@@ -74,7 +74,7 @@ on Focus paths.
 
 ### FocusPath Bridge Methods
 
-`FocusPath` always has one focus, so these methods produce a success. For a null focus, `toMaybePath` gives `Nothing`, and the one-argument `toEitherPath` and `toTryPath` throw, since a `Right` or `Success` always holds a value:
+`FocusPath` always has one focus, so these methods produce a success. For a null focus, `toMaybePath` gives `Nothing`, and the one-argument `toEitherPath`, `toTryPath` and `toIdPath` throw, since a `Right`, a `Success` and an `IdPath` always hold a value:
 
 <!-- verify -->
 ```java
@@ -141,7 +141,7 @@ MaybePath<User> firstEmployee = employeesPath.toMaybePath(company);
 | `FocusPath<S, A>` | `toEitherPath(S, Supplier)` | `Right(a)`, or `Left(e)` built only for a null focus |
 | `FocusPath<S, A>` | `toTryPath(S)` | `Success(a)`; throws for a null focus |
 | `FocusPath<S, A>` | `toTryPath(S, Supplier)` | `Success(a)`, or `Failure` for a null focus |
-| `FocusPath<S, A>` | `toIdPath(S)` | Always `Id(a)` |
+| `FocusPath<S, A>` | `toIdPath(S)` | `Id(a)`; throws for a null focus |
 | `AffinePath<S, A>` | `toMaybePath(S)` | `Just(a)` or `Nothing` |
 | `AffinePath<S, A>` | `toEitherPath(S, E)` | `Right(a)` or `Left(e)` |
 | `AffinePath<S, A>` | `toEitherPath(S, Supplier)` | `Right(a)`, or `Left(e)` built only when absent |

@@ -762,16 +762,6 @@ class CrossPathConversionTest {
     }
 
     @Test
-    @DisplayName("IdPath → MaybePath(Nothing) for null value")
-    void idPathNullToMaybeNothing() {
-      IdPath<String> source = Path.id(null);
-
-      MaybePath<String> result = source.toMaybePath();
-
-      assertThat(result.run().isNothing()).isTrue();
-    }
-
-    @Test
     @DisplayName("IdPath → EitherPath(Right)")
     void idPathToEitherRight() {
       IdPath<String> source = Path.id(TEST_VALUE);

@@ -39,9 +39,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @Test
     @DisplayName("Complete test suite with multiple Writer types")
     void completeTestSuiteWithMultipleTypes() {
-      List<Writer<String, Integer>> testInstances =
-          List.of(
-              valueWriter(42), writerOf("Log;", 10), valueWriter(null), writerOf("NullLog;", null));
+      List<Writer<String, Integer>> testInstances = List.of(valueWriter(42), writerOf("Log;", 10));
 
       for (Writer<String, Integer> instance : testInstances) {
         writerKindHelper(instance).test();
@@ -130,16 +128,6 @@ class WriterKindHelperTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("Null values in Writer are preserved")
-    void testNullValuesPreserved() {
-      Writer<String, Integer> nullValue = valueWriter(null);
-      Writer<String, String> nullString = writerOf("Log;", null);
-
-      writerKindHelper(nullValue).test();
-      writerKindHelper(nullString).test();
-    }
-
-    @Test
     @DisplayName("Complex log types work correctly")
     void testComplexLogTypes() {
       record LogEntry(String message, Instant timestamp) {}
@@ -176,22 +164,6 @@ class WriterKindHelperTest extends WriterTestBase {
   }
 
   @Nested
-  @DisplayName("Edge Cases and Corner Cases")
-  class EdgeCasesTests {
-
-    @Test
-    @DisplayName("All combinations of null values")
-    void testAllNullValueCombinations() {
-      List<Writer<String, Integer>> nullInstances =
-          List.of(valueWriter(null), writerOf("Log;", null), writerOf("", 42), valueWriter(0));
-
-      for (Writer<String, Integer> instance : nullInstances) {
-        writerKindHelper(instance).test();
-      }
-    }
-  }
-
-  @Nested
   @DisplayName("Advanced Testing Scenarios")
   class AdvancedTestingScenarios {
 
@@ -214,7 +186,6 @@ class WriterKindHelperTest extends WriterTestBase {
               Writer.<String, Object>value(STRING_MONOID, List.of(1, 2, 3)),
               writerOf("Log;", Map.of("key", "value")),
               tellWriter("Tell message"),
-              Writer.value(STRING_MONOID, null),
               writerOf("", "empty log"));
 
       for (Writer<String, ?> instance : complexInstances) {
@@ -231,13 +202,7 @@ class WriterKindHelperTest extends WriterTestBase {
     @DisplayName("All Writer types and states")
     void testAllWriterTypesAndStates() {
       List<Writer<String, Integer>> allStates =
-          List.of(
-              valueWriter(42),
-              valueWriter(0),
-              valueWriter(null),
-              writerOf("Log;", 10),
-              writerOf("", 10),
-              writerOf("Log;", null));
+          List.of(valueWriter(42), valueWriter(0), writerOf("Log;", 10), writerOf("", 10));
 
       for (Writer<String, Integer> state : allStates) {
         writerKindHelper(state).test();
@@ -270,17 +235,6 @@ class WriterKindHelperTest extends WriterTestBase {
       Integer result = WRITER.run(kind);
 
       assertThat(result).isEqualTo(42);
-    }
-
-    @Test
-    @DisplayName("run() handles null values correctly")
-    void runHandlesNullValuesCorrectly() {
-      Writer<String, Integer> writer = valueWriter(null);
-      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
-
-      Integer result = WRITER.run(kind);
-
-      assertThat(result).isNull();
     }
 
     @Test
@@ -360,17 +314,6 @@ class WriterKindHelperTest extends WriterTestBase {
       Writer<String, Integer> result = WRITER.runWriter(kind);
 
       assertThatWriter(result).hasEmptyLog().hasValue(42);
-    }
-
-    @Test
-    @DisplayName("runWriter() works with null values")
-    void runWriterWorksWithNullValues() {
-      Writer<String, Integer> writer = writerOf("NullLog;", null);
-      Kind<WriterKind.Witness<String>, Integer> kind = WRITER.widen(writer);
-
-      Writer<String, Integer> result = WRITER.runWriter(kind);
-
-      assertThatWriter(result).hasLog("NullLog;").hasNullValue();
     }
 
     @Test
@@ -585,18 +528,6 @@ class WriterKindHelperTest extends WriterTestBase {
 
       assertThat(result).isEqualTo(original);
       assertThatWriter(result).hasEmptyLog().hasValue(99);
-    }
-
-    @Test
-    @DisplayName("narrow2() preserves null value")
-    void narrow2PreservesNullValue() {
-      Writer<String, Integer> original = writerOf("NullVal;", null);
-      Kind2<WriterKind2.Witness, String, Integer> kind2 = WRITER.widen2(original);
-
-      Writer<String, Integer> result = WRITER.narrow2(kind2);
-
-      assertThat(result).isEqualTo(original);
-      assertThatWriter(result).hasLog("NullVal;").hasNullValue();
     }
 
     @Test

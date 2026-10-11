@@ -92,7 +92,7 @@ MaybePath<User> first = employees.toMaybePath(company);   // First value or Noth
 | `FocusPath<S, A>` | `.toEitherPath(S, Supplier)` | As above, error built only for a null focus |
 | `FocusPath<S, A>` | `.toTryPath(S)` | `Success(a)`; throws for a null focus |
 | `FocusPath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)`, or `Failure` for a null focus |
-| `FocusPath<S, A>` | `.toIdPath(S)` | Always `Id(a)` |
+| `FocusPath<S, A>` | `.toIdPath(S)` | `Id(a)`; throws for a null focus |
 | `AffinePath<S, A>` | `.toMaybePath(S)` | `Just(a)` or `Nothing` |
 | `AffinePath<S, A>` | `.toEitherPath(S, E)` | `Right(a)` or `Left(e)` |
 | `AffinePath<S, A>` | `.toEitherPath(S, Supplier)` | `Right(a)` or `Left(e)`, error built only when absent |

@@ -117,7 +117,8 @@ class InstancesTest {
     void monadErrorIsNotTotal() {
       // IO is a Monad but not a MonadError: asking for the wrong capability is a
       // programming error and fails fast, exactly like calling a missing method.
-      assertThatThrownBy(() -> Instances.<IOKind.Witness, Object>monadError(io()).raiseError(null))
+      assertThatThrownBy(
+              () -> Instances.<IOKind.Witness, Object>monadError(io()).raiseError(Unit.INSTANCE))
           .isInstanceOf(ClassCastException.class);
     }
   }

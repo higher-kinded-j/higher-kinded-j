@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect.spi;
 
+import java.util.Optional;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
@@ -83,24 +84,25 @@ public interface PathProvider<F extends WitnessArity<TypeArity.Unary>> {
   /**
    * Returns the MonadError instance if this effect supports error handling.
    *
-   * <p>Default implementation returns null, indicating no error handling support.
+   * <p>The default implementation returns an empty {@code Optional}, meaning the effect has no
+   * error handling.
    *
    * @param <E> the error type
-   * @return the MonadError instance, or null if not supported
+   * @return an Optional containing the MonadError, or an empty Optional if not supported
    */
-  default <E> MonadError<F, E> monadError() {
-    return null;
+  default <E> Optional<MonadError<F, E>> monadError() {
+    return Optional.empty();
   }
 
   /**
    * Returns whether this provider supports error recovery operations.
    *
-   * <p>When true, the {@link #monadError()} method returns a valid MonadError instance.
+   * <p>When true, the {@link #monadError()} method returns an Optional holding a MonadError.
    *
    * @return true if error recovery is supported
    */
   default boolean supportsRecovery() {
-    return monadError() != null;
+    return monadError().isPresent();
   }
 
   /**

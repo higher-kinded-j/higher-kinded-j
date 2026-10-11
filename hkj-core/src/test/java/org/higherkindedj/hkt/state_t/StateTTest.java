@@ -332,19 +332,6 @@ class StateTTest {
       assertThat(unwrapped2.get().state()).isEqualTo("initial_1_2");
       assertThat(unwrapped2.get().value()).isEqualTo(2);
     }
-
-    @Test
-    @DisplayName("Edge case: state transition with null value")
-    void edgeCase_nullValue() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> nullValueFn =
-          _ -> outerMonad.of(StateTuple.of(updatedState, null));
-      StateT<String, OptionalKind.Witness, Integer> nullValueStateT = StateT.create(nullValueFn);
-
-      Optional<StateTuple<String, Integer>> result = unwrapT(nullValueStateT);
-      assertThat(result).isPresent();
-      assertThat(result.get().state()).isEqualTo(updatedState);
-      assertThat(result.get().value()).isNull();
-    }
   }
 
   @Nested

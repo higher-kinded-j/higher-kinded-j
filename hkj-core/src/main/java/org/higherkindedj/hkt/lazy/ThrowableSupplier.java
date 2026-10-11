@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.lazy;
 
-import org.jspecify.annotations.Nullable;
-
 /**
  * Represents a supplier of results that may throw any Throwable. Similar to {@link
  * java.util.function.Supplier}, but allows checked exceptions.
@@ -16,8 +14,8 @@ public interface ThrowableSupplier<T> {
   /**
    * Gets a result, potentially throwing an exception.
    *
-   * @return a result
+   * @return a result. Never null.
    * @throws Throwable if unable to compute a result
    */
-  @Nullable T get() throws Throwable;
+  T get() throws Throwable;
 }

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.writer_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -68,6 +69,18 @@ class WriterTTest {
       assertThat(result).isPresent();
       assertThat(result.get().first()).isEqualTo(testValue);
       assertThat(result.get().second()).isEqualTo(testOutput);
+    }
+
+    @Test
+    @DisplayName("of and writer refuse a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofAndWriter_refuseNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> WriterT.of(outerMonad, STRING_MONOID, null))
+          .withMessage("WriterT.of value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> WriterT.writer(outerMonad, null, testOutput))
+          .withMessage("WriterT.construction value cannot be null");
     }
 
     @Test

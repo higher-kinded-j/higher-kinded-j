@@ -76,4 +76,7 @@
  *
  * @see org.higherkindedj.optics.fluent.OpticOps
  */
+@NullMarked
 package org.higherkindedj.optics.fluent;
+
+import org.jspecify.annotations.NullMarked;

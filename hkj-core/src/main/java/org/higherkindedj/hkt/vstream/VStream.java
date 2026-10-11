@@ -2,6 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
+import static org.higherkindedj.hkt.util.validation.Operation.APPEND;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD_LEFT;
+import static org.higherkindedj.hkt.util.validation.Operation.ITERATE;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
+import static org.higherkindedj.hkt.util.validation.Operation.PREPEND;
+import static org.higherkindedj.hkt.util.validation.Operation.REPEAT;
+import static org.higherkindedj.hkt.util.validation.Operation.SUCCEED;
+
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +21,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.Cleanup;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -37,6 +47,10 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>Reusability:</b> Unlike Java streams, a {@code VStream} can be pulled multiple times,
  *       producing a fresh traversal each time.
  * </ul>
+ *
+ * <p>A stream never emits {@code null}. A factory given an element refuses a null one at the call.
+ * A null element from a list, iterator, Java stream or publisher, or a null returned by a function
+ * the stream applies, fails the stream with a {@link NullPointerException} when it is pulled.
  *
  * <p><b>Example:</b>
  *
@@ -150,12 +164,15 @@ public interface VStream<A> extends VStreamKind<A> {
     /**
      * A step that produces an element and a continuation stream.
      *
-     * @param value The emitted element. May be {@code null} if the stream produces nullable values.
+     * @param value The emitted element. Must not be null.
      * @param tail The continuation stream for subsequent elements. Must not be null.
      * @param <A> The type of the element.
+     * @throws NullPointerException if {@code value} or {@code tail} is null.
      */
-    record Emit<A>(@Nullable A value, VStream<A> tail) implements Step<A> {
+    record Emit<A>(A value, VStream<A> tail) implements Step<A> {
       public Emit {
+        // A literal message, since a stream builds one of these for every element
+        Objects.requireNonNull(value, "VStream.construction value cannot be null");
         Objects.requireNonNull(tail, "tail must not be null");
       }
     }
@@ -190,12 +207,17 @@ public interface VStream<A> extends VStreamKind<A> {
    * A value pair used by {@link VStream#unfold} to produce both an emitted element and the next
    * state for the unfold operation.
    *
-   * @param value The element to emit.
+   * @param value The element to emit. Must not be null.
    * @param next The next state to pass to the unfold function.
    * @param <A> The type of the emitted element.
    * @param <S> The type of the unfold state.
+   * @throws NullPointerException if {@code value} is null.
    */
-  record Seed<A, S>(@Nullable A value, S next) {}
+  record Seed<A, S>(A value, S next) {
+    public Seed {
+      Objects.requireNonNull(value, "VStream.construction value cannot be null");
+    }
+  }
 
   // =====================================================================
   // Factory methods
@@ -214,25 +236,30 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Creates a single-element stream.
    *
-   * @param value The element to emit. May be {@code null}.
+   * @param value The element to emit. Must not be null.
    * @param <A> The type of the element.
    * @return A single-element {@code VStream}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <A> VStream<A> of(@Nullable A value) {
+  static <A> VStream<A> of(A value) {
+    Validation.coreType().requireValue(value, VStream.class, OF);
     return () -> VTask.succeed(new Step.Emit<>(value, empty()));
   }
 
   /**
    * Creates a stream from the given elements.
    *
-   * @param values The elements to emit, in order. Must not be null.
+   * @param values The elements to emit, in order. Must not be null, nor contain null.
    * @param <A> The type of the elements.
    * @return A {@code VStream} of the given elements. Never null.
-   * @throws NullPointerException if {@code values} is null.
+   * @throws NullPointerException if {@code values} is null or contains null.
    */
   @SafeVarargs
   static <A> VStream<A> of(A... values) {
     Objects.requireNonNull(values, "values must not be null");
+    for (A value : values) {
+      Validation.coreType().requireValue(value, "element", VStream.class, OF);
+    }
     return fromList(List.of(values));
   }
 
@@ -240,7 +267,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * Creates a stream that lazily iterates through the elements of the given list.
    *
    * <p>The list is not copied; elements are accessed by index during traversal. Modifications to
-   * the list after stream creation may affect the stream's output.
+   * the list after stream creation may affect the stream's output. A null element fails the stream
+   * when it is pulled.
    *
    * @param list The list to stream from. Must not be null.
    * @param <A> The type of the elements.
@@ -257,7 +285,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * iterator.
    *
    * <p><b>Warning:</b> The Java stream is consumed incrementally. Once its iterator is exhausted,
-   * the resulting {@code VStream} will be empty on subsequent traversals.
+   * the resulting {@code VStream} will be empty on subsequent traversals. A null element fails the
+   * stream when it is pulled.
    *
    * @param stream The Java stream to consume. Must not be null.
    * @param <A> The type of the elements.
@@ -266,7 +295,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   static <A> VStream<A> fromStream(Stream<A> stream) {
     Objects.requireNonNull(stream, "stream must not be null");
-    return fromIterator(stream.iterator());
+    return fromIteratorRefusing(stream.iterator(), "VStream.fromStream element cannot be null");
   }
 
   /**
@@ -274,7 +303,7 @@ public interface VStream<A> extends VStreamKind<A> {
    *
    * <p><b>Warning:</b> The iterator is consumed incrementally. Once exhausted, the resulting {@code
    * VStream} will be empty on subsequent traversals. If you need a reusable stream, prefer {@link
-   * #fromList(List)}.
+   * #fromList(List)}. A null element fails the stream when it is pulled.
    *
    * @param iterator The iterator to consume. Must not be null.
    * @param <A> The type of the elements.
@@ -283,27 +312,20 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   static <A> VStream<A> fromIterator(Iterator<A> iterator) {
     Objects.requireNonNull(iterator, "iterator must not be null");
-    return () ->
-        VTask.delay(
-            () -> {
-              if (iterator.hasNext()) {
-                A value = iterator.next();
-                return new Step.Emit<>(value, fromIterator(iterator));
-              } else {
-                return new Step.Done<>();
-              }
-            });
+    return fromIteratorRefusing(iterator, "VStream.fromIterator element cannot be null");
   }
 
   /**
    * Creates a single-element stream. Alias for {@link #of(Object)}, consistent with {@link
    * VTask#succeed(Object)}.
    *
-   * @param value The element to emit. May be {@code null}.
+   * @param value The element to emit. Must not be null.
    * @param <A> The type of the element.
    * @return A single-element {@code VStream}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <A> VStream<A> succeed(@Nullable A value) {
+  static <A> VStream<A> succeed(A value) {
+    Validation.coreType().requireValue(value, VStream.class, SUCCEED);
     return of(value);
   }
 
@@ -327,15 +349,17 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p><b>Warning:</b> This produces an infinite stream. Use {@link #take(long)} or {@link
    * #takeWhile(Predicate)} to limit consumption.
    *
-   * @param seed The initial value.
-   * @param f The function to produce the next value from the current one. Must not be null.
+   * @param seed The initial value. Must not be null.
+   * @param f The function to produce the next value from the current one. Must not be null. It must
+   *     not return null.
    * @param <A> The type of the elements.
    * @return An infinite {@code VStream}. Never null.
-   * @throws NullPointerException if {@code f} is null.
+   * @throws NullPointerException if {@code seed} or {@code f} is null.
    */
-  static <A> VStream<A> iterate(@Nullable A seed, UnaryOperator<A> f) {
+  static <A> VStream<A> iterate(A seed, UnaryOperator<A> f) {
+    Validation.coreType().requireValue(seed, "seed", VStream.class, ITERATE);
     Objects.requireNonNull(f, "f must not be null");
-    return () -> VTask.delay(() -> new Step.Emit<>(seed, iterate(f.apply(seed), f)));
+    return iterateFrom(seed, f);
   }
 
   /**
@@ -357,7 +381,7 @@ public interface VStream<A> extends VStreamKind<A> {
    *
    * @param initialState The initial state for the unfold operation.
    * @param f A function that produces the next value and state, or empty to complete. Must not be
-   *     null.
+   *     null. A {@link Seed} refuses a null value.
    * @param <S> The type of the unfold state.
    * @param <A> The type of the emitted elements.
    * @return A {@code VStream} produced by unfolding. Never null.
@@ -380,14 +404,20 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p><b>Warning:</b> This produces an infinite stream. Use {@link #take(long)} or {@link
    * #takeWhile(Predicate)} to limit consumption.
    *
-   * @param supplier The supplier to call for each element. Must not be null.
+   * @param supplier The supplier to call for each element. Must not be null. It must not return
+   *     null.
    * @param <A> The type of the elements.
    * @return An infinite {@code VStream}. Never null.
    * @throws NullPointerException if {@code supplier} is null.
    */
   static <A> VStream<A> generate(Supplier<A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return () -> VTask.delay(() -> new Step.Emit<>(supplier.get(), generate(supplier)));
+    return () ->
+        VTask.delay(
+            () ->
+                new Step.Emit<>(
+                    Objects.requireNonNull(supplier.get(), "supplier must not return null"),
+                    generate(supplier)));
   }
 
   /**
@@ -414,12 +444,14 @@ public interface VStream<A> extends VStreamKind<A> {
    *
    * <p><b>Warning:</b> This produces an infinite stream.
    *
-   * @param value The value to repeat. May be {@code null}.
+   * @param value The value to repeat. Must not be null.
    * @param <A> The type of the element.
    * @return An infinite repeating {@code VStream}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <A> VStream<A> repeat(@Nullable A value) {
-    return () -> VTask.succeed(new Step.Emit<>(value, repeat(value)));
+  static <A> VStream<A> repeat(A value) {
+    Validation.coreType().requireValue(value, VStream.class, REPEAT);
+    return repeating(value);
   }
 
   /**
@@ -463,7 +495,7 @@ public interface VStream<A> extends VStreamKind<A> {
    * Transforms each element of this stream using the given function. The transformation is lazy:
    * the function is applied only when elements are pulled.
    *
-   * @param f The mapping function. Must not be null.
+   * @param f The mapping function. Must not be null. It must not return null.
    * @param <B> The type of the transformed elements.
    * @return A new {@code VStream} with transformed elements. Never null.
    * @throws NullPointerException if {@code f} is null.
@@ -830,14 +862,18 @@ public interface VStream<A> extends VStreamKind<A> {
    *
    * @param <B> The type of elements in the output stream.
    * @param size The maximum number of elements per batch. Must be positive.
-   * @param f The batch function to apply to each chunk. Must not be null.
+   * @param f The batch function to apply to each chunk. Must not be null. It must not return null,
+   *     nor a list that contains null.
    * @return A new {@code VStream} with transformed elements. Never null.
    * @throws IllegalArgumentException if size is not positive.
    * @throws NullPointerException if f is null.
    */
   default <B> VStream<B> mapChunked(int size, Function<List<A>, List<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
-    return chunk(size).flatMap(chunk -> VStream.fromList(f.apply(chunk)));
+    return chunk(size)
+        .flatMap(
+            chunk ->
+                VStream.fromList(Objects.requireNonNull(f.apply(chunk), "f must not return null")));
   }
 
   // =====================================================================
@@ -866,20 +902,24 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p>Closing it before the element is read leaves this stream as it is, as {@link
    * #concat(VStream)} leaves a stream it has not reached.
    *
-   * @param value The element to prepend. May be {@code null}.
+   * @param value The element to prepend. Must not be null.
    * @return A new {@code VStream} with the element at the front. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  default VStream<A> prepend(@Nullable A value) {
+  default VStream<A> prepend(A value) {
+    Validation.coreType().requireValue(value, VStream.class, PREPEND);
     return () -> VTask.succeed(new Step.Emit<>(value, this));
   }
 
   /**
    * Adds an element at the end of this stream.
    *
-   * @param value The element to append. May be {@code null}.
+   * @param value The element to append. Must not be null.
    * @return A new {@code VStream} with the element at the end. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
-  default VStream<A> append(@Nullable A value) {
+  default VStream<A> append(A value) {
+    Validation.coreType().requireValue(value, VStream.class, APPEND);
     return this.concat(VStream.of(value));
   }
 
@@ -891,7 +931,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * zipped stream closes the streams it has read from, or both before anything has been read.
    *
    * @param other The other stream to zip with. Must not be null.
-   * @param combiner The function to combine paired elements. Must not be null.
+   * @param combiner The function to combine paired elements. Must not be null. It must not return
+   *     null.
    * @param <B> The type of elements in the other stream.
    * @param <C> The type of elements in the resulting stream.
    * @return A new zipped {@code VStream}. Never null.
@@ -1021,27 +1062,38 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Left-folds all elements with the given identity and operator.
    *
-   * @param identity The initial accumulator value.
-   * @param op The binary operator to combine accumulator with each element. Must not be null.
+   * @param identity The initial accumulator value. Must not be null.
+   * @param op The binary operator to combine accumulator with each element. Must not be null. It
+   *     must not return null.
    * @return A {@link VTask} that produces the fold result. Never null.
-   * @throws NullPointerException if {@code op} is null.
+   * @throws NullPointerException if {@code identity} or {@code op} is null.
    */
-  default VTask<A> fold(@Nullable A identity, BinaryOperator<A> op) {
+  default VTask<A> fold(A identity, BinaryOperator<A> op) {
+    Validation.coreType().requireValue(identity, "identity", VStream.class, FOLD);
     Objects.requireNonNull(op, "op must not be null");
-    return foldLeft(identity, op);
+    return folding(identity, op, "op must not return null");
   }
 
   /**
    * Left-folds all elements with the given initial value and accumulator function.
    *
-   * @param initial The initial accumulator value.
-   * @param f The accumulator function. Must not be null.
+   * @param initial The initial accumulator value. Must not be null.
+   * @param f The accumulator function. Must not be null. It must not return null.
    * @param <B> The type of the accumulator.
    * @return A {@link VTask} that produces the fold result. Never null.
-   * @throws NullPointerException if {@code f} is null.
+   * @throws NullPointerException if {@code initial} or {@code f} is null.
    */
-  default <B> VTask<B> foldLeft(@Nullable B initial, BiFunction<B, A, B> f) {
+  default <B> VTask<B> foldLeft(B initial, BiFunction<B, A, B> f) {
+    Validation.coreType().requireValue(initial, "initial", VStream.class, FOLD_LEFT);
     Objects.requireNonNull(f, "f must not be null");
+    return folding(initial, f, "f must not return null");
+  }
+
+  /**
+   * Left-folds all elements, failing with {@code nullResult} if the accumulator function returns
+   * null.
+   */
+  private <B> VTask<B> folding(B initial, BiFunction<B, A, B> f, String nullResult) {
     return VTask.of(
         () -> {
           B acc = initial;
@@ -1052,7 +1104,7 @@ public interface VStream<A> extends VStreamKind<A> {
               switch (step) {
                 case Step.Emit<A> e -> {
                   current = e.tail();
-                  acc = f.apply(acc, e.value());
+                  acc = Objects.requireNonNull(f.apply(acc, e.value()), nullResult);
                 }
                 case Step.Skip<A> s -> current = s.tail();
                 case Step.Done<A> _ -> {
@@ -1075,7 +1127,7 @@ public interface VStream<A> extends VStreamKind<A> {
    *     null.
    */
   default VTask<Optional<A>> headOption() {
-    return VTask.of(() -> firstStop(this, Optional::ofNullable, Optional.empty()));
+    return VTask.of(() -> firstStop(this, Optional::of, Optional.empty()));
   }
 
   /**
@@ -1089,21 +1141,19 @@ public interface VStream<A> extends VStreamKind<A> {
   default VTask<Optional<A>> lastOption() {
     return VTask.of(
         () -> {
-          A last = null;
-          boolean found = false;
+          Optional<A> last = Optional.empty();
           VStream<A> current = this;
           try {
             while (true) {
               Step<A> step = current.pull().run();
               switch (step) {
                 case Step.Emit<A> e -> {
-                  last = e.value();
-                  found = true;
+                  last = Optional.of(e.value());
                   current = e.tail();
                 }
                 case Step.Skip<A> s -> current = s.tail();
                 case Step.Done<A> _ -> {
-                  return found ? Optional.ofNullable(last) : Optional.empty();
+                  return last;
                 }
               }
             }
@@ -1167,9 +1217,7 @@ public interface VStream<A> extends VStreamKind<A> {
   default VTask<Optional<A>> find(Predicate<? super A> predicate) {
     Objects.requireNonNull(predicate, "predicate must not be null");
     return VTask.of(
-        () ->
-            firstStop(
-                this, a -> predicate.test(a) ? Optional.ofNullable(a) : null, Optional.empty()));
+        () -> firstStop(this, a -> predicate.test(a) ? Optional.of(a) : null, Optional.empty()));
   }
 
   /**
@@ -1233,7 +1281,7 @@ public interface VStream<A> extends VStreamKind<A> {
    * a single element's pull fails, the recovery value is emitted and the stream continues.
    *
    * @param recoveryFunction A function that produces a recovery value from the error. Must not be
-   *     null.
+   *     null. It must not return null.
    * @return A new {@code VStream} with per-pull error recovery. Never null.
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
@@ -1259,7 +1307,10 @@ public interface VStream<A> extends VStreamKind<A> {
                   VStream<A> marked = (VStream<A>) Closing.markedRest(error);
                   VStream<A> tail =
                       marked == null ? VStream.empty() : marked.recover(recoveryFunction);
-                  return new Step.Emit<>(Closing.applyOrClose(recoveryFunction, error, tail), tail);
+                  return new Step.Emit<>(
+                      Closing.applyNonNullOrClose(
+                          recoveryFunction, error, tail, "recoveryFunction must not return null"),
+                      tail);
                 });
       }
     };
@@ -1579,7 +1630,43 @@ public interface VStream<A> extends VStreamKind<A> {
     if (index >= list.size()) {
       return empty();
     }
-    return () -> VTask.succeed(new Step.Emit<>(list.get(index), fromListAt(list, index + 1)));
+    return () ->
+        VTask.delay(
+            () ->
+                new Step.Emit<>(
+                    Objects.requireNonNull(
+                        list.get(index), "VStream.fromList element cannot be null"),
+                    fromListAt(list, index + 1)));
+  }
+
+  /** Streams an iterator's elements, failing with {@code nullElement} on a null one. */
+  private static <A> VStream<A> fromIteratorRefusing(Iterator<A> iterator, String nullElement) {
+    return () ->
+        VTask.delay(
+            () -> {
+              if (iterator.hasNext()) {
+                A value = Objects.requireNonNull(iterator.next(), nullElement);
+                return new Step.Emit<>(value, fromIteratorRefusing(iterator, nullElement));
+              } else {
+                return new Step.Done<>();
+              }
+            });
+  }
+
+  /** Streams {@code seed}, then each value {@code f} gives from the one before. */
+  private static <A> VStream<A> iterateFrom(A seed, UnaryOperator<A> f) {
+    return () ->
+        VTask.delay(
+            () ->
+                new Step.Emit<>(
+                    seed,
+                    iterateFrom(
+                        Objects.requireNonNull(f.apply(seed), "f must not return null"), f)));
+  }
+
+  /** Streams {@code value} for ever. */
+  private static <A> VStream<A> repeating(A value) {
+    return () -> VTask.succeed(new Step.Emit<>(value, repeating(value)));
   }
 }
 
@@ -1689,7 +1776,10 @@ final class ZipWithStream<A, B, C> implements VStream<C> {
                       case Step.Emit<B> rightEmit -> {
                         C combined;
                         try {
-                          combined = combiner.apply(leftEmit.value(), rightEmit.value());
+                          combined =
+                              Objects.requireNonNull(
+                                  combiner.apply(leftEmit.value(), rightEmit.value()),
+                                  "combiner must not return null");
                         } catch (Throwable t) {
                           // Only this step holds the rest of each stream
                           Closing.runAfterFailure(
@@ -1806,7 +1896,9 @@ final class MappedStream<A, B> extends DerivedStream<A, B> {
                 switch (step) {
                   case Step.Emit<A> e ->
                       new Step.Emit<>(
-                          Closing.applyOrClose(mapper, e.value(), e.tail()), e.tail().map(mapper));
+                          Closing.applyNonNullOrClose(
+                              mapper, e.value(), e.tail(), "f must not return null"),
+                          e.tail().map(mapper));
                   case Step.Skip<A> s -> new Step.Skip<>(s.tail().map(mapper));
                   case Step.Done<A> _ -> new Step.Done<>();
                 });
@@ -1816,10 +1908,54 @@ final class MappedStream<A, B> extends DerivedStream<A, B> {
   @SuppressWarnings("unchecked")
   public <C> VStream<C> map(Function<? super B, ? extends C> f) {
     Objects.requireNonNull(f, "f must not be null");
-    // Fuse consecutive maps: compose functions instead of nesting streams.
+    // Fuse consecutive maps: chain functions instead of nesting streams.
     // This keeps the pull() delegation depth at 1 regardless of chain length.
-    Function<? super A, ? extends C> composed = ((Function<A, B>) mapper).andThen(f);
-    return new MappedStream<>(upstream, composed);
+    Function<? super A, ? extends C> fused =
+        (Function<A, C>) (Function<?, ?>) new Fused((Function<Object, Object>) mapper, f);
+    return new MappedStream<>(upstream, fused);
+  }
+
+  /**
+   * Consecutive map functions fused into one. Each fusion adds a link, and an application runs the
+   * links in a loop, checking each result, so a chain of any length needs no stack.
+   */
+  private static final class Fused implements Function<Object, Object> {
+
+    private final Function<Object, Object> before;
+    private final Function<Object, Object> stage;
+    // The functions oldest first, built on the first application
+    private volatile @Nullable List<Function<Object, Object>> chain;
+
+    @SuppressWarnings("unchecked")
+    Fused(Function<Object, Object> before, Function<?, ?> stage) {
+      this.before = before;
+      this.stage = (Function<Object, Object>) stage;
+    }
+
+    @Override
+    public Object apply(Object value) {
+      List<Function<Object, Object>> functions = chain;
+      if (functions == null) {
+        functions = flatten();
+        chain = functions;
+      }
+      Object result = value;
+      for (Function<Object, Object> function : functions) {
+        result = Objects.requireNonNull(function.apply(result), "f must not return null");
+      }
+      return result;
+    }
+
+    private List<Function<Object, Object>> flatten() {
+      Deque<Function<Object, Object>> functions = new ArrayDeque<>();
+      Function<Object, Object> link = this;
+      while (link instanceof Fused fused) {
+        functions.push(fused.stage);
+        link = fused.before;
+      }
+      functions.push(link);
+      return List.copyOf(functions);
+    }
   }
 }
 

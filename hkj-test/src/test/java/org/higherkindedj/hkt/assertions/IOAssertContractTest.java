@@ -20,7 +20,8 @@ class IOAssertContractTest extends AssertContract<Supplier<IO<Integer>>, IOAsser
   // since IOAssert caches execution state internally.
   private static final Supplier<IO<Integer>> OK_42 = () -> IO.delay(() -> 42);
   private static final Supplier<IO<Integer>> OK_99 = () -> IO.delay(() -> 99);
-  private static final Supplier<IO<Integer>> OK_NULL = () -> IO.delay(() -> null);
+  // A hand-written IO is the one way left to give null
+  private static final Supplier<IO<Integer>> RAW_NULL = () -> () -> null;
   private static final Supplier<IO<Integer>> FAIL_ISE =
       () ->
           IO.delay(
@@ -60,10 +61,8 @@ class IOAssertContractTest extends AssertContract<Supplier<IO<Integer>>, IOAsser
                       throw new AssertionError("inner");
                     })),
         failOnly("hasValueSatisfying when IO threw", FAIL_ISE, a -> a.hasValueSatisfying(v -> {})),
-        row("hasValueNonNull", OK_42, OK_NULL, IOAssert::hasValueNonNull),
+        row("hasValueNonNull", OK_42, RAW_NULL, IOAssert::hasValueNonNull),
         failOnly("hasValueNonNull when IO threw", FAIL_ISE, IOAssert::hasValueNonNull),
-        row("hasValueNull", OK_NULL, OK_42, IOAssert::hasValueNull),
-        failOnly("hasValueNull when IO threw", FAIL_ISE, IOAssert::hasValueNull),
         row(
             "throwsException match",
             FAIL_ISE,

@@ -176,7 +176,9 @@ public final class CircuitBreaker {
    * circuit is open.
    *
    * @param task the task to protect; must not be null
-   * @param fallback function to produce a fallback value when the circuit is open; must not be null
+   * @param fallback function to produce a fallback value when the circuit is open; must not be
+   *     null, and must not return null: a null result fails the task with a {@link
+   *     NullPointerException}
    * @param <A> the result type
    * @return a new VTask with circuit breaker protection and fallback
    * @throws NullPointerException if task or fallback is null
@@ -188,7 +190,7 @@ public final class CircuitBreaker {
         .recover(
             ex -> {
               if (ex instanceof CircuitOpenException) {
-                return fallback.apply(ex);
+                return Objects.requireNonNull(fallback.apply(ex), "fallback must not return null");
               }
               throw (ex instanceof RuntimeException re) ? re : new RuntimeException(ex);
             });

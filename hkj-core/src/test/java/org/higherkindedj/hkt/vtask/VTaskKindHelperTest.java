@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
@@ -162,11 +163,12 @@ class VTaskKindHelperTest {
     }
 
     @Test
-    @DisplayName("succeed() handles null value")
-    void succeedHandlesNullValue() {
-      Kind<VTaskKind.Witness, String> kind = VTASK.succeed(null);
-
-      assertThat(VTASK.narrow(kind).run()).isNull();
+    @DisplayName("succeed() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void succeedRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> VTASK.succeed(null))
+          .withMessage("VTask.succeed value cannot be null");
     }
 
     @Test

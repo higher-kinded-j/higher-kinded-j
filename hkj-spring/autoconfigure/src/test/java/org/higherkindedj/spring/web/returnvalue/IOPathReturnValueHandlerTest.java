@@ -91,16 +91,15 @@ class IOPathReturnValueHandlerTest {
   class SuccessfulExecutionTests {
 
     @Test
-    @DisplayName("An IO that returns null writes no body at the resolved status, as void does")
-    void ioNullWritesNoBody() throws Exception {
+    @DisplayName("An IO whose supplier returns null writes the failure status")
+    void ioNullWritesTheFailure() throws Exception {
       IOPath<String> path = Path.io(() -> null);
 
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
-      verify(response).setStatus(HttpStatus.OK.value());
-      verify(response, never()).setContentType(anyString());
+      verify(response).setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
       printWriter.flush();
-      assertThat(stringWriter.toString()).isEmpty();
+      assertThat(stringWriter.toString()).contains("\"success\":false");
     }
 
     @Test

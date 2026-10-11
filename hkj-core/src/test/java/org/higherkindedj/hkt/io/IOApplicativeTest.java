@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.io;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
@@ -78,11 +79,12 @@ class IOApplicativeTest extends IOTestBase {
     }
 
     @Test
-    @DisplayName("of() with null value")
-    void ofWithNullValue() {
-      Kind<IOKind.Witness, String> result = applicative.of(null);
-
-      assertThatIO(narrowToIO(result)).hasValueNull();
+    @DisplayName("of() refuses a null value at the call, since an IO always gives one")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("IOApplicative.of value cannot be null");
     }
 
     @Test
@@ -221,30 +223,28 @@ class IOApplicativeTest extends IOTestBase {
   @DisplayName("Edge Cases Tests")
   class EdgeCasesTests {
     @Test
-    @DisplayName("mapN operations with null values")
-    @SuppressWarnings("ConstantValue") // IO can carry a null value, so the i == null branch is live
-    void mapNWithNullValues() {
-      Kind<IOKind.Witness, Integer> nullIO = applicative.of(null);
-      Kind<IOKind.Witness, String> valueIO = applicative.of("test");
+    @DisplayName("map2() fails the computation when its function returns null")
+    void map2FailsOnANullResult() {
+      Kind<IOKind.Witness, String> result =
+          applicative.map2(
+              applicative.of(DEFAULT_IO_VALUE), applicative.of("test"), (i, s) -> null);
 
-      BiFunction<Integer, String, String> nullSafeFunc =
-          (i, s) -> (i == null ? "null" : i.toString()) + ":" + s;
-
-      Kind<IOKind.Witness, String> result = applicative.map2(nullIO, valueIO, nullSafeFunc);
-
-      assertThatIO(narrowToIO(result)).hasValue("null:test");
+      assertThatNullPointerException()
+          .isThrownBy(narrowToIO(result)::unsafeRunSync)
+          .withMessage("f must not return null");
     }
 
     @Test
-    @DisplayName("ap() with function that returns null")
-    @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
-    void apWithFunctionReturningNull() {
+    @DisplayName("ap() fails the computation when its function returns null")
+    void apFailsOnANullResult() {
       Kind<IOKind.Witness, Function<Integer, String>> funcKind = applicative.of(_ -> null);
       Kind<IOKind.Witness, Integer> valueKind = applicative.of(DEFAULT_IO_VALUE);
 
       Kind<IOKind.Witness, String> result = applicative.ap(funcKind, valueKind);
 
-      assertThatIO(narrowToIO(result)).hasValueNull();
+      assertThatNullPointerException()
+          .isThrownBy(narrowToIO(result)::unsafeRunSync)
+          .withMessage("f must not return null");
     }
 
     @Test

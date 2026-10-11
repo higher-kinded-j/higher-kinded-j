@@ -70,14 +70,15 @@ public record WriterT<F extends WitnessArity<TypeArity.Unary>, W, A>(Kind<F, Pai
    * @param <A> The type of the value.
    * @param monad The {@link Monad} instance for the outer monad. Must not be null.
    * @param monoid The {@link Monoid} instance for the output type. Must not be null.
-   * @param value The value to wrap.
+   * @param value The value to wrap. Must not be null.
    * @return A new {@link WriterT} instance with the given value and empty output.
-   * @throws NullPointerException if {@code monad} or {@code monoid} is null.
+   * @throws NullPointerException if {@code monad}, {@code monoid} or {@code value} is null.
    */
   public static <F extends WitnessArity<TypeArity.Unary>, W, A> WriterT<F, W, A> of(
       Monad<F> monad, Monoid<W> monoid, A value) {
     Validation.transformer().requireOuterMonad(monad, WRITER_T_CLASS, OF);
     Validation.function().require(monoid, "monoid", OF);
+    Validation.coreType().requireValue(value, WRITER_T_CLASS, OF);
     return new WriterT<>(monad.of(Pair.of(value, monoid.empty())));
   }
 
@@ -155,14 +156,15 @@ public record WriterT<F extends WitnessArity<TypeArity.Unary>, W, A>(Kind<F, Pai
    * @param <W> The type of the accumulated output.
    * @param <A> The type of the value.
    * @param monad The {@link Monad} instance for the outer monad. Must not be null.
-   * @param value The value.
+   * @param value The value. Must not be null.
    * @param output The output.
    * @return A new {@link WriterT} with the given value and output.
-   * @throws NullPointerException if {@code monad} is null.
+   * @throws NullPointerException if {@code monad} or {@code value} is null.
    */
   public static <F extends WitnessArity<TypeArity.Unary>, W, A> WriterT<F, W, A> writer(
       Monad<F> monad, A value, W output) {
     Validation.transformer().requireOuterMonad(monad, WRITER_T_CLASS, CONSTRUCTION);
+    Validation.coreType().requireValue(value, WRITER_T_CLASS, CONSTRUCTION);
     return new WriterT<>(monad.of(Pair.of(value, output)));
   }
 }

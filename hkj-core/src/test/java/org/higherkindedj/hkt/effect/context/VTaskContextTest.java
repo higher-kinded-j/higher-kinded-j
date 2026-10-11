@@ -369,7 +369,7 @@ class VTaskContextTest {
     void runOrElseReturnsValueOnSuccess() {
       VTaskContext<Integer> context = VTaskContext.pure(TEST_INT);
 
-      assertThatVTaskContext(context).succeeds().hasValue(TEST_INT);
+      assertThat(context.runOrElse(99)).isEqualTo(TEST_INT);
     }
 
     @Test

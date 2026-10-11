@@ -42,12 +42,10 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("Complete test suite with multiple IO types")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void completeTestSuiteWithMultipleTypes() {
       List<IO<String>> testInstances =
           List.of(
               IO.delay(() -> "Success"),
-              IO.delay(() -> null),
               IO.delay(() -> ""),
               IO.delay(
                   () -> {
@@ -56,7 +54,7 @@ class IOKindHelperTest extends IOTestBase {
 
       for (IO<String> instance : testInstances) {
         // Only test non-exceptional IOs for round-trip
-        if (instance != testInstances.get(3)) {
+        if (instance != testInstances.get(2)) {
           ioKindHelper(instance).test();
         }
       }
@@ -146,18 +144,6 @@ class IOKindHelperTest extends IOTestBase {
 
       // Verify laziness - effect should not have run during test
       assertThat(counter.get()).isZero();
-    }
-
-    @Test
-    @DisplayName("Null values in IO are preserved")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void testNullValuesPreserved() {
-      IO<String> nullIO = IO.delay(() -> null);
-
-      ioKindHelper(nullIO).test();
-
-      // Verify null is preserved
-      assertThatIO(nullIO).hasValueNull();
     }
 
     @Test
@@ -369,29 +355,19 @@ class IOKindHelperTest extends IOTestBase {
     }
 
     @Test
-    @DisplayName("unsafeRunSync handles null results correctly")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void unsafeRunSyncHandlesNullResults() {
+    @DisplayName("unsafeRunSync fails when the delayed thunk returns null")
+    void unsafeRunSyncFailsOnANullResult() {
       Kind<IOKind.Witness, String> nullKind = IO_OP.delay(() -> null);
 
-      assertThat(IO_OP.unsafeRunSync(nullKind)).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> IO_OP.unsafeRunSync(nullKind))
+          .withMessage("thunk must not return null");
     }
   }
 
   @Nested
   @DisplayName("Edge Cases and Corner Cases")
   class EdgeCasesTests {
-    @Test
-    @DisplayName("All combinations of null values")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
-    void testAllNullValueCombinations() {
-      List<IO<String>> nullInstances = List.of(IO.delay(() -> null), IO.delay(() -> ""));
-
-      for (IO<String> instance : nullInstances) {
-        ioKindHelper(instance).test();
-      }
-    }
-
     @Test
     @DisplayName("Nested IO structures work correctly")
     void testNestedIOStructures() {
@@ -429,15 +405,13 @@ class IOKindHelperTest extends IOTestBase {
 
     @Test
     @DisplayName("Stress test with complex scenarios")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testComplexStressScenarios() {
       List<IO<Object>> complexInstances =
           List.of(
               IO.delay(() -> "simple_string"),
               IO.delay(() -> DEFAULT_IO_VALUE),
               IO.delay(() -> List.of(1, 2, 3)),
-              IO.delay(() -> Map.of("key", "value")),
-              IO.delay(() -> null));
+              IO.delay(() -> Map.of("key", "value")));
 
       for (IO<Object> instance : complexInstances) {
         ioKindHelper(instance).test();
@@ -450,10 +424,8 @@ class IOKindHelperTest extends IOTestBase {
   class ComprehensiveCoverageTests {
     @Test
     @DisplayName("All IO types and states")
-    @SuppressWarnings("DataFlowIssue") // an IO may legitimately hold a null value
     void testAllIOTypesAndStates() {
-      List<IO<String>> allStates =
-          List.of(IO.delay(() -> "success"), IO.delay(() -> ""), IO.delay(() -> null));
+      List<IO<String>> allStates = List.of(IO.delay(() -> "success"), IO.delay(() -> ""));
 
       for (IO<String> state : allStates) {
         ioKindHelper(state).test();

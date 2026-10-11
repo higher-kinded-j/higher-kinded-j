@@ -2,13 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.reader;
 
+import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} interface for the {@link Reader} type, using {@link
@@ -36,14 +37,16 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    * Reader<R, A>} will produce the given {@code value} regardless of the environment {@code R} it
    * is run with.
    *
-   * @param value The value to lift into the {@code Reader} context. Can be {@code null} if {@code
-   *     A} is a nullable type.
+   * @param value The value to lift into the {@code Reader} context. Must not be {@code null}.
    * @param <A> The type of the lifted value.
    * @return A {@code Kind<ReaderKind.Witness<R>, A>} representing a {@code Reader<R, A>} that, when
    *     run, yields the given {@code value}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<ReaderKind.Witness<R>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Reader forbids null
+  public <A> Kind<ReaderKind.Witness<R>, A> of(A value) {
+    Validation.coreType().requireValue(value, ReaderApplicative.class, OF);
     return READER.constant(value);
   }
 
@@ -63,7 +66,8 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
    * @param <A> The type of the value to which the function is applied.
    * @param <B> The result type of the function application.
    * @return A new {@code Kind<ReaderKind.Witness<R>, B>} representing the {@code Reader<R, B>} that
-   *     results from applying the function. Never null.
+   *     results from applying the function. Never null. When run, it throws {@link
+   *     NullPointerException} if the function returns null.
    * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
    *     from the Reader is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
@@ -87,7 +91,7 @@ public class ReaderApplicative<R> extends ReaderFunctor<R>
             throw new NullPointerException("Function extracted from Reader for 'ap' was null");
           }
 
-          return func.apply(val);
+          return requireNonNull(func.apply(val), "f must not return null");
         };
 
     return READER.widen(readerB);

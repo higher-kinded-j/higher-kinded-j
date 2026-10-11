@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.reader_t;
 import static org.higherkindedj.hkt.reader_t.ReaderTKindHelper.READER_T;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -12,7 +13,6 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Monad} interface for the {@link ReaderT} monad transformer.
@@ -57,14 +57,16 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
    * Lifts a pure value {@code value} into the {@code ReaderT<F, R_ENV, A>} context. The resulting
    * {@code ReaderT} will, for any environment {@code R_ENV}, produce {@code outerMonad.of(value)}.
    *
-   * @param value The value to lift. Can be {@code null} if the outer monad {@code F} and type
-   *     {@code A} support it.
+   * @param value The value to lift. Must not be {@code null}.
    * @param <A> The type of the lifted value.
    * @return A {@code Kind<ReaderTKind.Witness<F, R_ENV>, A>} representing the new {@code ReaderT}.
    *     Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<ReaderTKind.Witness<F, R_ENV>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // ReaderT forbids null
+  public <A> Kind<ReaderTKind.Witness<F, R_ENV>, A> of(A value) {
+    Validation.coreType().requireValue(value, READER_T_MONAD_CLASS, OF);
     ReaderT<F, R_ENV, A> readerT = new ReaderT<>(r -> outerMonad.of(value));
     return READER_T.widen(readerT);
   }
@@ -106,7 +108,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
         r -> {
           Kind<F, ? extends Function<A, B>> funcKind = ffT.run().apply(r);
           Kind<F, A> valKind = faT.run().apply(r);
-          return outerApplicative.ap(funcKind, valKind);
+          return outerApplicative.ap(
+              outerApplicative.map(ReaderTMonad::<A, B>nonNullResult, funcKind), valKind);
         };
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
@@ -120,7 +123,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
    * the {@code map} method of the {@code outerMonad} to transform it into {@code Kind<F, B>}. This
    * result is then wrapped in a new {@code ReaderT}.
    *
-   * @param f The function to apply to the value. Must not be null.
+   * @param f The function to apply to the value. Must not be null, and must not return null: a null
+   *     result fails the computation with a {@link NullPointerException} when it runs.
    * @param fa A {@code Kind} representing {@code ReaderT<F, R_ENV, A>}. Must not be null.
    * @param <A> The original value type.
    * @param <B> The new value type after applying the function {@code f}.
@@ -141,7 +145,8 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
     Function<R_ENV, Kind<F, B>> newRun =
         r -> {
           Kind<F, A> kindA = faT.run().apply(r);
-          return outerMonad.map(f, kindA);
+          return outerMonad.<A, B>map(
+              a -> Objects.requireNonNull(f.apply(a), "f must not return null"), kindA);
         };
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
@@ -197,5 +202,10 @@ public class ReaderTMonad<F extends WitnessArity<TypeArity.Unary>, R_ENV>
 
     ReaderT<F, R_ENV, B> resultReaderT = new ReaderT<>(newRun);
     return READER_T.widen(resultReaderT);
+  }
+
+  /** Wraps a function so a null result fails, as the transformer's value is never null. */
+  private static <A, B> Function<A, B> nonNullResult(Function<A, B> function) {
+    return a -> Objects.requireNonNull(function.apply(a), "f must not return null");
   }
 }

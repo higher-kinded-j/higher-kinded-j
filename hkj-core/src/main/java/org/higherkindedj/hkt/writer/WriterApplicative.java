@@ -2,16 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.writer;
 
-import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} interface for the {@link Writer} type. This provides the
@@ -52,13 +52,16 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * Writer<W, A>} will have an empty log (as defined by the {@link Monoid} for {@code W}) and the
    * provided {@code value}.
    *
-   * @param value The value to lift into the {@code Writer} context. Can be {@code null}.
+   * @param value The value to lift into the {@code Writer} context. Must not be {@code null}.
    * @param <A> The type of the lifted value.
    * @return A {@code Kind<WriterKind.Witness<W>, A>} representing a {@code Writer<W, A>} with an
    *     empty log and the given {@code value}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<WriterKind.Witness<W>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Writer forbids null
+  public <A> Kind<WriterKind.Witness<W>, A> of(A value) {
+    Validation.coreType().requireValue(value, WriterApplicative.class, OF);
     return WRITER.value(monoidW, value);
   }
 
@@ -78,7 +81,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
    * @return A new {@code Kind<WriterKind.Witness<W>, B>} representing the {@code Writer<W, B>} that
    *     results from applying the function and combining logs. Never null.
    * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
-   *     from {@code ff} is null.
+   *     from {@code ff} returns null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
    *     be unwrapped to valid {@code Writer} representations.
    */
@@ -96,8 +99,7 @@ public class WriterApplicative<W> extends WriterFunctor<W>
     Function<A, B> func = writerF.value();
     A val = writerA.value();
 
-    Validation.function().require(func, "function", AP);
-    B resultValue = func.apply(val);
+    B resultValue = Objects.requireNonNull(func.apply(val), "f must not return null");
 
     return WRITER.widen(new Writer<>(combinedLog, resultValue));
   }

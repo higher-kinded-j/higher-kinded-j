@@ -66,10 +66,11 @@ public enum StateKindHelper implements StateConverterOps {
    *
    * @param <S> The type of the state.
    * @param <A> The type of the pure value being lifted.
-   * @param value The value to lift.
+   * @param value The non-null value to lift.
    * @return A non-null {@link Kind<StateKind.Witness<S>, A>} representing the pure computation.
+   * @throws NullPointerException if {@code value} is null.
    */
-  public <S, A> Kind<StateKind.Witness<S>, A> pure(@Nullable A value) {
+  public <S, A> Kind<StateKind.Witness<S>, A> pure(A value) {
     return this.widen(State.pure(value));
   }
 
@@ -115,12 +116,12 @@ public enum StateKindHelper implements StateConverterOps {
    *
    * @param <S> The type of the state.
    * @param <A> The type of the value produced by inspecting the state.
-   * @param f The non-null function to apply to the current state.
+   * @param f The non-null function to apply to the current state. It must not return null.
    * @return A non-null {@link Kind<StateKind.Witness<S>, A>} that returns the result of inspecting
    *     the state.
    * @throws NullPointerException if {@code f} is null.
    */
-  public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, @Nullable A> f) {
+  public <S, A> Kind<StateKind.Witness<S>, A> inspect(Function<S, A> f) {
     Validation.function().require(f, "f", INSPECT);
     return this.widen(State.inspect(f));
   }
@@ -154,8 +155,7 @@ public enum StateKindHelper implements StateConverterOps {
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is invalid.
    * @throws NullPointerException if {@code initialState} is {@code null}.
    */
-  public <S, A> @Nullable A evalState(
-      @Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
+  public <S, A> A evalState(@Nullable Kind<StateKind.Witness<S>, A> kind, S initialState) {
     return this.runState(kind, initialState).value();
   }
 

@@ -237,6 +237,17 @@ class ParTest {
     }
 
     @Test
+    @DisplayName("map2() fails when its combiner returns null")
+    void map2FailsOnANullResult() {
+      VTask<Integer> combined = Par.map2(VTask.succeed(10), VTask.succeed(20), (a, b) -> null);
+
+      assertThatVTask(combined)
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage("combiner must not return null");
+    }
+
+    @Test
     @DisplayName("map2() with null first task throws NullPointerException")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void map2WithNullFirstTaskThrows() {
@@ -295,6 +306,18 @@ class ParTest {
       VTask<Integer> combined = Par.map3(taskA, taskB, taskC, (a, b, c) -> a + b + c);
 
       assertThatVTask(combined).fails().withMessage("Task C failed");
+    }
+
+    @Test
+    @DisplayName("map3() fails when its combiner returns null")
+    void map3FailsOnANullResult() {
+      VTask<Integer> combined =
+          Par.map3(VTask.succeed(10), VTask.succeed(20), VTask.succeed(30), (a, b, c) -> null);
+
+      assertThatVTask(combined)
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage("combiner must not return null");
     }
 
     @Test
@@ -701,6 +724,28 @@ class ParTest {
       assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> all.add("c"));
       assertThatExceptionOfType(UnsupportedOperationException.class)
           .isThrownBy(() -> traversed.add("c"));
+    }
+
+    @Test
+    @DisplayName("a hand-written task that returns null fails each combinator, and loses a race")
+    @SuppressWarnings("DataFlowIssue") // a hand-written task returning null is what is refused
+    void aNullResultFailsEachCombinator() {
+      VTask<String> nullResult = () -> null;
+      String refused = "the task returned null, and a VTask always gives a value";
+
+      assertThatVTask(Par.zip(nullResult, VTask.succeed("b")))
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage(refused);
+      assertThatVTask(Par.all(List.of(VTask.succeed("a"), nullResult)))
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage(refused);
+      assertThatVTask(Par.traverse(List.of("a"), _ -> nullResult))
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage(refused);
+      assertThat(Par.race(List.of(nullResult, VTask.succeed("b"))).run()).isEqualTo("b");
     }
   }
 }

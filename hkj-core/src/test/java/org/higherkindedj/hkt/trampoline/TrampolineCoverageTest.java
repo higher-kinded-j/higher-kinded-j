@@ -181,41 +181,6 @@ class TrampolineCoverageTest extends TrampolineTestBase {
   class EdgeCaseCoverage {
 
     @Test
-    @DisplayName("Continuation applies to null value")
-    @SuppressWarnings({
-      "DataFlowIssue",
-      "ConstantValue"
-    }) // a Trampoline may legitimately hold a null value
-    void continuationAppliesToNullValue() {
-      // Create a flatMap where the first result is null
-      Trampoline<String> trampoline =
-          Trampoline.<String>done(null)
-              .flatMap(x -> Trampoline.done(x == null ? "was null" : "not null"));
-
-      // This tests applying continuation with null value
-      String result = trampoline.run();
-
-      assertThat(result).isEqualTo("was null");
-    }
-
-    @Test
-    @DisplayName("Multiple flatMaps with null intermediate values")
-    @SuppressWarnings({
-      "DataFlowIssue",
-      "ConstantValue"
-    }) // a Trampoline may legitimately hold a null value
-    void multipleFlatMapsWithNullValues() {
-      Trampoline<String> trampoline =
-          Trampoline.<String>done(null)
-              .flatMap(Trampoline::done) // Pass null through
-              .flatMap(x -> Trampoline.done(x == null ? "final" : "unexpected"));
-
-      String result = trampoline.run();
-
-      assertThat(result).isEqualTo("final");
-    }
-
-    @Test
     @DisplayName("defer returning defer returning done")
     void deferReturningDeferReturningDone() {
       // Multiple levels of deferred computations

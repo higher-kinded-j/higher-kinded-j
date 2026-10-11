@@ -134,7 +134,8 @@ public final class ResilienceBuilder<A> {
   /**
    * Adds a fallback function that produces a value when the protected operation fails.
    *
-   * @param fallbackFn the fallback function; must not be null
+   * @param fallbackFn the fallback function; must not be null, and must not return null: a null
+   *     result fails the task with a {@link NullPointerException}
    * @return this builder
    */
   public ResilienceBuilder<A> withFallback(Function<Throwable, A> fallbackFn) {
@@ -169,8 +170,11 @@ public final class ResilienceBuilder<A> {
       result = result.timeout(timeout);
     }
 
-    if (fallback != null) {
-      result = result.recover(fallback);
+    @Nullable Function<Throwable, A> fallbackFn = fallback;
+    if (fallbackFn != null) {
+      result =
+          result.recover(
+              t -> Objects.requireNonNull(fallbackFn.apply(t), "fallbackFn must not return null"));
     }
 
     return result;

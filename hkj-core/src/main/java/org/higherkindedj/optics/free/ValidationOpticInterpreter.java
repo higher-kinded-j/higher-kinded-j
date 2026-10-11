@@ -99,8 +99,12 @@ public final class ValidationOpticInterpreter {
           return Id.of(Free.pure(result));
         };
 
-    // Execute the program with validation
-    program.foldMap(transform, IdMonad.instance());
+    // Execute the program with validation; a get that reads a null focus ends it with an error
+    try {
+      program.foldMap(transform, IdMonad.instance());
+    } catch (NullFocus _) {
+      errors.add("GET operation failed: " + OpticPrograms.NULL_GET_FOCUS);
+    }
 
     return new ValidationResult(
         Collections.unmodifiableList(new ArrayList<>(errors)),
@@ -140,7 +144,12 @@ public final class ValidationOpticInterpreter {
   // Execute methods - these perform the actual operations to enable proper flatMap chaining
 
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-    return op.optic().get(op.source());
+    A value = op.optic().get(op.source());
+    if (value == null) {
+      // No later step can run without the value, so validation stops here
+      throw new NullFocus();
+    }
+    return value;
   }
 
   private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {
@@ -197,6 +206,13 @@ public final class ValidationOpticInterpreter {
 
   private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
     return op.optic().length(op.source());
+  }
+
+  /** Ends a validation whose get read a null focus, which no Free program can hold. */
+  private static final class NullFocus extends RuntimeException {
+    NullFocus() {
+      super(null, null, false, false);
+    }
   }
 
   /**

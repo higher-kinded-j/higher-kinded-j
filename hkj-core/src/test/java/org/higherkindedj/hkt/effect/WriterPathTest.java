@@ -452,13 +452,14 @@ class WriterPathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() converts to Nothing for null")
-    void toMaybePathConvertsToNothing() {
-      WriterPath<String, String> path = WriterPath.pure(null, STRING_MONOID);
-
-      MaybePath<String> result = path.toMaybePath();
-
-      assertThat(result.run().isNothing()).isTrue();
+    @DisplayName("a writer's value is never null, so pure and writer refuse one")
+    void factoriesRefuseANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> WriterPath.pure(null, STRING_MONOID))
+          .withMessage("value must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> WriterPath.writer(null, "log", STRING_MONOID))
+          .withMessage("value must not be null");
     }
 
     @Test

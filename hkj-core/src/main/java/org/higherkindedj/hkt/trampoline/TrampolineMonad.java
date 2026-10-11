@@ -9,7 +9,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Monad implementation for {@link TrampolineKind}. Provides {@link org.higherkindedj.hkt.Functor},
@@ -56,12 +55,15 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
    * value.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift. Can be {@code null} if {@code A} is a nullable type.
+   * @param value The value to lift. Must not be {@code null}.
    * @return A {@code Kind} representing a completed {@link Trampoline} with the given value. Never
    *     {@code null}.
+   * @throws NullPointerException if {@code value} is {@code null}.
    */
   @Override
-  public <A> Kind<TrampolineKind.Witness, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Trampoline forbids null
+  public <A> Kind<TrampolineKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, TrampolineMonad.class, OF);
     return TRAMPOLINE.widen(Trampoline.done(value));
   }
 

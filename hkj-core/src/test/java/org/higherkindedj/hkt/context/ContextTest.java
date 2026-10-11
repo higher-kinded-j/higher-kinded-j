@@ -62,6 +62,28 @@ class ContextTest {
 
         assertThatThrownBy(ctx::run).isInstanceOf(NoSuchElementException.class);
       }
+
+      @Test
+      @DisplayName("ask() fails when the ScopedValue is bound to null")
+      void ask_failsWhenBoundToNull() {
+        Context<String, String> ctx = Context.ask(STRING_KEY);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> ScopedValue.where(STRING_KEY, null).call(ctx::run))
+            .withMessage(
+                "the scoped value is null: read a key that may hold null with asks(key,"
+                    + " Maybe::fromNullable)");
+      }
+
+      @Test
+      @DisplayName("asks() with Maybe.fromNullable reads a key bound to null as Nothing")
+      void asks_readsANullKeyAsNothing() {
+        Context<String, Maybe<String>> ctx = Context.asks(STRING_KEY, Maybe::fromNullable);
+
+        Maybe<String> result = ScopedValue.where(STRING_KEY, null).call(ctx::run);
+
+        assertThat(result.isNothing()).isTrue();
+      }
     }
 
     @Nested
@@ -95,6 +117,16 @@ class ContextTest {
             .isThrownBy(() -> Context.asks(STRING_KEY, null))
             .withMessageContaining("function cannot be null");
       }
+
+      @Test
+      @DisplayName("asks() fails when its function returns null")
+      void asks_failsWhenFunctionReturnsNull() {
+        Context<String, Integer> ctx = Context.asks(STRING_KEY, _ -> null);
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> ScopedValue.where(STRING_KEY, "hello").call(ctx::run))
+            .withMessage("f must not return null");
+      }
     }
 
     @Nested
@@ -112,13 +144,12 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("succeed() should allow null value")
-      void succeed_shouldAllowNullValue() {
-        Context<String, Integer> ctx = Context.succeed(null);
-
-        Integer result = ctx.run();
-
-        assertThat(result).isNull();
+      @DisplayName("succeed() refuses a null value at the call")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+      void succeed_refusesNullValue() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> Context.succeed(null))
+            .withMessage("Context.succeed value cannot be null");
       }
     }
 
@@ -324,6 +355,14 @@ class ContextTest {
       }
 
       @Test
+      @DisplayName("map() fails when its function returns null")
+      void map_failsWhenFunctionReturnsNull() {
+        Context<String, Integer> ctx = Context.<String, String>succeed("value").map(_ -> null);
+
+        assertThatNullPointerException().isThrownBy(ctx::run).withMessage("f must not return null");
+      }
+
+      @Test
       @DisplayName("map() should compose multiple transformations")
       void map_shouldComposeTransformations() {
         Context<String, String> ctx =
@@ -416,6 +455,17 @@ class ContextTest {
         String result = ctx.run();
 
         assertThat(result).isEqualTo("recovered: error");
+      }
+
+      @Test
+      @DisplayName("recover() fails when its function returns null")
+      void recover_failsWhenFunctionReturnsNull() {
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("error")).recover(_ -> null);
+
+        assertThatNullPointerException()
+            .isThrownBy(ctx::run)
+            .withMessage("recoveryFunction must not return null");
       }
 
       @Test
@@ -659,9 +709,9 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("toMaybe() should convert null result to Nothing")
-      void toMaybe_shouldConvertNullToNothing() {
-        Context<String, String> ctx = Context.succeed(null);
+      @DisplayName("toMaybe() should give Nothing when a step produces null")
+      void toMaybe_shouldGiveNothingForANullStep() {
+        Context<String, String> ctx = Context.<String, String>succeed("value").map(_ -> null);
 
         Maybe<String> result = ctx.toMaybe();
 
@@ -756,13 +806,12 @@ class ContextTest {
       }
 
       @Test
-      @DisplayName("Pure record should allow null value")
-      @SuppressWarnings("ConstantValue") // Pure(null).run() is intentionally null
-      void pure_shouldAllowNullValue() {
-        Context.Pure<String, Integer> pure = new Context.Pure<>(null);
-
-        assertThat(pure.value()).isNull();
-        assertThat(pure.run()).isNull();
+      @DisplayName("Pure record refuses a null value")
+      @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+      void pure_refusesNullValue() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> new Context.Pure<String, Integer>(null))
+            .withMessage("Context.construction value cannot be null");
       }
     }
 

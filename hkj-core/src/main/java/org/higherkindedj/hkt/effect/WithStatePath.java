@@ -92,12 +92,14 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a WithStatePath that returns a constant value without modifying state.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param <S> the state type
    * @param <A> the type of the value
    * @return a WithStatePath that always returns the given value
+   * @throws NullPointerException if value is null
    */
   public static <S, A> WithStatePath<S, A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new WithStatePath<>(State.pure(value));
   }
 
@@ -141,7 +143,8 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a WithStatePath that extracts a value from the state without modifying it.
    *
-   * @param f the function to extract a value from the state; must not be null
+   * @param f the function to extract a value from the state; must not be null, and must not return
+   *     null
    * @param <S> the state type
    * @param <A> the type of the extracted value
    * @return a WithStatePath that inspects the state
@@ -202,7 +205,8 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
   @Override
   public <B> WithStatePath<S, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new WithStatePath<>(state.map(mapper));
+    return new WithStatePath<>(
+        state.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -238,7 +242,10 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
               StateTuple<S, A> resultA = this.state.run(s);
               StateTuple<S, B> resultB = typedOther.state.run(resultA.state());
               return new StateTuple<>(
-                  combiner.apply(resultA.value(), resultB.value()), resultB.state());
+                  Objects.requireNonNull(
+                      combiner.apply(resultA.value(), resultB.value()),
+                      "combiner must not return null"),
+                  resultB.state());
             }));
   }
 
@@ -247,7 +254,7 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -268,7 +275,9 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
               StateTuple<S, B> resultB = second.state.run(resultA.state());
               StateTuple<S, C> resultC = third.state.run(resultB.state());
               return new StateTuple<>(
-                  combiner.apply(resultA.value(), resultB.value(), resultC.value()),
+                  Objects.requireNonNull(
+                      combiner.apply(resultA.value(), resultB.value(), resultC.value()),
+                      "combiner must not return null"),
                   resultC.state());
             }));
   }
@@ -352,16 +361,13 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
   /**
    * Converts to a MaybePath by providing the initial state.
    *
-   * <p>If the computed value is null, returns an empty MaybePath.
-   *
    * @param initialState the initial state to use; must not be null
-   * @return a MaybePath containing the computed value if non-null
+   * @return a MaybePath containing the computed value
    * @throws NullPointerException if initialState is null
    */
   public MaybePath<A> toMaybePath(S initialState) {
     Objects.requireNonNull(initialState, "initialState must not be null");
-    A result = evalState(initialState);
-    return result != null ? new MaybePath<>(Maybe.just(result)) : new MaybePath<>(Maybe.nothing());
+    return new MaybePath<>(Maybe.just(evalState(initialState)));
   }
 
   // ===== Object methods =====

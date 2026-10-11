@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
@@ -58,7 +59,9 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
    *     null.
    */
   @Override
+  @SuppressWarnings("NullableProblems") // VStream forbids null
   public <A> Kind<VStreamKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, VStreamApplicative.class, OF);
     return VSTREAM.widen(VStream.of(value));
   }
 

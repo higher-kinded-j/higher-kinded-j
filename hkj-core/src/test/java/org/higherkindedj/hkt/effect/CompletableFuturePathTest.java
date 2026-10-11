@@ -213,6 +213,39 @@ class CompletableFuturePathTest {
     }
 
     @Test
+    @DisplayName("cancelling the path's future cancels the future it was given")
+    void cancellingThePathCancelsTheGivenFuture() {
+      CompletableFuture<String> pending = new CompletableFuture<>();
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(pending);
+
+      path.toCompletableFuture().cancel(true);
+
+      assertThat(pending.isCancelled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("cancelling the given future cancels the path's future")
+    void cancellingTheGivenFutureCancelsThePath() {
+      CompletableFuture<String> pending = new CompletableFuture<>();
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(pending);
+
+      pending.cancel(true);
+
+      assertThat(path.toCompletableFuture().isCancelled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a given future that fails fails the path with the same exception")
+    void aFailedGivenFutureKeepsItsException() {
+      IllegalStateException failure = new IllegalStateException("boom");
+      CompletableFuture<String> failed = CompletableFuture.failedFuture(failure);
+
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(failed);
+
+      assertThat(path.toCompletableFuture().exceptionNow()).isSameAs(failure);
+    }
+
+    @Test
     @DisplayName("isCompletedExceptionally() returns true for failed future")
     void isCompletedExceptionallyReturnsTrue() {
       CompletableFuturePath<String> path =
@@ -618,13 +651,11 @@ class CompletableFuturePathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() converts null value to Nothing")
-    void toMaybePathConvertsNullToNothing() {
-      CompletableFuturePath<String> path = CompletableFuturePath.completed(null);
-
-      MaybePath<String> result = path.toMaybePath();
-
-      assertThat(result.run().isNothing()).isTrue();
+    @DisplayName("a future's value is never null, so completed refuses one")
+    void completedRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CompletableFuturePath.completed(null))
+          .withMessage("value must not be null");
     }
 
     @Test

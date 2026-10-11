@@ -230,7 +230,7 @@ public final class Resource<A> {
 
     return () -> {
       Allocated<A> allocated = allocate.call();
-      @Nullable B result;
+      B result;
       try {
         VTask<B> task = f.apply(allocated.value());
         Objects.requireNonNull(task, "f returned null in Resource.use, which is not allowed");
@@ -250,13 +250,14 @@ public final class Resource<A> {
    * <p>Convenience method for when the use function doesn't need to return a VTask.
    *
    * @param <B> the type of the result
-   * @param f function that uses the resource; must not be null
+   * @param f function that uses the resource; must not be null, and must not return null: a null
+   *     result fails the VTask with a {@link NullPointerException}, after the resource is released
    * @return a VTask that manages the resource lifecycle
    * @throws NullPointerException if f is null
    */
   public <B> VTask<B> useSync(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return use(a -> VTask.succeed(f.apply(a)));
+    return use(a -> VTask.succeed(Objects.requireNonNull(f.apply(a), "f must not return null")));
   }
 
   // ==================== Composition ====================

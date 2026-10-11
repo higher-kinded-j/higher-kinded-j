@@ -5,6 +5,7 @@ package org.higherkindedj.optics.util;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -440,13 +441,16 @@ public final class ListPrisms {
    * }</pre>
    *
    * @param list The list to fold.
-   * @param initial The initial accumulator value.
-   * @param f The combining function: (element, accumulator) -> new accumulator.
+   * @param initial The initial accumulator value. Must not be null.
+   * @param f The combining function: (element, accumulator) -> new accumulator. Must not return
+   *     null.
    * @param <A> The element type.
    * @param <B> The accumulator type.
    * @return The final accumulated value.
+   * @throws NullPointerException if {@code initial} is null, or {@code f} returns null
    */
   public static <A, B> B foldRight(List<A> list, B initial, BiFunction<A, B, B> f) {
+    Objects.requireNonNull(initial, "initial must not be null");
     return foldRightTrampoline(list, 0, initial, f).run();
   }
 

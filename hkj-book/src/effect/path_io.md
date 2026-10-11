@@ -45,6 +45,8 @@ IOPath<String> readFile = Path.io(() -> {
 IOPath<Connection> conn = Path.ioPath(databaseIO);
 ```
 
+An `IOPath` always gives a value. `Path.ioPure(null)` throws at the call, and a supplier or `map` function that returns null fails the path when it runs, naming that function. A step with nothing to return is `Path.ioRunnable`, which gives `Unit`. [A Task Always Gives a Value](../monads/vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
 ~~~admonish tip title="A computation that throws"
 `Path.vtask` takes a `Callable`, so a throwing computation goes in as it stands:
 `Path.vtask(() -> Files.readString(path))`. See [VTaskPath](path_vtask.md).

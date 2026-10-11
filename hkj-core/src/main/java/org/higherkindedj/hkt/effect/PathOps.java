@@ -649,10 +649,12 @@ public final class PathOps {
             () -> {
               Throwable lastError = null;
               for (VTaskPath<A> path : paths) {
-                // Catch every Throwable, not only Exception, and hand back a null result as it
-                // is: a VTaskPath may hold one, where a Try.Success may not.
+                // Catch every Throwable, not only Exception. A null result, which only a
+                // hand-written task can give, counts as a failure, as run() treats it.
                 try {
-                  return path.run().execute();
+                  return Objects.requireNonNull(
+                      path.run().execute(),
+                      "the task returned null, and a VTask always gives a value");
                 } catch (Throwable t) {
                   lastError = t;
                 }
@@ -1142,7 +1144,7 @@ public final class PathOps {
    * @param first the first IOPath; must not be null
    * @param second the second IOPath; must not be null
    * @param third the third IOPath; must not be null
-   * @param combiner the function to combine results; must not be null
+   * @param combiner the function to combine results; must not be null, and must not return null
    * @param <A> the type of the first value
    * @param <B> the type of the second value
    * @param <C> the type of the third value
@@ -1169,7 +1171,9 @@ public final class PathOps {
 
               try {
                 CompletableFuture.allOf(futureA, futureB, futureC).get();
-                return combiner.apply(futureA.join(), futureB.join(), futureC.join());
+                return Objects.requireNonNull(
+                    combiner.apply(futureA.join(), futureB.join(), futureC.join()),
+                    "combiner must not return null");
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Parallel execution interrupted", e);
@@ -1190,7 +1194,7 @@ public final class PathOps {
    * @param second the second IOPath; must not be null
    * @param third the third IOPath; must not be null
    * @param fourth the fourth IOPath; must not be null
-   * @param combiner the function to combine results; must not be null
+   * @param combiner the function to combine results; must not be null, and must not return null
    * @param <A> the type of the first value
    * @param <B> the type of the second value
    * @param <C> the type of the third value
@@ -1221,8 +1225,9 @@ public final class PathOps {
 
               try {
                 CompletableFuture.allOf(futureA, futureB, futureC, futureD).get();
-                return combiner.apply(
-                    futureA.join(), futureB.join(), futureC.join(), futureD.join());
+                return Objects.requireNonNull(
+                    combiner.apply(futureA.join(), futureB.join(), futureC.join(), futureD.join()),
+                    "combiner must not return null");
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Parallel execution interrupted", e);
@@ -1567,7 +1572,9 @@ public final class PathOps {
       return Path.vstreamEmpty();
     }
 
-    return flattenVStream(Path.vstreamFromList(items).map(f));
+    // A stream cannot hold a null item, so this streams the positions and hands f each item
+    List<A> snapshot = new ArrayList<>(items);
+    return Path.vstreamRange(0, snapshot.size()).via(i -> f.apply(snapshot.get(i)));
   }
 
   /**

@@ -94,10 +94,11 @@ public enum VTaskKindHelper implements VTaskConverterOps {
    * Creates a {@link Kind<VTaskKind.Witness, A>} that succeeds with the given value.
    *
    * @param <A> The type of the value.
-   * @param value The value to wrap. Can be {@code null}.
+   * @param value The value to wrap. Must not be null.
    * @return A non-null {@link Kind<VTaskKind.Witness, A>} representing the successful computation.
+   * @throws NullPointerException if {@code value} is null.
    */
-  public <A> Kind<VTaskKind.Witness, A> succeed(@Nullable A value) {
+  public <A> Kind<VTaskKind.Witness, A> succeed(A value) {
     return this.widen(VTask.succeed(value));
   }
 
@@ -120,13 +121,13 @@ public enum VTaskKindHelper implements VTaskConverterOps {
    * @param <A> The result type of the computation.
    * @param kind The {@code Kind<VTaskKind.Witness, A>} holding the VTask computation. Must not be
    *     null.
-   * @return The result of executing the VTask computation.
+   * @return The result of executing the VTask computation. Never null.
    * @throws VTaskExecutionException if the computation throws a checked exception
    * @throws RuntimeException if the computation throws an unchecked exception
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} cannot be
    *     unwrapped.
    */
-  public <A> @Nullable A run(Kind<VTaskKind.Witness, A> kind) {
+  public <A> A run(Kind<VTaskKind.Witness, A> kind) {
     return this.narrow(kind).run();
   }
 

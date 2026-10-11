@@ -53,6 +53,8 @@ VTaskPath<Unit> logAction = Path.vtaskExec(() -> logger.info("Starting..."));
 VTaskPath<Config> config = Path.vtaskPath(existingVTask);
 ```
 
+A `VTaskPath` always gives a value. `Path.vtaskPure(null)` throws at the call, and a callable or `map` function that returns null fails the path when it runs, naming that function. A step with nothing to return is `Path.vtaskExec`, which gives `Unit`. [A Task Always Gives a Value](../monads/vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
 Unlike `IOPath`, which defers execution until you call `unsafeRun()`, a
 `VTaskPath` also defers execution. Nothing happens until you explicitly
 run the task. The difference is in *how* it runs: on a virtual thread,

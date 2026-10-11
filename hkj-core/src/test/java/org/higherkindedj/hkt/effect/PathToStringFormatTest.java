@@ -47,10 +47,9 @@ class PathToStringFormatTest {
     }
 
     @Test
-    @DisplayName("IdPath is null-safe")
-    void idPathNullSafe() {
+    @DisplayName("IdPath shows its value")
+    void idPathShowsItsValue() {
       assertThat(Path.id(9).toString()).isEqualTo("IdPath(9)");
-      assertThat(Path.id(null).toString()).isEqualTo("IdPath(null)");
     }
 
     @Test

@@ -3,12 +3,12 @@
 package org.higherkindedj.hkt.context;
 
 import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} interface for the {@link Context} type, using {@link
@@ -52,13 +52,16 @@ public class ContextApplicative<R> extends ContextFunctor<R>
    * Lifts a pure value {@code value} into the {@link Context} context. The resulting {@code
    * Context<R, A>} will produce the given value without reading from any scoped value.
    *
-   * @param value The value to lift into the Context. May be null if {@code A} is a nullable type.
+   * @param value The non-null value to lift into the Context, since a Context always gives one.
    * @param <A> The type of the lifted value.
    * @return A {@code Kind<ContextKind.Witness<R>, A>} representing a {@code Context<R, A>} that
    *     yields the given value. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  public <A> Kind<ContextKind.Witness<R>, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Context forbids null
+  public <A> Kind<ContextKind.Witness<R>, A> of(A value) {
+    Validation.coreType().requireValue(value, ContextApplicative.class, OF);
     return CONTEXT.succeed(value);
   }
 
@@ -76,8 +79,7 @@ public class ContextApplicative<R> extends ContextFunctor<R>
    * @param <B> The result type of the function application.
    * @return A new {@code Kind<ContextKind.Witness<R>, B>} representing the {@code Context<R, B>}
    *     that results from applying the function. Never null.
-   * @throws NullPointerException if {@code ff} or {@code fa} is null, or if the function extracted
-   *     from the Context is null.
+   * @throws NullPointerException if {@code ff} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
    *     be unwrapped to valid Context representations.
    */
@@ -91,14 +93,7 @@ public class ContextApplicative<R> extends ContextFunctor<R>
     Context<R, ? extends Function<A, B>> contextF = CONTEXT.narrow(ff);
     Context<R, A> contextA = CONTEXT.narrow(fa);
 
-    Context<R, B> contextB =
-        contextF.flatMap(
-            func -> {
-              if (func == null) {
-                throw new NullPointerException("Function extracted from Context for 'ap' was null");
-              }
-              return contextA.map(func);
-            });
+    Context<R, B> contextB = contextF.flatMap(func -> contextA.map(func));
 
     return CONTEXT.widen(contextB);
   }

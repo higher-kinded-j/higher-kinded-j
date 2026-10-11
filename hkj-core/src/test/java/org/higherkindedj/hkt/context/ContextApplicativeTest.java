@@ -119,14 +119,12 @@ class ContextApplicativeTest {
     }
 
     @Test
-    @DisplayName("of() should allow null value")
-    void of_shouldAllowNullValue() {
-      Kind<ContextKind.Witness<String>, Integer> kind = applicative.of(null);
-
-      Context<String, Integer> ctx = CONTEXT.narrow(kind);
-      Integer result = ctx.run();
-
-      assertThat(result).isNull();
+    @DisplayName("of() refuses a null value at the call, since a Context always gives one")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void of_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("ContextApplicative.of value cannot be null");
     }
   }
 
@@ -165,17 +163,15 @@ class ContextApplicativeTest {
     }
 
     @Test
-    @DisplayName("ap() should throw if function is null")
-    void ap_shouldThrowIfFunctionIsNull() {
-      Kind<ContextKind.Witness<String>, Function<Integer, String>> ff = CONTEXT.succeed(null);
+    @DisplayName("ap() fails when the function returns null")
+    void ap_failsWhenFunctionReturnsNull() {
+      Kind<ContextKind.Witness<String>, Function<Integer, String>> ff = CONTEXT.succeed(_ -> null);
       Kind<ContextKind.Witness<String>, Integer> fa = CONTEXT.succeed(42);
 
       Kind<ContextKind.Witness<String>, String> result = applicative.ap(ff, fa);
       Context<String, String> ctx = CONTEXT.narrow(result);
 
-      assertThatNullPointerException()
-          .isThrownBy(ctx::run)
-          .withMessageContaining("Function extracted from Context for 'ap' was null");
+      assertThatNullPointerException().isThrownBy(ctx::run).withMessage("f must not return null");
     }
 
     @Test

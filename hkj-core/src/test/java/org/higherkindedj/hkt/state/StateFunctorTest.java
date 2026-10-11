@@ -165,14 +165,15 @@ class StateFunctorTest extends StateTestBase<Integer> {
   class EdgeCases {
 
     @Test
-    @DisplayName("map should handle null-returning mapper")
-    @SuppressWarnings("DataFlowIssue") // null-returning mapper exercises State's null handling
-    void mapShouldHandleNullReturningMapper() {
+    @DisplayName("map fails when run if its mapper returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void mapFailsWhenMapperReturnsNull() {
       Function<Integer, String> nullMapper = _ -> null;
       Kind<StateKind.Witness<Integer>, String> mapped = functor.map(nullMapper, validKind);
 
-      StateTuple<Integer, String> result = runState(mapped, getInitialState());
-      assertThatStateTuple(result).hasNullValue().hasStateNonNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> runState(mapped, getInitialState()))
+          .withMessage("f must not return null");
     }
 
     @Test

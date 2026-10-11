@@ -2,6 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.context;
 
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+import static org.higherkindedj.hkt.util.validation.Operation.SUCCEED;
+
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.NoSuchElementException;
@@ -11,8 +14,8 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.hkt.vtask.VTask;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a computation that reads a value of type {@code R} from a {@link ScopedValue
@@ -35,6 +38,9 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>HKT Integration:</b> Implements {@link ContextKind} for use with Higher-Kinded-J type
  *       classes like {@link org.higherkindedj.hkt.Functor Functor} and {@link
  *       org.higherkindedj.hkt.Monad Monad}.
+ *   <li><b>Always a value:</b> a computation that succeeds gives a value, never {@code null}. A
+ *       step that produces {@code null} fails the computation with a {@link NullPointerException}
+ *       naming that step.
  * </ul>
  *
  * <p><b>Example:</b>
@@ -79,12 +85,13 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * bound. If a required scoped value is not bound, a {@link NoSuchElementException} will be
    * thrown.
    *
-   * @return The result of the computation.
+   * @return The result of the computation. Never null.
    * @throws NoSuchElementException if a required {@link ScopedValue} is not bound.
    * @throws ContextException if the computation fails with a checked exception.
-   * @throws RuntimeException if the computation fails with a runtime exception.
+   * @throws RuntimeException if the computation fails with a runtime exception, including a {@link
+   *     NullPointerException} if a step produces null.
    */
-  @Nullable A run();
+  A run();
 
   // ===== FACTORY METHODS =====
 
@@ -94,6 +101,10 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    *
    * <p>This is the fundamental operation for accessing scoped values. The returned context, when
    * run, will call {@link ScopedValue#get()} on the provided key.
+   *
+   * <p>A context always gives a value, so a key bound to null fails the context with a {@link
+   * NullPointerException} when it runs. Read a key that may hold null with {@code asks(key,
+   * Maybe::fromNullable)}.
    *
    * @param key The {@link ScopedValue} to read from. Must not be null.
    * @param <R> The type of the scoped value.
@@ -112,7 +123,8 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * <p>This is a convenience method combining {@link #ask(ScopedValue)} and {@link #map(Function)}.
    *
    * @param key The {@link ScopedValue} to read from. Must not be null.
-   * @param f The function to apply to the scoped value. Must not be null.
+   * @param f The function to apply to the scoped value. Must not be null, and must not return null:
+   *     a null result fails the computation with a {@link NullPointerException}.
    * @param <R> The type of the scoped value.
    * @param <A> The type of the transformed result.
    * @return A {@code Context<R, A>} that reads the scoped value and applies the function.
@@ -130,12 +142,14 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    *
    * <p>This is the "pure" or "return" operation for the Context monad.
    *
-   * @param value The value to wrap. May be null.
+   * @param value The value to wrap. Must not be null.
    * @param <R> The phantom type parameter for the scoped value (not used).
    * @param <A> The type of the value.
    * @return A {@code Context<R, A>} that succeeds with the given value.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <R, A> Context<R, A> succeed(@Nullable A value) {
+  static <R, A> Context<R, A> succeed(A value) {
+    Validation.coreType().requireValue(value, Context.class, SUCCEED);
     return new Pure<>(value);
   }
 
@@ -237,14 +251,15 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    *
    * <p>This is the Functor {@code map} operation for Context.
    *
-   * @param f The function to apply to the result. Must not be null.
+   * @param f The function to apply to the result. Must not be null, and must not return null: a
+   *     null result fails the computation with a {@link NullPointerException}.
    * @param <B> The type of the transformed result.
    * @return A new {@code Context<R, B>} with the transformed result.
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Context<R, B> map(Function<? super A, ? extends B> f) {
     Objects.requireNonNull(f, "function cannot be null");
-    return flatMap(a -> succeed(f.apply(a)));
+    return flatMap(a -> succeed(Objects.requireNonNull(f.apply(a), "f must not return null")));
   }
 
   /**
@@ -267,7 +282,8 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * Recovers from a failure by applying the given function to produce a recovery value.
    *
    * @param recoveryFunction A function that takes the error and returns a recovery value. Must not
-   *     be null.
+   *     be null, and must not return null: a null result fails the computation with a {@link
+   *     NullPointerException}.
    * @return A new {@code Context<R, A>} that recovers from failures.
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
@@ -324,8 +340,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    */
   default Maybe<A> toMaybe() {
     try {
-      A result = run();
-      return result != null ? Maybe.just(result) : Maybe.nothing();
+      return Maybe.just(run());
     } catch (Throwable t) {
       return Maybe.nothing();
     }
@@ -359,9 +374,17 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
 
     @Override
     @SuppressWarnings("unchecked")
-    public @Nullable A run() {
+    public A run() {
       R value = key.get();
-      return (A) transform.apply(value);
+      A result = (A) transform.apply(value);
+      if (result == null) {
+        throw new NullPointerException(
+            value == null
+                ? "the scoped value is null: read a key that may hold null with asks(key,"
+                    + " Maybe::fromNullable)"
+                : "f must not return null");
+      }
+      return result;
     }
   }
 
@@ -371,10 +394,14 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * @param <R> The phantom type parameter for the scoped value.
    * @param <A> The type of the value.
    */
-  record Pure<R, A>(@Nullable A value) implements Context<R, A> {
+  record Pure<R, A>(A value) implements Context<R, A> {
+
+    public Pure {
+      Validation.coreType().requireValue(value, Context.class, CONSTRUCTION);
+    }
 
     @Override
-    public @Nullable A run() {
+    public A run() {
       return value;
     }
   }
@@ -401,7 +428,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
     }
 
     @Override
-    public @Nullable B run() {
+    public B run() {
       // Delegate to trampolined evaluation for stack safety
       return evaluate(this);
     }
@@ -424,7 +451,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
     }
 
     @Override
-    public @Nullable A run() {
+    public A run() {
       throw error;
     }
   }
@@ -447,11 +474,13 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
 
     @Override
     @SuppressWarnings("unchecked")
-    public @Nullable A run() {
+    public A run() {
       try {
         return source.run();
       } catch (Throwable t) {
-        return (A) recoveryFunction.apply(ContextException.unwrap(t));
+        return Objects.requireNonNull(
+            (A) recoveryFunction.apply(ContextException.unwrap(t)),
+            "recoveryFunction must not return null");
       }
     }
   }
@@ -477,7 +506,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
     }
 
     @Override
-    public @Nullable A run() {
+    public A run() {
       // Delegate to trampolined evaluation for stack safety
       return evaluate(this);
     }
@@ -500,7 +529,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
     }
 
     @Override
-    public @Nullable A run() {
+    public A run() {
       try {
         return source.run();
       } catch (Throwable t) {
@@ -524,7 +553,7 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
    * @return The result of evaluating the context.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private static <R, A> @Nullable A evaluate(Context<R, A> context) {
+  private static <R, A> A evaluate(Context<R, A> context) {
     // Local record to mark recovery handlers on the stack (distinguishes from continuations)
     record RecoveryHandler(Function recoveryFunction) {}
     // Stack holds either Function (continuation) or RecoveryHandler (error handler)

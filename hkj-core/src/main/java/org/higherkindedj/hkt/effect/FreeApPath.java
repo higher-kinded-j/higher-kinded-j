@@ -81,15 +81,16 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
   /**
    * Creates a FreeApPath containing a pure value.
    *
-   * @param value the value to wrap
+   * @param value the value to wrap; must not be null
    * @param functor the Functor instance for F; must not be null
    * @param <F> the functor witness type
    * @param <A> the value type
    * @return a FreeApPath containing the value
-   * @throws NullPointerException if functor is null
+   * @throws NullPointerException if value or functor is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreeApPath<F, A> pure(
       A value, Functor<F> functor) {
+    Objects.requireNonNull(value, "value must not be null");
     Objects.requireNonNull(functor, "functor must not be null");
     return new FreeApPath<>(FreeAp.pure(value), functor);
   }
@@ -212,7 +213,9 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
   @Override
   public <B> FreeApPath<F, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new FreeApPath<>(freeAp.map(mapper), functor);
+    return new FreeApPath<>(
+        freeAp.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")),
+        functor);
   }
 
   @Override
@@ -240,7 +243,11 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
     }
 
     FreeApPath<F, B> typedOther = (FreeApPath<F, B>) otherFreeAp;
-    FreeAp<F, C> combined = freeAp.map2(typedOther.freeAp, combiner);
+    FreeAp<F, C> combined =
+        freeAp.map2(
+            typedOther.freeAp,
+            (a, b) ->
+                Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null"));
     return new FreeApPath<>(combined, functor);
   }
 
@@ -251,7 +258,8 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
    *
    * @param second the second FreeApPath; must not be null
    * @param third the third FreeApPath; must not be null
-   * @param combiner the function to combine the three values; must not be null
+   * @param combiner the function to combine the three values; must not be null, and must not return
+   *     null
    * @param <B> the type of the second value
    * @param <C> the type of the third value
    * @param <D> the type of the combined result
@@ -266,7 +274,13 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
     Objects.requireNonNull(third, "third must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
-    return this.zipWith(second, (a, b) -> (Function<C, D>) c -> combiner.apply(a, b, c))
+    return this.zipWith(
+            second,
+            (a, b) ->
+                (Function<C, D>)
+                    c ->
+                        Objects.requireNonNull(
+                            combiner.apply(a, b, c), "combiner must not return null"))
         .zipWith(third, Function::apply);
   }
 

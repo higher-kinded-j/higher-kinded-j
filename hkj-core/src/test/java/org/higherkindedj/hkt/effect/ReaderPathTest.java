@@ -464,13 +464,11 @@ class ReaderPathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() returns Nothing for null value")
-    void toMaybePathReturnsNothingForNull() {
-      ReaderPath<Config, String> path = Path.readerPure(null);
-
-      MaybePath<String> result = path.toMaybePath(TEST_CONFIG);
-
-      assertThat(result.run().isNothing()).isTrue();
+    @DisplayName("a reader's value is never null, so readerPure refuses one")
+    void readerPureRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.readerPure(null))
+          .withMessage("value must not be null");
     }
   }
 

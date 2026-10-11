@@ -10,7 +10,6 @@ import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -812,21 +811,6 @@ class VStreamEachTest {
       VStream<String> result = Traversals.modify(vstreamEach.each(), Function.identity(), original);
 
       assertThat(result.toList().run()).containsExactly("a", "b", "c");
-    }
-
-    @Test
-    @DisplayName("VStream traversal with null elements in stream")
-    void handlesNullElements() {
-      Traversal<VStream<String>, String> traversal = VStreamTraversals.forVStream();
-      List<String> elements = new ArrayList<>();
-      elements.add("a");
-      elements.add(null);
-      elements.add("c");
-      VStream<String> stream = VStream.fromList(elements);
-
-      List<String> result = Traversals.getAll(traversal, stream);
-
-      assertThat(result).containsExactly("a", null, "c");
     }
 
     @Test

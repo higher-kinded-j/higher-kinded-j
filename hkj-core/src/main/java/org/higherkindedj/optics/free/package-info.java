@@ -108,4 +108,7 @@
  * @see org.higherkindedj.optics.free.OpticPrograms
  * @see org.higherkindedj.optics.free.OpticInterpreters
  */
+@NullMarked
 package org.higherkindedj.optics.free;
+
+import org.jspecify.annotations.NullMarked;

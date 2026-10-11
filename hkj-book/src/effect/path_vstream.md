@@ -103,6 +103,10 @@ VStreamPath<Page> pages = Path.vstreamUnfold(1, pageNum ->
 Like VTaskPath, nothing runs until a terminal operation executes. Construction only
 describes the pipeline.
 
+A stream never holds a null element. `Path.vstreamPure(null)` and a null among
+`vstreamOf`'s values throw at the call, and a null in a list, a generator or a `map`
+function's result fails the stream when that element is pulled.
+
 ---
 
 ## Core Operations
@@ -278,6 +282,9 @@ VStreamPath<String> names = Path.vstreamOf(
 ).focus(userNameLens);
 // ["Alice", "Bob"]
 ```
+
+A null focus fails the stream, and the message names `focus(path.nullable())`, which
+leaves the element out, as `focus` with an `AffinePath` does.
 
 ### focus with AffinePath (Optional/Prism)
 

@@ -19,7 +19,6 @@ class JsonResponsesTest {
 
     assertThat(JsonResponses.hasSuccessBody(ok, "value")).isTrue();
     assertThat(JsonResponses.hasSuccessBody(ok, Unit.INSTANCE)).isFalse();
-    assertThat(JsonResponses.hasSuccessBody(ok, null)).isFalse();
     assertThat(JsonResponses.hasSuccessBody(HttpStatus.NO_CONTENT.value(), "value")).isFalse();
   }
 }

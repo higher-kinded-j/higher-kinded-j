@@ -5,7 +5,6 @@ package org.higherkindedj.optics.focus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
-import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -362,7 +361,7 @@ class FocusPathBridgeTest {
 
     @Test
     @DisplayName(
-        "the one-argument Either and Try forms refuse a null focus, naming the forms to use")
+        "the one-argument Either, Try and Id forms refuse a null focus, naming the forms to use")
     void oneArgumentFormsRefuseANullFocus() {
       assertThatNullPointerException()
           .isThrownBy(() -> NICKNAME.<String>toEitherPath(UNNAMED))
@@ -372,7 +371,9 @@ class FocusPathBridgeTest {
           .isThrownBy(() -> NICKNAME.toTryPath(UNNAMED))
           .withMessage(
               "the focus is null: use toTryPath(source, exceptionIfNull) to give a Failure for it");
-      assertThatId(NICKNAME.toIdPath(UNNAMED).run()).hasNullValue();
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toIdPath(UNNAMED))
+          .withMessage("the focus is null: use toMaybePath(source) to give a Nothing for it");
     }
   }
 

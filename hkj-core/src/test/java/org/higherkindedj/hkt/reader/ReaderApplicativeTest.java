@@ -280,19 +280,21 @@ class ReaderApplicativeTest extends ReaderTestBase {
   class EdgeCasesAndBoundaryConditions {
 
     @Test
-    @DisplayName("of() with null value creates Reader that returns null")
-    void ofWithNullValueCreatesReaderThatReturnsNull() {
-      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.of(null);
-
-      Reader<TestConfig, String> reader = narrowToReader(result);
-      assertThatReader(reader).whenRunWith(TEST_CONFIG).producesNull();
+    @DisplayName("of() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> applicative.of(null))
+          .withMessage("ReaderApplicative.of value cannot be null");
     }
 
     @Test
-    @DisplayName("ap() with null function throws when run")
+    @DisplayName("ap() with a hand-written Reader giving a null function throws when run")
+    @SuppressWarnings("DataFlowIssue") // the lambda returns null to reach the ap guard
     void apWithNullFunctionThrowsWhenRun() {
+      Reader<TestConfig, Function<Integer, String>> nullFunction = _ -> null;
       Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
-          ReaderKindHelper.READER.widen(Reader.constant(null));
+          ReaderKindHelper.READER.widen(nullFunction);
 
       Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
 
@@ -300,6 +302,22 @@ class ReaderApplicativeTest extends ReaderTestBase {
       assertThatThrownBy(() -> reader.run(TEST_CONFIG))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Function extracted from Reader for 'ap' was null");
+    }
+
+    @Test
+    @DisplayName("ap() fails when run if the function returns null")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void apFailsWhenFunctionReturnsNull() {
+      Function<Integer, String> nullResult = _ -> null;
+      Kind<ReaderKind.Witness<TestConfig>, Function<Integer, String>> funcKind =
+          ReaderKindHelper.READER.widen(Reader.constant(nullResult));
+
+      Kind<ReaderKind.Witness<TestConfig>, String> result = applicative.ap(funcKind, validKind);
+
+      Reader<TestConfig, String> reader = narrowToReader(result);
+      assertThatNullPointerException()
+          .isThrownBy(() -> reader.run(TEST_CONFIG))
+          .withMessage("f must not return null");
     }
 
     @Test

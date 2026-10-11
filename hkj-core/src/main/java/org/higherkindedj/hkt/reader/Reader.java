@@ -10,7 +10,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a computation that depends on a read-only environment {@code R} to produce a value
@@ -77,7 +76,8 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <R> The type of the read-only environment (e.g., configuration, context, dependencies).
  *     This environment is provided when the {@code Reader} is eventually run.
- * @param <A> The type of the value produced by the computation within the {@code Reader}.
+ * @param <A> The type of the value produced by the computation within the {@code Reader}, which is
+ *     never null.
  */
 @FunctionalInterface
 public interface Reader<R, A> extends ReaderKind<R, A> {
@@ -90,11 +90,9 @@ public interface Reader<R, A> extends ReaderKind<R, A> {
    *     nullability contract for {@code r} depends on the design of the environment type {@code R}
    *     and how it's intended to be used. It's generally good practice for {@code R} to be
    *     non-null.
-   * @return The computed value of type {@code A}. The nullability of the result depends on the
-   *     specific computation defined within this {@code Reader}. It's annotated as
-   *     {@code @Nullable} to reflect that the function {@code Function<R, A>} might return null.
+   * @return The computed value of type {@code A}, which is never null.
    */
-  @Nullable A run(@NonNull R r);
+  A run(@NonNull R r);
 
   /**
    * Creates a {@code Reader} instance from a given function. This is the most fundamental way to
@@ -103,15 +101,16 @@ public interface Reader<R, A> extends ReaderKind<R, A> {
    *
    * @param runFunction The function {@code (R -> A)} that represents the core logic of the {@code
    *     Reader}. It takes an environment {@code R} and produces a value {@code A}. Must not be
-   *     null.
+   *     null, and must not return null.
    * @param <R> The type of the environment.
    * @param <A> The type of the value produced.
-   * @return A new {@code Reader<R, A>} instance.
+   * @return A new {@code Reader<R, A>} instance. When run, it throws {@link NullPointerException}
+   *     if {@code runFunction} returns null.
    * @throws NullPointerException if {@code runFunction} is null.
    */
   static <R, A> Reader<R, A> of(Function<R, A> runFunction) {
     Validation.function().require(runFunction, "runFunction", OF);
-    return runFunction::apply;
+    return r -> requireNonNull(runFunction.apply(r), "runFunction must not return null");
   }
 
   /**
@@ -125,16 +124,17 @@ public interface Reader<R, A> extends ReaderKind<R, A> {
    * <p>Equivalent to: {@code r -> f.apply(this.run(r))}
    *
    * @param f The non-null function to apply to the result of this {@code Reader}. It takes a value
-   *     of type {@code A} and returns a value of type {@code B}.
+   *     of type {@code A} and returns a value of type {@code B}, and must not return null.
    * @param <B> The type of the value produced by the mapping function and thus by the new {@code
    *     Reader}.
    * @return A new {@code Reader<R, B>} that, when run, will execute this {@code Reader} and then
-   *     apply the mapping function {@code f} to its result.
+   *     apply the mapping function {@code f} to its result. When run, it throws {@link
+   *     NullPointerException} if {@code f} returns null.
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> Reader<R, B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return (R r) -> f.apply(this.run(r));
+    return (R r) -> requireNonNull(f.apply(this.run(r)), "f must not return null");
   }
 
   /**
@@ -234,14 +234,16 @@ public interface Reader<R, A> extends ReaderKind<R, A> {
    * value. This is useful for injecting a fixed value into a sequence of {@code Reader}
    * computations or for lifting a simple value into the {@code Reader} context.
    *
-   * @param value The constant value (of type {@code A}) to be returned by the {@code Reader}. Can
-   *     be {@code null} if {@code A} is a nullable type.
+   * @param value The constant value (of type {@code A}) to be returned by the {@code Reader}. Must
+   *     not be {@code null}.
    * @param <R> The type of the environment (which will be ignored).
    * @param <A> The type of the constant value.
    * @return A new {@code Reader<R, A>} that always produces the given {@code value} regardless of
    *     the environment it is run with.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <R, A> Reader<R, A> constant(@Nullable A value) {
+  static <R, A> Reader<R, A> constant(A value) {
+    Validation.coreType().requireValue(value, Reader.class, CONSTANT);
     return r -> value;
   }
 

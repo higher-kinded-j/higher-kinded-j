@@ -397,13 +397,11 @@ class WithStatePathTest {
     }
 
     @Test
-    @DisplayName("toMaybePath() converts to Nothing for null")
-    void toMaybePathConvertsToNothing() {
-      WithStatePath<Integer, String> path = WithStatePath.pure(null);
-
-      MaybePath<String> result = path.toMaybePath(0);
-
-      assertThat(result.run().isNothing()).isTrue();
+    @DisplayName("a state's value is never null, so pure refuses one")
+    void pureRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> WithStatePath.pure(null))
+          .withMessage("value must not be null");
     }
   }
 

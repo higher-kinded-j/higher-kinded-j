@@ -48,11 +48,11 @@ Three levels of nesting, three different recovery rules, and the business logic 
 
 ---
 
-## The Solution: `raiseError` and `handleErrorWith`
+## The Solution: `raiseError` and `handleErrorWith` {#the-solution-raiseerror-and-handleerrorwith}
 
 `MonadError` extends `Monad` with two operations that turn try/catch inside out.
 
-1. **`raiseError(E error)`** constructs a failed computation by lifting an error into the monadic context. `Either`, `EitherT`, `Try`, `Validated`, `CompletableFuture` and `VTask` refuse a null error, since their failure always holds one. `Maybe` and `Optional`, whose error is `Unit`, ignore it.
+1. **`raiseError(E error)`** constructs a failed computation by lifting an error into the monadic context. Every instance refuses a null error. `Maybe` and `Optional`, whose failure carries no detail, take `Unit.INSTANCE`.
 2. **`handleErrorWith(fa, handler)`** inspects a failure and provides a fallback computation.
 
 ```
@@ -127,7 +127,7 @@ The business logic reads top to bottom. Recovery is a separate layer applied at 
 @NullMarked
 public interface MonadError<F extends WitnessArity<TypeArity.Unary>, E> extends Monad<F> {
 
-  <A> @NonNull Kind<F, A> raiseError(@Nullable E error);
+  <A> @NonNull Kind<F, A> raiseError(E error);
 
   <A> @NonNull Kind<F, A> handleErrorWith(
       Kind<F, A> ma,
@@ -229,7 +229,7 @@ Three things to know:
 
 - **`recoverWith` takes a value, not a lambda, so its fallback is evaluated eagerly**, even when `ma` succeeds. Reach for it only when the fallback is already built or cheap; if producing it is expensive or effectful-on-demand (like `loadConfigFromEnv()` above), keep `handleErrorWith` so it runs only on the failure path.
 - **The two methods guard different arguments.** `recoverWith` rejects a `null` *fallback* (and a `null` source) eagerly on every `MonadError` instance. A mistyped fallback fails fast at the call site instead of surfacing later from inside `handleErrorWith`.
-- **`recover` rejects a `null` *source*, and `of` decides what a null *value* means.** `Maybe` and `Optional` lift it to `Nothing` or empty, and `CompletableFuture` and `VTask` hold it. `Either`, `Try` and `EitherT` refuse it at the call, since a success always holds a value. `Validated` refuses it only when `ma` is invalid, and names `handleErrorWith` for a null source.
+- **`recover` rejects a `null` *source*, and `of` decides what a null *value* means.** `Maybe` and `Optional` lift it to `Nothing` or empty, and `CompletableFuture` holds it. `Either`, `Try`, `EitherT` and `VTask` refuse it at the call, since a success always holds a value. `Validated` refuses it only when `ma` is invalid, and names `handleErrorWith` for a null source.
 
 ---
 

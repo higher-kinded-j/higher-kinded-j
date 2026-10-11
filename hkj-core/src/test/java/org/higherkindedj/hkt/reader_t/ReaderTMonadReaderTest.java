@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.reader_t;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -143,6 +144,16 @@ class ReaderTMonadReaderTest {
       var asksResult = monadReader.asks(f);
       var readerResult = monadReader.reader(f);
       assertThat(run(asksResult)).isEqualTo(run(readerResult));
+    }
+
+    @Test
+    @DisplayName("asks fails when its function returns null")
+    void asks_refusesANullResult() {
+      var asksResult = monadReader.<String>asks(_ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> run(asksResult))
+          .withMessage("f must not return null");
     }
   }
 

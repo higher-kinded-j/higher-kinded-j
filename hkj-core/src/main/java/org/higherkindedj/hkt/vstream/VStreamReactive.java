@@ -94,6 +94,10 @@ public final class VStreamReactive {
    * <p>Closing the VStream cancels the subscription, so a stream that stops early, through {@link
    * VStream#take(long)} or {@link VStream#headOption()} for example, stops the publisher.
    *
+   * <p>The Flow rules forbid a null element. If the publisher sends one, the subscription is
+   * cancelled, the stream fails with a {@link NullPointerException} when it is pulled that far, and
+   * the subscriber throws one back to the publisher, as those rules ask.
+   *
    * @param publisher the Flow.Publisher to convert; must not be null
    * @param bufferSize the maximum number of elements to buffer; must be positive
    * @param <A> the element type
@@ -123,7 +127,15 @@ public final class VStreamReactive {
           }
 
           @Override
-          public void onNext(A item) {
+          public void onNext(@Nullable A item) {
+            if (item == null) {
+              // The Flow rules forbid a null element: fail the stream, and throw to the publisher
+              NullPointerException refused =
+                  new NullPointerException("VStream.fromPublisher element cannot be null");
+              upstream.cancel();
+              onError(refused);
+              throw refused;
+            }
             try {
               queue.put(new Signal.Element<>(item));
               subscription.request(1);

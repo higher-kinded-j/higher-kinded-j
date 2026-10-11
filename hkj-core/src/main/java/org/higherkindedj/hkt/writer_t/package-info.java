@@ -22,4 +22,7 @@
  * @see org.higherkindedj.hkt.Monoid
  * @see org.higherkindedj.hkt.Pair
  */
+@NullMarked
 package org.higherkindedj.hkt.writer_t;
+
+import org.jspecify.annotations.NullMarked;

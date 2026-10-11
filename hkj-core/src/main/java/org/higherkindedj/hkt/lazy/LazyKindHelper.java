@@ -83,11 +83,12 @@ public enum LazyKindHelper implements LazyConverterOps {
    * Creates an already evaluated {@link Kind<LazyKind.Witness,A>} that holds a known value.
    *
    * @param <A> The type of the value.
-   * @param value The value to wrap. Can be {@code null}.
+   * @param value The value to wrap. Must not be null.
    * @return A non-null {@link Kind<LazyKind.Witness, A>} representing an already evaluated Lazy
    *     holding {@code value}.
+   * @throws NullPointerException if {@code value} is null (enforced by Lazy.now).
    */
-  public <A> Kind<LazyKind.Witness, A> now(@Nullable A value) {
+  public <A> Kind<LazyKind.Witness, A> now(A value) {
     return this.widen(Lazy.now(value));
   }
 
@@ -98,13 +99,12 @@ public enum LazyKindHelper implements LazyConverterOps {
    * @param <A> The result type of the computation.
    * @param kind The {@code Kind<LazyKind.Witness, A>} holding the Lazy computation. Must not be
    *     null.
-   * @return The result of forcing the Lazy computation. Can be {@code null} depending on type
-   *     {@code A}.
+   * @return The result of forcing the Lazy computation. Never null.
    * @throws Throwable if the lazy computation fails.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} cannot be
    *     unwrapped.
    */
-  public <A> @Nullable A force(Kind<LazyKind.Witness, A> kind) throws Throwable {
+  public <A> A force(Kind<LazyKind.Witness, A> kind) throws Throwable {
     return this.narrow(kind).force();
   }
 }

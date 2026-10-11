@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.state_op;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.state.StateTuple;
@@ -96,7 +97,12 @@ public sealed interface StateOp<S, A> extends StateOpKind<S, A>
 
     @Override
     public StateTuple<S, A> interpretState(S state) {
-      return StateTuple.of(state, k.apply(optic.get(state)));
+      R focus =
+          Objects.requireNonNull(
+              optic.get(state),
+              "the focus read by view is null: for a focus that may be absent, view a Getter that"
+                  + " wraps it in an Optional");
+      return StateTuple.of(state, k.apply(focus));
     }
   }
 
@@ -122,7 +128,7 @@ public sealed interface StateOp<S, A> extends StateOpKind<S, A>
 
     @Override
     public StateTuple<S, A> interpretState(S state) {
-      R newValue = f.apply(optic.get(state));
+      R newValue = Objects.requireNonNull(f.apply(optic.get(state)), "f must not return null");
       S newState = optic.set(newValue, state);
       return StateTuple.of(newState, k.apply(newValue));
     }

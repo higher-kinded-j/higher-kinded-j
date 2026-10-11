@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vtask;
 
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.HANDLE_ERROR_WITH;
+import static org.higherkindedj.hkt.util.validation.Operation.RAISE_ERROR;
 import static org.higherkindedj.hkt.util.validation.Operation.RECOVER;
 import static org.higherkindedj.hkt.util.validation.Operation.RECOVER_WITH;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
@@ -12,7 +13,6 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link MonadError} type class for {@link VTask}, using {@link VTaskKind.Witness}
@@ -103,8 +103,8 @@ public class VTaskMonad extends VTaskApplicative
    * @throws NullPointerException if {@code error} is null.
    */
   @Override
-  public <A> Kind<VTaskKind.Witness, A> raiseError(@Nullable Throwable error) {
-    Validation.coreType().requireError(error, VTASK_MONAD_CLASS, HANDLE_ERROR_WITH);
+  public <A> Kind<VTaskKind.Witness, A> raiseError(Throwable error) {
+    Validation.coreType().requireError(error, VTASK_MONAD_CLASS, RAISE_ERROR);
     return VTASK.widen(VTask.fail(error));
   }
 
@@ -173,22 +173,21 @@ public class VTaskMonad extends VTaskApplicative
    * Recovers from a failed {@link VTask} with a pure fallback {@code value}, lifted via {@link
    * #of(Object)}. If {@code ma} succeeds, it is returned unchanged.
    *
-   * <p>This override exists for message consistency only: it names {@code recover} (rather than the
-   * delegated {@code handleErrorWith}) when {@code ma} is null. The behaviour is otherwise
-   * identical to the inherited {@link MonadError} default — {@code value} stays {@link Nullable},
-   * since {@code of(null)} yields a {@code VTask} that succeeds with {@code null}.
+   * <p>A {@code VTask} always gives a value, so a null {@code value} is refused at the call,
+   * whether or not {@code ma} fails.
    *
    * @param <A> The type of the value.
    * @param ma The non-null {@code Kind<VTaskKind.Witness, A>} that might fail.
-   * @param value The fallback value to lift via {@link #of(Object)} if {@code ma} fails.
+   * @param value The non-null fallback value to lift via {@link #of(Object)} if {@code ma} fails.
    * @return The original {@code ma} if it succeeds, otherwise {@code of(value)}. Never null.
-   * @throws NullPointerException if {@code ma} is null.
+   * @throws NullPointerException if {@code ma} or {@code value} is null.
    */
   @Override
-  public <A> Kind<VTaskKind.Witness, A> recover(
-      final Kind<VTaskKind.Witness, A> ma, @Nullable A value) {
+  @SuppressWarnings("NullableProblems") // VTask forbids null
+  public <A> Kind<VTaskKind.Witness, A> recover(final Kind<VTaskKind.Witness, A> ma, A value) {
 
     Validation.kind().requireNonNull(ma, RECOVER, "source");
+    Validation.coreType().requireValue(value, VTASK_MONAD_CLASS, RECOVER);
 
     return handleErrorWith(ma, _ -> of(value));
   }

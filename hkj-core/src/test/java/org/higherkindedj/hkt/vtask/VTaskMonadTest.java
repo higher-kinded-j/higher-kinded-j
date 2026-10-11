@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
@@ -150,7 +151,9 @@ class VTaskMonadTest {
     @Test
     @DisplayName("raiseError() with null throws NullPointerException")
     void raiseErrorWithNullThrowsNPE() {
-      assertThatThrownBy(() -> monad.raiseError(null)).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> monad.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("VTaskMonad.raiseError error cannot be null");
     }
 
     @Test
@@ -241,11 +244,13 @@ class VTaskMonadTest {
     }
 
     @Test
-    @DisplayName("recover() with a null value yields a VTask succeeding with null")
-    void recoverWithNullValueYieldsSuccessOfNull() {
+    @DisplayName("recover() refuses a null value at the call, since a VTask always gives one")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void recoverRefusesANullValue() {
       Kind<VTaskKind.Witness, Integer> ma = VTASK.widen(VTask.fail(new RuntimeException("boom")));
-      Kind<VTaskKind.Witness, Integer> result = monad.recover(ma, null);
-      assertThat(VTASK.narrow(result).run()).isNull();
+      assertThatNullPointerException()
+          .isThrownBy(() -> monad.recover(ma, null))
+          .withMessage("VTaskMonad.recover value cannot be null");
     }
   }
 

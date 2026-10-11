@@ -85,23 +85,55 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Creates a CompletableFuturePath from an existing future.
    *
+   * <p>A CompletableFuturePath always gives a value, so a future that completes with null fails the
+   * path with a {@link NullPointerException}. For a future with nothing to return, such as one from
+   * {@link CompletableFuture#runAsync(Runnable)}, map its result to {@link
+   * org.higherkindedj.hkt.Unit#INSTANCE} first. The path holds a future that mirrors the one given:
+   * it completes, fails or is cancelled as the given one does, and cancelling it cancels the given
+   * one too.
+   *
    * @param future the CompletableFuture to wrap; must not be null
    * @param <A> the value type
    * @return a CompletableFuturePath wrapping the future
    * @throws NullPointerException if future is null
    */
   public static <A> CompletableFuturePath<A> fromFuture(CompletableFuture<A> future) {
-    return new CompletableFuturePath<>(future);
+    Objects.requireNonNull(future, "future must not be null");
+    CompletableFuture<A> checked = new CompletableFuture<>();
+    // A mirror rather than thenApply, so a cancelled future still reads as cancelled
+    future.whenComplete(
+        (a, failure) -> {
+          if (failure != null) {
+            checked.completeExceptionally(failure);
+          } else if (a == null) {
+            checked.completeExceptionally(
+                new NullPointerException(
+                    "the future completed with null: map a future with nothing to return to Unit,"
+                        + " with thenApply(_ -> Unit.INSTANCE), before wrapping it"));
+          } else {
+            checked.complete(a);
+          }
+        });
+    // Cancelling the path's future reaches the given one, as when they were the same future
+    checked.whenComplete(
+        (_, _) -> {
+          if (checked.isCancelled()) {
+            future.cancel(true);
+          }
+        });
+    return new CompletableFuturePath<>(checked);
   }
 
   /**
    * Creates an already-completed CompletableFuturePath with the given value.
    *
-   * @param value the completed value
+   * @param value the completed value; must not be null
    * @param <A> the value type
    * @return a completed CompletableFuturePath
+   * @throws NullPointerException if value is null
    */
   public static <A> CompletableFuturePath<A> completed(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new CompletableFuturePath<>(CompletableFuture.completedFuture(value));
   }
 
@@ -121,20 +153,20 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Creates a CompletableFuturePath from a supplier, running async on the common fork-join pool.
    *
-   * @param supplier the supplier for the value; must not be null
+   * @param supplier the supplier for the value; must not be null, and must not return null
    * @param <A> the value type
    * @return a CompletableFuturePath running asynchronously
    * @throws NullPointerException if supplier is null
    */
   public static <A> CompletableFuturePath<A> supplyAsync(Supplier<A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new CompletableFuturePath<>(CompletableFuture.supplyAsync(supplier));
+    return new CompletableFuturePath<>(CompletableFuture.supplyAsync(nonNullResult(supplier)));
   }
 
   /**
    * Creates a CompletableFuturePath from a supplier, running on the given executor.
    *
-   * @param supplier the supplier for the value; must not be null
+   * @param supplier the supplier for the value; must not be null, and must not return null
    * @param executor the executor to run on; must not be null
    * @param <A> the value type
    * @return a CompletableFuturePath running on the executor
@@ -143,7 +175,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   public static <A> CompletableFuturePath<A> supplyAsync(Supplier<A> supplier, Executor executor) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     Objects.requireNonNull(executor, "executor must not be null");
-    return new CompletableFuturePath<>(CompletableFuture.supplyAsync(supplier, executor));
+    return new CompletableFuturePath<>(
+        CompletableFuture.supplyAsync(nonNullResult(supplier), executor));
   }
 
   // ===== Terminal Operations =====
@@ -222,7 +255,9 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   @Override
   public <B> CompletableFuturePath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new CompletableFuturePath<>(future.thenApply(mapper));
+    return new CompletableFuturePath<>(
+        future.thenApply(
+            a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -252,7 +287,11 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
     @SuppressWarnings("unchecked")
     CompletableFuturePath<B> typedOther = (CompletableFuturePath<B>) otherFuture;
 
-    return new CompletableFuturePath<>(future.thenCombine(typedOther.future, combiner));
+    return new CompletableFuturePath<>(
+        future.thenCombine(
+            typedOther.future,
+            (a, b) ->
+                Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
   }
 
   /**
@@ -262,7 +301,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -279,7 +318,11 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
     CompletableFuture<D> combined =
         future
             .thenCombine(second.future, Tuple2<A, B>::new)
-            .thenCombine(third.future, (pair, c) -> combiner.apply(pair._1(), pair._2(), c));
+            .thenCombine(
+                third.future,
+                (pair, c) ->
+                    Objects.requireNonNull(
+                        combiner.apply(pair._1(), pair._2(), c), "combiner must not return null"));
 
     return new CompletableFuturePath<>(combined);
   }
@@ -341,7 +384,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
         future.exceptionally(
             ex -> {
               Exception exception = unwrapException(ex);
-              return recovery.apply(exception);
+              return Objects.requireNonNull(
+                  recovery.apply(exception), "recovery must not return null");
             }));
   }
 
@@ -407,12 +451,13 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Returns a default value if this computation times out.
    *
-   * @param defaultValue the value to return on timeout
+   * @param defaultValue the value to return on timeout; must not be null
    * @param timeout the timeout duration; must not be null
    * @return a new CompletableFuturePath that completes with default on timeout
-   * @throws NullPointerException if timeout is null
+   * @throws NullPointerException if defaultValue or timeout is null
    */
   public CompletableFuturePath<A> completeOnTimeout(A defaultValue, Duration timeout) {
+    Objects.requireNonNull(defaultValue, "defaultValue must not be null");
     Objects.requireNonNull(timeout, "timeout must not be null");
     return new CompletableFuturePath<>(
         future.completeOnTimeout(defaultValue, timeout.toMillis(), TimeUnit.MILLISECONDS));
@@ -447,7 +492,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
    * }</pre>
    *
    * @param other the other path to combine with; must not be null
-   * @param combiner the function to combine results; must not be null
+   * @param combiner the function to combine results; must not be null, and must not return null
    * @param <B> the type of the other value
    * @param <C> the type of the combined result
    * @return a CompletableFuturePath containing the combined result
@@ -457,7 +502,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
       CompletableFuturePath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
-    return new CompletableFuturePath<>(future.thenCombine(other.future, combiner));
+    return zipWith(other, combiner);
   }
 
   /**
@@ -521,7 +566,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
    *     CompletableFuturePath.supplyAsyncWithRetry(() -> httpClient.get(url), policy);
    * }</pre>
    *
-   * @param supplier the supplier for the value; called on each retry attempt; must not be null
+   * @param supplier the supplier for the value; called on each retry attempt; must not be null, and
+   *     must not return null
    * @param policy the retry policy; must not be null
    * @param <A> the value type
    * @return a CompletableFuturePath that retries the supplier on failure
@@ -532,7 +578,7 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
     Objects.requireNonNull(supplier, "supplier must not be null");
     Objects.requireNonNull(policy, "policy must not be null");
     return new CompletableFuturePath<>(
-        CompletableFuture.supplyAsync(() -> Retry.execute(policy, supplier)));
+        CompletableFuture.supplyAsync(nonNullResult(() -> Retry.execute(policy, supplier))));
   }
 
   /**
@@ -620,28 +666,20 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   /**
    * Converts to a TryPath (blocking).
    *
-   * <p>Blocks until the future completes, capturing any exception. A Success always holds a value,
-   * so a future that completes with null gives a Failure holding a {@link NullPointerException}.
+   * <p>Blocks until the future completes, capturing any exception.
    *
    * @return a TryPath containing the result or exception
    */
   public TryPath<A> toTryPath() {
-    return new TryPath<>(
-        Try.of(
-            () ->
-                Objects.requireNonNull(
-                    join(), "the future completed with null, and a Success always holds a value")));
+    return new TryPath<>(Try.of(this::join));
   }
 
   /**
    * Converts to an EitherPath (blocking).
    *
-   * <p>Blocks until the future completes. Exceptions become Left values. A Right always holds a
-   * value, so a future that completes with null throws: {@link #toTryPath()} gives a Failure for it
-   * instead, and keeps a failed future's exception.
+   * <p>Blocks until the future completes. Exceptions become Left values.
    *
    * @return an EitherPath with Exception as Left
-   * @throws NullPointerException if the future completes with null
    */
   public EitherPath<Exception, A> toEitherPath() {
     A value;
@@ -652,33 +690,30 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
           e.getCause() instanceof Exception ex ? ex : new RuntimeException(e.getCause());
       return new EitherPath<>(Either.left(cause));
     }
-    return new EitherPath<>(
-        Either.right(
-            Objects.requireNonNull(
-                value,
-                "the future completed with null: use toTryPath(), which gives a Failure for it and"
-                    + " keeps a failed future's exception")));
+    return new EitherPath<>(Either.right(value));
   }
 
   /**
    * Converts to a MaybePath (blocking).
    *
-   * <p>Blocks until the future completes. Returns Nothing if the future fails or produces null.
+   * <p>Blocks until the future completes. Returns Nothing if the future fails.
    *
-   * @return a MaybePath containing the result if successful and non-null
+   * @return a MaybePath containing the result if successful
    */
   public MaybePath<A> toMaybePath() {
     try {
-      A result = join();
-      return result != null
-          ? new MaybePath<>(Maybe.just(result))
-          : new MaybePath<>(Maybe.nothing());
+      return new MaybePath<>(Maybe.just(join()));
     } catch (CompletionException e) {
       return new MaybePath<>(Maybe.nothing());
     }
   }
 
   // ===== Helper Methods =====
+
+  /** Wraps a supplier so a null result fails the future that runs it. */
+  private static <A> Supplier<A> nonNullResult(Supplier<A> supplier) {
+    return () -> Objects.requireNonNull(supplier.get(), "supplier must not return null");
+  }
 
   /** Unwraps CompletionException to get the underlying exception. */
   private static Exception unwrapException(Throwable ex) {

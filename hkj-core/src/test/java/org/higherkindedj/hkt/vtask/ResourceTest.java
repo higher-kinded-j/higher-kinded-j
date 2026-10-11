@@ -541,6 +541,18 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("useSync() fails when its function returns null, and still releases")
+    void useSyncFailsOnANullResult() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> resource = Resource.make(() -> "test", _ -> released.set(true));
+
+      VTask<String> task = resource.useSync(_ -> null);
+
+      assertThatNullPointerException().isThrownBy(task::run).withMessage("f must not return null");
+      assertThat(released).isTrue();
+    }
+
+    @Test
     @DisplayName("useSync() works with non-effectful functions")
     void useSyncWorksWithSimpleFunctions() {
       AtomicBoolean released = new AtomicBoolean(false);

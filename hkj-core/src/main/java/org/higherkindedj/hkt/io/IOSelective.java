@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.io;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Choice;
 import org.higherkindedj.hkt.Kind;
@@ -22,7 +23,9 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *
  * <p>For IO, selective operations maintain lazy evaluation semantics. This means that effects are
  * only executed when necessary based on the conditions evaluated at runtime. This can lead to more
- * efficient programs where unnecessary side effects are avoided.
+ * efficient programs where unnecessary side effects are avoided. As with {@link IO#map(Function)},
+ * a function that returns null fails the computation with a {@link NullPointerException}, and so
+ * does a {@code Right} choice holding null, since it becomes the computation's value.
  *
  * <p>Key operations:
  *
@@ -85,20 +88,20 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
     IO<Function<A, B>> ioFunction = IO_OP.narrow(ff);
 
     IO<B> ioB =
-        IO.delay(
-            () -> {
-              Choice<A, B> choice = ioChoice.unsafeRunSync();
+        () -> {
+          Choice<A, B> choice = ioChoice.unsafeRunSync();
 
-              // If choice is Right(b), we already have our value
-              if (choice.isRight()) {
-                return choice.getRight();
-              }
+          // If choice is Right(b), we already have our value
+          if (choice.isRight()) {
+            return Objects.requireNonNull(
+                choice.getRight(), "choice must not hold a null Right value");
+          }
 
-              // Choice is Left(a), so we need to apply the function
-              A value = choice.getLeft();
-              Function<A, B> function = ioFunction.unsafeRunSync();
-              return function.apply(value);
-            });
+          // Choice is Left(a), so we need to apply the function
+          A value = choice.getLeft();
+          Function<A, B> function = ioFunction.unsafeRunSync();
+          return Objects.requireNonNull(function.apply(value), "function must not return null");
+        };
 
     return IO_OP.widen(ioB);
   }
@@ -134,18 +137,19 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
     IO<Function<B, C>> rightHandler = IO_OP.narrow(fr);
 
     IO<C> ioC =
-        IO.delay(
-            () -> {
-              Choice<A, B> choice = ioChoice.unsafeRunSync();
+        () -> {
+          Choice<A, B> choice = ioChoice.unsafeRunSync();
 
-              if (choice.isLeft()) {
-                Function<A, C> leftFunc = leftHandler.unsafeRunSync();
-                return leftFunc.apply(choice.getLeft());
-              } else {
-                Function<B, C> rightFunc = rightHandler.unsafeRunSync();
-                return rightFunc.apply(choice.getRight());
-              }
-            });
+          if (choice.isLeft()) {
+            Function<A, C> leftFunc = leftHandler.unsafeRunSync();
+            return Objects.requireNonNull(
+                leftFunc.apply(choice.getLeft()), "leftHandler must not return null");
+          } else {
+            Function<B, C> rightFunc = rightHandler.unsafeRunSync();
+            return Objects.requireNonNull(
+                rightFunc.apply(choice.getRight()), "rightHandler must not return null");
+          }
+        };
 
     return IO_OP.widen(ioC);
   }
@@ -171,17 +175,16 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
     IO<Unit> effectIO = IO_OP.narrow(fa);
 
     IO<Unit> ioUnit =
-        IO.delay(
-            () -> {
-              boolean condition = condIO.unsafeRunSync();
+        () -> {
+          boolean condition = condIO.unsafeRunSync();
 
-              if (condition) {
-                return effectIO.unsafeRunSync();
-              } else {
-                // Condition is false, return Unit (not null!)
-                return Unit.INSTANCE;
-              }
-            });
+          if (condition) {
+            return effectIO.unsafeRunSync();
+          } else {
+            // Condition is false, return Unit (not null!)
+            return Unit.INSTANCE;
+          }
+        };
 
     return IO_OP.widen(ioUnit);
   }
@@ -213,11 +216,10 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
     IO<A> elseIO = IO_OP.narrow(felse);
 
     IO<A> ioA =
-        IO.delay(
-            () -> {
-              boolean condition = condIO.unsafeRunSync();
-              return condition ? thenIO.unsafeRunSync() : elseIO.unsafeRunSync();
-            });
+        () -> {
+          boolean condition = condIO.unsafeRunSync();
+          return condition ? thenIO.unsafeRunSync() : elseIO.unsafeRunSync();
+        };
 
     return IO_OP.widen(ioA);
   }

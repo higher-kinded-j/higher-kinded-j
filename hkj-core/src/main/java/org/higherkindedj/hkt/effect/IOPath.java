@@ -101,9 +101,16 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     return value;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>An IOPath always gives a value, so an IO written by hand as a lambda that returns null fails
+   * here with a {@link NullPointerException}.
+   */
   @Override
   public A unsafeRun() {
-    return value.unsafeRunSync();
+    return Objects.requireNonNull(
+        value.unsafeRunSync(), "the IO returned null, and an IOPath always gives a value");
   }
 
   // runSafe() uses the default implementation from Effectful interface
@@ -137,7 +144,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   @Override
   public <B> IOPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new IOPath<>(value.map(mapper));
+    return new IOPath<>(
+        value.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -169,9 +177,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     return new IOPath<>(
         IO.delay(
             () -> {
-              A a = this.value.unsafeRunSync();
-              B b = typedOther.value.unsafeRunSync();
-              return combiner.apply(a, b);
+              A a = this.unsafeRun();
+              B b = typedOther.unsafeRun();
+              return Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null");
             }));
   }
 
@@ -180,7 +188,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -197,10 +205,11 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     return new IOPath<>(
         IO.delay(
             () -> {
-              A a = this.value.unsafeRunSync();
-              B b = second.value.unsafeRunSync();
-              C c = third.value.unsafeRunSync();
-              return combiner.apply(a, b, c);
+              A a = this.unsafeRun();
+              B b = second.unsafeRun();
+              C c = third.unsafeRun();
+              return Objects.requireNonNull(
+                  combiner.apply(a, b, c), "combiner must not return null");
             }));
   }
 
@@ -213,7 +222,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     return new IOPath<>(
         IO.delay(
             () -> {
-              A a = this.value.unsafeRunSync();
+              A a = this.unsafeRun();
               Chainable<B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
@@ -241,7 +250,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               // Execute this IO for its side effects
-              this.value.unsafeRunSync();
+              this.unsafeRun();
 
               Chainable<B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
@@ -263,7 +272,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
    * alternative value.
    *
-   * @param recovery the function to apply if an exception occurs; must not be null
+   * @param recovery the function to apply if an exception occurs; must not be null, and must not
+   *     return null
    * @return an IOPath that will recover from exceptions
    * @throws NullPointerException if recovery is null
    */
@@ -274,9 +284,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return this.value.unsafeRunSync();
+                return this.unsafeRun();
               } catch (Throwable t) {
-                return recovery.apply(t);
+                return Objects.requireNonNull(recovery.apply(t), "recovery must not return null");
               }
             }));
   }
@@ -301,7 +311,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return this.value.unsafeRunSync();
+                return this.unsafeRun();
               } catch (Throwable t) {
                 Effectful<A> fallback = recovery.apply(t);
                 Objects.requireNonNull(fallback, "recovery must not return null");
@@ -341,7 +351,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * }</pre>
    *
    * @param acquire supplies the resource; must not be null
-   * @param use function that uses the resource; must not be null
+   * @param use function that uses the resource; must not be null, and must not return null
    * @param release function that releases the resource; must not be null
    * @param <R> the resource type
    * @param <A> the result type
@@ -360,7 +370,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               R resource = acquire.get();
-              return Cleanup.guarantee(() -> use.apply(resource), () -> release.accept(resource));
+              return Cleanup.guarantee(
+                  () -> Objects.requireNonNull(use.apply(resource), "use must not return null"),
+                  () -> release.accept(resource));
             }));
   }
 
@@ -422,7 +434,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * @param resourceSupplier supplies the AutoCloseable resource; must not be null, and must not
    *     return null
-   * @param use function that uses the resource; must not be null
+   * @param use function that uses the resource; must not be null, and must not return null
    * @param <R> the resource type (must be AutoCloseable)
    * @param <A> the result type
    * @return an IOPath that manages the resource lifecycle
@@ -433,7 +445,13 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     Objects.requireNonNull(resourceSupplier, "resourceSupplier must not be null");
     Objects.requireNonNull(use, "use must not be null");
 
-    return new IOPath<>(IO.delay(() -> useThenClose(resourceSupplier, use)));
+    return new IOPath<>(
+        IO.delay(
+            () ->
+                useThenClose(
+                    resourceSupplier,
+                    resource ->
+                        Objects.requireNonNull(use.apply(resource), "use must not return null"))));
   }
 
   /**
@@ -530,7 +548,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   @Override
   public IOPath<A> guarantee(Runnable finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    return new IOPath<>(IO.delay(() -> Cleanup.guarantee(this.value::unsafeRunSync, finalizer)));
+    return new IOPath<>(IO.delay(() -> Cleanup.guarantee(this::unsafeRun, finalizer)));
   }
 
   /**
@@ -545,8 +563,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    */
   public IOPath<A> guaranteeIO(IOPath<?> finalizerIO) {
     Objects.requireNonNull(finalizerIO, "finalizerIO must not be null");
-    return new IOPath<>(
-        IO.delay(() -> Cleanup.guarantee(this.value::unsafeRunSync, finalizerIO::unsafeRun)));
+    return new IOPath<>(IO.delay(() -> Cleanup.guarantee(this::unsafeRun, finalizerIO::unsafeRun)));
   }
 
   // ===== Parallel Execution =====
@@ -567,7 +584,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * }</pre>
    *
    * @param other the other IOPath to execute in parallel; must not be null
-   * @param combiner the function to combine results; must not be null
+   * @param combiner the function to combine results; must not be null, and must not return null
    * @param <B> the type of the other value
    * @param <C> the type of the combined result
    * @return an IOPath that runs both computations in parallel and combines results
@@ -587,7 +604,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
               try {
                 A a = futureA.get();
                 B b = futureB.get();
-                return combiner.apply(a, b);
+                return Objects.requireNonNull(
+                    combiner.apply(a, b), "combiner must not return null");
               } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Parallel execution interrupted", e);
@@ -812,10 +830,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return Either.right(
-                    Objects.requireNonNull(
-                        this.value.unsafeRunSync(),
-                        "the computation returned null, and a Right always holds a value"));
+                return Either.right(this.unsafeRun());
               } catch (Throwable t) {
                 return Either.left(
                     ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
@@ -851,7 +866,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return Maybe.just(this.value.unsafeRunSync());
+                return Maybe.just(this.unsafeRun());
               } catch (Throwable t) {
                 return Maybe.nothing();
               }
@@ -885,10 +900,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               try {
-                return Try.success(
-                    Objects.requireNonNull(
-                        this.value.unsafeRunSync(),
-                        "the computation returned null, and a Success always holds a value"));
+                return Try.success(this.unsafeRun());
               } catch (Throwable t) {
                 return Try.failure(t);
               }
@@ -903,9 +915,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside an IO context. The lens operation is deferred along with the IO computation.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
-   * null focus becomes.
+   * <p>An IO always gives a value, so this form takes a focus that is never null and fails on a
+   * null one. For a focus that may be null, pass {@code path.nullable()} to {@link
+   * #focus(AffinePath, Supplier)}, which says what a null focus becomes.
    *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
@@ -914,7 +926,12 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    */
   public <B> IOPath<B> focus(FocusPath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
-    return map(path::get);
+    return map(
+        a ->
+            Objects.requireNonNull(
+                path.get(a),
+                "the focus is null: use focus(path.nullable(), exceptionIfAbsent) to fail with an"
+                    + " exception of your own"));
   }
 
   /**

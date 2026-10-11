@@ -1097,8 +1097,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * <p>This bridges from the optics domain to the effect domain using the identity effect. IdPath
    * is useful when you need a consistent Path interface but don't require any effect semantics.
    *
-   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
-   * be, {@link #toMaybePath(Object)} reads a null focus as Nothing.
+   * <p>An IdPath always holds a value, so this form is for a focus that is never null, and a null
+   * focus throws. For one that may be null, {@link #toMaybePath(Object)} reads it as Nothing.
    *
    * <h2>Example Usage</h2>
    *
@@ -1113,9 +1113,12 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param source the source structure
    * @return an IdPath containing the focused value
+   * @throws NullPointerException if the focus is null
    */
   default IdPath<A> toIdPath(S source) {
-    return Path.id(get(source));
+    return Path.id(
+        Objects.requireNonNull(
+            get(source), "the focus is null: use toMaybePath(source) to give a Nothing for it"));
   }
 
   // ===== Factory Methods =====

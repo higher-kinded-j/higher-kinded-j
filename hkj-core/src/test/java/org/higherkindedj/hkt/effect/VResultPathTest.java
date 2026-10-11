@@ -1045,13 +1045,13 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("toEitherPath() rejects a carrier that produces a null Either")
+    @DisplayName("toEitherPath() rejects a hand-written carrier that returns null")
     void toEitherPathRejectsNullEither() {
-      VResultPath<String, Integer> path = VResultPath.fromVTask(VTask.succeed(null));
+      VResultPath<String, Integer> path = VResultPath.fromVTask(() -> null);
 
       assertThatNullPointerException()
           .isThrownBy(path::toEitherPath)
-          .withMessageContaining("VTask must not produce a null Either");
+          .withMessage("the task returned null, and a VTask always gives a value");
     }
 
     @Test

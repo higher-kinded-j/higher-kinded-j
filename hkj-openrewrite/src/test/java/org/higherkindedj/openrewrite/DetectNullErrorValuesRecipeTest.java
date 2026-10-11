@@ -47,6 +47,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
     "package org.higherkindedj.hkt.optional; import org.higherkindedj.hkt.*;"
         + " public final class OptionalMonad implements MonadError<OptionalKind.Witness, Unit> {"
         + " public <A> Kind<OptionalKind.Witness, A> raiseError(Unit error) { return null; } }",
+    "package com.other; public interface MonadError<E> { Object raiseError(E error); }",
   };
 
   @Override
@@ -71,6 +72,8 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
             import org.higherkindedj.hkt.either.EitherSelective;
             import org.higherkindedj.hkt.either_t.EitherT;
             import org.higherkindedj.hkt.maybe.Maybe;
+            import org.higherkindedj.hkt.optional.OptionalKind;
+            import org.higherkindedj.hkt.optional.OptionalMonad;
             import org.higherkindedj.optics.extensions.LensExtensions;
 
             public class Orders {
@@ -86,6 +89,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                         EitherMonad<String> monad,
                         EitherSelective<String> selective,
                         MonadError<EitherKind.Witness<String>, String> errors,
+                        OptionalMonad optional,
                         Maybe<Integer> maybe,
                         Either<String, Integer> found) {
                     EitherT<Object, String, Integer> lifted = EitherT.left(new Object(), null);
@@ -94,6 +98,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     Object read = LensExtensions.getEither(new Object(), null, "source");
                     Kind<EitherKind.Witness<String>, Integer> raised = monad.raiseError(null);
                     Kind<EitherKind.Witness<String>, Integer> typed = errors.raiseError(null);
+                    Kind<OptionalKind.Witness, Integer> empty = optional.raiseError(null);
                     Either<String, Integer> blanked = found.mapLeft(e -> null);
                     Either<String, String> both = found.bimap(e -> {
                         System.out.println(e);
@@ -113,6 +118,8 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
             import org.higherkindedj.hkt.either.EitherSelective;
             import org.higherkindedj.hkt.either_t.EitherT;
             import org.higherkindedj.hkt.maybe.Maybe;
+            import org.higherkindedj.hkt.optional.OptionalKind;
+            import org.higherkindedj.hkt.optional.OptionalMonad;
             import org.higherkindedj.optics.extensions.LensExtensions;
 
             public class Orders {
@@ -128,14 +135,16 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                         EitherMonad<String> monad,
                         EitherSelective<String> selective,
                         MonadError<EitherKind.Witness<String>, String> errors,
+                        OptionalMonad optional,
                         Maybe<Integer> maybe,
                         Either<String, Integer> found) {
                     EitherT<Object, String, Integer> lifted = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/EitherT.left(new Object(), null);
-                    Kind<EitherKind.Witness<String>, Integer> chosen = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/selective.raiseError(null);
+                    Kind<EitherKind.Witness<String>, Integer> chosen = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/selective.raiseError(null);
                     Either<String, Integer> converted = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/maybe.toEither((String) null);
                     Object read = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/LensExtensions.getEither(new Object(), null, "source");
-                    Kind<EitherKind.Witness<String>, Integer> raised = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/monad.raiseError(null);
-                    Kind<EitherKind.Witness<String>, Integer> typed = /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/errors.raiseError(null);
+                    Kind<EitherKind.Witness<String>, Integer> raised = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/monad.raiseError(null);
+                    Kind<EitherKind.Witness<String>, Integer> typed = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/errors.raiseError(null);
+                    Kind<OptionalKind.Witness, Integer> empty = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/optional.raiseError(null);
                     Either<String, Integer> blanked = /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/found.mapLeft(e -> null);
                     Either<String, String> both = /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/found.bimap(e -> {
                         System.out.println(e);
@@ -147,12 +156,13 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
   }
 
   @Test
-  void leavesRealErrorsAndOtherMonadsAlone() {
+  void leavesRealErrorsAlone() {
     rewriteRun(
         java(
             """
             package test;
 
+            import com.other.MonadError;
             import org.higherkindedj.hkt.Kind;
             import org.higherkindedj.hkt.Unit;
             import org.higherkindedj.hkt.either.Either;
@@ -164,8 +174,13 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     return Either.left("not found: " + id);
                 }
 
-                void more(OptionalMonad optional, Either<String, Integer> found, Runnable r) {
-                    Kind<OptionalKind.Witness, Integer> empty = optional.raiseError(null);
+                void more(
+                        OptionalMonad optional,
+                        MonadError<String> foreign,
+                        Either<String, Integer> found,
+                        Runnable r) {
+                    Kind<OptionalKind.Witness, Integer> empty = optional.raiseError(Unit.INSTANCE);
+                    Object elsewhere = foreign.raiseError(null);
                     Either<Unit, Integer> plain = Either.left(Unit.INSTANCE);
                     Either<String, Integer> loud = found.mapLeft(e -> e + "!");
                     Either<String, Integer> right = Either.right(null);

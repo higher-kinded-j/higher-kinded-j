@@ -78,10 +78,11 @@ class MaybeMonadErrorTest extends MaybeTestBase {
     }
 
     @Test
-    @DisplayName("raiseError() with null Unit still creates Nothing")
-    void raiseErrorWithNullCreatesNothing() {
-      var result = monadError.raiseError(null);
-      assertThatMaybe(result).isNothing();
+    @DisplayName("raiseError() refuses a null error")
+    void raiseErrorRefusesNull() {
+      assertThatThrownBy(() -> monadError.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("MaybeMonad.raiseError error cannot be null");
     }
 
     @Test

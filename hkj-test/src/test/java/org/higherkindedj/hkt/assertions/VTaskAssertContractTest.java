@@ -23,7 +23,6 @@ class VTaskAssertContractTest
   // (executing one VTask captures state in the assert and would taint subsequent rows).
   private static final Supplier<VTask<Integer>> SUCCEED = () -> VTask.succeed(42);
   private static final Supplier<VTask<Integer>> SUCCEED_99 = () -> VTask.succeed(99);
-  private static final Supplier<VTask<Integer>> SUCCEED_NULL = () -> VTask.succeed(null);
   private static final Supplier<VTask<Integer>> FAIL_ISE =
       () -> VTask.fail(new IllegalStateException("ise-msg"));
   private static final Supplier<VTask<Integer>> FAIL_IAE =
@@ -41,7 +40,6 @@ class VTaskAssertContractTest
         row("fails", FAIL_ISE, SUCCEED, VTaskAssert::fails),
         row("hasValue match", SUCCEED, SUCCEED_99, a -> a.hasValue(42)),
         row("hasValue wrong state", SUCCEED, FAIL_ISE, a -> a.hasValue(42)),
-        row("hasNullValue", SUCCEED_NULL, SUCCEED, VTaskAssert::hasNullValue),
         passOnly("hasValueSatisfying passes", SUCCEED, a -> a.hasValueSatisfying(v -> {})),
         failOnly(
             "hasValueSatisfying inner fails",

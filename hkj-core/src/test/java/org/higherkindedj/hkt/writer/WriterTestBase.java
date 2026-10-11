@@ -12,7 +12,6 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 import org.higherkindedj.hkt.typeclass.StringMonoid;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Base class for Writer type class tests.
@@ -82,7 +81,7 @@ abstract class WriterTestBase
    * @param value The value to include
    * @return A new Writer instance
    */
-  protected <A> Writer<String, A> writerOf(String log, @Nullable A value) {
+  protected <A> Writer<String, A> writerOf(String log, A value) {
     return Writer.of(log, value);
   }
 
@@ -93,7 +92,7 @@ abstract class WriterTestBase
    * @param value The value to include
    * @return A new Writer instance with an empty log
    */
-  protected <A> Writer<String, A> valueWriter(@Nullable A value) {
+  protected <A> Writer<String, A> valueWriter(A value) {
     return Writer.value(STRING_MONOID, value);
   }
 

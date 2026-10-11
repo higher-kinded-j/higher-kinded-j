@@ -86,12 +86,14 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a ReaderPath that ignores the environment and always returns the given value.
    *
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @param <R> the environment type (ignored)
    * @param <A> the type of the value
    * @return a ReaderPath that always returns the given value
+   * @throws NullPointerException if value is null
    */
   public static <R, A> ReaderPath<R, A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new ReaderPath<>(Reader.constant(value));
   }
 
@@ -110,7 +112,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
    *
    * <p>This is a convenience method equivalent to {@code ask().map(f)}.
    *
-   * @param f the function to apply to the environment; must not be null
+   * @param f the function to apply to the environment; must not be null, and must not return null
    * @param <R> the environment type
    * @param <A> the type of the extracted value
    * @return a ReaderPath that extracts from the environment
@@ -119,7 +121,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
   public static <R, A> ReaderPath<R, A> asks(Function<? super R, ? extends A> f) {
     Objects.requireNonNull(f, "f must not be null");
     // Create Reader directly to avoid type inference issues with Reader.ask().map()
-    return new ReaderPath<>(r -> f.apply(r));
+    return new ReaderPath<>(r -> Objects.requireNonNull(f.apply(r), "f must not return null"));
   }
 
   // ===== Terminal Operations =====
@@ -150,7 +152,8 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
   @Override
   public <B> ReaderPath<R, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new ReaderPath<>(reader.map(mapper));
+    return new ReaderPath<>(
+        reader.map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -185,7 +188,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
             env -> {
               A a = this.reader.run(env);
               B b = typedOther.reader.run(env);
-              return combiner.apply(a, b);
+              return Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null");
             }));
   }
 
@@ -194,7 +197,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
    *
    * @param second the second path; must not be null
    * @param third the third path; must not be null
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the second path's value
    * @param <C> the type of the third path's value
    * @param <D> the type of the combined result
@@ -214,7 +217,8 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
               A a = this.reader.run(env);
               B b = second.reader.run(env);
               C c = third.reader.run(env);
-              return combiner.apply(a, b, c);
+              return Objects.requireNonNull(
+                  combiner.apply(a, b, c), "combiner must not return null");
             }));
   }
 
@@ -379,16 +383,13 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
   /**
    * Converts to a MaybePath by providing the environment.
    *
-   * <p>If the result is null, returns an empty MaybePath.
-   *
    * @param environment the environment to use; must not be null
-   * @return a MaybePath containing the result if non-null
+   * @return a MaybePath containing the result
    * @throws NullPointerException if environment is null
    */
   public MaybePath<A> toMaybePath(R environment) {
     Objects.requireNonNull(environment, "environment must not be null");
-    A result = run(environment);
-    return result != null ? new MaybePath<>(Maybe.just(result)) : new MaybePath<>(Maybe.nothing());
+    return new MaybePath<>(Maybe.just(run(environment)));
   }
 
   // ===== Object methods =====

@@ -210,6 +210,28 @@ VTask<String> result = fetchUser
 
 ---
 
+### A Task Always Gives a Value {#a-task-always-gives-a-value}
+
+A `VTask` that succeeds gives a value, never `null`. `VTask.succeed(null)` throws `NullPointerException` at the call. A callable, supplier, `map` function or recovery function that returns null fails the task when it runs, and the exception names that function, as in `callable must not return null`.
+
+<!-- verify -->
+```java
+// Nothing to return: give Unit.INSTANCE, as VTask.exec does
+VTask<Unit> logged = VTask.of(() -> {
+    System.out.println("Fetched " + userId);
+    return Unit.INSTANCE;
+});
+
+// A value that may be missing: say so with a Maybe
+VTask<Maybe<String>> nickname = VTask.of(() -> Maybe.fromNullable(System.getenv("NICKNAME")));
+```
+
+So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. `run()` and `runAsync()` refuse a null from a task written by hand as a lambda, too.
+
+The factories and functions of every lazy type follow the same rule: `IO`, `VStream`, `State`, `Reader`, `Writer`, `Lazy`, `Trampoline`, `Free` and `Context`, and every Effect Path over one. A stream refuses a null element. A nullness checker flags a hand-written `IO` or `Reader` lambda that returns null, and an `IOPath` refuses one when it runs. Only [`Id`](./identity.md) holds a null, since every optic's `modify` runs through it. A `CompletableFuture` outside a Path keeps the JDK's null too.
+
+---
+
 ### Error Handling
 
 ~~~admonish title="recover and recoverWith"

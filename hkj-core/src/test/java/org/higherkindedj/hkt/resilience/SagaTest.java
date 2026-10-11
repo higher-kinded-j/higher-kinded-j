@@ -674,6 +674,28 @@ class SagaTest {
     }
 
     @Test
+    @DisplayName("a map that returns null fails the saga as a throw from its function would")
+    void mapReturningNullFailsTheSaga() {
+      CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
+      Saga<String> saga =
+          Saga.of(VTask.of(() -> "a"), (Consumer<String>) v -> compensated.add("comp-a"))
+              .map(_ -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(saga.run()::run)
+          .withMessage("f must not return null");
+      assertThat(compensated).containsExactly("comp-a");
+
+      Either<SagaError, String> result = saga.runSafe().run();
+
+      assertThat(result.isLeft()).isTrue();
+      assertThat(result.getLeft().originalError())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("f must not return null");
+      assertThat(compensated).containsExactly("comp-a", "comp-a");
+    }
+
+    @Test
     @DisplayName("map chained multiple times")
     void mapChainedMultipleTimes() {
       Saga<String> saga =

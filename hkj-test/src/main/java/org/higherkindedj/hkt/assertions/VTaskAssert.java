@@ -99,13 +99,6 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
     return this;
   }
 
-  /** Verifies that the VTask, when run, produces a null value. */
-  public VTaskAssert<T> hasNullValue() {
-    succeeds();
-    Assertions.assertThat(executedValue).as("VTask value").isNull();
-    return this;
-  }
-
   /** Verifies that the VTask, when run, produces a value satisfying the given requirements. */
   public VTaskAssert<T> hasValueSatisfying(Consumer<? super T> requirements) {
     succeeds();

@@ -735,7 +735,7 @@ public class OrderController {
 }
 ```
 
-All ten Effect Path handlers honour `@ResponseStatus` consistently. A success holding `Unit`, or a null from a lazy Path such as an `IOPath`, writes no body, at whatever status applies, as a `void` controller method does.
+All ten Effect Path handlers honour `@ResponseStatus` consistently. A success holding `Unit` writes no body, at whatever status applies, as a `void` controller method does. A lazy Path whose step returns null fails, and writes the failure status.
 
 ### Error Status Mapping
 

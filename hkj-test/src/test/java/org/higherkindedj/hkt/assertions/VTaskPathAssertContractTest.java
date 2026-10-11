@@ -96,12 +96,11 @@ class VTaskPathAssertContractTest
   }
 
   @Test
-  void a_task_that_returns_null_succeeds_with_a_null_value() {
-    // A VTask may still give null, so the assertion runs it without a Try, which cannot hold one
+  void a_task_that_returns_null_fails() {
     VTaskPathAssert.assertThatVTaskPath(Path.<Integer>vtask(() -> null))
-        .succeeds()
-        .hasValue(null)
-        .isEquivalentTo(Path.vtask(() -> null));
+        .fails()
+        .withExceptionType(NullPointerException.class)
+        .withExceptionMessage("callable must not return null");
   }
 
   @Test

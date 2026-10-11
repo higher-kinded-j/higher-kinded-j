@@ -95,10 +95,11 @@ public final class PathRegistry {
    * <p>Useful for testing.
    *
    * @param witnessType the witness type class to unregister
-   * @return the previously registered provider, or null if none
+   * @return an Optional containing the previously registered provider, or an empty Optional if none
    */
-  public static PathProvider<?> unregister(Class<?> witnessType) {
-    return providers.remove(witnessType);
+  public static Optional<PathProvider<?>> unregister(Class<?> witnessType) {
+    ensureLoaded();
+    return Optional.ofNullable(providers.remove(witnessType));
   }
 
   /**

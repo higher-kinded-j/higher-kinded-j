@@ -4,11 +4,11 @@ package org.higherkindedj.hkt.writer;
 
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a computation that, in addition to producing a value of type {@code A}, also
@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li>The {@code log} component is guaranteed to be non-null.
- *   <li>The {@code value} component can be {@code null} if {@code A} is a nullable type. If {@code
- *       A} is {@link Unit}, the value will be {@link Unit#INSTANCE}.
+ *   <li>The {@code value} component is guaranteed to be non-null. If {@code A} is {@link Unit}, the
+ *       value will be {@link Unit#INSTANCE}.
  * </ul>
  *
  * <p>Common operations include:
@@ -44,33 +44,31 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <W> The type of the log, which must form a {@link Monoid}. This log is guaranteed to be
  *     non-null.
- * @param <A> The type of the computed value. This can be {@code null} if the type {@code A} permits
- *     it (e.g., {@code String}). If {@code A} is {@link Unit}, this will be {@link Unit#INSTANCE}.
+ * @param <A> The type of the computed value. This value is guaranteed to be non-null; if {@code A}
+ *     is {@link Unit}, it is {@link Unit#INSTANCE}.
  * @param log The accumulated log of type {@code W}. Must not be {@code null}.
- * @param value The computed value of type {@code A}. May be {@code null} (if {@code A} is a
- *     nullable type like {@code String}); if {@code A} is {@link Unit}, this will be {@link
- *     Unit#INSTANCE}.
+ * @param value The computed value of type {@code A}. Must not be {@code null}; if {@code A} is
+ *     {@link Unit}, this will be {@link Unit#INSTANCE}.
  * @see Monoid
  * @see Unit
  * @see WriterMonad
  * @see WriterKindHelper
  */
-public record Writer<W, A>(W log, @Nullable A value)
-    implements WriterKind<W, A>, WriterKind2<W, A> {
+public record Writer<W, A>(W log, A value) implements WriterKind<W, A>, WriterKind2<W, A> {
 
   private static final Class<Writer> WRITER_CLASS = Writer.class;
 
   /**
-   * Compact constructor for {@link Writer}. Ensures that the log component {@code W} is never
-   * {@code null}.
+   * Compact constructor for {@link Writer}. Ensures that neither component is {@code null}.
    *
    * @param log The log value. Must not be {@code null}.
-   * @param value The computed value. Can be {@code null} if {@code A} is a nullable type. If {@code
-   *     A} is {@link Unit}, this should be {@link Unit#INSTANCE}.
-   * @throws NullPointerException if {@code log} is {@code null}.
+   * @param value The computed value. Must not be {@code null}. If {@code A} is {@link Unit}, this
+   *     should be {@link Unit#INSTANCE}.
+   * @throws NullPointerException if {@code log} or {@code value} is {@code null}.
    */
   public Writer {
-    Validation.coreType().requireValue(log, WRITER_CLASS, CONSTRUCTION);
+    Validation.coreType().requireValue(log, "log", WRITER_CLASS, CONSTRUCTION);
+    Validation.coreType().requireValue(value, WRITER_CLASS, CONSTRUCTION);
   }
 
   /**
@@ -80,13 +78,14 @@ public record Writer<W, A>(W log, @Nullable A value)
    * @param <A> The type of the value.
    * @param monoidW The {@link Monoid} for the log type {@code W}, used to get the empty log. Must
    *     not be {@code null}.
-   * @param value The pure value to wrap. Can be {@code null} if {@code A} is a nullable type. If
-   *     {@code A} is {@link Unit}, pass {@link Unit#INSTANCE}.
+   * @param value The pure value to wrap. Must not be {@code null}. If {@code A} is {@link Unit},
+   *     pass {@link Unit#INSTANCE}.
    * @return A new {@code Writer<W, A>} with the given value and an empty log.
-   * @throws NullPointerException if {@code monoidW} is {@code null}.
+   * @throws NullPointerException if {@code monoidW} or {@code value} is {@code null}.
    */
-  public static <W, A> Writer<W, A> value(Monoid<W> monoidW, @Nullable A value) {
+  public static <W, A> Writer<W, A> value(Monoid<W> monoidW, A value) {
     Validation.function().require(monoidW, "monoidW", VALUE);
+    Validation.coreType().requireValue(value, WRITER_CLASS, VALUE);
     return new Writer<>(monoidW.empty(), value);
   }
 
@@ -101,14 +100,15 @@ public record Writer<W, A>(W log, @Nullable A value)
    * @param <W> The type of the log.
    * @param <A> The type of the value.
    * @param log The accumulated log. Must not be {@code null}.
-   * @param value The computed value. Can be {@code null} if {@code A} is a nullable type. If {@code
-   *     A} is {@link Unit}, pass {@link Unit#INSTANCE}.
+   * @param value The computed value. Must not be {@code null}. If {@code A} is {@link Unit}, pass
+   *     {@link Unit#INSTANCE}.
    * @return A new {@code Writer<W, A>} with the given log and value.
-   * @throws NullPointerException if {@code log} is {@code null}.
+   * @throws NullPointerException if {@code log} or {@code value} is {@code null}.
    * @see #value(Monoid, Object)
    * @see #tell(Object)
    */
-  public static <W, A> Writer<W, A> of(W log, @Nullable A value) {
+  public static <W, A> Writer<W, A> of(W log, A value) {
+    Validation.coreType().requireValue(value, WRITER_CLASS, OF);
     return new Writer<>(log, value);
   }
 
@@ -135,13 +135,14 @@ public record Writer<W, A>(W log, @Nullable A value)
    * @param <B> The type of the new computed value.
    * @param f The non-null function to apply to the current computed value. This function takes the
    *     current value of type {@code A} (which could be {@link Unit#INSTANCE} if {@code A} is
-   *     {@link Unit}) and returns a value of type {@code B}.
+   *     {@link Unit}) and returns a value of type {@code B}. It must not return null.
    * @return A new {@code Writer<W, B>} with the original log and the transformed value.
-   * @throws NullPointerException if {@code f} is {@code null}.
+   * @throws NullPointerException if {@code f} is {@code null} or returns null.
    */
   public <B> Writer<W, B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return new Writer<>(this.log, f.apply(this.value));
+    return new Writer<>(
+        this.log, Objects.requireNonNull(f.apply(this.value), "f must not return null"));
   }
 
   /**
@@ -163,19 +164,22 @@ public record Writer<W, A>(W log, @Nullable A value)
    * }</pre>
    *
    * @param logMapper The non-null function to apply to the log.
-   * @param valueMapper The non-null function to apply to the value.
+   * @param valueMapper The non-null function to apply to the value. It must not return null.
    * @param <W2> The type of the log in the resulting {@code Writer}.
    * @param <B> The type of the value in the resulting {@code Writer}.
    * @return A new {@code Writer<W2, B>} with both log and value transformed. The returned {@code
    *     Writer} will be non-null.
-   * @throws NullPointerException if either {@code logMapper} or {@code valueMapper} is null.
+   * @throws NullPointerException if either {@code logMapper} or {@code valueMapper} is null, or if
+   *     {@code valueMapper} returns null.
    */
   public <W2, B> Writer<W2, B> bimap(
       Function<? super W, ? extends W2> logMapper, Function<? super A, ? extends B> valueMapper) {
     Validation.function().require(logMapper, "logMapper", BIMAP);
     Validation.function().require(valueMapper, "valueMapper", BIMAP);
 
-    return new Writer<>(logMapper.apply(this.log), valueMapper.apply(this.value));
+    return new Writer<>(
+        logMapper.apply(this.log),
+        Objects.requireNonNull(valueMapper.apply(this.value), "valueMapper must not return null"));
   }
 
   /**
@@ -246,10 +250,10 @@ public record Writer<W, A>(W log, @Nullable A value)
    * Runs the {@code Writer} computation, returning the computed value {@code A} and discarding the
    * log {@code W}.
    *
-   * @return The computed value {@code A}. This can be {@code null} if {@code A} is a nullable type
-   *     (e.g. {@code String}); if {@code A} is {@link Unit}, this will be {@link Unit#INSTANCE}.
+   * @return The non-null computed value {@code A}; if {@code A} is {@link Unit}, this will be
+   *     {@link Unit#INSTANCE}.
    */
-  public @Nullable A run() {
+  public A run() {
     return value;
   }
 

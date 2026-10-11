@@ -11,7 +11,6 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Monad}, {@link Applicative}, and {@link Functor} interfaces for the {@link
@@ -69,11 +68,14 @@ public class LazyMonad
    * already evaluated {@code Lazy} instance.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift. Can be {@code null}.
+   * @param value The value to lift. Must not be null.
    * @return A {@code Kind<LazyKind.Witness, A>} containing the value. Never null.
+   * @throws NullPointerException if value is null.
    */
   @Override
-  public <A> Kind<LazyKind.Witness, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // Lazy forbids null
+  public <A> Kind<LazyKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, LazyMonad.class, OF);
     // 'of'/'pure' creates a Lazy that is already evaluated
     return LAZY.widen(Lazy.now(value));
   }
@@ -104,8 +106,8 @@ public class LazyMonad
     Lazy<? extends Function<A, B>> lazyF = LAZY.narrow(ff);
     Lazy<A> lazyA = LAZY.narrow(fa);
 
-    // Defer the application: force F, force A, then apply
-    Lazy<B> lazyB = Lazy.defer(() -> lazyF.force().apply(lazyA.force()));
+    // Force F, then map A with it, so a null result is refused as map refuses it
+    Lazy<B> lazyB = lazyF.<B>flatMap(lazyA::map);
     return LAZY.widen(lazyB);
   }
 

@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.time.Duration;
@@ -72,10 +73,12 @@ class VTaskTest {
     }
 
     @Test
-    @DisplayName("succeed() can create VTask with null value")
-    void succeedCanCreateVTaskWithNullValue() {
-      VTask<String> task = VTask.succeed(null);
-      assertThat(task.run()).isNull();
+    @DisplayName("succeed() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void succeedRefusesANullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> VTask.succeed(null))
+          .withMessage("VTask.succeed value cannot be null");
     }
 
     @Test
@@ -127,6 +130,67 @@ class VTaskTest {
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void blockingWithNullCallableThrows() {
       assertThatThrownBy(() -> VTask.blocking(null)).isInstanceOf(NullPointerException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("A step that produces null fails the task, naming that step")
+  class NullValues {
+
+    private static void failsWith(VTask<?> task, String message) {
+      assertThatVTask(task)
+          .fails()
+          .withExceptionType(NullPointerException.class)
+          .withMessage(message);
+    }
+
+    @Test
+    @DisplayName("of(), delay() and blocking() fail the task when their computation returns null")
+    void factoriesFailOnANullResult() {
+      failsWith(VTask.<String>of(() -> null), "callable must not return null");
+      failsWith(VTask.<String>delay(() -> null), "thunk must not return null");
+      failsWith(VTask.<String>blocking(() -> null), "callable must not return null");
+    }
+
+    @Test
+    @DisplayName("map() and recover() fail the task when their function returns null")
+    void functionsFailOnANullResult() {
+      failsWith(VTask.succeed(TEST_VALUE).map(_ -> (String) null), "f must not return null");
+      failsWith(
+          VTask.<String>fail(new RuntimeException("boom")).recover(_ -> null),
+          "recoveryFunction must not return null");
+    }
+
+    @Test
+    @DisplayName("a null result is a Failure from runSafe(), not a Success")
+    void runSafeGivesAFailure() {
+      assertThatTry(VTask.<String>delay(() -> null).runSafe())
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("thunk must not return null"));
+    }
+
+    @Test
+    @DisplayName("a hand-written task that returns null fails when run, run async or run safely")
+    @SuppressWarnings("DataFlowIssue") // a hand-written task returning null is what is refused
+    void aHandWrittenTaskFails() {
+      VTask<String> raw = () -> null;
+
+      failsWith(raw, "the task returned null, and a VTask always gives a value");
+      assertThatThrownBy(() -> raw.runAsync().join())
+          .isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(NullPointerException.class)
+          .hasRootCauseMessage("the task returned null, and a VTask always gives a value");
+      assertThatTry(raw.runSafe())
+          .isFailure()
+          .hasExceptionSatisfying(
+              e ->
+                  assertThat(e)
+                      .isInstanceOf(NullPointerException.class)
+                      .hasMessage("the task returned null, and a Success always holds a value"));
     }
   }
 

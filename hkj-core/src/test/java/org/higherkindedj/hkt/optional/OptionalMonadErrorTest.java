@@ -88,9 +88,11 @@ class OptionalMonadErrorTest extends OptionalTestBase {
     }
 
     @Test
-    @DisplayName("raiseError() with null Unit still creates empty")
-    void raiseErrorWithNullCreatesEmpty() {
-      assertThatOptionalKind(monadError.raiseError(null)).isEmpty();
+    @DisplayName("raiseError() refuses a null error")
+    void raiseErrorRefusesNull() {
+      assertThatThrownBy(() -> monadError.raiseError(null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("OptionalMonad.raiseError error cannot be null");
     }
 
     @Test

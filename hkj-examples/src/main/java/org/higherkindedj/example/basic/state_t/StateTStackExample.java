@@ -39,13 +39,13 @@ public class StateTStackExample {
   }
 
   // push operation
-  public static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Void> push(
+  public static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(
       Integer value) {
     return liftOpt(
         stack -> {
           List<Integer> newStack = new LinkedList<>(stack);
           newStack.add(0, value); // Add to front
-          return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, null)));
+          return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
         });
   }
 

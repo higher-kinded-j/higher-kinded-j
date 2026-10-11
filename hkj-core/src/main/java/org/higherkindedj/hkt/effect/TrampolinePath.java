@@ -59,11 +59,13 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a TrampolinePath with an immediate value.
    *
-   * @param value the completed value
+   * @param value the completed value; must not be null
    * @param <A> the value type
    * @return a TrampolinePath containing the value
+   * @throws NullPointerException if value is null
    */
   public static <A> TrampolinePath<A> done(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new TrampolinePath<>(Trampoline.done(value));
   }
 
@@ -100,9 +102,10 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
    *
    * <p>Alias for {@link #done(Object)} for consistency with other path types.
    *
-   * @param value the value
+   * @param value the value; must not be null
    * @param <A> the value type
    * @return a TrampolinePath containing the value
+   * @throws NullPointerException if value is null
    */
   public static <A> TrampolinePath<A> pure(A value) {
     return done(value);
@@ -135,7 +138,9 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
   @Override
   public <B> TrampolinePath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new TrampolinePath<>(trampoline.map(mapper));
+    return new TrampolinePath<>(
+        trampoline.map(
+            a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null")));
   }
 
   @Override
@@ -154,7 +159,7 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
    * Combines this TrampolinePath with another using a combining function.
    *
    * @param other the other Combinable; must be a TrampolinePath
-   * @param combiner the function to combine the values; must not be null
+   * @param combiner the function to combine the values; must not be null, and must not return null
    * @param <B> the type of the other value
    * @param <C> the type of the combined result
    * @return a TrampolinePath containing the combined result
@@ -173,7 +178,11 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
     }
 
     TrampolinePath<B> typedOther = (TrampolinePath<B>) otherTrampoline;
-    return via(a -> typedOther.map(b -> combiner.apply(a, b)));
+    return via(
+        a ->
+            typedOther.map(
+                b ->
+                    Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
   }
 
   // ===== Chainable Implementation =====

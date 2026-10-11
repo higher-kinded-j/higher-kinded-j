@@ -92,14 +92,6 @@ class IOMonadTest extends IOTestBase {
     }
 
     @Test
-    @DisplayName("of() with null value")
-    void ofWithNullValue() {
-      Kind<IOKind.Witness, String> result = monad.of(null);
-
-      assertThatIO(narrowToIO(result)).hasValueNull();
-    }
-
-    @Test
     @DisplayName("map() applies function lazily")
     void mapAppliesFunctionLazily() {
       AtomicInteger executeCount = new AtomicInteger(0);
@@ -348,19 +340,6 @@ class IOMonadTest extends IOTestBase {
       }
 
       assertThatIO(narrowToIO(result)).hasValue(46); // 1 + 0 + 1 + 2 + ... + 9 = 46
-    }
-
-    @Test
-    @DisplayName("flatMap with null values")
-    @SuppressWarnings("ConstantValue") // IO can carry a null value, so the i == null branch is live
-    void flatMapWithNullValues() {
-      Kind<IOKind.Witness, Integer> nullKind = monad.of(null);
-      Function<Integer, Kind<IOKind.Witness, String>> nullSafeMapper =
-          i -> monad.of(i == null ? "null" : i.toString());
-
-      Kind<IOKind.Witness, String> result = monad.flatMap(nullSafeMapper, nullKind);
-
-      assertThatIO(narrowToIO(result)).hasValue("null");
     }
 
     @Test

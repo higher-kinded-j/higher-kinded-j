@@ -175,14 +175,12 @@ class ContextKindHelperTest {
     }
 
     @Test
-    @DisplayName("succeed() should allow null value")
-    void succeed_shouldAllowNullValue() {
-      Kind<ContextKind.Witness<String>, Integer> kind = CONTEXT.succeed(null);
-
-      Context<String, Integer> ctx = CONTEXT.narrow(kind);
-      Integer result = ctx.run();
-
-      assertThat(result).isNull();
+    @DisplayName("succeed() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void succeed_refusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CONTEXT.succeed(null))
+          .withMessage("Context.succeed value cannot be null");
     }
 
     @Test
@@ -233,16 +231,6 @@ class ContextKindHelperTest {
       Kind<ContextKind.Witness<String>, String> kind = CONTEXT.fail(error);
 
       assertThatThrownBy(() -> CONTEXT.runContext(kind)).isSameAs(error);
-    }
-
-    @Test
-    @DisplayName("runContext() should return null for null result")
-    void runContext_shouldReturnNullForNullResult() {
-      Kind<ContextKind.Witness<String>, String> kind = CONTEXT.succeed(null);
-
-      String result = CONTEXT.runContext(kind);
-
-      assertThat(result).isNull();
     }
   }
 

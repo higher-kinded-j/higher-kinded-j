@@ -117,19 +117,6 @@ final class Closing {
   }
 
   /**
-   * Applies a function to an element whose rest only the caller holds. If the function throws, the
-   * rest is closed, so its finalisers run, and the failure is rethrown.
-   */
-  static <A, B> B applyOrClose(Function<? super A, ? extends B> f, A element, VStream<?> rest) {
-    try {
-      return f.apply(element);
-    } catch (Throwable t) {
-      closeAfterFailure(rest, t);
-      throw t;
-    }
-  }
-
-  /**
    * Applies a function that must not return null to an element whose rest only the caller holds. If
    * the function throws or returns null, the rest is closed, so its finalisers run, and the failure
    * is rethrown.

@@ -3,12 +3,12 @@
 package org.higherkindedj.hkt.io;
 
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.util.validation.Operation.OF;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Implements the {@link Applicative} type class for {@link IO}, using {@link IOKind.Witness} as the
@@ -39,18 +39,18 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
    * immediately return the given value when executed.
    *
    * <p>This operation delays the evaluation of the value until {@code unsafeRunSync()} is called,
-   * maintaining the lazy semantics of IO. The lifted value can be {@code null}.
+   * maintaining the lazy semantics of IO.
    *
    * @param <A> The type of the value.
-   * @param value The value to lift into the IO context. Can be {@code null}.
+   * @param value The non-null value to lift into the IO context, since an IO always gives one.
    * @return A {@code Kind<IOKind.Witness, A>} representing an IO computation that returns {@code
    *     value}. Never null.
+   * @throws NullPointerException if {@code value} is null.
    */
   @Override
-  // IO legitimately carries null (see contract above); the thunk simply returns the @Nullable
-  // value.
-  @SuppressWarnings("DataFlowIssue")
-  public <A> Kind<IOKind.Witness, A> of(@Nullable A value) {
+  @SuppressWarnings("NullableProblems") // IO forbids null
+  public <A> Kind<IOKind.Witness, A> of(A value) {
+    Validation.coreType().requireValue(value, IOApplicative.class, OF);
     // 'of'/'pure' captures a pure value, delaying its evaluation until unsafeRunSync
     return IO_OP.widen(IO.delay(() -> value));
   }
@@ -68,7 +68,8 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
    *     null.
    * @param fa The {@code Kind<IOKind.Witness, A>} containing the argument value. Must not be null.
    * @return A {@code Kind<IOKind.Witness, B>} representing the IO computation that applies the
-   *     function to the value. Never null.
+   *     function to the value. Never null. A function that returns null fails the computation with
+   *     a {@link NullPointerException}, as {@link IO#map(Function)} does.
    * @throws NullPointerException if {@code ff} or {@code fa} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ff} or {@code fa} cannot
    *     be unwrapped.
@@ -82,8 +83,8 @@ public class IOApplicative extends IOFunctor implements Applicative<IOKind.Witne
     IO<? extends Function<A, B>> ioF = IO_OP.narrow(ff);
     IO<A> ioA = IO_OP.narrow(fa);
 
-    // Create an IO that sequences: run ioF, run ioA, apply function to value
-    IO<B> ioB = IO.delay(() -> ioF.unsafeRunSync().apply(ioA.unsafeRunSync()));
+    // Sequence: run ioF, run ioA, apply function to value
+    IO<B> ioB = ioF.flatMap(func -> ioA.map(func));
     return IO_OP.widen(ioB);
   }
 }

@@ -6,10 +6,10 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.validation.Validation;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a stateful computation {@code S -> (A, S)}. It wraps a function that takes an initial
@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  * methods, so {@link #run} is still the single abstract method.
  *
  * @param <S> The type of the state. This type is expected to be non-null.
- * @param <A> The type of the computed value. This can be nullable.
+ * @param <A> The type of the computed value, which is never null.
  */
 @FunctionalInterface
 public interface State<S, A> extends StateKind<S, A> {
@@ -68,9 +68,9 @@ public interface State<S, A> extends StateKind<S, A> {
    * }</pre>
    *
    * @param <B> The type of the new computed value.
-   * @param f The non-null function to apply to the current computed value.
+   * @param f The non-null function to apply to the current computed value. It must not return null.
    * @return A new non-null {@code State<S, B>} instance with the mapped value and original state
-   *     transition.
+   *     transition. When run, it throws {@link NullPointerException} if {@code f} returns null.
    * @throws NullPointerException if {@code f} is null.
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
@@ -78,7 +78,7 @@ public interface State<S, A> extends StateKind<S, A> {
     return State.of(
         initialState -> {
           StateTuple<S, A> result = this.run(initialState);
-          B newValue = f.apply(result.value());
+          B newValue = Objects.requireNonNull(f.apply(result.value()), "f must not return null");
           return new StateTuple<>(newValue, result.state());
         });
   }
@@ -158,10 +158,12 @@ public interface State<S, A> extends StateKind<S, A> {
    *
    * @param <S> The type of the state.
    * @param <A> The type of the value to lift into the State context.
-   * @param value The value to be returned by the State computation. Can be {@code null}.
+   * @param value The non-null value to be returned by the State computation.
    * @return A non-null {@code State<S, A>} that always returns the given value and original state.
+   * @throws NullPointerException if {@code value} is null.
    */
-  static <S, A> State<S, A> pure(@Nullable A value) {
+  static <S, A> State<S, A> pure(A value) {
+    Validation.coreType().requireValue(value, STATE_CLASS, PURE);
     return State.of(s -> new StateTuple<>(value, s));
   }
 
@@ -222,13 +224,15 @@ public interface State<S, A> extends StateKind<S, A> {
    *
    * @param <S> The type of the state.
    * @param <A> The type of the value returned by the inspection function.
-   * @param f The non-null function to apply to the current state to produce a value. This function
-   *     can return a {@code null} value if {@code A} is nullable.
-   * @return A non-null {@code State<S, A>} that returns the result of inspecting the state.
+   * @param f The non-null function to apply to the current state to produce a value. It must not
+   *     return null.
+   * @return A non-null {@code State<S, A>} that returns the result of inspecting the state. When
+   *     run, it throws {@link NullPointerException} if {@code f} returns null.
    * @throws NullPointerException if {@code f} is null.
    */
-  static <S, A> State<S, A> inspect(Function<S, @Nullable A> f) {
+  static <S, A> State<S, A> inspect(Function<S, A> f) {
     Validation.function().require(f, "f", INSPECT);
-    return State.of(s -> new StateTuple<>(f.apply(s), s));
+    return State.of(
+        s -> new StateTuple<>(Objects.requireNonNull(f.apply(s), "f must not return null"), s));
   }
 }

@@ -86,6 +86,8 @@ The `PRINCIPAL` represents the authenticated user. It can be:
 - **Null**: An anonymous/unauthenticated user
 - **Unbound**: A configuration error (security context not established)
 
+A `Context` always gives a value, so `Context.ask(PRINCIPAL)` fails for an anonymous user. Read the principal with `asks`, as `isAuthenticated` and `principalIfPresent` do.
+
 ### Defining a Principal
 
 <!-- verify -->
@@ -205,9 +207,9 @@ public final class SecurityContext {
      * @return Context containing the Principal, or failing with UnauthenticatedException
      */
     public static Context<Principal, Principal> requireAuthenticated() {
-        return Context.ask(PRINCIPAL).flatMap(principal ->
-            principal != null
-                ? Context.succeed(principal)
+        return principalIfPresent().flatMap(principal ->
+            principal.isJust()
+                ? Context.succeed(principal.get())
                 : Context.fail(new UnauthenticatedException("Authentication required")));
     }
 }

@@ -40,13 +40,18 @@ class WriterTest extends WriterTestBase {
       Writer<String, Integer> w1 = valueWriter(42);
       assertThatWriter(w1).hasEmptyLog().hasValue(42);
 
-      // Null values
-      Writer<String, Integer> w2 = valueWriter(null);
-      assertThatWriter(w2).hasEmptyLog().hasNullValue();
-
       // Complex types
       Writer<String, String> w3 = valueWriter("test");
       assertThatWriter(w3).hasEmptyLog().hasValue("test");
+    }
+
+    @Test
+    @DisplayName("value() refuses a null value at the call")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void valueRefusesNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Writer.value(STRING_MONOID, null))
+          .withMessage("Writer.value value cannot be null");
     }
 
     @Test
@@ -68,13 +73,24 @@ class WriterTest extends WriterTestBase {
       Writer<String, Integer> w1 = Writer.of("Log", 10);
       assertThatWriter(w1).hasLog("Log").hasValue(10);
 
-      // Null value with a custom log
-      Writer<String, Integer> w2 = Writer.of("Log", null);
-      assertThatWriter(w2).hasLog("Log").hasNullValue();
-
       // Complex value type
       Writer<String, String> w3 = Writer.of("Init;", "test");
       assertThatWriter(w3).hasLog("Init;").hasValue("test");
+    }
+
+    @Test
+    @DisplayName("of() and the constructor refuse a null value, and name a null log")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void ofAndConstructorRefuseNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Writer.of("Log", null))
+          .withMessage("Writer.of value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Writer<>("Log", null))
+          .withMessage("Writer.construction value cannot be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new Writer<>(null, 10))
+          .withMessage("Writer.construction log cannot be null");
     }
   }
 
@@ -93,9 +109,6 @@ class WriterTest extends WriterTestBase {
 
       // Tell writer
       assertThatWriter(tellWriter("Tell;")).hasLog("Tell;");
-
-      // Null value writer still has log
-      assertThatWriter(writerOf("NullLog;", null)).hasLog("NullLog;");
     }
 
     @Test
@@ -109,9 +122,6 @@ class WriterTest extends WriterTestBase {
 
       // Tell writer returns Unit
       assertThatWriter(tellWriter("Tell;")).hasValue(Unit.INSTANCE);
-
-      // Null value
-      assertThatWriter(writerOf("NullLog;", null)).hasNullValue();
     }
 
     @Test
@@ -120,7 +130,6 @@ class WriterTest extends WriterTestBase {
       assertThat(defaultWriter().run()).isEqualTo(DEFAULT_VALUE);
       assertThat(valueWriter(42).run()).isEqualTo(42);
       assertThat(tellWriter("Tell;").run()).isEqualTo(Unit.INSTANCE);
-      assertThat(writerOf("NullLog;", null).run()).isNull();
     }
 
     @Test
@@ -129,7 +138,6 @@ class WriterTest extends WriterTestBase {
       assertThat(defaultWriter().exec()).isEqualTo(DEFAULT_LOG);
       assertThat(valueWriter(42).exec()).isEqualTo(STRING_MONOID.empty());
       assertThat(tellWriter("Tell;").exec()).isEqualTo("Tell;");
-      assertThat(writerOf("NullLog;", null).exec()).isEqualTo("NullLog;");
     }
   }
 
@@ -154,16 +162,21 @@ class WriterTest extends WriterTestBase {
     }
 
     @Test
-    @DisplayName("map() handles null values correctly")
-    @SuppressWarnings("DataFlowIssue") // a Writer may legitimately hold a null value
-    void mapHandlesNullValues() {
-      // Mapping null value
-      Writer<String, String> result = writerOf("NullLog;", null).map(String::valueOf);
-      assertThatWriter(result).hasLog("NullLog;").hasValue("null");
+    @DisplayName("map() refuses a null result from its function")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void mapRefusesNullResult() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> defaultWriter().map(_ -> null))
+          .withMessage("f must not return null");
+    }
 
-      // Mapping to null
-      Writer<String, Integer> toNull = defaultWriter().map(_ -> null);
-      assertThatWriter(toNull).hasLog(DEFAULT_LOG).hasNullValue();
+    @Test
+    @DisplayName("bimap() refuses a null result from its value mapper")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void bimapRefusesNullValueResult() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> defaultWriter().bimap(log -> log, _ -> null))
+          .withMessage("valueMapper must not return null");
     }
 
     @Test
@@ -287,18 +300,6 @@ class WriterTest extends WriterTestBase {
       assertThatThrownBy(() -> defaultWriter().flatMap(STRING_MONOID, throwingMapper))
           .isSameAs(testException);
     }
-
-    @Test
-    @DisplayName("flatMap() passes a null value through to the mapper")
-    void flatMapHandlesNullValues() {
-      // String concatenation renders the null value as "null", proving flatMap forwards it.
-      Function<Integer, Writer<String, String>> mapper = i -> writerOf("Null;", "was " + i);
-
-      Writer<String, Integer> nullWriter = writerOf("NullLog;", null);
-      Writer<String, String> result = nullWriter.flatMap(STRING_MONOID, mapper);
-
-      assertThatWriter(result).hasLog("NullLog;Null;").hasValue("was null");
-    }
   }
 
   @Nested
@@ -317,9 +318,6 @@ class WriterTest extends WriterTestBase {
           .contains("Writer")
           .contains("Tell;")
           .contains("()");
-
-      Writer<String, Integer> nullWriter = writerOf("NullLog;", null);
-      assertThat(nullWriter.toString()).contains("Writer").contains("NullLog;").contains("null");
     }
 
     @Test
@@ -339,12 +337,6 @@ class WriterTest extends WriterTestBase {
       // Different value
       Writer<String, Integer> differentValue = writerOf(DEFAULT_LOG, 20);
       assertThat(writer1).isNotEqualTo(differentValue);
-
-      // Null handling
-      Writer<String, Integer> nullValue1 = writerOf("Log;", null);
-      Writer<String, Integer> nullValue2 = writerOf("Log;", null);
-      assertThat(nullValue1).isEqualTo(nullValue2);
-      assertThat(nullValue1.hashCode()).isEqualTo(nullValue2.hashCode());
     }
   }
 
@@ -411,21 +403,18 @@ class WriterTest extends WriterTestBase {
       Function<Writer<String, Integer>, String> processWriter =
           writer ->
               switch (writer) {
-                case Writer(String log, Integer value) when value != null && value > 0 ->
+                case Writer(String log, Integer value) when value > 0 ->
                     "Positive: " + value + " (logged: " + log + ")";
-                case Writer(String log, Integer value) when value != null && value < 0 ->
+                case Writer(String log, Integer value) when value < 0 ->
                     "Negative: " + value + " (logged: " + log + ")";
-                case Writer(String log, Integer value) when value != null ->
-                    "Zero (logged: " + log + ")";
-                case Writer(String log, _) -> "Null value (logged: " + log + ")";
+                case Writer(String log, _) -> "Zero (logged: " + log + ")";
               };
 
       assertThat(processWriter.apply(defaultWriter()))
           .isEqualTo("Positive: " + DEFAULT_VALUE + " (logged: " + DEFAULT_LOG + ")");
       assertThat(processWriter.apply(writerOf("Neg;", -5)))
           .isEqualTo("Negative: -5 (logged: Neg;)");
-      assertThat(processWriter.apply(writerOf("NullLog;", null)))
-          .isEqualTo("Null value (logged: NullLog;)");
+      assertThat(processWriter.apply(writerOf("Zero;", 0))).isEqualTo("Zero (logged: Zero;)");
     }
   }
 

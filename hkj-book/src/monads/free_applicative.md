@@ -113,6 +113,8 @@ FreeAp<DbOpKind.Witness, User> userFetch =
 FreeAp<DbOpKind.Witness, String> userName = userFetch.map(User::name);
 ```
 
+`FreeAp.pure(null)` throws at the call, and a `map` or `map2` function that returns null fails the program when it is interpreted, whichever applicative interprets it. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
 ### Combining Independent Computations
 
 The `map2` method combines two independent computations:
