@@ -610,19 +610,17 @@ class RetryTaskTest {
           };
 
       try {
-        assertThatThrownBy(Retry.retryTask(task, policy)::execute)
-            .isInstanceOf(RetryExhaustedException.class)
-            .hasMessage("Retry interrupted after 1 attempts")
-            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThatThrownBy(Retry.retryTask(task, policy)::execute).isSameAs(cancelled);
         assertThat(attempts).hasValue(1);
-        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
       } finally {
         Thread.interrupted();
       }
     }
 
     @Test
-    @DisplayName("a task that throws InterruptedException runs once, and the status is set")
+    @DisplayName(
+        "a task that throws InterruptedException runs once, and the exception passes through")
     void interruptedTaskRunsOnce() {
       assertInterruptedAttemptIsNotRunAgain(immediate);
     }
@@ -643,7 +641,7 @@ class RetryTaskTest {
               () -> {
                 attempts.incrementAndGet();
                 slowStarted.countDown();
-                Thread.sleep(Duration.ofSeconds(10));
+                Thread.sleep(Duration.ofSeconds(3));
                 return "slow";
               });
       VTask<String> fast =
@@ -661,7 +659,7 @@ class RetryTaskTest {
     }
 
     @Test
-    @DisplayName("an attempt that leaves the thread interrupted is not run again with no wait")
+    @DisplayName("an attempt that leaves the thread interrupted is not run again")
     void attemptLeavingTheStatusSetIsNotRunAgain() {
       AtomicInteger attempts = new AtomicInteger();
       IllegalStateException cancelled = new IllegalStateException("cancelled");
@@ -685,19 +683,69 @@ class RetryTaskTest {
     }
 
     @Test
-    @DisplayName("retryTaskWithFallback() falls back from an interrupted attempt, status still set")
-    void fallbackAfterInterruptedAttemptKeepsTheStatus() {
+    @DisplayName(
+        "an interrupted thread fires no retry event and does not wait for the next attempt")
+    void interruptedThreadAnnouncesNoRetry() {
+      List<RetryEvent> events = new ArrayList<>();
+      RetryPolicy slow = RetryPolicy.fixed(3, Duration.ofSeconds(10)).onRetry(events::add);
+      VTask<String> task =
+          () -> {
+            Thread.currentThread().interrupt(); // caught a cancellation
+            throw new IllegalStateException("cancelled");
+          };
+
+      try {
+        assertThatThrownBy(Retry.retryTask(task, slow)::execute)
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts");
+        assertThat(events).isEmpty();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    /** A task that catches a cancellation, sets the interrupt status again, and fails. */
+    private VTask<String> leavesTheThreadInterrupted(IllegalStateException failure) {
+      return () -> {
+        Thread.currentThread().interrupt();
+        throw failure;
+      };
+    }
+
+    @Test
+    @DisplayName("retryTaskWithFallback() does not fall back from a cancelled attempt")
+    void noFallbackFromACancelledAttempt() {
       InterruptedException cancelled = new InterruptedException("cancelled");
-      AtomicReference<Throwable> seen = new AtomicReference<>();
+      AtomicInteger fallbacks = new AtomicInteger();
       VTask<String> task =
           () -> {
             throw cancelled;
           };
 
+      assertThatThrownBy(
+              Retry.retryTaskWithFallback(
+                      task,
+                      immediate,
+                      cause -> {
+                        fallbacks.incrementAndGet();
+                        return "fallback";
+                      })
+                  ::execute)
+          .isSameAs(cancelled);
+      assertThat(fallbacks).hasValue(0);
+    }
+
+    @Test
+    @DisplayName("retryTaskWithFallback() falls back after an interrupt between attempts")
+    void fallbackAfterAnInterruptBetweenAttemptsKeepsTheStatus() {
+      IllegalStateException cancelled = new IllegalStateException("cancelled");
+      AtomicReference<Throwable> seen = new AtomicReference<>();
+
       try {
         String result =
             Retry.retryTaskWithFallback(
-                    task,
+                    leavesTheThreadInterrupted(cancelled),
                     immediate,
                     cause -> {
                       seen.set(cause);
@@ -707,6 +755,32 @@ class RetryTaskTest {
 
         assertThat(result).isEqualTo("fallback");
         assertThat(seen.get()).isSameAs(cancelled);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
+    @DisplayName("retryTaskWithRecovery() starts no recovery task once the retry is interrupted")
+    void noRecoveryAfterAnInterruptedRetry() {
+      IllegalStateException cancelled = new IllegalStateException("cancelled");
+      AtomicInteger recoveries = new AtomicInteger();
+
+      try {
+        assertThatThrownBy(
+                Retry.retryTaskWithRecovery(
+                        leavesTheThreadInterrupted(cancelled),
+                        immediate,
+                        cause -> {
+                          recoveries.incrementAndGet();
+                          return VTask.succeed("recovered");
+                        })
+                    ::execute)
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts")
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(recoveries).hasValue(0);
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {
         Thread.interrupted();

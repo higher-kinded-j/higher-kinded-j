@@ -759,9 +759,13 @@ class BulkheadTest {
             throw cancelled;
           };
 
-      assertThatThrownBy(bulkhead.protect(task)::execute).isSameAs(cancelled);
-      assertThat(bulkhead.availablePermits()).isEqualTo(1);
-      assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      try {
+        assertThatThrownBy(bulkhead.protect(task)::execute).isSameAs(cancelled);
+        assertThat(bulkhead.availablePermits()).isEqualTo(1);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 

@@ -514,5 +514,29 @@ class RetryTest {
         Thread.interrupted();
       }
     }
+
+    @Test
+    @DisplayName("execute() sets the interrupt status when it wraps a sneaky InterruptedException")
+    void executeSetsTheStatusForASneakyInterruptedException() {
+      AtomicInteger attempts = new AtomicInteger();
+      InterruptedException cancelled = new InterruptedException("cancelled");
+
+      try {
+        assertThatThrownBy(
+                () ->
+                    Retry.execute(
+                        RetryPolicy.fixed(3, Duration.ZERO),
+                        () -> {
+                          attempts.incrementAndGet();
+                          throw sneakyThrow(cancelled);
+                        }))
+            .isExactlyInstanceOf(RuntimeException.class)
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 }

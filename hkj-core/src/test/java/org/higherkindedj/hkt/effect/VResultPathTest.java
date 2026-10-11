@@ -2163,7 +2163,8 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("a use run through withRetry that throws InterruptedException runs once")
+    @DisplayName(
+        "a use run through withRetry that throws InterruptedException runs once, and sets the status")
     void interruptedExceptionThroughRetryRunsOnce() {
       AtomicInteger attempts = new AtomicInteger();
       try {
@@ -2183,7 +2184,7 @@ class VResultPathTest {
                 .run()
                 .run();
 
-        assertThatEither(result).isLeft().hasLeft("Retry interrupted after 1 attempts");
+        assertThatEither(result).isLeft().hasLeft("sleep interrupted");
         assertThat(attempts).hasValue(1);
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {

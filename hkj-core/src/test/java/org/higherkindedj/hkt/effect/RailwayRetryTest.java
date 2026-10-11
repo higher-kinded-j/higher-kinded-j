@@ -335,7 +335,8 @@ class RailwayRetryTest {
     }
 
     @Test
-    @DisplayName("a task that throws InterruptedException runs once, and the status is set")
+    @DisplayName(
+        "a task that throws InterruptedException runs once, and the exception passes through")
     void interruptedTaskRunsOnce() {
       AtomicInteger attempts = new AtomicInteger();
       InterruptedException cancelled = new InterruptedException("cancelled");
@@ -347,19 +348,12 @@ class RailwayRetryTest {
               },
               e -> true,
               immediate);
-      try {
-        assertThatThrownBy(task::execute)
-            .isInstanceOf(RetryExhaustedException.class)
-            .satisfies(e -> assertThat(e.getCause()).isSameAs(cancelled));
-        assertThat(attempts).hasValue(1);
-        assertThat(Thread.currentThread().isInterrupted()).isTrue();
-      } finally {
-        Thread.interrupted();
-      }
+      assertThatThrownBy(task::execute).isSameAs(cancelled);
+      assertThat(attempts).hasValue(1);
     }
 
     @Test
-    @DisplayName("a selected Left left with the thread interrupted is returned, not retried")
+    @DisplayName("a selected Left from an attempt that sets the interrupt status is returned")
     void selectedLeftWithTheStatusSetIsReturned() {
       AtomicInteger attempts = new AtomicInteger();
       VTask<Either<String, Integer>> task =
