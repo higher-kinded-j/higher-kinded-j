@@ -13,8 +13,9 @@ import org.jspecify.annotations.Nullable;
  * A configurable policy for retry behaviour.
  *
  * <p>{@code RetryPolicy} defines how operations should be retried: how many times, with what delay
- * between attempts, and which exceptions should trigger retries. An {@code InterruptedException}
- * never does, whatever the predicate: an interrupt stops the retry, as {@link Retry} describes.
+ * between attempts, and which exceptions should trigger retries. {@link Retry} never retries an
+ * {@code InterruptedException}, whatever the predicate: an interrupt stops the retry, as {@link
+ * Retry} describes.
  *
  * <h2>Built-in Policies</h2>
  *

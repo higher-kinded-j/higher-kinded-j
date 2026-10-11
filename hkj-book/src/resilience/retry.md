@@ -270,7 +270,7 @@ try {
 }
 ```
 
-An interrupt ends the retry early, whatever the policy's predicate. An attempt that throws `InterruptedException` is not run again, and the exception reaches you as thrown, as it would with no retry. A thread interrupted before the next attempt stops the retry too: the interrupt status is set, and `RetryExhaustedException` is thrown with the last attempt's exception as its cause. So a [`Scope`](../monads/vtask_scope.md) that cancels a retried task does not wait for further attempts. After an interrupt a recovery task does not start, since a cancelled retry starts no new work. A fallback can check `Thread.currentThread().isInterrupted()` to tell a cancellation from exhaustion.
+An interrupt ends the retry early, whatever the policy's predicate. An attempt that throws `InterruptedException` is not run again, and the exception reaches you as thrown, as it would with no retry. A thread interrupted before the next attempt stops the retry too: the interrupt status is set, and `RetryExhaustedException` is thrown with the last attempt's exception as its cause. So a [`Scope`](../monads/vtask_scope.md) that cancels a retried task does not wait for further attempts. After an interrupt a recovery task does not start, since a cancelled retry starts no new work. A fallback, or a `bracketOutcome` `onDefect` that maps `InterruptedException`, can check `Thread.currentThread().isInterrupted()` to tell this cancellation from exhaustion.
 
 ---
 

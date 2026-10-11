@@ -348,8 +348,13 @@ class RailwayRetryTest {
               },
               e -> true,
               immediate);
-      assertThatThrownBy(task::execute).isSameAs(cancelled);
-      assertThat(attempts).hasValue(1);
+      try {
+        assertThatThrownBy(task::execute).isSameAs(cancelled);
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
 
     @Test

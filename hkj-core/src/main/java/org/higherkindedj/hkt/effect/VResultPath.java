@@ -942,7 +942,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * {@code release} has run, as Java asks of code that catches one; one wrapped in another
    * exception does not set it. So the caller still sees an interrupt that {@code use} threw or left
    * pending. If the pipeline must distinguish cancellation from domain failure, map it to a
-   * dedicated error in {@code onDefect}.
+   * dedicated error in {@code onDefect}. A use run through {@code withRetry} and cancelled between
+   * attempts reaches {@code onDefect} as a {@code RetryExhaustedException} with the status set, so
+   * check {@code Thread.currentThread().isInterrupted()} there too.
    *
    * @param acquire produces the resource; must not be null
    * @param use consumes the resource; must not be null

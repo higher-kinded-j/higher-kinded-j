@@ -35,12 +35,14 @@ import org.jspecify.annotations.Nullable;
  * it as its cause.
  *
  * <p>An interrupt stops the retry, whatever the policy's predicate. An attempt that throws {@code
- * InterruptedException} is not run again, and its exception is thrown as is, as it would be with no
- * retry. A thread interrupted before the next attempt starts stops the retry too: the interrupt
- * status is set, and {@link RetryExhaustedException} is thrown with the last attempt's exception as
- * its cause. {@link #retryTaskWithFallback} still falls back from that, with the status set, and
- * {@link #retryTaskWithRecovery} throws it rather than start its recovery task: a cancelled retry
- * starts no new work.
+ * InterruptedException} is not run again. The {@code VTask} methods throw it as is, as they would
+ * with no retry; {@link #execute(RetryPolicy, Supplier)}, whose {@code Supplier} declares no
+ * checked exception, wraps it in a {@code RuntimeException} and sets the interrupt status. A thread
+ * interrupted before the next attempt starts stops the retry too: the interrupt status is set, and
+ * {@link RetryExhaustedException} is thrown with the last attempt's exception as its cause. {@link
+ * #retryTaskWithFallback} still falls back from that, with the status set, and {@link
+ * #retryTaskWithRecovery} throws it rather than start its recovery task: a cancelled retry starts
+ * no new work.
  *
  * @see RetryPolicy
  * @see RetryExhaustedException
@@ -260,13 +262,16 @@ public final class Retry {
           listener.accept(RetryEvent.of(attempts, t, delay));
         }
 
-        // Wait before the next attempt; an interrupt while waiting stops the retry
+        // Wait before the next attempt; an interrupt while waiting stops the retry, and so does
+        // one that arrived while the listener ran when there is no wait
         if (!delay.isZero() && !delay.isNegative()) {
           try {
             Thread.sleep(delay.toMillis());
           } catch (InterruptedException e) {
             throw retryInterrupted(t, attempts);
           }
+        } else if (Thread.currentThread().isInterrupted()) {
+          throw retryInterrupted(t, attempts);
         }
       }
     }

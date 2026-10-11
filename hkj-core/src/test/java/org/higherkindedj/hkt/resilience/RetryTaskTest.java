@@ -714,6 +714,30 @@ class RetryTaskTest {
     }
 
     @Test
+    @DisplayName("with no wait, an interrupt that arrives while the listener runs stops the retry")
+    void interruptDuringTheListenerStopsTheRetry() {
+      AtomicInteger attempts = new AtomicInteger();
+      IllegalStateException failure = new IllegalStateException("transient");
+      RetryPolicy interrupting = immediate.onRetry(event -> Thread.currentThread().interrupt());
+      VTask<String> task =
+          () -> {
+            attempts.incrementAndGet();
+            throw failure;
+          };
+
+      try {
+        assertThatThrownBy(Retry.retryTask(task, interrupting)::execute)
+            .isInstanceOf(RetryExhaustedException.class)
+            .hasMessage("Retry interrupted after 1 attempts")
+            .satisfies(e -> assertThat(e.getCause()).isSameAs(failure));
+        assertThat(attempts).hasValue(1);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("retryTaskWithFallback() does not fall back from a cancelled attempt")
     void noFallbackFromACancelledAttempt() {
       InterruptedException cancelled = new InterruptedException("cancelled");
@@ -723,17 +747,22 @@ class RetryTaskTest {
             throw cancelled;
           };
 
-      assertThatThrownBy(
-              Retry.retryTaskWithFallback(
-                      task,
-                      immediate,
-                      cause -> {
-                        fallbacks.incrementAndGet();
-                        return "fallback";
-                      })
-                  ::execute)
-          .isSameAs(cancelled);
-      assertThat(fallbacks).hasValue(0);
+      try {
+        assertThatThrownBy(
+                Retry.retryTaskWithFallback(
+                        task,
+                        immediate,
+                        cause -> {
+                          fallbacks.incrementAndGet();
+                          return "fallback";
+                        })
+                    ::execute)
+            .isSameAs(cancelled);
+        assertThat(fallbacks).hasValue(0);
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
 
     @Test
