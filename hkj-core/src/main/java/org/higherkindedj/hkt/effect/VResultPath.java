@@ -744,7 +744,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * interrupted - it keeps running unobserved after the typed timeout is returned (bound its side
    * effects accordingly, e.g. with {@link #bracketOutcome}); and a {@code TimeoutException} thrown
    * by code <em>inside</em> the pipeline is indistinguishable from the budget expiring, so it is
-   * also mapped to {@code onTimeout}.
+   * also mapped to {@code onTimeout}. An interrupt of the caller is passed on to the computation,
+   * and its {@code InterruptedException} is thrown once the computation stops, or the budget runs
+   * out; it is not mapped to {@code onTimeout}.
    *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not

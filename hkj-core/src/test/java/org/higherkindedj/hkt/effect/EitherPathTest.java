@@ -1025,6 +1025,39 @@ class EitherPathTest {
     }
 
     @Test
+    @DisplayName("withTimeout under withRetry: an interrupted caller stops the retry after one run")
+    void timeoutUnderRetryStopsOnInterrupt() {
+      AtomicInteger runs = new AtomicInteger();
+      Supplier<EitherPath<String, Integer>> slowStep =
+          () -> {
+            runs.incrementAndGet();
+            try {
+              Thread.sleep(3000);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return Path.right(1);
+          };
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatExceptionOfType(RetryExhaustedException.class)
+            .isThrownBy(
+                () ->
+                    EitherPath.withRetry(
+                        () ->
+                            EitherPath.withTimeout(
+                                slowStep, Duration.ofSeconds(10), () -> "took too long"),
+                        immediate))
+            .withMessage("Retry interrupted after 1 attempts");
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
     @DisplayName("withTimeout: a runtime exception from the step propagates unchanged")
     void timeoutPropagatesRuntimeException() {
       assertThatExceptionOfType(IllegalStateException.class)

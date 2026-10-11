@@ -600,13 +600,14 @@ class VTaskTest {
     @Test
     @DisplayName("timeout() does not interrupt the task when the time runs out")
     void timeoutDoesNotInterruptOnExpiry() throws InterruptedException {
+      CountDownLatch release = new CountDownLatch(1);
       CountDownLatch finished = new CountDownLatch(1);
       AtomicBoolean interrupted = new AtomicBoolean(false);
       VTask<Integer> slowTask =
           VTask.of(
               () -> {
                 try {
-                  Thread.sleep(300);
+                  release.await();
                   return TEST_VALUE;
                 } catch (InterruptedException e) {
                   interrupted.set(true);
@@ -619,6 +620,7 @@ class VTaskTest {
       assertThatVTask(slowTask.timeout(Duration.ofMillis(50)))
           .fails()
           .withExceptionType(TimeoutException.class);
+      release.countDown();
       assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
       assertThat(interrupted).isFalse();
     }
@@ -666,33 +668,61 @@ class VTaskTest {
     }
 
     @Test
-    @DisplayName(
-        "timeout() waits for a task that ignores the interrupt only until the time runs out")
-    void timeoutWaitsOnlyUntilTheTimeRunsOut() {
-      AtomicBoolean finished = new AtomicBoolean(false);
-      VTask<Integer> stubbornTask =
+    @DisplayName("timeout() keeps a failure the cancelled task throws as suppressed")
+    void timeoutKeepsLateFailureAsSuppressed() {
+      IllegalStateException rollbackFailed = new IllegalStateException("rollback failed");
+      VTask<Integer> slowTask =
           VTask.of(
               () -> {
-                long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
-                while (System.nanoTime() < end) {
-                  try {
-                    Thread.sleep(Duration.ofNanos(Math.max(1, end - System.nanoTime())));
-                  } catch (InterruptedException ignored) {
-                    // this task ignores a cancellation
-                  }
+                try {
+                  Thread.sleep(3000);
+                  return TEST_VALUE;
+                } catch (InterruptedException e) {
+                  throw rollbackFailed;
                 }
-                finished.set(true);
-                return TEST_VALUE;
               });
 
       Thread.currentThread().interrupt();
       try {
-        assertThatThrownBy(stubbornTask.timeout(Duration.ofMillis(200))::execute)
-            .isInstanceOf(InterruptedException.class);
-        assertThat(finished).isFalse();
+        assertThatThrownBy(slowTask.timeout(Duration.ofSeconds(10))::execute)
+            .isInstanceOf(InterruptedException.class)
+            .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
       } finally {
         Thread.interrupted();
       }
+    }
+
+    @Test
+    @DisplayName(
+        "timeout() waits for a task that ignores the interrupt only until the time runs out")
+    void timeoutWaitsOnlyUntilTheTimeRunsOut() throws InterruptedException {
+      CountDownLatch release = new CountDownLatch(1);
+      CountDownLatch sawInterrupt = new CountDownLatch(1);
+      VTask<Integer> stubbornTask =
+          VTask.of(
+              () -> {
+                while (true) {
+                  try {
+                    release.await();
+                    return TEST_VALUE;
+                  } catch (InterruptedException ignored) {
+                    sawInterrupt.countDown(); // this task ignores a cancellation
+                  }
+                }
+              });
+      VTask<Integer> withTimeout = stubbornTask.timeout(Duration.ofMillis(200));
+
+      long start = System.nanoTime();
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(withTimeout::execute).isInstanceOf(InterruptedException.class);
+      } finally {
+        Thread.interrupted();
+      }
+      long waitedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+      release.countDown();
+      assertThat(sawInterrupt.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(waitedMillis).isGreaterThanOrEqualTo(190);
     }
   }
 

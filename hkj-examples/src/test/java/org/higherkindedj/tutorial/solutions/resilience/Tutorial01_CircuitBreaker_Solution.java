@@ -168,8 +168,9 @@ public class Tutorial01_CircuitBreaker_Solution {
      * Why this is idiomatic: {@code protectWithFallback(task, fallback)} combines the breaker with
      * a recovery function. Open circuits return the fallback; closed circuits run the task.
      *
-     * <p>Alternative: chain {@code protect} with a {@code recover} that falls back only for {@code
-     * CircuitOpenException}. The named method is the explicit "graceful degradation" form.
+     * <p>Alternative: chain {@code protect} with a {@code recoverWith} that falls back only for
+     * {@code CircuitOpenException} and fails again with anything else. The named method is the
+     * explicit "graceful degradation" form.
      *
      * <p>Common wrong attempt: pick a fallback that itself calls the downstream. Defeats the
      * purpose; fallbacks should be cheap and local (cache, default).

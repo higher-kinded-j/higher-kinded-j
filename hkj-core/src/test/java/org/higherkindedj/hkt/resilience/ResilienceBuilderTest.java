@@ -431,7 +431,7 @@ class ResilienceBuilderTest {
   class CancellationTests {
 
     @Test
-    @DisplayName("An interrupted caller cancels a call behind a breaker and a retry at once")
+    @DisplayName("An interrupted caller cancels a call behind a breaker, and it is not retried")
     void interruptedCallerCancelsTheProtectedCall() throws InterruptedException {
       AtomicInteger attempts = new AtomicInteger(0);
       AtomicInteger fallbackCalls = new AtomicInteger(0);

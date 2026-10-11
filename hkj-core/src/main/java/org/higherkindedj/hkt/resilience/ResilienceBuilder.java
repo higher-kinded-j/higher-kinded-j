@@ -135,8 +135,8 @@ public final class ResilienceBuilder<A> {
    * Adds a fallback function that produces a value when the protected operation fails.
    *
    * <p>An {@code InterruptedException} is a cancellation, not a failure, so it passes through as
-   * thrown, and the fallback does not run. A bulkhead wait or a retry that an interrupt stops
-   * throws its own exception instead, {@link BulkheadFullException} or {@link
+   * thrown, and the fallback does not run. A bulkhead wait, or a retry that an interrupt stops
+   * between attempts, throws its own exception instead, {@link BulkheadFullException} or {@link
    * RetryExhaustedException}, with the interrupt status set, and the fallback runs for that. With
    * {@link #withTimeout}, they run on the timeout's thread, so an interrupt of the caller arrives
    * as the timeout's {@code InterruptedException}, which passes through.
