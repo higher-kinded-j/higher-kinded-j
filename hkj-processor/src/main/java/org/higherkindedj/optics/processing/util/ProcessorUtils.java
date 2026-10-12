@@ -1825,18 +1825,6 @@ public final class ProcessorUtils {
   }
 
   /**
-   * The spellings an accessor for {@code name} is looked for under, in the order they are
-   * preferred: the name itself, then {@code getName}, then {@code isName}.
-   *
-   * @param name a field's, or a constructor parameter's, name; must not be null
-   * @return the three spellings (non-null)
-   * @since 0.5.0
-   */
-  public static List<String> getterSpellings(String name) {
-    return List.of(name, "get" + capitalise(name), "is" + capitalise(name));
-  }
-
-  /**
    * The mirror of an annotation on an element, or null where it carries none of that type.
    *
    * @param element the annotated element; must not be null
@@ -1976,7 +1964,9 @@ public final class ProcessorUtils {
 
   /**
    * The candidate nearest {@code name}, when it is few enough edits away to be offered as what was
-   * meant. Of candidates equally near, the first is kept.
+   * meant. Of candidates equally near, the first is kept. For the name of a method that reads or
+   * sets one value, {@link NamingConvention#nearest} offers the same value in another convention
+   * first.
    *
    * @param name the name as written; must not be null
    * @param candidates the names it could have meant, in the order to prefer them; must not be null

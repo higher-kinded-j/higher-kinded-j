@@ -32,6 +32,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -1727,7 +1728,7 @@ public class SpecInterfaceAnalyser {
     }
 
     // Look for an accessor under any of its spellings: players(), getPlayers() or isPlayers()
-    List<String> spellings = ProcessorUtils.getterSpellings(fieldName);
+    List<String> spellings = NamingConvention.ACCESSOR.of(fieldName);
 
     for (var enclosed : typeElement.getEnclosedElements()) {
       if (enclosed.getKind() != ElementKind.METHOD) {

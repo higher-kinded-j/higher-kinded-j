@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * Lens.of(
- *     source -> source.getFieldName(),
+ *     source -> source.fieldName(),
  *     (source, newValue) -> source.toBuilder().fieldName(newValue).build()
  * )
  * }</pre>
@@ -26,8 +26,8 @@ import java.lang.annotation.Target;
  * {@code @Builder}, Immutables, AutoValue):
  *
  * <ul>
- *   <li>{@code fieldName()} or {@code getFieldName()} - getter on source (derived from optic method
- *       name, or explicitly specified via {@link #getter()})
+ *   <li>{@code fieldName()} - getter on source (the optic method's name, unless {@link #getter()}
+ *       names another, such as {@code getFieldName} on a JavaBean-style source)
  *   <li>{@code toBuilder()} - method to obtain a builder from existing instance
  *   <li>{@code fieldName(value)} - setter on builder (derived from optic method name)
  *   <li>{@code build()} - method to construct final object

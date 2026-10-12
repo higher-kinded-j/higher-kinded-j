@@ -9936,7 +9936,9 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a typo'd local leaf is an error with a nearest-name hint, never silently inert")
+    @DisplayName(
+        "a typo'd local leaf, or one named as its getter, is an error naming the component, never"
+            + " silently inert")
     void typodLocalLeafIsDiagnosed() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -9974,11 +9976,34 @@ class MappingProcessorTest {
                 public record W(String email) {}
               }
               """);
-      Compilation compilation = compile(records, spec);
+      // A leaf named as the component's getter is no near miss, at three edits, but the same
+      // name in another accessor convention.
+      JavaFileObject getterNamed =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping3",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping3 extends MappingSpec<Records.D, Records.W> {
+                default ValidatedPrism<String, String> getEmail() {
+                  return ValidatedPrism.of(raw -> null, v -> v);
+                }
+              }
+              """);
+      Compilation compilation = compile(records, spec, getterNamed);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("leaf 'emial' names no component of D");
-      assertThat(compilation).hadErrorContaining("Did you mean 'email()'?");
+      assertThat(compilation).hadErrorContaining("Did you mean 'email()'?").inFile(spec);
       assertThat(compilation).hadErrorContaining("would silently validate nothing");
+      assertThat(compilation)
+          .hadErrorContaining("leaf 'getEmail' names no component of D")
+          .inFile(getterNamed);
+      assertThat(compilation).hadErrorContaining("Did you mean 'email()'?").inFile(getterNamed);
     }
 
     @Test

@@ -256,7 +256,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 
 A leaf declared on the spec is named after nothing the domain has, which is usually a typo.
 
-**Fix.** Rename it after the component it parses; the message names the nearest one when it is close. Make it `private` or `static` if it is a helper.
+**Fix.** Rename it after the component it parses. The message names that component when the leaf's name is close to it, or is its name with an accessor prefix, `getEmail` for `email`. Make the method `private` or `static` if it is a helper.
 
 ```
 @GenerateMapping: leaf 'emial' names no component of Customer. A leaf is a zero-parameter
@@ -1638,7 +1638,7 @@ interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}
 
 An `@Unmapped` marker names something the bean does not leave unpaired, which is usually a misspelling.
 
-**Fix.** Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it.
+**Fix.** Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it. For a marker named after the accessor itself, `setStamp` for `stamp`, the message offers the property.
 
 ```
 @GenerateMapping: @Unmapped method 'ident' names no accessor 'MerchantPatchBean' leaves out. The
@@ -1745,7 +1745,7 @@ interface AuthorViewMapping extends MappingSpec<Author, AuthorView> {
 
 A `@ReadOnly` marker names no getter the bean declares without a setter, which is usually a misspelling.
 
-**Fix.** Name the marker after the getter's property, which the message lists, or remove it.
+**Fix.** Name the marker after the getter's property, which the message lists, or remove it. For a marker named after the getter itself, `getId` for `id`, the message offers the property.
 
 ```
 @GenerateMapping: @ReadOnly method 'idd' names no getter 'MerchantModel' leaves unpaired. The
