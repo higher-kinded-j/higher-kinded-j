@@ -18,14 +18,15 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateGetters
- * public record Person(String name, int age) {}
+ * public record Person(String firstName, String lastName, int age, Address address) {}
  *
- * // Generates:
+ * // Generates, with a pair for each component:
  * public final class PersonGetters {
- *   public static Getter<Person, String> name() { ... }
+ *   public static Getter<Person, String> firstName() { ... }
  *   public static Getter<Person, Integer> age() { ... }
- *   public static String getName(Person source) { ... }
+ *   public static String getFirstName(Person source) { ... }
  *   public static int getAge(Person source) { ... }
+ *   ...
  * }
  * }</pre>
  *

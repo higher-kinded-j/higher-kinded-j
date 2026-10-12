@@ -19,12 +19,11 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateFolds
- * record User(String name, int age, List<Order> orders) {}
+ * record Team(String name, List<Player> players) {}
  *
- * // Generates UserFolds with methods:
- * // - Fold<User, String> name()
- * // - Fold<User, Integer> age()
- * // - Fold<User, List<Order>> orders()
+ * // Generates TeamFolds with methods:
+ * // - Fold<Team, String> name()
+ * // - Fold<Team, Player> players()   (an Iterable component folds over its elements)
  * }</pre>
  *
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the

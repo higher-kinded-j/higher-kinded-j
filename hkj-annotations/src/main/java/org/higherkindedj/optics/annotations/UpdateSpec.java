@@ -20,23 +20,25 @@ package org.higherkindedj.optics.annotations;
  * not a projection of information, and an all-absent wire is <em>valid</em>, not a total parse):
  *
  * <pre>{@code
- * public record User(String name, EmailAddress email, int age) {}
- * // wire properties are wrappers: a primitive can never be absent (rejected with a diagnostic).
- * public class UserPatchDto {
+ * public record Customer(String name, EmailAddress email) {}
+ * // a PATCH bean: null means "not supplied". Its properties are reference types, since a
+ * // primitive can never be absent (rejected with a diagnostic).
+ * public class ContactPatchBean {
  *   String getName(); void setName(String);
  *   String getEmail(); void setEmail(String);
- *   Integer getAge(); void setAge(Integer);
  * }
  *
  * @GenerateMapping
- * public interface UserPatchMapping extends UpdateSpec<User, UserPatchDto> {
+ * public interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
  *   default ValidatedPrism<String, EmailAddress> email() { return EmailCodecs.EMAIL; }
  * }
- * // generates UserPatchMappingImpl with:
- * //   Edits.Accumulated<User> updateFrom(UserPatchDto)   (folds the PRESENT fields into an Update)
+ * // generates ContactPatchMappingImpl with:
+ * //   Edits.Accumulated<Customer> updateFrom(ContactPatchBean)
+ * //   (folds the PRESENT fields into an Update)
  *
- * Edits.Accumulated<User> u = UserPatchMappingImpl.INSTANCE.updateFrom(dto);
- * Validated<NonEmptyList<FieldError>, User> patched = u.apply(current); // or applyPath / toValidated
+ * Edits.Accumulated<Customer> u = ContactPatchMappingImpl.INSTANCE.updateFrom(patch);
+ * Validated<NonEmptyList<FieldError>, Customer> patched =
+ *     u.apply(current); // or applyPath / toValidated
  * }</pre>
  *
  * <ul>
@@ -58,10 +60,11 @@ package org.higherkindedj.optics.annotations;
  * ends of a range is valid. The constructor runs only once every present field has validated, and a
  * final value it refuses is {@code Invalid}, an unlabelled {@code FieldError} carrying the
  * exception's message; an exception without a message, or with a blank one, reads {@code "not a
- * valid User"}. A PATCH that sends nothing hands back the current value itself, without running the
- * constructor. {@code toValidated()} hands back the same construct-once {@code Update}, which has
- * no error channel, so a refusal throws from it. A nested record the PATCH replaces whole parses
- * through its own spec, whose constructor call is guarded the same way.
+ * valid "} and the domain type's simple name, as in {@code "not a valid PriceBand"}. A PATCH that
+ * sends nothing hands back the current value itself, without running the constructor. {@code
+ * toValidated()} hands back the same construct-once {@code Update}, which has no error channel, so
+ * a refusal throws from it. A nested record the PATCH replaces whole parses through its own spec,
+ * whose constructor call is guarded the same way.
  *
  * <p>The wire type {@code W} must be a bean-shaped class (a record cannot distinguish an absent
  * component from a null-typed one), and every wire property must be reference-typed — a primitive

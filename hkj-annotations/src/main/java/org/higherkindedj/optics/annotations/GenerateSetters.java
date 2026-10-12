@@ -18,14 +18,15 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateSetters
- * public record Person(String name, int age) {}
+ * public record User(String username, String email, int loginCount, UserSettings settings) {}
  *
- * // Generates:
- * public final class PersonSetters {
- *   public static Setter<Person, String> name() { ... }
- *   public static Setter<Person, Integer> age() { ... }
- *   public static Person withName(Person source, String newValue) { ... }
- *   public static Person withAge(Person source, int newValue) { ... }
+ * // Generates, with a pair for each component:
+ * public final class UserSetters {
+ *   public static Setter<User, String> username() { ... }
+ *   public static Setter<User, Integer> loginCount() { ... }
+ *   public static User withUsername(User source, String newUsername) { ... }
+ *   public static User withLoginCount(User source, int newLoginCount) { ... }
+ *   ...
  * }
  * }</pre>
  *

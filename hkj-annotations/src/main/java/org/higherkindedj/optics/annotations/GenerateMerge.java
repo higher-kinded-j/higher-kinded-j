@@ -18,10 +18,10 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @GenerateMerge
  * public interface DashboardAssembly {
- *   DashboardDto assemble(User user, Account account, Settings settings);
+ *   Dashboard assemble(Customer customer, Account account, Settings settings);
  * }
  *
- * DashboardDto dashboard = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+ * Dashboard dashboard = DashboardAssemblyImpl.INSTANCE.assemble(customer, account, settings);
  * }</pre>
  *
  * <p>Each target component is filled from the one source with a same-named component: identity when

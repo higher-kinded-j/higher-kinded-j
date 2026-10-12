@@ -63,9 +63,9 @@ import java.lang.annotation.Target;
  *     @ThroughField(field = "players")
  *     Traversal<Team, Player> eachPlayer();
  *
- *     // Explicit traversal for custom container
- *     @ThroughField(field = "tree", traversal = "com.mycompany.TreeTraverse.preOrder()")
- *     Traversal<Team, Node> eachNode();
+ *     // Explicit traversal: one of your own, or one for a container the processor does not know
+ *     @ThroughField(field = "players", traversal = "com.mycompany.RosterTraversals.starters()")
+ *     Traversal<Team, Player> starters();
  * }
  * }</pre>
  *

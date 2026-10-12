@@ -21,18 +21,18 @@ import java.lang.annotation.Target;
  * <p>The happy path is one empty interface:
  *
  * <pre>{@code
- * public record User(String name, EmailAddress email) {}
- * public record UserDto(String name, String email) {}
+ * public record Customer(String name, EmailAddress email) {}
+ * public record CustomerDto(String name, String email) {}
  *
  * @GenerateMapping
- * public interface UserMapping extends MappingSpec<User, UserDto> {
+ * public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
  *   // same-named, same-typed components map automatically; this leaf parses the one that differs
  *   default ValidatedPrism<String, EmailAddress> email() { return EmailCodecs.EMAIL; }
  * }
  *
- * UserDto dto = UserMappingImpl.INSTANCE.build(user);                          // total
- * Validated<NonEmptyList<FieldError>, User> back =
- *     UserMappingImpl.INSTANCE.parse(dto);                                     // every bad field
+ * CustomerDto dto = CustomerMappingImpl.INSTANCE.build(customer);              // total
+ * Validated<NonEmptyList<FieldError>, Customer> back =
+ *     CustomerMappingImpl.INSTANCE.parse(dto);                                 // every bad field
  * }</pre>
  *
  * <p>The full shape taxonomy, for when a mapping is not the happy path:
@@ -71,20 +71,20 @@ import java.lang.annotation.Target;
  *       and locates failures under the domain path ({@code address.street}), and renames, leaves
  *       and nested specs apply to the inner components by name.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
- *   <li>Generic records map three ways. As concrete instantiations: {@code MappingSpec<Page<User>,
- *       PageDto<UserDto>>} classifies every component under the substitution. As threaded specs:
- *       {@code PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>>} generates one generic Impl
- *       serving every instantiation, reached through the {@code instance()} generic-singleton
- *       convention ({@code EitherMonad.instance()}); elements sharing a variable copy by identity.
- *       As element-mapped specs: the two sides thread under different variables and an abstract
- *       {@code ValidatedPrism<TDto, T>} leaf declares the element mapping, supplied at runtime
- *       through the generated {@code of(...)} factory (one prism per leaf, declaration order; the
- *       Impl carries them, so no singleton). All three nest: instantiated mappings register like
- *       any other, threaded specs resolve at use sites by type-argument unification, element-mapped
- *       specs compose in place ({@code of(entries())}) with an unresolvable element pair diagnosed.
- *       Generic mappings are record-to-record only (bean-shaped wires and {@code UpdateSpec}
- *       mappings stay concrete); raw uses and wildcards are diagnosed, array arguments are concrete
- *       and unify structurally.
+ *   <li>Generic records map three ways. As concrete instantiations: {@code
+ *       MappingSpec<Page<Customer>, PageDto<CustomerDto>>} classifies every component under the
+ *       substitution. As threaded specs: {@code PageMapping<T> extends MappingSpec<Page<T>,
+ *       PageDto<T>>} generates one generic Impl serving every instantiation, reached through the
+ *       {@code instance()} generic-singleton convention ({@code EitherMonad.instance()}); elements
+ *       sharing a variable copy by identity. As element-mapped specs: the two sides thread under
+ *       different variables and an abstract {@code ValidatedPrism<TDto, T>} leaf declares the
+ *       element mapping, supplied at runtime through the generated {@code of(...)} factory (one
+ *       prism per leaf, declaration order; the Impl carries them, so no singleton). All three nest:
+ *       instantiated mappings register like any other, threaded specs resolve at use sites by
+ *       type-argument unification, element-mapped specs compose in place ({@code of(entries())})
+ *       with an unresolvable element pair diagnosed. Generic mappings are record-to-record only
+ *       (bean-shaped wires and {@code UpdateSpec} mappings stay concrete); raw uses and wildcards
+ *       are diagnosed, array arguments are concrete and unify structurally.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError}
  *       (inside containers too: a null element or map value locates by index or key, identity
  *       copies included, at every depth and however the container is declared), on both wire

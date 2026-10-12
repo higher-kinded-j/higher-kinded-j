@@ -17,11 +17,12 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * public record Address(String street, String city, String postcode) {}
- * public record Customer(String name, Address address) {}
- * public record CustomerDto(String name, String street, String city, String postcode) {}
+ * public record CollectionPoint(String name, Address address) {}
+ * public record CollectionPointDto(String name, String street, String city, String postcode) {}
  *
  * @GenerateMapping
- * public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+ * public interface CollectionPointMapping
+ *     extends MappingSpec<CollectionPoint, CollectionPointDto> {
  *   @Flatten
  *   Address address();
  * }

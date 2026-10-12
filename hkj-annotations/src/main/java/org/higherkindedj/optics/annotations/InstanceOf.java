@@ -29,22 +29,18 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * // Sealed hierarchy
- * sealed interface PaymentMethod permits CreditCard, BankTransfer, Wallet {}
- * record CreditCard(String number, String expiry) implements PaymentMethod {}
- * record BankTransfer(String iban) implements PaymentMethod {}
- * record Wallet(String provider) implements PaymentMethod {}
+ * sealed interface Payment permits Card, Bank {}
+ * record Card(String pan) implements Payment {}
+ * record Bank(String iban) implements Payment {}
  *
  * @ImportOptics
- * interface PaymentMethodOptics extends OpticsSpec<PaymentMethod> {
+ * interface PaymentOpticsSpec extends OpticsSpec<Payment> {
  *
- *     @InstanceOf(CreditCard.class)
- *     Prism<PaymentMethod, CreditCard> creditCard();
+ *     @InstanceOf(Card.class)
+ *     Prism<Payment, Card> card();
  *
- *     @InstanceOf(BankTransfer.class)
- *     Prism<PaymentMethod, BankTransfer> bankTransfer();
- *
- *     @InstanceOf(Wallet.class)
- *     Prism<PaymentMethod, Wallet> wallet();
+ *     @InstanceOf(Bank.class)
+ *     Prism<Payment, Bank> bank();
  * }
  * }</pre>
  *

@@ -16,8 +16,8 @@ package org.higherkindedj.optics.annotations;
  *
  * <ul>
  *   <li>If the interface name ends with "Spec", that suffix is removed (e.g., {@code
- *       PersonOpticsSpec} → {@code PersonOptics})
- *   <li>Otherwise, "Impl" is appended (e.g., {@code PersonOptics} → {@code PersonOpticsImpl})
+ *       CustomerOpticsSpec} → {@code CustomerOptics})
+ *   <li>Otherwise, "Impl" is appended (e.g., {@code CustomerOptics} → {@code CustomerOpticsImpl})
  * </ul>
  *
  * <p><strong>Recommended convention:</strong> Name your spec interface with a "Spec" suffix for
@@ -50,17 +50,17 @@ package org.higherkindedj.optics.annotations;
  *
  * <pre>{@code
  * @ImportOptics
- * public interface PersonOpticsSpec extends OpticsSpec<Person> {
+ * public interface CustomerOpticsSpec extends OpticsSpec<Customer> {
  *
  *     @ViaBuilder
- *     Lens<Person, String> name();
+ *     Lens<Customer, String> name();
  *
  *     @ViaBuilder
- *     Lens<Person, Integer> age();
+ *     Lens<Customer, EmailAddress> email();
  *
  *     // Composition lives in a static method, referring to the generated class by name
- *     static Lens<Person, String> firstName() {
- *         return PersonOptics.name().andThen(
+ *     static Lens<Customer, String> firstName() {
+ *         return CustomerOptics.name().andThen(
  *             Lens.of(
  *                 n -> n.split(" ")[0],
  *                 (n, first) -> first + n.substring(n.indexOf(" "))
@@ -74,11 +74,11 @@ package org.higherkindedj.optics.annotations;
  * removed):
  *
  * <pre>{@code
- * // Generated from PersonOpticsSpec
- * public final class PersonOptics {
- *     private PersonOptics() {}
- *     public static Lens<Person, String> name() { ... }
- *     public static Lens<Person, Integer> age() { ... }
+ * // Generated from CustomerOpticsSpec
+ * public final class CustomerOptics {
+ *     private CustomerOptics() {}
+ *     public static Lens<Customer, String> name() { ... }
+ *     public static Lens<Customer, EmailAddress> email() { ... }
  * }
  * }</pre>
  *
@@ -93,8 +93,8 @@ package org.higherkindedj.optics.annotations;
  * interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>}, has nothing to generate from and
  * is rejected. A source type that is itself generic is supported, and the spec names its own type
  * parameters: {@code interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>} generates {@code static
- * <U> Lens<Box<U>, String> label()}, while {@code OpticsSpec<Box<String>>} generates a method with
- * no type parameters at all.
+ * <U> Lens<Box<U>, U> value()}, while {@code OpticsSpec<Box<String>>} generates a method with no
+ * type parameters at all.
  *
  * @param <S> the source type to create optics for; one class, record or interface
  * @see ImportOptics

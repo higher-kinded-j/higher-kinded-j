@@ -15,9 +15,11 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateMapping
- * public interface PersonMapping extends MappingSpec<Person, PersonDto> {
+ * public interface PartnerCustomerMapping extends MappingSpec<Customer, PartnerCustomerDto> {
  *   @MapField(to = "fullName")
- *   String name(); // domain Person.name <-> wire PersonDto.fullName
+ *   String name(); // domain Customer.name <-> wire PartnerCustomerDto.fullName
+ *
+ *   default ValidatedPrism<String, EmailAddress> email() { return EmailCodecs.EMAIL; }
  * }
  * }</pre>
  *
@@ -25,9 +27,9 @@ import java.lang.annotation.Target;
  * method named after it, meaning both at once:
  *
  * <pre>{@code
- * @MapField(to = "emailAddress")
- * default ValidatedPrism<String, EmailAddress> email() { // Person.email <-> PersonDto.emailAddress
- *   return EMAIL;
+ * @MapField(to = "emailAddress") // Customer.email <-> MailingListCustomerDto.emailAddress
+ * default ValidatedPrism<String, EmailAddress> email() {
+ *   return EmailCodecs.EMAIL;
  * }
  * }</pre>
  *

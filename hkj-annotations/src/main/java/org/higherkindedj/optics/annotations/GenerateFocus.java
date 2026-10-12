@@ -12,8 +12,9 @@ import java.lang.annotation.Target;
  * will be named by appending "Focus" to the record's name.
  *
  * <p>The generated class provides type-safe navigation paths using the Focus DSL. Each record
- * component becomes a static method returning a {@code FocusPath} that can be composed with other
- * optics for deep navigation.
+ * component becomes a static method returning a {@code FocusPath}, or an {@code AffinePath} or
+ * {@code TraversalPath} for an {@code Optional} or collection component, that can be composed with
+ * other optics for deep navigation.
  *
  * <p>Each path writes its field through the record's canonical constructor, exactly as {@link
  * GenerateLenses} does, so a compact constructor that normalises or checks a component runs on
@@ -23,19 +24,20 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateFocus
- * record User(String name, Address address) {}
+ * record Shopper(String name, Address address, Optional<String> nickname) {}
  *
  * @GenerateFocus
- * record Address(String street, String city) {}
+ * record Address(String street, String city, String postcode) {}
  *
  * // Generated code provides:
- * // UserFocus.name() -> FocusPath<User, String>
- * // UserFocus.address() -> AddressNavigator<User>, which is a FocusPath<User, Address>
+ * // ShopperFocus.name() -> FocusPath<Shopper, String>
+ * // ShopperFocus.address() -> AddressNavigator<Shopper>, which is a FocusPath<Shopper, Address>
+ * // ShopperFocus.nickname() -> AffinePath<Shopper, String>
  * // AddressFocus.street() -> FocusPath<Address, String>
  *
  * // Navigate fluently, or use the navigator as the path it is:
- * FocusPath<User, String> streetPath = UserFocus.address().street();
- * FocusPath<User, Address> addressPath = UserFocus.address();
+ * FocusPath<Shopper, String> streetPath = ShopperFocus.address().street();
+ * FocusPath<Shopper, Address> addressPath = ShopperFocus.address();
  * }</pre>
  *
  * <h2>Fluent Navigation with Navigators</h2>
@@ -46,12 +48,12 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateFocus
- * record Company(String name, Address headquarters) {}
+ * record Company(String name, Address address) {}
  *
  * @GenerateFocus
- * record Address(String street, String city) {}
+ * record Address(String street, String city, String postcode) {}
  *
- * String city = CompanyFocus.headquarters().city().get(company);
+ * String city = CompanyFocus.address().city().get(company);
  * }</pre>
  *
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
