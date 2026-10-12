@@ -66,7 +66,7 @@ TraversalPath<Portfolio, Position> allPositions = portfolio().positions();
 TraversalPath<Portfolio, Double> allExposures = portfolio().exposureByCurrency();
 ```
 
-`TraversalPath` is selected because each generator declares `Cardinality.ZERO_OR_MORE` and these fields are widened — either by `widenCollections = true` on the record, or because the element is itself a navigable record. Left un-widened, a `ZERO_OR_MORE` container keeps the container itself in focus, and `.each(...)` widens it at the call site.
+`TraversalPath` is selected because each generator declares `Cardinality.ZERO_OR_MORE` and these fields are widened, by `widenCollections = true` on the record, or by `widenFields` naming the field. Left un-widened, a `ZERO_OR_MORE` container keeps the container itself in focus, and `.each(...)` widens it at the call site.
 
 ---
 

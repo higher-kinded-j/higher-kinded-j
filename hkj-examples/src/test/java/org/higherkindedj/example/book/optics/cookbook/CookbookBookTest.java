@@ -347,7 +347,7 @@ class CookbookBookTest {
     @Test
     @DisplayName("a generated path is labelled, and a lens-built one is not")
     void labels() {
-      assertThat(CustomerFocus.email().toPath().pathString()).isEqualTo("email");
+      assertThat(CustomerFocus.email().pathString()).isEqualTo("email");
       assertThat(FocusPath.of(CustomerLenses.email()).segments()).isEmpty();
     }
   }

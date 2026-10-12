@@ -128,7 +128,7 @@ As `makeLenses` and Monocle's `GenLens` do, an annotation processor writes the o
 
 ## Migrating a Monocle habit {#migrating-a-monocle-habit}
 
-1. **Start from a Focus path, not a raw optic.** `OrderFocus.customer().email()` is the `Focus` you know. Its `toPath()` hands over the path, whose `.via(...)` takes a lens, prism, affine, iso or traversal.
+1. **Start from a Focus path, not a raw optic.** `OrderFocus.customer().email()` is the `Focus` you know. It is a path, whose `.via(...)` takes a lens, prism, affine, iso or traversal.
 2. **Write `modify` where you mean the `set` of `lens`.** An affine's `set` may write to an absent focus, and `modify` never does.
 3. **Pass the effect's instance yourself.** `modifyF` takes the `Applicative` as an argument; for validation, `OpticOps.modifyAllValidated` needs none.
 4. **Index the list, not the traversal.** `.at(0)` on a path that focuses the list, such as `FocusPath.of(OrderLenses.lines())`, writes one element. On a `TraversalPath` of lines it indexes into each line instead, and fails when run.

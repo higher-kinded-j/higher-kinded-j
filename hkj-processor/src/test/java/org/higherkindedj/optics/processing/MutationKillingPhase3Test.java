@@ -1472,7 +1472,7 @@ class MutationKillingPhase3Test {
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
               @GenerateFocus(generateNavigators = true)
-              public record NameInfo(String first, String last) {}
+              public record NameInfo(String first, String family) {}
               """);
       var outer =
           JavaFileObjects.forSourceString(
@@ -1496,7 +1496,7 @@ class MutationKillingPhase3Test {
               .toString();
 
       assertThat(code).contains("NameNavigator");
-      // First/last are String → FocusPath<S, String>
+      // First/family are String → FocusPath<S, String>
       assertThat(code).contains("FocusPath<S, String>");
     }
 

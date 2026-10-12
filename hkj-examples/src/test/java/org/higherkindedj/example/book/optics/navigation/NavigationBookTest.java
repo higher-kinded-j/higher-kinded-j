@@ -103,10 +103,9 @@ class NavigationBookTest {
   }
 
   @Test
-  @DisplayName("a navigator and the spelled-out path read the same city")
+  @DisplayName("a navigator's next hop and the navigator held as a path read the same city")
   void navigators() {
-    assertThat(NavigationBook.withAndWithoutNavigators(CONSIGNMENT))
-        .containsExactly("London", "London");
+    assertThat(NavigationBook.navigatorAsPath(CONSIGNMENT)).containsExactly("London", "London");
 
     NavigationBook.NavigatorOrVia result = NavigationBook.navigatorOrVia(ORDER);
     assertThat(result.email()).isEqualTo("ada@example.com");
@@ -114,8 +113,8 @@ class NavigationBookTest {
   }
 
   @Test
-  @DisplayName("toPath() reaches traced, which sees the address on its way")
-  void toPath() {
+  @DisplayName("a navigator's own traced sees the address on its way")
+  void pathMethods() {
     NavigationBook.Normalised normalised = NavigationBook.normalisePostcode(CONSIGNMENT);
 
     assertThat(normalised.consignment().to())

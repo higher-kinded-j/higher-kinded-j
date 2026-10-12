@@ -30,30 +30,28 @@ import java.lang.annotation.Target;
  *
  * // Generated code provides:
  * // UserFocus.name() -> FocusPath<User, String>
- * // UserFocus.address() -> FocusPath<User, Address>
+ * // UserFocus.address() -> AddressNavigator<User>, which is a FocusPath<User, Address>
  * // AddressFocus.street() -> FocusPath<Address, String>
  *
- * // Compose paths for deep navigation:
- * FocusPath<User, String> streetPath = UserFocus.address().via(AddressFocus.street().toLens());
+ * // Navigate fluently, or use the navigator as the path it is:
+ * FocusPath<User, String> streetPath = UserFocus.address().street();
+ * FocusPath<User, Address> addressPath = UserFocus.address();
  * }</pre>
  *
  * <h2>Fluent Navigation with Navigators</h2>
  *
- * <p>When {@link #generateNavigators()} is enabled, the processor generates navigator wrapper
- * classes that enable fluent cross-type navigation without explicit {@code .via()} calls:
+ * <p>The method for a field whose type is itself a {@code @GenerateFocus} record returns a
+ * navigator: the path to that field, with a method for each of the record's own fields. See {@link
+ * #generateNavigators()}.
  *
  * <pre>{@code
- * @GenerateFocus(generateNavigators = true)
+ * @GenerateFocus
  * record Company(String name, Address headquarters) {}
  *
- * @GenerateFocus(generateNavigators = true)
+ * @GenerateFocus
  * record Address(String street, String city) {}
  *
- * // With navigators enabled:
  * String city = CompanyFocus.headquarters().city().get(company);
- *
- * // Instead of:
- * String city = CompanyFocus.headquarters().via(AddressFocus.city().toLens()).get(company);
  * }</pre>
  *
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
@@ -82,28 +80,37 @@ public @interface GenerateFocus {
   String targetPackage() default "";
 
   /**
-   * When true, generates fluent navigator wrapper classes for cross-type navigation.
+   * Whether a field whose type is a {@code @GenerateFocus} record gets a navigator.
    *
-   * <p>This enables patterns like {@code PersonFocus.address().city()} without explicit {@code
-   * .via()} calls. Navigator classes are generated for fields whose types are also annotated with
-   * {@code @GenerateFocus}. A record from another module qualifies once that module has generated
-   * its {@code Focus} class. A navigator into a generic record declares the record's type
-   * parameters, instantiated with the arguments the field gives it: {@code Box<String> parcel} gets
-   * a {@code ParcelNavigator<S, String>}. A field naming no single type for one of them, a wildcard
-   * such as {@code Box<?>} or a raw {@code Box}, keeps the path method it would have without
-   * navigators.
+   * <p>A navigator enables patterns like {@code PersonFocus.address().city()} without explicit
+   * {@code .via()} calls. A record from another module qualifies once that module has generated its
+   * {@code Focus} class. A navigator into a generic record declares the record's type parameters,
+   * instantiated with the arguments the field gives it: {@code Box<String> parcel} gets a {@code
+   * ParcelNavigator<S, String>}. A field naming no single type for one of them, a wildcard such as
+   * {@code Box<?>} or a raw {@code Box}, gets no navigator.
    *
-   * <p>The navigator classes:
+   * <p>A navigator is the path the field's method would return without one, with a navigation
+   * method added for each field of the record it reaches:
    *
    * <ul>
-   *   <li>Wrap the underlying {@code FocusPath} and delegate all standard methods
-   *   <li>Provide navigation methods for each field of the nested type
-   *   <li>Handle path type widening (e.g., {@code FocusPath} to {@code AffinePath}) automatically
+   *   <li>It extends {@code NavigatorFocusPath}, {@code NavigatorAffinePath} or {@code
+   *       NavigatorTraversalPath}, so it goes wherever a path of that type goes, and code that
+   *       names the field's path type keeps compiling when the field gets a navigator.
+   *   <li>It steps into a container only where the field's method does: an {@code Either}, {@code
+   *       Try} or other zero-or-one SPI container always, a {@code Map}, an array or other
+   *       zero-or-more one under {@link #widenCollections()} or {@link #widenFields()}. {@code
+   *       Optional}, {@code Maybe}, {@code List}, {@code Set} and {@code Collection} are widened by
+   *       name and never get one.
+   *   <li>It cannot navigate to a field of the record it reaches named like one of the path's own
+   *       no-argument methods, such as {@code last} or {@code head}, since a call to it would reach
+   *       the path's method instead. A record that writes {@code generateNavigators = true} is
+   *       refused at the field that navigates; one that leaves the default keeps that field's plain
+   *       path, with a note.
    * </ul>
    *
-   * @return true to generate navigator classes, false otherwise (default: false)
+   * @return true to generate navigators, false for plain paths only (default: true, since 0.5.0)
    */
-  boolean generateNavigators() default false;
+  boolean generateNavigators() default true;
 
   /**
    * Whether a navigator's own navigation methods return navigators.
@@ -118,8 +125,8 @@ public @interface GenerateFocus {
    * navigable record returns the navigator that the {@code Focus} class of the record it leaves
    * declares for that field, and that navigator is generated once per record, so a longer chain
    * generates no more code. A chain still ends where a hop widens the path: a navigator over an
-   * {@code Optional} or a collection that hops into a record field returns the composed {@code
-   * AffinePath} or {@code TraversalPath}.
+   * {@code Either}, a {@code @Nullable} field or a widened collection that hops into a record field
+   * returns the composed {@code AffinePath} or {@code TraversalPath}.
    *
    * <p>Default: 3.
    *
@@ -141,10 +148,28 @@ public @interface GenerateFocus {
    * <p>When enabled, the processor calls {@code .each(opticExpression)} automatically for any SPI
    * generator with {@code Cardinality.ZERO_OR_MORE} cardinality.
    *
+   * <p>To widen some containers and leave others, name the fields in {@link #widenFields()}
+   * instead. A navigator steps into a zero-or-more container only where it is widened.
+   *
    * @return true to auto-widen ZERO_OR_MORE SPI types to TraversalPath (default: false)
    * @since 0.4.0
    */
   boolean widenCollections() default false;
+
+  /**
+   * Fields whose ZERO_OR_MORE SPI container is widened to a {@code TraversalPath}, as {@link
+   * #widenCollections()} widens every such field. Use it to widen one container and keep another,
+   * such as a {@code Map}, whole.
+   *
+   * <p>A navigator steps into a container only where the field is widened, so this is also how a
+   * container of {@code @GenerateFocus} records gets a navigator over its elements. A name that
+   * matches no component, or a component that is not such a container, changes nothing; the names
+   * are not checked.
+   *
+   * @return names of the fields to widen, or empty for none beyond {@link #widenCollections()}
+   * @since 0.5.0
+   */
+  String[] widenFields() default {};
 
   /**
    * Field names to include in navigator generation.

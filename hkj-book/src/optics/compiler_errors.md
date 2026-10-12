@@ -31,6 +31,9 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
 | [`The generated companion is a top-level class`](#companion-cannot-be-reached) | A type the generated companion names is `private`, or hidden in another package |
 | [`has a wildcard type argument`, `has a raw Set`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened container is raw, or has a wildcard type argument |
+| [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
+| [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
+| [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
 | [`Multiple TraversableGenerator SPI providers with equal priority`](#multiple-traversablegenerator-spi-providers-with-equal-priority-n-support-type-x-a-warning) | **Warning.** Two generators claim one type and neither outranks the other |
 | [`the annotation on record component 'X.y' is not applied`](#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note) | **Note.** `@TraverseField` is on something that is not a `Kind` with a declared witness |
@@ -393,6 +396,81 @@ That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own
 ```java
 @GenerateFocus
 record Bag<T>(Set<? extends T> items) {}
+```
+~~~
+
+### "@GenerateFocus: the navigator for 'X.y' cannot navigate to 'T.z'" {#generatefocus-navigator-cannot-navigate}
+
+`X` writes `generateNavigators = true`, its field `y` holds another `@GenerateFocus` record, `T`, and `T` has a field named like one of the path's own methods that take no arguments. On a `FocusPath` those are `last`, `head`, `tail`, `init`, `each`, `some`, `nullable`, `cons`, `snoc`, `headTail`, `initLast`, `segments`, `pathString`, `toLens`, `asAffine`, `asTraversal`, `asFold` and `toPath`. An `AffinePath` and a `TraversalPath` differ a little, and the processor reads each list from the class the navigator extends.
+
+**Fix.** Rename the field, or keep `y` a plain path, as the message says. It names the change that does that on `X`: add `y` to `excludeFields`, remove it from `includeFields`, or, where `includeFields` names only `y`, set `generateNavigators = false`. A plain path still reaches the clashing field through `.via(TFocus.z())`.
+
+~~~admonish note title="Why" collapsible=true
+A navigator is a path, so it already has each of those methods. A navigation method of the same name would clash with it, and leaving the field out would let `name().last()` compile against the path's own `last()`. That method reads the last element of a list, so on a record it throws `ClassCastException` when the path runs. A record that asks for navigators in so many words is refused; one that leaves the default draws [a note](#generatefocus-no-navigator-into) instead. A name that takes arguments, such as `get` or `count`, does not clash, because `get()` and `get(source)` are two methods.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "cannot navigate to 'FullName.last'" -->
+```java
+@GenerateFocus
+record FullName(String first, String last) {}
+
+@GenerateFocus(generateNavigators = true)
+record Signatory(FullName name) {}
+```
+
+```
+error: @GenerateFocus: the navigator for 'Signatory.name' cannot navigate to 'FullName.last'. A navigator is a FocusPath, which has its own last(), so SignatoryFocus.name().last() would call that method instead of navigating to the field. Rename 'FullName.last', or add excludeFields = "name" to @GenerateFocus on Signatory to keep 'name' a plain path.
+```
+~~~
+
+### "@GenerateFocus: record component 'X.y' has no navigator into T" (a note) {#generatefocus-no-navigator-into}
+
+`X` leaves navigators to the default, and the record `y` holds, `T`, has a field named like one of the path's own methods that take no arguments, the ones the [entry before](#generatefocus-navigator-cannot-navigate) lists. A navigator could not navigate to that field, so `y` gets none, and its method keeps the path it has without one.
+
+**Fix.** Rename the field to give `y` a navigator. To keep the plain path and silence the note, add `y` to `excludeFields` on `X`, as the note says.
+
+~~~admonish note title="Why" collapsible=true
+A record that leaves the default asked for no navigator in particular, so the field keeps the path it would have with navigators off, rather than failing the build. A record that writes `generateNavigators = true` is refused instead, by the entry before this one.
+~~~
+
+~~~admonish example title="A declaration that draws it" collapsible=true
+<!-- verify:reports "record component 'Signatory.name' has no navigator into FullName" -->
+```java
+@GenerateFocus
+record FullName(String first, String last) {}
+
+@GenerateFocus
+record Signatory(FullName name) {}
+```
+
+```
+Note: @GenerateFocus: record component 'Signatory.name' has no navigator into FullName. A navigator is a FocusPath, which has its own last(), so it cannot navigate to 'FullName.last', and SignatoryFocus.name() keeps the path it has without one. Rename 'FullName.last' to navigate into FullName, or add excludeFields = "name" to @GenerateFocus on Signatory to keep the path without this note.
+```
+~~~
+
+### "@GenerateFocus: record component 'X.y' has no navigator over its T elements" (a note) {#generatefocus-no-navigator-over-elements}
+
+`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container.
+
+**Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. `widenCollections = true` widens every such container instead. To keep the container whole, drop `generateNavigators = true`, which is the default, and the note goes with it.
+
+~~~admonish note title="Why" collapsible=true
+Widening decides what a field's method focuses on, and a navigator only adds methods to that path, so turning navigators on never changes it. A record that writes `generateNavigators = true` out may still expect a navigator over a container's elements, so it is told which `widenFields` value gives one. A record that leaves navigators to the default asked for nothing, and is told nothing.
+~~~
+
+~~~admonish example title="A declaration that draws it" collapsible=true
+<!-- verify:reports "record component 'Hamper.bottles' has no navigator over its Bottle elements" -->
+```java
+@GenerateFocus
+record Bottle(String label, int volume) {}
+
+@GenerateFocus(generateNavigators = true)
+record Hamper(Bottle[] bottles) {}
+```
+
+```
+Note: @GenerateFocus: record component 'Hamper.bottles' has no navigator over its Bottle elements. A navigator steps into a container only where the record widens it, and Hamper does not widen 'bottles'. Add widenFields = "bottles" to @GenerateFocus on Hamper to navigate into its elements.
 ```
 ~~~
 

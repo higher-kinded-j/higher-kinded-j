@@ -4,7 +4,7 @@ _Predict which path type a container field generates, and teach the processor a 
 
 ~~~admonish info title="What You'll Learn"
 - Predict a field's path type from its container's cardinality: exactly one, zero or one, or zero or more
-- Decide whether to set `widenCollections = true`, and say why a `Map` field stops at the container without it
+- Decide whether to set `widenCollections = true` or name one field in `widenFields`, and say why a `Map` field stops at the container without them
 - Check whether a JDK, HKJ, Eclipse Collections, Guava, Vavr, Apache Commons or PCollections container works out of the box
 - Predict when `@GenerateFocus` rejects a raw or wildcard container type argument, and what a wildcard inside the element gives you
 - Register your own container type by implementing the `TraversableGenerator` SPI
@@ -76,7 +76,7 @@ flowchart TD
 
 In words: a plain field implies a `FocusPath`, a container of zero or one an `AffinePath`, and a container of zero or more a `TraversalPath`.
 
-The diagram gives the tier a container's cardinality *implies*. Which of them a static Focus method actually widens to is the next section's subject: `List`, `Set` and `Collection` always do, and the rest wait for `widenCollections`.
+The diagram gives the tier a container's cardinality *implies*. Which of them a static Focus method actually widens to is the next section's subject: `List`, `Set` and `Collection` always do, and the rest wait for `widenCollections` or `widenFields`.
 
 Nested containers compose the same rule up to three levels: `Optional<List<String>>` becomes `.some().each()` and lands on a `TraversalPath`. See [Nested Container Widening](focus_navigation.md#nested-container-widening).
 
@@ -97,7 +97,9 @@ TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
 `widenCollections = true` is usually what you want on a new record: it makes `Map` fields behave exactly like `List` fields, and the same flag applies one level down inside a nested container. It is opt-in only because turning it on changes a method's return type, and that is a source-breaking change for anyone already calling it. New code has nothing to break.
 ~~~
 
-There is one exception, and it is the one navigators need: a container whose *element* is itself a `@GenerateFocus` record is always stepped into, because the navigator that record's field hands back has to reach it. So `Map<String, Address>` on a navigator-enabled record gives you a navigator over the values without the flag, and `Address[]` gives you one over the elements, while `Map<String, String>` and `String[]` wait for it. So does a map whose generic element gets no navigator, such as `Map<String, Revision<?>>`, as [A target with type parameters](focus_navigation.md#a-target-with-type-parameters) explains.
+To widen some containers and keep others whole, name the fields instead: `@GenerateFocus(widenFields = "scores")` steps into `scores` and leaves every other container as it is.
+
+Navigators follow the same rule rather than adding to it. A container whose *element* is itself a `@GenerateFocus` record gets a navigator over its elements only where the record widens it. So `Map<String, Address>` stays a path to the whole map until `widenCollections` or `widenFields` says otherwise, and then its method returns a navigator over the values. Turning navigators on therefore never changes what a field's method focuses on.
 
 Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
@@ -210,7 +212,7 @@ Three things narrow the rule further.
 
 **Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `List<? extends Leaf>[]` widens to `TraversalPath<Holder, Leaf>`, while `Set<? extends Leaf>[]` is rejected.
 
-**A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true` or a navigator stepping into it. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
+**A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true`, or `widenFields` naming the field. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
 **A generator that names no optic expression is exempt, because it widens nothing.** The path stops at its container, as if no generator supported it, so a raw or wildcard argument is never asked for an optic. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
@@ -316,7 +318,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 ~~~admonish info title="Key Takeaways"
 * **The field type picks the path type, through cardinality.** Zero or one gives an `AffinePath`, `List`/`Set`/`Collection` a `TraversalPath`, anything else a `FocusPath`. Every other zero-or-more container stops at the container until `widenCollections` says otherwise.
 * **`Optional`, `Maybe`, `List`, `Set` and `Collection` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
-* **`widenCollections = true` removes the asymmetry.** Without it, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike; a container holding a navigable element is stepped into either way, because that is how its navigator reaches the element.
+* **`widenCollections = true` removes the asymmetry, and `widenFields` removes it for chosen fields.** Without either, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike, whatever its element.
 * **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type.
 * **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
 ~~~

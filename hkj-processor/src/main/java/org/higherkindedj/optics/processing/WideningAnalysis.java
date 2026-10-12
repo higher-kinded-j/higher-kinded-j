@@ -153,6 +153,12 @@ public final class WideningAnalysis {
       };
     }
 
+    /** The abstract base in hkj-core a navigator of this tier extends. */
+    ClassName navigatorBaseClass() {
+      return ClassName.get(
+          "org.higherkindedj.optics.focus", "Navigator" + pathClass().simpleName());
+    }
+
     /** The path class's simple name, for Javadoc prose. */
     String description() {
       return pathClass().simpleName();

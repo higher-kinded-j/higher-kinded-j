@@ -659,13 +659,28 @@ public class FocusProcessorSpiEnhancementsTest {
     }
 
     @Test
-    @DisplayName("should reject a ZERO_OR_MORE container once a navigator takes it")
-    void shouldRejectZeroOrMoreContainerWhenNavigatorTakesIt() {
+    @DisplayName("should reject a ZERO_OR_MORE container once widenFields asks for it")
+    void shouldRejectZeroOrMoreContainerWhenWidenFieldsNamesIt() {
       Compilation compilation =
-          compile("generateNavigators = true", "Map<String, ? extends Leaf> values");
+          compile("widenFields = \"values\"", "Map<String, ? extends Leaf> values");
 
       assertThat(compilation)
           .hadErrorContaining("has a wildcard type argument in Map<String, ? extends Leaf>.");
+    }
+
+    @Test
+    @DisplayName("should leave a ZERO_OR_MORE container to its path when no setting widens it")
+    void shouldLeaveUnwidenedContainerAloneUnderNavigators() {
+      // A navigator steps into a container only where the record widens it, so its navigable
+      // element does not ask the wildcard for an optic.
+      Compilation compilation =
+          compile("generateNavigators = true", "Map<String, ? extends Leaf> values");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.HolderFocus",
+          "public static FocusPath<Holder, Map<String, ? extends Leaf>> values()");
     }
 
     @Test
@@ -712,10 +727,13 @@ public class FocusProcessorSpiEnhancementsTest {
     @Test
     @DisplayName("should step into a container whose generic element it instantiates")
     void shouldStepIntoContainerOfInstantiatedGenericElement() {
-      // The element gets a navigator instantiated with the container's argument, so the container
-      // is stepped into to reach it, as it is for a non-generic element.
+      // The record widens the container, and its element gets a navigator instantiated with the
+      // container's argument, as a non-generic element does.
       Compilation compilation =
-          compile("generateNavigators = true", "Map<String, Box<String>> boxes", BOX);
+          compile(
+              "generateNavigators = true, widenFields = \"boxes\"",
+              "Map<String, Box<String>> boxes",
+              BOX);
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
@@ -725,12 +743,12 @@ public class FocusProcessorSpiEnhancementsTest {
     }
 
     @Test
-    @DisplayName("should reject a wildcard container once its generic element gets a navigator")
+    @DisplayName("should reject a widened wildcard container whose generic element is navigable")
     void shouldRejectWildcardContainerOfInstantiatedGenericElement() {
-      // The element gets a navigator, so a navigator takes the container, and its wildcard is
-      // rejected as the non-generic twin's is.
+      // The record widens the container, so its wildcard is asked for an optic and rejected, as
+      // the non-generic twin's is.
       Compilation compilation =
-          compile("generateNavigators = true", "Map<String, ? extends Box<String>> boxes", BOX);
+          compile("widenFields = \"boxes\"", "Map<String, ? extends Box<String>> boxes", BOX);
 
       assertThat(compilation)
           .hadErrorContaining(
@@ -809,7 +827,8 @@ public class FocusProcessorSpiEnhancementsTest {
     @Test
     @DisplayName("should still widen an SPI container with concrete type arguments")
     void shouldStillWidenConcreteSpiContainer() {
-      Compilation compilation = compile("", "Either<String, Leaf> concrete");
+      Compilation compilation =
+          compile("generateNavigators = false", "Either<String, Leaf> concrete");
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(

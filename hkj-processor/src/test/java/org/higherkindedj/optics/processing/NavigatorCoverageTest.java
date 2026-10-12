@@ -21,20 +21,21 @@ import org.junit.jupiter.params.provider.CsvSource;
 /**
  * Coverage tests for NavigatorClassGenerator targeting missed branches.
  *
- * <p>Covers: FocusPath navigator delegate methods, widened navigation methods via navigation-method
- * composition, widening for Optional/Collection within navigators, navigator filtering via
- * include/exclude fields, field name collision with delegate methods, and navigator depth limiting.
+ * <p>Covers: a navigator extending its tier's base, widened navigation methods via
+ * navigation-method composition, widening for Optional/Collection within navigators, navigator
+ * filtering via include/exclude fields, field names a path already has, and navigator depth
+ * limiting.
  */
 @DisplayName("Navigator Coverage Tests")
 class NavigatorCoverageTest {
 
   @Nested
-  @DisplayName("FocusPath Navigator Delegate Methods")
-  class FocusPathDelegates {
+  @DisplayName("A navigator is a path")
+  class NavigatorIsAPath {
 
     @Test
-    @DisplayName("should generate FocusPath delegate methods for plain navigable record")
-    void shouldGenerateFocusPathDelegateMethods() {
+    @DisplayName("a navigator extends its tier's base and forwards nothing itself")
+    void aNavigatorExtendsItsBase() {
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
               "com.example.Inner",
@@ -60,15 +61,18 @@ class NavigatorCoverageTest {
 
       assertThat(compilation).succeeded();
 
-      // FocusPath delegate methods: get, set, modify, toLens, toPath
-      assertGeneratedCodeContains(compilation, "com.example.OuterFocus", "Inner get(S source)");
+      // The base forwards every path method, so the navigator declares none of them.
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "S set(Inner value, S source)");
+          compilation,
+          "com.example.OuterFocus",
+          "public static final class InnerNavigator<S> extends NavigatorFocusPath<S, Inner>");
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "S modify(Function<Inner, Inner> f, S source)");
-      assertGeneratedCodeContains(compilation, "com.example.OuterFocus", "Lens<S, Inner> toLens()");
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, Inner> toPath()");
+          compilation,
+          "com.example.OuterFocus",
+          "public InnerNavigator(FocusPath<S, Inner> path) { super(path); }");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.OuterFocus", "Inner get(S source)");
+      assertGeneratedCodeDoesNotContain(compilation, "com.example.OuterFocus", "toLens()");
     }
   }
 
@@ -419,207 +423,117 @@ class NavigatorCoverageTest {
   }
 
   @Nested
-  @DisplayName("Field Name Collision with Delegate Methods")
+  @DisplayName("Field names a path already has")
   class FieldNameCollision {
 
-    @Test
-    @DisplayName("should skip navigator field that collides with FocusPath delegate 'get'")
-    void shouldSkipFieldCollidingWithFocusDelegate() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String get, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Outer",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(String name, Inner inner) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-
-      // The 'data' field should still have navigation, but 'get' collides with FocusPath.get()
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
+    /** A record holding a navigable Inner at the given tier, in the shape the row names. */
+    private static JavaFileObject holder(String shape) {
+      String declaration =
+          switch (shape) {
+            case "focus" ->
+                """
+                @GenerateFocus(generateNavigators = true)
+                public record Outer(String name, Inner inner) {}
+                """;
+            case "affine" ->
+                """
+                @GenerateFocus(generateNavigators = true)
+                public record Outer(String name, @Nullable Inner inner) {}
+                """;
+            default ->
+                """
+                @GenerateFocus(generateNavigators = true, widenFields = "inner")
+                public record Outer(String name, Map<String, Inner> inner) {}
+                """;
+          };
+      return JavaFileObjects.forSourceString(
+          "com.example.Outer",
+          """
+          package com.example;
+          import java.util.Map;
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+          import org.jspecify.annotations.Nullable;
+          """
+              + declaration);
     }
 
-    @Test
-    @DisplayName("should skip navigator field that collides with FocusPath delegate 'toLens'")
-    void shouldSkipFieldCollidingWithToLensDelegate() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String toLens, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Outer",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(String name, Inner inner) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-
-      // 'toLens' collides with FocusPath delegate, 'data' should still be generated
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
+    private static JavaFileObject inner(String field) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Inner",
+          """
+          package com.example;
+          import org.higherkindedj.optics.annotations.GenerateFocus;
+          @GenerateFocus
+          public record Inner(String %s, String data) {}
+          """
+              .formatted(field));
     }
 
-    @Test
-    @DisplayName("should skip navigator field that collides with FocusPath delegate 'set'")
-    void shouldSkipFieldCollidingWithSetDelegate() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String set, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Outer",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(String name, Inner inner) {}
-              """);
-
+    @ParameterizedTest(name = "{0} at the {1} tier")
+    @CsvSource({
+      "get, focus, FocusPath",
+      "set, focus, FocusPath",
+      "modify, focus, FocusPath",
+      "matches, affine, AffinePath",
+      "getOptional, affine, AffinePath",
+      "getAll, traversal, TraversalPath",
+      "count, traversal, TraversalPath",
+      "isEmpty, traversal, TraversalPath",
+      "toLens, affine, AffinePath",
+      "nullable, traversal, TraversalPath"
+    })
+    @DisplayName(
+        "a field named like a path method that takes arguments, or that the tier lacks,"
+            + " navigates")
+    void aFieldNamedLikeAnotherMethodNavigates(String field, String shape, String path) {
       Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(inner(field), holder(shape));
 
-      assertThat(compilation).succeeded();
-
-      // 'set' collides with FocusPath delegate, 'data' should still be generated
+      assertThat(compilation).succeededWithoutWarnings();
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
+          compilation, "com.example.OuterFocus", "public " + path + "<S, String> " + field + "()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.OuterFocus", "public " + path + "<S, String> data()");
     }
 
-    @Test
-    @DisplayName("should skip navigator field that collides with FocusPath delegate 'modify'")
-    void shouldSkipFieldCollidingWithModifyDelegate() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String modify, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Outer",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(String name, Inner inner) {}
-              """);
-
+    @ParameterizedTest(name = "{0} at the {1} tier")
+    @CsvSource({
+      "toLens, focus, FocusPath",
+      "toPath, focus, FocusPath",
+      "last, focus, FocusPath",
+      "segments, focus, FocusPath",
+      "toAffine, affine, AffinePath",
+      "nullable, affine, AffinePath",
+      "headOption, traversal, TraversalPath",
+      "toTraversal, traversal, TraversalPath",
+      "head, traversal, TraversalPath"
+    })
+    @DisplayName("a field named like a no-argument path method is refused at the navigating field")
+    void aFieldNamedLikeANoArgumentMethodIsRefused(String field, String shape, String path) {
+      JavaFileObject holder = holder(shape);
       Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
+          javac().withProcessors(new FocusProcessor()).compile(inner(field), holder);
 
-      assertThat(compilation).succeeded();
-
-      // 'modify' collides with FocusPath delegate, 'data' should still be generated
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
-    }
-
-    @Test
-    @DisplayName("should skip navigator field that collides with FocusPath delegate 'toPath'")
-    void shouldSkipFieldCollidingWithToPathDelegate() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String toPath, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Outer",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Outer(String name, Inner inner) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-
-      // 'toPath' collides with FocusPath delegate, 'data' should still be generated
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "FocusPath<S, String> data()");
-    }
-
-    @Test
-    @DisplayName("should skip navigator field that collides with AffinePath delegate 'matches'")
-    void shouldSkipFieldCollidingWithMatchesDelegate() {
-
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String matches, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.AffineOuter",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              import org.jspecify.annotations.Nullable;
-              @GenerateFocus(generateNavigators = true)
-              public record AffineOuter(@Nullable Inner inner, String name) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-
-      // 'matches' collides with AffinePath delegate; 'data' should still be navigable
-      assertGeneratedCodeContains(
-          compilation, "com.example.AffineOuterFocus", "AffinePath<S, String> data()");
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the navigator for 'Outer.inner' cannot navigate to 'Inner."
+                  + field
+                  + "'. A navigator is "
+                  + (path.equals("AffinePath") ? "an " : "a ")
+                  + path
+                  + ", which has its own "
+                  + field
+                  + "(), so OuterFocus.inner()."
+                  + field
+                  + "() would call that method instead of navigating to the field. Rename"
+                  + " 'Inner."
+                  + field
+                  + "', or add excludeFields = \"inner\" to @GenerateFocus on Outer to keep"
+                  + " 'inner' a plain path.")
+          .inFile(holder)
+          .onLineContaining(" inner)");
     }
   }
 
@@ -842,7 +756,7 @@ class NavigatorCoverageTest {
               package com.example;
               import java.util.Map;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenFields = "entries")
               public record Registry(String name, Map<String, Entry> entries) {}
               """);
 
@@ -851,26 +765,18 @@ class NavigatorCoverageTest {
 
       assertThat(compilation).succeeded();
 
-      // Map<String, Entry> with SPI ZERO_OR_MORE generates a TRAVERSAL navigator
-      // This triggers: addTraversalPathDelegateMethods (lines 582-663),
-      // getDelegateMethodNames TRAVERSAL case (line 670),
-      // TRAVERSAL pathKindDescription (line 364),
-      // and SPI ZERO_OR_MORE → PathKind.TRAVERSAL (line 315)
-      // Map<String, Entry> with SPI ZERO_OR_MORE generates a TRAVERSAL navigator.
-      // Navigator class name derives from field name: entries → EntriesNavigator
+      // A widened Map<String, Entry> gets a TRAVERSAL navigator, named after the field.
       assertGeneratedCodeContains(
           compilation, "com.example.RegistryFocus", "EntriesNavigator<Registry> entries()");
-      // TraversalPath delegates: getAll, setAll, modifyAll, count, isEmpty
-      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "getAll");
-      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "setAll");
-      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "modifyAll");
-      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "count");
-      assertGeneratedCodeContains(compilation, "com.example.RegistryFocus", "isEmpty");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.RegistryFocus",
+          "class EntriesNavigator<S> extends NavigatorTraversalPath<S, Entry>");
     }
 
     @Test
-    @DisplayName("should generate TraversalPath delegate toPath method in traversal navigator")
-    void shouldGenerateTraversalToPathMethod() {
+    @DisplayName("a container the record does not widen keeps its path and gets no navigator")
+    void anUnwidenedContainerGetsNoNavigator() {
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
               "com.example.Item",
@@ -897,9 +803,13 @@ class NavigatorCoverageTest {
 
       assertThat(compilation).succeeded();
 
-      // TraversalPath navigator should have toPath() returning TraversalPath
-      assertGeneratedCodeContains(compilation, "com.example.ContainerFocus", "toPath()");
-      assertGeneratedCodeContains(compilation, "com.example.ContainerFocus", "TraversalPath");
+      // Container does not widen 'items', so a navigator would change what items() focuses on.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ContainerFocus",
+          "public static FocusPath<Container, Map<String, Item>> items()");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.ContainerFocus", "ItemsNavigator");
     }
   }
 
@@ -927,7 +837,7 @@ class NavigatorCoverageTest {
               package com.example;
               import java.util.Map;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenFields = "children")
               public record Mid(String id, Map<String, Leaf> children) {}
               """);
 
@@ -956,45 +866,6 @@ class NavigatorCoverageTest {
   }
 
   @Nested
-  @DisplayName("TraversalPath field name collision in navigator")
-  class TraversalFieldNameCollision {
-
-    @Test
-    @DisplayName(
-        "should skip fields colliding with TraversalPath delegates getAll/setAll/modifyAll/count/isEmpty")
-    void shouldSkipFieldsCollidingWithTraversalDelegates() {
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String getAll, String data) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.MapOuter",
-              """
-              package com.example;
-              import java.util.Map;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record MapOuter(Map<String, Inner> items) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-
-      // 'getAll' collides with TraversalPath delegate, 'data' should still be generated
-      assertGeneratedCodeContains(compilation, "com.example.MapOuterFocus", "data()");
-    }
-  }
-
-  @Nested
   @DisplayName("SPI Containers Wrapping Navigable Types")
   class SpiContainersWrappingNavigableTypes {
 
@@ -1018,7 +889,7 @@ class NavigatorCoverageTest {
               package com.example;
               import java.util.Map;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3, widenFields = "depts")
               public record Address(String street, Map<String, Dept> depts) {}
               """);
 
@@ -1030,7 +901,10 @@ class NavigatorCoverageTest {
               import java.util.Map;
               import org.higherkindedj.hkt.either.Either;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 3)
+              @GenerateFocus(
+                  generateNavigators = true,
+                  maxNavigatorDepth = 3,
+                  widenFields = "branches")
               public record Company(
                   String name,
                   Address hq,
@@ -1045,22 +919,17 @@ class NavigatorCoverageTest {
 
       assertThat(compilation).succeeded();
 
-      // Either<String, Address> wraps a navigable type: AFFINE navigator with AffinePath delegate.
-      assertGeneratedCodeContains(
-          compilation, "com.example.CompanyFocus", "class RegisteredNavigator<S>");
+      // Either<String, Address> is always widened: an AFFINE navigator.
       assertGeneratedCodeContains(
           compilation,
           "com.example.CompanyFocus",
-          "private final AffinePath<S, Address> delegate;");
+          "class RegisteredNavigator<S> extends NavigatorAffinePath<S, Address>");
 
-      // Map<String, Address> wraps a navigable type: TRAVERSAL navigator with TraversalPath
-      // delegate methods (getAll/modifyAll from addTraversalPathDelegateMethods).
-      assertGeneratedCodeContains(
-          compilation, "com.example.CompanyFocus", "class BranchesNavigator<S>");
+      // Map<String, Address>, widened by name: a TRAVERSAL navigator.
       assertGeneratedCodeContains(
           compilation,
           "com.example.CompanyFocus",
-          "private final TraversalPath<S, Address> delegate;");
+          "class BranchesNavigator<S> extends NavigatorTraversalPath<S, Address>");
 
       // Inside HqNavigator, the Map<String, Dept> field is wrapped in the target Focus class's
       // DeptsNavigator (SPI ZERO_OR_MORE wrapping a navigable inner type).
@@ -1088,7 +957,7 @@ class NavigatorCoverageTest {
               package com.example;
               import java.util.Map;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenFields = "depts")
               public record Address(String street, Map<String, Dept> depts) {}
               """);
 
@@ -1160,7 +1029,7 @@ class NavigatorCoverageTest {
       assertGeneratedCodeContains(
           compilation, "com.example.ShipmentFocus", "TraversalPath<S, String> notes()");
       assertGeneratedCodeContains(
-          compilation, "com.example.ShipmentFocus", "delegate.via(BundleFocus.notes())");
+          compilation, "com.example.ShipmentFocus", "toPath().via(BundleFocus.notes())");
     }
   }
 
@@ -1307,12 +1176,11 @@ class NavigatorCoverageTest {
           compilation, focus, "public static InnerNavigator<Outer, String> inner()");
       assertGeneratedCodeContains(
           compilation, focus, "public static final class InnerNavigator<S, T>");
-      assertGeneratedCodeContains(
-          compilation, focus, "private final FocusPath<S, Inner<T>> delegate");
+      assertGeneratedCodeContains(compilation, focus, "extends NavigatorFocusPath<S, Inner<T>>");
       assertGeneratedCodeContains(
           compilation,
           focus,
-          "public FocusPath<S, T> value() { return delegate.via(InnerFocus.<T>value()); }");
+          "public FocusPath<S, T> value() { return toPath().via(InnerFocus.<T>value()); }");
       Assertions.assertThat(result.invokeStatic("com.myapp.Use", "read")).isEqualTo("x");
       Assertions.assertThat(result.invokeStatic("com.myapp.Use", "write"))
           .isEqualTo("Outer[inner=Inner[value=y, label=l], tag=t]");
@@ -1374,7 +1242,7 @@ class NavigatorCoverageTest {
                     Inner<List<?>> listed,
                     Either<String, Inner<Long>> either) {}
 
-                @GenerateFocus(generateNavigators = true)
+                @GenerateFocus(generateNavigators = true, widenFields = "inners")
                 public record Indexed(Map<String, Inner<String>> inners) {}
               }
               """);
@@ -1422,7 +1290,7 @@ class NavigatorCoverageTest {
           compilation,
           root,
           "public HolderFocus.DeepNavigator<S1, S> deep() { return new"
-              + " HolderFocus.DeepNavigator<>(delegate.via(HolderFocus.<S>deep().toPath())); }");
+              + " HolderFocus.DeepNavigator<>(toPath().via(HolderFocus.<S>deep().toPath())); }");
       assertGeneratedCodeContains(
           compilation, root, "public static PairNavigator<Records.Root, String, Integer> pair()");
       assertGeneratedCodeContains(
@@ -1578,7 +1446,7 @@ class NavigatorCoverageTest {
               import java.util.Map;
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(generateNavigators = true, widenFields = "named")
               public record Mid(Map<String, Inner<String>> named, Map<String, Inner<?>> loose) {}
               """);
 
@@ -1615,7 +1483,10 @@ class NavigatorCoverageTest {
               new Case("NavigatorsOff", "@GenerateFocus(generateNavigators = false)"),
               new Case(
                   "FieldExcluded",
-                  "@GenerateFocus(generateNavigators = true, excludeFields = \"leaves\")"));
+                  "@GenerateFocus(generateNavigators = true, excludeFields = \"leaves\")"),
+              new Case(
+                  "FieldNotIncluded",
+                  "@GenerateFocus(generateNavigators = true, includeFields = \"tag\")"));
 
       for (Case testCase : cases) {
         final var leaf =
@@ -1661,6 +1532,14 @@ class NavigatorCoverageTest {
         var compilation = javac().withProcessors(new FocusProcessor()).compile(leaf, mid, root);
 
         assertThat(compilation).succeeded();
+        assertGeneratedCodeContains(
+            compilation,
+            "com.myapp.MidFocus",
+            "public static FocusPath<Mid, Map<String, Leaf>> leaves()");
+        // A field the record leaves without a navigator on purpose draws no note to widen it.
+        Assertions.assertThat(compilation.notes())
+            .as(testCase.name())
+            .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
       }
     }
 

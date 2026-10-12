@@ -36,7 +36,8 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>{@code @GenerateFocus} on a record generates {@code XFocus}, one method per component;
- *   <li>{@code generateNavigators = true} lets the next hop chain on as a method call;
+ *   <li>a field whose type is another {@code @GenerateFocus} record gets a navigator, so the next
+ *       hop chains on as a method call;
  *   <li>a {@code List} field's path is already on the elements, so the next hop is {@code
  *       .via(...)}.
  * </ul>

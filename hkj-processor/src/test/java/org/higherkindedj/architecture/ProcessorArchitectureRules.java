@@ -77,13 +77,11 @@ class ProcessorArchitectureRules {
       "org.higherkindedj.optics.processing.WideningAnalysis$SpiLookup$Refused";
 
   /**
-   * The methods that may read a refused generator, both to ask what it would have done rather than
-   * to widen with it: the analysis's walk reads its cardinality, to tell a container it would have
-   * stepped into from one it leaves alone, and the navigator's turned-away check reads its focus
-   * argument, to say what the navigator would have reached.
+   * The methods that may read a refused generator, to ask what it would have done rather than to
+   * widen with it: the analysis's walk reads its cardinality, to tell a container it would have
+   * stepped into from one it leaves alone.
    */
-  private static final Set<String> REFUSED_GENERATOR_READERS =
-      Set.of("collectSpi", "widensUndenotableSpiContainer");
+  private static final Set<String> REFUSED_GENERATOR_READERS = Set.of("collectSpi");
 
   private static JavaClasses classes;
 

@@ -117,7 +117,7 @@ public final class FromJavaBook {
 // generate them, and the cast's lens and Focus annotations.
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Order(
     UUID id,
     Customer customer,
@@ -135,7 +135,7 @@ record Order(
 }
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Customer(String name, EmailAddress email) {
   Customer withEmail(EmailAddress email) {
     return new Customer(name, email);
@@ -151,7 +151,7 @@ record LineItem(String sku, Integer quantity, BigDecimal price) {
 }
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Consignment(UUID orderId, Address to, ConsignmentState state) {
   Consignment withState(ConsignmentState state) {
     return new Consignment(orderId, to, state);

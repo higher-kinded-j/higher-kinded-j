@@ -257,9 +257,10 @@ class GeneratedFocusSourceCompilesTest {
           new StillCompiles("List<? extends Leaf> f", ""),
           new StillCompiles("Optional<? extends Leaf> f", ""),
           new StillCompiles("Optional<? super Leaf> f", ""),
-          // A ZERO_OR_MORE SPI container is not widened by the static method on its own. With
-          // navigators it is, which is why that setting is absent here and rejected instead.
+          // A ZERO_OR_MORE SPI container is widened only where the record asks for it, so a
+          // navigable element inside one does not ask the wildcard for an optic.
           new StillCompiles("Map<String, ? extends Leaf> f", ""),
+          new StillCompiles("Map<String, ? extends Leaf> f", "generateNavigators = true"),
           new StillCompiles("Set<?>[] f", ""),
           // Nothing beneath an un-widened container is asked for an optic either.
           new StillCompiles("Map<String, Either<String, ? extends Leaf>> f", ""),
@@ -328,15 +329,15 @@ class GeneratedFocusSourceCompilesTest {
           new Rejected("Either<String, ? extends Leaf> f", "", "Either<String, ? extends Leaf>"),
           new Rejected("Try<?> f", "generateNavigators = true", "Try<?>"),
           new Rejected("Either f", "", "Either"),
-          // A ZERO_OR_MORE generator's container is met once something steps into it: the
-          // record's own flag, or a navigator reaching for the navigable element inside.
+          // A ZERO_OR_MORE generator's container is met once the record widens it: every such
+          // container under widenCollections, or this one when widenFields names it.
           new Rejected(
               "Map<String, ? extends Leaf> f",
               "widenCollections = true",
               "Map<String, ? extends Leaf>"),
           new Rejected(
               "Map<String, ? extends Leaf> f",
-              "generateNavigators = true",
+              "widenFields = \"f\"",
               "Map<String, ? extends Leaf>"),
           new Rejected("Map f", "widenCollections = true", "Map"),
           // The walk carries on beneath a layer it widened, and names the first it turns away.

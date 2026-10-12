@@ -143,7 +143,7 @@ class FocusDslBookTest {
   void checkpointPathTypes() {
     Consignment pending = consignment(new ConsignmentState.Pending());
 
-    FocusPath<Consignment, Address> to = ConsignmentFocus.to().toPath();
+    FocusPath<Consignment, Address> to = ConsignmentFocus.to();
     FocusPath<Consignment, String> city = ConsignmentFocus.to().city();
     FocusPath<Consignment, ConsignmentState> state = ConsignmentFocus.state();
     AffinePath<CustomerProfile, EmailAddress> altEmail = CustomerProfileFocus.altEmail();
@@ -188,7 +188,7 @@ class FocusDslBookTest {
       FocusPath<Basket, String[]> tags = BasketFocus.tags();
       FocusPath<Basket, Payment> payment = BasketFocus.payment();
       FocusPath<Basket, JsonNode> payload = BasketFocus.payload();
-      FocusPath<Basket, Customer> customer = BasketFocus.customer().toPath();
+      FocusPath<Basket, Customer> customer = BasketFocus.customer();
 
       assertThat(lines.count(basket)).isEqualTo(2);
       assertThat(couponCode.matches(basket)).isTrue();

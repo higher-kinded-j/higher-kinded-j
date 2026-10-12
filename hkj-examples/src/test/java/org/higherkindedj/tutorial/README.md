@@ -209,7 +209,7 @@ Combining multiple folds into one:
 
 ### Tutorial 19: Navigator Generation
 Fluent cross-type navigation with generated navigators:
-- Navigator delegation: wrapping FocusPath with get/set/modify
+- A navigator is a path: get, set and modify work on it directly
 - Path widening through Optional (AffinePath) and collections (TraversalPath)
 - SPI-aware widening for Map, Either, Try, and Validated via Cardinality
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)

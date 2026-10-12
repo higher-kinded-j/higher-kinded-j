@@ -177,7 +177,6 @@ public class FocusProcessor extends AbstractProcessor {
       return;
     }
     boolean generateNavigators = annotation.generateNavigators();
-    boolean widenCollections = annotation.widenCollections();
     int maxNavigatorDepth = annotation.maxNavigatorDepth();
 
     String focusClassName = recordName + "Focus";
@@ -242,7 +241,7 @@ public class FocusProcessor extends AbstractProcessor {
       if (method == null) {
         WideningAnalysis.Widening widening =
             analysis.analyseDeclaration(
-                component, stepsIntoContainers(component, widenCollections, navigatorGenerator));
+                component, NavigatorClassGenerator.widensCollections(recordElement, component));
         if (widening.declined() != null) {
           reportUndenotableContainer(component, widening.declined());
         }
@@ -353,31 +352,6 @@ public class FocusProcessor extends AbstractProcessor {
     methodBuilder.addStatement("return " + baseLens + wideningExpression, args.toArray());
 
     return methodBuilder.build();
-  }
-
-  /**
-   * The {@code widenCollections} the analysis reads for a component no navigator took: whether it
-   * steps into a {@code ZERO_OR_MORE} container, or meets one it will turn away.
-   *
-   * <p>The record's {@code widenCollections} decides, with one addition: a container a navigator
-   * would have stepped into to reach the navigable element inside it, had its widening been
-   * writable. The navigator hands such a field back to the static method, which leaves the
-   * container alone just as it would have without the flag, so nothing the method emits changes,
-   * since neither case records a step for it. What the flag does is let the analysis meet the
-   * container and turn it away, so that the declaration is rejected rather than left silently
-   * un-navigated.
-   *
-   * @param component the record component
-   * @param widenCollections whether the record widens ZERO_OR_MORE containers
-   * @param navigatorGenerator the navigator generator, or null when navigators are off
-   */
-  private static boolean stepsIntoContainers(
-      RecordComponentElement component,
-      boolean widenCollections,
-      NavigatorClassGenerator navigatorGenerator) {
-    return widenCollections
-        || (navigatorGenerator != null
-            && navigatorGenerator.widensUndenotableSpiContainer(component));
   }
 
   /**

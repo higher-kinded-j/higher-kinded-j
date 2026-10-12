@@ -115,7 +115,7 @@ class FocusNullableContainerTest {
           import org.higherkindedj.optics.annotations.GenerateFocus;
           import org.jspecify.annotations.Nullable;
 
-          @GenerateFocus(generateNavigators = true)
+          @GenerateFocus(widenCollections = true)
           public record Crate(
               @Nullable Map<String, Leaf> byName,
               Leaf @Nullable [] row,
@@ -213,16 +213,24 @@ class FocusNullableContainerTest {
     }
 
     @Test
-    @DisplayName("a navigator passes over a null element it would read")
+    @DisplayName("a navigator keeps its field's path, and passes over a null element it would read")
     void aNavigatorPassesOverANullElement() {
+      // The navigator is the path the field's method has without one, null elements included...
       assertGeneratedCodeContains(
           COMPILATION,
           "com.example.CrateFocus",
-          "\"looseByName\").each(EachInstances.mapValuesEach()).some(Affines.nullable()))");
+          "\"looseByName\").each(EachInstances.mapValuesEach()));");
+      assertGeneratedCodeContains(
+          COMPILATION, "com.example.CrateFocus", "\"looseRow\").each(EachInstances.arrayEach()));");
       assertGeneratedCodeContains(
           COMPILATION,
           "com.example.CrateFocus",
-          "\"looseRow\").each(EachInstances.arrayEach()).some(Affines.nullable()))");
+          "class LooseByNameNavigator<S> extends NavigatorTraversalPath<S, @Nullable Leaf>");
+      // ...and each navigation method rules the null out before it reads a component
+      assertGeneratedCodeContains(
+          COMPILATION,
+          "com.example.CrateFocus",
+          "return toPath().some(Affines.nullable()).via(LeafFocus.name());");
     }
 
     @Test
@@ -428,6 +436,10 @@ class FocusNullableContainerTest {
 
       assertThat(names.getAll(crate)).containsExactly("oak");
       assertThat(names.getAll(modified)).containsExactly("OAK");
+      // The navigator itself is the field's path, so it still reaches the null element
+      TraversalPath<Object, Object> elements =
+          (TraversalPath<Object, Object>) path("CrateFocus", component);
+      assertThat(elements.getAll(crate)).containsExactlyInAnyOrder(null, oak);
     }
   }
 }

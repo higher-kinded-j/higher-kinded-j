@@ -66,9 +66,8 @@ public class Tutorial19_NavigatorGeneration_Solution {
       Lens.of(Warehouse::inventory, (w, inv) -> new Warehouse(w.id(), inv));
 
   /**
-   * Why this is idiomatic: a generated navigator delegates to {@code FocusPath.via} chains. The
-   * path reads as a sentence — Company → headquarters → city — and {@code get} returns the leaf
-   * string.
+   * Why this is idiomatic: a generated navigator composes {@code FocusPath.via} chains. The path
+   * reads as a sentence — Company → headquarters → city — and {@code get} returns the leaf string.
    *
    * <p>Alternative: invoke the lenses directly with {@code companyHqLens.andThen(addressCityLens)}.
    * Same answer; the navigator-style spelling is what the generator emits.
@@ -77,7 +76,7 @@ public class Tutorial19_NavigatorGeneration_Solution {
    * is the single source of truth; duplications drift.
    */
   @Test
-  void exercise1_navigatorDelegationGet() {
+  void exercise1_navigatorGet() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
     // SOLUTION: Compose FocusPath through headquarters then via city lens

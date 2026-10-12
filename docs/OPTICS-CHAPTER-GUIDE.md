@@ -64,7 +64,7 @@ page takes a row.
 - **An `// ANCHOR:` comment goes after the `package` line.** Spotless's licence-header step deletes
   anything above it.
 - **A Ship page shows the Focus path first.** Its first library example of an operation uses the
-  generated Focus path, with `generateNavigators = true`, as the Style Guide's
+  generated Focus path, with its navigators, as the Style Guide's
   [Effect Path First](STYLE-GUIDE.md#effect-path-first-in-examples) rule does for transformers. The
   raw optic (`XLenses.a().andThen(...)`) is collapsed, or comes after the path in a section that
   says why a reader would want it, as What a Path Is Made Of does.
@@ -100,9 +100,10 @@ page takes a row.
   - **A compiler-error reproducer may reshape a cast name only in what its diagnostic is about**,
     as the Mapping Chapter Guide's reproducer rule says. One that needs no cast member names a type
     of its own: not a cast name, and not a name this chapter declares in another shape.
-- **A chained Focus hop needs navigators.** `OrderFocus.customer().email()` compiles only when every
-  record a hop leaves carries `@GenerateFocus(generateNavigators = true)`; without it, the hop is
-  `.via(...)`.
+- **A chained Focus hop uses navigators, which are on by default.** `OrderFocus.customer().email()`
+  compiles because `Customer` is a `@GenerateFocus` record; a record that sets
+  `generateNavigators = false` spells the hop `.via(...)`. A navigator is a path, so show it held or
+  passed as one rather than calling `toPath()`.
 
 ## Diagrams
 

@@ -44,7 +44,7 @@ class ThirdPartySpiWideningTest {
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import org.eclipse.collections.api.list.ImmutableList;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(widenFields = "items")
               public record Basket(String id, ImmutableList<Item> items) {}
               """);
 
@@ -57,6 +57,8 @@ class ThirdPartySpiWideningTest {
           compilation,
           "com.example.BasketFocus",
           "EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list))");
+      assertGeneratedCodeContains(
+          compilation, "com.example.BasketFocus", "public static ItemsNavigator<Basket> items()");
     }
 
     @Test
@@ -79,7 +81,7 @@ class ThirdPartySpiWideningTest {
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import org.eclipse.collections.api.set.MutableSet;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(widenFields = "tags")
               public record Article(String title, MutableSet<Tag> tags) {}
               """);
 
@@ -91,6 +93,8 @@ class ThirdPartySpiWideningTest {
           compilation,
           "com.example.ArticleFocus",
           "EachInstances.fromIterableCollecting(list -> Sets.mutable.ofAll(list))");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ArticleFocus", "public static TagsNavigator<Article> tags()");
     }
   }
 
@@ -118,7 +122,7 @@ class ThirdPartySpiWideningTest {
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
               import com.google.common.collect.ImmutableList;
-              @GenerateFocus(generateNavigators = true)
+              @GenerateFocus(widenFields = "entries")
               public record Config(String name, ImmutableList<Entry> entries) {}
               """);
 
@@ -127,6 +131,10 @@ class ThirdPartySpiWideningTest {
       assertThat(compilation).succeeded();
 
       assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", "ImmutableList::copyOf");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ConfigFocus",
+          "public static EntriesNavigator<Config> entries()");
     }
   }
 

@@ -1062,13 +1062,13 @@ class MutationKillingPhase2Test {
               .getCharContent(true)
               .toString();
 
-      // Should have navigator for Office with via delegation
+      // Should have navigator for Office, composing through the path it is
       assertThat(code).contains("Navigator");
-      assertThat(code).contains("delegate");
+      assertThat(code).contains("toPath().via(");
       // CompanyFocus should have an OfficeNavigator inner class
       assertThat(code).contains("OfficeNavigator");
       // A navigation method composes the target's own Focus method rather than rebuilding its lens
-      assertThat(code).contains("delegate.via(OfficeFocus.name())");
+      assertThat(code).contains("toPath().via(OfficeFocus.name())");
       // Verify the navigator has methods for each field of the target record
       assertThat(code).contains("FocusPath<S, String>");
 
@@ -1080,7 +1080,7 @@ class MutationKillingPhase2Test {
               .getCharContent(true)
               .toString();
       assertThat(officeCode).contains("AddressNavigator");
-      assertThat(officeCode).contains("delegate.via(AddressFocus.");
+      assertThat(officeCode).contains("toPath().via(AddressFocus.");
     }
   }
 
@@ -1759,8 +1759,8 @@ class MutationKillingPhase2Test {
 
       // Navigator methods for regular String fields should mention FocusPath in Javadoc
       assertThat(code).contains("a FocusPath focusing on");
-      // The via statement should use toLens()
-      assertThat(code).contains("toLens()");
+      // The navigation method composes the target's own Focus method onto the navigator's path
+      assertThat(code).contains("toPath().via(AddressFocus.street())");
     }
   }
 

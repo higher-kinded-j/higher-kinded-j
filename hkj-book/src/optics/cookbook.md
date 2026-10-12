@@ -85,7 +85,7 @@ You want to replace one value three records down, such as the email on an order'
 ```
 ~~~
 
-`set` returns a new `Order`: it rebuilds the records on the path and reuses everything off it, the lines included. Chaining `.email().value()` straight on needs generated navigators, which `@GenerateFocus(generateNavigators = true)` turns on, here on `Order` and `Customer`. Without them, each hop is a `.via(...)`.
+`set` returns a new `Order`: it rebuilds the records on the path and reuses everything off it, the lines included. Chaining `.email().value()` straight on uses the navigators `@GenerateFocus` generates, here on `Order` and `Customer`. With them turned off, each hop is a `.via(...)`.
 
 ---
 
@@ -255,7 +255,7 @@ A PATCH request may carry a new name, a new email, both or neither. You want to 
 
 For a patch with a blank name and an email that has no `@`, `patched` is `Invalid(NonEmptyList[name: must not be blank, email: not an address])`. A patch that supplies only a good email changes only the email.
 
-`parseIfPresent` does nothing for a `null` field. `Edits.accumulate` collects every failure in edit order, and writes only when every edit has parsed. A generated path carries its component's name, which is where `name:` and `email:` come from. A navigator hop such as `CustomerFocus.email()` hands over its path with `toPath()`. [Many Edits at Once](multi_edit.md) covers the rest of the builder.
+`parseIfPresent` does nothing for a `null` field. `Edits.accumulate` collects every failure in edit order, and writes only when every edit has parsed. A generated path carries its component's name, which is where `name:` and `email:` come from. A navigator such as `CustomerFocus.email()` is a path itself, so it goes straight in. [Many Edits at Once](multi_edit.md) covers the rest of the builder.
 
 ---
 

@@ -96,24 +96,32 @@ Validated<List<String>, Company> checked =
 
 <!-- verify -->
 ```java
-// Fluent cross-type navigation
-@GenerateFocus(generateNavigators = true)
+// Fluent cross-type navigation, on by default: headquarters() is a navigator
+@GenerateFocus
 record Branch(String name, Address headquarters) {}
 
+// Plain paths only, with no navigators
+@GenerateFocus(generateNavigators = false)
+record Vendor(String name, Address registeredOffice) {}
+
 // maxNavigatorDepth = 1: division() is a navigator, and its own hops return plain paths
-@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
+@GenerateFocus(maxNavigatorDepth = 1)
 record Organisation(Division division) {}
 
 // Which fields get a navigator
-@GenerateFocus(generateNavigators = true, includeFields = {"homeAddress"})
+@GenerateFocus(includeFields = {"homeAddress"})
 record Person(String name, Address homeAddress, Address workAddress) {}
 
-@GenerateFocus(generateNavigators = true, excludeFields = {"backup"})
+@GenerateFocus(excludeFields = {"backup"})
 record Config(Settings main, Settings backup) {}
 
 // Widen Map, array and third-party collection fields at the static method
 @GenerateFocus(widenCollections = true)
 record Warehouse(Map<String, Integer> inventory) {}
+
+// Widen one container and keep another whole
+@GenerateFocus(widenFields = "prices")
+record PriceList(Map<String, Integer> prices, Map<String, String> notes) {}
 ```
 
 Only a `maxNavigatorDepth` of 1 or less changes the generated code; [Controlling navigator generation](focus_navigation.md#controlling-navigator-generation) says what each of these attributes does. A `targetPackage` moves the generated class into another package:

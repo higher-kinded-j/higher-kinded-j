@@ -54,7 +54,7 @@ A generated lens class is plain Java. This one comes from the processor's own te
 ~~~
 
 ~~~admonish tip title="Why two annotations?"
-`@GenerateLenses` produces classic lenses (`OrderLenses.customer()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`OrderFocus.customer()`) for deep navigation, and `generateNavigators = true` is what lets the next hop chain off it as `.email()` rather than `.via(CustomerFocus.email())`. Most records benefit from both annotations.
+`@GenerateLenses` produces classic lenses (`OrderLenses.customer()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`OrderFocus.customer()`) for deep navigation, and its navigators let the next hop chain off it as `.email()` rather than `.via(CustomerFocus.email())`. Most records benefit from both annotations.
 ~~~
 
 ---
@@ -75,7 +75,7 @@ Collection fields and sealed interfaces use the same annotation-driven pattern. 
 
 `OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. `.via(LineItemFocus.price())` zooms each element down to the price field, and `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
 
-A hop from a `List` field is always `.via(...)`, navigators or not: `generateNavigators = true` shortens a hop into a single record field, as `.email()` does in section 1.
+A hop from a `List` field is always `.via(...)`: a navigator shortens a hop into a single record field, as `.email()` does in section 1.
 
 ~~~admonish warning title="Do not add your own `.each()`"
 `OrderFocus.lines().each()` compiles and then fails at run time. The extra `each()` tries to read a `LineItem` as a `List`; its type parameter is inferred from whatever you assign it to, which is why the compiler lets it through. `TraversalPath.each()` is for a focus that is *itself* a list, and its javadoc documents the `ClassCastException`.
@@ -153,7 +153,7 @@ Where this lives: [Sum types and collections, the same way](#2-sum-types-and-col
 
 ~~~admonish info title="Key Takeaways"
 * **The annotations generate plain Java at compile time.** `XLenses`, `XFocus`, `XPrisms` and `XTraversals` are ordinary classes you call with ordinary method chains. Nothing here uses runtime reflection.
-* **`@GenerateLenses` and `@GenerateFocus` are the pair to reach for.** Lenses give you `withFoo` and the classic optics; Focus gives you the path DSL, and `generateNavigators = true` lets a hop into another record chain as a method call.
+* **`@GenerateLenses` and `@GenerateFocus` are the pair to reach for.** Lenses give you `withFoo` and the classic optics; Focus gives you the path DSL, whose navigators let a hop into another record chain as a method call.
 * **A collection accessor is already element-level.** `OrderFocus.lines()` focuses a `LineItem`, because the generated method ends in `.each()` for you. Adding another `.each()` compiles and then fails at run time.
 * **A prism rebuilds the variant it narrowed to.** `modify` is `A -> A`, so it cannot turn a `Pending` into a `Dispatched`; that is a read through the prism followed by building the new variant.
 * **Types you do not own join the same vocabulary.** An `OpticsSpec` interface plus `@ImportOptics` generates optics for `JsonNode`, JOOQ records or JDK types, and they compose with everything else.

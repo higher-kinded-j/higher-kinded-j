@@ -23,8 +23,10 @@ file adds the order to work in and the traps the chapter has met.
 Where a trap names a page, the book states and proves it there. Check that page before repeating
 the claim, since the library can change under it.
 
-- **Navigators are off by default.** A chained hop such as `OrderFocus.customer().email()` compiles
-  only with `@GenerateFocus(generateNavigators = true)` on every record a hop leaves.
+- **Navigators are on by default, and a navigator is a path.** A chained hop such as
+  `OrderFocus.customer().email()` compiles on a bare `@GenerateFocus`. A `Map`, an array or a
+  third-party collection of records gets a navigator only where the record widens it, through
+  `widenCollections` or `widenFields`; an `Either` of one always does.
   `maxNavigatorDepth` limits nothing above 1, so never document a deeper limit.
 - **`andThen` has an overload for every pair** of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal`,
   so no chain needs `asTraversal()` first. Composition Rules' table is generated from the overloads
