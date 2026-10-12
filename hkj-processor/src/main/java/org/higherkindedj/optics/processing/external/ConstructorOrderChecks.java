@@ -536,7 +536,9 @@ final class ConstructorOrderChecks {
     String call = callOf(rebuild, order);
     if (choosesByInference(rebuild, order)) {
       Optional<ExecutableElement> sole = soleConstructorOfLength(rebuild, order);
-      return sole.isPresent() && crossesParameterNames(rebuild, sole.get(), order, call);
+      return sole.isPresent()
+          && (crossesParameterNames(rebuild, sole.get(), order, call)
+              || passesUnchecked(rebuild, sole.get(), order, call));
     }
     List<TypeMirror> arguments = argumentsOf(rebuild, order);
     String taken =
@@ -546,7 +548,8 @@ final class ConstructorOrderChecks {
     return switch (CallBinding.resolve(
         typeUtils, rebuild.source(), arguments, rebuild.constructors())) {
       case CallBinding.Binds(ExecutableElement bound) ->
-          rebuildsAgainstItsNames(rebuild, bound, order, call, derived);
+          rebuildsAgainstItsNames(rebuild, bound, order, call, derived)
+              || passesUnchecked(rebuild, bound, order, call);
       case CallBinding.NoneApplies() -> {
         reportOrderNoConstructorTakes(rebuild, order, call, taken);
         yield true;
@@ -566,7 +569,9 @@ final class ConstructorOrderChecks {
             reportOrderNoConstructorTakes(rebuild, order, call, taken);
             yield true;
           }
-          case 1 -> rebuildsAgainstItsNames(rebuild, choice.get().getFirst(), order, call, derived);
+          case 1 ->
+              rebuildsAgainstItsNames(rebuild, choice.get().getFirst(), order, call, derived)
+                  || passesUnchecked(rebuild, choice.get().getFirst(), order, call);
           default -> {
             if (!inferredAmong(choice.get())) {
               reportAmbiguous(rebuild, choice.get(), call, taken);
@@ -583,6 +588,86 @@ final class ConstructorOrderChecks {
         };
       }
     };
+  }
+
+  /**
+   * Reports a constructor that takes one of the call's arguments only through an unchecked
+   * conversion, and returns whether it did: an accessor that reads a raw {@code List}, or a focus
+   * written raw, passed where the constructor takes {@code List<String>}. A variable-arity
+   * constructor takes the arguments past its fixed parameters as its array's elements. An argument
+   * whose type javac infers at the call is left to it.
+   *
+   * @param rebuild the lens and what it rebuilds
+   * @param constructor the constructor the call binds, or the only one it can
+   * @param order the names the call reads its arguments through
+   * @param call the call as the generated lens writes it, for the reason
+   * @return true when an argument is unchecked, and an error was reported
+   */
+  private boolean passesUnchecked(
+      Rebuild rebuild, ExecutableElement constructor, List<String> order, String call) {
+    List<TypeMirror> arguments = argumentsOf(rebuild, order);
+    List<TypeMirror> parameters = parametersRead(rebuild, constructor);
+    for (int at = 0; at < arguments.size(); at++) {
+      TypeMirror argument = arguments.get(at);
+      TypeMirror parameter =
+          constructor.isVarArgs() ? spreadAt(parameters, at) : parameters.get(at);
+      if (!inferredArgument(rebuild, order.get(at), argument)
+          && ProcessorUtils.convertsUnchecked(typeUtils, argument, parameter)) {
+        reportUncheckedArgument(rebuild, constructor, order.get(at), argument, parameter, call);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Whether javac infers the type of the argument read through {@code name} at the call rather than
+   * passing the one written: the focus written as a wildcard, or the read of an accessor that
+   * declares type variables of its own.
+   */
+  private static boolean inferredArgument(Rebuild rebuild, String name, TypeMirror argument) {
+    return argument.getKind() == TypeKind.WILDCARD
+        || !name.equals(rebuild.fieldName())
+            && !CopyStrategyChecks.accessorNamed(rebuild.members(), name)
+                .getTypeParameters()
+                .isEmpty();
+  }
+
+  /** Reports a constructor that takes the argument read through {@code name} only unchecked. */
+  private void reportUncheckedArgument(
+      Rebuild rebuild,
+      ExecutableElement bound,
+      String name,
+      TypeMirror argument,
+      TypeMirror parameter,
+      String call) {
+    boolean focus = name.equals(rebuild.fieldName());
+    String parameterName = ProcessorUtils.simpleTypeName(parameter);
+    Diagnostics.error(
+        messager,
+        rebuild.method(),
+        TAG,
+        "'"
+            + constructorSignature(bound)
+            + "' takes "
+            + (focus ? "the lens's focus" : "what '" + name + "()' reads")
+            + ", "
+            + CopyStrategyChecks.described(typeUtils, argument, parameter)
+            + ", only through an unchecked conversion to '"
+            + parameterName
+            + "'.",
+        "The generated lens rebuilds with '"
+            + call
+            + "', and "
+            + CopyStrategyChecks.UNCHECKED_IN_GENERATED_CODE,
+        (focus
+                ? "Declare the lens over '" + parameterName + "', the type the constructor takes; "
+                : "Name an accessor that reads '"
+                    + parameterName
+                    + "' in its place in 'parameterOrder'; ")
+            + "otherwise "
+            + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+            + ".");
   }
 
   /** Reports a call javac cannot choose a constructor for, naming each it cannot choose between. */
@@ -1219,8 +1304,8 @@ final class ConstructorOrderChecks {
 
   /**
    * Whether what an accessor reads can be passed where {@code parameter} stands with no unchecked
-   * conversion, which would be a warning in a file its author cannot edit: a subtype of it, or
-   * across a primitive and a reference, a value boxing or unboxing turns into one. An accessor
+   * conversion, which would be a warning in a file its author cannot edit, as a written order's
+   * arguments are held to it: assignable, and not only through an unchecked conversion. An accessor
    * whose read names a type variable of its own takes its type from the parameter it is passed to.
    */
   private boolean fitsParameter(
@@ -1231,9 +1316,8 @@ final class ConstructorOrderChecks {
       return true;
     }
     TypeMirror read = ProcessorUtils.returnTypeIn(typeUtils, source, accessor);
-    return read.getKind().isPrimitive() == parameter.getKind().isPrimitive()
-        ? typeUtils.isSubtype(read, parameter)
-        : typeUtils.isAssignable(read, parameter);
+    return typeUtils.isAssignable(read, parameter)
+        && !ProcessorUtils.convertsUnchecked(typeUtils, read, parameter);
   }
 
   /**
