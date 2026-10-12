@@ -459,7 +459,7 @@ matter: it maps build-only whatever its width, derived fields included.
   `Optional` holding a container included, and however it is declared: any `Collection` or `Map`
   subtype or supertype (`ArrayList`, `Collection`, `LinkedHashMap`), raw, wildcard-argument, or a
   type variable bounded by one. A `@MapKey` map's copied values are scanned too. A class that
-  fixes its own element (`class Node extends ArrayList<Node>`) is scanned one level into itself.
+  fixes its own element (`class Bundle extends ArrayList<Bundle>`) is scanned one level into itself.
   `Iterable`, `Stream`, `Maybe` and `NonEmptyList` are not looked inside yet. A primitive array
   carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself,
   and a null map *key* (a structurally broken map, not a wrong value). A null container *component* is guarded like any reference read

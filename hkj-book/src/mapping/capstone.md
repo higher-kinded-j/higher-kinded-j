@@ -38,13 +38,13 @@ Every value a leaf converts arrives as a `String`, the quantity included, so `pa
 
 ## The Imperative Approach
 
-The [chapter opened](ch_intro.md) with a sketch of this mapper; here it is at full scale:
+The [chapter opened](ch_intro.md) with this mapper, over these records:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_before}}
 ```
 
-Count the ways [the five-defect request](#the-payoff) defeats it. The mapper reports **one** problem, whichever throws first, and its message carries **no field path**. Eight call sites throw four different exception types (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`). Since a `NumberFormatException` is an `IllegalArgumentException`, three unrelated catch clauses cover them. And when `Order` grows a component next quarter, nothing warns that this method no longer covers it.
+Count the ways [the five-defect request](#the-payoff) defeats it. The mapper reports **one** problem, whichever throws first, and its message carries **no field path**. Eight call sites throw four different exception types (`NullPointerException`, `IllegalArgumentException`, `DateTimeParseException`, `NumberFormatException`). Since a `NumberFormatException` is an `IllegalArgumentException`, three unrelated catch clauses cover them. And when `OrderDto` grows a component next quarter, nothing warns that this method never reads it.
 
 ---
 

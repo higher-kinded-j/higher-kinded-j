@@ -40,7 +40,7 @@ public class GetterExtensionsExample {
       @Nullable Address address,
       ContactChannels channels) {}
 
-  record CompanyListing(String name, @Nullable StaffMember ceo, @Nullable Address headquarters) {}
+  record Partner(String name, @Nullable StaffMember ceo, @Nullable Address headquarters) {}
 
   record ServiceReply<T>(boolean success, @Nullable T data, @Nullable String errorMessage) {}
 
@@ -204,29 +204,29 @@ public class GetterExtensionsExample {
   private static void demonstrateComposition() {
     System.out.println("--- Scenario 4: Composition ---");
 
-    Getter<CompanyListing, StaffMember> ceoGetter = Getter.of(CompanyListing::ceo);
+    Getter<Partner, StaffMember> ceoGetter = Getter.of(Partner::ceo);
     Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
     Getter<Address, String> cityGetter = Getter.of(Address::city);
 
     // Compose getters
-    Getter<CompanyListing, StaffMember> ceoBioGetter = ceoGetter;
-    Getter<CompanyListing, Address> ceoAddressGetter = ceoGetter.andThen(addressGetter);
+    Getter<Partner, StaffMember> ceoBioGetter = ceoGetter;
+    Getter<Partner, Address> ceoAddressGetter = ceoGetter.andThen(addressGetter);
 
     ContactChannels contact = new ContactChannels("123-456-7890", "ceo@example.com", null);
     Address ceoAddress = new Address("456 Executive Blvd", "San Francisco", "94102");
     StaffMember ceo = new StaffMember("jdoe", "Jane Doe", "CEO", ceoAddress, contact);
 
     Address hq = new Address("789 Corporate Way", "Seattle", "98101");
-    CompanyListing company = new CompanyListing("TechCorp", ceo, hq);
+    Partner partner = new Partner("TechCorp", ceo, hq);
 
     // Navigate through composed getters with Maybe
-    Maybe<String> ceoCity = getMaybe(ceoAddressGetter, company).map(Address::city);
+    Maybe<String> ceoCity = getMaybe(ceoAddressGetter, partner).map(Address::city);
 
     System.out.println("CEO city: " + ceoCity.orElse("Unknown"));
 
     // Deep navigation with flatMap
     Maybe<String> ceoPostcode =
-        getMaybe(ceoGetter, company)
+        getMaybe(ceoGetter, partner)
             .flatMap(c -> getMaybe(addressGetter, c))
             .flatMap(a -> getMaybe(Getter.of(Address::postcode), a));
 
@@ -234,7 +234,7 @@ public class GetterExtensionsExample {
 
     // Handle missing CEO: chain with flatMap, since the composed getter would read a missing CEO's
     // address
-    CompanyListing startupWithoutCEO = new CompanyListing("StartupCo", null, null);
+    Partner startupWithoutCEO = new Partner("StartupCo", null, null);
 
     Maybe<String> missingCeoCity =
         getMaybe(ceoGetter, startupWithoutCEO)
@@ -301,11 +301,11 @@ public class GetterExtensionsExample {
     validateConfig(new ConfigOverrides("App2", null, null, null));
     System.out.println();
 
-    // Scenario D: Company Information Display
-    System.out.println("Company Information:");
+    // Scenario D: Partner Information Display
+    System.out.println("Partner Information:");
 
-    Getter<CompanyListing, StaffMember> ceoGetter = Getter.of(CompanyListing::ceo);
-    Getter<CompanyListing, Address> hqGetter = Getter.of(CompanyListing::headquarters);
+    Getter<Partner, StaffMember> ceoGetter = Getter.of(Partner::ceo);
+    Getter<Partner, Address> hqGetter = Getter.of(Partner::headquarters);
 
     ContactChannels ceoContact = new ContactChannels("555-0001", "ceo@techcorp.com", null);
     Address ceoAddress = new Address("100 CEO Lane", "San Francisco", "94102");
@@ -313,11 +313,11 @@ public class GetterExtensionsExample {
         new StaffMember("jdoe", "Jane Doe", "Visionary leader", ceoAddress, ceoContact);
 
     Address hq = new Address("200 HQ Plaza", "Seattle", "98101");
-    CompanyListing company1 = new CompanyListing("TechCorp", ceo, hq);
-    CompanyListing company2 = new CompanyListing("StartupCo", null, null);
+    Partner partner1 = new Partner("TechCorp", ceo, hq);
+    Partner partner2 = new Partner("StartupCo", null, null);
 
-    displayCompanyInfo(company1, ceoGetter, hqGetter);
-    displayCompanyInfo(company2, ceoGetter, hqGetter);
+    displayPartnerInfo(partner1, ceoGetter, hqGetter);
+    displayPartnerInfo(partner2, ceoGetter, hqGetter);
   }
 
   private static void displayStaffMember(
@@ -357,19 +357,17 @@ public class GetterExtensionsExample {
     System.out.println("    Configuration valid: " + isValid);
   }
 
-  private static void displayCompanyInfo(
-      CompanyListing company,
-      Getter<CompanyListing, StaffMember> ceoGetter,
-      Getter<CompanyListing, Address> hqGetter) {
-    System.out.println("  Company: " + company.name());
+  private static void displayPartnerInfo(
+      Partner partner, Getter<Partner, StaffMember> ceoGetter, Getter<Partner, Address> hqGetter) {
+    System.out.println("  Partner: " + partner.name());
 
     String ceoName =
-        getMaybe(ceoGetter, company).map(StaffMember::displayName).orElse("No CEO assigned");
+        getMaybe(ceoGetter, partner).map(StaffMember::displayName).orElse("No CEO assigned");
 
     System.out.println("    CEO: " + ceoName);
 
     String hqLocation =
-        getMaybe(hqGetter, company)
+        getMaybe(hqGetter, partner)
             .map(a -> a.city() + " " + a.postcode())
             .orElse("HQ not established");
 

@@ -225,7 +225,7 @@ Sealed interfaces cannot be declared inside a method. Move them to class level, 
 
 ### "Method reference `::new` does not work as a BiFunction"
 
-A single-component record's canonical constructor is a `Function`, not a `BiFunction`, so `Lens.of(Outer::inner, Outer::new)` will not compile. Write the lambda: `Lens.of(Outer::inner, (o, i) -> new Outer(i))`.
+A single-component record's canonical constructor is a `Function`, not a `BiFunction`, so `Lens.of(ShelfLabel::barcode, ShelfLabel::new)` will not compile. Write the lambda: `Lens.of(ShelfLabel::barcode, (label, code) -> new ShelfLabel(code))`.
 
 ### `getAll()` returns an empty list
 

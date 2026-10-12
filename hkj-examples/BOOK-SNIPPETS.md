@@ -104,7 +104,7 @@ annotation processor, so a `@GenerateMapping` or `@GenerateAssembly` snippet is 
 genuinely generated code, not a stand-in.
 
 Snippets are compiled separately rather than a whole page at once because a page's snippets are
-illustrations, not one program: two of them may legitimately show different `User` records.
+illustrations, not one program: two of them may show the same type before and after a change.
 
 ## Marking a snippet the processor refuses
 

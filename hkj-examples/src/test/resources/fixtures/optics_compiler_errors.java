@@ -76,9 +76,9 @@ record Role(String name) {}
 record Operator(String name, Kind<ListKind.Witness, Role> roles) {}
 
 /** A single-component record: no two-argument constructor for `Lens.of` to reach. */
-record Inner(String value) {}
+record Barcode(String value) {}
 
-record Outer(Inner inner) {}
+record ShelfLabel(Barcode barcode) {}
 
 class Fixture {
 

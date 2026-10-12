@@ -134,21 +134,10 @@ final class MockOpticInterpreter {
   }
 }
 
-// The reader's own logger and stores, whatever they are.
+// The reader's own logger and store, whatever they are.
 class Log {
 
   void error(String message, Throwable cause) {
-    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
-  }
-}
-
-class AuditService {
-
-  void record(String key, String entry) {
-    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
-  }
-
-  void record(String entry) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }
@@ -181,8 +170,6 @@ class Fixture {
   }
 
   static final Log log = new Log();
-
-  static final AuditService auditService = new AuditService();
 
   static final AuditRepository auditRepository = new AuditRepository();
 

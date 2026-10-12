@@ -3105,7 +3105,7 @@ A type the envelope companion names is hidden from the hierarchy's package, wher
 **Fix.** Remove `private` from the class the message names.
 
 ```
-@GenerateErrorEnvelope: context record 'Orders.LookupContext' cannot be reached from
+@GenerateErrorEnvelope: context record 'OrderTracking.LookupContext' cannot be reached from
 'com.example'. The generated companion is a top-level class in that package, where it names
 every type it reads or writes, so each has to be visible from there. Remove 'private' from
 'LookupContext'.
@@ -3114,9 +3114,9 @@ every type it reads or writes, so each has to be visible from there. Remove 'pri
 The rule: [Error envelope rules](rules.md#error-envelope-rules).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "context record 'Orders.LookupContext' cannot be reached from" -->
+<!-- verify:rejects "context record 'OrderTracking.LookupContext' cannot be reached from" -->
 ```java
-class Orders {
+class OrderTracking {
   private record LookupContext(String orderId) {}
 
   @GenerateErrorEnvelope
