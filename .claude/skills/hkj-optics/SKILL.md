@@ -56,34 +56,34 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 ```java
 @GenerateLenses
 @GenerateFocus
-public record User(String name, Address address) {}
+public record Shopper(String name, Address address, Optional<String> nickname) {}
 
 @GenerateLenses
 @GenerateFocus
-public record Address(String city, String postcode, Optional<String> floor) {}
+public record Address(String street, String city, String postcode) {}
 ```
 
-`UserFocus.address()` returns a navigator: the `FocusPath<User, Address>` itself, with a method for
-each `Address` field, which is what makes the cross-type chains below (`UserFocus.address().city()`)
-exist. A navigator goes wherever a path goes. Navigators are on by default;
-`@GenerateFocus(generateNavigators = false)` turns them off for a record.
+`ShopperFocus.address()` returns a navigator: the `FocusPath<Shopper, Address>` itself, with a method
+for each `Address` field, which is what makes the cross-type chains below
+(`ShopperFocus.address().city()`) exist. A navigator goes wherever a path goes. Navigators are on by
+default; `@GenerateFocus(generateNavigators = false)` turns them off for a record.
 
 ### 2. Use generated Focus classes
 
 <!-- verify -->
 ```java
 // FocusPath: exactly one focus (wraps Lens)
-FocusPath<User, String> namePath = UserFocus.name();
-String name = namePath.get(user);
-User renamed = namePath.set("Alice", user);
+FocusPath<Shopper, String> namePath = ShopperFocus.name();
+String name = namePath.get(shopper);
+Shopper renamed = namePath.set("Alice", shopper);
 
 // Chain through nested records
-FocusPath<User, String> cityPath = UserFocus.address().city();
-String city = cityPath.get(user);
+FocusPath<Shopper, String> cityPath = ShopperFocus.address().city();
+String city = cityPath.get(shopper);
 
 // AffinePath: zero or one (Optional/nullable fields)
-AffinePath<User, String> floorPath = UserFocus.address().floor();
-Optional<String> floor = floorPath.getOptional(user);
+AffinePath<Shopper, String> nicknamePath = ShopperFocus.nickname();
+Optional<String> nickname = nicknamePath.getOptional(shopper);
 ```
 
 ### 3. Chain for deep navigation
@@ -91,16 +91,16 @@ Optional<String> floor = floorPath.getOptional(user);
 <!-- verify -->
 ```java
 // A List field widens to a TraversalPath, which you chain with .via()
-TraversalPath<Company, String> allNames =
-    CompanyFocus.departments()             // TraversalPath<Company, Department>
-        .via(DepartmentFocus.employees())  // TraversalPath<Company, Employee>
-        .via(EmployeeFocus.name());        // TraversalPath<Company, String>
+TraversalPath<OrgChart, String> allNames =
+    OrgChartFocus.units()                // TraversalPath<OrgChart, OrgUnit>
+        .via(OrgUnitFocus.members())     // TraversalPath<OrgChart, OrgMember>
+        .via(OrgMemberFocus.name());     // TraversalPath<OrgChart, String>
 
 List<String> names = allNames.getAll(company);
-Company updated = allNames.modifyAll(String::toUpperCase, company);
+OrgChart updated = allNames.modifyAll(String::toUpperCase, company);
 ```
 
-Navigators are generated for **nested record** fields (`UserFocus.address().city()` above) and for
+Navigators are generated for **nested record** fields (`ShopperFocus.address().city()` above) and for
 SPI containers of one that the record widens: an `Either` always, and a `Map`, an array or a
 third-party collection under `widenCollections = true` or when `widenFields` names the field.
 `List`, `Set`, `Optional` and `Maybe` fields are widened instead, so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
@@ -118,8 +118,9 @@ Object value = ContactHistoryFocus.lastEdit().via(current).get(history);
 ```
 
 A navigator method composes the static Focus method for the field it navigates to, so the two always
-report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one
-source type further out.
+report the same path type: `ShopperFocus.address().postcode()` is whatever `AddressFocus.postcode()`
+is, one source type further out. Here that is a `FocusPath`; it would be an `AffinePath` for an
+`Optional` field and a `TraversalPath` for a `List`.
 
 A nested record's field named like one of the path's no-argument methods, such as `last`, `head`,
 `each` or `segments`, cannot be navigated to, since the call would reach the path's own method. On
@@ -193,7 +194,7 @@ Hand-rolling a labelled path from a raw lens:
 
 <!-- verify -->
 ```java
-FocusPath<Order, String> email = FocusPath.of(OrderLenses.email(), "email");
+FocusPath<LineItem, String> sku = FocusPath.of(LineItemLenses.sku(), "sku");
 ```
 
 ---
@@ -216,23 +217,26 @@ qualify them, as below, or `import static org.higherkindedj.optics.edit.Edit.*;`
 
 <!-- verify -->
 ```java
+// LineItem(String sku, Integer quantity, BigDecimal price)
 // Infallible: normalise a few fields
-Update<Order> normalise = Edits.combine(
-    Edit.modify(OrderFocus.email(), String::toLowerCase),
-    Edit.modify(OrderFocus.sku(),   String::trim));
+Update<LineItem> normalise = Edits.combine(
+    Edit.modify(LineItemFocus.sku(),   String::strip),
+    Edit.modify(LineItemFocus.price(), price -> price.setScale(2, RoundingMode.HALF_EVEN)));
 
-Order cleaned = normalise.apply(order);
+LineItem cleaned = normalise.apply(line);
 ```
 
 <!-- verify -->
 ```java
 // Fallible + sparse: a PATCH where any field may be absent (null = "not supplied")
-Validated<NonEmptyList<FieldError>, Order> patched =
+// LineItemPatch(@Nullable String sku, @Nullable Integer qtyDelta, @Nullable String price);
+// PriceParser.parse turns a String into a Validated<NonEmptyList<FieldError>, BigDecimal>
+Validated<NonEmptyList<FieldError>, LineItem> patched =
     Edits.accumulate(
-            Edit.parseIfPresent(OrderFocus.email(), request.email(), Email::parse),
-            Edit.modifyIfPresent(OrderFocus.quantity(), request.qtyDelta(), (d, q) -> q + d),
-            Edit.setIfPresent(OrderFocus.sku(), request.sku()))
-        .apply(order);
+            Edit.parseIfPresent(LineItemFocus.price(), patch.price(), PriceParser::parse),
+            Edit.modifyIfPresent(LineItemFocus.quantity(), patch.qtyDelta(), (d, q) -> q + d),
+            Edit.setIfPresent(LineItemFocus.sku(), patch.sku()))
+        .apply(line);
 ```
 
 `Accumulated<S>` exits via `.apply(s)` (-> `Validated`), `.applyPath(s)` (-> `ValidationPath`, i.e.
@@ -240,7 +244,7 @@ straight into an effect pipeline), or `.toValidated()`.
 
 **The leaf factories take a `FocusPath<S, A>` or a `Setter<S, A>`, never a raw `Lens`.** The
 idiomatic source is a generated `@GenerateFocus` path, because its label is what locates a parse
-failure. If you only have a `Lens`, wrap it: `FocusPath.of(lens, "email")`.
+failure. If you only have a `Lens`, wrap it: `FocusPath.of(lens, "sku")`.
 
 | Leaf | Fails? | Notes |
 |------|--------|-------|
@@ -260,9 +264,9 @@ a generated path already locates its own failures.
 drops into any `Function`-shaped API for free.
 
 ```java
-Update<Order> normalise = Edits.combine(...);
-Update<Order> full = normalise.andThen(applyDiscount);   // compose
-Monoid<Update<Order>> m = Monoids.update();              // combine = "f then g", empty = identity
+Update<LineItem> normalise = Edits.combine(...);
+Update<LineItem> full = normalise.andThen(applyDiscount);   // compose
+Monoid<Update<LineItem>> m = Monoids.update();              // combine = "f then g", empty = identity
 ```
 
 Gotcha: `andThen`'s argument must be typed `Update<S>` / `UnaryOperator<S>`. Pass a plain
@@ -285,7 +289,7 @@ canonical-form codecs for all of them (see `/hkj-mapping`).
 <!-- verify -->
 ```java
 ValidatedPrism<String, EmailAddress> EMAIL =
-    ValidatedPrism.of(Email::parse, EmailAddress::render);
+    ValidatedPrism.of(EmailParser::parse, EmailAddress::value);
 
 Validated<NonEmptyList<FieldError>, EmailAddress> parsed = EMAIL.parse(raw);
 ValidationPath<NonEmptyList<FieldError>, EmailAddress> asPath = EMAIL.parsePath(raw);  // -> effects
@@ -386,13 +390,13 @@ When not using `@GenerateFocus`, compose optics manually with `andThen`:
 
 <!-- verify -->
 ```java
-Lens<User, Address> addressLens = UserLenses.address();
+Lens<Shopper, Address> addressLens = ShopperLenses.address();
 Lens<Address, String> cityLens = AddressLenses.city();
 
-// Compose: User -> Address -> String
-Lens<User, String> userCityLens = addressLens.andThen(cityLens);
-String city = userCityLens.get(user);
-User updated = userCityLens.set("Paris", user);
+// Compose: Shopper -> Address -> String
+Lens<Shopper, String> shopperCityLens = addressLens.andThen(cityLens);
+String city = shopperCityLens.get(shopper);
+Shopper updated = shopperCityLens.set("Paris", shopper);
 ```
 
 Optics compose according to the hierarchy: Lens + Lens = Lens, Lens + Prism = Affine, Lens + Traversal = Traversal, etc. See `reference/composition-rules.md` for the full matrix.

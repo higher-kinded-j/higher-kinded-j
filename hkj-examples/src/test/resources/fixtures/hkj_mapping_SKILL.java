@@ -7,13 +7,10 @@
 // Every type here is TOP-LEVEL: a nested @GenerateMapping spec joins its enclosing simple names
 // (Shop.CustomerMapping -> ShopCustomerMappingImpl), and the skill teaches the top-level names.
 //
-// Customer is (name, address) rather than (name, email) on purpose. A snippet that declares its own
-// type shadows the fixture's, but the fixture's OTHER types keep referring to the name: the nested
-// @GenerateAssembly section redeclares `Customer` as (String name, Address address), and
-// CustomerMapping - which the build/parse and Invoice snippets need - has to keep compiling against
-// whatever `Customer` is in scope. `customer` is left uninitialised for the same reason: the leaf
-// prism section redeclares Customer with an EmailAddress component, so no single initialiser could
-// construct it in every snippet. The gate compiles; it does not run.
+// Each type keeps one shape: the book's, where the book declares it (BasicsBook, StructureBook,
+// SparsePatchBook, MergeBook, StandardCodecsBook, OrderErrorBook). A snippet that redeclares a type
+// restates that shape, so the fixture's values construct it in every snippet. The gate compiles; it
+// does not run.
 //
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
@@ -34,6 +31,7 @@ import org.higherkindedj.optics.annotations.GenerateAssembly;
 import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
+import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
@@ -48,65 +46,71 @@ record EmailAddress(String value) {}
 enum OrderStatus {
   NEW,
   PAID,
-  CANCELLED
+  SHIPPED
 }
 
 record Order(UUID id, LocalDate placedOn, OrderStatus status, BigDecimal total) {}
 
 record OrderDto(String id, String placedOn, String status, String total) {}
 
-record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
+record Rota(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
 
-record TeamDto(String name, List<String> members, Optional<String> lead) {}
+record RotaDto(String name, List<String> members, Optional<String> lead) {}
 
-// The record <-> DTO pair the mapping sections map, plus the sibling specs a nested component and an
-// empty spec resolve through.
-record Address(String zip, String city) {}
+// The opening spec's pair, which maps by name alone, and the pair the mapping sections map.
+// CustomerMapping is also the sibling spec the Invoice snippet's empty spec resolves through.
+record Address(String street, String city, String postcode) {}
 
-record AddressDto(String zip, String city) {}
-
-record Customer(String name, Address address) {}
-
-record CustomerDto(String name, AddressDto address) {}
+record AddressDto(String street, String city, String postcode) {}
 
 @GenerateMapping
 interface AddressMapping extends MappingSpec<Address, AddressDto> {}
 
+record Customer(String name, EmailAddress email) {}
+
+record CustomerDto(String name, String email) {}
+
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw ->
+            raw.contains("@")
+                ? Validated.validNel(new EmailAddress(raw))
+                : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
 
-// Renaming, and a wire-only derived field.
-record Person(String name) {}
+// Renaming: a partner's feed calls the name fullName.
+record PartnerCustomerDto(String fullName, String email) {}
 
-record PersonDto(String fullName) {}
+// A field renamed and converted at once: a mailing list's export.
+record MailingListCustomerDto(String name, String emailAddress) {}
 
-// A field renamed and converted at once.
-record Subscriber(String name, EmailAddress email) {}
+// A wire-only derived field.
+record Recipient(String first, String last) {}
 
-record SubscriberDto(String name, String emailAddress) {}
+record RecipientDto(String first, String last, String displayName) {}
 
-record Profile(String first, String last) {}
-
-record ProfileDto(String first, String last, String displayName) {}
+// A flat wire for a nested domain record, which the assembly sections parse their fields out of.
+record CollectionPointDto(String name, String street, String city, String postcode) {}
 
 // A sealed domain hierarchy and the sealed wire hierarchy it dispatches to.
 sealed interface Payment permits Card, Bank {}
 
-record Card(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
 sealed interface PaymentDto permits CardDto, BankDto {}
 
-record CardDto(String number) implements PaymentDto {}
+record CardDto(String pan) implements PaymentDto {}
 
 record BankDto(String iban) implements PaymentDto {}
 
-// @GenerateMerge: N sources -> one target.
-record User(String name, String email) {}
-
 // UpdateSpec (sparse PATCH): a bean-shaped request where null means "not provided, leave unchanged".
-class UserPatchBean {
+class ContactPatchBean {
   private String name;
   private String email;
 
@@ -128,20 +132,27 @@ class UserPatchBean {
 }
 
 @GenerateMapping
-interface UserPatchMapping extends UpdateSpec<User, UserPatchBean> {}
+interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw ->
+            raw.contains("@")
+                ? Validated.validNel(new EmailAddress(raw))
+                : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
 
-record Account(String iban, int balance) {}
+// @GenerateMerge: N sources -> one target.
+record Account(String accountId, BigDecimal balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Dashboard(String name, String iban, boolean darkMode) {}
+record Dashboard(String name, String accountId, boolean darkMode) {}
 
 // @GenerateAssembly: the record the staged builder is generated for.
 @GenerateAssembly
 record SignupUser(String name, String email, int age) {}
-
-/** The wire form the assembly sections parse their fields out of. */
-record SignupDto(String name, String zip, String city) {}
 
 // @GenerateErrorEnvelope: the reader's sealed error hierarchy and its typed context.
 record OrderId(String value) {}
@@ -172,13 +183,13 @@ sealed interface OrderError {
 
 class Fixture {
 
-  /** Uninitialised on purpose: a snippet redeclares Customer with a different shape. See above. */
-  static Customer customer;
+  static final Address address = new Address("1 High Street", "Leeds", "LS1 4AP");
+  static final Customer customer = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-  static final SignupDto dto = new SignupDto("Ada", "SW1A 1AA", "London");
+  static final CollectionPointDto dto =
+      new CollectionPointDto("Kirkstall", "1 High Street", "Leeds", "LS1 4AP");
 
-  static final User user = new User("Ada", "ada@example.com");
-  static final Account account = new Account("GB00", 100);
+  static final Account account = new Account("ACC001", new BigDecimal("4200.00"));
   static final Settings settings = new Settings(true);
 
   static final List<ProductId> products = List.of(new ProductId("PROD-1"));
@@ -189,11 +200,17 @@ class Fixture {
     return Validated.validNel(raw);
   }
 
-  static Validated<NonEmptyList<FieldError>, String> parseZip(String raw) {
-    return raw.isBlank() ? Validated.invalidNel(FieldError.of("not a postcode")) : Validated.validNel(raw);
+  static Validated<NonEmptyList<FieldError>, String> parseStreet(String raw) {
+    return Validated.validNel(raw);
   }
 
   static Validated<NonEmptyList<FieldError>, String> parseCity(String raw) {
     return Validated.validNel(raw);
+  }
+
+  static Validated<NonEmptyList<FieldError>, String> parsePostcode(String raw) {
+    return raw.isBlank()
+        ? Validated.invalidNel(FieldError.of("not a postcode"))
+        : Validated.validNel(raw);
   }
 }

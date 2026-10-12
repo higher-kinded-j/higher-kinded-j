@@ -15,6 +15,7 @@
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -31,9 +32,9 @@ import org.junit.jupiter.api.Test;
 
 record EmailAddress(String value) {}
 
-record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
+record Rota(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
 
-record TeamDto(String name, List<String> members, Optional<String> lead) {}
+record RotaDto(String name, List<String> members, Optional<String> lead) {}
 
 record Customer(String name, EmailAddress email) {}
 
@@ -53,25 +54,17 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
   }
 }
 
-// Renaming: the wire calls it fullName, the domain calls it name.
-record Person(String name) {}
-
-record PersonDto(String fullName) {}
-
-// Merging several sources into one target.
-record User(String name, String email) {}
-
-record Account(String iban, int balance) {}
+// Merging several sources into one target, as the book's MergeBook does.
+record Account(String accountId, BigDecimal balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Dashboard(String name, String iban, boolean darkMode) {}
+record Dashboard(String name, String accountId, boolean darkMode) {}
 
 class Fixture {
 
   static final Customer customer = new Customer("Ada", new EmailAddress("ada@example.com"));
 
-  static final User user = new User("Ada", "ada@example.com");
-  static final Account account = new Account("GB00", 100);
+  static final Account account = new Account("ACC001", new BigDecimal("4200.00"));
   static final Settings settings = new Settings(true);
 }

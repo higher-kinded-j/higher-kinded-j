@@ -76,7 +76,7 @@ class BookSnippetVerificationTest {
    * offset deleting a skill's marker and leave the total untouched, and a skill is read by an
    * assistant that generates code from it.
    */
-  private static final int MINIMUM_SKILLS_SNIPPETS = 216;
+  private static final int MINIMUM_SKILLS_SNIPPETS = 223;
 
   /**
    * Every documentation root whose code is verified. The book was the first; the skills are the

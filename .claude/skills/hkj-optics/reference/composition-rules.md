@@ -91,13 +91,13 @@ Traversal<A, D> result =
 <!-- verify -->
 ```java
 // Sequential: navigate deeper
-Fold<Customer, Item> items = ordersFold.andThen(itemsFold);
+Fold<List<Order>, LineItem> lines = ordersFold.andThen(linesFold);
 
 // Parallel: combine results from different paths
 Fold<Person, String> allNames = firstNameFold.plus(lastNameFold);
 
 // Both together
-Fold<Team, String> allEmails = Fold.sum(
+Fold<Guild, String> allEmails = Fold.sum(
     leadLens.asFold().andThen(emailLens.asFold()),
     membersFold.andThen(emailLens.asFold())
 );
@@ -110,34 +110,37 @@ Fold<Team, String> allEmails = Fold.sum(
 <!-- verify -->
 ```java
 // Pattern 1: Optional field access (Lens + Prism + Lens = Affine)
-Affine<User, String> userCity =
-    UserLenses.address()           // Lens<User, Optional<Address>>
-        .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
-        .andThen(AddressLenses.city());
+Affine<CustomerProfile, String> altEmail =
+    CustomerProfileLenses.altEmail()   // Lens<CustomerProfile, Optional<EmailAddress>>
+        .andThen(Prisms.some())        // Prism<Optional<EmailAddress>, EmailAddress>
+        .andThen(EmailAddressLenses.value());
 
 // Pattern 2: Sum type field access (Prism + Lens = Affine)
-Affine<Payment, String> creditCardNumber =
-    PaymentPrisms.creditCard()
-        .andThen(CreditCardLenses.number());
+// Payment is sealed over Card(String pan) and Bank(String iban)
+Affine<Payment, String> cardPan =
+    PaymentPrisms.card()
+        .andThen(CardLenses.pan());
 
 // Pattern 3: Conditional collection access
-Traversal<List<Order>, Order> activeOrders =
+Traversal<List<Order>, Order> paidOrders =
     Traversals.<Order>forList()
-        .andThen(Traversals.filtered(Order::isActive));
+        .andThen(Traversals.filtered(order -> order.status() == OrderStatus.PAID));
 ```
 
 ## Best Practice: Store Complex Compositions as Constants
 
 <!-- verify -->
 ```java
-public final class OrderOptics {
-    public static final Affine<Order, String> CUSTOMER_EMAIL =
-        OrderLenses.customer()
-            .andThen(CustomerPrisms.activeCustomer())
-            .andThen(ActiveCustomerLenses.email());
+// Consignment(UUID orderId, Address to, ConsignmentState state), where ConsignmentState is
+// sealed over Pending(), Dispatched(Instant at) and Returned(String reason)
+public final class FulfilmentOptics {
+    public static final Affine<Consignment, String> RETURN_REASON =
+        ConsignmentLenses.state()
+            .andThen(ConsignmentStatePrisms.returned())
+            .andThen(ReturnedLenses.reason());
 
-    public static final Traversal<Order, Money> LINE_ITEM_PRICES =
-        OrderTraversals.lineItems()
+    public static final Traversal<Order, BigDecimal> LINE_ITEM_PRICES =
+        OrderTraversals.lines()
             .andThen(LineItemLenses.price());
 }
 ```
