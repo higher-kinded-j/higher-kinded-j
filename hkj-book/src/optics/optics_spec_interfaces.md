@@ -284,7 +284,9 @@ interface NodeOpticsSpec<U extends Number> extends OpticsSpec<Node<U>> {
 }
 ```
 
-Left unbounded, `U` makes the processor refuse the prism at the spec method, as it does for a class no instantiation of the source can be, such as `Gauge` reached from a `Node<String>`. Where one bound will do, the message gives the declaration to write, as [an argument outside its bound](compiler_errors.md#instanceof-out-of-bound) shows.
+Left unbounded, `U` makes the processor refuse the prism at the spec method, as it does where the source fixes the argument outside the bound, such as `Gauge` reached from a `Node<String>`. Where one bound will do, the message gives the declaration to write, as [an argument outside its bound](compiler_errors.md#instanceof-out-of-bound) shows.
+
+A class whose declaration and the source write two different types in one place, as `Grid<Y> extends Node<Y[]>` and a `Node<int[]>` do, is refused at the spec method too, since the test would never match. [A test that would never match](compiler_errors.md#instanceof-never-matches) shows the fix.
 
 ---
 

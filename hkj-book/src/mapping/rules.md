@@ -662,6 +662,7 @@ An element-mapped spec's `of(...)` takes one `ValidatedPrism` per abstract leaf,
 | a generic sealed hierarchy (`sealed interface Result<E, A>`) | refused even at a concrete instantiation, not supported yet |
 | a raw use, a raw *nested* argument, or a wildcard | diagnosed |
 | an array argument (`Page<String[]>`) | concrete: it maps, and unifies structurally at nested use sites |
+| a primitive array against an array of the spec's parameter (`Page<int[]>` against `Page<T[]>`) | not covered, since no type argument is a primitive: the field has [no usable source](compiler_errors.md#no-usable-source) until a spec maps that pair |
 | an abstract leaf on a concrete or sealed spec | diagnosed, since nothing defers its parser |
 | a leaf, rename or bridge marker declaring its own type parameters (`<R> ValidatedPrism<R, R> items()`) | diagnosed: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>` |
 

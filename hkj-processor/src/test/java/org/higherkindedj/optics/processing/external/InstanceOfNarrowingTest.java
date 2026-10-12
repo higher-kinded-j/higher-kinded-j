@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * runs after erasure. So a prism may only promise the arguments the source type pins down: {@code
  * Circle<X> implements Shape<X>} narrowed from {@code Shape<U>} pins {@code X}, while {@code
  * Circle<X> extends Shape} narrowed from a {@code Shape} that declares nothing pins none of it and
- * would hand any instantiation back as the one the caller asked for (issue #733).
+ * would hand any instantiation back as the one the caller asked for.
  *
  * <p>Every test that expects generated code compiles the generated source under the lints a
  * consuming build turns on, so a test earns its "no suppression needed" by javac agreeing.
@@ -107,6 +107,103 @@ class InstanceOfNarrowingTest {
           public class Grid<X> extends Node<X[]> {}
           """);
 
+  /** A subtype with no parameters, whose own clause writes a primitive array. */
+  private static final JavaFileObject COUNTS =
+      JavaFileObjects.forSourceString(
+          "com.external.Counts",
+          """
+          package com.external;
+
+          public class Counts extends Node<int[]> {}
+          """);
+
+  /** A subtype asking for one parameter in three places, one of them a level further down. */
+  private static final JavaFileObject TRIPLE =
+      JavaFileObjects.forSourceString(
+          "com.external.Triple",
+          """
+          package com.external;
+
+          public class Triple<X> extends Node<Pair<X, Pair<X, X>>> {}
+          """);
+
+  /** A subtype whose own clause writes a wildcard inside its argument. */
+  private static final JavaFileObject LOOSE =
+      JavaFileObjects.forSourceString(
+          "com.external.Loose",
+          """
+          package com.external;
+
+          public class Loose extends Node<Pair<?, String>> {}
+          """);
+
+  /** A subtype whose own clause writes a wildcard javac reads as {@code Object}. */
+  private static final JavaFileObject LOWER =
+      JavaFileObjects.forSourceString(
+          "com.external.Lower",
+          """
+          package com.external;
+
+          public class Lower<X> extends Node<Pair<X, ? super Object>> {}
+          """);
+
+  /** A subtype whose own clause writes a wildcard among its enclosing class's arguments. */
+  private static final JavaFileObject WILD =
+      JavaFileObjects.forSourceString(
+          "com.external.Wild",
+          """
+          package com.external;
+
+          public class Wild extends Outer<?>.Base {
+              public Wild(Outer<?> outer) {
+                  outer.super();
+              }
+          }
+          """);
+
+  /**
+   * A class whose second parameter is bounded by its first, and subtypes that reach it: javac reads
+   * {@code ? super Object} there against the bound with the arguments in place.
+   */
+  private static final JavaFileObject BOUNDED =
+      JavaFileObjects.forSourceString(
+          "com.external.Bounded",
+          """
+          package com.external;
+
+          public class Bounded {
+              public static class PB<A, B extends A> {}
+
+              public static class Both<X> extends Node<PB<X, X>> {}
+
+              public static class Plain extends Node<PB<Object, Object>> {}
+
+              public static class Lower extends Node<PB<Object, ? super Object>> {}
+
+              public static class Deep extends Node<java.util.List<PB<Object, Object>>> {}
+          }
+          """);
+
+  /** A subtype whose own clause writes {@code Object} beside its parameter. */
+  private static final JavaFileObject UPPER =
+      JavaFileObjects.forSourceString(
+          "com.external.Upper",
+          """
+          package com.external;
+
+          public class Upper<X> extends Node<Pair<X, Object>> {}
+          """);
+
+  /** A subtype whose own clause writes a class beside an array of its parameter. */
+  private static final JavaFileObject STRICT =
+      JavaFileObjects.forSourceString(
+          "com.external.Strict",
+          """
+          package com.external;
+
+          public class Strict<X> extends Node<Pair<X[], String>> {}
+          """);
+
   /** A subtype asking for one parameter in two places at once. */
   private static final JavaFileObject TWIN =
       JavaFileObjects.forSourceString(
@@ -130,6 +227,8 @@ class InstanceOfNarrowingTest {
               public class Inner<Y> extends Node<Y> {}
 
               public class Pin extends Node<X> {}
+
+              public class Rows extends Node<X[]> {}
 
               public class Base {}
 
@@ -255,7 +354,9 @@ class InstanceOfNarrowingTest {
    */
   private Compilation compile(String... specBodies) {
     Stream<JavaFileObject> fixtures =
-        Stream.of(SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, OUTER, DEPENDENT, LIMITS);
+        Stream.of(
+            SHAPE, CIRCLE, NODE, LEAF, PAIR, WEDGE, TWIN, GRID, COUNTS, TRIPLE, LOOSE, STRICT,
+            LOWER, UPPER, WILD, BOUNDED, OUTER, DEPENDENT, LIMITS);
     Stream<JavaFileObject> specs =
         Arrays.stream(specBodies)
             .map(
@@ -271,16 +372,24 @@ class InstanceOfNarrowingTest {
                         """
             package com.myapp;
 
+            import com.external.Bounded;
             import com.external.Circle;
+            import com.external.Counts;
             import com.external.Dependent;
             import com.external.Grid;
             import com.external.Leaf;
             import com.external.Limits;
+            import com.external.Loose;
+            import com.external.Lower;
             import com.external.Node;
             import com.external.Outer;
             import com.external.Pair;
             import com.external.Shape;
+            import com.external.Strict;
+            import com.external.Triple;
             import com.external.Twin;
+            import com.external.Upper;
+            import com.external.Wild;
             import com.external.Wedge;
             import java.util.List;
             import org.higherkindedj.optics.Prism;
@@ -476,6 +585,39 @@ class InstanceOfNarrowingTest {
       assertGeneratedCodeContains(
           compilation, "com.myapp.SubjectOptics", "source instanceof int[]");
     }
+
+    @Test
+    @DisplayName("narrows an array target whose component never reaches the source's class")
+    void narrowsAnArrayWhoseComponentNeverReachesTheSource() {
+      var specInterface =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubjectOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              public interface SubjectOpticsSpec extends OpticsSpec<Cloneable> {
+                  @InstanceOf(String[].class)
+                  Prism<Cloneable, String[]> names();
+              }""");
+
+      // Every array is Cloneable, but String is not, so its component has no view of the source
+      // to match against, and nothing to pin or to rule out.
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(specInterface);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof String[]");
+    }
   }
 
   @Nested
@@ -622,25 +764,6 @@ class InstanceOfNarrowingTest {
     }
 
     @Test
-    @DisplayName("pins nothing when the source names a different class of the same arity")
-    void pinsNothingFromADifferentClassOfTheSameArity() {
-      var compilation =
-          compile(
-              """
-              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<Wedge<U, U>>> {
-                  @InstanceOf(Twin.class)
-                  Prism<Node<Wedge<U, U>>, Twin<U>> twin();
-              }""");
-
-      // Twin reaches Node as Node<Pair<X, X>>. Wedge takes two arguments as well, so a match that
-      // read position by position without checking the class would pin X to U and write a test
-      // javac refuses.
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'Node<Wedge<U, U>>' pins nothing to X");
-      assertThat(compilation).hadErrorCount(1);
-    }
-
-    @Test
     @DisplayName("rejects an array focus asking for an argument its component cannot check")
     void rejectsAParameterisedArrayFocus() {
       var specInterface =
@@ -731,6 +854,782 @@ class InstanceOfNarrowingTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'Node<U>' pins nothing to Y");
       assertThat(compilation).hadErrorCount(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("no value of the source can be the target")
+  class NeverMatching {
+
+    @Test
+    @DisplayName("refuses a parameter the source would pin to a primitive, at the declaration")
+    void refusesAParameterPinnedToAPrimitive() {
+      // Grid reaches Node as Node<X[]>, and a Node<int[]> would pin X to int, which no type
+      // argument can be. Handed on as one, it reaches a builder that takes reference types only.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<int[]>, Node<int[]>> grid();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.grid' tests 'Grid', which no 'Node<int[]>' can be.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Grid<X>' is a 'Node<X[]>', which is a 'Node<int[]>' only with 'X' as 'int',"
+                  + " and a type argument is never a primitive: the test would never match.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name a class in @InstanceOf that a 'Node<int[]>' can be, or declare the prism on a"
+                  + " spec of its own over 'Node<X[]>', which every 'Grid<X>' is.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses before asking about the focus, which no focus could satisfy")
+    void refusesBeforeAskingAboutTheFocus() {
+      // A Grid<?> focus is not a Node<int[]> the prism could build back, and a Node<int[]> focus
+      // is not what the test narrows to, so a focus check would only send the reader to the other.
+      var compilation =
+          compile(
+              """
+              public interface WildOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<int[]>, Grid<?>> grid();
+              }""",
+              """
+              public interface BoxedOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<int[]>, Grid<Integer>> grid();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("'WildOpticsSpec.grid' tests 'Grid', which no 'Node<int[]>' can be.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'BoxedOpticsSpec.grid' tests 'Grid', which no 'Node<int[]>' can be.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("compiles once the prism moves to a spec of its own, leaving its sibling alone")
+    void compilesOnceThePrismMovesToASpecOfItsOwn() {
+      // The spec's other prism needs its Node<int[]> source, so the fix line offers a new spec
+      // rather than a new source for this one.
+      var compilation =
+          compile(
+              """
+              public interface CountsOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<int[]>, Counts> counts();
+              }""",
+              """
+              public interface GridOpticsSpec extends OpticsSpec<Node<Integer[]>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<Integer[]>, Grid<Integer>> grid();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.GridOptics", "source instanceof Grid<Integer>");
+    }
+
+    @Test
+    @DisplayName("refuses an enclosing class's parameter the source would pin to a primitive")
+    void refusesAnEnclosingParameterPinnedToAPrimitive() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Outer.Rows.class)
+                  Prism<Node<int[]>, Node<int[]>> rows();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Outer<X>.Rows' is a 'Node<X[]>', which is a 'Node<int[]>' only with 'X' as"
+                  + " 'int'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses a primitive the target writes where the source has a type parameter")
+    void refusesAPrimitiveWhereTheSourceHasAParameter() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U[]>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<U[]>, Counts> counts();
+              }""");
+
+      // U stands for a reference type, so no U[] is the int[] Counts names.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Counts' is a 'Node<int[]>', which is a 'Node<U[]>' only with 'U' as 'int'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses an array where the source writes a class")
+    void refusesAnArrayWhereTheSourceWritesAClass() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<String>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<String>, Node<String>> grid();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Grid<X>' is a 'Node<X[]>', and no 'Node<X[]>' is a 'Node<String>': the test"
+                  + " would never match.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses where the source names a different class of the same arity")
+    void refusesADifferentClassOfTheSameArity() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<Wedge<U, U>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Wedge<U, U>>, Twin<U>> twin();
+              }""");
+
+      // Twin reaches Node as Node<Pair<X, X>>. Wedge takes two arguments as well, so a match that
+      // read position by position without checking the class would pin X to U and write a test
+      // javac refuses.
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("tests 'Twin', which no 'Node<Wedge<U, U>>' can be.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses another primitive, for a target that declares no parameters")
+    void refusesAnotherPrimitiveForATargetWithoutParameters() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<long[]>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<long[]>, Node<long[]>> counts();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Counts' is a 'Node<int[]>', and no 'Node<int[]>' is a 'Node<long[]>': the"
+                  + " test would never match.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("writes the test where the source writes the same primitive")
+    void writesTheTestWhereTheSourceWritesTheSamePrimitive() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<int[]>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<int[]>, Counts> counts();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Counts");
+    }
+
+    @Test
+    @DisplayName("refuses one parameter the source asks to be two different types")
+    void refusesOneParameterAskedToBeTwoTypes() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<Pair<String, int[]>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<String, int[]>>, Node<Pair<String, int[]>>> twin();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Twin<X>' is a 'Node<Pair<X, X>>', and no 'Node<Pair<X, X>>' is a"
+                  + " 'Node<Pair<String, int[]>>': the test would never match.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses two different types for one parameter, whatever a third one names")
+    void refusesTwoDifferentTypesWhateverAThirdNames() {
+      // X would have to be U, String and Integer at once. Whatever U is, String is not Integer.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U>
+                  extends OpticsSpec<Node<Pair<U, Pair<String, Integer>>>> {
+                  @InstanceOf(Triple.class)
+                  Prism<Node<Pair<U, Pair<String, Integer>>>, Triple<?>> triple();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "tests 'Triple', which no 'Node<Pair<U, Pair<String, Integer>>>' can be.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses a parameter where the source writes a wildcard inside an argument")
+    void refusesAParameterAgainstAWildcardInsideAnArgument() {
+      // Pair<?, String> is one type, and no Pair<X, X> is it: a type argument is never a wildcard.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<Pair<?, String>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<?, String>>, Node<Pair<?, String>>> twin();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Twin<X>' is a 'Node<Pair<X, X>>', and no 'Node<Pair<X, X>>' is a"
+                  + " 'Node<Pair<?, String>>': the test would never match.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("refuses an argument that names no variable and differs, wildcards and all")
+    void refusesAnArgumentThatDiffersWildcardsAndAll() {
+      // Inside an argument a wildcard is part of the one type the argument is, so a Pair<?, String>
+      // is neither a Pair<?, Integer> nor a Pair<? extends Number, String>.
+      var compilation =
+          compile(
+              """
+              public interface IntegersOpticsSpec extends OpticsSpec<Node<Pair<?, Integer>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<?, Integer>>, Node<Pair<?, Integer>>> loose();
+              }""",
+              """
+              public interface BoundedOpticsSpec
+                  extends OpticsSpec<Node<Pair<? extends Number, String>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<? extends Number, String>>, Node<Pair<? extends Number, String>>>
+                      loose();
+              }""",
+              """
+              public interface ArraysOpticsSpec extends OpticsSpec<Node<Pair<?, String[]>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<?, String[]>>, Node<Pair<?, String[]>>> loose();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Loose' is a 'Node<Pair<?, String>>', and no 'Node<Pair<?, String>>' is a"
+                  + " 'Node<Pair<?, Integer>>': the test would never match.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'BoundedOpticsSpec.loose' tests 'Loose', which no"
+                  + " 'Node<Pair<? extends Number, String>>' can be.");
+      assertThat(compilation)
+          .hadErrorContaining("'ArraysOpticsSpec.loose' tests 'Loose', which no");
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName(
+        "refuses one parameter asked to be two types that a wildcard inside one sets apart")
+    void refusesOneParameterAskedToBeTwoTypesAWildcardSetsApart() {
+      // List<?> is one type, as List<String> is, and Twin's X would have to be both.
+      var compilation =
+          compile(
+              """
+              public interface ListsOpticsSpec extends OpticsSpec<Node<Pair<List<?>, List<String>>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<List<?>, List<String>>>, Node<Pair<List<?>, List<String>>>> twin();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ListsOpticsSpec.twin' tests 'Twin', which no 'Node<Pair<List<?>, List<String>>>'"
+                  + " can be.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("writes the test where an argument is the same type, wildcards and all")
+    void writesTheTestWhereAnArgumentIsTheSameType() {
+      var compilation =
+          compile(
+              """
+              public interface LooseOpticsSpec extends OpticsSpec<Node<Pair<?, String>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<?, String>>, Loose> loose();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(compilation, "com.myapp.LooseOptics", "source instanceof Loose");
+    }
+
+    @Test
+    @DisplayName("pins a parameter to a type with a wildcard inside, where every place agrees")
+    void pinsAParameterToATypeWithAWildcardInside() {
+      var compilation =
+          compile(
+              """
+              public interface ListsOpticsSpec extends OpticsSpec<Node<Pair<List<?>, List<?>>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<List<?>, List<?>>>, Twin<List<?>>> twin();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ListsOptics", "source instanceof Twin<List<?>>");
+    }
+
+    @Test
+    @DisplayName("refuses a wildcard against a type, where a variable leaves the rest open")
+    void refusesAWildcardAgainstATypeBesideAVariable() {
+      var compilation =
+          compile(
+              """
+              public interface LooseOpticsSpec<U> extends OpticsSpec<Node<Pair<Integer, U>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<Integer, U>>, Node<Pair<Integer, U>>> loose();
+              }""",
+              """
+              public interface StrictOpticsSpec<U> extends OpticsSpec<Node<Pair<U[], ?>>> {
+                  @InstanceOf(Strict.class)
+                  Prism<Node<Pair<U[], ?>>, Node<Pair<U[], ?>>> strict();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'LooseOpticsSpec.loose' tests 'Loose', which no");
+      assertThat(compilation)
+          .hadErrorContaining("'StrictOpticsSpec.strict' tests 'Strict', which no");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("leaves a wildcard against the source's type variable to the checks that follow")
+    void leavesAWildcardAgainstTheSourcesVariable() {
+      // javac reads U as anything at all, the wildcard's own type included, and so does the match.
+      var compilation =
+          compile(
+              """
+              public interface LooseOpticsSpec<U> extends OpticsSpec<Node<Pair<U, String>>> {
+                  @InstanceOf(Loose.class)
+                  Prism<Node<Pair<U, String>>, Node<Pair<U, String>>> loose();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("narrows to 'Loose', which is not a 'Node<Pair<U, String>>'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("leaves a class against the source's type variable inside an argument alone")
+    void leavesAClassAgainstTheSourcesVariableInsideAnArgument() {
+      // The match rules nothing out against the source's V, so the focus check that follows is
+      // what refuses it.
+      var compilation =
+          compile(
+              """
+              public interface StrictOpticsSpec<U, V> extends OpticsSpec<Node<Pair<U[], V>>> {
+                  @InstanceOf(Strict.class)
+                  Prism<Node<Pair<U[], V>>, Strict<U>> strict();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("focuses 'Strict<U>', which is not a 'Node<Pair<U[], V>>'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("writes the test where javac reads a wildcard as the one type against it")
+    void writesTheTestWhereAWildcardIsTheOneTypeAgainstIt() {
+      // ? super Object admits Object alone, so javac reads it as Object, on either side.
+      var compilation =
+          compile(
+              """
+              public interface LowerOpticsSpec extends OpticsSpec<Node<Pair<String, Object>>> {
+                  @InstanceOf(Lower.class)
+                  Prism<Node<Pair<String, Object>>, Lower<String>> lower();
+              }""",
+              """
+              public interface UpperOpticsSpec
+                  extends OpticsSpec<Node<Pair<String, ? super Object>>> {
+                  @InstanceOf(Upper.class)
+                  Prism<Node<Pair<String, ? super Object>>, Upper<String>> upper();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LowerOptics", "source instanceof Lower<String>");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.UpperOptics", "source instanceof Upper<String>");
+    }
+
+    @Test
+    @DisplayName("refuses a wildcard that admits other types than the one against it")
+    void refusesAWildcardThatAdmitsOtherTypes() {
+      var compilation =
+          compile(
+              """
+              public interface LowerOpticsSpec extends OpticsSpec<Node<Pair<String, String>>> {
+                  @InstanceOf(Lower.class)
+                  Prism<Node<Pair<String, String>>, Node<Pair<String, String>>> lower();
+              }""",
+              """
+              public interface TwinOpticsSpec extends OpticsSpec<Node<Pair<? super Integer, String>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<? super Integer, String>>, Node<Pair<? super Integer, String>>>
+                      twin();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'LowerOpticsSpec.lower' tests 'Lower', which no");
+      assertThat(compilation).hadErrorContaining("'TwinOpticsSpec.twin' tests 'Twin', which no");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("compares two wildcards inside an argument beside a parameter, bounds and all")
+    void comparesTwoWildcardsBesideAParameter() {
+      // Lower's X keeps the argument open, so the match goes position by position, and meets one
+      // wildcard against another there.
+      var same =
+          compile(
+              """
+              public interface SameOpticsSpec
+                  extends OpticsSpec<Node<Pair<String, ? super Object>>> {
+                  @InstanceOf(Lower.class)
+                  Prism<Node<Pair<String, ? super Object>>, Lower<String>> lower();
+              }""");
+      var different =
+          compile(
+              """
+              public interface AnyOpticsSpec extends OpticsSpec<Node<Pair<String, ?>>> {
+                  @InstanceOf(Lower.class)
+                  Prism<Node<Pair<String, ?>>, Node<Pair<String, ?>>> lower();
+              }""");
+
+      assertThat(same).succeeded();
+      assertGeneratedCodeContains(same, "com.myapp.SameOptics", "source instanceof Lower<String>");
+      assertThat(different).failed();
+      assertThat(different)
+          .hadErrorContaining(
+              "Every 'Lower<X>' is a 'Node<Pair<X, ? super Object>>', and no"
+                  + " 'Node<Pair<X, ? super Object>>' is a 'Node<Pair<String, ?>>': the test would"
+                  + " never match.");
+      assertThat(different).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("weighs a wildcard the target writes around its class against the source's")
+    void weighsAWildcardTheTargetWritesAroundItsClass() {
+      // Wild is a Base of some Outer: an Outer<?>.Base can be one, an Outer<String>.Base cannot.
+      var any =
+          compile(
+              """
+              public interface AnyOpticsSpec extends OpticsSpec<Outer<?>.Base> {
+                  @InstanceOf(Wild.class)
+                  Prism<Outer<?>.Base, Wild> wild();
+              }""");
+      var strings =
+          compile(
+              """
+              public interface StringsOpticsSpec extends OpticsSpec<Outer<String>.Base> {
+                  @InstanceOf(Wild.class)
+                  Prism<Outer<String>.Base, Outer<String>.Base> wild();
+              }""");
+
+      assertThat(any).succeeded();
+      assertGeneratedCodeContains(any, "com.myapp.AnyOptics", "source instanceof Wild");
+      assertThat(strings).failed();
+      assertThat(strings)
+          .hadErrorContaining(
+              "'StringsOpticsSpec.wild' tests 'Wild', which no 'Outer<String>.Base'");
+      assertThat(strings).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "leaves a wildcard that names the source's type variable to the checks that follow")
+    void leavesAWildcardThatNamesTheSourcesVariable() {
+      // javac reads ? extends U as nothing it could rule out, and accepts the test.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U>
+                  extends OpticsSpec<Node<Pair<String, ? extends U>>> {
+                  @InstanceOf(Lower.class)
+                  Prism<Node<Pair<String, ? extends U>>, Node<Pair<String, ? extends U>>> lower();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("narrows to 'Lower<String>', which is not a");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("pins a parameter to the one type javac reads a wildcard as")
+    void pinsAParameterToTheTypeAWildcardIsReadAs() {
+      // X stands where the source writes ? super Object and where it writes Object, which javac
+      // reads as one type, so the test names it.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec
+                  extends OpticsSpec<Node<Pair<? super Object, Object>>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<Pair<? super Object, Object>>, Twin<Object>> twin();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Twin<Object>");
+    }
+
+    @Test
+    @DisplayName("refuses a class outside the bounds of a wildcard among the source's arguments")
+    void refusesAClassOutsideTheSourcesOwnWildcard() {
+      // A Node<? extends Number> holds a Number of some kind, so it is never a Node<String>, and
+      // javac refuses that cast as it refuses this one.
+      var compilation =
+          compile(
+              """
+              public interface NumbersOpticsSpec extends OpticsSpec<Node<? extends Number>> {
+                  @InstanceOf(Outer.Plain.class)
+                  Prism<Node<? extends Number>, Node<? extends Number>> plain();
+              }""",
+              """
+              public interface IntegersOpticsSpec extends OpticsSpec<Node<? super Integer>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<? super Integer>, Node<? super Integer>> counts();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'NumbersOpticsSpec.plain' tests 'Outer.Plain', which no 'Node<? extends Number>'"
+                  + " can be.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'IntegersOpticsSpec.counts' tests 'Counts', which no 'Node<? super Integer>' can"
+                  + " be.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("writes the test for a class within the bounds of the source's own wildcard")
+    void writesTheTestForAClassWithinTheSourcesOwnWildcard() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<? extends Cloneable>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<? extends Cloneable>, Counts> counts();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Counts");
+    }
+
+    @Test
+    @DisplayName("leaves to javac a ? super argument it reads against another parameter")
+    void leavesToJavacASuperArgumentItReadsOtherwise() {
+      // PB<Object, ? super Object> is one type to javac, which reads B's bound A as Object; the
+      // model reads the bound as A and cannot tell. The match rules nothing out from it, and the
+      // focus checks that follow refuse on the model's reading, as they did before, without
+      // claiming that no focus could do.
+      var compilation =
+          compile(
+              """
+              public interface BothOpticsSpec
+                  extends OpticsSpec<Node<Bounded.PB<Object, ? super Object>>> {
+                  @InstanceOf(Bounded.Both.class)
+                  Prism<Node<Bounded.PB<Object, ? super Object>>, Node<Bounded.PB<Object, ? super Object>>>
+                      both();
+              }""",
+              """
+              public interface PlainOpticsSpec
+                  extends OpticsSpec<Node<Bounded.PB<Object, ? super Object>>> {
+                  @InstanceOf(Bounded.Plain.class)
+                  Prism<Node<Bounded.PB<Object, ? super Object>>, Bounded.Plain> plain();
+              }""",
+              """
+              public interface LowerOpticsSpec extends OpticsSpec<Node<Bounded.PB<Object, Object>>> {
+                  @InstanceOf(Bounded.Lower.class)
+                  Prism<Node<Bounded.PB<Object, Object>>, Bounded.Lower> lower();
+              }""",
+              """
+              public interface DeepOpticsSpec
+                  extends OpticsSpec<Node<List<Bounded.PB<Object, ? super Object>>>> {
+                  @InstanceOf(Bounded.Deep.class)
+                  Prism<Node<List<Bounded.PB<Object, ? super Object>>>, Bounded.Deep> deep();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("pins nothing to X");
+      assertThat(compilation).hadErrorContaining("focuses 'Bounded.Plain', which is not a");
+      assertThat(compilation).hadErrorContaining("focuses 'Bounded.Lower', which is not a");
+      assertThat(compilation).hadErrorContaining("focuses 'Bounded.Deep', which is not a");
+      assertThat(compilation).hadErrorCount(4);
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(
+              error ->
+                  error.getMessage(Locale.ROOT).contains("which no")
+                      || error.getMessage(Locale.ROOT).contains("no focus could"));
+    }
+
+    @Test
+    @DisplayName("names the primitive only where nothing else rules the source out")
+    void namesThePrimitiveOnlyWhereNothingElseRulesTheSourceOut() {
+      // X would have to be int, but String is not Integer whatever X is.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<Pair<int[], Integer>>> {
+                  @InstanceOf(Strict.class)
+                  Prism<Node<Pair<int[], Integer>>, Node<Pair<int[], Integer>>> strict();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Every 'Strict<X>' is a 'Node<Pair<X[], String>>', and no 'Node<Pair<X[], String>>'"
+                  + " is a 'Node<Pair<int[], Integer>>': the test would never match.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("rules nothing out where the source's enclosing class's argument is a wildcard")
+    void rulesNothingOutAgainstAnEnclosingWildcard() {
+      // Outer<?>.Base admits a Base of any Outer, so its wildcard stands for an argument rather
+      // than inside one.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Outer<?>.Base> {
+                  @InstanceOf(Outer.Sub.class)
+                  Prism<Outer<?>.Base, Outer<?>.Sub> sub();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Outer<?>.Sub t");
+    }
+
+    @Test
+    @DisplayName("rules nothing out where the source's own argument is a wildcard")
+    void rulesNothingOutAgainstTheSourcesOwnWildcard() {
+      // A Node<?> holds a Counts as surely as any other Node.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec extends OpticsSpec<Node<?>> {
+                  @InstanceOf(Counts.class)
+                  Prism<Node<?>, Counts> counts();
+              }""",
+              """
+              public interface LeafOpticsSpec extends OpticsSpec<Node<?>> {
+                  @InstanceOf(Leaf.class)
+                  Prism<Node<?>, Leaf<?>> leaf();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Counts");
+      assertGeneratedCodeContains(compilation, "com.myapp.LeafOptics", "source instanceof Leaf<?>");
+    }
+  }
+
+  @Nested
+  @DisplayName("no focus could be both what the test narrows to and the source")
+  class NoFocus {
+
+    @Test
+    @DisplayName("offers another class or a spec of its own, not a wildcard focus refused next")
+    void offersAClassOrASpecRatherThanAWildcardFocus() {
+      // Grid<?> is what the test earns, but it is no Node<U>, so declaring it as the focus would
+      // only draw the build-side refusal.
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<U>, Node<U>> grid();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SubjectOpticsSpec.grid' declares its focus as 'Node<U>', which the test cannot"
+                  + " narrow to.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "What the test earns, 'Grid<?>', is no 'Node<U>', so no focus could take it and still"
+                  + " be one.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name another class in @InstanceOf, or declare the prism on a spec of its own over"
+                  + " 'Node<X[]>', which every 'Grid<X>' is.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("offers the focus's class or a spec of its own, not a supertype refused next")
+    void offersAClassOrASpecRatherThanASupertype() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U>> {
+                  @InstanceOf(Twin.class)
+                  Prism<Node<U>, Leaf<U>> twin();
+              }""");
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("narrows to 'Twin<?>', which is not a 'Leaf<U>'");
+      // Leaf<U> is a Node<U>, so the class the focus declares is the nearer remedy.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name the class the focus declares in @InstanceOf, or declare the prism on a spec of"
+                  + " its own over 'Node<Pair<X, X>>', which every 'Twin<X>' is.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("compiles once the prism moves to a spec whose source the class can be")
+    void compilesOnceThePrismMovesToASpecTheClassCanBe() {
+      var compilation =
+          compile(
+              """
+              public interface SubjectOpticsSpec<U> extends OpticsSpec<Node<U[]>> {
+                  @InstanceOf(Grid.class)
+                  Prism<Node<U[]>, Grid<U>> grid();
+              }""");
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SubjectOptics", "source instanceof Grid<U>");
     }
   }
 

@@ -7549,6 +7549,19 @@ class MappingProcessorTest {
             public record PageDto<T>(List<T> items, int total) {}
             """);
 
+    private static final JavaFileObject ARRAY_PAGE_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.ArrayPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface ArrayPageMapping<T> extends MappingSpec<Page<T[]>, PageDto<T[]>> {}
+            """);
+
     private static final JavaFileObject PAGE_MAPPING =
         JavaFileObjects.forSourceString(
             "com.example.PageMapping",
@@ -8196,18 +8209,6 @@ class MappingProcessorTest {
     @Test
     @DisplayName("array arguments unify structurally; a mismatched pair refuses")
     void arrayArgumentsUnifyStructurally() {
-      JavaFileObject arrayMapping =
-          JavaFileObjects.forSourceString(
-              "com.example.ArrayPageMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface ArrayPageMapping<T> extends MappingSpec<Page<T[]>, PageDto<T[]>> {}
-              """);
       JavaFileObject report =
           JavaFileObjects.forSourceString(
               "com.example.Report",
@@ -8236,7 +8237,8 @@ class MappingProcessorTest {
               @GenerateMapping
               public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
               """);
-      Compilation matches = compile(PAGE, PAGE_DTO, arrayMapping, report, reportDto, reportMapping);
+      Compilation matches =
+          compile(PAGE, PAGE_DTO, ARRAY_PAGE_MAPPING, report, reportDto, reportMapping);
       assertThat(matches).succeeded();
       Assertions.assertThat(generatedSource(matches, "com.example.ReportMappingImpl"))
           .contains("ArrayPageMappingImpl.<String>instance().asValidatedPrism()");
@@ -8250,10 +8252,71 @@ class MappingProcessorTest {
               public record ReportDto(PageDto<String> results) {}
               """);
       Compilation refuses =
-          compile(PAGE, PAGE_DTO, arrayMapping, report, mismatchedDto, reportMapping);
+          compile(PAGE, PAGE_DTO, ARRAY_PAGE_MAPPING, report, mismatchedDto, reportMapping);
       assertThat(refuses).failed();
       assertThat(refuses)
           .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+    }
+
+    @Test
+    @DisplayName("a primitive array covers no threaded spec, whose parameter is a reference type")
+    void aPrimitiveArrayCoversNoThreadedSpec() {
+      // Page<T[]> is a Page<int[]> for no T: T would have to be int, which no type argument can be,
+      // so the spec covers nothing here and cannot be instantiated with a primitive.
+      JavaFileObject report =
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report(Page<int[]> results) {}
+              """);
+      JavaFileObject reportDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto(PageDto<int[]> results) {}
+              """);
+      JavaFileObject reportMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ReportMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
+              """);
+      Compilation refuses =
+          compile(PAGE, PAGE_DTO, ARRAY_PAGE_MAPPING, report, reportDto, reportMapping);
+      assertThat(refuses).failed();
+      assertThat(refuses)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+      assertThat(refuses).hadErrorCount(1);
+
+      // The message's remedy: a spec for the pair itself.
+      JavaFileObject intPageMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.IntPageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface IntPageMapping extends MappingSpec<Page<int[]>, PageDto<int[]>> {}
+              """);
+      Compilation followed =
+          compile(
+              PAGE, PAGE_DTO, ARRAY_PAGE_MAPPING, intPageMapping, report, reportDto, reportMapping);
+      assertThat(followed).succeeded();
+      Assertions.assertThat(generatedSource(followed, "com.example.ReportMappingImpl"))
+          .contains("IntPageMappingImpl");
     }
 
     private static final JavaFileObject ELEMENT_SPEC =

@@ -796,6 +796,34 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a type is a type variable or names one at any depth.
+   *
+   * <p>{@link #mentions} asks after one parameter; this asks after any, looking through the same
+   * layers: {@code List<T>}, {@code T[]}, {@code List<? extends T>}, {@code Outer<T>.Inner} and
+   * {@code Runnable & List<T>} all name one.
+   *
+   * @param type the type to search; must not be null
+   * @return true when {@code type} is or names a type variable
+   * @since 0.5.0
+   */
+  public static boolean namesTypeVariable(TypeMirror type) {
+    return switch (type) {
+      case TypeVariable variable -> true;
+      // Before DeclaredType, for the reason mentions gives.
+      case IntersectionType intersection ->
+          intersection.getBounds().stream().anyMatch(ProcessorUtils::namesTypeVariable);
+      case DeclaredType declared ->
+          namesTypeVariable(declared.getEnclosingType())
+              || declared.getTypeArguments().stream().anyMatch(ProcessorUtils::namesTypeVariable);
+      case ArrayType array -> namesTypeVariable(array.getComponentType());
+      case WildcardType wildcard ->
+          (wildcard.getExtendsBound() != null && namesTypeVariable(wildcard.getExtendsBound()))
+              || (wildcard.getSuperBound() != null && namesTypeVariable(wildcard.getSuperBound()));
+      default -> false;
+    };
+  }
+
+  /**
    * The name of a type as written, with its type-use annotations kept.
    *
    * <p>{@link TypeName#get(TypeMirror)} rebuilds a name from the element alone and never consults

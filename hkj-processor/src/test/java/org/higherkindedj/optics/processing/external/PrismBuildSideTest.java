@@ -20,8 +20,8 @@ import org.junit.jupiter.api.Test;
  * <p>A prism runs both ways. The generated one narrows through the hint and builds back with
  * identity, {@code value -> value}, which is the function {@code Prism.build} stands up — so it is
  * only a source when the focus is one. A focus that is a value rather than a variant, {@code
- * Prism<Value, String>}, has no build side the processor could write, and used to reach javac as an
- * error inside a file the author never wrote (issue #755).
+ * Prism<Value, String>}, has no build side the processor could write, and is refused at the spec
+ * method rather than left to javac in a file the author never wrote.
  *
  * <p>The requirement belongs to the prism rather than to either hint, so both are held to it.
  */
@@ -176,6 +176,7 @@ class PrismBuildSideTest {
       // Sub is a Marker, so the narrowing itself is sound - it is the way back that is not.
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("focuses 'Marker', which is not a 'Base'");
+      assertThat(compilation).hadErrorContaining("Focus a type that is a 'Base'");
       assertThat(compilation).hadErrorCount(1);
     }
 
@@ -190,10 +191,17 @@ class PrismBuildSideTest {
                   Prism<Node<U>, Twin<?>> twin();
               }""");
 
-      // Twin<?> is what the test earns, so #733's check passes it. A Twin<?> is a
-      // Node<Pair<?, ?>>, which a Node<U> is not, so the build side is where it stops.
+      // Twin<?> is what the test earns, so the narrowing check passes it. A Twin<?> is a
+      // Node<Pair<?, ?>>, which a Node<U> is not, so the build side is where it stops, and no
+      // focus could pass both: the line offers another class or a spec of its own instead.
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("focuses 'Twin<?>', which is not a 'Node<U>'");
+      assertThat(compilation)
+          .hadErrorContaining("what the test earns, 'Twin<?>', is no 'Node<U>' either");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name another class in @InstanceOf, or declare the prism on a spec of its own over"
+                  + " 'Node<Pair<X, X>>', which every 'Twin<X>' is.");
       assertThat(compilation).hadErrorCount(1);
     }
   }

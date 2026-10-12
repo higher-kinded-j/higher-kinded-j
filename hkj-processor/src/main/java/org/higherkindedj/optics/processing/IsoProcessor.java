@@ -17,10 +17,8 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.WildcardType;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.annotations.GenerateIsos;
@@ -102,7 +100,7 @@ public final class IsoProcessor extends AbstractProcessor {
     // declares one: '<T> Iso<Box, String>' names none of its T and writes down perfectly well,
     // while an instance method of 'Holder<X>' returning 'Iso<Box<X>, X>' declares nothing and
     // names X twice.
-    if (returned.getTypeArguments().stream().anyMatch(IsoProcessor::namesTypeVariable)) {
+    if (returned.getTypeArguments().stream().anyMatch(ProcessorUtils::namesTypeVariable)) {
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
@@ -183,31 +181,6 @@ public final class IsoProcessor extends AbstractProcessor {
     return ((TypeElement) type.asElement())
         .getQualifiedName()
         .contentEquals(Iso.class.getCanonicalName());
-  }
-
-  /**
-   * Whether a type names a type variable anywhere inside it.
-   *
-   * <p>Asked of the field's own type arguments, so it has to see through every layer one can be
-   * buried in: {@code List<T>}, {@code T[]}, {@code List<? extends T>} and {@code Outer<T>.Inner}
-   * all name one, and a field naming any of them declares nothing that brings it into scope.
-   */
-  private static boolean namesTypeVariable(final TypeMirror type) {
-    return switch (type.getKind()) {
-      case TYPEVAR -> true;
-      case ARRAY -> namesTypeVariable(((ArrayType) type).getComponentType());
-      case WILDCARD -> {
-        final WildcardType wildcard = (WildcardType) type;
-        yield (wildcard.getExtendsBound() != null && namesTypeVariable(wildcard.getExtendsBound()))
-            || (wildcard.getSuperBound() != null && namesTypeVariable(wildcard.getSuperBound()));
-      }
-      case DECLARED -> {
-        final DeclaredType declared = (DeclaredType) type;
-        yield declared.getTypeArguments().stream().anyMatch(IsoProcessor::namesTypeVariable)
-            || namesTypeVariable(declared.getEnclosingType());
-      }
-      default -> false;
-    };
   }
 
   private void processMethod(final ExecutableElement method) throws IOException {
