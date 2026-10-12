@@ -146,7 +146,7 @@ A program that takes 100.00 from the balance, run by the logging interpreter, le
 
 ### Comprehensive Example: Financial Transaction Audit
 
-A transaction moves an amount between two accounts, and records when it happened:
+A transaction moves an amount between two accounts:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/interpreters/InterpretersBook.java:transaction}}
@@ -628,7 +628,7 @@ assert validation.isValid();
 // Production: Logging interpreter
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
 Order prodResult = logger.run(orderProcessing);
-logger.getLog().forEach(auditService::record);
+auditRepository.saveAll(logger.getLog());
 ```
 
 ---

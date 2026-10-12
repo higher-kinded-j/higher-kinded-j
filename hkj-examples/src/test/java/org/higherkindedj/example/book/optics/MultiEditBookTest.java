@@ -49,9 +49,9 @@ class MultiEditBookTest {
 
     var patched =
         Edits.accumulate(
-                parseIfPresent(MultiEditBook.SKU, "  ", Sku::parse),
+                parseIfPresent(MultiEditBook.SKU, "  ", SkuParser::parse),
                 modifyIfPresent(MultiEditBook.QUANTITY, 2, (delta, qty) -> qty + delta),
-                parseIfPresent(MultiEditBook.PRICE, "forty", Price::parse))
+                parseIfPresent(MultiEditBook.PRICE, "forty", PriceParser::parse))
             .apply(lamp);
 
     assertThat(patched).hasToString("Invalid(NonEmptyList[sku: not a SKU, price: not a price])");

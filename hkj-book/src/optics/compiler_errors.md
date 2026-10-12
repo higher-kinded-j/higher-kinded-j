@@ -1402,11 +1402,11 @@ The generated lens calls the wither on the value it sets, and a static method ne
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "'withId(CharSequence)' is static" -->
 ```java
-final class Stamp {
+final class Token {
 
     private final String id;
 
-    Stamp(String id) {
+    Token(String id) {
         this.id = id;
     }
 
@@ -1414,20 +1414,20 @@ final class Stamp {
         return id;
     }
 
-    public static Stamp withId(CharSequence id) {
-        return new Stamp(id.toString());
+    public static Token withId(CharSequence id) {
+        return new Token(id.toString());
     }
 
-    public Stamp withId(Object id) {
-        return new Stamp(String.valueOf(id));
+    public Token withId(Object id) {
+        return new Token(String.valueOf(id));
     }
 }
 
 @ImportOptics
-interface StampOpticsSpec extends OpticsSpec<Stamp> {
+interface TokenOpticsSpec extends OpticsSpec<Token> {
 
     @Wither(value = "withId", getter = "id")
-    Lens<Stamp, String> id();
+    Lens<Token, String> id();
 }
 ```
 ~~~
@@ -1495,11 +1495,11 @@ A lens reads and writes one type. The getter pins it from below, so a focus the 
 ```java
 enum Month { JANUARY, FEBRUARY }
 
-final class Stamp {
+final class Renewal {
 
     private final int month;
 
-    Stamp(int month) {
+    Renewal(int month) {
         this.month = month;
     }
 
@@ -1511,16 +1511,16 @@ final class Stamp {
         return month;
     }
 
-    public Stamp withMonth(int month) {
-        return new Stamp(month);
+    public Renewal withMonth(int month) {
+        return new Renewal(month);
     }
 }
 
 @ImportOptics
-interface StampOpticsSpec extends OpticsSpec<Stamp> {
+interface RenewalOpticsSpec extends OpticsSpec<Renewal> {
 
     @Wither(value = "withMonth", getter = "getMonth")
-    Lens<Stamp, Integer> month();
+    Lens<Renewal, Integer> month();
 }
 ```
 ~~~
@@ -1617,7 +1617,7 @@ interface ServerOpticsSpec extends OpticsSpec<Server> {
 
 ### @ViaBuilder: the chain the lens rebuilds through
 
-`@ViaBuilder` rebuilds with `source.toBuilder().setter(newValue).build()`, and each step is called on what the step before it hands back. Two messages report a chain that does not lead back to the source type: `'toBuilder()' hands back 'int', which is not a builder to set through`, and `'build()' returns 'String', not the source type 'Order'`. A setter that returns `void` reads `hands back 'void', which is not a builder to build from`.
+`@ViaBuilder` rebuilds with `source.toBuilder().setter(newValue).build()`, and each step is called on what the step before it hands back. Two messages report a chain that does not lead back to the source type: `'toBuilder()' hands back 'int', which is not a builder to set through`, and `'build()' returns 'String', not the source type 'Waybill'`. A setter that returns `void` reads `hands back 'void', which is not a builder to build from`.
 
 **Fix.** Name the methods the type's own builder declares. Where the type has no such chain, rebuild it with `@Wither`, `@ViaConstructor` or `@ViaCopyAndSet`.
 
@@ -1626,13 +1626,13 @@ A builder chain is three calls, and only the first is made on the source type. R
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "not the source type 'Hamper'" -->
+<!-- verify:rejects "not the source type 'Waybill'" -->
 ```java
-final class Hamper {
+final class Waybill {
 
     private final String id;
 
-    Hamper(String id) {
+    Waybill(String id) {
         this.id = id;
     }
 
@@ -1660,10 +1660,10 @@ final class Hamper {
 }
 
 @ImportOptics
-interface HamperOpticsSpec extends OpticsSpec<Hamper> {
+interface WaybillOpticsSpec extends OpticsSpec<Waybill> {
 
     @ViaBuilder
-    Lens<Hamper, String> id();
+    Lens<Waybill, String> id();
 }
 ```
 ~~~
@@ -2300,7 +2300,7 @@ A single-component record has no two-argument constructor, and `Lens.of`'s sette
 
 <!-- verify -->
 ```java
-Lens<Outer, Inner> lens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
+Lens<ShelfLabel, Barcode> lens = Lens.of(ShelfLabel::barcode, (label, code) -> new ShelfLabel(code));
 ```
 
 ### "Sealed or non-sealed local classes are not allowed"

@@ -13,24 +13,13 @@ Every service has the same three files. A DTO the framework binds. A domain reco
 
 Here is the version most codebases carry, in one form or another:
 
-<!-- verify -->
-```java
-static Order toDomainByHand(OrderDto dto) {
-    Objects.requireNonNull(dto.customer(), "customer required"); // first null wins
-    if (!dto.customer().email().contains("@")) {
-        throw new IllegalArgumentException("bad email");         // no field name, no path
-    }
-    return new Order(
-        UUID.fromString(dto.id()),                               // throws its own exception
-        new Customer(dto.customer().fullName(),
-                     new EmailAddress(dto.customer().email())),
-        Instant.parse(dto.placedAt()));                          // and so does this one
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_before}}
 ```
 
 It works, until it doesn't, and it fails three ways at once:
 
-1. **It drifts.** Add a component to `Order` and nothing tells you the mapper no longer covers it. The compiler is not watching this file.
+1. **It drifts.** Add a component to `OrderDto` and nothing tells you the mapper never reads it. The compiler is not watching this file.
 2. **It stops at the first error.** The client fixes the email, resubmits, and only then learns the date was bad too. One round trip per defect.
 3. **Its errors have no address.** `IllegalArgumentException: bad email` says nothing a client can map onto a form field, so a handler somewhere turns it into a vague 400.
 

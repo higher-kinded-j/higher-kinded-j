@@ -110,21 +110,20 @@ public class NavigatorExample {
   // ============= Domain Model with SPI-Aware Navigator Widening =============
 
   /**
-   * A warehouse with inventory tracked as a Map and a location address.
+   * A distributor with inventory tracked as a Map and a location address.
    *
    * <p>The {@code inventory} field is a {@code Map<String, Integer>}, which the SPI recognises via
    * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. The path stops at the map
    * until {@code widenCollections} or {@code widenFields} widens it, whatever its values are, and
    * the answer is the same whether the field is reached through {@code
-   * WarehouseSiteFocus.inventory()} or through a navigator on a record holding a {@code
-   * WarehouseSite}.
+   * DistributorFocus.inventory()} or through a navigator on a record holding a {@code Distributor}.
    *
    * <p>The {@code verifiedName} field is an {@code Either<String, String>}, which the SPI
    * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. A zero-or-one
    * container is always stepped into, so that path is an {@code AffinePath}.
    */
   @GenerateFocus
-  public record WarehouseSite(
+  public record Distributor(
       String name,
       Map<String, Integer> inventory,
       Either<String, String> verifiedName,
@@ -275,32 +274,32 @@ public class NavigatorExample {
    *
    * <pre>{@code
    * // Either<String, String> field → AffinePath (via EitherGenerator SPI)
-   * WarehouseSiteFocus.verifiedName()  // Returns AffinePath<WarehouseSite, String>
+   * DistributorFocus.verifiedName()  // Returns AffinePath<Distributor, String>
    *
    * // Map<String, Integer> field → the path stops at the map without widenCollections
-   * WarehouseSiteFocus.inventory()  // Returns FocusPath<WarehouseSite, Map<String, Integer>>
+   * DistributorFocus.inventory()  // Returns FocusPath<Distributor, Map<String, Integer>>
    * }</pre>
    */
   static void spiAwareNavigationExample() {
     System.out.println("--- SPI-Aware Navigator Path Widening ---");
 
-    WarehouseSite warehouse =
-        new WarehouseSite(
+    Distributor distributor =
+        new Distributor(
             "Central",
             Map.of("widgets", 100, "gadgets", 50),
             Either.right("Verified Central"),
             new Address("10 Dock Rd", "Bristol", "BS1 1AA"));
 
     // location is a plain record field → its navigator is a FocusPath that navigates on
-    String locationCity = WarehouseSiteFocus.location().city().get(warehouse);
+    String locationCity = DistributorFocus.location().city().get(distributor);
     System.out.println("location().city():    " + locationCity);
 
-    WarehouseSite movedWarehouse = WarehouseSiteFocus.location().city().set("Cardiff", warehouse);
+    Distributor movedDistributor = DistributorFocus.location().city().set("Cardiff", distributor);
     System.out.println(
-        "After set(Cardiff):   " + WarehouseSiteFocus.location().city().get(movedWarehouse));
+        "After set(Cardiff):   " + DistributorFocus.location().city().get(movedDistributor));
 
-    // Standard Focus fields on WarehouseSite for non-navigable types
-    String name = WarehouseSiteFocus.name().get(warehouse);
+    // Standard Focus fields on Distributor for non-navigable types
+    String name = DistributorFocus.name().get(distributor);
     System.out.println("name():               " + name);
 
     System.out.println();

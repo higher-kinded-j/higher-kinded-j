@@ -1671,12 +1671,12 @@ sealed interface LookupError<T> {
         dict(id="envelope-cannot-be-reached",
              heading="@GenerateErrorEnvelope: context record 'X' cannot be reached from 'p'",
              fragment="cannot be reached from",
-             marker="context record 'Orders.LookupContext' cannot be reached from",
+             marker="context record 'OrderTracking.LookupContext' cannot be reached from",
              display="@GenerateErrorEnvelope: … cannot be reached from",
              meaning="A type the envelope companion names is hidden from the hierarchy's package, where the companion is generated: the context record here, or the hierarchy, a variant, or a component of either.",
              fix="Remove `private` from the class the message names.",
              rule=("Error envelope rules", "rules.md#error-envelope-rules"),
-             code="""class Orders {
+             code="""class OrderTracking {
   private record LookupContext(String orderId) {}
 
   @GenerateErrorEnvelope

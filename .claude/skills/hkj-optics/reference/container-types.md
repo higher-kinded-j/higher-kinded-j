@@ -63,24 +63,24 @@ All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fro
 ### Required field -> FocusPath
 <!-- verify -->
 ```java
-public static FocusPath<Employee, String> name() {
-    return FocusPath.of(EmployeeLenses.name());
+public static FocusPath<Contractor, String> name() {
+    return FocusPath.of(ContractorLenses.name());
 }
 ```
 
 ### Optional<T> -> AffinePath (auto-unwrap)
 <!-- verify -->
 ```java
-public static AffinePath<Employee, String> email() {
-    return FocusPath.of(EmployeeLenses.email()).some();
+public static AffinePath<Contractor, String> email() {
+    return FocusPath.of(ContractorLenses.email()).some();
 }
 ```
 
 ### @Nullable -> AffinePath (null handling)
 <!-- verify -->
 ```java
-public static AffinePath<Employee, String> nickname() {
-    return FocusPath.of(EmployeeLenses.nickname()).nullable();
+public static AffinePath<Contractor, String> nickname() {
+    return FocusPath.of(ContractorLenses.nickname()).nullable();
 }
 ```
 
@@ -89,32 +89,32 @@ Any of the six recognised `@Nullable` annotations does this, wherever that annot
 ### List<T> -> TraversalPath (element traversal)
 <!-- verify -->
 ```java
-public static TraversalPath<Employee, Skill> skills() {
-    return FocusPath.of(EmployeeLenses.skills()).each();
+public static TraversalPath<Contractor, Skill> skills() {
+    return FocusPath.of(ContractorLenses.skills()).each();
 }
 ```
 
 ### List<T> indexed access -> AffinePath
 <!-- verify -->
 ```java
-public static AffinePath<Employee, Skill> skill(int index) {
-    return FocusPath.of(EmployeeLenses.skills()).at(index);
+public static AffinePath<Contractor, Skill> skill(int index) {
+    return FocusPath.of(ContractorLenses.skills()).at(index);
 }
 ```
 
 ### Either<L, R> -> AffinePath (SPI widening)
 <!-- verify -->
 ```java
-public static AffinePath<Employee, Integer> timeout() {
-    return FocusPath.of(EmployeeLenses.timeout()).some(Affines.eitherRight());
+public static AffinePath<Contractor, Integer> timeout() {
+    return FocusPath.of(ContractorLenses.timeout()).some(Affines.eitherRight());
 }
 ```
 
 ### Map<K, V> -> TraversalPath (SPI widening)
 <!-- verify -->
 ```java
-public static TraversalPath<Employee, Integer> scores() {
-    return FocusPath.of(EmployeeLenses.scores()).each(EachInstances.mapValuesEach());
+public static TraversalPath<Contractor, Integer> scores() {
+    return FocusPath.of(ContractorLenses.scores()).each(EachInstances.mapValuesEach());
 }
 ```
 
@@ -129,18 +129,18 @@ An SPI container widens by receiving an optic instance — `.some(Affines.either
 ```java
 // Rejected: no Affine can be denoted for a wildcard type argument
 @GenerateFocus
-record Holder(Either<String, ? extends Leaf> boundedEither) {}
+record Holder(Either<String, ? extends Widget> boundedEither) {}
 
 // Accepted
 @GenerateFocus
-record Holder(Either<String, Leaf> either) {}
+record Holder(Either<String, Widget> either) {}
 ```
 
-- Both of the container's own type arguments count, focused or not: `Either<?, Leaf>` is rejected too.
-- A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
+- Both of the container's own type arguments count, focused or not: `Either<?, Widget>` is rejected too.
+- A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Widget>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
 - The built-in `Optional` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify.
-- `Maybe`, `Set` and `Collection` are built in too, but each widens by naming an optic instance (`Affines.just()` or an `Each`). So the rule applies to them as it does to an SPI container: `Maybe<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
-- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or `widenFields` naming the field. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
+- `Maybe`, `Set` and `Collection` are built in too, but each widens by naming an optic instance (`Affines.just()` or an `Each`). So the rule applies to them as it does to an SPI container: `Maybe<?>`, `Set<? extends Widget>` and a raw `Set` are rejected at the declaration.
+- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or `widenFields` naming the field. At the default settings it stays a `FocusPath`, and so does everything beneath it: `Map<String, Either<String, ? extends Widget>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
 - A custom generator that names no optic expression is exempt, because it widens nothing: the path stops at its container, as if no generator supported it. Every generator HKJ ships for a type the SPI widens names one.
 - This is a rule about composing an optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: `? extends T` is `T`, and `?` or `? super T` is `Object`.
 
@@ -150,17 +150,17 @@ For SPI `ZERO_OR_MORE` types, static Focus methods return `FocusPath`. Widen man
 
 <!-- verify -->
 ```java
-// Static method returns FocusPath<AssetClass, ImmutableList<Position>>
-var positions = AssetClassFocus.positions();
+// Static method returns FocusPath<Allocation, ImmutableList<Holding>>
+var holdings = AllocationFocus.holdings();
 
 // Manually widen to TraversalPath
-TraversalPath<AssetClass, Position> traversal = positions.each(
+TraversalPath<Allocation, Holding> traversal = holdings.each(
     EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
 ```
 
 A navigator method reports the same path type as the static method for the same component, so
 widening it is the same decision either way. To navigate into the elements of a container of
-`@GenerateFocus` records, widen it, with `widenFields = "positions"` for that one field; the method
+`@GenerateFocus` records, widen it, with `widenFields = "holdings"` for that one field; the method
 then returns a navigator over the elements. A generic element gets a navigator when the container
 names a type for each of its parameters, so a widened `Map<String, Box<String>>` gets one and
 `Map<String, Box<?>>` does not.
