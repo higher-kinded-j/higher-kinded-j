@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics.programs;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -21,7 +22,7 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 public final class ProgramsBook {
 
   /** The page's sample account, which starts on 100. */
-  static final Account ACCOUNT = new Account("ACC-1", 100);
+  static final Account ACCOUNT = new Account("ACC-1", new BigDecimal("100"));
 
   /** What the three runs of the one program hand back. */
   record Runs(Account settled, Account audited, List<String> trail, boolean safeToRun) {}
@@ -29,19 +30,19 @@ public final class ProgramsBook {
   private ProgramsBook() {}
 
   /** A withdrawal described as data: nothing has run yet. */
-  static Free<OpticOpKind.Witness, Account> withdraw(Account from, int amount) {
-    return OpticPrograms.modify(from, AccountLenses.balance(), balance -> balance - amount);
+  static Free<OpticOpKind.Witness, Account> withdraw(Account from, BigDecimal amount) {
+    return OpticPrograms.modify(from, AccountLenses.balance(), balance -> balance.subtract(amount));
   }
 
   static Runs runThreeWays(Account account) {
     // ANCHOR: payoff
     // A description, not an action: nothing has touched the account yet
-    Free<OpticOpKind.Witness, Account> withdrawal = withdraw(account, 30);
+    Free<OpticOpKind.Witness, Account> withdrawal = withdraw(account, new BigDecimal("30"));
 
     // Run it for real
     DirectOpticInterpreter direct = OpticInterpreters.direct();
     Account settled = direct.run(withdrawal);
-    // Account[id=ACC-1, balance=70]
+    // Account[accountId=ACC-1, balance=70]
 
     // Run the same value again, recording every optic operation on the way
     LoggingOpticInterpreter logging = OpticInterpreters.logging();
@@ -60,4 +61,4 @@ public final class ProgramsBook {
 }
 
 @GenerateLenses
-record Account(String id, int balance) {}
+record Account(String accountId, BigDecimal balance) {}

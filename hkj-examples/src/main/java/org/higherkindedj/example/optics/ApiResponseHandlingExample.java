@@ -27,21 +27,21 @@ public class ApiResponseHandlingExample {
 
   // API response variants for a customer the order service looks up
   @GeneratePrisms
-  public sealed interface ApiResponse
+  public sealed interface CustomerResponse
       permits ApiSuccess, ApiClientError, ApiServerError, ApiNetworkError {}
 
   @GenerateLenses
-  public record ApiSuccess(Customer data, int statusCode) implements ApiResponse {}
+  public record ApiSuccess(Customer data, int statusCode) implements CustomerResponse {}
 
   @GenerateLenses
-  public record ApiClientError(String message, int statusCode) implements ApiResponse {}
+  public record ApiClientError(String message, int statusCode) implements CustomerResponse {}
 
   @GenerateLenses
   public record ApiServerError(String message, int statusCode, String traceId)
-      implements ApiResponse {}
+      implements CustomerResponse {}
 
   @GenerateLenses
-  public record ApiNetworkError(String reason) implements ApiResponse {}
+  public record ApiNetworkError(String reason) implements CustomerResponse {}
 
   // The chapter's catalogue entry, which a product lookup returns
   public record Product(String sku, String name, BigDecimal price, int stock) {}
@@ -60,13 +60,14 @@ public class ApiResponseHandlingExample {
       implements ProductResponse {}
 
   // Prisms for type-safe access
-  private static final Prism<ApiResponse, ApiSuccess> SUCCESS = ApiResponsePrisms.apiSuccess();
-  private static final Prism<ApiResponse, ApiClientError> CLIENT_ERROR =
-      ApiResponsePrisms.apiClientError();
-  private static final Prism<ApiResponse, ApiServerError> SERVER_ERROR =
-      ApiResponsePrisms.apiServerError();
-  private static final Prism<ApiResponse, ApiNetworkError> NETWORK_ERROR =
-      ApiResponsePrisms.apiNetworkError();
+  private static final Prism<CustomerResponse, ApiSuccess> SUCCESS =
+      CustomerResponsePrisms.apiSuccess();
+  private static final Prism<CustomerResponse, ApiClientError> CLIENT_ERROR =
+      CustomerResponsePrisms.apiClientError();
+  private static final Prism<CustomerResponse, ApiServerError> SERVER_ERROR =
+      CustomerResponsePrisms.apiServerError();
+  private static final Prism<CustomerResponse, ApiNetworkError> NETWORK_ERROR =
+      CustomerResponsePrisms.apiNetworkError();
 
   public static void main(String[] args) {
     System.out.println("=== API Response Handling with Prisms ===\n");
@@ -81,10 +82,10 @@ public class ApiResponseHandlingExample {
   private static void demonstrateBasicResponseChecking() {
     System.out.println("--- Basic Response Type Checking ---");
 
-    ApiResponse successResponse =
+    CustomerResponse successResponse =
         new ApiSuccess(new Customer("Alice", new EmailAddress("alice@example.com")), 200);
-    ApiResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
-    ApiResponse serverErrorResponse = new ApiServerError("Database unavailable", 503, "abc");
+    CustomerResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
+    CustomerResponse serverErrorResponse = new ApiServerError("Database unavailable", 503, "abc");
 
     // Check response types without instanceof
     System.out.println("Success response is success: " + SUCCESS.matches(successResponse));
@@ -99,9 +100,9 @@ public class ApiResponseHandlingExample {
   private static void demonstrateSafeDataExtraction() {
     System.out.println("--- Safe Data Extraction ---");
 
-    ApiResponse successResponse =
+    CustomerResponse successResponse =
         new ApiSuccess(new Customer("Alice", new EmailAddress("alice@example.com")), 200);
-    ApiResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
+    CustomerResponse errorResponse = new ApiClientError("Invalid customer ID", 400);
 
     // Extract customer data with default fallback
     Customer guest = new Customer("Guest", new EmailAddress("guest@example.com"));
@@ -119,7 +120,7 @@ public class ApiResponseHandlingExample {
     System.out.println("Error message: " + errorMessage);
 
     // Extract trace ID from server errors
-    ApiResponse serverError = new ApiServerError("Database timeout", 503, "trace-xyz");
+    CustomerResponse serverError = new ApiServerError("Database timeout", 503, "trace-xyz");
 
     String traceId =
         SERVER_ERROR.mapOptional(ApiServerError::traceId, serverError).orElse("No trace ID");
@@ -133,9 +134,9 @@ public class ApiResponseHandlingExample {
     System.out.println("--- Error Recovery Strategies ---");
 
     // Simulate multiple fallback strategies
-    ApiResponse networkError = new ApiNetworkError("Connection timeout");
-    ApiResponse serverError = new ApiServerError("Service unavailable", 503, "abc");
-    ApiResponse clientError = new ApiClientError("Not found", 404);
+    CustomerResponse networkError = new ApiNetworkError("Connection timeout");
+    CustomerResponse serverError = new ApiServerError("Service unavailable", 503, "abc");
+    CustomerResponse clientError = new ApiClientError("Not found", 404);
 
     // Extract error messages from different error types using mapOptional
     String networkErrorMessage =
@@ -178,11 +179,11 @@ public class ApiResponseHandlingExample {
   private static void demonstrateResponseTransformation() {
     System.out.println("--- Response Transformation ---");
 
-    ApiResponse response =
+    CustomerResponse response =
         new ApiSuccess(new Customer("alice", new EmailAddress("alice@example.com")), 200);
 
     // Normalise the customer's name to title case using modify
-    ApiResponse normalised =
+    CustomerResponse normalised =
         SUCCESS.modify(
             success ->
                 new ApiSuccess(
@@ -194,10 +195,10 @@ public class ApiResponseHandlingExample {
     System.out.println("Normalised response: " + normalised);
 
     // Redact email addresses in error messages
-    ApiResponse errorWithEmail =
+    CustomerResponse errorWithEmail =
         new ApiClientError("Invalid email: alice@example.com for customer alice", 400);
 
-    ApiResponse redacted =
+    CustomerResponse redacted =
         CLIENT_ERROR.modify(
             error ->
                 new ApiClientError(

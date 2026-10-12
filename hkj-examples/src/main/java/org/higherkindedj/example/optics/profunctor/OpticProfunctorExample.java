@@ -42,27 +42,27 @@ public class OpticProfunctorExample {
 
   @GenerateLenses
   @GenerateTraversals
-  public record Person(
+  public record PersonalDetails(
       String firstName, String lastName, LocalDate birthDate, List<String> hobbies) {}
 
   @GenerateLenses
   public record PersonDto(String fullName, String birthDateString, List<String> interests) {}
 
   @GenerateLenses
-  public record Employee(int id, Person personalInfo, String department) {}
+  public record StaffRecord(int id, PersonalDetails personalInfo, String department) {}
 
   @GenerateLenses
   public record EmployeeDto(int employeeId, PersonDto person, String dept) {}
 
   // Wrapper types for demonstration
-  public record UserId(long value) {}
+  public record UserId(String value) {}
 
   public record UserName(String value) {}
 
-  public record FormattedDate(String value) {}
+  public record Email(String value) {}
 
   @GenerateLenses
-  public record User(UserId id, UserName name, FormattedDate createdAt) {}
+  public record SiteMember(UserId id, UserName name, Email email, LocalDate createdAt) {}
 
   public static void main(String[] args) {
     OpticProfunctorExample example = new OpticProfunctorExample();
@@ -84,30 +84,31 @@ public class OpticProfunctorExample {
   public void contramapStyleExample() {
     System.out.println("--- Contramap-Style: Adapting Source Types ---");
 
-    // Original lens: Person -> String (first name)
-    Lens<Person, String> firstNameLens = PersonLenses.firstName();
+    // Original lens: PersonalDetails -> String (first name)
+    Lens<PersonalDetails, String> firstNameLens = PersonalDetailsLenses.firstName();
 
-    // We want to work with Employee objects, but use the Person lens
-    // Create a new lens that adapts Employee -> Person, then applies the original lens
-    Lens<Employee, String> employeeFirstNameLens =
+    // We want to work with StaffRecord objects, but use the PersonalDetails lens
+    // Create a new lens that adapts StaffRecord -> PersonalDetails, then applies the original lens
+    Lens<StaffRecord, String> employeeFirstNameLens =
         Lens.of(
             employee -> firstNameLens.get(employee.personalInfo()),
             (employee, newName) ->
-                new Employee(
+                new StaffRecord(
                     employee.id(),
                     firstNameLens.set(newName, employee.personalInfo()),
                     employee.department()));
 
-    Employee employee =
-        new Employee(
+    StaffRecord employee =
+        new StaffRecord(
             123,
-            new Person("Alice", "Johnson", LocalDate.of(1990, 5, 15), List.of("reading", "hiking")),
+            new PersonalDetails(
+                "Alice", "Johnson", LocalDate.of(1990, 5, 15), List.of("reading", "hiking")),
             "Engineering");
 
     System.out.println("Original employee: " + employee);
 
     // Use the adapted lens to modify the first name within the employee
-    Employee updatedEmployee = employeeFirstNameLens.modify(String::toUpperCase, employee);
+    StaffRecord updatedEmployee = employeeFirstNameLens.modify(String::toUpperCase, employee);
 
     System.out.println("After contramap-style modification: " + updatedEmployee);
     System.out.println(
@@ -125,17 +126,18 @@ public class OpticProfunctorExample {
   public void mapStyleExample() {
     System.out.println("--- Map-Style: Adapting Target Types ---");
 
-    // Original lens: Person -> LocalDate (birth date)
-    Lens<Person, LocalDate> birthDateLens = PersonLenses.birthDate();
+    // Original lens: PersonalDetails -> LocalDate (birth date)
+    Lens<PersonalDetails, LocalDate> birthDateLens = PersonalDetailsLenses.birthDate();
 
     // We want to work with formatted date strings instead of LocalDate
     // Create a lens that works with strings by composing operations
-    Lens<Person, String> birthDateStringLens =
+    Lens<PersonalDetails, String> birthDateStringLens =
         Lens.of(
             person -> birthDateLens.get(person).format(DateTimeFormatter.ISO_LOCAL_DATE),
             (person, dateString) -> birthDateLens.set(LocalDate.parse(dateString), person));
 
-    Person person = new Person("Bob", "Smith", LocalDate.of(1985, 12, 25), List.of("cooking"));
+    PersonalDetails person =
+        new PersonalDetails("Bob", "Smith", LocalDate.of(1985, 12, 25), List.of("cooking"));
 
     System.out.println("Original person: " + person);
     System.out.println("Birth date as LocalDate: " + person.birthDate());
@@ -145,7 +147,7 @@ public class OpticProfunctorExample {
     System.out.println("Birth date as formatted string: " + currentDateString);
 
     // We can modify using the string lens
-    Person updatedPerson = birthDateStringLens.set("1986-01-01", person);
+    PersonalDetails updatedPerson = birthDateStringLens.set("1986-01-01", person);
     System.out.println("After setting new date via string: " + updatedPerson);
     System.out.println();
   }
@@ -157,8 +159,8 @@ public class OpticProfunctorExample {
   public void dimapStyleExample() {
     System.out.println("--- Dimap-Style: Adapting Both Source and Target Types ---");
 
-    // Original traversal: Person -> String (hobbies)
-    Traversal<Person, String> hobbiesTraversal = PersonTraversals.hobbies();
+    // Original traversal: PersonalDetails -> String (hobbies)
+    Traversal<PersonalDetails, String> hobbiesTraversal = PersonalDetailsTraversals.hobbies();
 
     // We want to work with PersonDto and call them "interests" instead of "hobbies"
     // Create a traversal that handles the conversion manually
@@ -168,17 +170,18 @@ public class OpticProfunctorExample {
           public <F extends WitnessArity<TypeArity.Unary>> Kind<F, PersonDto> modifyF(
               Function<String, Kind<F, String>> f, PersonDto source, Applicative<F> applicative) {
 
-            // Convert PersonDto -> Person
-            Person person = convertDtoToPerson(source);
+            // Convert PersonDto -> PersonalDetails
+            PersonalDetails person = convertDtoToPerson(source);
 
             // Apply the original traversal
-            Kind<F, Person> modifiedPersonF = hobbiesTraversal.modifyF(f, person, applicative);
+            Kind<F, PersonalDetails> modifiedPersonF =
+                hobbiesTraversal.modifyF(f, person, applicative);
 
-            // Convert back Person -> PersonDto
+            // Convert back PersonalDetails -> PersonDto
             return applicative.map(this::convertPersonToDto, modifiedPersonF);
           }
 
-          private PersonDto convertPersonToDto(Person person) {
+          private PersonDto convertPersonToDto(PersonalDetails person) {
             return new PersonDto(
                 person.firstName() + " " + person.lastName(),
                 person.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE),
@@ -209,8 +212,8 @@ public class OpticProfunctorExample {
   public void realWorldApiAdapterExample() {
     System.out.println("--- Real-World API Adapter ---");
 
-    // Internal lens for working with Employee objects
-    Lens<Employee, String> departmentLens = EmployeeLenses.department();
+    // Internal lens for working with StaffRecord objects
+    Lens<StaffRecord, String> departmentLens = StaffRecordLenses.department();
 
     // Create an adapter for external EmployeeDto format
     // This handles the differences: department vs dept, personalInfo vs person
@@ -218,15 +221,15 @@ public class OpticProfunctorExample {
         Lens.of(
             // Getter: EmployeeDto -> String
             dto -> {
-              Employee employee =
-                  new Employee(dto.employeeId(), convertDtoToPerson(dto.person()), dto.dept());
+              StaffRecord employee =
+                  new StaffRecord(dto.employeeId(), convertDtoToPerson(dto.person()), dto.dept());
               return departmentLens.get(employee);
             },
             // Setter: (EmployeeDto, String) -> EmployeeDto
             (dto, newDept) -> {
-              Employee employee =
-                  new Employee(dto.employeeId(), convertDtoToPerson(dto.person()), dto.dept());
-              Employee updatedEmployee = departmentLens.set(newDept, employee);
+              StaffRecord employee =
+                  new StaffRecord(dto.employeeId(), convertDtoToPerson(dto.person()), dto.dept());
+              StaffRecord updatedEmployee = departmentLens.set(newDept, employee);
               return new EmployeeDto(
                   updatedEmployee.id(),
                   convertPersonToDto(updatedEmployee.personalInfo()),
@@ -257,54 +260,58 @@ public class OpticProfunctorExample {
     System.out.println("--- Type-Safe Wrapper Adaptation ---");
 
     // Working with UserName wrapper type directly through lens operations
-    Lens<User, UserName> userNameLens = UserLenses.name();
+    Lens<SiteMember, UserName> userNameLens = SiteMemberLenses.name();
 
     Function<String, String> titleCase =
         name -> name.substring(0, 1).toUpperCase() + name.substring(1).toLowerCase();
 
-    User user =
-        new User(new UserId(789L), new UserName("john doe"), new FormattedDate("2025-01-01"));
+    SiteMember user =
+        new SiteMember(
+            new UserId("u-789"),
+            new UserName("john doe"),
+            new Email("john@example.com"),
+            LocalDate.of(2025, 1, 1));
 
     System.out.println("Original user: " + user);
 
     // Extract the raw string, apply transformation, and set it back
     String currentName = userNameLens.get(user).value();
     String formattedName = titleCase.apply(currentName);
-    User updatedUser = userNameLens.set(new UserName(formattedName), user);
+    SiteMember updatedUser = userNameLens.set(new UserName(formattedName), user);
 
     System.out.println("After title case: " + updatedUser);
     System.out.println("Name: '" + currentName + "' -> '" + formattedName + "'");
 
     // Alternative: Use modify to transform the UserName directly
-    User updatedUser2 =
+    SiteMember updatedUser2 =
         userNameLens.modify(userName -> new UserName(userName.value().toUpperCase()), user);
 
     System.out.println("After uppercase: " + updatedUser2);
 
     // Demonstrate adapter pattern for working with string operations on wrapped types
-    Lens<User, String> stringNameLens =
+    Lens<SiteMember, String> stringNameLens =
         Lens.of(
             user2 -> userNameLens.get(user2).value(),
             (user2, newName) -> userNameLens.set(new UserName(newName), user2));
 
-    User finalUser = stringNameLens.modify(name -> name.replace(" ", "_"), user);
+    SiteMember finalUser = stringNameLens.modify(name -> name.replace(" ", "_"), user);
     System.out.println("After string manipulation: " + finalUser);
     System.out.println();
   }
 
   // === Helper Methods ===
 
-  private Person convertDtoToPerson(PersonDto dto) {
+  private PersonalDetails convertDtoToPerson(PersonDto dto) {
     LocalDate birthDate = LocalDate.parse(dto.birthDateString());
     String[] names = dto.fullName().split(" ", 2);
-    return new Person(
+    return new PersonalDetails(
         names.length > 0 ? names[0] : "",
         names.length > 1 ? names[1] : "",
         birthDate,
         dto.interests());
   }
 
-  private PersonDto convertPersonToDto(Person person) {
+  private PersonDto convertPersonToDto(PersonalDetails person) {
     return new PersonDto(
         person.firstName() + " " + person.lastName(),
         person.birthDate().format(DateTimeFormatter.ISO_LOCAL_DATE),

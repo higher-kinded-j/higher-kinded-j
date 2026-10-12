@@ -5,9 +5,9 @@ package org.higherkindedj.example.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-import org.higherkindedj.example.optics.BeanBoundaryExample.EmailAddress;
-import org.higherkindedj.example.optics.BeanBoundaryExample.User;
-import org.higherkindedj.example.optics.BeanBoundaryExample.UserRequest;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.optics.BeanBoundaryExample.CustomerForm;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
@@ -23,29 +23,29 @@ class BeanBoundaryExampleTest {
 
   @Test
   @DisplayName("inbound mapping: the domain round trip through the request bean is lawful")
-  void userRequestMappingIsLawful() {
+  void customerFormMappingIsLawful() {
     // The bean has no value equals(), so the domain-sample overload is the comparable law:
-    // parse(build(user)) == Valid(user).
+    // parse(build(customer)) == Valid(customer).
     MappingLaws.assertMappingLaws(
-        BeanBoundaryExampleUserRequestMappingImpl.INSTANCE.asValidatedPrism(),
-        new User("Ada", new EmailAddress("ada@corp.example")));
+        BeanBoundaryExampleCustomerFormMappingImpl.INSTANCE.asValidatedPrism(),
+        new Customer("Ada", new EmailAddress("ada@corp.example")));
   }
 
   @Test
   @DisplayName("outbound mapping: the domain round trip through the builder view bean is lawful")
-  void userViewMappingIsLawful() {
+  void customerCardMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        BeanBoundaryExampleUserViewMappingImpl.INSTANCE.asValidatedPrism(),
-        new User("Grace", new EmailAddress("grace@corp.example")));
+        BeanBoundaryExampleCustomerCardMappingImpl.INSTANCE.asValidatedPrism(),
+        new Customer("Grace", new EmailAddress("grace@corp.example")));
   }
 
   @Test
   @DisplayName("inbound parse accumulates every problem and locates an unset property, not an NPE")
   void inboundParseAccumulatesAndLocates() {
-    UserRequest bad = new UserRequest();
+    CustomerForm bad = new CustomerForm();
     bad.setEmail("not-an-email"); // name deliberately left unset (null)
 
-    var parsed = BeanBoundaryExampleUserRequestMappingImpl.INSTANCE.parse(bad);
+    var parsed = BeanBoundaryExampleCustomerFormMappingImpl.INSTANCE.parse(bad);
 
     assertThat(parsed.isInvalid()).isTrue();
     assertThat(parsed.getError().toJavaList())

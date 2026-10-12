@@ -22,27 +22,28 @@ import org.higherkindedj.optics.free.OpticPrograms;
 public final class FreeMonadBook {
 
   /** What the three first programs give back when the direct interpreter runs them. */
-  record FirstRuns(Integer age, Person updated, Person modified) {}
+  record FirstRuns(Integer age, ClubMember updated, ClubMember modified) {}
 
   /** What the audited transfer gives back, and the trail the logging interpreter kept. */
-  record Audited(Transaction result, List<String> trail) {}
+  record AuditedTransfer(Transaction result, List<String> trail) {}
 
   private FreeMonadBook() {}
 
   static FirstRuns firstPrograms() {
     // ANCHOR: build
-    Person person = new Person("Alice", 25, "ACTIVE");
+    ClubMember person = new ClubMember("Alice", 25, "ACTIVE");
 
     // Build a program that gets the age
-    Free<OpticOpKind.Witness, Integer> getProgram = OpticPrograms.get(person, PersonLenses.age());
+    Free<OpticOpKind.Witness, Integer> getProgram =
+        OpticPrograms.get(person, ClubMemberLenses.age());
 
     // Build a program that sets the age
-    Free<OpticOpKind.Witness, Person> setProgram =
-        OpticPrograms.set(person, PersonLenses.age(), 30);
+    Free<OpticOpKind.Witness, ClubMember> setProgram =
+        OpticPrograms.set(person, ClubMemberLenses.age(), 30);
 
     // Build a program that modifies the age
-    Free<OpticOpKind.Witness, Person> modifyProgram =
-        OpticPrograms.modify(person, PersonLenses.age(), age -> age + 1);
+    Free<OpticOpKind.Witness, ClubMember> modifyProgram =
+        OpticPrograms.modify(person, ClubMemberLenses.age(), age -> age + 1);
     // ANCHOR_END: build
 
     // ANCHOR: run
@@ -52,10 +53,10 @@ public final class FreeMonadBook {
     Integer age = interpreter.run(getProgram);
     // 25
 
-    Person updated = interpreter.run(setProgram);
+    ClubMember updated = interpreter.run(setProgram);
     // age is now 30
 
-    Person modified = interpreter.run(modifyProgram);
+    ClubMember modified = interpreter.run(modifyProgram);
     // age is now 26
     // ANCHOR_END: run
     return new FirstRuns(age, updated, modified);
@@ -63,23 +64,23 @@ public final class FreeMonadBook {
 
   // ANCHOR: annual_review_program
   // Program: Annual review and potential promotion
-  static Free<OpticOpKind.Witness, Employee> annualReviewProgram(Employee employee) {
-    return OpticPrograms.get(employee, EmployeeLenses.salary())
+  static Free<OpticOpKind.Witness, PayrollEntry> annualReviewProgram(PayrollEntry employee) {
+    return OpticPrograms.get(employee, PayrollEntryLenses.salary())
         .flatMap(
             currentSalary -> {
               // Step 1: Give a 10% raise
               int newSalary = currentSalary + (currentSalary / 10);
-              return OpticPrograms.set(employee, EmployeeLenses.salary(), newSalary);
+              return OpticPrograms.set(employee, PayrollEntryLenses.salary(), newSalary);
             })
         .flatMap(
             raisedEmployee ->
                 // Step 2: Check if salary justifies promotion
-                OpticPrograms.get(raisedEmployee, EmployeeLenses.salary())
+                OpticPrograms.get(raisedEmployee, PayrollEntryLenses.salary())
                     .flatMap(
                         salary -> {
                           if (salary > 100_000) {
                             return OpticPrograms.set(
-                                raisedEmployee, EmployeeLenses.status(), EmployeeStatus.SENIOR);
+                                raisedEmployee, PayrollEntryLenses.status(), EmployeeStatus.SENIOR);
                           } else {
                             return OpticPrograms.pure(raisedEmployee);
                           }
@@ -88,14 +89,14 @@ public final class FreeMonadBook {
 
   // ANCHOR_END: annual_review_program
 
-  static Employee annualReview() {
+  static PayrollEntry annualReview() {
     // ANCHOR: annual_review_run
     // Execute for an employee
-    Employee alice = new Employee("Alice", 95_000, EmployeeStatus.JUNIOR);
-    Free<OpticOpKind.Witness, Employee> program = annualReviewProgram(alice);
+    PayrollEntry alice = new PayrollEntry("Alice", 95_000, EmployeeStatus.JUNIOR);
+    Free<OpticOpKind.Witness, PayrollEntry> program = annualReviewProgram(alice);
 
-    Employee promoted = OpticInterpreters.direct().run(program);
-    // Employee[name=Alice, salary=104500, status=SENIOR]
+    PayrollEntry promoted = OpticInterpreters.direct().run(program);
+    // PayrollEntry[name=Alice, salary=104500, status=SENIOR]
     // ANCHOR_END: annual_review_run
     return promoted;
   }
@@ -123,12 +124,12 @@ public final class FreeMonadBook {
     return allPass;
   }
 
-  static Audited auditedTransfer() {
+  static AuditedTransfer auditedTransfer() {
     // ANCHOR: transfer_run
     // Execute with logging for audit trail
     Account acc1 = new Account("ACC001", new BigDecimal("1000.00"));
     Account acc2 = new Account("ACC002", new BigDecimal("500.00"));
-    Transaction txn = new Transaction(acc1, acc2, new BigDecimal("100.00"));
+    Transaction txn = new Transaction("TXN-001", acc1, acc2, new BigDecimal("100.00"));
 
     Free<OpticOpKind.Witness, Transaction> program = transferProgram(txn);
 
@@ -142,7 +143,7 @@ public final class FreeMonadBook {
     //   MODIFY: ... from 500.00 to 600.00
     logger.getLog().forEach(System.out::println);
     // ANCHOR_END: transfer_run
-    return new Audited(result, logger.getLog());
+    return new AuditedTransfer(result, logger.getLog());
   }
 
   // ANCHOR: transfer_program
@@ -169,13 +170,13 @@ public final class FreeMonadBook {
 
 // ANCHOR: person
 @GenerateLenses
-record Person(String name, int age, String status) {}
+record ClubMember(String name, int age, String status) {}
 
 // ANCHOR_END: person
 
 // ANCHOR: employee
 @GenerateLenses
-record Employee(String name, int salary, EmployeeStatus status) {}
+record PayrollEntry(String name, int salary, EmployeeStatus status) {}
 
 enum EmployeeStatus {
   JUNIOR,
@@ -201,5 +202,5 @@ record Player(String name, int score) {}
 record Account(String accountId, BigDecimal balance) {}
 
 @GenerateLenses
-record Transaction(Account from, Account to, BigDecimal amount) {}
+record Transaction(String txnId, Account from, Account to, BigDecimal amount) {}
 // ANCHOR_END: transfer_records

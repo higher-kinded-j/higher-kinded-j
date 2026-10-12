@@ -74,9 +74,9 @@ public final class FromMonocleBook {
   }
 
   /** What the page's headOption block computes, so the test can read each value. */
-  record HeadOption(Optional<Integer> read, Order everyLine, Order firstLine) {}
+  record HeadOptionResults(Optional<Integer> read, Order everyLine, Order firstLine) {}
 
-  static HeadOption headOption(Order order) {
+  static HeadOptionResults headOption(Order order) {
     // ANCHOR: head_option
     AffinePath<Order, Integer> firstQuantity =
         OrderFocus.lines().via(LineItemFocus.quantity()).headOption();
@@ -94,6 +94,6 @@ public final class FromMonocleBook {
             .via(LineItemFocus.quantity())
             .set(7, order);
     // ANCHOR_END: head_option
-    return new HeadOption(read, everyLine, firstLine);
+    return new HeadOptionResults(read, everyLine, firstLine);
   }
 }

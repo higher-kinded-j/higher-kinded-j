@@ -30,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 public class GetterExtensionsExample {
 
   // Domain Models with Nullable Fields, around the chapter's Address
-  record ContactInfo(@Nullable String phone, @Nullable String email, @Nullable String fax) {}
+  record ContactChannels(@Nullable String phone, @Nullable String email, @Nullable String fax) {}
 
   // A company's staff member, as its directory lists them
   record StaffMember(
@@ -38,13 +38,13 @@ public class GetterExtensionsExample {
       String displayName,
       @Nullable String bio,
       @Nullable Address address,
-      ContactInfo contactInfo) {}
+      ContactChannels channels) {}
 
-  record Company(String name, @Nullable StaffMember ceo, @Nullable Address headquarters) {}
+  record CompanyListing(String name, @Nullable StaffMember ceo, @Nullable Address headquarters) {}
 
-  record ApiResponse<T>(boolean success, @Nullable T data, @Nullable String errorMessage) {}
+  record ServiceReply<T>(boolean success, @Nullable T data, @Nullable String errorMessage) {}
 
-  record Config(
+  record ConfigOverrides(
       String appName, @Nullable String apiKey, @Nullable Integer port, @Nullable String logLevel) {}
 
   public static void main(String[] args) {
@@ -69,13 +69,13 @@ public class GetterExtensionsExample {
     Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
 
     // A staff member with complete data
-    ContactInfo contact1 = new ContactInfo("123-456-7890", "alice@example.com", null);
+    ContactChannels contact1 = new ContactChannels("123-456-7890", "alice@example.com", null);
     Address address1 = new Address("123 Main St", "New York", "10001");
     StaffMember completeProfile =
         new StaffMember("alice", "Alice Smith", "Software Engineer", address1, contact1);
 
     // A staff member with missing data
-    ContactInfo contact2 = new ContactInfo(null, "bob@example.com", null);
+    ContactChannels contact2 = new ContactChannels(null, "bob@example.com", null);
     StaffMember incompleteProfile = new StaffMember("bob", "Bob Jones", null, null, contact2);
 
     // Safe access to bio
@@ -114,7 +114,7 @@ public class GetterExtensionsExample {
     Getter<Address, String> streetGetter = Getter.of(Address::street);
     Getter<Address, String> postcodeGetter = Getter.of(Address::postcode);
 
-    ContactInfo contact = new ContactInfo("123-456-7890", "alice@example.com", null);
+    ContactChannels contact = new ContactChannels("123-456-7890", "alice@example.com", null);
     Address address = new Address("123 Main St", "New York", "10001");
     StaffMember profile = new StaffMember("alice", "Alice Smith", "Engineer", address, contact);
 
@@ -155,12 +155,12 @@ public class GetterExtensionsExample {
   private static void demonstrateFallbackStrategies() {
     System.out.println("--- Scenario 3: Fallback Strategies ---");
 
-    Getter<ContactInfo, String> phoneGetter = Getter.of(ContactInfo::phone);
-    Getter<ContactInfo, String> emailGetter = Getter.of(ContactInfo::email);
-    Getter<ContactInfo, String> faxGetter = Getter.of(ContactInfo::fax);
+    Getter<ContactChannels, String> phoneGetter = Getter.of(ContactChannels::phone);
+    Getter<ContactChannels, String> emailGetter = Getter.of(ContactChannels::email);
+    Getter<ContactChannels, String> faxGetter = Getter.of(ContactChannels::fax);
 
     // Contact with only email
-    ContactInfo contact = new ContactInfo(null, "charlie@example.com", null);
+    ContactChannels contact = new ContactChannels(null, "charlie@example.com", null);
 
     // Try phone, then email, then fax, then default
     String primaryContact =
@@ -174,11 +174,11 @@ public class GetterExtensionsExample {
     System.out.println("Primary contact: " + primaryContact);
 
     // Configuration with defaults
-    Config config = new Config("MyApp", null, null, null);
+    ConfigOverrides config = new ConfigOverrides("MyApp", null, null, null);
 
-    Getter<Config, String> apiKeyGetter = Getter.of(Config::apiKey);
-    Getter<Config, Integer> portGetter = Getter.of(Config::port);
-    Getter<Config, String> logLevelGetter = Getter.of(Config::logLevel);
+    Getter<ConfigOverrides, String> apiKeyGetter = Getter.of(ConfigOverrides::apiKey);
+    Getter<ConfigOverrides, Integer> portGetter = Getter.of(ConfigOverrides::port);
+    Getter<ConfigOverrides, String> logLevelGetter = Getter.of(ConfigOverrides::logLevel);
 
     String apiKey = getMaybe(apiKeyGetter, config).orElse("default-api-key");
     int port = getMaybe(portGetter, config).orElse(8080);
@@ -204,20 +204,20 @@ public class GetterExtensionsExample {
   private static void demonstrateComposition() {
     System.out.println("--- Scenario 4: Composition ---");
 
-    Getter<Company, StaffMember> ceoGetter = Getter.of(Company::ceo);
+    Getter<CompanyListing, StaffMember> ceoGetter = Getter.of(CompanyListing::ceo);
     Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
     Getter<Address, String> cityGetter = Getter.of(Address::city);
 
     // Compose getters
-    Getter<Company, StaffMember> ceoBioGetter = ceoGetter;
-    Getter<Company, Address> ceoAddressGetter = ceoGetter.andThen(addressGetter);
+    Getter<CompanyListing, StaffMember> ceoBioGetter = ceoGetter;
+    Getter<CompanyListing, Address> ceoAddressGetter = ceoGetter.andThen(addressGetter);
 
-    ContactInfo contact = new ContactInfo("123-456-7890", "ceo@example.com", null);
+    ContactChannels contact = new ContactChannels("123-456-7890", "ceo@example.com", null);
     Address ceoAddress = new Address("456 Executive Blvd", "San Francisco", "94102");
     StaffMember ceo = new StaffMember("jdoe", "Jane Doe", "CEO", ceoAddress, contact);
 
     Address hq = new Address("789 Corporate Way", "Seattle", "98101");
-    Company company = new Company("TechCorp", ceo, hq);
+    CompanyListing company = new CompanyListing("TechCorp", ceo, hq);
 
     // Navigate through composed getters with Maybe
     Maybe<String> ceoCity = getMaybe(ceoAddressGetter, company).map(Address::city);
@@ -234,7 +234,7 @@ public class GetterExtensionsExample {
 
     // Handle missing CEO: chain with flatMap, since the composed getter would read a missing CEO's
     // address
-    Company startupWithoutCEO = new Company("StartupCo", null, null);
+    CompanyListing startupWithoutCEO = new CompanyListing("StartupCo", null, null);
 
     Maybe<String> missingCeoCity =
         getMaybe(ceoGetter, startupWithoutCEO)
@@ -255,11 +255,11 @@ public class GetterExtensionsExample {
     // Scenario A: API Response Handling
     System.out.println("API Response Handling:");
 
-    Getter<ApiResponse<String>, String> dataGetter = Getter.of(ApiResponse::data);
-    Getter<ApiResponse<String>, String> errorGetter = Getter.of(ApiResponse::errorMessage);
+    Getter<ServiceReply<String>, String> dataGetter = Getter.of(ServiceReply::data);
+    Getter<ServiceReply<String>, String> errorGetter = Getter.of(ServiceReply::errorMessage);
 
-    ApiResponse<String> successResponse = new ApiResponse<>(true, "Success data", null);
-    ApiResponse<String> errorResponse = new ApiResponse<>(false, null, "Server error occurred");
+    ServiceReply<String> successResponse = new ServiceReply<>(true, "Success data", null);
+    ServiceReply<String> errorResponse = new ServiceReply<>(false, null, "Server error occurred");
 
     Maybe<String> data1 = getMaybe(dataGetter, successResponse);
     Maybe<String> error1 = getMaybe(errorGetter, successResponse);
@@ -282,12 +282,12 @@ public class GetterExtensionsExample {
     Getter<StaffMember, String> bioGetter = Getter.of(StaffMember::bio);
     Getter<StaffMember, Address> addressGetter = Getter.of(StaffMember::address);
 
-    ContactInfo contact1 = new ContactInfo("123-456-7890", "alice@example.com", null);
+    ContactChannels contact1 = new ContactChannels("123-456-7890", "alice@example.com", null);
     Address address1 = new Address("123 Main St", "New York", "10001");
     StaffMember profile1 =
         new StaffMember("alice", "Alice Smith", "Software Engineer", address1, contact1);
 
-    ContactInfo contact2 = new ContactInfo(null, "bob@example.com", null);
+    ContactChannels contact2 = new ContactChannels(null, "bob@example.com", null);
     StaffMember profile2 = new StaffMember("bob", "Bob Jones", null, null, contact2);
 
     displayStaffMember(profile1, bioGetter, addressGetter);
@@ -297,24 +297,24 @@ public class GetterExtensionsExample {
     // Scenario C: Configuration Validation
     System.out.println("Configuration Validation:");
 
-    validateConfig(new Config("App1", "secret-key", 8080, "DEBUG"));
-    validateConfig(new Config("App2", null, null, null));
+    validateConfig(new ConfigOverrides("App1", "secret-key", 8080, "DEBUG"));
+    validateConfig(new ConfigOverrides("App2", null, null, null));
     System.out.println();
 
     // Scenario D: Company Information Display
     System.out.println("Company Information:");
 
-    Getter<Company, StaffMember> ceoGetter = Getter.of(Company::ceo);
-    Getter<Company, Address> hqGetter = Getter.of(Company::headquarters);
+    Getter<CompanyListing, StaffMember> ceoGetter = Getter.of(CompanyListing::ceo);
+    Getter<CompanyListing, Address> hqGetter = Getter.of(CompanyListing::headquarters);
 
-    ContactInfo ceoContact = new ContactInfo("555-0001", "ceo@techcorp.com", null);
+    ContactChannels ceoContact = new ContactChannels("555-0001", "ceo@techcorp.com", null);
     Address ceoAddress = new Address("100 CEO Lane", "San Francisco", "94102");
     StaffMember ceo =
         new StaffMember("jdoe", "Jane Doe", "Visionary leader", ceoAddress, ceoContact);
 
     Address hq = new Address("200 HQ Plaza", "Seattle", "98101");
-    Company company1 = new Company("TechCorp", ceo, hq);
-    Company company2 = new Company("StartupCo", null, null);
+    CompanyListing company1 = new CompanyListing("TechCorp", ceo, hq);
+    CompanyListing company2 = new CompanyListing("StartupCo", null, null);
 
     displayCompanyInfo(company1, ceoGetter, hqGetter);
     displayCompanyInfo(company2, ceoGetter, hqGetter);
@@ -338,10 +338,10 @@ public class GetterExtensionsExample {
     System.out.println("    Location: " + location);
   }
 
-  private static void validateConfig(Config config) {
-    Getter<Config, String> apiKeyGetter = Getter.of(Config::apiKey);
-    Getter<Config, Integer> portGetter = Getter.of(Config::port);
-    Getter<Config, String> logLevelGetter = Getter.of(Config::logLevel);
+  private static void validateConfig(ConfigOverrides config) {
+    Getter<ConfigOverrides, String> apiKeyGetter = Getter.of(ConfigOverrides::apiKey);
+    Getter<ConfigOverrides, Integer> portGetter = Getter.of(ConfigOverrides::port);
+    Getter<ConfigOverrides, String> logLevelGetter = Getter.of(ConfigOverrides::logLevel);
 
     System.out.println("  Config for " + config.appName() + ":");
 
@@ -358,7 +358,9 @@ public class GetterExtensionsExample {
   }
 
   private static void displayCompanyInfo(
-      Company company, Getter<Company, StaffMember> ceoGetter, Getter<Company, Address> hqGetter) {
+      CompanyListing company,
+      Getter<CompanyListing, StaffMember> ceoGetter,
+      Getter<CompanyListing, Address> hqGetter) {
     System.out.println("  Company: " + company.name());
 
     String ceoName =

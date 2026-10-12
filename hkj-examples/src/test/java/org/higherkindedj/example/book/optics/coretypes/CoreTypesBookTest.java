@@ -85,10 +85,10 @@ class CoreTypesBookTest {
   void compositionReadsThroughTheMaybe() {
     assertThat(
             CoreTypesBook.customerEmails(
-                new ApiResponse(200, Maybe.just(CastFixtures.ORDER), List.of())))
+                new OrderReply(200, Maybe.just(CastFixtures.ORDER), List.of())))
         .containsExactly("ada@example.com")
         .hasToString("[ada@example.com]");
-    assertThat(CoreTypesBook.customerEmails(new ApiResponse(404, Maybe.nothing(), List.of())))
+    assertThat(CoreTypesBook.customerEmails(new OrderReply(404, Maybe.nothing(), List.of())))
         .isEmpty();
   }
 }

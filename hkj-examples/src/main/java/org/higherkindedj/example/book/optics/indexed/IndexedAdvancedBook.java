@@ -36,7 +36,7 @@ public final class IndexedAdvancedBook {
   private IndexedAdvancedBook() {}
 
   /** The audit example's updated customer, and the changes it logged. */
-  record Audited(Customer updated, List<AuditLog.FieldChange<?>> audit) {}
+  record AuditTrail(Customer updated, List<AuditLog.FieldChange<?>> audit) {}
 
   /** The three pairs the utilities example builds from {@code Pair.of(1, "Hello")}. */
   record PairUtilities(
@@ -125,7 +125,7 @@ public final class IndexedAdvancedBook {
     return results;
   }
 
-  static Audited auditTrail() {
+  static AuditTrail auditTrail() {
     // ANCHOR: audit_usage
     // Usage with indexed lens
     IndexedLens<String, Customer, String> nameLens =
@@ -147,7 +147,7 @@ public final class IndexedAdvancedBook {
     // Output, ending with the instant the change was made, which differs on every run:
     // Field 'name' changed from Ada to Ada Lovelace at ...
     // ANCHOR_END: audit_usage
-    return new Audited(updated, audit);
+    return new AuditTrail(updated, audit);
   }
 
   static void pathTracking(List<Order> adasOrders) {

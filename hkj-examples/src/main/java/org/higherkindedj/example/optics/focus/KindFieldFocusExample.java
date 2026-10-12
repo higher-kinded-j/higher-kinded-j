@@ -29,13 +29,13 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
  *
  * <h2>Generated Code</h2>
  *
- * <p>For the {@code Team} record below, the processor generates:
+ * <p>For the {@code Workstream} record below, the processor generates:
  *
  * <pre>{@code
- * public final class TeamFocus {
- *     public static FocusPath<Team, String> name() { ... }
+ * public final class WorkstreamFocus {
+ *     public static FocusPath<Workstream, String> name() { ... }
  *
- *     public static TraversalPath<Team, Member> members() {
+ *     public static TraversalPath<Workstream, Member> members() {
  *         return FocusPath.of(...)
  *             .<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
  *     }
@@ -68,7 +68,7 @@ public class KindFieldFocusExample {
   public record Member(String name, Kind<ListKind.Witness, Skill> skills) {}
 
   /**
-   * A team with Kind-wrapped members and an optional lead member.
+   * A workstream with Kind-wrapped members and an optional lead member.
    *
    * <p>This record demonstrates both:
    *
@@ -78,16 +78,16 @@ public class KindFieldFocusExample {
    * </ul>
    */
   @GenerateFocus
-  public record Team(
+  public record Workstream(
       String name, Kind<MaybeKind.Witness, Member> lead, Kind<ListKind.Witness, Member> members) {}
 
   /**
-   * A project with Kind-wrapped teams.
+   * A programme with Kind-wrapped workstreams.
    *
    * <p>Demonstrates nested Kind field navigation.
    */
   @GenerateFocus
-  public record Project(String name, Kind<ListKind.Witness, Team> teams) {}
+  public record Programme(String name, Kind<ListKind.Witness, Workstream> workstreams) {}
 
   // ============= Example Usage =============
 
@@ -132,9 +132,9 @@ public class KindFieldFocusExample {
   static void optionalKindFieldExample() {
     System.out.println("--- Optional Kind Field Navigation ---");
 
-    // Create teams with and without leads
-    Team teamWithLead =
-        new Team(
+    // Create workstreams with and without leads
+    Workstream workstreamWithLead =
+        new Workstream(
             "Alpha",
             MaybeKindHelper.MAYBE.widen(
                 Maybe.just(
@@ -142,21 +142,23 @@ public class KindFieldFocusExample {
                         "Alice", ListKindHelper.LIST.widen(List.of(new Skill("Leadership", 95)))))),
             ListKindHelper.LIST.widen(List.of()));
 
-    Team teamWithoutLead =
-        new Team(
+    Workstream workstreamWithoutLead =
+        new Workstream(
             "Beta",
             MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
             ListKindHelper.LIST.widen(List.of()));
 
-    // The generated TeamFocus.lead() returns AffinePath<Team, Member>
+    // The generated WorkstreamFocus.lead() returns AffinePath<Workstream, Member>
     // This is automatically generated with traverseOver(MaybeTraverse.INSTANCE).headOption()
-    System.out.println("Team with lead - has lead: " + TeamFocus.lead().matches(teamWithLead));
     System.out.println(
-        "Team without lead - has lead: " + TeamFocus.lead().matches(teamWithoutLead));
+        "Workstream with lead - has lead: " + WorkstreamFocus.lead().matches(workstreamWithLead));
+    System.out.println(
+        "Workstream without lead - has lead: "
+            + WorkstreamFocus.lead().matches(workstreamWithoutLead));
 
     // Get lead name if present
-    TeamFocus.lead()
-        .getOptional(teamWithLead)
+    WorkstreamFocus.lead()
+        .getOptional(workstreamWithLead)
         .ifPresent(lead -> System.out.println("Lead name: " + lead.name()));
 
     System.out.println();
@@ -166,13 +168,13 @@ public class KindFieldFocusExample {
   static void nestedKindFieldExample() {
     System.out.println("--- Nested Kind Field Navigation ---");
 
-    // Create a project with teams and members
-    Project project =
-        new Project(
+    // Create a programme with workstreams and members
+    Programme programme =
+        new Programme(
             "HKJ",
             ListKindHelper.LIST.widen(
                 List.of(
-                    new Team(
+                    new Workstream(
                         "Core",
                         MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
                         ListKindHelper.LIST.widen(
@@ -184,7 +186,7 @@ public class KindFieldFocusExample {
                                 new Member(
                                     "Bob",
                                     ListKindHelper.LIST.widen(List.of(new Skill("Java", 85))))))),
-                    new Team(
+                    new Workstream(
                         "Docs",
                         MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
                         ListKindHelper.LIST.widen(
@@ -195,18 +197,18 @@ public class KindFieldFocusExample {
                                         List.of(new Skill("Writing", 92))))))))));
 
     // Navigate through nested structures
-    System.out.println("Project: " + project.name());
+    System.out.println("Programme: " + programme.name());
 
-    // Get all teams
-    List<Team> teams = ProjectFocus.teams().getAll(project);
-    System.out.println("Team count: " + teams.size());
+    // Get all workstreams
+    List<Workstream> workstreams = ProgrammeFocus.workstreams().getAll(programme);
+    System.out.println("Workstream count: " + workstreams.size());
 
-    // Navigate to all members across all teams
-    // ProjectFocus.teams() returns TraversalPath<Project, Team>
-    // We can chain with TeamFocus.members() to get all members
-    for (Team team : teams) {
-      List<Member> members = TeamFocus.members().getAll(team);
-      System.out.println("Team " + team.name() + " has " + members.size() + " members");
+    // Navigate to all members across all workstreams
+    // ProgrammeFocus.workstreams() returns TraversalPath<Programme, Workstream>
+    // We can chain with WorkstreamFocus.members() to get all members
+    for (Workstream workstream : workstreams) {
+      List<Member> members = WorkstreamFocus.members().getAll(workstream);
+      System.out.println("Workstream " + workstream.name() + " has " + members.size() + " members");
 
       // Get all skills for each member
       for (Member member : members) {

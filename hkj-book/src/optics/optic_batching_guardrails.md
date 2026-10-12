@@ -136,7 +136,7 @@ Guard<UserId> audit = Guards.audit((keys, round) ->
 // Compose: audit everything, but refuse the oversized.
 Guard<UserId> composed = audit.and(ceiling);
 
-Fetch.RunResult<UserId, Team> result =
+Fetch.RunResult<UserId, LoadedTeam> result =
     Guards.runCached(program, backend::loadAll, composed);
 ```
 
@@ -153,7 +153,7 @@ For callers that compose with `Either`, the railway wrappers move guard refusal 
 <!-- verify -->
 ```java
 public Response handleTeamRequest() {
-    Either<Throwable, Fetch.RunResult<UserId, Team>> outcome =
+    Either<Throwable, Fetch.RunResult<UserId, LoadedTeam>> outcome =
         SafeFetch.runCachedWithGuard(program, backend::loadAll, composed);
 
     return outcome.fold(

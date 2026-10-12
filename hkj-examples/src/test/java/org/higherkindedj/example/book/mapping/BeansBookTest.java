@@ -35,7 +35,7 @@ class BeansBookTest {
 
   @Test
   void transferBeanProjectionObeysThePatchLaws() {
-    Employee ada = new Employee("Ada", "Research", 36);
+    BadgeHolder ada = new BadgeHolder("Ada", "Research", 36);
     MappingLaws.assertMappingLaws(
         TransferMappingImpl.INSTANCE::patch,
         TransferMappingImpl.INSTANCE::build,

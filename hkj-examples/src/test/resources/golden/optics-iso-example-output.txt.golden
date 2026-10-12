@@ -1,6 +1,6 @@
 === ISO USAGE EXAMPLE ===
 Original Point: Point[x=10, y=20]
-Original Circle: Circle[centre=Point[x=10, y=20], radius=5]
+Original Zone: DeliveryZone[centre=Point[x=10, y=20], radius=5]
 ------------------------------------------
 --- Scenario 1: Direct Conversions ---
 Point to Tuple conversion:
@@ -32,8 +32,8 @@ Point as string: 10,20
 Recovered from string: Point[x=10, y=20]
 Perfect round-trip: true
 
---- Scenario 6: Circle Centre Manipulation ---
-Original circle: Circle[centre=Point[x=10, y=20], radius=5]
+--- Scenario 6: Zone Centre Manipulation ---
+Original zone: DeliveryZone[centre=Point[x=10, y=20], radius=5]
 Centre as tuple: Tuple2[_1=10, _2=20]
 Shifted centre tuple: Tuple2[_1=20, _2=30]
-New circle: Circle[centre=Point[x=20, y=30], radius=5]
+New zone: DeliveryZone[centre=Point[x=20, y=30], radius=5]

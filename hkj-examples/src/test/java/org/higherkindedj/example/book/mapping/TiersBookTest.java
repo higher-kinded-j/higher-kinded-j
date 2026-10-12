@@ -92,14 +92,14 @@ class TiersBookTest {
   }
 
   @Test
-  @DisplayName("a projection's set writes a null card field onto the domain")
+  @DisplayName("a projection's set writes a null badge field onto the domain")
   void aProjectionSetWritesANullIn() {
     // ANCHOR: check_lens_set
-    Employee ada = new Employee("Ada", "Research", 36);
-    EmployeeCardDto card = new EmployeeCardDto(null, "Platform"); // the client sent no name
+    BadgeHolder ada = new BadgeHolder("Ada", "Research", 36);
+    BadgeDto badge = new BadgeDto(null, "Platform"); // the client sent no name
 
-    assertThat(EmployeeCardMappingImpl.INSTANCE.asLens().set(card, ada))
-        .isEqualTo(new Employee(null, "Platform", 36)); // no error, and no exception
+    assertThat(BadgeMappingImpl.INSTANCE.asLens().set(badge, ada))
+        .isEqualTo(new BadgeHolder(null, "Platform", 36)); // no error, and no exception
     // ANCHOR_END: check_lens_set
   }
 }

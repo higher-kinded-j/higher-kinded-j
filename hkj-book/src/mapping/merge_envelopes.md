@@ -26,17 +26,17 @@ A merge is declared entirely by a method's signature: two or more record sources
 ```mermaid
 flowchart LR
     accTitle: How a merge fills
-    accDescr: Dashboard's name fills from Customer's name, its iban from Account's iban, and its darkMode from Settings' darkMode. Customer's email and Account's balance are not read.
+    accDescr: Dashboard's name fills from Customer's name, its accountId from Account's accountId, and its darkMode from Settings' darkMode. Customer's email and Account's balance are not read.
     subgraph S["the sources"]
         CN["Customer.name"]
         CE["Customer.email (not read)"]
-        AI["Account.iban"]
+        AI["Account.accountId"]
         AB["Account.balance (not read)"]
         SD["Settings.darkMode"]
     end
     subgraph T["Dashboard"]
         TN["name"]
-        TI["iban"]
+        TI["accountId"]
         TD["darkMode"]
     end
     CN --> TN
@@ -137,7 +137,7 @@ You can now assemble a domain value from several sources with a return type that
 
 1. It throws a `NullPointerException`
 2. `Invalid(NonEmptyList[name: must not be null])`
-3. `Dashboard[name=null, iban=GB29-XXXX, darkMode=true]`
+3. `Dashboard[name=null, accountId=ACC001, darkMode=true]`
 4. Nothing: the processor refuses a merge that can read a `null`
 ~~~
 

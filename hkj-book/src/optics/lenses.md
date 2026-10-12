@@ -16,7 +16,7 @@ _Update a field three records down in one call, with a lens you build once and r
 [LensUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
 
-A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades. Where a record's `withX` method copies one record, a lens reaches through nested ones ([Why a lens, when you have `@With`?](#lens-or-wither)). [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
+A Lens focuses on a single, required field within a record: the `address` in a `Company`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades. Where a record's `withX` method copies one record, a lens reaches through nested ones ([Why a lens, when you have `@With`?](#lens-or-wither)). [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 ---
 
@@ -238,11 +238,11 @@ Lenses can also compose with other optic types. When you compose a `Lens` with a
 ```java
 // Lens.andThen(Prism) = Affine
 @GenerateLenses
-record User(Optional<Settings> settings) {}
-Lens<User, Optional<Settings>> settingsLens = UserLenses.settings();
+record Visitor(Optional<Settings> settings) {}
+Lens<Visitor, Optional<Settings>> settingsLens = VisitorLenses.settings();
 Prism<Optional<Settings>, Settings> somePrism = Prisms.some();
 
-Affine<User, Settings> userSettings = settingsLens.andThen(somePrism);
+Affine<Visitor, Settings> visitorSettings = settingsLens.andThen(somePrism);
 ```
 
 See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.

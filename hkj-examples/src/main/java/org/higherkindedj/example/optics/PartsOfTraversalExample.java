@@ -32,10 +32,10 @@ public class PartsOfTraversalExample {
 
   @GenerateLenses
   @GenerateTraversals
-  public record Catalogue(String name, List<Category> categories) {}
+  public record Assortment(String name, List<Category> categories) {}
 
   @GenerateLenses
-  public record Task(String description, int priority, boolean completed) {}
+  public record Task(String title, int priority) {}
 
   @GenerateLenses
   @GenerateTraversals
@@ -132,11 +132,11 @@ public class PartsOfTraversalExample {
         new Project(
             "Website Redesign",
             List.of(
-                new Task("Design mockups", 1, false),
-                new Task("Implement frontend", 2, false),
-                new Task("Backend API", 3, false),
-                new Task("Testing", 4, false),
-                new Task("Deployment", 5, false)));
+                new Task("Design mockups", 1),
+                new Task("Implement frontend", 2),
+                new Task("Backend API", 3),
+                new Task("Testing", 4),
+                new Task("Deployment", 5)));
 
     // Create a traversal for task priorities
     Traversal<Project, Integer> priorityTraversal =
@@ -146,14 +146,12 @@ public class PartsOfTraversalExample {
     Project reversedProject = Traversals.reversed(priorityTraversal, project);
 
     System.out.println("Original task priorities:");
-    project
-        .tasks()
-        .forEach(t -> System.out.println("  " + t.description() + " -> P" + t.priority()));
+    project.tasks().forEach(t -> System.out.println("  " + t.title() + " -> P" + t.priority()));
 
     System.out.println("\nAfter reversing priorities:");
     reversedProject
         .tasks()
-        .forEach(t -> System.out.println("  " + t.description() + " -> P" + t.priority()));
+        .forEach(t -> System.out.println("  " + t.title() + " -> P" + t.priority()));
 
     System.out.println("\nUse case: Quickly invert priority scheme without reordering tasks.");
     System.out.println();
@@ -269,8 +267,8 @@ public class PartsOfTraversalExample {
   private static void realWorldCatalogueNormalisation() {
     System.out.println("--- Scenario 7: E-commerce Catalogue Normalisation ---");
 
-    Catalogue catalogue =
-        new Catalogue(
+    Assortment assortment =
+        new Assortment(
             "Tech Store",
             List.of(
                 new Category(
@@ -286,44 +284,44 @@ public class PartsOfTraversalExample {
                         new Product("CASE", "Case", new BigDecimal("49.99"), 300),
                         new Product("CABLE", "Cable", new BigDecimal("19.99"), 1000)))));
 
-    // Create a deep traversal to all product prices in the catalogue
-    Traversal<Catalogue, BigDecimal> allPrices =
-        CatalogueTraversals.categories()
+    // Create a deep traversal to all product prices in the assortment
+    Traversal<Assortment, BigDecimal> allPrices =
+        AssortmentTraversals.categories()
             .andThen(CategoryTraversals.products())
             .andThen(ProductLenses.price().asTraversal());
 
-    System.out.println("Original catalogue prices:");
-    printCataloguePrices(catalogue);
+    System.out.println("Original assortment prices:");
+    printAssortmentPrices(assortment);
 
-    // Sort all prices across the entire catalogue
-    Catalogue sortedCatalogue = Traversals.sorted(allPrices, catalogue);
+    // Sort all prices across the entire assortment
+    Assortment sortedAssortment = Traversals.sorted(allPrices, assortment);
 
     System.out.println("After sorting all prices across categories:");
-    printCataloguePrices(sortedCatalogue);
+    printAssortmentPrices(sortedAssortment);
 
     // Reverse the sorted prices
-    Catalogue reversedCatalogue = Traversals.reversed(allPrices, sortedCatalogue);
+    Assortment reversedAssortment = Traversals.reversed(allPrices, sortedAssortment);
 
     System.out.println("After reversing (highest to lowest):");
-    printCataloguePrices(reversedCatalogue);
+    printAssortmentPrices(reversedAssortment);
 
     // Demonstrate size mismatch handling
     System.out.println("--- Size Mismatch Demonstration ---");
-    Lens<Catalogue, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
+    Lens<Assortment, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
 
     // Set fewer values than positions exist
     // Only 3 values for 6 positions
     List<BigDecimal> partialPrices =
         List.of(new BigDecimal("100.00"), new BigDecimal("200.00"), new BigDecimal("300.00"));
-    Catalogue partialUpdate = pricesLens.set(partialPrices, catalogue);
+    Assortment partialUpdate = pricesLens.set(partialPrices, assortment);
 
     System.out.println("Setting only 3 prices for 6 products:");
-    printCataloguePrices(partialUpdate);
+    printAssortmentPrices(partialUpdate);
     System.out.println("Note: First 3 positions updated, remaining 3 keep original values.\n");
   }
 
-  private static void printCataloguePrices(Catalogue catalogue) {
-    catalogue
+  private static void printAssortmentPrices(Assortment assortment) {
+    assortment
         .categories()
         .forEach(
             category -> {

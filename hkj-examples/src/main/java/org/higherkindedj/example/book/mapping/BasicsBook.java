@@ -194,13 +194,14 @@ interface CourierMapping extends MappingSpec<Courier, CourierDto> {
 
 // ANCHOR: surface_constant
 // A surface of the Impl held on the spec: no warning, and never do this either.
-record Locker(String code, EmailAddress contact) {}
+record ParcelLocker(String code, EmailAddress contact) {}
 
-record LockerDto(String code, String contact) {}
+record ParcelLockerDto(String code, String contact) {}
 
 @GenerateMapping
-interface LockerMapping extends MappingSpec<Locker, LockerDto> {
-  ValidatedPrism<LockerDto, Locker> PRISM = LockerMappingImpl.INSTANCE.asValidatedPrism();
+interface ParcelLockerMapping extends MappingSpec<ParcelLocker, ParcelLockerDto> {
+  ValidatedPrism<ParcelLockerDto, ParcelLocker> PRISM =
+      ParcelLockerMappingImpl.INSTANCE.asValidatedPrism();
 
   default ValidatedPrism<String, EmailAddress> contact() {
     return EmailCodecs.EMAIL;

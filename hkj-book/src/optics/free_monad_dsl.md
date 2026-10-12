@@ -46,15 +46,15 @@ Think of it like this:
 <!-- verify -->
 ```java
 // Direct execution (happens immediately)
-Person updated = PersonLenses.age().set(30, person);
+ClubMember updated = ClubMemberLenses.age().set(30, person);
 
 // Free monad (just builds a description)
-Free<OpticOpKind.Witness, Person> program =
-    OpticPrograms.set(person, PersonLenses.age(), 30);
+Free<OpticOpKind.Witness, ClubMember> program =
+    OpticPrograms.set(person, ClubMemberLenses.age(), 30);
 // Nothing happened yet! We just described what to do.
 
 // Now we choose how to interpret it
-Person result = OpticInterpreters.direct().run(program);
+ClubMember result = OpticInterpreters.direct().run(program);
 // NOW it executed
 ```
 
@@ -73,20 +73,20 @@ For optics specifically, this means you can build complex data transformation wo
 ---
 
 ~~~admonish note title="Reading the type"
-`Free<OpticOpKind.Witness, Person>` is a program whose steps are optic operations and whose answer is a `Person`. The first parameter names the vocabulary of steps (`OpticOpKind.Witness` is the marker for "optic operations"); the second is what you get back when someone runs it. The builders live in `OpticPrograms`, and `OpticOps` is the same set of operations executed immediately, with no program in between. All of it is in `org.higherkindedj.optics.free`.
+`Free<OpticOpKind.Witness, ClubMember>` is a program whose steps are optic operations and whose answer is a `ClubMember`. The first parameter names the vocabulary of steps (`OpticOpKind.Witness` is the marker for "optic operations"); the second is what you get back when someone runs it. The builders live in `OpticPrograms`, and `OpticOps` is the same set of operations executed immediately, with no program in between. All of it is in `org.higherkindedj.optics.free`.
 ~~~
 
 ## Part 2: Building Your First Optic Program
 
 ### Simple Programs: Get, Set, Modify
 
-Let's start with the basics, a person with a name, an age and a status:
+Let's start with the basics, a club member with a name, an age and a status:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:person}}
 ```
 
-Each builder describes one operation on that person, and returns it as a program:
+Each builder describes one operation on that member, and returns it as a program:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:build}}
@@ -107,13 +107,13 @@ The real power emerges when you compose multiple operations. The `flatMap` metho
 <!-- verify -->
 ```java
 // Program: Get the age, then if they're an adult, increment it
-Free<OpticOpKind.Witness, Person> adultBirthdayProgram =
-    OpticPrograms.get(person, PersonLenses.age())
+Free<OpticOpKind.Witness, ClubMember> adultBirthdayProgram =
+    OpticPrograms.get(person, ClubMemberLenses.age())
         .flatMap(age -> {
             if (age >= 18) {
                 return OpticPrograms.modify(
                     person,
-                    PersonLenses.age(),
+                    ClubMemberLenses.age(),
                     a -> a + 1
                 );
             } else {
@@ -123,7 +123,7 @@ Free<OpticOpKind.Witness, Person> adultBirthdayProgram =
         });
 
 // Execute it
-Person result = OpticInterpreters.direct().run(adultBirthdayProgram);
+ClubMember result = OpticInterpreters.direct().run(adultBirthdayProgram);
 ```
 
 Let's break down what's happening:
@@ -138,7 +138,7 @@ Let's break down what's happening:
 
 ### Multi-Step programs: Complex Workflows
 
-You can chain multiple `flatMap` calls to build sophisticated workflows. An employee has a salary and a status:
+You can chain multiple `flatMap` calls to build sophisticated workflows. An employee's payroll entry holds a salary and a status:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:employee}}
@@ -199,21 +199,21 @@ List<Player> topPlayers = OpticInterpreters.direct().run(findHighScorers);
 <!-- verify -->
 ```java
 @GenerateLenses
-public record UserV1(String username, String email) {}
+public record LegacyUser(String username, String email) {}
 
 @GenerateLenses
-public record UserV2(String username, String email, boolean verified) {}
+public record MigratedUser(String username, String email, boolean verified) {}
 
 // Note: Either is from higher-kinded-j (org.higherkindedj.hkt.either.Either)
 // It represents a value that can be either a Left (error) or Right (success)
 
 // Program: Migrate user with email validation
-Free<OpticOpKind.Witness, Either<String, UserV2>> migrateUser(UserV1 oldUser) {
-    return OpticPrograms.get(oldUser, UserV1Lenses.email())
+Free<OpticOpKind.Witness, Either<String, MigratedUser>> migrateUser(LegacyUser oldUser) {
+    return OpticPrograms.get(oldUser, LegacyUserLenses.email())
         .flatMap(email -> {
             if (email.contains("@") && email.contains(".")) {
                 // Valid email - proceed with migration
-                UserV2 newUser = new UserV2(
+                MigratedUser newUser = new MigratedUser(
                     oldUser.username(),
                     email,
                     false  // Will be verified later
@@ -229,10 +229,10 @@ Free<OpticOpKind.Witness, Either<String, UserV2>> migrateUser(UserV1 oldUser) {
 }
 
 // Execute migration
-Free<OpticOpKind.Witness, Either<String, UserV2>> program =
-    migrateUser(new UserV1("alice", "alice@example.com"));
+Free<OpticOpKind.Witness, Either<String, MigratedUser>> program =
+    migrateUser(new LegacyUser("alice", "alice@example.com"));
 
-Either<String, UserV2> result = OpticInterpreters.direct().run(program);
+Either<String, MigratedUser> result = OpticInterpreters.direct().run(program);
 ```
 
 ~~~admonish tip title="Why Use Free Monad Here?"
@@ -329,26 +329,26 @@ You can build libraries of reusable program fragments:
 <!-- verify -->
 ```java
 // Library of common operations
-public class PersonPrograms {
-    public static Free<OpticOpKind.Witness, Person> celebrateBirthday(
-        Person person
+public class ClubMemberPrograms {
+    public static Free<OpticOpKind.Witness, ClubMember> celebrateBirthday(
+        ClubMember person
     ) {
         return OpticPrograms.modify(
             person,
-            PersonLenses.age(),
+            ClubMemberLenses.age(),
             age -> age + 1
         );
     }
 
-    public static Free<OpticOpKind.Witness, Person> promoteIfEligible(
-        Person person
+    public static Free<OpticOpKind.Witness, ClubMember> promoteIfEligible(
+        ClubMember person
     ) {
-        return OpticPrograms.get(person, PersonLenses.age())
+        return OpticPrograms.get(person, ClubMemberLenses.age())
             .flatMap(age -> {
                 if (age >= 30) {
                     return OpticPrograms.set(
                         person,
-                        PersonLenses.status(),
+                        ClubMemberLenses.status(),
                         "SENIOR"
                     );
                 } else {
@@ -358,18 +358,18 @@ public class PersonPrograms {
     }
 
     // Combine operations
-    public static Free<OpticOpKind.Witness, Person> annualUpdate(
-        Person person
+    public static Free<OpticOpKind.Witness, ClubMember> annualUpdate(
+        ClubMember person
     ) {
         return celebrateBirthday(person)
-            .flatMap(PersonPrograms::promoteIfEligible);
+            .flatMap(ClubMemberPrograms::promoteIfEligible);
     }
 }
 
 // Use them
-Person alice = new Person("Alice", 29, "JUNIOR");
-Free<OpticOpKind.Witness, Person> program = PersonPrograms.annualUpdate(alice);
-Person updated = OpticInterpreters.direct().run(program);
+ClubMember alice = new ClubMember("Alice", 29, "JUNIOR");
+Free<OpticOpKind.Witness, ClubMember> program = ClubMemberPrograms.annualUpdate(alice);
+ClubMember updated = OpticInterpreters.direct().run(program);
 ```
 
 ---
@@ -381,22 +381,22 @@ Person updated = OpticInterpreters.direct().run(program);
 enum PerformanceRating { EXCELLENT, GOOD, SATISFACTORY, POOR }
 
 // Program with complex branching logic
-Free<OpticOpKind.Witness, Employee> processPerformanceReview(
-    Employee employee,
+Free<OpticOpKind.Witness, PayrollEntry> processPerformanceReview(
+    PayrollEntry employee,
     PerformanceRating rating
 ) {
     return switch (rating) {
         case EXCELLENT -> OpticPrograms.modify(
             employee,
-            EmployeeLenses.salary(),
+            PayrollEntryLenses.salary(),
             salary -> salary + (salary / 5)  // 20% raise
         ).flatMap(emp ->
-            OpticPrograms.set(emp, EmployeeLenses.status(), EmployeeStatus.SENIOR)
+            OpticPrograms.set(emp, PayrollEntryLenses.status(), EmployeeStatus.SENIOR)
         );
 
         case GOOD -> OpticPrograms.modify(
             employee,
-            EmployeeLenses.salary(),
+            PayrollEntryLenses.salary(),
             salary -> salary + (salary / 10)  // 10% raise
         );
 
@@ -404,7 +404,7 @@ Free<OpticOpKind.Witness, Employee> processPerformanceReview(
 
         case POOR -> OpticPrograms.set(
             employee,
-            EmployeeLenses.status(),
+            PayrollEntryLenses.status(),
             EmployeeStatus.PROBATION
         );
     };
@@ -482,21 +482,21 @@ Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
 <!-- verify -->
 ```java
 // Direct execution (immediate)
-Person result = OpticOps.modify(
+ClubMember result = OpticOps.modify(
     person,
-    PersonLenses.age(),
+    ClubMemberLenses.age(),
     age -> age + 1
 );
 
 // Free monad (deferred)
-Free<OpticOpKind.Witness, Person> program =
+Free<OpticOpKind.Witness, ClubMember> program =
     OpticPrograms.modify(
         person,
-        PersonLenses.age(),
+        ClubMemberLenses.age(),
         age -> age + 1
     );
 
-Person interpreted = OpticInterpreters.direct().run(program);
+ClubMember interpreted = OpticInterpreters.direct().run(program);
 ```
 
 The Free monad version requires more code, but gives you the power to:
@@ -505,7 +505,7 @@ The Free monad version requires more code, but gives you the power to:
 ```java
 // Log it
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
-Person result = logger.run(program);
+ClubMember result = logger.run(program);
 logger.getLog().forEach(System.out::println);
 
 // Validate it
@@ -514,12 +514,12 @@ ValidationOpticInterpreter.ValidationResult validation = validator.validate(prog
 
 // Test it with mocks. A stub per operation, because `modify` yields the source type
 // while a `get` would yield the focus type; see Interpreters for the class itself.
-Person mockPerson = new Person("Mock", 99, "ACTIVE");
+ClubMember mockPerson = new ClubMember("Mock", 99, "ACTIVE");
 MockOpticInterpreter mock = new MockOpticInterpreter(op -> switch (op) {
     case OpticOp.Modify<?, ?> ignored -> mockPerson;   // this program is a single modify
     default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
 });
-Person mockResult = mock.run(program);
+ClubMember mockResult = mock.run(program);
 ```
 
 ---
@@ -531,8 +531,8 @@ Person mockResult = mock.run(program);
 <!-- verify -->
 ```java
 // Wrong: flatMap returns a NEW program, and this line throws it away
-Free<OpticOpKind.Witness, Integer> program = OpticPrograms.get(person, PersonLenses.age());
-program.flatMap(age -> OpticPrograms.set(person, PersonLenses.age(), age + 1));
+Free<OpticOpKind.Witness, Integer> program = OpticPrograms.get(person, ClubMemberLenses.age());
+program.flatMap(age -> OpticPrograms.set(person, ClubMemberLenses.age(), age + 1));
 
 // The original program is unchanged: it still only reads the age
 ```
@@ -542,9 +542,9 @@ program.flatMap(age -> OpticPrograms.set(person, PersonLenses.age(), age + 1));
 <!-- verify -->
 ```java
 // Correct - capture the new program
-Free<OpticOpKind.Witness, Person> program =
-    OpticPrograms.get(person, PersonLenses.age())
-        .flatMap(age -> OpticPrograms.modify(person, PersonLenses.age(), a -> a + 1));
+Free<OpticOpKind.Witness, ClubMember> program =
+    OpticPrograms.get(person, ClubMemberLenses.age())
+        .flatMap(age -> OpticPrograms.modify(person, ClubMemberLenses.age(), a -> a + 1));
 ```
 
 ---
@@ -554,8 +554,8 @@ Free<OpticOpKind.Witness, Person> program =
 <!-- verify -->
 ```java
 // Wrong - side effect during construction
-Free<OpticOpKind.Witness, Person> program =
-    OpticPrograms.get(person, PersonLenses.age())
+Free<OpticOpKind.Witness, ClubMember> program =
+    OpticPrograms.get(person, ClubMemberLenses.age())
         .flatMap(age -> {
             System.out.println("Age: " + age);  // Side effect!
             return OpticPrograms.pure(person);
@@ -567,13 +567,13 @@ Free<OpticOpKind.Witness, Person> program =
 <!-- verify -->
 ```java
 // Correct - side effects only in interpreters
-Free<OpticOpKind.Witness, Person> program =
-    OpticPrograms.get(person, PersonLenses.age())
+Free<OpticOpKind.Witness, ClubMember> program =
+    OpticPrograms.get(person, ClubMemberLenses.age())
         .flatMap(age -> OpticPrograms.pure(person));
 
 // Side effects happen during interpretation
 LoggingOpticInterpreter logger = OpticInterpreters.logging();
-Person result = logger.run(program);
+ClubMember result = logger.run(program);
 logger.getLog().forEach(System.out::println);  // Side effect here is fine
 ```
 

@@ -123,25 +123,25 @@ class SettersBookTest {
   @Test
   @DisplayName("a Setter.of setter refuses modifyF, and a fromGetSet setter runs it")
   void setterOfRefusesModifyF() {
-    record Person(String name, int age) {}
-    Person person = new Person("Ada", 36);
-    Setter<Person, String> viaOf = Setter.of(f -> p -> new Person(f.apply(p.name()), p.age()));
-    Setter<Person, String> viaGetSet =
-        Setter.fromGetSet(Person::name, (p, name) -> new Person(name, p.age()));
+    record NewHire(String name, int age) {}
+    NewHire hire = new NewHire("Ada", 36);
+    Setter<NewHire, String> viaOf = Setter.of(f -> h -> new NewHire(f.apply(h.name()), h.age()));
+    Setter<NewHire, String> viaGetSet =
+        Setter.fromGetSet(NewHire::name, (h, name) -> new NewHire(name, h.age()));
 
     assertThatThrownBy(
             () ->
                 viaOf.modifyF(
                     name -> OptionalKindHelper.OPTIONAL.widen(Optional.of(name)),
-                    person,
+                    hire,
                     Instances.monadError(optional())))
         .isInstanceOf(UnsupportedOperationException.class);
     assertThat(
             OptionalKindHelper.OPTIONAL.narrow(
                 viaGetSet.modifyF(
                     name -> OptionalKindHelper.OPTIONAL.widen(Optional.of(name.toUpperCase())),
-                    person,
+                    hire,
                     Instances.monadError(optional()))))
-        .contains(new Person("ADA", 36));
+        .contains(new NewHire("ADA", 36));
   }
 }

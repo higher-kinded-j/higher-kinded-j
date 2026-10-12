@@ -13,9 +13,9 @@ This page is the lookup shelf. The teaching lives in [Focus DSL](focus_dsl.md), 
 <!-- verify -->
 ```java
 List<String> names =
-    CompanyFocus.departments()
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.name())
+    OrgChartFocus.units()
+        .via(OrgUnitFocus.members())
+        .via(OrgMemberFocus.name())
         .getAll(company);
 ```
 
@@ -26,10 +26,10 @@ List<String> names =
 <!-- verify -->
 ```java
 // Build the path once, keep the optic
-Traversal<Company, String> allEmails =
-    CompanyFocus.departments()
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.email())
+Traversal<OrgChart, String> allEmails =
+    OrgChartFocus.units()
+        .via(OrgUnitFocus.members())
+        .via(OrgMemberFocus.email())
         .toTraversal();
 
 List<String> emails = Traversals.getAll(allEmails, company);
@@ -47,11 +47,11 @@ A path is an optic underneath: `toLens()`, `toAffine()` and `toTraversal()` hand
 
 <!-- verify -->
 ```java
-Company updated =
-    CompanyFocus.departments()
-        .filter(d -> d.name().equals("Engineering"))
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.age())
+OrgChart updated =
+    OrgChartFocus.units()
+        .filter(u -> u.name().equals("Engineering"))
+        .via(OrgUnitFocus.members())
+        .via(OrgMemberFocus.age())
         .modifyAll(age -> age + 1, company);
 ```
 
@@ -62,30 +62,30 @@ Index into a collection from the path that still focuses it, then keep navigatin
 <!-- verify -->
 ```java
 Optional<String> firstEmail =
-    FocusPath.of(CompanyLenses.departments())
-        .<Department>at(0)
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.email())
+    FocusPath.of(OrgChartLenses.units())
+        .<OrgUnit>at(0)
+        .via(OrgUnitFocus.members())
+        .via(OrgMemberFocus.email())
         .preview(company);
 
 String email = firstEmail.orElse("nobody@example.com");
 ```
 
-Two details earn their place. `.at(0)` needs its element type spelled out, because nothing in the argument list mentions `Department`. And `.at(0)` yields an `AffinePath`, which composing with a traversal widens back out, so the read is `preview` (the first focus, if any) rather than `getOptional`.
+Two details earn their place. `.at(0)` needs its element type spelled out, because nothing in the argument list mentions `OrgUnit`. And `.at(0)` yields an `AffinePath`, which composing with a traversal widens back out, so the read is `preview` (the first focus, if any) rather than `getOptional`.
 
 ### Pattern 3: Validation Across a Traversal
 
 <!-- verify -->
 ```java
-Validated<List<String>, Company> checked =
+Validated<List<String>, OrgChart> checked =
     OpticOps.modifyAllValidated(
         company,
-        CompanyFocus.departments()
-            .via(DepartmentFocus.employees())
-            .via(EmployeeFocus.age())
+        OrgChartFocus.units()
+            .via(OrgUnitFocus.members())
+            .via(OrgMemberFocus.age())
             .toTraversal(),
         Fixture::validateAge);
-// every age is checked: Invalid lists each failing age's message, Valid holds the company
+// every age is checked: Invalid lists each failing age's message, Valid holds the org chart
 ```
 
 `Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
@@ -96,9 +96,9 @@ Validated<List<String>, Company> checked =
 
 <!-- verify -->
 ```java
-// Fluent cross-type navigation, on by default: headquarters() is a navigator
+// Fluent cross-type navigation, on by default: address() is a navigator
 @GenerateFocus
-record Branch(String name, Address headquarters) {}
+record Company(String name, Address address) {}
 
 // Plain paths only, with no navigators
 @GenerateFocus(generateNavigators = false)
@@ -110,18 +110,18 @@ record Organisation(Division division) {}
 
 // Which fields get a navigator
 @GenerateFocus(includeFields = {"homeAddress"})
-record Person(String name, Address homeAddress, Address workAddress) {}
+record Commuter(String name, Address homeAddress, Address workAddress) {}
 
 @GenerateFocus(excludeFields = {"backup"})
-record Config(Settings main, Settings backup) {}
+record SavedSettings(Settings main, Settings backup) {}
 
 // Widen Map, array and third-party collection fields at the static method
 @GenerateFocus(widenCollections = true)
-record Warehouse(Map<String, Integer> inventory) {}
+record Stocktake(Map<String, Integer> inventory) {}
 
 // Widen one container and keep another whole
 @GenerateFocus(widenFields = "prices")
-record PriceList(Map<String, Integer> prices, Map<String, String> notes) {}
+record PriceSheet(Map<String, Integer> prices, Map<String, String> notes) {}
 ```
 
 Only a `maxNavigatorDepth` of 1 or less changes the generated code; [Controlling navigator generation](focus_navigation.md#controlling-navigator-generation) says what each of these attributes does. A `targetPackage` moves the generated class into another package:
@@ -148,21 +148,21 @@ record Badge(String name) {}
 
 <!-- verify -->
 ```java
-Free<OpticOpKind.Witness, Company> program =
-    OpticPrograms.get(company, CompanyFocus.name())
+Free<OpticOpKind.Witness, OrgChart> program =
+    OpticPrograms.get(company, OrgChartFocus.name())
         .flatMap(
             name ->
                 name.startsWith("Acme")
                     ? OpticPrograms.modifyAll(
                         company,
-                        CompanyFocus.departments()
-                            .via(DepartmentFocus.employees())
-                            .via(EmployeeFocus.age())
+                        OrgChartFocus.units()
+                            .via(OrgUnitFocus.members())
+                            .via(OrgMemberFocus.age())
                             .toTraversal(),
                         age -> age + 1)
                     : OpticPrograms.pure(company));
 
-Company result = OpticInterpreters.direct().run(program);
+OrgChart result = OpticInterpreters.direct().run(program);
 ```
 
 Swap `direct()` for `logging()` or `validating()` to run the same program another way. See [Free Monad DSL](free_monad_dsl.md) and [Interpreters](interpreters.md).
@@ -177,12 +177,12 @@ Swap `direct()` for `logging()` or `validating()` to run the same program anothe
 
 <!-- verify -->
 ```java
-String name = EmployeeFocus.name().get(alice);              // FocusPath: always there
-Optional<String> email = EmployeeFocus.email().getOptional(alice);   // AffinePath: may be empty
-List<Employee> all = DepartmentFocus.employees().getAll(department); // TraversalPath: many
+String name = OrgMemberFocus.name().get(alice);              // FocusPath: always there
+Optional<String> email = OrgMemberFocus.email().getOptional(alice);   // AffinePath: may be empty
+List<OrgMember> all = OrgUnitFocus.members().getAll(unit);            // TraversalPath: many
 ```
 
-**Do not expect a collection field to be container-level.** `CompanyFocus.departments()` focuses each department; the `List` itself lives behind `FocusPath.of(CompanyLenses.departments())`.
+**Do not expect a collection field to be container-level.** `OrgChartFocus.units()` focuses each unit; the `List` itself lives behind `FocusPath.of(OrgChartLenses.units())`.
 
 ---
 
@@ -201,7 +201,7 @@ Assigned to a declared `TraversalPath`, both type arguments are inferred:
 
 <!-- verify -->
 ```java
-TraversalPath<User, Role> allRoles = rolesPath.traverseOver(ListTraverse.INSTANCE);
+TraversalPath<Operator, Role> allRoles = rolesPath.traverseOver(ListTraverse.INSTANCE);
 List<Role> roles = allRoles.getAll(user);
 ```
 
@@ -250,8 +250,8 @@ Check, in order: whether an `AffinePath` in the chain actually matches (`matches
 
 <!-- verify -->
 ```java
-Kind<MaybeKind.Witness, Employee> result =
-    EmployeeFocus.email().modifyF(Fixture::checkEmail, alice, Instances.monadError(maybe()));
+Kind<MaybeKind.Witness, OrgMember> result =
+    OrgMemberFocus.email().modifyF(Fixture::checkEmail, alice, Instances.monadError(maybe()));
 ```
 
 ### Can I use the Focus DSL with third-party types?

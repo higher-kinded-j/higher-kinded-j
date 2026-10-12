@@ -7,15 +7,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.UnaryOperator;
-import org.higherkindedj.example.optics.bridge.domain.Company;
-import org.higherkindedj.example.optics.bridge.domain.CompanyFocus;
-import org.higherkindedj.example.optics.bridge.domain.Department;
-import org.higherkindedj.example.optics.bridge.domain.DepartmentFocus;
-import org.higherkindedj.example.optics.bridge.domain.Employee;
-import org.higherkindedj.example.optics.bridge.domain.EmployeeFocus;
+import org.higherkindedj.example.optics.bridge.domain.Office;
+import org.higherkindedj.example.optics.bridge.domain.OfficeFocus;
+import org.higherkindedj.example.optics.bridge.domain.OfficeNetwork;
+import org.higherkindedj.example.optics.bridge.domain.OfficeNetworkFocus;
+import org.higherkindedj.example.optics.bridge.domain.OfficeWorker;
+import org.higherkindedj.example.optics.bridge.domain.OfficeWorkerFocus;
 import org.higherkindedj.example.optics.bridge.external.Address;
 import org.higherkindedj.example.optics.bridge.external.AddressOptics;
-import org.higherkindedj.example.optics.bridge.external.ContactInfo;
+import org.higherkindedj.example.optics.bridge.external.ContactDetails;
 
 /**
  * Demonstrates Focus DSL bridging to external library types.
@@ -41,7 +41,7 @@ public class FocusBridgingExample {
     System.out.println("=== Focus DSL Bridging to External Types ===\n");
 
     // Create sample data
-    Company company = createSampleCompany();
+    OfficeNetwork company = createSampleCompany();
 
     System.out.println("Initial company: " + company.name());
     System.out.println("Headquarters: " + company.headquarters());
@@ -54,7 +54,7 @@ public class FocusBridgingExample {
     demonstrateDomainService(company);
   }
 
-  private static void demonstrateSimpleBridging(Company company) {
+  private static void demonstrateSimpleBridging(OfficeNetwork company) {
     System.out.println("--- Simple Bridging ---\n");
 
     // Read through bridge
@@ -63,21 +63,21 @@ public class FocusBridgingExample {
 
     // Alternative: inline composition
     String hqCityInline =
-        CompanyFocus.headquarters().toLens().andThen(AddressOptics.city()).get(company);
+        OfficeNetworkFocus.headquarters().toLens().andThen(AddressOptics.city()).get(company);
     System.out.println("Headquarters city (inline): " + hqCityInline);
 
     // Modify through bridge
-    Company relocated = CompanyBridge.HEADQUARTERS_CITY.set("New York", company);
+    OfficeNetwork relocated = CompanyBridge.HEADQUARTERS_CITY.set("New York", company);
     System.out.println("After relocation: " + relocated.headquarters().city());
     System.out.println();
   }
 
-  private static void demonstrateDeepTraversals(Company company) {
+  private static void demonstrateDeepTraversals(OfficeNetwork company) {
     System.out.println("--- Deep Traversals Across Boundaries ---\n");
 
-    // All department cities - TraversalPath has getAll()
-    List<String> cities = CompanyBridge.allDepartmentCities().getAll(company);
-    System.out.println("All department cities: " + cities);
+    // All office cities - TraversalPath has getAll()
+    List<String> cities = CompanyBridge.allOfficeCities().getAll(company);
+    System.out.println("All office cities: " + cities);
 
     // All employee emails in entire company
     List<String> allEmails = CompanyBridge.allCompanyEmails().getAll(company);
@@ -90,27 +90,28 @@ public class FocusBridgingExample {
     // Unique cities where company operates
     Set<String> operatingCities = new HashSet<>();
     operatingCities.add(CompanyBridge.HEADQUARTERS_CITY.get(company));
-    operatingCities.addAll(CompanyBridge.allDepartmentCities().getAll(company));
+    operatingCities.addAll(CompanyBridge.allOfficeCities().getAll(company));
     System.out.println("Operating in cities: " + operatingCities);
     System.out.println();
   }
 
-  private static void demonstrateModifications(Company company) {
+  private static void demonstrateModifications(OfficeNetwork company) {
     System.out.println("--- Modifications Through Bridges ---\n");
 
     // Standardise phone format - TraversalPath has modifyAll()
     UnaryOperator<String> formatPhone =
         phone -> phone.replaceAll("[^0-9]", "").replaceAll("(.{3})(.{3})(.{4})", "($1) $2-$3");
 
-    Company withFormattedPhones = CompanyBridge.allCompanyPhones().modifyAll(formatPhone, company);
+    OfficeNetwork withFormattedPhones =
+        CompanyBridge.allCompanyPhones().modifyAll(formatPhone, company);
 
     System.out.println(
         "Phone after formatting: "
             + CompanyBridge.allCompanyPhones().getAll(withFormattedPhones).getFirst());
 
     // Update all headquarters fields at once
-    Company withNewHq =
-        CompanyFocus.headquarters()
+    OfficeNetwork withNewHq =
+        OfficeNetworkFocus.headquarters()
             .toLens()
             .modify(
                 addr ->
@@ -122,13 +123,13 @@ public class FocusBridgingExample {
     System.out.println();
   }
 
-  private static void demonstrateDomainService(Company company) {
+  private static void demonstrateDomainService(OfficeNetwork company) {
     System.out.println("--- Domain Service Using Bridges ---\n");
 
     CompanyService service = new CompanyService();
 
     // Relocate headquarters
-    Company relocated = service.relocateHeadquarters(company, "Seattle");
+    OfficeNetwork relocated = service.relocateHeadquarters(company, "Seattle");
     System.out.println(
         "After relocation to Seattle: " + CompanyBridge.HEADQUARTERS_CITY.get(relocated));
 
@@ -141,7 +142,7 @@ public class FocusBridgingExample {
     System.out.println("All employee emails: " + emails);
 
     // Give raises to Boston employees
-    Company withRaises = service.giveRaisesToCity(company, "Boston", BigDecimal.TEN);
+    OfficeNetwork withRaises = service.giveRaisesToCity(company, "Boston", BigDecimal.TEN);
     System.out.println("Raises applied to Boston staff");
     System.out.println();
   }
@@ -149,79 +150,80 @@ public class FocusBridgingExample {
   /** Example domain service that uses bridged optics. */
   static class CompanyService {
 
-    public Company relocateHeadquarters(Company company, String newCity) {
+    public OfficeNetwork relocateHeadquarters(OfficeNetwork company, String newCity) {
       return CompanyBridge.HEADQUARTERS_CITY.set(newCity, company);
     }
 
-    public Set<String> getAllOperatingCities(Company company) {
+    public Set<String> getAllOperatingCities(OfficeNetwork company) {
       Set<String> cities = new HashSet<>();
       cities.add(CompanyBridge.HEADQUARTERS_CITY.get(company));
-      cities.addAll(CompanyBridge.allDepartmentCities().getAll(company));
+      cities.addAll(CompanyBridge.allOfficeCities().getAll(company));
       return cities;
     }
 
-    public List<String> getAllEmployeeEmails(Company company) {
+    public List<String> getAllEmployeeEmails(OfficeNetwork company) {
       return CompanyBridge.allCompanyEmails().getAll(company);
     }
 
-    public Company giveRaisesToCity(Company company, String city, BigDecimal raisePercent) {
+    public OfficeNetwork giveRaisesToCity(
+        OfficeNetwork company, String city, BigDecimal raisePercent) {
       BigDecimal multiplier = BigDecimal.ONE.add(raisePercent.divide(BigDecimal.valueOf(100)));
 
-      // departments() already returns TraversalPath<Company, Department> (auto-traversed)
-      // staff() already returns TraversalPath<Department, Employee> (auto-traversed)
+      // offices() already returns TraversalPath<OfficeNetwork, Office> (auto-traversed)
+      // staff() already returns TraversalPath<Office, OfficeWorker> (auto-traversed)
       // No .each() needed - the generator handles collection traversal automatically
-      return CompanyFocus.departments()
-          .filter(dept -> CompanyBridge.departmentCity().get(dept).equals(city))
-          .via(DepartmentFocus.staff())
-          .via(EmployeeFocus.salary())
+      return OfficeNetworkFocus.offices()
+          .filter(office -> CompanyBridge.officeCity().get(office).equals(city))
+          .via(OfficeFocus.staff())
+          .via(OfficeWorkerFocus.salary())
           .modifyAll(salary -> salary.multiply(multiplier), company);
     }
   }
 
-  private static Company createSampleCompany() {
-    // Engineering department in Boston
-    Employee alice =
-        new Employee(
+  private static OfficeNetwork createSampleCompany() {
+    // Engineering office in Boston
+    OfficeWorker alice =
+        new OfficeWorker(
             "E001",
             "Alice Smith",
-            ContactInfo.builder().email("alice@acme.com").phone("617-555-0101").build(),
+            ContactDetails.builder().email("alice@acme.com").phone("617-555-0101").build(),
             new BigDecimal("95000"));
 
-    Employee bob =
-        new Employee(
+    OfficeWorker bob =
+        new OfficeWorker(
             "E002",
             "Bob Jones",
-            ContactInfo.builder()
+            ContactDetails.builder()
                 .email("bob@acme.com")
                 .phone("617-555-0102")
                 .fax("617-555-9999")
                 .build(),
             new BigDecimal("85000"));
 
-    Department engineering =
-        new Department(
+    Office engineering =
+        new Office(
             "Engineering",
             alice,
             List.of(alice, bob),
             Address.builder().street("100 Tech Drive").city("Boston").postcode("02101").build());
 
-    // Sales department in Chicago
-    Employee carol =
-        new Employee(
+    // Sales office in Chicago
+    OfficeWorker carol =
+        new OfficeWorker(
             "E003",
             "Carol White",
-            ContactInfo.builder().email("carol@acme.com").phone("312-555-0201").build(),
+            ContactDetails.builder().email("carol@acme.com").phone("312-555-0201").build(),
             new BigDecimal("75000"));
 
-    Department sales =
-        new Department(
+    Office sales =
+        new Office(
             "Sales",
             carol,
             List.of(carol),
             Address.builder().street("200 Commerce St").city("Chicago").postcode("60601").build());
 
-    // Company with headquarters in New York
-    return new Company(
+    // OfficeNetwork with headquarters in New York
+    return new OfficeNetwork(
         "Acme Corp",
         Address.builder().street("1 Corporate Plaza").city("New York").postcode("10001").build(),
         List.of(engineering, sales));

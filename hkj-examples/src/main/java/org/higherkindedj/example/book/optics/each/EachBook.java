@@ -66,9 +66,9 @@ public final class EachBook {
   }
 
   /** What the page's two map operations return, so the test can read each. */
-  record MapResults(Map<String, Integer> adjusted, Map<String, String> labelled) {}
+  record ByKeyResults(Map<String, Integer> adjusted, Map<String, String> labelled) {}
 
-  static MapResults byKey() {
+  static ByKeyResults byKey() {
     // ANCHOR: map_key
     EachIndexed<String, Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
     IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexedTraversal();
@@ -87,6 +87,6 @@ public final class EachBook {
         IndexedTraversals.toIndexedList(indexed, scores).stream()
             .collect(toMap(Pair::first, pair -> pair.first() + ": " + pair.second()));
     // ANCHOR_END: map_key
-    return new MapResults(adjusted, labelled);
+    return new ByKeyResults(adjusted, labelled);
   }
 }

@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/folds.md
 //
 // The page queries the chapter cast's Order and its lines, and a customer's order history beside
-// them, then reaches for a team of employees and a configuration record; its catalogue search
+// them, then reaches for a project team and a connection's settings; its catalogue search
 // declares the product it reads. The cast comes from its package, which hkj-examples' main sources
 // put on the gate's classpath, with sample values from CastFixtures in its test sources. The rest
 // is declared here with its generators, so the page's snippets name genuinely generated folds; a
@@ -50,11 +50,11 @@ import org.higherkindedj.optics.util.Traversals;
 @GenerateFolds
 record OrderHistory(List<Order> orders) {}
 
-record Team(String name, Employee lead, List<Employee> members) {}
+record ProjectTeam(String name, TeamMember lead, List<TeamMember> members) {}
 
-record Employee(String name, String email) {}
+record TeamMember(String name, String email) {}
 
-record Config(String host, Optional<String> port, Optional<String> database) {}
+record ConnectionConfig(String host, Optional<String> port, Optional<String> database) {}
 
 class Fixture {
 
@@ -95,40 +95,45 @@ class Fixture {
 
   static final Fold<List<Double>, Double> discountsFold = Fold.of(d -> d);
 
-  static final Employee employee = new Employee("Alice", "alice@example.com");
+  static final TeamMember member = new TeamMember("Alice", "alice@example.com");
 
-  static final Team team =
-      new Team("Core", employee, List.of(new Employee("Bob", "bob@example.com")));
+  static final ProjectTeam team =
+      new ProjectTeam("Core", member, List.of(new TeamMember("Bob", "bob@example.com")));
 
-  static final Lens<Employee, String> nameLens =
-      Lens.of(Employee::name, (e, v) -> new Employee(v, e.email()));
+  static final Lens<TeamMember, String> nameLens =
+      Lens.of(TeamMember::name, (e, v) -> new TeamMember(v, e.email()));
 
-  static final Lens<Employee, String> emailLens =
-      Lens.of(Employee::email, (e, v) -> new Employee(e.name(), v));
+  static final Lens<TeamMember, String> emailLens =
+      Lens.of(TeamMember::email, (e, v) -> new TeamMember(e.name(), v));
 
-  static final Fold<Team, String> teamNameFold = Fold.of(t -> List.of(t.name()));
+  static final Fold<ProjectTeam, String> teamNameFold = Fold.of(t -> List.of(t.name()));
 
-  static final Fold<Team, String> leadNameFold = Fold.of(t -> List.of(t.lead().name()));
+  static final Fold<ProjectTeam, String> leadNameFold = Fold.of(t -> List.of(t.lead().name()));
 
-  static final Fold<Team, String> memberNamesFold =
-      Fold.of(t -> t.members().stream().map(Employee::name).toList());
+  static final Fold<ProjectTeam, String> memberNamesFold =
+      Fold.of(t -> t.members().stream().map(TeamMember::name).toList());
 
-  static final Fold<Team, String> leadEmail =
+  static final Fold<ProjectTeam, String> leadEmail =
       Fold.of(t -> List.of(t.lead().email()));
 
-  static final Fold<Team, String> memberEmails =
-      Fold.of(t -> t.members().stream().map(Employee::email).toList());
+  static final Fold<ProjectTeam, String> memberEmails =
+      Fold.of(t -> t.members().stream().map(TeamMember::email).toList());
 
-  static final Config config = new Config("localhost", Optional.of("8080"), Optional.empty());
+  static final ConnectionConfig config =
+      new ConnectionConfig("localhost", Optional.of("8080"), Optional.empty());
 
-  static final Lens<Config, String> hostLens =
-      Lens.of(Config::host, (c, v) -> new Config(v, c.port(), c.database()));
+  static final Lens<ConnectionConfig, String> hostLens =
+      Lens.of(ConnectionConfig::host, (c, v) -> new ConnectionConfig(v, c.port(), c.database()));
 
-  static final Prism<Config, String> portPrism =
-      Prism.of(Config::port, p -> new Config("localhost", Optional.of(p), Optional.empty()));
+  static final Prism<ConnectionConfig, String> portPrism =
+      Prism.of(
+          ConnectionConfig::port,
+          p -> new ConnectionConfig("localhost", Optional.of(p), Optional.empty()));
 
-  static final Affine<Config, String> dbAffine =
-      Affine.of(Config::database, (c, v) -> new Config(c.host(), c.port(), Optional.of(v)));
+  static final Affine<ConnectionConfig, String> dbAffine =
+      Affine.of(
+          ConnectionConfig::database,
+          (c, v) -> new ConnectionConfig(c.host(), c.port(), Optional.of(v)));
 
   // A stand-in for the reporting the page hands its extracted lines to: snippets are compiled, not
   // run.

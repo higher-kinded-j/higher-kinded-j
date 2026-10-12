@@ -27,11 +27,11 @@ import org.higherkindedj.optics.focus.TraversalPath;
 
 @GenerateLenses
 @GenerateFocus
-record Skill(String name, int level) {}
+record Skill(String name, int proficiency) {}
 
 @GenerateLenses
 @GenerateFocus
-record Employee(
+record Candidate(
     String name,
     int age,
     Optional<String> email,
@@ -41,13 +41,13 @@ record Employee(
 
 @GenerateLenses
 @GenerateFocus
-record Team(String name, Set<Skill> skills, Collection<String> tags) {}
+record Vacancy(String name, Set<Skill> skills, Collection<String> tags) {}
 
 @GenerateLenses
 @GenerateFocus(widenCollections = true)
-record WidenedEmployee(String name, Map<String, Integer> scores, String[] tags, int[] levels) {}
+record WidenedCandidate(String name, Map<String, Integer> scores, String[] tags, int[] levels) {}
 
-record Leaf(String name) {}
+record Widget(String name) {}
 
 // A generic element, and a list of it whose element carries a wildcard, for A wildcard inside the
 // element
@@ -55,19 +55,19 @@ record Leaf(String name) {}
 record Box<T>(T value) {}
 
 @GenerateFocus
-record Holder(List<Box<? extends Leaf>> boxes) {}
+record Crate(List<Box<? extends Widget>> boxes) {}
 
 @GenerateLenses
 @GenerateFocus
-record Position(String ticker, double weight) {}
+record Holding(String ticker, double weight) {}
 
 @GenerateLenses
 @GenerateFocus
-record AssetClass(String className, ImmutableList<Position> positions) {}
+record Allocation(String className, ImmutableList<Holding> holdings) {}
 
 class Fixture {
-  static final Employee employee =
-      new Employee(
+  static final Candidate candidate =
+      new Candidate(
           "Alice",
           41,
           Optional.of("alice@acme.test"),
@@ -75,9 +75,9 @@ class Fixture {
           Either.right(30),
           Map.of("q1", 90));
 
-  static final Team team =
-      new Team("Platform", Set.of(new Skill("Java", 9)), Set.of("backend", "jvm"));
+  static final Vacancy vacancy =
+      new Vacancy("Platform", Set.of(new Skill("Java", 9)), Set.of("backend", "jvm"));
 
-  static final AssetClass assetClass =
-      new AssetClass("Equities", Lists.immutable.of(new Position("ACME", 0.4)));
+  static final Allocation allocation =
+      new Allocation("Equities", Lists.immutable.of(new Holding("ACME", 0.4)));
 }

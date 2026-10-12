@@ -8,11 +8,11 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /**
- * Company record - the top-level domain type.
+ * OfficeNetwork record - the top-level domain type.
  *
- * <p>Contains references to external Address type for headquarters, and a list of Departments which
+ * <p>Contains references to external Address type for headquarters, and a list of Offices which
  * themselves contain external types.
  */
 @GenerateFocus
 @GenerateLenses
-public record Company(String name, Address headquarters, List<Department> departments) {}
+public record OfficeNetwork(String name, Address headquarters, List<Office> offices) {}

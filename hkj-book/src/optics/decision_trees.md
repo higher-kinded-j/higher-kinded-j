@@ -58,7 +58,7 @@ The two zero-or-one optics are not interchangeable. An `Affine` reaches a value 
 flowchart TD
     accTitle: Which API style?
     accDescr: Start on the Focus DSL and stay there for a plain nested update. An update that can fail or accumulate errors moves to the Fluent API's OpticOps. One that must be inspected, audited or run several ways moves to the Free Monad DSL.
-    S["Start: Focus DSL<br/>CompanyFocus.headquarters().city()"] --> Q{"Does the update<br/>need more?"}
+    S["Start: Focus DSL<br/>ConsignmentFocus.to().city()"] --> Q{"Does the update<br/>need more?"}
     Q -->|"no: a plain<br/>nested update"| S2["stay on the<br/>Focus DSL"]
     Q -->|"it can fail, or<br/>accumulate errors"| FA["Fluent API:<br/>OpticOps.modifyEither,<br/>modifyAllValidated"]
     Q -->|"it must be inspected,<br/>audited or run several ways"| FM["Free Monad DSL,<br/>see Programs as Data"]

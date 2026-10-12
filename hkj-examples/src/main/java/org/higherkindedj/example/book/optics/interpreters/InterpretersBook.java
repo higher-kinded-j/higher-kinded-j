@@ -3,7 +3,6 @@
 package org.higherkindedj.example.book.optics.interpreters;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.annotations.GenerateLenses;
@@ -27,31 +26,31 @@ public final class InterpretersBook {
 
   private InterpretersBook() {}
 
-  static Person directRun() {
+  static Saver directRun() {
     // ANCHOR: direct
-    Person person = new Person("Alice", 25);
+    Saver person = new Saver("Alice", 25);
 
     // Build a program
-    Free<OpticOpKind.Witness, Person> program =
-        OpticPrograms.modify(person, PersonLenses.age(), age -> age + 1);
+    Free<OpticOpKind.Witness, Saver> program =
+        OpticPrograms.modify(person, SaverLenses.age(), age -> age + 1);
 
     // Execute with direct interpreter
     DirectOpticInterpreter interpreter = OpticInterpreters.direct();
-    Person result = interpreter.run(program);
+    Saver result = interpreter.run(program);
 
     System.out.println(result);
-    // Person[name=Alice, age=26]
+    // Saver[name=Alice, age=26]
     // ANCHOR_END: direct
     return result;
   }
 
   static ValidationOpticInterpreter.ValidationResult validatingRun() {
     // ANCHOR: validating
-    Person person = new Person("Alice", 25);
+    Saver person = new Saver("Alice", 25);
 
     // Build a program
-    Free<OpticOpKind.Witness, Person> program =
-        OpticPrograms.set(person, PersonLenses.name(), null); // Oops!
+    Free<OpticOpKind.Witness, Saver> program =
+        OpticPrograms.set(person, SaverLenses.name(), null); // Oops!
 
     // Run it, and take the report rather than the value
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
@@ -102,8 +101,7 @@ public final class InterpretersBook {
             "TXN-12345",
             new Account("ACC001", new BigDecimal("1000.00")),
             new Account("ACC002", new BigDecimal("500.00")),
-            new BigDecimal("250.00"),
-            LocalDateTime.now());
+            new BigDecimal("250.00"));
 
     LoggingOpticInterpreter logger = OpticInterpreters.logging();
     Transaction result = logger.run(transferProgram(txn));
@@ -149,12 +147,11 @@ record Account(String accountId, BigDecimal balance) {}
 
 // ANCHOR: transaction
 @GenerateLenses
-record Transaction(
-    String txnId, Account from, Account to, BigDecimal amount, LocalDateTime timestamp) {}
+record Transaction(String txnId, Account from, Account to, BigDecimal amount) {}
 
 // ANCHOR_END: transaction
 
 // ANCHOR: person
 @GenerateLenses
-record Person(String name, int age) {}
+record Saver(String name, int age) {}
 // ANCHOR_END: person

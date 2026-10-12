@@ -53,9 +53,9 @@ public final class GroupIntrosBook {
   }
 
   /** Collections' composed traversal and its bulk update, so the test can read each. */
-  record Bonus(Traversal<League, Integer> everyScore, League bonus) {}
+  record BulkUpdate(Traversal<League, Integer> everyScore, League bonus) {}
 
-  static Bonus collections(League league) {
+  static BulkUpdate collections(League league) {
     // ANCHOR: collections
     var everyScore =
         LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
@@ -65,7 +65,7 @@ public final class GroupIntrosBook {
     // Traversals.getAll(everyScore, bonus)  -> [105, 95, 115, 125]
     // every team and player is rebuilt for you; league itself is untouched
     // ANCHOR_END: collections
-    return new Bonus(everyScore, bonus);
+    return new BulkUpdate(everyScore, bonus);
   }
 
   /** Precision and Filtering's narrowed traversal and its update, so the test can read each. */

@@ -210,15 +210,23 @@ public class ListDecompositionExample {
     System.out.println("--- Scenario 8: Composing with Other Optics ---");
     System.out.println();
 
-    record Team(String name, List<String> players) {}
+    record Player(String name, int score) {}
+    record Team(String name, List<Player> players) {}
 
     // Create a lens for the players field
-    var playersLens = Lens.<Team, List<String>>of(Team::players, (t, p) -> new Team(t.name(), p));
+    var playersLens = Lens.<Team, List<Player>>of(Team::players, (t, p) -> new Team(t.name(), p));
 
-    // Compose lens with head affine to get the captain (first player)
-    Affine<Team, String> captainAffine = playersLens.andThen(ListPrisms.head());
+    // Compose lens with head affine and the player's name to get the captain (first player)
+    Affine<Team, String> captainAffine =
+        playersLens
+            .andThen(ListPrisms.head())
+            .andThen(Lens.of(Player::name, (p, n) -> new Player(n, p.score())));
 
-    Team team = new Team("Eagles", List.of("Captain Kirk", "Spock", "McCoy"));
+    Team team =
+        new Team(
+            "Eagles",
+            List.of(
+                new Player("Captain Kirk", 10), new Player("Spock", 9), new Player("McCoy", 8)));
 
     System.out.println("Team: " + team);
     System.out.println("Captain: " + captainAffine.getOptional(team));

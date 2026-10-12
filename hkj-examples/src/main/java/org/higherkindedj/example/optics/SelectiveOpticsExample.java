@@ -32,16 +32,16 @@ import org.higherkindedj.optics.util.Traversals;
 public class SelectiveOpticsExample {
 
   @GenerateLenses
-  public record Account(String id, double balance, boolean isPremium) {}
+  public record DepositAccount(String id, double balance, boolean isPremium) {}
 
   // A bank's book of accounts. It is not named Bank, which in the Optics chapter's order service is
   // a payment by bank transfer.
   @GenerateLenses
   @GenerateTraversals
-  public record Ledger(String name, List<Account> accounts) {}
+  public record Ledger(String name, List<DepositAccount> accounts) {}
 
   @GenerateLenses
-  public record Email(String address, boolean verified) {}
+  public record Email(String value) {}
 
   @GenerateLenses
   public record UserLogin(String name, Email email, int loginAttempts) {}
@@ -62,7 +62,7 @@ public class SelectiveOpticsExample {
     System.out.println("--- Example 1: Conditional Lens Updates ---");
 
     Lens<UserLogin, Integer> attemptsLens = UserLoginLenses.loginAttempts();
-    UserLogin userLogin = new UserLogin("Alice", new Email("alice@example.com", true), 2);
+    UserLogin userLogin = new UserLogin("Alice", new Email("alice@example.com"), 2);
 
     // Only increment login attempts if below threshold
     Predicate<Integer> belowThreshold = attempts -> attempts < 5;
@@ -75,7 +75,7 @@ public class SelectiveOpticsExample {
     System.out.println("Updated:  " + ID.narrow(result).value());
 
     // Try with user at threshold
-    UserLogin maxedUserLogin = new UserLogin("Bob", new Email("bob@example.com", true), 5);
+    UserLogin maxedUserLogin = new UserLogin("Bob", new Email("bob@example.com"), 5);
     Kind<IdKind.Witness, UserLogin> noChange =
         attemptsLens.modifyWhen(
             belowThreshold, attempts -> attempts + 1, maxedUserLogin, IdSelective.instance());
@@ -88,14 +88,14 @@ public class SelectiveOpticsExample {
   private static void branchingLensExample() {
     System.out.println("--- Example 2: Branching Lens Logic ---");
 
-    Lens<Account, Double> balanceLens = AccountLenses.balance();
-    Account positiveAccount = new Account("ACC-001", 1000.0, false);
-    Account negativeAccount = new Account("ACC-002", -50.0, false);
+    Lens<DepositAccount, Double> balanceLens = DepositAccountLenses.balance();
+    DepositAccount positiveAccount = new DepositAccount("ACC-001", 1000.0, false);
+    DepositAccount negativeAccount = new DepositAccount("ACC-002", -50.0, false);
 
     // Apply interest if positive, overdraft fee if negative
     Predicate<Double> isPositive = balance -> balance > 0;
 
-    Kind<IdKind.Witness, Account> positive =
+    Kind<IdKind.Witness, DepositAccount> positive =
         balanceLens.modifyBranch(
             isPositive,
             balance -> balance * 1.05, // 5% interest
@@ -103,7 +103,7 @@ public class SelectiveOpticsExample {
             positiveAccount,
             IdSelective.instance());
 
-    Kind<IdKind.Witness, Account> negative =
+    Kind<IdKind.Witness, DepositAccount> negative =
         balanceLens.modifyBranch(
             isPositive,
             balance -> balance * 1.05,
@@ -126,22 +126,22 @@ public class SelectiveOpticsExample {
         new Ledger(
             "Premium accounts",
             List.of(
-                new Account("ACC-001", 5000.0, true),
-                new Account("ACC-002", 100.0, false),
-                new Account("ACC-003", 10000.0, true),
-                new Account("ACC-004", 500.0, false)));
+                new DepositAccount("ACC-001", 5000.0, true),
+                new DepositAccount("ACC-002", 100.0, false),
+                new DepositAccount("ACC-003", 10000.0, true),
+                new DepositAccount("ACC-004", 500.0, false)));
 
-    Traversal<Ledger, Account> accountsTraversal = LedgerTraversals.accounts();
+    Traversal<Ledger, DepositAccount> accountsTraversal = LedgerTraversals.accounts();
 
     // Only apply bonus to premium accounts
-    Predicate<Account> isPremium = Account::isPremium;
+    Predicate<DepositAccount> isPremium = DepositAccount::isPremium;
 
     Kind<IdKind.Witness, Ledger> updated =
         accountsTraversal.modifyWhen(
             isPremium,
             account ->
                 Id.of(
-                    AccountLenses.balance()
+                    DepositAccountLenses.balance()
                         .modify(
                             balance -> balance * 1.10, // 10% bonus
                             account)),
@@ -163,21 +163,21 @@ public class SelectiveOpticsExample {
   private static void speculativeTraversalExample() {
     System.out.println("--- Example 4: Speculative Execution ---");
 
-    List<Account> accounts =
+    List<DepositAccount> accounts =
         List.of(
-            new Account("ACC-001", 5000.0, true),
-            new Account("ACC-002", 100.0, false),
-            new Account("ACC-003", 10000.0, true));
+            new DepositAccount("ACC-001", 5000.0, true),
+            new DepositAccount("ACC-002", 100.0, false),
+            new DepositAccount("ACC-003", 10000.0, true));
 
     // Simulate expensive operations
-    Function<Account, Kind<IdKind.Witness, Double>> premiumCalculation =
+    Function<DepositAccount, Kind<IdKind.Witness, Double>> premiumCalculation =
         account -> {
           System.out.println("  Calculating premium rate for " + account.id());
           // Simulate expensive operation
           return Id.of(account.balance() * 1.10);
         };
 
-    Function<Account, Kind<IdKind.Witness, Double>> standardCalculation =
+    Function<DepositAccount, Kind<IdKind.Witness, Double>> standardCalculation =
         account -> {
           System.out.println("  Calculating standard rate for " + account.id());
           // Simulate different expensive operation
@@ -188,7 +188,7 @@ public class SelectiveOpticsExample {
     Kind<IdKind.Witness, List<Double>> results =
         Traversals.speculativeTraverseList(
             accounts,
-            Account::isPremium,
+            DepositAccount::isPremium,
             premiumCalculation,
             standardCalculation,
             IdSelective.instance());
@@ -201,17 +201,17 @@ public class SelectiveOpticsExample {
   private static void shortCircuitExample() {
     System.out.println("--- Example 5: Short-Circuit Processing ---");
 
-    List<Account> accounts =
+    List<DepositAccount> accounts =
         List.of(
-            new Account("ACC-001", 1000.0, false),
-            new Account("ACC-002", -50.0, false), // This will trigger stop
-            new Account("ACC-003", 2000.0, false),
-            new Account("ACC-004", 3000.0, false));
+            new DepositAccount("ACC-001", 1000.0, false),
+            new DepositAccount("ACC-002", -50.0, false), // This will trigger stop
+            new DepositAccount("ACC-003", 2000.0, false),
+            new DepositAccount("ACC-004", 3000.0, false));
 
-    Predicate<Account> isOverdrawn = account -> account.balance() < 0;
+    Predicate<DepositAccount> isOverdrawn = account -> account.balance() < 0;
 
     System.out.println("Processing accounts until overdraft found:");
-    Kind<IdKind.Witness, List<Account>> results =
+    Kind<IdKind.Witness, List<DepositAccount>> results =
         Traversals.traverseListUntil(
             accounts,
             isOverdrawn,
@@ -236,14 +236,14 @@ public class SelectiveOpticsExample {
         new Ledger(
             "Test accounts",
             List.of(
-                new Account("ACC-001", 1000.0, false),
-                new Account("ACC-002", -50.0, false),
-                new Account("ACC-003", -100.0, false)));
+                new DepositAccount("ACC-001", 1000.0, false),
+                new DepositAccount("ACC-002", -50.0, false),
+                new DepositAccount("ACC-003", -100.0, false)));
 
-    Traversal<Ledger, Account> accountsTraversal = LedgerTraversals.accounts();
+    Traversal<Ledger, DepositAccount> accountsTraversal = LedgerTraversals.accounts();
 
     // Validation function
-    Function<Account, Kind<ValidatedKind.Witness<String>, Account>> validator =
+    Function<DepositAccount, Kind<ValidatedKind.Witness<String>, DepositAccount>> validator =
         account -> {
           if (account.balance() < 0) {
             System.out.println("  Validating " + account.id() + ": FAILED");
@@ -265,7 +265,7 @@ public class SelectiveOpticsExample {
     // Approach 2: Selective - validate only the accounts the predicate admits
     System.out.println("\nSelective approach (validates only accounts the predicate admits):");
 
-    Predicate<Account> isValid = account -> account.balance() >= 0;
+    Predicate<DepositAccount> isValid = account -> account.balance() >= 0;
 
     Selective<ValidatedKind.Witness<String>> selective =
         ValidatedSelective.instance(Semigroups.string("; "));

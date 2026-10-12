@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -29,8 +30,8 @@ public class SetterExample {
 
   public record User(String username, String email, int loginCount, UserSettings settings) {}
 
-  // A trimmed UserSettings, so the runnable example stays small
-  public record UserSettings(String theme, boolean notifications, int fontSize) {}
+  public record UserSettings(
+      String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
   public record Product(String sku, String name, BigDecimal price, int stock) {}
 
@@ -44,7 +45,7 @@ public class SetterExample {
         Setter.fromGetSet(
             User::loginCount, (u, count) -> new User(u.username(), u.email(), count, u.settings()));
 
-    UserSettings settings = new UserSettings("light", true, 14);
+    UserSettings settings = new UserSettings("light", true, 14, Map.of());
     User user = new User("JOHN_DOE", "john@example.com", 10, settings);
 
     // Normalise username
@@ -63,7 +64,8 @@ public class SetterExample {
     Setter<UserSettings, String> themeSetter =
         Setter.fromGetSet(
             UserSettings::theme,
-            (s, theme) -> new UserSettings(theme, s.notifications(), s.fontSize()));
+            (s, theme) ->
+                new UserSettings(theme, s.notifications(), s.fontSize(), s.preferences()));
 
     Setter<User, String> userThemeSetter = settingsSetter.andThen(themeSetter);
 

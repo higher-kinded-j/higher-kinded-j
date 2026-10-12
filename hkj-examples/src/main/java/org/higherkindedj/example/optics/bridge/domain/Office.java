@@ -7,7 +7,8 @@ import org.higherkindedj.example.optics.bridge.external.Address;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
-/** Department record - a local domain type with external {@link Address} location. */
+/** Office record - a local domain type with external {@link Address} location. */
 @GenerateFocus
 @GenerateLenses
-public record Department(String name, Employee manager, List<Employee> staff, Address location) {}
+public record Office(
+    String name, OfficeWorker manager, List<OfficeWorker> staff, Address location) {}

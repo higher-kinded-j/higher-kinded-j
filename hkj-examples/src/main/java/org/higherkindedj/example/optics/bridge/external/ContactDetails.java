@@ -6,26 +6,26 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * An immutable ContactInfo value object following the Immutables library style.
+ * An immutable ContactDetails value object following the Immutables library style.
  *
  * <p>This class simulates what the Immutables annotation processor generates from:
  *
  * <pre>{@code
  * @Value.Immutable
- * public interface ContactInfo {
+ * public interface ContactDetails {
  *     String email();
  *     String phone();
  *     Optional<String> fax();
  * }
  * }</pre>
  */
-public final class ContactInfo {
+public final class ContactDetails {
 
   private final String email;
   private final String phone;
   private final Optional<String> fax;
 
-  private ContactInfo(String email, String phone, Optional<String> fax) {
+  private ContactDetails(String email, String phone, Optional<String> fax) {
     this.email = Objects.requireNonNull(email, "email");
     this.phone = Objects.requireNonNull(phone, "phone");
     this.fax = Objects.requireNonNull(fax, "fax");
@@ -43,19 +43,19 @@ public final class ContactInfo {
     return fax;
   }
 
-  public ContactInfo withEmail(String email) {
-    return new ContactInfo(email, this.phone, this.fax);
+  public ContactDetails withEmail(String email) {
+    return new ContactDetails(email, this.phone, this.fax);
   }
 
-  public ContactInfo withPhone(String phone) {
-    return new ContactInfo(this.email, phone, this.fax);
+  public ContactDetails withPhone(String phone) {
+    return new ContactDetails(this.email, phone, this.fax);
   }
 
-  public ContactInfo withFax(Optional<String> fax) {
-    return new ContactInfo(this.email, this.phone, fax);
+  public ContactDetails withFax(Optional<String> fax) {
+    return new ContactDetails(this.email, this.phone, fax);
   }
 
-  public ContactInfo withFax(String fax) {
+  public ContactDetails withFax(String fax) {
     return withFax(Optional.ofNullable(fax));
   }
 
@@ -66,7 +66,7 @@ public final class ContactInfo {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof ContactInfo that)) return false;
+    if (!(o instanceof ContactDetails that)) return false;
     return email.equals(that.email) && phone.equals(that.phone) && fax.equals(that.fax);
   }
 
@@ -77,7 +77,7 @@ public final class ContactInfo {
 
   @Override
   public String toString() {
-    return "ContactInfo{email='%s', phone='%s', fax=%s}".formatted(email, phone, fax);
+    return "ContactDetails{email='%s', phone='%s', fax=%s}".formatted(email, phone, fax);
   }
 
   public static final class Builder {
@@ -105,8 +105,8 @@ public final class ContactInfo {
       return this;
     }
 
-    public ContactInfo build() {
-      return new ContactInfo(email, phone, fax);
+    public ContactDetails build() {
+      return new ContactDetails(email, phone, fax);
     }
   }
 }

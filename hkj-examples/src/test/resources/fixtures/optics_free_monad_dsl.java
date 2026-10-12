@@ -1,8 +1,8 @@
 // Fixture for hkj-book/src/optics/free_monad_dsl.md
 //
-// The page describes optic work as a program and then chooses an interpreter, walking a person, an
-// employee, a team, a migration, a transfer and a catalogue through the same shape. Every model is
-// declared here; the snippet that shows one shadows this copy.
+// The page describes optic work as a program and then chooses an interpreter, walking a club
+// member, a payroll entry, a team, a migration, a transfer and a catalogue through the same shape.
+// Every model is declared here; the snippet that shows one shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -35,7 +35,7 @@ import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 
 @GenerateLenses
-record Person(String name, int age, String status) {}
+record ClubMember(String name, int age, String status) {}
 
 enum EmployeeStatus {
   JUNIOR,
@@ -45,7 +45,7 @@ enum EmployeeStatus {
 }
 
 @GenerateLenses
-record Employee(String name, int salary, EmployeeStatus status) {}
+record PayrollEntry(String name, int salary, EmployeeStatus status) {}
 
 @GenerateLenses
 record Player(String name, int score) {}
@@ -55,16 +55,16 @@ record Player(String name, int score) {}
 record Team(String name, List<Player> players) {}
 
 @GenerateLenses
-record UserV1(String username, String email) {}
+record LegacyUser(String username, String email) {}
 
 @GenerateLenses
-record UserV2(String username, String email, boolean verified) {}
+record MigratedUser(String username, String email, boolean verified) {}
 
 @GenerateLenses
 record Account(String accountId, BigDecimal balance) {}
 
 @GenerateLenses
-record Transaction(Account from, Account to, BigDecimal amount) {}
+record Transaction(String txnId, Account from, Account to, BigDecimal amount) {}
 
 @GenerateLenses
 record Product(String sku, String name, BigDecimal price, int stock) {}
@@ -106,15 +106,15 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final Person person = sample();
+  static final ClubMember person = sample();
 
   static final Free<OpticOpKind.Witness, Integer> getProgram = sample();
 
-  static final Free<OpticOpKind.Witness, Person> setProgram = sample();
+  static final Free<OpticOpKind.Witness, ClubMember> setProgram = sample();
 
-  static final Free<OpticOpKind.Witness, Person> modifyProgram = sample();
+  static final Free<OpticOpKind.Witness, ClubMember> modifyProgram = sample();
 
-  static final Free<OpticOpKind.Witness, Person> program = sample();
+  static final Free<OpticOpKind.Witness, ClubMember> program = sample();
 
   static final Team team = sample();
 }

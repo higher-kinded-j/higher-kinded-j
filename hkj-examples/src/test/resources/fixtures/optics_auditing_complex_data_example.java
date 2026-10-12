@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/auditing_complex_data_example.md
 //
-// The page audits an application configuration for encrypted values, and reaches once for a server
-// configuration to show the same shape one level deeper. Both models are declared here - the first
+// The page audits a service manifest for encrypted values, and reaches once for a deployment
+// pipeline to show the same shape one level deeper. Both models are declared here - the first
 // mirrors `org.higherkindedj.example.configaudit`, whose variants are package-private and so
 // cannot be imported from a snippet.
 //
@@ -71,7 +71,7 @@ record Setting(String key, SettingValue value) {}
 
 @GenerateLenses
 @GenerateTraversals
-record AppConfig(String name, List<Setting> settings, DeploymentTarget target) {}
+record ServiceManifest(String name, List<Setting> settings, DeploymentTarget target) {}
 
 record ConfigDto(String raw) {}
 
@@ -84,7 +84,7 @@ record AuditEntry(
 
 record AuditReport(List<AuditEntry> entries, Instant generatedAt, String auditorId) {}
 
-// The server configuration the page reaches for once, to show the same audit path running one
+// The deployment pipeline the page reaches for once, to show the same audit path running one
 // level deeper.
 @GenerateLenses
 record EncryptedCredential(String base64Secret) implements Credential {
@@ -113,16 +113,16 @@ sealed interface Environment permits Production, Staging {}
 
 @GenerateLenses
 @GenerateTraversals
-record ServerConfig(String name, List<Environment> environments) {}
+record DeploymentPipeline(String name, List<Environment> environments) {}
 
 // The conversions the legacy-bridge snippet names.
 class Auditing {
 
-  static AppConfig toAppConfig(ConfigDto dto) {
+  static ServiceManifest toServiceManifest(ConfigDto dto) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static ConfigDto toConfigDto(AppConfig config) {
+  static ConfigDto toConfigDto(ServiceManifest config) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }
@@ -147,13 +147,13 @@ class Fixture {
 
   static final int MAX_AUDITS = 10;
 
-  static final AppConfig config = sample();
+  static final ServiceManifest config = sample();
 
-  static final AppConfig someConfig = config;
+  static final ServiceManifest someConfig = config;
 
-  static final AppConfig originalConfig = config;
+  static final ServiceManifest originalConfig = config;
 
-  static final List<AppConfig> configs = List.of();
+  static final List<ServiceManifest> configs = List.of();
 
   static final ConfigDto someDto = sample();
 
@@ -163,13 +163,13 @@ class Fixture {
 
   static final Cipher newCipher = new Cipher();
 
-  static final Prism<AppConfig, AppConfig> gcpLiveOnlyPrism = sample();
+  static final Prism<ServiceManifest, ServiceManifest> gcpLiveOnlyPrism = sample();
 
-  static final Traversal<AppConfig, byte[]> finalAuditor = sample();
+  static final Traversal<ServiceManifest, byte[]> finalAuditor = sample();
 
-  static final Traversal<AppConfig, String> base64Strings = sample();
+  static final Traversal<ServiceManifest, String> base64Strings = sample();
 
-  static final Traversal<AppConfig, byte[]> auditTraversal = sample();
+  static final Traversal<ServiceManifest, byte[]> auditTraversal = sample();
 
   static final Prism<String, byte[]> base64Decoded =
       Prism.of(
@@ -182,31 +182,31 @@ class Fixture {
           },
           bytes -> Base64.getEncoder().encodeToString(bytes));
 
-  static final Prism<AppConfig, AppConfig> devEnvironmentPrism = sample();
+  static final Prism<ServiceManifest, ServiceManifest> devEnvironmentPrism = sample();
 
-  static final Prism<AppConfig, AppConfig> stagingEnvironmentPrism = sample();
+  static final Prism<ServiceManifest, ServiceManifest> stagingEnvironmentPrism = sample();
 
   static final Traversal<Setting, Setting> settingFilter = sample();
 
   static final Traversal<Setting, AuditEntry> auditEntryMapper = sample();
 
-  static boolean shouldAudit(AppConfig toAudit) {
+  static boolean shouldAudit(ServiceManifest toAudit) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static boolean hasEncryptedData(AppConfig toAudit) {
+  static boolean hasEncryptedData(ServiceManifest toAudit) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static byte[] performDetailedAudit(AppConfig toAudit) {
+  static byte[] performDetailedAudit(ServiceManifest toAudit) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Traversal<AppConfig, byte[]> createAuditTraversal() {
+  static Traversal<ServiceManifest, byte[]> createAuditTraversal() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  boolean isGcpLive(AppConfig toCheck) {
+  boolean isGcpLive(ServiceManifest toCheck) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }

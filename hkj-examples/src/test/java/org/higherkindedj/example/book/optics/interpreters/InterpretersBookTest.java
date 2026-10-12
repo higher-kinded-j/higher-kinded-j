@@ -19,8 +19,8 @@ class InterpretersBookTest {
   @DisplayName("the direct interpreter applies the modify, and the person prints as Alice, 26")
   void directRunAppliesTheModify() {
     assertThat(InterpretersBook.directRun())
-        .isEqualTo(new Person("Alice", 26))
-        .hasToString("Person[name=Alice, age=26]");
+        .isEqualTo(new Saver("Alice", 26))
+        .hasToString("Saver[name=Alice, age=26]");
   }
 
   @Test

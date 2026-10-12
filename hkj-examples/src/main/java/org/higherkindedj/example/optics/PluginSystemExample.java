@@ -27,11 +27,11 @@ public class PluginSystemExample {
 
   // Plugin type hierarchy
   @GeneratePrisms
-  public sealed interface Plugin permits DataSourcePlugin, TransformPlugin, OutputPlugin {}
+  public sealed interface PipelinePlugin permits DataSourcePlugin, TransformPlugin, OutputPlugin {}
 
   // Data source plugins
   @GeneratePrisms
-  public sealed interface DataSourcePlugin extends Plugin
+  public sealed interface DataSourcePlugin extends PipelinePlugin
       permits FileSourcePlugin, DatabaseSourcePlugin, ApiSourcePlugin {}
 
   @GenerateLenses
@@ -47,7 +47,7 @@ public class PluginSystemExample {
 
   // Transform plugins
   @GeneratePrisms
-  public sealed interface TransformPlugin extends Plugin
+  public sealed interface TransformPlugin extends PipelinePlugin
       permits FilterPlugin, MapPlugin, AggregatePlugin {}
 
   public record FilterPlugin(String condition) implements TransformPlugin {}
@@ -59,7 +59,7 @@ public class PluginSystemExample {
 
   // Output plugins
   @GeneratePrisms
-  public sealed interface OutputPlugin extends Plugin
+  public sealed interface OutputPlugin extends PipelinePlugin
       permits ConsoleOutputPlugin, FileOutputPlugin, DatabaseOutputPlugin {}
 
   public record ConsoleOutputPlugin(boolean prettyPrint) implements OutputPlugin {}
@@ -73,10 +73,12 @@ public class PluginSystemExample {
   public record PluginContext(Map<String, Object> config, List<String> executionLog) {}
 
   // Prisms for plugin type access
-  private static final Prism<Plugin, DataSourcePlugin> DATA_SOURCE =
-      PluginPrisms.dataSourcePlugin();
-  private static final Prism<Plugin, TransformPlugin> TRANSFORM = PluginPrisms.transformPlugin();
-  private static final Prism<Plugin, OutputPlugin> OUTPUT = PluginPrisms.outputPlugin();
+  private static final Prism<PipelinePlugin, DataSourcePlugin> DATA_SOURCE =
+      PipelinePluginPrisms.dataSourcePlugin();
+  private static final Prism<PipelinePlugin, TransformPlugin> TRANSFORM =
+      PipelinePluginPrisms.transformPlugin();
+  private static final Prism<PipelinePlugin, OutputPlugin> OUTPUT =
+      PipelinePluginPrisms.outputPlugin();
 
   private static final Prism<DataSourcePlugin, FileSourcePlugin> FILE_SOURCE =
       DataSourcePluginPrisms.fileSourcePlugin();
@@ -107,7 +109,7 @@ public class PluginSystemExample {
   private static void demonstratePluginDiscovery() {
     System.out.println("--- Plugin Discovery ---");
 
-    List<Plugin> availablePlugins =
+    List<PipelinePlugin> availablePlugins =
         List.of(
             new FileSourcePlugin("/data/input.json", "json"),
             new FilterPlugin("age > 18"),
@@ -117,11 +119,12 @@ public class PluginSystemExample {
             new FileOutputPlugin("/data/output.csv", "csv"));
 
     // Discover plugins by capability
-    List<Plugin> dataSources = availablePlugins.stream().filter(DATA_SOURCE::matches).toList();
+    List<PipelinePlugin> dataSources =
+        availablePlugins.stream().filter(DATA_SOURCE::matches).toList();
 
-    List<Plugin> transforms = availablePlugins.stream().filter(TRANSFORM::matches).toList();
+    List<PipelinePlugin> transforms = availablePlugins.stream().filter(TRANSFORM::matches).toList();
 
-    List<Plugin> outputs = availablePlugins.stream().filter(OUTPUT::matches).toList();
+    List<PipelinePlugin> outputs = availablePlugins.stream().filter(OUTPUT::matches).toList();
 
     System.out.println("Discovered plugins:");
     System.out.println("  Data sources: " + dataSources.size());
@@ -145,9 +148,9 @@ public class PluginSystemExample {
   private static void demonstratePluginExecution() {
     System.out.println("--- Plugin Execution ---");
 
-    Plugin fileSource = new FileSourcePlugin("/data/customers.json", "json");
-    Plugin filter = new FilterPlugin("country == 'UK'");
-    Plugin consoleOut = new ConsoleOutputPlugin(true);
+    PipelinePlugin fileSource = new FileSourcePlugin("/data/customers.json", "json");
+    PipelinePlugin filter = new FilterPlugin("country == 'UK'");
+    PipelinePlugin consoleOut = new ConsoleOutputPlugin(true);
 
     // Execute data source plugin
     System.out.println("Executing data source plugin:");
@@ -171,9 +174,10 @@ public class PluginSystemExample {
     System.out.println("--- Plugin Composition ---");
 
     // Build a composite data source that tries multiple sources
-    Plugin primarySource = new FileSourcePlugin("/data/primary.json", "json");
-    Plugin fallbackSource = new DatabaseSourcePlugin("jdbc:h2:mem:test", "SELECT * FROM backup");
-    Plugin emergencySource = new ApiSourcePlugin("https://api.example.com/data", Map.of());
+    PipelinePlugin primarySource = new FileSourcePlugin("/data/primary.json", "json");
+    PipelinePlugin fallbackSource =
+        new DatabaseSourcePlugin("jdbc:h2:mem:test", "SELECT * FROM backup");
+    PipelinePlugin emergencySource = new ApiSourcePlugin("https://api.example.com/data", Map.of());
 
     // Extract source information using mapOptional for each plugin
     System.out.println("Composite source resolution:");
@@ -229,8 +233,8 @@ public class PluginSystemExample {
     System.out.println("  Emergency: " + emergencyPath);
 
     // Chain transform plugins
-    Plugin filter = new FilterPlugin("status == 'active'");
-    Plugin mapper = new MapPlugin("extract(email)");
+    PipelinePlugin filter = new FilterPlugin("status == 'active'");
+    PipelinePlugin mapper = new MapPlugin("extract(email)");
 
     System.out.println("\nChained transforms:");
     String data = "raw data";
@@ -244,11 +248,11 @@ public class PluginSystemExample {
   private static void demonstratePluginConfiguration() {
     System.out.println("--- Plugin Configuration ---");
 
-    Plugin consolePlugin = new ConsoleOutputPlugin(false);
+    PipelinePlugin consolePlugin = new ConsoleOutputPlugin(false);
     System.out.println("Original console plugin: " + consolePlugin);
 
     // Enable pretty printing conditionally
-    Plugin configured =
+    PipelinePlugin configured =
         OUTPUT.modifyWhen(
             out -> CONSOLE_OUTPUT.matches(out),
             out ->
@@ -260,10 +264,10 @@ public class PluginSystemExample {
     System.out.println("Configured console plugin: " + configured);
 
     // Update file paths for all file-based plugins
-    Plugin fileSource = new FileSourcePlugin("/tmp/old.json", "json");
-    Plugin fileOutput = new FileOutputPlugin("/tmp/old.csv", "csv");
+    PipelinePlugin fileSource = new FileSourcePlugin("/tmp/old.json", "json");
+    PipelinePlugin fileOutput = new FileOutputPlugin("/tmp/old.csv", "csv");
 
-    Plugin updatedSource =
+    PipelinePlugin updatedSource =
         DATA_SOURCE.modify(
             ds ->
                 Optional.ofNullable(
@@ -275,7 +279,7 @@ public class PluginSystemExample {
                     .orElse(ds),
             fileSource);
 
-    Plugin updatedOutput =
+    PipelinePlugin updatedOutput =
         OUTPUT.modify(
             out ->
                 Optional.ofNullable(
@@ -297,7 +301,7 @@ public class PluginSystemExample {
   private static void demonstratePipelineConstruction() {
     System.out.println("--- Data Processing Pipeline Construction ---");
 
-    List<Plugin> pipeline =
+    List<PipelinePlugin> pipeline =
         List.of(
             new FileSourcePlugin("/data/customers.json", "json"),
             new FilterPlugin("age >= 18"),
@@ -309,7 +313,7 @@ public class PluginSystemExample {
     System.out.println("Pipeline stages:");
 
     for (int i = 0; i < pipeline.size(); i++) {
-      Plugin plugin = pipeline.get(i);
+      PipelinePlugin plugin = pipeline.get(i);
       String stage = String.format("%d. ", i + 1);
 
       if (DATA_SOURCE.matches(plugin)) {
@@ -385,7 +389,7 @@ public class PluginSystemExample {
 
   // Helper methods for plugin execution
 
-  private static String executeDataSource(Plugin plugin) {
+  private static String executeDataSource(PipelinePlugin plugin) {
     return DATA_SOURCE
         .andThen(FILE_SOURCE)
         .mapOptional(fs -> "Reading data from " + fs.path() + " (" + fs.format() + ")", plugin)
@@ -402,7 +406,7 @@ public class PluginSystemExample {
         .orElse("Unknown data source");
   }
 
-  private static String executeTransform(Plugin plugin, String data) {
+  private static String executeTransform(PipelinePlugin plugin, String data) {
     return TRANSFORM
         .andThen(FILTER)
         .mapOptional(f -> "Filtering '" + data + "' with condition: " + f.condition(), plugin)
@@ -415,7 +419,7 @@ public class PluginSystemExample {
         .orElse("No transform applied to: " + data);
   }
 
-  private static String executeOutput(Plugin plugin, String data) {
+  private static String executeOutput(PipelinePlugin plugin, String data) {
     return OUTPUT
         .andThen(CONSOLE_OUTPUT)
         .mapOptional(

@@ -48,13 +48,13 @@ Where this lives: [How the split stays compile-time safe](multi_edit.md#how-the-
 ~~~
 
 ~~~admonish question title="Checkpoint 4: one value of a map" id="check-self-map"
-A catalogue keeps its prices in a `Map`:
+A price list keeps its prices in a `Map`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:catalogue}}
 ```
 
-What does `CatalogueFocus.prices()` return, and how do you read the price of `LAMP`?
+What does `PriceListFocus.prices()` return, and how do you read the price of `LAMP`?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-map-answer"

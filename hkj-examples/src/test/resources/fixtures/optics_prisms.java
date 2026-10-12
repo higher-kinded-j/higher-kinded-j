@@ -32,13 +32,13 @@ record JsonBoolean(boolean value) implements JsonValue {}
 record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
 @GeneratePrisms
-sealed interface DomainError permits ValidationError, NotFoundError {}
+sealed interface DomainError permits InputError, NotFoundError {}
 
 @GenerateLenses
-record ValidationError(String message) implements DomainError {}
+record InputError(String code, String message) implements DomainError {}
 
 @GenerateLenses
-record NotFoundError(String what) implements DomainError {}
+record NotFoundError(String resource) implements DomainError {}
 
 class Fixture {
 
@@ -50,7 +50,7 @@ class Fixture {
 
   static final JsonValue value3 = new JsonBoolean(true);
 
-  static final DomainError someError = new ValidationError("bad");
+  static final DomainError someError = new InputError("BAD_INPUT", "bad");
 
   static Traversal<Map<String, JsonValue>, JsonValue> mapValue(String key) {
     return Traversals.forMap(key);

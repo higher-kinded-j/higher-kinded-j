@@ -22,7 +22,7 @@ public class CollectionRecipes {
   public record Team(String name, List<Player> players) {}
 
   @GenerateLenses
-  public record Player(String name, int score, boolean active) {}
+  public record Player(String name, int score) {}
 
   @GenerateLenses
   public record League(String name, List<Team> teams) {}
@@ -45,17 +45,13 @@ public class CollectionRecipes {
     System.out.println("--- Recipe: Modify All Elements ---");
 
     List<Player> players =
-        List.of(
-            new Player("Alice", 100, true),
-            new Player("Bob", 85, true),
-            new Player("Charlie", 92, false));
+        List.of(new Player("Alice", 100), new Player("Bob", 85), new Player("Charlie", 92));
 
     // Traversal for list elements
     Traversal<List<Player>, Player> allPlayers = Traversals.forList();
 
     // Lens to player's score
-    Lens<Player, Integer> scoreLens =
-        Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
+    Lens<Player, Integer> scoreLens = Lens.of(Player::score, (p, s) -> new Player(p.name(), s));
 
     // Compose to get all scores
     Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens);
@@ -77,16 +73,11 @@ public class CollectionRecipes {
     System.out.println("--- Recipe: Extract All Values ---");
 
     List<Player> players =
-        List.of(
-            new Player("Alice", 100, true),
-            new Player("Bob", 85, true),
-            new Player("Charlie", 92, false));
+        List.of(new Player("Alice", 100), new Player("Bob", 85), new Player("Charlie", 92));
 
     Traversal<List<Player>, Player> allPlayers = Traversals.forList();
-    Lens<Player, String> nameLens =
-        Lens.of(Player::name, (p, n) -> new Player(n, p.score(), p.active()));
-    Lens<Player, Integer> scoreLens =
-        Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
+    Lens<Player, String> nameLens = Lens.of(Player::name, (p, n) -> new Player(n, p.score()));
+    Lens<Player, Integer> scoreLens = Lens.of(Player::score, (p, s) -> new Player(p.name(), s));
 
     // Get all names
     List<String> names = Traversals.getAll(allPlayers.andThen(nameLens), players);
@@ -110,11 +101,8 @@ public class CollectionRecipes {
   private static void recipeNestedCollections() {
     System.out.println("--- Recipe: Nested Collections ---");
 
-    Team teamA =
-        new Team("Team A", List.of(new Player("Alice", 100, true), new Player("Bob", 85, true)));
-    Team teamB =
-        new Team(
-            "Team B", List.of(new Player("Charlie", 92, true), new Player("Diana", 88, false)));
+    Team teamA = new Team("Team A", List.of(new Player("Alice", 100), new Player("Bob", 85)));
+    Team teamB = new Team("Team B", List.of(new Player("Charlie", 92), new Player("Diana", 88)));
 
     League league = new League("Premier League", List.of(teamA, teamB));
 
@@ -123,8 +111,7 @@ public class CollectionRecipes {
         Lens.of(League::teams, (l, teams) -> new League(l.name(), teams));
     Lens<Team, List<Player>> playersLens =
         Lens.of(Team::players, (t, players) -> new Team(t.name(), players));
-    Lens<Player, Integer> scoreLens =
-        Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
+    Lens<Player, Integer> scoreLens = Lens.of(Player::score, (p, s) -> new Player(p.name(), s));
 
     // Compose lenses and traversals directly
     Traversal<League, Integer> allScores =
@@ -155,16 +142,15 @@ public class CollectionRecipes {
 
     List<Player> players =
         List.of(
-            new Player("Alice", 100, true),
-            new Player("Bob", 85, false),
-            new Player("Charlie", 92, true),
-            new Player("Diana", 78, false));
+            new Player("Alice", 100),
+            new Player("Bob", 85),
+            new Player("Charlie", 92),
+            new Player("Diana", 78));
 
     Traversal<List<Player>, Player> allPlayers = Traversals.forList();
-    Lens<Player, Integer> scoreLens =
-        Lens.of(Player::score, (p, s) -> new Player(p.name(), s, p.active()));
+    Lens<Player, Integer> scoreLens = Lens.of(Player::score, (p, s) -> new Player(p.name(), s));
 
-    // Only boost active players
+    // Only boost players below 90
     Traversal<List<Player>, Integer> allScores = allPlayers.andThen(scoreLens);
 
     // Using modify with conditional logic
@@ -172,8 +158,8 @@ public class CollectionRecipes {
         Traversals.modify(
             allPlayers,
             player -> {
-              if (player.active()) {
-                return new Player(player.name(), player.score() + 20, player.active());
+              if (player.score() < 90) {
+                return new Player(player.name(), player.score() + 20);
               }
               return player;
             },
@@ -182,7 +168,7 @@ public class CollectionRecipes {
     System.out.println("Original players:");
     players.forEach(p -> System.out.println("  " + p));
     System.out.println();
-    System.out.println("After +20 bonus for active players:");
+    System.out.println("After +20 bonus for players below 90:");
     updated.forEach(p -> System.out.println("  " + p));
     System.out.println();
   }

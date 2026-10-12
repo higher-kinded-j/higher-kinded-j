@@ -37,7 +37,7 @@ import org.higherkindedj.optics.util.Traversals;
 record Document(String title, List<String> paragraphs) {}
 
 @GenerateLenses
-record Config(String properties) {}
+record PropertyFile(String properties) {}
 
 class Fixture {
 
@@ -52,7 +52,7 @@ class Fixture {
 
   static final Document document = sample();
 
-  static final Config config = sample();
+  static final PropertyFile file = sample();
 
   static final String input = "hello world";
 

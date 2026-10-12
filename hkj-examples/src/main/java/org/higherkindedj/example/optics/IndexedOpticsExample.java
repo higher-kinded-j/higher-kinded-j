@@ -323,9 +323,9 @@ public class IndexedOpticsExample {
     System.out.println("--- Audit Trail Pattern ---");
 
     // Field change record
-    record FieldChange(String fieldName, Object oldValue, Object newValue, Instant timestamp) {}
+    record FieldChange<A>(String fieldName, A oldValue, A newValue, Instant timestamp) {}
 
-    List<FieldChange> auditLog = new ArrayList<>();
+    List<FieldChange<?>> auditLog = new ArrayList<>();
 
     // Create indexed lens with audit logging
     IndexedLens<String, Customer, EmailAddress> emailLens =
@@ -341,7 +341,8 @@ public class IndexedOpticsExample {
 
               if (!oldValue.equals(newValue)) {
                 auditLog.add(
-                    new FieldChange(fieldName, oldValue.value(), newValue.value(), Instant.now()));
+                    new FieldChange<>(
+                        fieldName, oldValue.value(), newValue.value(), Instant.now()));
               }
 
               return newValue;
@@ -351,7 +352,7 @@ public class IndexedOpticsExample {
     System.out.println("Original: " + customer);
     System.out.println("Updated: " + updated);
     System.out.println("\nAudit log:");
-    for (FieldChange change : auditLog) {
+    for (FieldChange<?> change : auditLog) {
       System.out.printf(
           "  Field '%s' changed from '%s' to '%s' at %s%n",
           change.fieldName(), change.oldValue(), change.newValue(), change.timestamp());

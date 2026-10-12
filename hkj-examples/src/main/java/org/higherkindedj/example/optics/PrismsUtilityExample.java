@@ -41,7 +41,7 @@ public class PrismsUtilityExample {
 
   record Bird(String name, boolean canFly) implements Animal {}
 
-  record ValidationError(String code, String message) {}
+  record InputError(String code, String message) {}
 
   public static void main(String[] args) {
     System.out.println("=== Prisms Utility Examples ===\n");
@@ -108,12 +108,11 @@ public class PrismsUtilityExample {
     System.out.println("Built Right: " + builtRight);
 
     // Practical use: Extract error messages from validation results
-    Either<ValidationError, String> validationResult =
-        Either.left(new ValidationError("ERR001", "Invalid email format"));
+    Either<InputError, String> validationResult =
+        Either.left(new InputError("ERR001", "Invalid email format"));
 
-    Prism<Either<ValidationError, String>, ValidationError> validationErrorPrism = Prisms.left();
-    Optional<String> errorCode =
-        validationErrorPrism.mapOptional(ValidationError::code, validationResult);
+    Prism<Either<InputError, String>, InputError> inputErrorPrism = Prisms.left();
+    Optional<String> errorCode = inputErrorPrism.mapOptional(InputError::code, validationResult);
     System.out.println("Validation error code: " + errorCode.orElse("N/A"));
 
     System.out.println();
@@ -334,7 +333,7 @@ public class PrismsUtilityExample {
     // Complex nested structure
     record DatabaseSettings(String host, int port) {}
 
-    record Config(Optional<Either<String, DatabaseSettings>> database) {}
+    record LoadedConfig(Optional<Either<String, DatabaseSettings>> database) {}
 
     // Build a composed path through Optional -> Either -> Settings -> host
     // (This would normally use generated lenses, but we'll simulate it)
@@ -343,8 +342,8 @@ public class PrismsUtilityExample {
     Prism<Either<String, DatabaseSettings>, DatabaseSettings> rightPrism = Prisms.right();
 
     // Valid configuration
-    Config validConfig =
-        new Config(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
+    LoadedConfig validConfig =
+        new LoadedConfig(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
 
     // Extract database settings
     Optional<DatabaseSettings> settings =
@@ -354,7 +353,8 @@ public class PrismsUtilityExample {
     System.out.println("Database port: " + settings.map(DatabaseSettings::port).orElse(-1));
 
     // Invalid configuration (error message)
-    Config errorConfig = new Config(Optional.of(Either.left("Database not configured")));
+    LoadedConfig errorConfig =
+        new LoadedConfig(Optional.of(Either.left("Database not configured")));
 
     Prism<Either<String, DatabaseSettings>, String> leftPrism = Prisms.left();
     Optional<String> errorMsg =
@@ -363,7 +363,7 @@ public class PrismsUtilityExample {
     System.out.println("Error message: " + errorMsg.orElse("N/A"));
 
     // Missing configuration
-    Config missingConfig = new Config(Optional.empty());
+    LoadedConfig missingConfig = new LoadedConfig(Optional.empty());
     Optional<DatabaseSettings> missingSettings =
         somePrism.getOptional(missingConfig.database()).flatMap(rightPrism::getOptional);
 

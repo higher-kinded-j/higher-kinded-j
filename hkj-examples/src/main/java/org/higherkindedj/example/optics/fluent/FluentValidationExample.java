@@ -54,7 +54,8 @@ public class FluentValidationExample {
   // An order as entered on a form, in the shape the Deep Validation with modifyF page gives it
   record OrderForm(String orderId, List<BigDecimal> prices, BigDecimal discount) {}
 
-  record AppConfig(String apiEndpoint, int maxConnections, int timeoutSeconds, String logLevel) {}
+  record ApiClientConfig(
+      String apiEndpoint, int maxConnections, int timeoutSeconds, String logLevel) {}
 
   record DataImport(List<String> emails, String importedBy) {}
 
@@ -98,26 +99,27 @@ public class FluentValidationExample {
         }
       };
 
-  // AppConfig lenses
-  static final Lens<AppConfig, String> API_ENDPOINT =
+  // ApiClientConfig lenses
+  static final Lens<ApiClientConfig, String> API_ENDPOINT =
       Lens.of(
-          AppConfig::apiEndpoint,
-          (c, v) -> new AppConfig(v, c.maxConnections(), c.timeoutSeconds(), c.logLevel()));
+          ApiClientConfig::apiEndpoint,
+          (c, v) -> new ApiClientConfig(v, c.maxConnections(), c.timeoutSeconds(), c.logLevel()));
 
-  static final Lens<AppConfig, Integer> MAX_CONNECTIONS =
+  static final Lens<ApiClientConfig, Integer> MAX_CONNECTIONS =
       Lens.of(
-          AppConfig::maxConnections,
-          (c, v) -> new AppConfig(c.apiEndpoint(), v, c.timeoutSeconds(), c.logLevel()));
+          ApiClientConfig::maxConnections,
+          (c, v) -> new ApiClientConfig(c.apiEndpoint(), v, c.timeoutSeconds(), c.logLevel()));
 
-  static final Lens<AppConfig, Integer> TIMEOUT_SECONDS =
+  static final Lens<ApiClientConfig, Integer> TIMEOUT_SECONDS =
       Lens.of(
-          AppConfig::timeoutSeconds,
-          (c, v) -> new AppConfig(c.apiEndpoint(), c.maxConnections(), v, c.logLevel()));
+          ApiClientConfig::timeoutSeconds,
+          (c, v) -> new ApiClientConfig(c.apiEndpoint(), c.maxConnections(), v, c.logLevel()));
 
-  static final Lens<AppConfig, String> LOG_LEVEL =
+  static final Lens<ApiClientConfig, String> LOG_LEVEL =
       Lens.of(
-          AppConfig::logLevel,
-          (c, v) -> new AppConfig(c.apiEndpoint(), c.maxConnections(), c.timeoutSeconds(), v));
+          ApiClientConfig::logLevel,
+          (c, v) ->
+              new ApiClientConfig(c.apiEndpoint(), c.maxConnections(), c.timeoutSeconds(), v));
 
   // DataImport traversal
   static final Traversal<DataImport, String> ALL_EMAILS =
@@ -581,7 +583,7 @@ public class FluentValidationExample {
   private static void configurationValidationScenario() {
     System.out.println("Scenario C: Application Configuration Validation\n");
 
-    AppConfig config = new AppConfig("https://api.example.com", 5000, 10, "INFO");
+    ApiClientConfig config = new ApiClientConfig("https://api.example.com", 5000, 10, "INFO");
 
     System.out.println("Validating configuration:");
     System.out.println("  API Endpoint: " + config.apiEndpoint());
@@ -591,7 +593,7 @@ public class FluentValidationExample {
     System.out.println();
 
     // Validate max connections (short-circuit)
-    Either<String, AppConfig> validatedConfig =
+    Either<String, ApiClientConfig> validatedConfig =
         OpticOps.modifyEither(
                 config, MAX_CONNECTIONS, FluentValidationExample::validateMaxConnections)
             .flatMap(

@@ -166,9 +166,9 @@ Reads and writes through a bare `Traversal` go through the `Traversals` utility:
 ## The Other Three Strategies
 
 ~~~admonish warning title="Overloaded constructors, withers and setters"
-Every strategy writes the focus through something that can be overloaded: the constructor `@ViaConstructor` rebuilds through, the `@Wither` method, the builder's setter, the setter `@ViaCopyAndSet` calls. A lens focuses a primitive boxed, and Java offers an overloaded call the candidates needing no unboxing first, so a `Long` reaches a `withAmount(Number)` before a `withAmount(long)`.
+Every strategy writes the focus through something that can be overloaded: the constructor `@ViaConstructor` rebuilds through, the `@Wither` method, the builder's setter, the setter `@ViaCopyAndSet` calls. A lens focuses a primitive boxed, and Java offers an overloaded call the candidates needing no unboxing first, so a `Long` reaches a `withCents(Number)` before a `withCents(long)`.
 
-The focus is therefore unboxed to its getter's type wherever one of the candidates takes exactly that type. The call then binds where `new Money(source.amount(), source.currency())` would, every argument the type its own getter hands back. Where no candidate takes that type, as when the constructor takes the wrapper, unboxing could move the call somewhere the boxed focus never reached, so it is passed as it is. A focus wider than the wrapper, `Number` over an `int` getter, is never unboxed, since it may hold a value of another kind. Declare the focus as the wrapper where only the primitive is taken.
+The focus is therefore unboxed to its getter's type wherever one of the candidates takes exactly that type. The call then binds where `new Money(source.cents(), source.currency())` would, every argument the type its own getter hands back. Where no candidate takes that type, as when the constructor takes the wrapper, unboxing could move the call somewhere the boxed focus never reached, so it is passed as it is. A focus wider than the wrapper, `Number` over an `int` getter, is never unboxed, since it may hold a value of another kind. Declare the focus as the wrapper where only the primitive is taken.
 
 That leaves one shape to watch: a getter returning `Long` where the constructor or method takes `long`, beside one taking `Number`, reaches the `Number` one and sets whatever it computes. Have the getters return the types the constructor and methods take, and run `LensLaws` over the lens.
 ~~~
@@ -180,8 +180,8 @@ That leaves one shape to watch: a getter returning `Long` where the constructor 
 @ImportOptics
 interface MoneyOpticsSpec extends OpticsSpec<Money> {
 
-  @Wither(value = "withAmount", getter = "getAmount")
-  Lens<Money, Long> amount();
+  @Wither(value = "withCents", getter = "getCents")
+  Lens<Money, Long> cents();
 }
 ```
 
@@ -217,10 +217,10 @@ A written order can rebuild through a shorter constructor, one that works out or
 <!-- verify -->
 ```java
 @ImportOptics
-interface ConfigOpticsSpec extends OpticsSpec<Config> {
+interface HostSettingOpticsSpec extends OpticsSpec<HostSetting> {
 
   @ViaCopyAndSet(setter = "setHost")
-  Lens<Config, String> host();
+  Lens<HostSetting, String> host();
 }
 ```
 
@@ -230,7 +230,7 @@ interface ConfigOpticsSpec extends OpticsSpec<Config> {
 `copyConstructor` adds a second way to lose state, and it is quieter. Naming a supertype selects the constructor that takes it, and that constructor can only copy what it can see: if `balance` is declared on `Ledger` and you name `LedgerBase`, every `set` returns a copy with `balance` back at its default. That is a perfectly *deep* copy of everything in scope; the field is simply not in scope. The processor cannot check this for you, so the narrower the type you name, the more `LensLaws` is worth running.
 ~~~
 
-`copyConstructor` is for the one case the default cannot express: an overloaded constructor. `new Config(source)` picks the most specific applicable overload, which is what you want almost always, since a lone `Config(BaseConfig other)` already takes the source by widening. Name a supertype, fully qualified, and the source is passed under that type instead:
+`copyConstructor` is for the one case the default cannot express: an overloaded constructor. `new HostSetting(source)` picks the most specific applicable overload, which is what you want almost always, since a lone `HostSetting(BaseHostSetting other)` already takes the source by widening. Name a supertype, fully qualified, and the source is passed under that type instead:
 
 ```java
 public class Endpoint extends BaseEndpoint implements Audited {

@@ -36,11 +36,11 @@ import org.higherkindedj.optics.util.Traversals;
 public class PredicateListTraversalsExample {
 
   // Domain models
-  record Transaction(String id, LocalDateTime timestamp, double amount, String status) {
+  record PaymentRecord(String id, LocalDateTime timestamp, BigDecimal amount, String status) {
     @Override
     public String toString() {
       return String.format(
-          "Transaction[%s, %s, $%.2f, %s]",
+          "PaymentRecord[%s, %s, $%s, %s]",
           id, timestamp.truncatedTo(ChronoUnit.SECONDS), amount, status);
     }
   }
@@ -57,10 +57,10 @@ public class PredicateListTraversalsExample {
     }
   }
 
-  record Task(String id, int priority, String status) {
+  record Job(String id, int priority, String status) {
     @Override
     public String toString() {
-      return String.format("Task[%s, P%d, %s]", id, priority, status);
+      return String.format("Job[%s, P%d, %s]", id, priority, status);
     }
   }
 
@@ -278,25 +278,25 @@ public class PredicateListTraversalsExample {
     LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
     LocalDateTime now = LocalDateTime.now();
 
-    List<Transaction> transactions =
+    List<PaymentRecord> transactions =
         List.of(
-            new Transaction("TX001", now.minusHours(48), 100.0, "COMPLETED"),
-            new Transaction("TX002", now.minusHours(36), 200.0, "COMPLETED"),
-            new Transaction("TX003", now.minusHours(12), 150.0, "PENDING"),
-            new Transaction("TX004", now.minusHours(6), 300.0, "PENDING"),
-            new Transaction("TX005", now.minusHours(1), 250.0, "PENDING"));
+            new PaymentRecord("TX001", now.minusHours(48), new BigDecimal("100.00"), "COMPLETED"),
+            new PaymentRecord("TX002", now.minusHours(36), new BigDecimal("200.00"), "COMPLETED"),
+            new PaymentRecord("TX003", now.minusHours(12), new BigDecimal("150.00"), "PENDING"),
+            new PaymentRecord("TX004", now.minusHours(6), new BigDecimal("300.00"), "PENDING"),
+            new PaymentRecord("TX005", now.minusHours(1), new BigDecimal("250.00"), "PENDING"));
 
-    Traversal<List<Transaction>, Transaction> beforeCutoff =
+    Traversal<List<PaymentRecord>, PaymentRecord> beforeCutoff =
         ListTraversals.takingWhile(t -> t.timestamp().isBefore(cutoff));
 
     System.out.println("All transactions:");
     transactions.forEach(t -> System.out.println("  " + t));
 
     // Process old transactions
-    List<Transaction> processed =
+    List<PaymentRecord> processed =
         Traversals.modify(
             beforeCutoff,
-            t -> new Transaction(t.id(), t.timestamp(), t.amount(), "ARCHIVED"),
+            t -> new PaymentRecord(t.id(), t.timestamp(), t.amount(), "ARCHIVED"),
             transactions);
 
     System.out.println("\nAfter archiving transactions before cutoff:");
@@ -308,30 +308,30 @@ public class PredicateListTraversalsExample {
     System.out.println("Use Case 2: Priority Queue Processing");
     System.out.println("--------------------------------------");
 
-    List<Task> tasks =
+    List<Job> tasks =
         List.of(
-            new Task("T1", 1, "PENDING"),
-            new Task("T2", 1, "PENDING"),
-            new Task("T3", 2, "PENDING"), // Priority changes here
-            new Task("T4", 2, "PENDING"),
-            new Task("T5", 3, "PENDING"));
+            new Job("T1", 1, "PENDING"),
+            new Job("T2", 1, "PENDING"),
+            new Job("T3", 2, "PENDING"), // Priority changes here
+            new Job("T4", 2, "PENDING"),
+            new Job("T5", 3, "PENDING"));
 
-    Traversal<List<Task>, Task> highPriority = ListTraversals.takingWhile(t -> t.priority() == 1);
+    Traversal<List<Job>, Job> highPriority = ListTraversals.takingWhile(t -> t.priority() == 1);
 
     System.out.println("All tasks:");
     tasks.forEach(t -> System.out.println("  " + t));
 
     // Process high-priority tasks
-    List<Task> processed =
-        Traversals.modify(highPriority, t -> new Task(t.id(), t.priority(), "COMPLETED"), tasks);
+    List<Job> processed =
+        Traversals.modify(highPriority, t -> new Job(t.id(), t.priority(), "COMPLETED"), tasks);
 
     System.out.println("\nAfter processing priority 1 tasks:");
     processed.forEach(t -> System.out.println("  " + t));
 
     // Remaining tasks
-    Traversal<List<Task>, Task> remaining = ListTraversals.droppingWhile(t -> t.priority() == 1);
+    Traversal<List<Job>, Job> remaining = ListTraversals.droppingWhile(t -> t.priority() == 1);
 
-    List<Task> remainingTasks = Traversals.getAll(remaining, tasks);
+    List<Job> remainingTasks = Traversals.getAll(remaining, tasks);
     System.out.println("\nRemaining tasks: " + remainingTasks.size());
     remainingTasks.forEach(t -> System.out.println("  " + t));
     System.out.println();

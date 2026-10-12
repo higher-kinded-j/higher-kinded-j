@@ -52,11 +52,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @GeneratePrisms
-sealed interface JsonValue permits JsonString, JsonNumber {}
+sealed interface JsonValue permits JsonString, JsonNumber, JsonBoolean, JsonObject {}
 
 record JsonString(String value) implements JsonValue {}
 
 record JsonNumber(double value) implements JsonValue {}
+
+record JsonBoolean(boolean value) implements JsonValue {}
+
+record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 
 @GeneratePrisms
 sealed interface ConfigValue permits StringValue, IntValue, BoolValue, NestedConfig {}
@@ -76,9 +80,9 @@ interface HttpResponse {
   int status();
 }
 
-record SuccessResponse(JsonValue data) implements HttpResponse {
+record SuccessResponse(String data, int statusCode) implements HttpResponse {
   public int status() {
-    return 200;
+    return statusCode;
   }
 }
 
@@ -121,9 +125,9 @@ final class ApiException extends RuntimeException {
   }
 }
 
-record AuditEntry(String type, String id, Instant at) {}
+record EventLogEntry(String type, String id, Instant at) {}
 
-enum Environment {
+enum DeploymentStage {
   DEVELOPMENT,
   PRODUCTION
 }
@@ -168,12 +172,14 @@ record ReturnReceived(String reason) implements ConsignmentEvent {}
 record Rebooked() implements ConsignmentEvent {}
 
 // The plugin host the last pattern dispatches over.
-record DatabaseConfig(String url) {
+record DatabaseConfig(String host, int port, Optional<PoolConfig> pool) {
 
   DatabaseConfig withReadReplica() {
-    return new DatabaseConfig(url + "?replica=read");
+    return new DatabaseConfig("replica." + host, port, pool);
   }
 }
+
+record PoolConfig(int minSize, int maxSize) {}
 
 record Result(String output) {}
 

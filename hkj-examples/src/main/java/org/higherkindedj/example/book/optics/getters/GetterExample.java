@@ -24,7 +24,8 @@ public class GetterExample {
 
   public record Person(String firstName, String lastName, int age, Address address) {}
 
-  public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
+  public record CompanyProfile(
+      String name, Person ceo, List<Person> employees, Address headquarters) {}
 
   public static void main(String[] args) {
     // Create sample data
@@ -38,7 +39,7 @@ public class GetterExample {
             new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1 4AP")));
 
     Address hqAddress = new Address("1000 Corporate Way", "London", "EC2A 4NE");
-    Company company = new Company("TechCorp", ceo, employees, hqAddress);
+    CompanyProfile company = new CompanyProfile("TechCorp", ceo, employees, hqAddress);
 
     // === Basic Getters ===
     Getter<Person, String> fullName = Getter.of(p -> p.firstName() + " " + p.lastName());
@@ -60,10 +61,10 @@ public class GetterExample {
     // === Composition ===
     Getter<Person, Address> addressGetter = Getter.of(Person::address);
     Getter<Address, String> cityGetter = Getter.of(Address::city);
-    Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
+    Getter<CompanyProfile, Person> ceoGetter = Getter.of(CompanyProfile::ceo);
 
     Getter<Person, String> personCity = addressGetter.andThen(cityGetter);
-    Getter<Company, String> companyCeoCity = ceoGetter.andThen(personCity);
+    Getter<CompanyProfile, String> companyCeoCity = ceoGetter.andThen(personCity);
 
     System.out.println("CEO City: " + personCity.get(ceo));
     System.out.println("Company CEO City: " + companyCeoCity.get(company));

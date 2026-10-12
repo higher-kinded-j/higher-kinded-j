@@ -24,8 +24,8 @@ public class ConfigAuditExample {
     System.out.println("--- Scenario 1: Using `with*` Helpers ---");
 
     // A simple, shallow update is very easy.
-    var renamedConfig = AppConfigLenses.withAppId(firstConfig, "RenamedBillingService");
-    System.out.println("After `withAppId`: " + renamedConfig);
+    var renamedConfig = ServiceManifestLenses.withName(firstConfig, "RenamedBillingService");
+    System.out.println("After `withName`: " + renamedConfig);
 
     // A deeper update requires a few steps, but is still clear.
     // Let's update the db.password for the first config.
@@ -42,7 +42,7 @@ public class ConfigAuditExample {
       }
     }
     // Create the final config with the new list of settings
-    var updatedPasswordConfig = AppConfigLenses.withSettings(firstConfig, newSettings);
+    var updatedPasswordConfig = ServiceManifestLenses.withSettings(firstConfig, newSettings);
     System.out.println("After updating password: " + updatedPasswordConfig);
     System.out.println("------------------------------------------");
 
@@ -52,7 +52,7 @@ public class ConfigAuditExample {
     System.out.println("--- Scenario 2: Using Composed Optics for Deep Auditing ---");
     System.out.println("Building the declarative auditor optic...");
 
-    Prism<AppConfig, AppConfig> gcpLiveOnlyPrism =
+    Prism<ServiceManifest, ServiceManifest> gcpLiveOnlyPrism =
         Prism.of(
             config -> {
               String rawTarget = DeploymentTarget.toRawString().get(config.target());
@@ -62,24 +62,24 @@ public class ConfigAuditExample {
 
     // This traversal composes multiple optics to create a powerful tool that
     // finds all Base64-encoded passwords.
-    Traversal<AppConfig, byte[]> auditTraversal =
-        AppConfigTraversals.settings()
+    Traversal<ServiceManifest, byte[]> auditTraversal =
+        ServiceManifestTraversals.settings()
             .andThen(SettingLenses.value())
             .andThen(SettingValuePrisms.encryptedValue())
             .andThen(EncryptedValueLenses.base64Value())
             .andThen(EncryptedValueIsos.base64);
 
     // Further compose it to only apply to configs matching the prism.
-    Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
+    Traversal<ServiceManifest, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
 
     System.out.println("\n🔎 Running audit across all configurations...");
-    for (AppConfig config : configs) {
+    for (ServiceManifest config : configs) {
       List<byte[]> passwords = Traversals.getAll(finalAuditor, config);
 
       String targetString = DeploymentTarget.toRawString().get(config.target());
       System.out.printf(
           "\nAudit for App '%s' (Target: %s): Found %d passwords.",
-          config.appId(), targetString, passwords.size());
+          config.name(), targetString, passwords.size());
 
       if (!passwords.isEmpty()) {
         System.out.println(" Decoded values:");
@@ -88,7 +88,7 @@ public class ConfigAuditExample {
     }
   }
 
-  private static List<AppConfig> createSampleConfigs() {
+  private static List<ServiceManifest> createSampleConfigs() {
     var prodDb =
         new Setting("db.password", new EncryptedValue("c2VjcmV0X3Bhc3N3b3Jk")); // "secret_password"
     var stagingDb =
@@ -97,13 +97,14 @@ public class ConfigAuditExample {
         new Setting("api.key", new EncryptedValue("c3VwZXJfYXBpX2tleQ==")); // "super_api_key"
 
     return List.of(
-        new AppConfig(
+        new ServiceManifest(
             "BillingService",
             List.of(new Setting("threads", new IntValue(4)), prodDb),
             new DeploymentTarget("gcp", "live")),
-        new AppConfig("AuthService", List.of(stagingDb), new DeploymentTarget("gcp", "staging")),
-        new AppConfig("DataPipeline", List.of(prodDb), new DeploymentTarget("aws", "live")),
-        new AppConfig(
+        new ServiceManifest(
+            "AuthService", List.of(stagingDb), new DeploymentTarget("gcp", "staging")),
+        new ServiceManifest("DataPipeline", List.of(prodDb), new DeploymentTarget("aws", "live")),
+        new ServiceManifest(
             "ReportingService", List.of(apiKey, prodDb), new DeploymentTarget("gcp", "live")));
   }
 }

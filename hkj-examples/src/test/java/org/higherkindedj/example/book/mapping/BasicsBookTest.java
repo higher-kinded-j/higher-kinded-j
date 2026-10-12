@@ -36,7 +36,7 @@ class BasicsBookTest {
       "a surface of the Impl held on the spec fails the Impl's initialisation, and every use after")
   void aSurfaceOnTheSpecFailsTheImplsInitialisation() {
     // A program loading this package afresh uses the Impl before the spec's PRISM, twice:
-    assertThat(failuresUsingTwice("LockerMappingImpl"))
+    assertThat(failuresUsingTwice("ParcelLockerMappingImpl"))
         .satisfiesExactly(
             first ->
                 assertThat(first)

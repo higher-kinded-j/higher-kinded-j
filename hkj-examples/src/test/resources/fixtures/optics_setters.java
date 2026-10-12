@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/setters.md
 //
-// The page writes through users, products and a company without ever reading back, and builds its
-// setters by hand with `Setter.fromGetSet`. The models are declared here, along with the setters
-// the later sections name but do not repeat; a snippet that shows a model shadows this copy.
+// The page writes through users, products and an intake of new hires without ever reading back,
+// and builds its setters by hand with `Setter.fromGetSet`. The models are declared here, along with
+// the setters the later sections name but do not repeat; a snippet that shows a model shadows this
+// copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -40,9 +41,9 @@ record Product(String sku, String name, BigDecimal price, int stock) {}
 @GenerateSetters
 record Inventory(List<Product> products, String warehouseId) {}
 
-record Person(String name, int age) {}
+record NewHire(String name, int age) {}
 
-record Company(String name, List<Person> employees, List<Product> products) {}
+record Intake(String name, List<NewHire> hires) {}
 
 class Fixture {
 
@@ -52,7 +53,7 @@ class Fixture {
 
   static final List<User> users = List.of(user);
 
-  static final Person person = new Person("Ada", 36);
+  static final NewHire hire = new NewHire("Ada", 36);
 
   static final Product laptop = new Product("LAPTOP", "Laptop", new BigDecimal("999.99"), 50);
 
@@ -60,7 +61,7 @@ class Fixture {
 
   static final Inventory inventory = new Inventory(usdProducts, "WH-1");
 
-  static final Company company = new Company("Initech", List.of(person), usdProducts);
+  static final Intake intake = new Intake("September intake", List.of(hire));
 
   static final List<String> rawStrings = List.of("  one  ", " two ");
 
@@ -94,18 +95,13 @@ class Fixture {
 
   static final Setter<List<Product>, Product> productSetter = productsSetter;
 
-  static final Setter<List<Person>, Person> employeesSetter = Setter.forList();
+  static final Setter<List<NewHire>, NewHire> hiresSetter = Setter.forList();
 
-  static final Setter<Person, String> personNameSetter =
-      Setter.fromGetSet(Person::name, (p, name) -> new Person(name, p.age()));
+  static final Setter<NewHire, String> hireNameSetter =
+      Setter.fromGetSet(NewHire::name, (h, name) -> new NewHire(name, h.age()));
 
-  static final Setter<Company, List<Person>> companySetter =
-      Setter.fromGetSet(
-          Company::employees, (c, e) -> new Company(c.name(), e, c.products()));
-
-  static final Setter<Company, List<Product>> companyProductsSetter =
-      Setter.fromGetSet(
-          Company::products, (c, p) -> new Company(c.name(), c.employees(), p));
+  static final Setter<Intake, List<NewHire>> intakeSetter =
+      Setter.fromGetSet(Intake::hires, (i, h) -> new Intake(i.name(), h));
 
   static final Traversal<Inventory, Product> productTraversal =
       Lens.<Inventory, List<Product>>of(

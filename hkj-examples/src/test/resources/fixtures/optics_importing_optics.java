@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -57,7 +58,9 @@ enum TrackingStatus {
   RETURNED
 }
 
-record Employee(String name) {}
+record Company(String name, Address address) {}
+
+record Employee(String name, Company company) {}
 
 record Department(String name, List<Employee> staff) {}
 

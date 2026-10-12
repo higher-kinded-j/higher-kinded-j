@@ -50,19 +50,19 @@ public final class BeansBook {
 
   public static void main(String[] args) {
     // ANCHOR: bean_projection_usage
-    Employee researcher = new Employee("Ada", "Research", 36);
+    BadgeHolder researcher = new BadgeHolder("Ada", "Research", 36);
     TransferBean transfer = new TransferBean();
     transfer.setDepartment("Platform");
     TransferMappingImpl transferMapping = TransferMappingImpl.INSTANCE;
 
     // The bean's property can be unset, so the projection validates: patch, never a lens.
-    Validated<NonEmptyList<FieldError>, Employee> transferred =
+    Validated<NonEmptyList<FieldError>, BadgeHolder> transferred =
         transferMapping.patch(researcher, transfer);
-    // Valid(Employee[name=Ada, department=Platform, age=36])
+    // Valid(BadgeHolder[name=Ada, department=Platform, age=36])
 
     // Dense, as on a record wire: an unset property is a located error, never "keep the current
     // value".
-    Validated<NonEmptyList<FieldError>, Employee> unset =
+    Validated<NonEmptyList<FieldError>, BadgeHolder> unset =
         transferMapping.patch(researcher, new TransferBean());
     // Invalid(NonEmptyList[department: must not be null])
     // ANCHOR_END: bean_projection_usage
@@ -238,7 +238,7 @@ interface ContactMapping extends MappingSpec<Customer, ContactBean> {
 // ANCHOR_END: bean_spec
 
 // ANCHOR: bean_projection_spec
-// A bean carrying one of Employee's three components: a projection. A record wire of that shape
+// A bean carrying one of BadgeHolder's three components: a projection. A record wire of that shape
 // copies by identity and keeps asLens(); a bean's reference property can be unset, which a lens's
 // set could not refuse, so the Impl emits the validated patch instead.
 class TransferBean {
@@ -254,7 +254,7 @@ class TransferBean {
 }
 
 @GenerateMapping
-interface TransferMapping extends MappingSpec<Employee, TransferBean> {}
+interface TransferMapping extends MappingSpec<BadgeHolder, TransferBean> {}
 
 // ANCHOR_END: bean_projection_spec
 

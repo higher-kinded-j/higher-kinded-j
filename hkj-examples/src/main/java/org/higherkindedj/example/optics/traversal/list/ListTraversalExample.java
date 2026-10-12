@@ -23,11 +23,11 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 public class ListTraversalExample {
 
   /**
-   * An immutable Project record. A project has a name and a list of team members. We use
+   * An immutable ProjectStaffing record. A project has a name and a list of team members. We use
    * {@code @GenerateTraversals} to generate optics for this record.
    */
   @GenerateTraversals
-  public record Project(String name, List<String> teamMembers) {}
+  public record ProjectStaffing(String name, List<String> teamMembers) {}
 
   // A simple "database" of valid users.
   private static final Set<String> VALID_USERS = Set.of("Alice", "Bob", "Charlie");
@@ -57,61 +57,63 @@ public class ListTraversalExample {
         Instances.validated(stringSemigroup);
 
     // 2. Get the generated traversal for the 'teamMembers' field.
-    var membersTraversal = ProjectTraversals.teamMembers();
+    var membersTraversal = ProjectStaffingTraversals.teamMembers();
 
     System.out.println("--- Running Traversal Scenarios for List ---");
 
     // --- Scenario 1: A project with all valid team members ---
-    Project projectAllValid = new Project("Project Phoenix", List.of("Alice", "Bob", "Charlie"));
+    ProjectStaffing projectAllValid =
+        new ProjectStaffing("Project Phoenix", List.of("Alice", "Bob", "Charlie"));
     System.out.println("\nInput: " + projectAllValid);
 
     // Use the traversal to apply the lookup function to every member in the list.
-    Kind<ValidatedKind.Witness<String>, Project> result1 =
+    Kind<ValidatedKind.Witness<String>, ProjectStaffing> result1 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectAllValid, validatedApplicative);
 
-    Validated<String, Project> validatedResult1 = VALIDATED.narrow(result1);
+    Validated<String, ProjectStaffing> validatedResult1 = VALIDATED.narrow(result1);
     System.out.println("Result: " + validatedResult1);
-    // Expected: Valid(Project[name=Project Phoenix, teamMembers=[Alice, Bob, Charlie]])
+    // Expected: Valid(ProjectStaffing[name=Project Phoenix, teamMembers=[Alice, Bob, Charlie]])
 
     // --- Scenario 2: A project with an invalid team member ---
-    Project projectInvalidMember = new Project("Project Hydra", List.of("Alice", "Zeke", "Bob"));
+    ProjectStaffing projectInvalidMember =
+        new ProjectStaffing("Project Hydra", List.of("Alice", "Zeke", "Bob"));
     System.out.println("\nInput: " + projectInvalidMember);
 
     // The traversal will fail on the first failure ("Zeke").
-    Kind<ValidatedKind.Witness<String>, Project> result2 =
+    Kind<ValidatedKind.Witness<String>, ProjectStaffing> result2 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectInvalidMember, validatedApplicative);
 
-    Validated<String, Project> validatedResult2 = VALIDATED.narrow(result2);
+    Validated<String, ProjectStaffing> validatedResult2 = VALIDATED.narrow(result2);
     System.out.println("Result: " + validatedResult2);
     // Expected: Invalid(User 'Zeke' not found)
 
     // --- Scenario 3: A project with multiple invalid team members ---
-    Project projectMultipleInvalid =
-        new Project("Project Cerberus", List.of("David", "Alice", "Eve"));
+    ProjectStaffing projectMultipleInvalid =
+        new ProjectStaffing("Project Cerberus", List.of("David", "Alice", "Eve"));
     System.out.println("\nInput: " + projectMultipleInvalid);
 
     // The traversal will accumulate all errors.
-    Kind<ValidatedKind.Witness<String>, Project> result3 =
+    Kind<ValidatedKind.Witness<String>, ProjectStaffing> result3 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectMultipleInvalid, validatedApplicative);
 
-    Validated<String, Project> validatedResult3 = VALIDATED.narrow(result3);
+    Validated<String, ProjectStaffing> validatedResult3 = VALIDATED.narrow(result3);
     System.out.println("Result (errors accumulated): " + validatedResult3);
     // Expected: Invalid(User 'David' not found; User 'Eve' not found)
 
     // --- Scenario 4: A project with no team members ---
-    Project projectEmptyTeam = new Project("Project Solo", List.of());
+    ProjectStaffing projectEmptyTeam = new ProjectStaffing("Project Solo", List.of());
     System.out.println("\nInput: " + projectEmptyTeam);
 
     // The traversal function is never called because the list is empty.
-    Kind<ValidatedKind.Witness<String>, Project> result4 =
+    Kind<ValidatedKind.Witness<String>, ProjectStaffing> result4 =
         membersTraversal.modifyF(
             ListTraversalExample::lookupUser, projectEmptyTeam, validatedApplicative);
 
-    Validated<String, Project> validatedResult4 = VALIDATED.narrow(result4);
+    Validated<String, ProjectStaffing> validatedResult4 = VALIDATED.narrow(result4);
     System.out.println("Result: " + validatedResult4);
-    // Expected: Valid(Project[name=Project Solo, teamMembers=[]])
+    // Expected: Valid(ProjectStaffing[name=Project Solo, teamMembers=[]])
   }
 }

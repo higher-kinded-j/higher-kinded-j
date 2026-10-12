@@ -38,7 +38,8 @@ public class ValidatedTraversalExample {
 
   @GenerateLenses
   @GenerateTraversals
-  public record VTUser(String username, List<Permission> permissions) implements Principal {}
+  public record RegisteredUser(String username, List<Permission> permissions)
+      implements Principal {}
 
   public record Guest() implements Principal {}
 
@@ -60,8 +61,8 @@ public class ValidatedTraversalExample {
   // --- Reusable Optic Compositions ---
   public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
       FormLenses.principal()
-          .andThen(PrincipalPrisms.vTUser())
-          .andThen(VTUserTraversals.permissions())
+          .andThen(PrincipalPrisms.registeredUser())
+          .andThen(RegisteredUserTraversals.permissions())
           .andThen(PermissionLenses.name());
 
   // --- Helper Methods ---
@@ -83,7 +84,8 @@ public class ValidatedTraversalExample {
     // --- SCENARIO 1: Form with valid permissions ---
     System.out.println("--- Scenario 1: Valid Permissions ---");
     var validUser =
-        new VTUser("alice", List.of(new Permission("PERM_READ"), new Permission("PERM_WRITE")));
+        new RegisteredUser(
+            "alice", List.of(new Permission("PERM_READ"), new Permission("PERM_WRITE")));
     var validForm = new Form(1, validUser);
 
     System.out.println("Input: " + validForm);
@@ -94,7 +96,7 @@ public class ValidatedTraversalExample {
     // --- SCENARIO 2: Form with multiple invalid permissions ---
     System.out.println("--- Scenario 2: Multiple Invalid Permissions ---");
     var invalidUser =
-        new VTUser(
+        new RegisteredUser(
             "charlie",
             List.of(
                 new Permission("PERM_EXECUTE"), // Invalid
@@ -120,7 +122,7 @@ public class ValidatedTraversalExample {
 
     // --- SCENARIO 4: Form with empty permissions list ---
     System.out.println("--- Scenario 4: Empty Permissions List ---");
-    var emptyPermissionsUser = new VTUser("diana", List.of());
+    var emptyPermissionsUser = new RegisteredUser("diana", List.of());
     var emptyPermissionsForm = new Form(5, emptyPermissionsUser);
 
     System.out.println("Input: " + emptyPermissionsForm);
@@ -175,7 +177,7 @@ public class ValidatedTraversalExample {
     System.out.println("--- Scenario 7: Selective Validation (Skipping the Expensive Check) ---");
 
     var userWithInvalidPerms =
-        new VTUser(
+        new RegisteredUser(
             "eve",
             List.of(
                 new Permission(""), // Empty - cheap check fails

@@ -29,17 +29,17 @@ public class PrismConvenienceMethodsExample {
 
   // Domain model for API responses
   @GeneratePrisms
-  public sealed interface HttpResponse {}
+  public sealed interface BackendResponse {}
 
   @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.convenience")
-  public record Success(String data, int statusCode) implements HttpResponse {}
+  public record SuccessResponse(String data, int statusCode) implements BackendResponse {}
 
-  public record ValidationError(List<String> errors, String field) implements HttpResponse {}
+  public record ValidationError(List<String> errors, String field) implements BackendResponse {}
 
   @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.convenience")
-  public record ServerError(String message, String traceId) implements HttpResponse {}
+  public record ServerError(String message, String traceId) implements BackendResponse {}
 
-  public record RateLimitError(long retryAfterMs) implements HttpResponse {}
+  public record RateLimitError(long retryAfterMs) implements BackendResponse {}
 
   public static void main(String[] args) {
     System.out.println("=== Prism Convenience Methods Examples ===\n");
@@ -56,24 +56,24 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateMatches() {
     System.out.println("--- matches(): Type Checking Without Extraction ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    List<HttpResponse> responses =
+    List<BackendResponse> responses =
         List.of(
-            new Success("User data", 200),
+            new SuccessResponse("User data", 200),
             new ValidationError(List.of("Invalid email"), "email"),
-            new Success("Order data", 200),
+            new SuccessResponse("Order data", 200),
             new ServerError("Database connection failed", "trace-123"));
 
     // Use matches() for filtering
-    List<HttpResponse> successfulResponses =
+    List<BackendResponse> successfulResponses =
         responses.stream().filter(successPrism::matches).collect(Collectors.toList());
 
     System.out.println("Total responses: " + responses.size());
     System.out.println("Successful responses: " + successfulResponses.size());
 
     // Use matches() in conditional logic
-    HttpResponse response = responses.get(0);
+    BackendResponse response = responses.get(0);
     if (successPrism.matches(response)) {
       System.out.println("First response was successful");
     }
@@ -84,16 +84,16 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateGetOrElse() {
     System.out.println("--- getOrElse(): Providing Default Values ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    HttpResponse successResponse = new Success("User data", 200);
-    HttpResponse errorResponse = new ServerError("Internal error", "trace-456");
+    BackendResponse successResponse = new SuccessResponse("User data", 200);
+    BackendResponse errorResponse = new ServerError("Internal error", "trace-456");
 
     // Extract success data or use default
-    Success defaultSuccess = new Success("fallback", 200);
+    SuccessResponse defaultSuccess = new SuccessResponse("fallback", 200);
 
-    Success result1 = successPrism.getOrElse(defaultSuccess, successResponse);
-    Success result2 = successPrism.getOrElse(defaultSuccess, errorResponse);
+    SuccessResponse result1 = successPrism.getOrElse(defaultSuccess, successResponse);
+    SuccessResponse result2 = successPrism.getOrElse(defaultSuccess, errorResponse);
 
     System.out.println("Success response data: " + result1.data());
     System.out.println("Error response data (with default): " + result2.data());
@@ -104,9 +104,9 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateMapOptional() {
     System.out.println("--- mapOptional(): Transforming Matched Values ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    HttpResponse response = new Success("User: Alice", 200);
+    BackendResponse response = new SuccessResponse("User: Alice", 200);
 
     // Extract and transform in one operation
     Optional<String> upperCaseData =
@@ -121,7 +121,7 @@ public class PrismConvenienceMethodsExample {
     System.out.println("Is OK status: " + isOk.orElse(false));
 
     // Won't transform if prism doesn't match
-    HttpResponse errorResponse = new ServerError("Error", "trace-789");
+    BackendResponse errorResponse = new ServerError("Error", "trace-789");
     Optional<String> noTransform =
         successPrism.mapOptional(s -> s.data().toUpperCase(), errorResponse);
     System.out.println("Transform on error: " + noTransform.orElse("No match"));
@@ -132,22 +132,23 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateModify() {
     System.out.println("--- modify(): Simple Modifications ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    HttpResponse response = new Success("hello world", 200);
+    BackendResponse response = new SuccessResponse("hello world", 200);
 
     // Modify if prism matches
-    HttpResponse uppercased =
-        successPrism.modify(s -> new Success(s.data().toUpperCase(), s.statusCode()), response);
+    BackendResponse uppercased =
+        successPrism.modify(
+            s -> new SuccessResponse(s.data().toUpperCase(), s.statusCode()), response);
 
     System.out.println("Original: " + response);
     System.out.println("Modified: " + uppercased);
 
     // Returns original if no match
-    HttpResponse errorResponse = new ServerError("Error", "trace-xyz");
-    HttpResponse unchanged =
+    BackendResponse errorResponse = new ServerError("Error", "trace-xyz");
+    BackendResponse unchanged =
         successPrism.modify(
-            s -> new Success(s.data().toUpperCase(), s.statusCode()), errorResponse);
+            s -> new SuccessResponse(s.data().toUpperCase(), s.statusCode()), errorResponse);
 
     System.out.println("Error (unchanged): " + unchanged);
 
@@ -157,23 +158,23 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateModifyWhen() {
     System.out.println("--- modifyWhen(): Conditional Modifications ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    List<HttpResponse> responses =
+    List<BackendResponse> responses =
         List.of(
-            new Success("short", 200),
-            new Success("This is a longer response message", 200),
-            new Success("ok", 200),
+            new SuccessResponse("short", 200),
+            new SuccessResponse("This is a longer response message", 200),
+            new SuccessResponse("ok", 200),
             new ServerError("Error", "trace-abc"));
 
     // Only modify success responses with data longer than 10 characters
-    List<HttpResponse> processed =
+    List<BackendResponse> processed =
         responses.stream()
             .map(
                 r ->
                     successPrism.modifyWhen(
                         s -> s.data().length() > 10,
-                        s -> new Success("[LONG] " + s.data(), s.statusCode()),
+                        s -> new SuccessResponse("[LONG] " + s.data(), s.statusCode()),
                         r))
             .collect(Collectors.toList());
 
@@ -189,19 +190,19 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateSetWhen() {
     System.out.println("--- setWhen(): Conditional Setting ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
 
-    List<HttpResponse> responses =
+    List<BackendResponse> responses =
         List.of(
-            new Success("valid data", 200),
-            new Success("", 200), // Empty data
-            new Success("another valid response", 200),
+            new SuccessResponse("valid data", 200),
+            new SuccessResponse("", 200), // Empty data
+            new SuccessResponse("another valid response", 200),
             new ValidationError(List.of("Error"), "field"));
 
-    Success replacement = new Success("SANITISED", 200);
+    SuccessResponse replacement = new SuccessResponse("SANITISED", 200);
 
     // Only set if current data is empty
-    List<HttpResponse> sanitised =
+    List<BackendResponse> sanitised =
         responses.stream()
             .map(r -> successPrism.setWhen(s -> s.data().isEmpty(), replacement, r))
             .collect(Collectors.toList());
@@ -218,42 +219,43 @@ public class PrismConvenienceMethodsExample {
   private static void demonstrateOrElse() {
     System.out.println("--- orElse(): Fallback Prism Chaining ---");
 
-    Prism<HttpResponse, Success> successPrism = HttpResponsePrisms.success();
-    Prism<HttpResponse, ServerError> serverErrorPrism = HttpResponsePrisms.serverError();
+    Prism<BackendResponse, SuccessResponse> successPrism = BackendResponsePrisms.successResponse();
+    Prism<BackendResponse, ServerError> serverErrorPrism = BackendResponsePrisms.serverError();
 
-    List<HttpResponse> responses =
+    List<BackendResponse> responses =
         List.of(
-            new Success("Operation completed", 200),
+            new SuccessResponse("Operation completed", 200),
             new ServerError("Database error", "trace-def"),
             new ValidationError(List.of("Invalid"), "field"), // Won't match either prism
-            new Success("User created", 201));
+            new SuccessResponse("User created", 201));
 
     System.out.println("Extracting messages:");
-    for (HttpResponse response : responses) {
-      // Extract messages from either Success or ServerError using mapOptional
+    for (BackendResponse response : responses) {
+      // Extract messages from either SuccessResponse or ServerError using mapOptional
       String message =
           successPrism
-              .mapOptional(Success::data, response)
+              .mapOptional(SuccessResponse::data, response)
               .or(() -> serverErrorPrism.mapOptional(ServerError::message, response))
               .orElse("No message available");
       System.out.println("  " + response.getClass().getSimpleName() + " -> " + message);
     }
 
     // Demonstrate prism orElse() for combining prisms of the same type
-    // Create two prisms that both extract Success but from different response types
-    Prism<HttpResponse, Success> primaryPrism = HttpResponsePrisms.success();
-    Prism<HttpResponse, Success> fallbackPrism = HttpResponsePrisms.success();
+    // Create two prisms that both extract SuccessResponse but from different response types
+    Prism<BackendResponse, SuccessResponse> primaryPrism = BackendResponsePrisms.successResponse();
+    Prism<BackendResponse, SuccessResponse> fallbackPrism = BackendResponsePrisms.successResponse();
 
     // Combine them - orElse tries the first prism, then the second
-    Prism<HttpResponse, Success> combinedPrism = primaryPrism.orElse(fallbackPrism);
+    Prism<BackendResponse, SuccessResponse> combinedPrism = primaryPrism.orElse(fallbackPrism);
 
-    HttpResponse testResponse = new Success("Test data", 200);
-    Success extracted = combinedPrism.getOrElse(new Success("default", 500), testResponse);
+    BackendResponse testResponse = new SuccessResponse("Test data", 200);
+    SuccessResponse extracted =
+        combinedPrism.getOrElse(new SuccessResponse("default", 500), testResponse);
     System.out.println("\nExtracted with combined prism: " + extracted.data());
 
     // Building with orElse-chained prism uses the first prism's constructor
-    Success testSuccess = new Success("Built data", 201);
-    HttpResponse built = combinedPrism.build(testSuccess);
+    SuccessResponse testSuccess = new SuccessResponse("Built data", 201);
+    BackendResponse built = combinedPrism.build(testSuccess);
     System.out.println("Built response type: " + built.getClass().getSimpleName());
     System.out.println("Built response: " + built);
 

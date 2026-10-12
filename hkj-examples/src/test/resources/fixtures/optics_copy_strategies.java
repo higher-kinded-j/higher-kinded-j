@@ -90,24 +90,24 @@ final class Customer {
 
 /** Stands in for a wither-based immutable type. */
 final class Money {
+  private final long cents;
   private final String currency;
-  private final long amount;
 
-  Money(String currency, long amount) {
+  Money(long cents, String currency) {
+    this.cents = cents;
     this.currency = currency;
-    this.amount = amount;
+  }
+
+  public long getCents() {
+    return cents;
   }
 
   public String getCurrency() {
     return currency;
   }
 
-  public long getAmount() {
-    return amount;
-  }
-
-  public Money withAmount(long newAmount) {
-    return new Money(currency, newAmount);
+  public Money withCents(long newCents) {
+    return new Money(newCents, currency);
   }
 }
 
@@ -131,14 +131,14 @@ final class Point {
 }
 
 /** Stands in for a legacy mutable type with a copy constructor and setters. */
-final class Config {
+final class HostSetting {
   private String host;
 
-  Config(String host) {
+  HostSetting(String host) {
     this.host = host;
   }
 
-  Config(Config other) {
+  HostSetting(HostSetting other) {
     this.host = other.host;
   }
 
@@ -314,8 +314,8 @@ interface CustomerOpticsSpec extends OpticsSpec<Customer> {
 @ImportOptics
 interface MoneyOpticsSpec extends OpticsSpec<Money> {
 
-  @Wither(value = "withAmount", getter = "getAmount")
-  Lens<Money, Long> amount();
+  @Wither(value = "withCents", getter = "getCents")
+  Lens<Money, Long> cents();
 }
 
 @ImportOptics
@@ -329,10 +329,10 @@ interface PointOpticsSpec extends OpticsSpec<Point> {
 }
 
 @ImportOptics
-interface ConfigOpticsSpec extends OpticsSpec<Config> {
+interface HostSettingOpticsSpec extends OpticsSpec<HostSetting> {
 
   @ViaCopyAndSet(setter = "setHost")
-  Lens<Config, String> host();
+  Lens<HostSetting, String> host();
 }
 
 @ImportOptics
@@ -393,9 +393,9 @@ class Fixture {
           CastFixtures.GBP,
           OrderStatus.NEW);
 
-  static final Money money = new Money("GBP", 2500L);
+  static final Money money = new Money(2500L, "GBP");
 
   static final Point origin = new Point(0, 0);
 
-  static final Config config = new Config("localhost");
+  static final HostSetting hostSetting = new HostSetting("localhost");
 }

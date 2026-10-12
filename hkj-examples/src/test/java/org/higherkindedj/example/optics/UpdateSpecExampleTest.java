@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import org.higherkindedj.example.optics.UpdateSpecExample.EmailAddress;
-import org.higherkindedj.example.optics.UpdateSpecExample.User;
-import org.higherkindedj.example.optics.UpdateSpecExample.UserPatchRequest;
+import org.higherkindedj.example.optics.UpdateSpecExample.MemberProfile;
+import org.higherkindedj.example.optics.UpdateSpecExample.ProfilePatchRequest;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("UpdateSpecExample: sparse PATCH write-back through UpdateSpec")
 class UpdateSpecExampleTest {
 
-  private static UserPatchRequest request(String name, String email, Integer age) {
-    UserPatchRequest request = new UserPatchRequest();
+  private static ProfilePatchRequest request(String name, String email, Integer age) {
+    ProfilePatchRequest request = new ProfilePatchRequest();
     request.setName(name);
     request.setEmail(email);
     request.setAge(age);
@@ -33,9 +33,9 @@ class UpdateSpecExampleTest {
   @DisplayName("the sparse-update mapping satisfies identity, idempotence and validation")
   void updateMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        UpdateSpecExampleUserPatchMappingImpl.INSTANCE::updateFrom,
-        new User("Ada", new EmailAddress("ada@corp.example"), 36),
-        new UserPatchRequest(), // all-absent, as bound from {}
+        UpdateSpecExampleProfilePatchMappingImpl.INSTANCE::updateFrom,
+        new MemberProfile("Ada", new EmailAddress("ada@corp.example"), 36),
+        new ProfilePatchRequest(), // all-absent, as bound from {}
         request("Grace", "grace@corp.example", 41),
         request(null, "not-an-email", null));
   }
@@ -43,21 +43,21 @@ class UpdateSpecExampleTest {
   @Test
   @DisplayName("present fields are applied, absent ones keep their current value")
   void appliesPresentLeavesAbsent() {
-    User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
+    MemberProfile current = new MemberProfile("Ada", new EmailAddress("ada@corp.example"), 36);
 
     var patched = UpdateSpecExample.applyPatch(current, request("Ada Lovelace", null, null));
 
     assertThat(patched.isValid()).isTrue();
     assertThat(patched.get())
-        .isEqualTo(new User("Ada Lovelace", new EmailAddress("ada@corp.example"), 36));
+        .isEqualTo(new MemberProfile("Ada Lovelace", new EmailAddress("ada@corp.example"), 36));
   }
 
   @Test
   @DisplayName("an all-absent request is the identity update")
   void allAbsentIsIdentity() {
-    User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
+    MemberProfile current = new MemberProfile("Ada", new EmailAddress("ada@corp.example"), 36);
 
-    var patched = UpdateSpecExample.applyPatch(current, new UserPatchRequest());
+    var patched = UpdateSpecExample.applyPatch(current, new ProfilePatchRequest());
 
     assertThat(patched.isValid()).isTrue();
     assertThat(patched.get()).isEqualTo(current);
@@ -66,7 +66,7 @@ class UpdateSpecExampleTest {
   @Test
   @DisplayName("a present invalid field fails the patch, located, writing nothing")
   void presentInvalidFieldFailsLocated() {
-    User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
+    MemberProfile current = new MemberProfile("Ada", new EmailAddress("ada@corp.example"), 36);
 
     var patched = UpdateSpecExample.applyPatch(current, request("Grace", "not-an-email", null));
 

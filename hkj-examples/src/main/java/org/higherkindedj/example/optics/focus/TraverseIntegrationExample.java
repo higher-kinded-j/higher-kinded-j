@@ -35,39 +35,42 @@ public class TraverseIntegrationExample {
 
   // ============= Domain Model =============
 
-  /** A role with a name and permission level. */
-  record Role(String name, int level) {
-    Role promote() {
-      return new Role(name, level + 1);
+  /** A skill with a name and proficiency level. */
+  record Skill(String name, int proficiency) {
+    /** Creates a skill with increased proficiency. */
+    Skill improve() {
+      return new Skill(name, Math.min(100, proficiency + 10));
     }
   }
 
-  /** A team member with Kind-wrapped roles. */
-  record Member(String name, Kind<ListKind.Witness, Role> roles) {}
+  /** A team member with Kind-wrapped skills. */
+  record Member(String name, Kind<ListKind.Witness, Skill> skills) {}
 
   /** A team with Kind-wrapped members. */
-  record Team(String name, Kind<ListKind.Witness, Member> members) {}
+  record SkillsTeam(String name, Kind<ListKind.Witness, Member> members) {}
 
-  /** A project with an optional lead team. */
-  record Project(
-      String name, Kind<MaybeKind.Witness, Team> leadTeam, Kind<ListKind.Witness, Team> allTeams) {}
+  /** A project plan with an optional lead team. */
+  record ProjectPlan(
+      String name,
+      Kind<MaybeKind.Witness, SkillsTeam> leadTeam,
+      Kind<ListKind.Witness, SkillsTeam> allTeams) {}
 
   // ============= Lenses =============
 
-  static final Lens<Team, Kind<ListKind.Witness, Member>> teamMembersLens =
-      Lens.of(Team::members, (t, m) -> new Team(t.name(), m));
+  static final Lens<SkillsTeam, Kind<ListKind.Witness, Member>> teamMembersLens =
+      Lens.of(SkillsTeam::members, (t, m) -> new SkillsTeam(t.name(), m));
 
-  static final Lens<Member, Kind<ListKind.Witness, Role>> memberRolesLens =
-      Lens.of(Member::roles, (m, r) -> new Member(m.name(), r));
+  static final Lens<Member, Kind<ListKind.Witness, Skill>> memberSkillsLens =
+      Lens.of(Member::skills, (m, s) -> new Member(m.name(), s));
 
-  static final Lens<Role, Integer> roleLevelLens =
-      Lens.of(Role::level, (r, l) -> new Role(r.name(), l));
+  static final Lens<Skill, Integer> skillProficiencyLens =
+      Lens.of(Skill::proficiency, (s, p) -> new Skill(s.name(), p));
 
-  static final Lens<Project, Kind<MaybeKind.Witness, Team>> projectLeadTeamLens =
-      Lens.of(Project::leadTeam, (p, t) -> new Project(p.name(), t, p.allTeams()));
+  static final Lens<ProjectPlan, Kind<MaybeKind.Witness, SkillsTeam>> projectLeadTeamLens =
+      Lens.of(ProjectPlan::leadTeam, (p, t) -> new ProjectPlan(p.name(), t, p.allTeams()));
 
-  static final Lens<Project, Kind<ListKind.Witness, Team>> projectAllTeamsLens =
-      Lens.of(Project::allTeams, (p, t) -> new Project(p.name(), p.leadTeam(), t));
+  static final Lens<ProjectPlan, Kind<ListKind.Witness, SkillsTeam>> projectAllTeamsLens =
+      Lens.of(ProjectPlan::allTeams, (p, t) -> new ProjectPlan(p.name(), p.leadTeam(), t));
 
   // ============= Sum Types for Combined Pattern =============
 
@@ -75,7 +78,7 @@ public class TraverseIntegrationExample {
   sealed interface ProjectVariant permits ActiveProject, ArchivedProject {}
 
   /** An active project with full details. */
-  record ActiveProject(Project project) implements ProjectVariant {}
+  record ActiveProject(ProjectPlan project) implements ProjectVariant {}
 
   /** An archived project with limited information. */
   record ArchivedProject(String name, String archiveDate) implements ProjectVariant {}
@@ -96,24 +99,24 @@ public class TraverseIntegrationExample {
     System.out.println("--- Basic traverseOver() ---");
 
     // Create a team with Kind-wrapped members
-    Team team =
-        new Team(
+    SkillsTeam team =
+        new SkillsTeam(
             "Platform",
             ListKindHelper.LIST.widen(
                 List.of(
                     new Member(
                         "Alice",
                         ListKindHelper.LIST.widen(
-                            List.of(new Role("Admin", 10), new Role("Developer", 5)))),
-                    new Member(
-                        "Bob", ListKindHelper.LIST.widen(List.of(new Role("Developer", 3)))))));
+                            List.of(new Skill("Java", 90), new Skill("SQL", 50)))),
+                    new Member("Bob", ListKindHelper.LIST.widen(List.of(new Skill("Java", 30)))))));
 
     // Create a path to the Kind<ListKind.Witness, Member> field
-    FocusPath<Team, Kind<ListKind.Witness, Member>> membersKindPath = FocusPath.of(teamMembersLens);
+    FocusPath<SkillsTeam, Kind<ListKind.Witness, Member>> membersKindPath =
+        FocusPath.of(teamMembersLens);
 
     // Use traverseOver to traverse into the Kind-wrapped list
     // Note: Explicit type parameters are required for Java's type inference
-    TraversalPath<Team, Member> allMembersPath =
+    TraversalPath<SkillsTeam, Member> allMembersPath =
         membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
 
     // Get all members
@@ -130,49 +133,52 @@ public class TraverseIntegrationExample {
   static void nestedTraverseOverExample() {
     System.out.println("--- Nested traverseOver() ---");
 
-    Team team =
-        new Team(
+    SkillsTeam team =
+        new SkillsTeam(
             "Engineering",
             ListKindHelper.LIST.widen(
                 List.of(
                     new Member(
                         "Alice",
                         ListKindHelper.LIST.widen(
-                            List.of(new Role("Lead", 10), new Role("Architect", 8)))),
+                            List.of(new Skill("Java", 90), new Skill("Design", 80)))),
                     new Member(
                         "Bob",
                         ListKindHelper.LIST.widen(
-                            List.of(new Role("Senior", 6), new Role("Mentor", 4)))),
+                            List.of(new Skill("Kotlin", 60), new Skill("Mentoring", 40)))),
                     new Member(
-                        "Charlie", ListKindHelper.LIST.widen(List.of(new Role("Junior", 2)))))));
+                        "Charlie", ListKindHelper.LIST.widen(List.of(new Skill("SQL", 20)))))));
 
     // Build path step by step (helps with type inference)
-    FocusPath<Team, Kind<ListKind.Witness, Member>> step1 = FocusPath.of(teamMembersLens);
-    TraversalPath<Team, Member> step2 =
+    FocusPath<SkillsTeam, Kind<ListKind.Witness, Member>> step1 = FocusPath.of(teamMembersLens);
+    TraversalPath<SkillsTeam, Member> step2 =
         step1.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
-    TraversalPath<Team, Kind<ListKind.Witness, Role>> step3 = step2.via(memberRolesLens);
-    TraversalPath<Team, Role> allRolesPath =
-        step3.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    TraversalPath<SkillsTeam, Kind<ListKind.Witness, Skill>> step3 = step2.via(memberSkillsLens);
+    TraversalPath<SkillsTeam, Skill> allSkillsPath =
+        step3.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
 
-    // Get all roles across all members
-    List<Role> allRoles = allRolesPath.getAll(team);
-    System.out.println("All roles: " + allRoles.stream().map(Role::name).toList());
-    System.out.println("Total roles: " + allRolesPath.count(team));
+    // Get all skills across all members
+    List<Skill> allSkills = allSkillsPath.getAll(team);
+    System.out.println("All skills: " + allSkills.stream().map(Skill::name).toList());
+    System.out.println("Total skills: " + allSkillsPath.count(team));
 
-    // Navigate to role levels
-    TraversalPath<Team, Integer> allLevelsPath = allRolesPath.via(roleLevelLens);
-    List<Integer> levels = allLevelsPath.getAll(team);
-    System.out.println("All levels: " + levels);
+    // Navigate to skill proficiencies
+    TraversalPath<SkillsTeam, Integer> allProficienciesPath =
+        allSkillsPath.via(skillProficiencyLens);
+    List<Integer> proficiencies = allProficienciesPath.getAll(team);
+    System.out.println("All proficiencies: " + proficiencies);
 
-    // Promote all roles (increase level by 1)
-    Team promoted = allRolesPath.modifyAll(Role::promote, team);
-    List<Integer> newLevels = allLevelsPath.getAll(promoted);
-    System.out.println("After promotion: " + newLevels);
+    // Improve all skills (raise proficiency by 10)
+    SkillsTeam improved = allSkillsPath.modifyAll(Skill::improve, team);
+    List<Integer> newProficiencies = allProficienciesPath.getAll(improved);
+    System.out.println("After improvement: " + newProficiencies);
 
-    // Conditional promotion - only promote roles with level >= 5
-    Team conditionalPromoted = allRolesPath.modifyWhen(r -> r.level() >= 5, Role::promote, team);
-    List<Integer> conditionalLevels = allLevelsPath.getAll(conditionalPromoted);
-    System.out.println("After conditional promotion (level >= 5): " + conditionalLevels);
+    // Conditional improvement - only improve skills with proficiency >= 50
+    SkillsTeam conditionalImproved =
+        allSkillsPath.modifyWhen(s -> s.proficiency() >= 50, Skill::improve, team);
+    List<Integer> conditionalProficiencies = allProficienciesPath.getAll(conditionalImproved);
+    System.out.println(
+        "After conditional improvement (proficiency >= 50): " + conditionalProficiencies);
 
     System.out.println();
   }
@@ -182,58 +188,59 @@ public class TraverseIntegrationExample {
     System.out.println("--- Optional traverseOver() with Maybe ---");
 
     // Project with a lead team
-    Project projectWithLead =
-        new Project(
+    ProjectPlan projectWithLead =
+        new ProjectPlan(
             "Alpha",
             MaybeKindHelper.MAYBE.widen(
                 Maybe.just(
-                    new Team(
+                    new SkillsTeam(
                         "Core",
                         ListKindHelper.LIST.widen(
                             List.of(
                                 new Member(
                                     "Alice",
-                                    ListKindHelper.LIST.widen(List.of(new Role("Lead", 10))))))))),
+                                    ListKindHelper.LIST.widen(
+                                        List.of(new Skill("Leadership", 90))))))))),
             ListKindHelper.LIST.widen(List.of()));
 
     // Project without a lead team
-    Project projectWithoutLead =
-        new Project(
+    ProjectPlan projectWithoutLead =
+        new ProjectPlan(
             "Beta",
             MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
             ListKindHelper.LIST.widen(List.of()));
 
     // Path through the optional lead team
-    FocusPath<Project, Kind<MaybeKind.Witness, Team>> leadTeamKindPath =
+    FocusPath<ProjectPlan, Kind<MaybeKind.Witness, SkillsTeam>> leadTeamKindPath =
         FocusPath.of(projectLeadTeamLens);
 
-    // Traverse the Maybe to get the Team (if present)
-    TraversalPath<Project, Team> leadTeamPath =
-        leadTeamKindPath.<MaybeKind.Witness, Team>traverseOver(MaybeTraverse.INSTANCE);
+    // Traverse the Maybe to get the team (if present)
+    TraversalPath<ProjectPlan, SkillsTeam> leadTeamPath =
+        leadTeamKindPath.<MaybeKind.Witness, SkillsTeam>traverseOver(MaybeTraverse.INSTANCE);
 
     // Get lead team from each project
-    List<Team> leadsFromWithLead = leadTeamPath.getAll(projectWithLead);
-    List<Team> leadsFromWithoutLead = leadTeamPath.getAll(projectWithoutLead);
+    List<SkillsTeam> leadsFromWithLead = leadTeamPath.getAll(projectWithLead);
+    List<SkillsTeam> leadsFromWithoutLead = leadTeamPath.getAll(projectWithoutLead);
 
     System.out.println("Lead teams (project with lead): " + leadsFromWithLead.size());
     System.out.println("Lead teams (project without lead): " + leadsFromWithoutLead.size());
 
-    // Continue traversing through the lead team to members and roles
-    TraversalPath<Project, Kind<ListKind.Witness, Member>> membersKindPath =
+    // Continue traversing through the lead team to members and skills
+    TraversalPath<ProjectPlan, Kind<ListKind.Witness, Member>> membersKindPath =
         leadTeamPath.via(teamMembersLens);
-    TraversalPath<Project, Member> membersPath =
+    TraversalPath<ProjectPlan, Member> membersPath =
         membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
-    TraversalPath<Project, Kind<ListKind.Witness, Role>> rolesKindPath =
-        membersPath.via(memberRolesLens);
-    TraversalPath<Project, Role> rolesPath =
-        rolesKindPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    TraversalPath<ProjectPlan, Kind<ListKind.Witness, Skill>> skillsKindPath =
+        membersPath.via(memberSkillsLens);
+    TraversalPath<ProjectPlan, Skill> skillsPath =
+        skillsKindPath.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
 
-    // Get all roles from lead team (if exists)
-    List<Role> rolesWithLead = rolesPath.getAll(projectWithLead);
-    List<Role> rolesWithoutLead = rolesPath.getAll(projectWithoutLead);
+    // Get all skills from lead team (if exists)
+    List<Skill> skillsWithLead = skillsPath.getAll(projectWithLead);
+    List<Skill> skillsWithoutLead = skillsPath.getAll(projectWithoutLead);
 
-    System.out.println("Roles from lead (with lead): " + rolesWithLead);
-    System.out.println("Roles from lead (without lead): " + rolesWithoutLead);
+    System.out.println("Skills from lead (with lead): " + skillsWithLead);
+    System.out.println("Skills from lead (without lead): " + skillsWithoutLead);
 
     System.out.println();
   }
@@ -246,27 +253,27 @@ public class TraverseIntegrationExample {
     List<ProjectVariant> variants =
         List.of(
             new ActiveProject(
-                new Project(
+                new ProjectPlan(
                     "Alpha",
                     MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
                     ListKindHelper.LIST.widen(
                         List.of(
-                            new Team(
+                            new SkillsTeam(
                                 "Team1",
                                 ListKindHelper.LIST.widen(
                                     List.of(
                                         new Member(
                                             "Alice",
                                             ListKindHelper.LIST.widen(
-                                                List.of(new Role("Dev", 5))))))))))),
+                                                List.of(new Skill("Java", 50))))))))))),
             new ArchivedProject("Legacy", "2024-01-01"),
             new ActiveProject(
-                new Project(
+                new ProjectPlan(
                     "Beta",
                     MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
                     ListKindHelper.LIST.widen(
                         List.of(
-                            new Team(
+                            new SkillsTeam(
                                 "Team2",
                                 ListKindHelper.LIST.widen(
                                     List.of(
@@ -274,8 +281,8 @@ public class TraverseIntegrationExample {
                                             "Bob",
                                             ListKindHelper.LIST.widen(
                                                 List.of(
-                                                    new Role("Lead", 8),
-                                                    new Role("Arch", 7))))))))))));
+                                                    new Skill("Leadership", 80),
+                                                    new Skill("Design", 70))))))))))));
 
     // Use instanceOf to focus on ActiveProject only
     AffinePath<ProjectVariant, ActiveProject> activeProjectPath =
@@ -290,36 +297,37 @@ public class TraverseIntegrationExample {
     }
     System.out.println("Active projects: " + activeCount);
 
-    // For each active project, count roles
+    // For each active project, count skills
     for (ProjectVariant v : variants) {
       activeProjectPath
           .getOptional(v)
           .ifPresent(
               active -> {
-                // Build path to all roles in the project
-                Lens<ActiveProject, Kind<ListKind.Witness, Team>> allTeamsLens =
+                // Build path to all skills in the project
+                Lens<ActiveProject, Kind<ListKind.Witness, SkillsTeam>> allTeamsLens =
                     Lens.of(
                         ap -> ap.project().allTeams(),
                         (ap, teams) ->
                             new ActiveProject(
-                                new Project(ap.project().name(), ap.project().leadTeam(), teams)));
+                                new ProjectPlan(
+                                    ap.project().name(), ap.project().leadTeam(), teams)));
 
-                FocusPath<ActiveProject, Kind<ListKind.Witness, Team>> teamsKindPath =
+                FocusPath<ActiveProject, Kind<ListKind.Witness, SkillsTeam>> teamsKindPath =
                     FocusPath.of(allTeamsLens);
-                TraversalPath<ActiveProject, Team> teamsPath =
-                    teamsKindPath.<ListKind.Witness, Team>traverseOver(ListTraverse.INSTANCE);
+                TraversalPath<ActiveProject, SkillsTeam> teamsPath =
+                    teamsKindPath.<ListKind.Witness, SkillsTeam>traverseOver(ListTraverse.INSTANCE);
                 TraversalPath<ActiveProject, Kind<ListKind.Witness, Member>> membersKindPath =
                     teamsPath.via(teamMembersLens);
                 TraversalPath<ActiveProject, Member> membersPath =
                     membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
-                TraversalPath<ActiveProject, Kind<ListKind.Witness, Role>> rolesKindPath =
-                    membersPath.via(memberRolesLens);
-                TraversalPath<ActiveProject, Role> rolesPath =
-                    rolesKindPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+                TraversalPath<ActiveProject, Kind<ListKind.Witness, Skill>> skillsKindPath =
+                    membersPath.via(memberSkillsLens);
+                TraversalPath<ActiveProject, Skill> skillsPath =
+                    skillsKindPath.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
 
-                int roleCount = rolesPath.count(active);
+                int skillCount = skillsPath.count(active);
                 System.out.println(
-                    "Project '" + active.project().name() + "' has " + roleCount + " roles");
+                    "Project '" + active.project().name() + "' has " + skillCount + " skills");
               });
     }
 

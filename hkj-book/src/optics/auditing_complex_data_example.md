@@ -3,7 +3,7 @@
 _Find and decode every live GCP password in a config with one composed optic, not nested loops._
 
 ~~~admonish info title="What You'll Learn"
-- Compose lenses, prisms and a traversal into one `Traversal<AppConfig, byte[]>` that filters and decodes as it goes
+- Compose lenses, prisms and a traversal into one `Traversal<ServiceManifest, byte[]>` that filters and decodes as it goes
 - Put a condition in the path with a filtering `Prism`, so only live GCP configs are audited
 - Decode through a `Prism` rather than an `Iso` when decoding can fail, and keep the reason with a `ValidatedPrism`
 - Reuse the same optic to re-encrypt with `Traversals.modify`, or adapt it to a DTO with an `Iso` or `dimap`
@@ -23,7 +23,7 @@ This page builds a single, declarative, type-safe optic that performs a deep, co
 
 ## The Challenge: A Conditional Config Audit
 
-Imagine you're responsible for auditing application configurations. Your task is:
+Imagine you're responsible for auditing application configurations, each a `ServiceManifest` holding a name, its settings and a deployment target. Your task is:
 
 > Find every encrypted database password, but **only** for applications deployed to the **Google Cloud Platform (`gcp`)** that are running in the **`live` environment**. For each password found, **decode it from Base64** into a raw `byte[]` for an audit service.
 
@@ -46,7 +46,7 @@ Our solution will compose the four primary optic types, each solving a specific 
 
 A `Lens` provides focused access to a field within a product type (like a Java `record`). We'll use lenses to look inside our configuration objects.
 
-* `AppConfigLenses.settings()`: Zooms from an `AppConfig` to its `List<Setting>`.
+* `ServiceManifestLenses.settings()`: Zooms from a `ServiceManifest` to its `List<Setting>`.
 * `SettingLenses.value()`: Zooms from a `Setting` to its `SettingValue`.
 
 ### 2. **Iso**: a conversion that loses nothing {#2-iso-the-universal-translator}
@@ -66,7 +66,7 @@ A `Prism` provides focused access to a specific case within a sum type (like a `
 
 A `Traversal` lets us operate on zero or more targets within a larger structure. It's the ideal optic for working with collections.
 
-* `AppConfigTraversals.settings()`: This generated optic gives us a single tool to go from an `AppConfig` to every `Setting` inside its list.
+* `ServiceManifestTraversals.settings()`: This generated optic gives us a single tool to go from a `ServiceManifest` to every `Setting` inside its list.
 
 ---
 
@@ -82,8 +82,8 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 <!-- verify -->
 ```java
 // Perfect for reusable, conditional audit logic
-Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
-    ServerConfigTraversals.environments()
+Traversal<DeploymentPipeline, byte[]> sensitiveDataAuditor =
+    DeploymentPipelineTraversals.environments()
         .andThen(EnvironmentPrisms.production())
         .andThen(ProductionTraversals.credentials())
         .andThen(CredentialPrisms.encryptedCredential())
@@ -101,7 +101,7 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
 ```java
 // Better with streams for simple collection processing
 List<String> allConfigNames = configs.stream()
-    .map(AppConfig::name)
+    .map(ServiceManifest::name)
     .filter(name -> name.startsWith("prod-"))
     .collect(toList());
 ```
@@ -115,7 +115,7 @@ List<String> allConfigNames = configs.stream()
 <!-- verify -->
 ```java
 // Sometimes manual loops are clearest for complex logic
-for (AppConfig config : configs) {
+for (ServiceManifest config : configs) {
     if (shouldAudit(config) && hasEncryptedData(config)) {
         auditResults.add(performDetailedAudit(config));
         if (auditResults.size() >= MAX_AUDITS) break;
@@ -136,7 +136,7 @@ Traversal<String, String> stringIdentity = Iso.<String, String>of(s -> s, s -> s
 // Just use the string directly
 
 // Creating complex compositions inline
-var passwords = AppConfigTraversals.settings()
+var passwords = ServiceManifestTraversals.settings()
     .andThen(SettingLenses.value())
     .andThen(SettingValuePrisms.encryptedValue())
     // ... ten more lines of composition
@@ -172,9 +172,9 @@ public static final Prism<String, byte[]> BASE64_DECODED = Prism.of(
     bytes -> Base64.getEncoder().encodeToString(bytes));
 
 // Create well-named, reusable compositions
-public static final Traversal<AppConfig, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
+public static final Traversal<ServiceManifest, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
     gcpLiveOnlyPrism
-        .andThen(AppConfigTraversals.settings())
+        .andThen(ServiceManifestTraversals.settings())
         .andThen(SettingLenses.value())
         .andThen(SettingValuePrisms.encryptedValue())
         .andThen(EncryptedValueLenses.base64Value())
@@ -196,14 +196,14 @@ public void testBase64RoundTrip() {
 
 Here's how we chain these optics together. Each `andThen` returns the most precise optic its two steps allow, and the chain starts from a traversal over the settings, so the result is a `Traversal`, with no conversions along the way. The last step decodes the Base64 through a prism, so a malformed value drops out of the audit rather than throwing.
 
-The final composed optic has the type `Traversal<AppConfig, byte[]>` and reads like a declarative path: **`AppConfig -> (Filter for GCP/Live) -> each Setting -> its Value -> (Filter for Encrypted) -> the inner String -> the raw bytes`**
+The final composed optic has the type `Traversal<ServiceManifest, byte[]>` and reads like a declarative path: **`ServiceManifest -> (Filter for GCP/Live) -> each Setting -> its Value -> (Filter for Encrypted) -> the inner String -> the raw bytes`**
 
 <!-- verify -->
 ```java
 // Inside ConfigAuditExample.java
 
 // A. First, create a Prism to act as our top-level filter.
-Prism<AppConfig, AppConfig> gcpLiveOnlyPrism = Prism.of(
+Prism<ServiceManifest, ServiceManifest> gcpLiveOnlyPrism = Prism.of(
     config -> {
         String rawTarget = DeploymentTarget.toRawString().get(config.target());
         return "gcp|live".equals(rawTarget) ? Optional.of(config) : Optional.empty();
@@ -223,15 +223,15 @@ Prism<String, byte[]> base64Decoded = Prism.of(
     bytes -> Base64.getEncoder().encodeToString(bytes));
 
 // C. Define the main traversal path to get to the data we want to audit.
-Traversal<AppConfig, byte[]> auditTraversal =
-    AppConfigTraversals.settings()                             // Traversal<AppConfig, Setting>
-        .andThen(SettingLenses.value())        // Traversal<AppConfig, SettingValue>
-        .andThen(SettingValuePrisms.encryptedValue()) // Traversal<AppConfig, EncryptedValue>
-        .andThen(EncryptedValueLenses.base64Value())  // Traversal<AppConfig, String>
-        .andThen(base64Decoded);                      // Traversal<AppConfig, byte[]>
+Traversal<ServiceManifest, byte[]> auditTraversal =
+    ServiceManifestTraversals.settings()                       // Traversal<ServiceManifest, Setting>
+        .andThen(SettingLenses.value())        // Traversal<ServiceManifest, SettingValue>
+        .andThen(SettingValuePrisms.encryptedValue()) // Traversal<ServiceManifest, EncryptedValue>
+        .andThen(EncryptedValueLenses.base64Value())  // Traversal<ServiceManifest, String>
+        .andThen(base64Decoded);                      // Traversal<ServiceManifest, byte[]>
 
 // D. Combine the filter and the main traversal into the final optic.
-Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
+Traversal<ServiceManifest, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
 
 // E. Using the final optic is now trivial.
 // We call a static helper method from our Traversals utility class.
@@ -278,7 +278,7 @@ Validated<NonEmptyList<FieldError>, byte[]> decoded = SAFE_BASE64.parse(encodedV
 ValidationPath<NonEmptyList<FieldError>, byte[]> railway = SAFE_BASE64.parsePath(encodedValue);
 
 // Need the reason-less form for composing into the audit traversal? Forget on demand:
-Traversal<AppConfig, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism());
+Traversal<ServiceManifest, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism());
 ```
 
 To audit a whole config and report **every** bad entry at once, parse each string through `SAFE_BASE64.parse` and accumulate the results with the [assembly builders](../monads/validated_assembly.md). Sibling accumulation is their job; `ValidatedPrism` supplies the located leaf.
@@ -294,19 +294,19 @@ What if you need to re-encrypt all passwords with a new algorithm? The same `fin
 Function<byte[], byte[]> reEncryptFunction = oldBytes -> newCipher.encrypt(oldBytes);
 
 // Use the *exact same optic* to update the config in-place
-AppConfig updatedConfig = Traversals.modify(finalAuditor, reEncryptFunction, originalConfig);
+ServiceManifest updatedConfig = Traversals.modify(finalAuditor, reEncryptFunction, originalConfig);
 ```
 
 ### 3. **Profunctor Adaptations for Legacy Systems**
 
-Suppose your audit service expects a different data format: perhaps it works with `ConfigDto` objects instead of `AppConfig`. Rather than rewriting your carefully crafted optic, you can adapt it.
+Suppose your audit service expects a different data format: perhaps it works with `ConfigDto` objects instead of `ServiceManifest`. Rather than rewriting your carefully crafted optic, you can adapt it.
 
 If the DTO and the domain config hold the same information, the conversion pair is an [Iso](iso.md), and composing through it keeps the full `Traversal` API:
 
 <!-- verify -->
 ```java
-// A lossless pair: ConfigDto <-> AppConfig
-Iso<ConfigDto, AppConfig> dtoIso = Iso.of(Auditing::toAppConfig, Auditing::toConfigDto);
+// A lossless pair: ConfigDto <-> ServiceManifest
+Iso<ConfigDto, ServiceManifest> dtoIso = Iso.of(Auditing::toServiceManifest, Auditing::toConfigDto);
 
 // An Iso followed by a Traversal is a Traversal
 Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.andThen(finalAuditor);
@@ -318,10 +318,10 @@ When the conversion is one-way or lossy, use the `Optic`-level `dimap` bridge in
 
 <!-- verify -->
 ```java
-// dimap adapts the SOURCE (ConfigDto -> AppConfig) and the STRUCTURE the update
-// produces (AppConfig -> ConfigDto); the focus stays byte[] throughout.
+// dimap adapts the SOURCE (ConfigDto -> ServiceManifest) and the STRUCTURE the update
+// produces (ServiceManifest -> ConfigDto); the focus stays byte[] throughout.
 Optic<ConfigDto, ConfigDto, byte[], byte[]> dtoAuditor =
-    finalAuditor.dimap(Auditing::toAppConfig, Auditing::toConfigDto);
+    finalAuditor.dimap(Auditing::toServiceManifest, Auditing::toConfigDto);
 ```
 
 Either way your core business logic (the auditing path) remains unchanged whilst adapting to different system interfaces. [Profunctor Optics](profunctor_optics.md) explains when each route applies.
@@ -334,7 +334,7 @@ Create an optic that filters for deployments on *either*`gcp` or `aws` but *only
 <!-- verify -->
 ```java
 // Multi-cloud live environment filter
-public static final Prism<AppConfig, AppConfig> cloudLiveOnlyPrism = Prism.of(
+public static final Prism<ServiceManifest, ServiceManifest> cloudLiveOnlyPrism = Prism.of(
     config -> {
         String rawTarget = DeploymentTarget.toRawString().get(config.target());
         boolean isLiveCloud = rawTarget.equals("gcp|live") || 
@@ -346,16 +346,16 @@ public static final Prism<AppConfig, AppConfig> cloudLiveOnlyPrism = Prism.of(
 );
 
 // Environment-specific processing
-public static final Map<String, Traversal<AppConfig, byte[]>> ENVIRONMENT_AUDITORS = Map.of(
+public static final Map<String, Traversal<ServiceManifest, byte[]>> ENVIRONMENT_AUDITORS = Map.of(
     "development", devEnvironmentPrism.andThen(auditTraversal),
     "staging", stagingEnvironmentPrism.andThen(auditTraversal),
     "production", cloudLiveOnlyPrism.andThen(auditTraversal)
 );
 
-public static List<byte[]> auditForEnvironment(String environment, AppConfig config) {
+public static List<byte[]> auditForEnvironment(String environment, ServiceManifest config) {
     // Traversal has no static empty() and no instance getAll: reads go through
     // the Traversals utility, and the absent case is handled here.
-    Traversal<AppConfig, byte[]> auditor = ENVIRONMENT_AUDITORS.get(environment);
+    Traversal<ServiceManifest, byte[]> auditor = ENVIRONMENT_AUDITORS.get(environment);
     return auditor == null ? List.of() : Traversals.getAll(auditor, config);
 }
 ```
@@ -369,14 +369,14 @@ Use the same optics to validate your configuration. You could compose a traversa
 ```java
 // Narrowing by key is a filter, not a generated optic; and IntValue needs
 // @GenerateLenses on the record before IntValueLenses exists.
-public static final Traversal<AppConfig, Integer> SERVER_PORTS =
-    AppConfigTraversals.settings()
+public static final Traversal<ServiceManifest, Integer> SERVER_PORTS =
+    ServiceManifestTraversals.settings()
         .andThen(Traversals.filtered(setting -> setting.key().equals("server.port")))
         .andThen(SettingLenses.value())
         .andThen(SettingValuePrisms.intValue())
         .andThen(IntValueLenses.value());
 
-public static List<String> validatePorts(AppConfig config) {
+public static List<String> validatePorts(ServiceManifest config) {
     return Traversals.getAll(SERVER_PORTS, config).stream()
         .filter(port -> port <= 1024 || port > 65535)
         .map(port -> "Invalid port: " + port + " (must be 1024-65535)")
@@ -394,14 +394,14 @@ Extend the auditor to generate comprehensive audit trails:
 public record AuditEntry(String configName, String settingKey, String encryptedValue, 
                         Instant auditTime, String auditorId) {}
 
-public static final Traversal<AppConfig, AuditEntry> AUDIT_TRAIL_GENERATOR =
+public static final Traversal<ServiceManifest, AuditEntry> AUDIT_TRAIL_GENERATOR =
     gcpLiveOnlyPrism
-        .andThen(AppConfigTraversals.settings())
+        .andThen(ServiceManifestTraversals.settings())
         .andThen(settingFilter)
         .andThen(auditEntryMapper);
 
 // Generate complete audit report
-public static AuditReport generateAuditReport(List<AppConfig> configs, String auditorId) {
+public static AuditReport generateAuditReport(List<ServiceManifest> configs, String auditorId) {
     List<AuditEntry> entries = configs.stream()
         .flatMap(config -> Traversals.getAll(AUDIT_TRAIL_GENERATOR, config).stream())
         .collect(toList());

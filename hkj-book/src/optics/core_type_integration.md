@@ -27,7 +27,7 @@ Consider a typical scenario: updating a user profile where some fields are optio
 ~~~admonish failure title="The Traditional Approach"
 <!-- verify -->
 ```java
-public User updateUserProfile(User user, String newEmail) {
+public ProfileOwner updateUserProfile(ProfileOwner user, String newEmail) {
     // Null checking
     if (user == null || user.getProfile() == null) {
         return null; // Or throw exception?
@@ -57,10 +57,10 @@ This code is a mess of concerns: null handling, validation logic, exception mana
 ~~~admonish success title="The Functional Approach"
 <!-- verify -->
 ```java
-public Either<String, User> updateUserProfile(User user, String newEmail) {
-    Lens<User, Profile> profileLens = UserLenses.profile();
+public Either<String, ProfileOwner> updateUserProfile(ProfileOwner user, String newEmail) {
+    Lens<ProfileOwner, Profile> profileLens = ProfileOwnerLenses.profile();
     Lens<Profile, String> emailLens = ProfileLenses.email();
-    Lens<User, String> userToEmail = profileLens.andThen(emailLens);
+    Lens<ProfileOwner, String> userToEmail = profileLens.andThen(emailLens);
 
     return modifyEither(
         userToEmail,
@@ -99,11 +99,11 @@ Extract values from `Maybe`, `Either`, `Validated`, and `Try` using prisms, just
 
 <!-- verify -->
 ```java
-Prism<Maybe<User>, User> justPrism = Prisms.just();
+Prism<Maybe<ProfileOwner>, ProfileOwner> justPrism = Prisms.just();
 Prism<Try<Order>, Order> successPrism = Prisms.success();
 
 // Extract user if present
-Optional<User> user = justPrism.getOptional(maybeUser);
+Optional<ProfileOwner> user = justPrism.getOptional(maybeUser);
 
 // Extract order if successful
 Optional<Order> order = successPrism.getOptional(tryOrder);
@@ -117,13 +117,13 @@ Augment lenses and traversals with built-in null safety, validation, and excepti
 
 <!-- verify -->
 ```java
-Lens<User, String> emailLens = UserLenses.email();
+Lens<ProfileOwner, String> emailLens = ProfileOwnerLenses.email();
 
 // Null-safe access
 Maybe<String> email = getMaybe(emailLens, user);
 
 // Validated modification
-Either<String, User> updated = modifyEither(
+Either<String, ProfileOwner> updated = modifyEither(
     emailLens,
     address -> address.contains("@")
         ? Either.right(address.toLowerCase())
@@ -219,13 +219,13 @@ Prisms excel at filtering and extracting from collections:
 
 <!-- verify -->
 ```java
-List<Try<User>> dbResults = loadUsersFromDatabase(userIds);
+List<Try<ProfileOwner>> dbResults = loadUsersFromDatabase(userIds);
 
-Prism<Try<User>, User> successPrism = Prisms.success();
-Prism<Try<User>, Throwable> failurePrism = Prisms.failure();
+Prism<Try<ProfileOwner>, ProfileOwner> successPrism = Prisms.success();
+Prism<Try<ProfileOwner>, Throwable> failurePrism = Prisms.failure();
 
 // Get all successfully loaded users
-List<User> users = dbResults.stream()
+List<ProfileOwner> users = dbResults.stream()
     .flatMap(result -> successPrism.getOptional(result).stream())
     .toList();
 
@@ -275,11 +275,11 @@ Whilst all core type families work with optics, mixing them inappropriately can 
 <!-- verify -->
 ```java
 // Confusing: Mixing Maybe and Either unnecessarily
-Maybe<Either<String, User>> findUser(String id);
+Maybe<Either<String, ProfileOwner>> findUser(String id);
 
 // Better: Choose one based on your needs
-Either<String, User> loadUser(String id); // If you have an error message
-Maybe<User> lookUpUser(String id);        // If it's just presence/absence
+Either<String, ProfileOwner> loadUser(String id); // If you have an error message
+Maybe<ProfileOwner> lookUpUser(String id);        // If it's just presence/absence
 ```
 ~~~
 

@@ -22,7 +22,7 @@ Given a record with one field of each interesting shape:
 ```java
 @GenerateLenses
 @GenerateFocus
-record Employee(
+record Candidate(
     String name,
     int age,
     Optional<String> email,
@@ -35,21 +35,21 @@ the processor generates one method per component, each already carrying the wide
 
 <!-- verify -->
 ```java
-FocusPath<Employee, String> name = EmployeeFocus.name();          // plain field
-FocusPath<Employee, Integer> age = EmployeeFocus.age();           // boxed primitive
+FocusPath<Candidate, String> name = CandidateFocus.name();          // plain field
+FocusPath<Candidate, Integer> age = CandidateFocus.age();           // boxed primitive
 
-AffinePath<Employee, String> email = EmployeeFocus.email();       // .some()
-TraversalPath<Employee, Skill> skills = EmployeeFocus.skills();   // .each()
+AffinePath<Candidate, String> email = CandidateFocus.email();       // .some()
+TraversalPath<Candidate, Skill> skills = CandidateFocus.skills();   // .each()
 
 // SPI ZERO_OR_ONE: .some(Affines.eitherRight())
-AffinePath<Employee, Integer> timeout = EmployeeFocus.timeout();
+AffinePath<Candidate, Integer> timeout = CandidateFocus.timeout();
 
 // SPI ZERO_OR_MORE: not widened by default, so the path still focuses the Map
-FocusPath<Employee, Map<String, Integer>> scores = EmployeeFocus.scores();
-TraversalPath<Employee, Integer> allScores = scores.each(EachInstances.mapValuesEach());
+FocusPath<Candidate, Map<String, Integer>> scores = CandidateFocus.scores();
+TraversalPath<Candidate, Integer> allScores = scores.each(EachInstances.mapValuesEach());
 ```
 
-Two things are worth noticing. There is exactly one method per component, so indexed accessors such as `skill(0)` are not generated; index with `.at(0)` from `FocusPath.of(EmployeeLenses.skills())` instead. And the `Map` field is the odd one out, which the next section explains.
+Two things are worth noticing. There is exactly one method per component, so indexed accessors such as `skill(0)` are not generated; index with `.at(0)` from `FocusPath.of(CandidateLenses.skills())` instead. And the `Map` field is the odd one out, which the next section explains.
 
 ---
 
@@ -87,10 +87,10 @@ Nested containers compose the same rule up to three levels: `Optional<List<Strin
 <!-- verify -->
 ```java
 // Default: the static method stops at the container
-FocusPath<Employee, Map<String, Integer>> scores = EmployeeFocus.scores();
+FocusPath<Candidate, Map<String, Integer>> scores = CandidateFocus.scores();
 
 // @GenerateFocus(widenCollections = true): the static method steps into it
-TraversalPath<WidenedEmployee, Integer> widened = WidenedEmployeeFocus.scores();
+TraversalPath<WidenedCandidate, Integer> widened = WidenedCandidateFocus.scores();
 ```
 
 ~~~admonish tip title="Why this matters"
@@ -140,11 +140,12 @@ The three JDK collections are recognised by name rather than by the SPI, but the
 <!-- verify -->
 ```java
 // Each of these widened at the static method, through its own Each instance
-TraversalPath<Team, Skill> teamSkills = TeamFocus.skills();
-TraversalPath<Team, String> teamTags = TeamFocus.tags();
+TraversalPath<Vacancy, Skill> requiredSkills = VacancyFocus.skills();
+TraversalPath<Vacancy, String> vacancyTags = VacancyFocus.tags();
 
 // The path is a TraversalPath, so the Set widened at the static method
-Team promoted = teamSkills.via(SkillFocus.level()).modifyAll(level -> level + 1, team);
+Vacancy raised =
+    requiredSkills.via(SkillFocus.proficiency()).modifyAll(p -> p + 1, vacancy);
 ```
 
 A `Collection` names no ordering and no uniqueness, so `collectionEach()` rebuilds whichever it was given. A set-valued `Collection` comes back a set, specifically a `LinkedHashSet`, so a `TreeSet` or other `SortedSet` source keeps its elements but not its ordering contract. Anything else comes back a `List`. A `Collection` that is neither, such as an `ArrayDeque`, also comes back a `List`; those types inherit identity `equals`, so no rebuild could return a collection equal to the one it was handed.
@@ -154,13 +155,13 @@ An array of a reference type widens through `arrayEach()`, which builds the new 
 <!-- verify -->
 ```java
 // @GenerateFocus(widenCollections = true) steps into an array of a reference type
-TraversalPath<WidenedEmployee, String> tags = WidenedEmployeeFocus.tags();
+TraversalPath<WidenedCandidate, String> tags = WidenedCandidateFocus.tags();
 
 // No Each focuses an int, so a primitive array stays in focus
-FocusPath<WidenedEmployee, int[]> levels = WidenedEmployeeFocus.levels();
+FocusPath<WidenedCandidate, int[]> levels = WidenedCandidateFocus.levels();
 
 // The whole array, to replace it or index into it, starts from its lens
-FocusPath<WidenedEmployee, String[]> allTags = FocusPath.of(WidenedEmployeeLenses.tags());
+FocusPath<WidenedCandidate, String[]> allTags = FocusPath.of(WidenedCandidateLenses.tags());
 ```
 
 Because the new array keeps its source's component type, a write must store values that type can hold, as any Java array store must. A component declared `Number[]` that holds an `Integer[]` cannot take a `Double`: the path's type allows it, but the write throws `ArrayStoreException`. `@GenerateTraversals` builds a `Number[]` for the same field, so its traversal takes the `Double`.
@@ -170,15 +171,15 @@ Every third-party *collection* generator goes through `EachInstances.fromIterabl
 <!-- verify -->
 ```java
 // Eclipse Collections, no manual wiring: the SPI generator supplies the Each instance
-FocusPath<AssetClass, ImmutableList<Position>> positions = AssetClassFocus.positions();
+FocusPath<Allocation, ImmutableList<Holding>> holdings = AllocationFocus.holdings();
 
-TraversalPath<AssetClass, Position> eachPosition =
-    positions.each(EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
+TraversalPath<Allocation, Holding> eachHolding =
+    holdings.each(EachInstances.fromIterableCollecting(list -> Lists.immutable.ofAll(list)));
 
-AssetClass rebalanced =
-    eachPosition
-        .via(PositionFocus.weight())
-        .modifyAll(w -> w * 1.05, assetClass);
+Allocation rebalanced =
+    eachHolding
+        .via(HoldingFocus.weight())
+        .modifyAll(w -> w * 1.05, allocation);
 ```
 
 ~~~admonish warning title="Raw and wildcard container type arguments"
@@ -188,31 +189,31 @@ Most containers widen by naming an optic **instance**: `.some(Affines.eitherRigh
 ```java
 // Rejected: no Affine can be named for a wildcard type argument
 @GenerateFocus
-public record Holder(Either<String, ? extends Leaf> boundedEither) {}
+public record Holder(Either<String, ? extends Widget> boundedEither) {}
 ```
 
 <!-- verify -->
 ```java
 // Accepted
 @GenerateFocus
-public record Holder(Either<String, Leaf> either) {}
+public record Holder(Either<String, Widget> either) {}
 ```
 
 Which fields the rule reaches follows from how each one widens:
 
 | Field | Widens by | Raw or wildcard argument |
 |-------|-----------|--------------------------|
-| `Optional`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Leaf>` widens to `TraversalPath<Holder, Leaf>` |
+| `Optional`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Widget>` widens to `TraversalPath<Holder, Widget>` |
 | `Maybe`, `Set`, `Collection` | naming an optic instance: `Affines.just()` or an `Each` | ❌ Rejected, the same as an SPI container |
 | `Either`, `Try`, `Validated`, `Map`, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
-| `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Leaf>` widens to `TraversalPath<Holder, Leaf>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Leaf>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
-| Any container in this table whose element is a generic type it does not step into, such as `List<Box<? extends Leaf>>` | the container's own widening, as for any other element | ✅ Accepted under every setting. The element is kept whole, so `List<Box<? extends Leaf>>` widens to `TraversalPath<Holder, Box<? extends Leaf>>` (see [A wildcard inside the element](#a-wildcard-inside-the-element)) |
+| `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Widget>` widens to `TraversalPath<Holder, Widget>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Widget>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
+| Any container in this table whose element is a generic type it does not step into, such as `List<Box<? extends Widget>>` | the container's own widening, as for any other element | ✅ Accepted under every setting. The element is kept whole, so `List<Box<? extends Widget>>` widens to `TraversalPath<Crate, Box<? extends Widget>>` (see [A wildcard inside the element](#a-wildcard-inside-the-element)) |
 
 Three things narrow the rule further.
 
-**Only the container's own type arguments count**, focused or not. `Either<?, Leaf>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Leaf>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `List<? extends Leaf>[]` widens to `TraversalPath<Holder, Leaf>`, while `Set<? extends Leaf>[]` is rejected.
+**Only the container's own type arguments count**, focused or not. `Either<?, Widget>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Widget>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `List<? extends Widget>[]` widens to `TraversalPath<Holder, Widget>`, while `Set<? extends Widget>[]` is rejected.
 
-**A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true`, or `widenFields` naming the field. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Leaf>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
+**A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true`, or `widenFields` naming the field. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Widget>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 
 **A generator that names no optic expression is exempt, because it widens nothing.** The path stops at its container, as if no generator supported it, so a raw or wildcard argument is never asked for an optic. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
@@ -221,7 +222,7 @@ The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@Genera
 
 ### A wildcard inside the element {#a-wildcard-inside-the-element}
 
-When the element is a generic type of your own, such as `Box<? extends Leaf>`, the container widens as it would for any other element, under every setting. The path focuses on that whole type, wildcard and all:
+When the element is a generic type of your own, such as `Box<? extends Widget>`, the container widens as it would for any other element, under every setting. The path focuses on that whole type, wildcard and all:
 
 <!-- verify -->
 ```java
@@ -229,31 +230,32 @@ When the element is a generic type of your own, such as `Box<? extends Leaf>`, t
 public record Box<T>(T value) {}
 
 @GenerateFocus
-public record Holder(List<Box<? extends Leaf>> boxes) {}
+public record Crate(List<Box<? extends Widget>> boxes) {}
 
 // The wildcard stays inside the element
-TraversalPath<Holder, Box<? extends Leaf>> boxes = HolderFocus.boxes();
+TraversalPath<Crate, Box<? extends Widget>> boxes = CrateFocus.boxes();
 ```
 
-`HolderFocus` takes you as far as each `Box`. `BoxFocus.value()` is a path from `Box<T>` for one `T`. Java generics are invariant, so a `Box<? extends Leaf>` is not a `Box<T>` for any one `T`. Naming the type, as in `BoxFocus.<Leaf>value()`, gives a path from `Box<Leaf>`, which does not fit either. Both calls fail with "no suitable method found for via":
+`CrateFocus` takes you as far as each `Box`. `BoxFocus.value()` is a path from `Box<T>` for one `T`. Java generics are invariant, so a `Box<? extends Widget>` is not a `Box<T>` for any one `T`. Naming the type, as in `BoxFocus.<Widget>value()`, gives a path from `Box<Widget>`, which does not fit either. Both calls fail with "no suitable method found for via":
 
 <!-- verify:rejects "no suitable method found for via" -->
 ```java
-// Rejected by javac: Box<? extends Leaf> is not Box<T> for any one T
-TraversalPath<Holder, Leaf> leaves = HolderFocus.boxes().via(BoxFocus.value());
-TraversalPath<Holder, Leaf> named = HolderFocus.boxes().via(BoxFocus.<Leaf>value());
+// Rejected by javac: Box<? extends Widget> is not Box<T> for any one T
+TraversalPath<Crate, Widget> widgets = CrateFocus.boxes().via(BoxFocus.value());
+TraversalPath<Crate, Widget> named = CrateFocus.boxes().via(BoxFocus.<Widget>value());
 ```
 
-To reach the `Leaf`, write the lens over the element type as declared, wildcard included:
+To reach the `Widget`, write the lens over the element type as declared, wildcard included:
 
 <!-- verify -->
 ```java
-Lens<Box<? extends Leaf>, Leaf> value = Lens.of(Box::value, (box, leaf) -> new Box<>(leaf));
+Lens<Box<? extends Widget>, Widget> value =
+    Lens.of(Box::value, (box, widget) -> new Box<>(widget));
 
-TraversalPath<Holder, Leaf> leaves = HolderFocus.boxes().via(value);
+TraversalPath<Crate, Widget> widgets = CrateFocus.boxes().via(value);
 ```
 
-The setter needs only the new value because `Box` has one component. With more, it copies the others from `box`, and `LensLaws` checks the result, as [Every Write Runs the Canonical Constructor](lenses.md#every-write-runs-the-canonical-constructor) shows. If nothing needs the wildcard, declare `List<Box<Leaf>>` instead, and `.via(BoxFocus.value())` composes as generated.
+The setter needs only the new value because `Box` has one component. With more, it copies the others from `box`, and `LensLaws` checks the result, as [Every Write Runs the Canonical Constructor](lenses.md#every-write-runs-the-canonical-constructor) shows. If nothing needs the wildcard, declare `List<Box<Widget>>` instead, and `.via(BoxFocus.value())` composes as generated.
 
 ### Cross-Ecosystem Navigation
 

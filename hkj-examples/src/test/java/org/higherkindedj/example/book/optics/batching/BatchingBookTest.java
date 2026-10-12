@@ -41,10 +41,10 @@ class BatchingBookTest {
   @Test
   @DisplayName("partition splits the per-key answers into users and reasons")
   void partitionSplitsSuccessesFromFailures() {
-    SafeFetch.Partitioned<String, User> split = BatchingBook.partition();
+    SafeFetch.Partitioned<String, UserSummary> split = BatchingBook.partition();
 
     assertThat(split.successes())
-        .extracting(User::name)
+        .extracting(UserSummary::name)
         .containsExactly("Ada Lovelace", "Grace Hopper");
     assertThat(split.failures()).containsExactly("no user nobody");
   }

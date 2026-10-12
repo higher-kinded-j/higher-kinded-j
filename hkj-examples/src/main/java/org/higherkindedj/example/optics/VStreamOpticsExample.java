@@ -33,11 +33,11 @@ public class VStreamOpticsExample {
   // Domain models
   record Rule(String name, int priority) {}
 
-  record Config(String env, VStream<Rule> rules) {}
+  record RuleSet(String env, VStream<Rule> rules) {}
 
   // Lenses
-  static final Lens<Config, VStream<Rule>> RULES_LENS =
-      Lens.of(Config::rules, (config, rules) -> new Config(config.env(), rules));
+  static final Lens<RuleSet, VStream<Rule>> RULES_LENS =
+      Lens.of(RuleSet::rules, (config, rules) -> new RuleSet(config.env(), rules));
 
   static final Lens<Rule, String> RULE_NAME_LENS =
       Lens.of(Rule::name, (rule, name) -> new Rule(name, rule.priority()));
@@ -100,14 +100,14 @@ public class VStreamOpticsExample {
 
     Each<VStream<Rule>, Rule> vstreamEach = EachInstances.vstreamEach();
 
-    // Build traversal path: Config -> rules -> each rule
-    TraversalPath<Config, Rule> allRules = FocusPath.of(RULES_LENS).each(vstreamEach);
+    // Build traversal path: RuleSet -> rules -> each rule
+    TraversalPath<RuleSet, Rule> allRules = FocusPath.of(RULES_LENS).each(vstreamEach);
 
-    // Build traversal path: Config -> rules -> each rule -> name
-    TraversalPath<Config, String> allRuleNames = allRules.via(RULE_NAME_LENS);
+    // Build traversal path: RuleSet -> rules -> each rule -> name
+    TraversalPath<RuleSet, String> allRuleNames = allRules.via(RULE_NAME_LENS);
 
-    Config config =
-        new Config(
+    RuleSet config =
+        new RuleSet(
             "production",
             VStream.fromList(
                 List.of(
@@ -120,11 +120,11 @@ public class VStreamOpticsExample {
     System.out.println("Rule names: " + names);
 
     // Modify all rule names to uppercase
-    Config updated = allRuleNames.modifyAll(String::toUpperCase, config);
+    RuleSet updated = allRuleNames.modifyAll(String::toUpperCase, config);
     System.out.println("Updated:    " + allRuleNames.getAll(updated));
 
     // Filter high-priority rules
-    TraversalPath<Config, Rule> highPriority = allRules.filter(r -> r.priority() <= 2);
+    TraversalPath<RuleSet, Rule> highPriority = allRules.filter(r -> r.priority() <= 2);
     List<Rule> important = highPriority.getAll(config);
     System.out.println("High priority rules: " + important.stream().map(Rule::name).toList());
 

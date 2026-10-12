@@ -351,16 +351,18 @@ List<String> upper = Traversals.modify(listTraversal, String::toUpperCase, names
 
 <!-- verify -->
 ```java
+// AppConfig is the configuration example's model, at the end of this page
+
 // Overly complex: manual Optional handling
-Optional<String> getNestedValue(Config config) {
+Optional<String> poolMaxOf(AppConfig config) {
     return config.database()
-        .flatMap(db -> db.connection())
-        .flatMap(conn -> conn.timeout())
+        .flatMap(db -> db.pool())
+        .map(pool -> pool.maxSize())
         .map(Object::toString);
 }
 
 // Unsafe: assuming presence without checking
-String hostOf(Config config) {
+String hostOf(AppConfig config) {
     return config.database().get().host();  // NoSuchElementException!
 }
 
@@ -378,16 +380,16 @@ String nicknameOf(LegacyReview review) {
 <!-- verify -->
 ```java
 // Clean: compose affines for deep access
-Affine<Config, Integer> timeoutAffine =
+Affine<AppConfig, Integer> poolMaxAffine =
     databaseAffine
-        .andThen(connectionAffine)
-        .andThen(timeoutLens)
-        .andThen(Affines.some());
+        .andThen(pool)
+        .andThen(Affines.some())
+        .andThen(maxSize);
 
-Optional<String> timeout = timeoutAffine.mapOptional(Object::toString, config);
+Optional<String> poolMax = poolMaxAffine.mapOptional(Object::toString, config);
 
 // Safe: affine handles absence gracefully
-String value = databaseAffine.getOrElse(defaultSettings, config).host();
+String value = databaseAffine.getOrElse(defaultDatabase, config).host();
 
 // Composable: build reusable optics
 Affine<Review, String> nicknameAffine = ReviewOptics.AUTHOR_NICKNAME;

@@ -44,27 +44,27 @@ import org.jspecify.annotations.Nullable;
 
 @GenerateLenses
 @GenerateFocus
-record Employee(String name, String email, Optional<String> nickname, int salary) {}
+record Agent(String name, String email, Optional<String> nickname, int salary) {}
 
 @GenerateLenses
 @GenerateFocus
-record Agency(String name, List<Employee> employees) {}
+record Agency(String name, List<Agent> agents) {}
 
 @GenerateLenses
-record Contact(String name, @Nullable String phone) {}
+record Prospect(String name, @Nullable String phone) {}
 
-record Role(String title) {}
+record Role(String name) {}
 
 record RoleBox(Kind<ListKind.Witness, Role> roles) {}
 
 class Fixture {
-  static final Employee alice = new Employee("Alice", "alice@acme.test", Optional.empty(), 60000);
+  static final Agent alice = new Agent("Alice", "alice@acme.test", Optional.empty(), 60000);
 
-  static final Employee bob = new Employee("Bob", "bob@acme.test", Optional.of("Bobby"), 55000);
+  static final Agent bob = new Agent("Bob", "bob@acme.test", Optional.of("Bobby"), 55000);
 
   static final Agency agency = new Agency("Acme", List.of(alice, bob));
 
-  static final Contact carol = new Contact("Carol", null);
+  static final Prospect carol = new Prospect("Carol", null);
 
   static final List<@Nullable String> aliases = Arrays.asList("Ace", null, "Bee");
 
@@ -80,6 +80,6 @@ class Fixture {
   }
 
   static Role promote(Role role) {
-    return new Role(role.title().toUpperCase());
+    return new Role(role.name().toUpperCase());
   }
 }

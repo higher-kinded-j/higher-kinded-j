@@ -4,11 +4,11 @@ package org.higherkindedj.example.optics.fluent;
 
 import java.util.List;
 import java.util.Optional;
-import org.higherkindedj.example.optics.fluent.generated.PlayerLenses;
-import org.higherkindedj.example.optics.fluent.generated.TeamLenses;
-import org.higherkindedj.example.optics.fluent.generated.TeamTraversals;
-import org.higherkindedj.example.optics.fluent.model.Player;
-import org.higherkindedj.example.optics.fluent.model.Team;
+import org.higherkindedj.example.optics.fluent.generated.FootballClubLenses;
+import org.higherkindedj.example.optics.fluent.generated.FootballClubTraversals;
+import org.higherkindedj.example.optics.fluent.generated.FootballerLenses;
+import org.higherkindedj.example.optics.fluent.model.FootballClub;
+import org.higherkindedj.example.optics.fluent.model.Footballer;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.fluent.OpticOps;
@@ -26,13 +26,13 @@ import org.higherkindedj.optics.fluent.OpticOps;
 public final class FluentApiExample {
 
   public static void main(String[] args) {
-    Team team =
-        new Team(
+    FootballClub team =
+        new FootballClub(
             "Wildcats",
             List.of(
-                new Player("Alice", 25, 100),
-                new Player("Bob", 30, 95),
-                new Player("Charlie", 22, 110)));
+                new Footballer("Alice", 25, 100),
+                new Footballer("Bob", 30, 95),
+                new Footballer("Charlie", 22, 110)));
 
     System.out.println("=== Fluent API Examples ===\n");
 
@@ -40,23 +40,24 @@ public final class FluentApiExample {
     System.out.println("--- Static Methods ---");
 
     // Get team name
-    String teamName = OpticOps.get(team, TeamLenses.name());
+    String teamName = OpticOps.get(team, FootballClubLenses.name());
     System.out.println("Team name: " + teamName);
 
     // Get all player names
-    Traversal<Team, String> playerNames =
-        TeamTraversals.players().andThen(PlayerLenses.name().asTraversal());
+    Traversal<FootballClub, String> playerNames =
+        FootballClubTraversals.players().andThen(FootballerLenses.name().asTraversal());
     List<String> names = OpticOps.getAll(team, playerNames);
     System.out.println("Player names: " + names);
 
     // Modify team name
-    Team renamedTeam = OpticOps.modify(team, TeamLenses.name(), name -> name + " FC");
-    System.out.println("Renamed team: " + OpticOps.get(renamedTeam, TeamLenses.name()));
+    FootballClub renamedTeam =
+        OpticOps.modify(team, FootballClubLenses.name(), name -> name + " FC");
+    System.out.println("Renamed team: " + OpticOps.get(renamedTeam, FootballClubLenses.name()));
 
     // Modify all player scores (add 10 bonus points)
-    Traversal<Team, Integer> playerScores =
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
-    Team bonusTeam = OpticOps.modifyAll(team, playerScores, score -> score + 10);
+    Traversal<FootballClub, Integer> playerScores =
+        FootballClubTraversals.players().andThen(FootballerLenses.score().asTraversal());
+    FootballClub bonusTeam = OpticOps.modifyAll(team, playerScores, score -> score + 10);
     System.out.println("Scores after bonus: " + OpticOps.getAll(bonusTeam, playerScores));
 
     // Query: check if any player has score > 100
@@ -64,7 +65,7 @@ public final class FluentApiExample {
     System.out.println("Has high scorer: " + hasHighScorer);
 
     // Query: count players
-    Traversal<Team, Player> playersTraversal = TeamTraversals.players();
+    Traversal<FootballClub, Footballer> playersTraversal = FootballClubTraversals.players();
     int playerCount = OpticOps.count(team, playersTraversal);
     System.out.println("Player count: " + playerCount);
 
@@ -74,7 +75,7 @@ public final class FluentApiExample {
     System.out.println("--- Fluent Builders ---");
 
     // Get team name
-    String teamName2 = OpticOps.getting(team).through(TeamLenses.name());
+    String teamName2 = OpticOps.getting(team).through(FootballClubLenses.name());
     System.out.println("Team name: " + teamName2);
 
     // Get all player names
@@ -82,12 +83,13 @@ public final class FluentApiExample {
     System.out.println("Player names: " + names2);
 
     // Set team name
-    Team renamedTeam2 = OpticOps.setting(team).through(TeamLenses.name(), "Eagles");
+    FootballClub renamedTeam2 = OpticOps.setting(team).through(FootballClubLenses.name(), "Eagles");
     System.out.println(
-        "Renamed team: " + OpticOps.getting(renamedTeam2).through(TeamLenses.name()));
+        "Renamed team: " + OpticOps.getting(renamedTeam2).through(FootballClubLenses.name()));
 
     // Modify all player scores
-    Team bonusTeam2 = OpticOps.modifying(team).allThrough(playerScores, score -> score + 10);
+    FootballClub bonusTeam2 =
+        OpticOps.modifying(team).allThrough(playerScores, score -> score + 10);
     System.out.println(
         "Scores after bonus: " + OpticOps.getting(bonusTeam2).allThrough(playerScores));
 
@@ -96,12 +98,13 @@ public final class FluentApiExample {
     System.out.println("All players have good scores: " + allGoodScores);
 
     // Query: find first player with score > 100
-    Lens<Player, Integer> scoreReader = PlayerLenses.score();
-    Optional<Player> highScorer =
+    Lens<Footballer, Integer> scoreReader = FootballerLenses.score();
+    Optional<Footballer> highScorer =
         OpticOps.querying(team)
             .findFirst(playersTraversal, player -> OpticOps.get(player, scoreReader) > 100);
     System.out.println(
-        "High scorer: " + highScorer.map(p -> OpticOps.get(p, PlayerLenses.name())).orElse("none"));
+        "High scorer: "
+            + highScorer.map(p -> OpticOps.get(p, FootballerLenses.name())).orElse("none"));
 
     System.out.println();
 
@@ -109,15 +112,15 @@ public final class FluentApiExample {
     System.out.println("--- Composition ---");
 
     // Compose optics for deep access
-    Traversal<Team, Integer> allAges =
-        TeamTraversals.players().andThen(PlayerLenses.age().asTraversal());
+    Traversal<FootballClub, Integer> allAges =
+        FootballClubTraversals.players().andThen(FootballerLenses.age().asTraversal());
 
     // Get all ages
     List<Integer> ages = OpticOps.getAll(team, allAges);
     System.out.println("All ages: " + ages);
 
     // Increment all ages by 1 (birthday!)
-    Team olderTeam = OpticOps.modifyAll(team, allAges, age -> age + 1);
+    FootballClub olderTeam = OpticOps.modifyAll(team, allAges, age -> age + 1);
     System.out.println("Ages after birthday: " + OpticOps.getAll(olderTeam, allAges));
 
     // Check if all players are adults

@@ -479,12 +479,12 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "both map to wire component" -->
 ```java
-record Person(String first, String name) {}
+record Applicant(String first, String name) {}
 
-record PersonDto(String name, String other) {}
+record ApplicantDto(String name, String other) {}
 
 @GenerateMapping
-interface PersonMapping extends MappingSpec<Person, PersonDto> {
+interface ApplicantMapping extends MappingSpec<Applicant, ApplicantDto> {
   @MapField(to = "name")
   String first();
 }
@@ -508,12 +508,12 @@ The rule: [Renames](basics.md#renames-mapfield).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "targets a wire component another rename already claims" -->
 ```java
-record Person(String first, String last) {}
+record Recipient(String first, String last) {}
 
-record PersonDto(String name) {}
+record ShippingLabelDto(String name) {}
 
 @GenerateMapping
-interface PersonMapping extends MappingSpec<Person, PersonDto> {
+interface ShippingLabelMapping extends MappingSpec<Recipient, ShippingLabelDto> {
   @MapField(to = "name")
   String first();
 
@@ -575,10 +575,10 @@ The rule: [Renamed and converted](basics.md#renamed-and-converted).
 ```java
 record Customer(String name, EmailAddress email) {}
 
-record CustomerDto(String name, String emailAddress) {}
+record MailingListCustomerDto(String name, String emailAddress) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+interface MailingListCustomerMapping extends MappingSpec<Customer, MailingListCustomerDto> {
   @MapField(to = "emailAddress")
   default EmailAddress email(String raw) {
     return new EmailAddress(raw);
@@ -627,12 +627,12 @@ A wire with fewer components than the domain (a projection) also declares a deri
 **Fix.** Drop the derived field and map the smaller wire as a plain projection, or give the wire every domain component.
 
 ```
-@GenerateMapping: 'BadgeDto' combines a projection with derived fields. Setting the derived
-fields [label] aside, 'BadgeDto' has fewer components than 'Employee', which is the projection
-shape. The projection write-back (asLens or patch) writes wire values back into the domain, but
-build recomputes a derived component, so the write-back could never honour the value being set.
-Remove the derived methods and map the smaller wire as a plain projection, or add wire
-components until every domain component keeps a counterpart.
+@GenerateMapping: 'NameTagDto' combines a projection with derived fields. Setting the derived
+fields [label] aside, 'NameTagDto' has fewer components than 'BadgeHolder', which is the
+projection shape. The projection write-back (asLens or patch) writes wire values back into the
+domain, but build recomputes a derived component, so the write-back could never honour the value
+being set. Remove the derived methods and map the smaller wire as a plain projection, or add
+wire components until every domain component keeps a counterpart.
 ```
 
 The rule: [Derived fields and the emission tiers](rules.md#derived-fields-and-the-emission-tiers).
@@ -640,14 +640,14 @@ The rule: [Derived fields and the emission tiers](rules.md#derived-fields-and-th
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "combines a projection with derived fields" -->
 ```java
-record Employee(String name, String department, int age) {}
+record BadgeHolder(String name, String department, int age) {}
 
-record BadgeDto(String name, String label) {}
+record NameTagDto(String name, String label) {}
 
 @GenerateMapping
-interface BadgeMapping extends MappingSpec<Employee, BadgeDto> {
-  default Getter<Employee, String> label() {
-    return Getter.of(employee -> employee.name() + " (" + employee.department() + ")");
+interface NameTagMapping extends MappingSpec<BadgeHolder, NameTagDto> {
+  default Getter<BadgeHolder, String> label() {
+    return Getter.of(holder -> holder.name() + " (" + holder.department() + ")");
   }
 }
 ```
@@ -930,9 +930,9 @@ The rule: [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:reports "is redundant on a bean wire" -->
 ```java
-record Guest(String name, Optional<String> nickname) {}
+record Reviewer(String name, Optional<String> nickname) {}
 
-class GuestBean {
+class ReviewerBean {
   private String name;
   private String nickname;
 
@@ -943,7 +943,7 @@ class GuestBean {
 }
 
 @GenerateMapping
-interface GuestMapping extends MappingSpec<Guest, GuestBean> {
+interface ReviewerMapping extends MappingSpec<Reviewer, ReviewerBean> {
   @OptionalBridge
   Optional<String> nickname();
 }
@@ -1338,18 +1338,25 @@ The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is targeted by more than one domain subtype" -->
 ```java
-sealed interface Payment permits Card, StoreCard {}
+sealed interface Payment permits Card, Bank, StoreCard {}
 
 record Card(String pan) implements Payment {}
 
+record Bank(String iban) implements Payment {}
+
 record StoreCard(String pan) implements Payment {}
 
-sealed interface PaymentDto permits CardDto {}
+sealed interface PaymentDto permits CardDto, BankDto {}
 
 record CardDto(String pan) implements PaymentDto {}
 
+record BankDto(String iban) implements PaymentDto {}
+
 @GenerateMapping
 interface CardMapping extends MappingSpec<Card, CardDto> {}
+
+@GenerateMapping
+interface BankMapping extends MappingSpec<Bank, BankDto> {}
 
 @GenerateMapping
 interface StoreCardMapping extends MappingSpec<StoreCard, CardDto> {}
@@ -1377,16 +1384,16 @@ The rule: [Spec members on a sealed mapping](rules.md#how-the-two-default-famili
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no meaning on a sealed mapping" -->
 ```java
-sealed interface Channel permits Email {}
+sealed interface Channel permits EmailChannel {}
 
-record Email(EmailAddress address) implements Channel {}
+record EmailChannel(EmailAddress address) implements Channel {}
 
-sealed interface ChannelDto permits EmailDto {}
+sealed interface ChannelDto permits EmailChannelDto {}
 
-record EmailDto(String address) implements ChannelDto {}
+record EmailChannelDto(String address) implements ChannelDto {}
 
 @GenerateMapping
-interface EmailMapping extends MappingSpec<Email, EmailDto> {
+interface EmailChannelMapping extends MappingSpec<EmailChannel, EmailChannelDto> {
   default ValidatedPrism<String, EmailAddress> address() {
     return EmailCodecs.EMAIL;
   }
@@ -1412,10 +1419,10 @@ A flattened record has a component named like one of the domain's own, so both w
 **Fix.** Rename one of the two record components, or, where two groups spread one record type, flatten only one of them and nest the other.
 
 ```
-@GenerateMapping: @Flatten on 'address' spreads a component 'city' that 'PickupPoint' also has.
-Every wire component takes exactly one source, and a flattened group's components are sourced by
-name, so a name shared with the domain or with another group would claim one wire component
-twice. Rename one of the two record components.
+@GenerateMapping: @Flatten on 'address' spreads a component 'city' that 'CollectionPoint' also
+has. Every wire component takes exactly one source, and a flattened group's components are
+sourced by name, so a name shared with the domain or with another group would claim one wire
+component twice. Rename one of the two record components.
 ```
 
 The rule: [Names in a flattened group](rules.md#names-in-a-flattened-group).
@@ -1425,12 +1432,12 @@ The rule: [Names in a flattened group](rules.md#names-in-a-flattened-group).
 ```java
 record Address(String street, String city, String postcode) {}
 
-record PickupPoint(String name, String city, Address address) {}
+record CollectionPoint(String name, String city, Address address) {}
 
-record PickupPointDto(String name, String street, String city, String postcode) {}
+record CollectionPointDto(String name, String street, String city, String postcode) {}
 
 @GenerateMapping
-interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
+interface CollectionPointMapping extends MappingSpec<CollectionPoint, CollectionPointDto> {
   @Flatten
   Address address();
 }
@@ -1456,9 +1463,9 @@ The rule: [Where a flattened component can appear](rules.md#where-flattening-app
 ```java
 record Address(String street, String city, String postcode) {}
 
-record PickupPoint(String name, Address address) {}
+record CollectionPoint(String name, Address address) {}
 
-class PickupPointBean {
+class CollectionPointBean {
   private String name;
   private String street;
   private String city;
@@ -1475,7 +1482,7 @@ class PickupPointBean {
 }
 
 @GenerateMapping
-interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointBean> {
+interface CollectionPointMapping extends MappingSpec<CollectionPoint, CollectionPointBean> {
   @Flatten
   Address address();
 }
@@ -1504,12 +1511,12 @@ record Geo(String lat) {}
 
 record Address(String street, String city, String postcode, Geo geo) {}
 
-record PickupPoint(String name, Address address) {}
+record CollectionPoint(String name, Address address) {}
 
-record PickupPointDto(String name, String street, String city, String postcode, String lat) {}
+record CollectionPointDto(String name, String street, String city, String postcode, String lat) {}
 
 @GenerateMapping
-interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
+interface CollectionPointMapping extends MappingSpec<CollectionPoint, CollectionPointDto> {
   @Flatten
   Address address();
 
@@ -2191,13 +2198,13 @@ A plain component or a derived field fills a oneof member. Setting one member cl
 **Fix.** Declare every component that fills a member of the oneof as an `Optional`, and remove a derived field that fills one. Or map the whole oneof to one component named after it, of a sealed type.
 
 ```
-@GenerateMapping: domain field 'Json.stringValue' is String, and fills 'stringValue', a member
-of the oneof 'kind' of the protobuf-java message 'Value'. Setting one member of a oneof clears
-the others, so build, which writes every field it fills, would keep only the last member of
-'kind' it wrote. A domain Optional reads a member that is not set as empty, and leaves an empty
-one unwritten. Declare 'stringValue' as Optional<String>, as every domain component filling a
-member of 'kind' must be; or map the whole oneof to one component named 'kind', a sealed
-interface with a record named after each member.
+@GenerateMapping: domain field 'JsonMembers.stringValue' is String, and fills 'stringValue', a
+member of the oneof 'kind' of the protobuf-java message 'Value'. Setting one member of a oneof
+clears the others, so build, which writes every field it fills, would keep only the last member
+of 'kind' it wrote. A domain Optional reads a member that is not set as empty, and leaves an
+empty one unwritten. Declare 'stringValue' as Optional<String>, as every domain component
+filling a member of 'kind' must be; or map the whole oneof to one component named 'kind', a
+sealed interface with a record named after each member.
 ```
 
 The rule: [A oneof maps to a sealed type, or member by member](rules.md#protobuf-oneof-members).
@@ -2206,7 +2213,7 @@ The rule: [A oneof maps to a sealed type, or member by member](rules.md#protobuf
 <!-- verify:rejects "a member of the oneof" -->
 ```java
 // Value's oneof 'kind' has six members; the domain fills 'stringValue' with a plain String.
-record Json(
+record JsonMembers(
     Optional<com.google.protobuf.NullValue> nullValue,
     Optional<Double> numberValue,
     String stringValue,
@@ -2215,7 +2222,7 @@ record Json(
     Optional<com.google.protobuf.ListValue> listValue) {}
 
 @GenerateMapping
-interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}
+interface JsonMembersMapping extends MappingSpec<JsonMembers, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2226,7 +2233,7 @@ A domain component named after a oneof maps the whole oneof, and only a sealed t
 **Fix.** Declare the component as a sealed interface with a record named after each member, or an `Optional` of one. To map each member to an `Optional` of its own instead, rename the component.
 
 ```
-@GenerateMapping: domain field 'Json.kind' is String, and names the oneof 'kind' of the
+@GenerateMapping: domain field 'JsonField.kind' is String, and names the oneof 'kind' of the
 protobuf-java message 'Value', which maps to a sealed interface or an Optional of one. The oneof
 holds at most one of its members, [nullValue, numberValue, stringValue, boolValue, structValue,
 listValue], and a sealed interface with a record for each is the domain type that holds the same
@@ -2241,10 +2248,10 @@ The rule: [A oneof maps to a sealed type, or member by member](rules.md#protobuf
 <!-- verify:rejects "which maps to a sealed interface or an Optional of one" -->
 ```java
 // Value's oneof is named 'kind', as this String component is.
-record Json(String kind) {}
+record JsonField(String kind) {}
 
 @GenerateMapping
-interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2255,7 +2262,7 @@ interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}
 **Fix.** Make the variant a record.
 
 ```
-@GenerateMapping: the variant 'ListValue' of 'Json', which domain field 'JsonValue.kind' maps a
+@GenerateMapping: the variant 'ListValue' of 'Json', which domain field 'JsonField.kind' maps a
 oneof to, is not a record. parse builds the variant a member's value becomes through a record's
 canonical constructor. Make 'ListValue' a record.
 ```
@@ -2274,10 +2281,10 @@ sealed interface Json {
   final class ListValue implements Json {}
 }
 
-record JsonValue(Json kind) {}
+record JsonField(Json kind) {}
 
 @GenerateMapping
-interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2289,7 +2296,7 @@ Each member of the oneof pairs with the variant named after it, `Locker` with `l
 
 ```
 @GenerateMapping: the variants of 'Json' do not pair with the members of the oneof 'kind' of
-'Value', which domain field 'JsonValue.kind' maps: members [listValue] have no variant, and
+'Value', which domain field 'JsonField.kind' maps: members [listValue] have no variant, and
 variants [Items] name no member. Each member pairs with the variant named after it, capitalised,
 NullValue with nullValue, since build writes every variant and parse reads every member. Name a
 record of 'Json' after each member, adding [ListValue], and rename or remove [Items].
@@ -2310,10 +2317,10 @@ sealed interface Json {
   record Items(com.google.protobuf.ListValue value) implements Json {}
 }
 
-record JsonValue(Json kind) {}
+record JsonField(Json kind) {}
 
 @GenerateMapping
-interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2345,10 +2352,10 @@ sealed interface Json {
   record ListValue(com.google.protobuf.ListValue value) implements Json {}
 }
 
-record JsonValue(Json kind) {}
+record JsonField(Json kind) {}
 
 @GenerateMapping
-interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2359,8 +2366,8 @@ A component fills a member that another component, named after the oneof, alread
 **Fix.** Remove the component, or map each member to an `Optional` of its own in place of the sealed component.
 
 ```
-@GenerateMapping: domain field 'JsonValue.stringValue' fills 'stringValue', a member of the
-oneof that domain field 'JsonValue.kind' maps whole. A oneof maps whole, through the component
+@GenerateMapping: domain field 'JsonField.stringValue' fills 'stringValue', a member of the
+oneof that domain field 'JsonField.kind' maps whole. A oneof maps whole, through the component
 named after it, or member by member, never both: 'kind' holds 'stringValue' as its variant
 StringValue. Remove 'stringValue', or map each member to an Optional component of its own in
 place of 'kind'.
@@ -2381,10 +2388,10 @@ sealed interface Json {
   record ListValue(com.google.protobuf.ListValue value) implements Json {}
 }
 
-record JsonValue(Json kind, Optional<String> stringValue) {}
+record JsonField(Json kind, Optional<String> stringValue) {}
 
 @GenerateMapping
-interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {}
 ```
 ~~~
 
@@ -2395,7 +2402,7 @@ A leaf, or another method, is named after a component that maps a oneof. The com
 **Fix.** Remove the method. To refuse a member's value, check it in its variant's constructor.
 
 ```
-@GenerateMapping: 'kind()' is named after domain field 'JsonValue.kind', which maps the oneof
+@GenerateMapping: 'kind()' is named after domain field 'JsonField.kind', which maps the oneof
 'kind' through its variants, so nothing calls it. A member's value becomes its variant through a
 spec for the pair, or fills the variant's one component, and no leaf stands in for either.
 Remove 'kind()'.
@@ -2415,10 +2422,10 @@ sealed interface Json {
   record ListValue(com.google.protobuf.ListValue value) implements Json {}
 }
 
-record JsonValue(Json kind) {}
+record JsonField(Json kind) {}
 
 @GenerateMapping
-interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {
+interface JsonFieldMapping extends MappingSpec<JsonField, com.google.protobuf.Value> {
   default ValidatedPrism<String, Json> kind() {
     return ValidatedPrism.of(
         text -> Validated.invalidNel(FieldError.of("unused")), json -> json.toString());
@@ -2434,7 +2441,7 @@ A builder with no getters has several writers that might be a `@Singular` collec
 **Fix.** Drop `@Singular` from the collection, so the builder takes it whole; a class that cannot change needs a hand-written request bean.
 
 ```
-@GenerateMapping: the singular adder of the @Singular collection 'people' on 'CrewRequest'
+@GenerateMapping: the singular adder of the @Singular collection 'people' on 'PhotoShootRequest'
 cannot be told apart: person(String) and medium(String) each take one String. build writes
 'people' whole through people(Collection<? extends String>) and leaves its adder alone, so it
 has to know which writer the adder is: the one named by a regular English singular of the
@@ -2449,15 +2456,15 @@ The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "cannot be told apart" -->
 ```java
-record Crew(List<String> people, List<String> media) {}
+record PhotoShoot(List<String> people, List<String> media) {}
 
 // A builder shaped like the one Lombok's @Builder writes for two @Singular lists, each given an
 // adder name of its own.
-final class CrewRequest {
+final class PhotoShootRequest {
   private final List<String> people;
   private final List<String> media;
 
-  private CrewRequest(List<String> people, List<String> media) {
+  private PhotoShootRequest(List<String> people, List<String> media) {
     this.people = people;
     this.media = media;
   }
@@ -2474,12 +2481,12 @@ final class CrewRequest {
     public Builder medium(String medium) { media.add(medium); return this; }
     public Builder media(Collection<? extends String> media) { this.media.addAll(media); return this; }
     public Builder clearMedia() { media.clear(); return this; }
-    public CrewRequest build() { return new CrewRequest(List.copyOf(people), List.copyOf(media)); }
+    public PhotoShootRequest build() { return new PhotoShootRequest(List.copyOf(people), List.copyOf(media)); }
   }
 }
 
 @GenerateMapping
-interface CrewMapping extends MappingSpec<Crew, CrewRequest> {}
+interface PhotoShootMapping extends MappingSpec<PhotoShoot, PhotoShootRequest> {}
 ```
 ~~~
 
@@ -2902,11 +2909,11 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ```java
 record Customer(String name, EmailAddress email) {}
 
-record Account(String name, String iban, int balance) {}
+record Account(String name, String accountId, BigDecimal balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Dashboard(String name, String iban, boolean darkMode) {}
+record Dashboard(String name, String accountId, boolean darkMode) {}
 
 @GenerateMerge
 interface DashboardAssembly {
@@ -2934,9 +2941,9 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ```java
 record Contact(String email) {}
 
-record Account(String iban, int balance) {}
+record Account(String accountId, BigDecimal balance) {}
 
-record Summary(EmailAddress email, String iban) {}
+record Summary(EmailAddress email, String accountId) {}
 
 @GenerateMerge
 interface SummaryMerge {
@@ -2968,11 +2975,11 @@ The rule: [How a merge fills](rules.md#how-a-merge-fills).
 ```java
 record Customer(String name, EmailAddress email) {}
 
-record Account(String iban, int balance) {}
+record Account(String accountId, BigDecimal balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Dashboard(String name, String iban, boolean darkMode) {}
+record Dashboard(String name, String accountId, boolean darkMode) {}
 
 @GenerateMerge
 interface DashboardAssembly {

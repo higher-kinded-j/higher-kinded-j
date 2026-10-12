@@ -159,17 +159,17 @@ class FromJavaBookTest {
       prices.put("LAMP", new BigDecimal("40.00"));
       prices.put("BULB", new BigDecimal("2.50"));
       prices.put("SOFA", new BigDecimal("400.00"));
-      Catalogue catalogue = new Catalogue("Autumn", prices);
+      PriceList priceList = new PriceList("Autumn", prices);
 
       Map<String, BigDecimal> byStream =
-          catalogue.prices().entrySet().stream()
+          priceList.prices().entrySet().stream()
               .collect(
                   Collectors.toMap(
                       Map.Entry::getKey, e -> e.getValue().multiply(new BigDecimal("0.9"))));
-      Catalogue byFocus =
-          CatalogueFocus.prices()
+      PriceList byFocus =
+          PriceListFocus.prices()
               .each(EachInstances.mapValuesEach())
-              .modifyAll(price -> price.multiply(new BigDecimal("0.9")), catalogue);
+              .modifyAll(price -> price.multiply(new BigDecimal("0.9")), priceList);
 
       assertThat(byFocus.prices()).isEqualTo(byStream);
       assertThat(byFocus.prices().keySet()).containsExactly("LAMP", "BULB", "SOFA");

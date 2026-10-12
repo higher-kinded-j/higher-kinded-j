@@ -514,16 +514,16 @@ public class EventProcessor {
     }
 
     // Transform events for audit log
-    public List<AuditEntry> toAuditLog(List<DomainEvent> events) {
+    public List<EventLogEntry> toAuditLog(List<DomainEvent> events) {
         return events.stream()
             .flatMap(event ->
                 // Extract audit entries from different event types
                 USER_CREATED.mapOptional(
-                    uc -> new AuditEntry("USER_CREATED", uc.userId(), uc.timestamp()),
+                    uc -> new EventLogEntry("USER_CREATED", uc.userId(), uc.timestamp()),
                     event
                 ).or(() ->
                     ORDER_PLACED.mapOptional(
-                        op -> new AuditEntry("ORDER_PLACED", op.orderId(), op.timestamp()),
+                        op -> new EventLogEntry("ORDER_PLACED", op.orderId(), op.timestamp()),
                         event
                     )
                 ).stream()
@@ -845,13 +845,13 @@ public class PluginBatches {
     // Transform plugins based on environment
     public static List<Plugin> adaptForEnvironment(
         List<Plugin> plugins,
-        Environment env
+        DeploymentStage stage
     ) {
         return plugins.stream()
             .map(plugin ->
                 // Modify database plugins for different environments
                 DB.modifyWhen(
-                    db -> env == Environment.PRODUCTION,
+                    db -> stage == DeploymentStage.PRODUCTION,
                     db -> new DatabasePlugin(
                         db.query(),
                         db.config().withReadReplica()

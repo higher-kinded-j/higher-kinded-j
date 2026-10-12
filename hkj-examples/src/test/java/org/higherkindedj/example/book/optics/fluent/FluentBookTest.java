@@ -186,7 +186,7 @@ class FluentBookTest {
   @Test
   @DisplayName("a filtered traversal discounts only the bulk lines")
   void filtered() {
-    FluentBook.BulkDiscount result = FluentBook.discountBulkLines(ORDER);
+    FluentBook.DiscountedLines result = FluentBook.discountBulkLines(ORDER);
 
     assertThat(result.discounted().lines())
         .extracting(LineItem::price)

@@ -31,7 +31,7 @@ class EachBookTest {
   @Test
   @DisplayName("the map's index is its key, so one entrant's score changes alone")
   void adjustsOneValueByKey() {
-    EachBook.MapResults results = EachBook.byKey();
+    EachBook.ByKeyResults results = EachBook.byKey();
 
     assertThat(results.adjusted()).isEqualTo(Map.of("alice", 100, "bob", 90, "charlie", 92));
     assertThat(results.labelled())

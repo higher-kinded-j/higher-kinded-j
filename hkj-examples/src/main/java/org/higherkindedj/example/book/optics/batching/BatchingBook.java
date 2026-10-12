@@ -101,35 +101,35 @@ public final class BatchingBook {
     return result;
   }
 
-  static SafeFetch.Partitioned<String, User> partition() {
+  static SafeFetch.Partitioned<String, UserSummary> partition() {
     // Two members the directory knows, and one it does not, each fetched as an Either
-    Optic<List<UserId>, List<Either<String, User>>, UserId, Either<String, User>> members =
-        FetchOptics.fetchEach(ids -> ids, (ids, answers) -> answers);
+    Optic<List<UserId>, List<Either<String, UserSummary>>, UserId, Either<String, UserSummary>>
+        members = FetchOptics.fetchEach(ids -> ids, (ids, answers) -> answers);
     var program =
         members.modifyF(
-            id -> FETCH.widen(Fetch.<UserId, Either<String, User>>fetch(id)),
+            id -> FETCH.widen(Fetch.<UserId, Either<String, UserSummary>>fetch(id)),
             List.of(new UserId("ada"), new UserId("nobody"), new UserId("grace")),
-            FetchApplicative.<UserId, Either<String, User>>instance());
+            FetchApplicative.<UserId, Either<String, UserSummary>>instance());
 
     // ANCHOR: partition
-    // The backend reports each key on its own: a User, or the reason there is none
-    Function<Set<UserId>, Map<UserId, Either<String, User>>> partial =
+    // The backend reports each key on its own: a UserSummary, or the reason there is none
+    Function<Set<UserId>, Map<UserId, Either<String, UserSummary>>> partial =
         ids -> ids.stream().collect(Collectors.toMap(id -> id, BatchingBook::lookUp));
 
-    Fetch.RunResult<UserId, List<Either<String, User>>> result =
+    Fetch.RunResult<UserId, List<Either<String, UserSummary>>> result =
         Fetch.runCached(FETCH.narrow(program), partial);
 
-    SafeFetch.Partitioned<String, User> split = SafeFetch.partition(result.value());
-    List<User> found = split.successes();
+    SafeFetch.Partitioned<String, UserSummary> split = SafeFetch.partition(result.value());
+    List<UserSummary> found = split.successes();
     List<String> reasons = split.failures();
     // ANCHOR_END: partition
     return split;
   }
 
-  private static Either<String, User> lookUp(UserId id) {
+  private static Either<String, UserSummary> lookUp(UserId id) {
     return switch (id.value()) {
-      case "ada" -> Either.right(new User(id, "Ada Lovelace"));
-      case "grace" -> Either.right(new User(id, "Grace Hopper"));
+      case "ada" -> Either.right(new UserSummary(id, "Ada Lovelace"));
+      case "grace" -> Either.right(new UserSummary(id, "Grace Hopper"));
       default -> Either.left("no user " + id.value());
     };
   }
@@ -137,4 +137,4 @@ public final class BatchingBook {
 
 record UserId(String value) {}
 
-record User(UserId id, String name) {}
+record UserSummary(UserId id, String name) {}

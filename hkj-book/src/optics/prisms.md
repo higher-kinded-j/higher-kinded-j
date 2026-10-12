@@ -74,25 +74,25 @@ Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`
 Each method takes the camelCase form of the subtype's name, or of the constant's name on an `enum`. A form that would be a Java keyword or literal (`true`, `false`, `null`) takes a trailing underscore: `@GeneratePrisms` on an enum like the cast's `OrderStatus` would give `OrderStatusPrisms.new_()` for its `NEW` constant.
 
 ~~~admonish note title="A subtype that is an inner class of a generic class" collapsible=true
-An inner class of a generic class is named under that class's arguments, since without them it is raw. Where the subtype's clause leaves them free, the prism focuses a `Circle` of some `Shapes`, which is all an `instanceof` can check:
+An inner class of a generic class is named under that class's arguments, since without them it is raw. Where the subtype's clause leaves them free, the prism focuses a `Dot` of some `Outlines`, which is all an `instanceof` can check:
 
 <!-- verify -->
 ```java
-class Shapes<X> {
+class Outlines<X> {
 
     @GeneratePrisms
-    sealed interface Shape permits Shapes.Circle {}
+    sealed interface Outline permits Outlines.Dot {}
 
-    final class Circle implements Shape {}
+    final class Dot implements Outline {}
 }
 
-class ReadsACircle {
+class ReadsADot {
 
-    Prism<Shapes.Shape, Shapes<?>.Circle> circle = ShapePrisms.circle();
+    Prism<Outlines.Outline, Outlines<?>.Dot> dot = OutlinePrisms.dot();
 }
 ```
 
-Where the sealed interface is generic and the clause binds the enclosing parameter, as `Pinned implements Tagged<X>` does, the prism declares it: `<X> Prism<Tagged<X>, Shapes<X>.Pinned>`. A static nested class has no enclosing arguments, so it is named as written.
+Where the sealed interface is generic and the clause binds the enclosing parameter, as `Pinned implements Tagged<X>` does, the prism declares it: `<X> Prism<Tagged<X>, Outlines<X>.Pinned>`. A static nested class has no enclosing arguments, so it is named as written.
 ~~~
 
 #### Customising the Generated Package
@@ -185,8 +185,8 @@ This composed `Traversal` now represents a safe, deep path that will only succee
 <!-- verify -->
 ```java
 // Perfect for safe type extraction
-Optional<String> errorMessage = DomainErrorPrisms.validationError()
-    .andThen(ValidationErrorLenses.message())
+Optional<String> errorMessage = DomainErrorPrisms.inputError()
+    .andThen(InputErrorLenses.message())
     .getOptional(someError);
 ```
 
@@ -290,21 +290,21 @@ Here's a practical example of using prisms to handle different API response type
 <!-- verify -->
 ```java
 @GeneratePrisms
-public sealed interface ApiResponse {}
-public record SuccessResponse(String data, int statusCode) implements ApiResponse {}
-public record ErrorResponse(String message, String errorCode) implements ApiResponse {}
-public record TimeoutResponse(long timeoutMs) implements ApiResponse {}
+public sealed interface GatewayResponse {}
+public record SuccessResponse(String data, int statusCode) implements GatewayResponse {}
+public record ErrorResponse(String message, String errorCode) implements GatewayResponse {}
+public record TimeoutResponse(long timeoutMs) implements GatewayResponse {}
 
 public class ApiHandler {
     // Reusable prisms for different response types
-    private static final Prism<ApiResponse, SuccessResponse> SUCCESS = 
-        ApiResponsePrisms.successResponse();
-    private static final Prism<ApiResponse, ErrorResponse> ERROR = 
-        ApiResponsePrisms.errorResponse();
-    private static final Prism<ApiResponse, TimeoutResponse> TIMEOUT = 
-        ApiResponsePrisms.timeoutResponse();
+    private static final Prism<GatewayResponse, SuccessResponse> SUCCESS = 
+        GatewayResponsePrisms.successResponse();
+    private static final Prism<GatewayResponse, ErrorResponse> ERROR = 
+        GatewayResponsePrisms.errorResponse();
+    private static final Prism<GatewayResponse, TimeoutResponse> TIMEOUT = 
+        GatewayResponsePrisms.timeoutResponse();
   
-    public String handleResponse(ApiResponse response) {
+    public String handleResponse(GatewayResponse response) {
         // Type-safe extraction and handling
         return SUCCESS.getOptional(response)
             .map(success -> "Success: " + success.data())
@@ -316,7 +316,7 @@ public class ApiHandler {
     }
   
     // Use prisms for conditional processing
-    public boolean isRetryable(ApiResponse response) {
+    public boolean isRetryable(GatewayResponse response) {
         return ERROR.getOptional(response)
             .map(error -> "RATE_LIMIT".equals(error.errorCode()) || "TEMPORARY".equals(error.errorCode()))
             .or(() -> TIMEOUT.getOptional(response).map(t -> true))

@@ -34,10 +34,10 @@ public class OptimisedPrismCache {
     // Example usage: a composition keyed by a value only known at runtime,
     // so it cannot simply be a `static final` constant.
     // Note the explicit witnesses: a bare Prisms.some() would infer Object here.
-    public static Traversal<Settings, String> settingAt(String key) {
+    public static Traversal<SettingsMap, String> settingAt(String key) {
         Objects.requireNonNull(key, "key");   // else settingAt(null) and settingAt("null") share a cache entry
         return getCached("settings." + key, () ->
-            SettingsLenses.entries()
+            SettingsMapLenses.entries()
                 .andThen(Traversals.forMap(key))
                 .andThen(Prisms.<String>some()));
     }
@@ -79,20 +79,20 @@ public class BulkProcessor {
 <!-- verify -->
 ```java
 public class PrismTestPatterns {
-    private static final JsonValue jsonData = new JsonValue("{}");
+    private static final JsonValue jsonData = new JsonObject(Map.of());
 
-    private static Prism<Config, String> buildHostPrism() {
+    private static Prism<HostConfig, String> buildHostPrism() {
         return Prism.of(
             config -> config.host().isBlank() ? Optional.empty() : Optional.of(config.host()),
-            host -> new Config(host, 8080));
+            host -> new HostConfig(host, 8080));
     }
 
-    private static Config createValidConfig() {
-        return new Config("localhost", 8080);
+    private static HostConfig createValidConfig() {
+        return new HostConfig("localhost", 8080);
     }
 
-    private static Config createInvalidConfig() {
-        return new Config("", 8080);
+    private static HostConfig createInvalidConfig() {
+        return new HostConfig("", 8080);
     }
 
     @Test
@@ -117,10 +117,10 @@ public class PrismTestPatterns {
     @Test
     void testComposedPrisms() {
         // Test deep prism compositions
-        Prism<Config, String> hostPrism = buildHostPrism();
+        Prism<HostConfig, String> hostPrism = buildHostPrism();
 
-        Config validConfig = createValidConfig();
-        Config invalidConfig = createInvalidConfig();
+        HostConfig validConfig = createValidConfig();
+        HostConfig invalidConfig = createInvalidConfig();
 
         assertThat(hostPrism.getOptional(validConfig)).isPresent();
         assertThat(hostPrism.getOptional(invalidConfig)).isEmpty();

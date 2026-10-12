@@ -4,6 +4,7 @@ package org.higherkindedj.example.book.optics.programs;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -14,17 +15,17 @@ class ProgramsBookTest {
   @Test
   @DisplayName("describing the withdrawal leaves the account as it was")
   void describingChangesNothing() {
-    ProgramsBook.withdraw(ProgramsBook.ACCOUNT, 30);
+    ProgramsBook.withdraw(ProgramsBook.ACCOUNT, new BigDecimal("30"));
 
-    assertThat(ProgramsBook.ACCOUNT).isEqualTo(new Account("ACC-1", 100));
+    assertThat(ProgramsBook.ACCOUNT).isEqualTo(new Account("ACC-1", new BigDecimal("100")));
   }
 
   @Test
   @DisplayName("the direct run settles the account on 70")
   void directRunSettles() {
     assertThat(ProgramsBook.runThreeWays(ProgramsBook.ACCOUNT).settled())
-        .isEqualTo(new Account("ACC-1", 70))
-        .hasToString("Account[id=ACC-1, balance=70]");
+        .isEqualTo(new Account("ACC-1", new BigDecimal("70")))
+        .hasToString("Account[accountId=ACC-1, balance=70]");
   }
 
   @Test

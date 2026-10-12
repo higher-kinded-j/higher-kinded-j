@@ -364,12 +364,12 @@ String normalised = Traversals.modify(
 <!-- verify -->
 ```java
 // Perfect: Reusable, composable, declarative
-Traversal<Config, String> allPropertyValues =
-    ConfigLenses.properties()
+Traversal<PropertyFile, String> allPropertyValues =
+    PropertyFileLenses.properties()
         .andThen(StringTraversals.lined())
         .andThen(StringTraversals.worded());
 
-Config trimmed = Traversals.modify(allPropertyValues, String::trim, config);
+PropertyFile trimmed = Traversals.modify(allPropertyValues, String::trim, file);
 ```
 
 ### Use Stream API When

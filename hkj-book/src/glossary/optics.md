@@ -536,21 +536,17 @@ Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns
 <!-- verify -->
 ```java
 @GeneratePrisms
-public sealed interface PaymentMethod {
-    record CreditCard(String number) implements PaymentMethod {}
-    record BankTransfer(String iban) implements PaymentMethod {}
-}
+public sealed interface Payment permits Card, Bank {}
+public record Card(String pan) implements Payment {}
+public record Bank(String iban) implements Payment {}
 
-Prism<PaymentMethod, PaymentMethod.CreditCard> creditCardPrism =
-    PaymentMethodPrisms.creditCard();
+Prism<Payment, Card> cardPrism = PaymentPrisms.card();
 
 // Safe extraction
-Optional<String> cardNumber =
-    creditCardPrism.preview(payment).map(PaymentMethod.CreditCard::number);
+Optional<String> pan = cardPrism.preview(payment).map(Card::pan);
 
-// Conditional update: only a CreditCard is touched
-PaymentMethod masked = creditCardPrism.modify(
-    card -> new PaymentMethod.CreditCard("****" + card.number()), payment);
+// Conditional update: only a Card is touched
+Payment masked = cardPrism.modify(card -> new Card("****" + card.pan()), payment);
 ```
 
 **Related:** [Prisms Documentation](../optics/prisms.md), [ValidatedPrism](#validatedprism)

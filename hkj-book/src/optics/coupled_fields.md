@@ -206,16 +206,16 @@ static <S, A, B> Lens<S, Pair<A, B>> paired(
 **Example:**
 <!-- verify -->
 ```java
-record Transaction(String id, int min, int max, String note) {
-    Transaction {
+record QuantityLimit(String id, int min, int max, String note) {
+    QuantityLimit {
         if (min > max) throw new IllegalArgumentException("min > max");
     }
 }
 
-Lens<Transaction, Pair<Integer, Integer>> limitsLens = Lens.paired(
+Lens<QuantityLimit, Pair<Integer, Integer>> limitsLens = Lens.paired(
     minLens,
     maxLens,
-    (txn, newMin, newMax) -> new Transaction(txn.id(), newMin, newMax, txn.note())
+    (limit, newMin, newMax) -> new QuantityLimit(limit.id(), newMin, newMax, limit.note())
 );
 ```
 
@@ -293,24 +293,24 @@ Range widened = boundsLens.modify(
 
 <!-- verify -->
 ```java
-record Rectangle(Point topLeft, Point bottomRight) {
-    Rectangle {
+record Viewport(Point topLeft, Point bottomRight) {
+    Viewport {
         if (topLeft.x() >= bottomRight.x() || topLeft.y() >= bottomRight.y()) {
-            throw new IllegalArgumentException("Invalid rectangle bounds");
+            throw new IllegalArgumentException("Invalid viewport bounds");
         }
     }
 }
 
-Lens<Rectangle, Pair<Point, Point>> cornersLens =
-    Lens.paired(topLeftLens, bottomRightLens, Rectangle::new);
+Lens<Viewport, Pair<Point, Point>> cornersLens =
+    Lens.paired(topLeftLens, bottomRightLens, Viewport::new);
 
-// Move the entire rectangle
-Rectangle moved = cornersLens.modify(
+// Move the entire viewport
+Viewport moved = cornersLens.modify(
     p -> Pair.of(
         p.first().translate(dx, dy),
         p.second().translate(dx, dy)
     ),
-    rect
+    viewport
 );
 ```
 
@@ -318,24 +318,24 @@ Rectangle moved = cornersLens.modify(
 
 <!-- verify -->
 ```java
-record ServerConfig(String host, int minPort, int maxPort) {
-    ServerConfig {
+record ServerPorts(String host, int minPort, int maxPort) {
+    ServerPorts {
         if (minPort > maxPort || minPort < 1024 || maxPort > 65535) {
             throw new IllegalArgumentException("Invalid port range");
         }
     }
 }
 
-Lens<ServerConfig, Pair<Integer, Integer>> portsLens = Lens.paired(
+Lens<ServerPorts, Pair<Integer, Integer>> portsLens = Lens.paired(
     minPortLens,
     maxPortLens,
-    (cfg, min, max) -> new ServerConfig(cfg.host(), min, max)
+    (ports, min, max) -> new ServerPorts(ports.host(), min, max)
 );
 
 // Shift port range up by 1000
-ServerConfig updated = portsLens.modify(
+ServerPorts updated = portsLens.modify(
     p -> Pair.of(p.first() + 1000, p.second() + 1000),
-    serverConfig
+    ports
 );
 ```
 
@@ -347,14 +347,14 @@ A paired lens is just a normal `Lens<S, Pair<A, B>>`, so it composes naturally:
 
 <!-- verify -->
 ```java
-// Config contains ServerConfig which has coupled port range
-Lens<Config, Pair<Integer, Integer>> configPorts =
-    configServerLens.andThen(serverPortsLens);
+// A Deployment holds ServerPorts, whose port range is coupled
+Lens<Deployment, Pair<Integer, Integer>> deploymentPorts =
+    deploymentServerLens.andThen(serverPortsLens);
 
 // Shift both ports atomically through the nested structure
-Config updated = configPorts.modify(
+Deployment updated = deploymentPorts.modify(
     p -> Pair.of(p.first() + 1000, p.second() + 1000),
-    config
+    deployment
 );
 ```
 

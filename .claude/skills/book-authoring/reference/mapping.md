@@ -70,7 +70,7 @@ the claim, since the processor or a library can change under it.
   labels to fit.
 - **A renamed cast type moves in more places than its declaration.**
   - Output comments print its `toString`, and prose quotes printed values (`tiers.md`'s
-    `Employee[...]`, a fallback such as `not a valid DeliveryWindow`).
+    `BadgeHolder[...]`, a fallback such as `not a valid DeliveryWindow`).
   - `BasicsBookTest` and `SelfCheckBookTest` pass spec names to `FreshPackage` as strings, so a
     missed one fails only when that test runs.
   - A `verify:rejects` marker and its visible copy quote type names; capture the new message by

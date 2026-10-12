@@ -155,13 +155,13 @@ import org.higherkindedj.optics.extensions.EachExtensions;
 Each<Maybe<String>, String> maybeEach = EachExtensions.maybeEach();
 
 // Either right value traversal
-Each<Either<AppError, Value>, Value> eitherEach = EachExtensions.eitherRightEach();
+Each<Either<AppError, Payload>, Payload> eitherEach = EachExtensions.eitherRightEach();
 
 // Try success value traversal
 Each<Try<String>, String> tryEach = EachExtensions.trySuccessEach();
 
 // Validated valid value traversal
-Each<Validated<List<AppError>, Value>, Value> validatedEach = EachExtensions.validatedEach();
+Each<Validated<List<AppError>, Payload>, Payload> validatedEach = EachExtensions.validatedEach();
 ```
 
 ---
@@ -352,18 +352,18 @@ List<Product> discounted = IndexedTraversals.imodify(
 
 <!-- verify -->
 ```java
-// User -> List<Project> -> Map<String, Task>
-Each<List<Project>, Project> projectEach = EachInstances.listEach();
+// Contributor -> List<TaskBoard> -> Map<String, Task>
+Each<List<TaskBoard>, TaskBoard> boardEach = EachInstances.listEach();
 Each<Map<String, Task>, Task> taskEach = EachInstances.mapValuesEach();
 
-TraversalPath<User, Task> allTasks =
-    FocusPath.of(userProjectsLens)
-        .each(projectEach)
-        .via(projectTasksLens)
+TraversalPath<Contributor, Task> allTasks =
+    FocusPath.of(contributorBoardsLens)
+        .each(boardEach)
+        .via(boardTasksLens)
         .each(taskEach);
 
-// Update all tasks across all projects
-User updated = allTasks.modifyAll(Task::markReviewed, user);
+// Update all tasks across all boards
+Contributor updated = allTasks.modifyAll(Task::escalated, contributor);
 ```
 
 ---

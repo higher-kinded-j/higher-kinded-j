@@ -32,21 +32,20 @@ public class DataValidationPipelineExample {
 
   // Validation result variants
   @GeneratePrisms
-  public sealed interface ValidationResult permits Valid, Invalid, Warning, Skipped {}
+  public sealed interface ImportVerdict permits Valid, Invalid, Warning, Skipped {}
 
   @GenerateLenses
-  public record Valid(CustomerImportRow value) implements ValidationResult {}
+  public record Valid(CustomerImportRow value) implements ImportVerdict {}
 
   @GenerateLenses
   public record Invalid(CustomerImportRow originalValue, List<String> errors)
-      implements ValidationResult {}
+      implements ImportVerdict {}
 
   @GenerateLenses
-  public record Warning(CustomerImportRow value, List<String> warnings)
-      implements ValidationResult {}
+  public record Warning(CustomerImportRow value, List<String> warnings) implements ImportVerdict {}
 
   @GenerateLenses
-  public record Skipped(CustomerImportRow value, String reason) implements ValidationResult {}
+  public record Skipped(CustomerImportRow value, String reason) implements ImportVerdict {}
 
   // One row of a customer import file, every field still the string the file held
   public record CustomerImportRow(
@@ -57,10 +56,10 @@ public class DataValidationPipelineExample {
       String id, Customer customer, LocalDate dateOfBirth, String status) {}
 
   // Prisms for validation results
-  private static final Prism<ValidationResult, Valid> VALID = ValidationResultPrisms.valid();
-  private static final Prism<ValidationResult, Invalid> INVALID = ValidationResultPrisms.invalid();
-  private static final Prism<ValidationResult, Warning> WARNING = ValidationResultPrisms.warning();
-  private static final Prism<ValidationResult, Skipped> SKIPPED = ValidationResultPrisms.skipped();
+  private static final Prism<ImportVerdict, Valid> VALID = ImportVerdictPrisms.valid();
+  private static final Prism<ImportVerdict, Invalid> INVALID = ImportVerdictPrisms.invalid();
+  private static final Prism<ImportVerdict, Warning> WARNING = ImportVerdictPrisms.warning();
+  private static final Prism<ImportVerdict, Skipped> SKIPPED = ImportVerdictPrisms.skipped();
 
   public static void main(String[] args) {
     System.out.println("=== Data Validation Pipeline with Prisms ===\n");
@@ -80,8 +79,8 @@ public class DataValidationPipelineExample {
     CustomerImportRow invalidCustomer =
         new CustomerImportRow("C002", "", "not-an-email", "invalid-date", "active");
 
-    ValidationResult result1 = validateCustomer(validCustomer);
-    ValidationResult result2 = validateCustomer(invalidCustomer);
+    ImportVerdict result1 = validateCustomer(validCustomer);
+    ImportVerdict result2 = validateCustomer(invalidCustomer);
 
     System.out.println("Valid customer is valid: " + VALID.matches(result1));
     System.out.println("Invalid customer is invalid: " + INVALID.matches(result2));
@@ -101,10 +100,10 @@ public class DataValidationPipelineExample {
         new CustomerImportRow(
             " c003 ", "  bob jones  ", " BOB@EXAMPLE.COM ", "1985-03-20", " ACTIVE ");
 
-    ValidationResult result = new Valid(messyCustomer);
+    ImportVerdict result = new Valid(messyCustomer);
 
     // Clean up whitespace and normalise case
-    ValidationResult cleaned =
+    ImportVerdict cleaned =
         VALID.modify(
             valid ->
                 new Valid(
@@ -124,9 +123,9 @@ public class DataValidationPipelineExample {
     CustomerImportRow typoCustomer =
         new CustomerImportRow("C004", "Charlie", "charlie@gmial.com", "1992-07-10", "active");
 
-    ValidationResult typoResult = new Valid(typoCustomer);
+    ImportVerdict typoResult = new Valid(typoCustomer);
 
-    ValidationResult fixed =
+    ImportVerdict fixed =
         VALID.modifyWhen(
             valid -> valid.value().email().contains("@gmial."),
             valid ->
@@ -159,7 +158,7 @@ public class DataValidationPipelineExample {
 
     // Process each customer through the pipeline
     for (CustomerImportRow customer : rawData) {
-      ValidationResult result = validateCustomer(customer);
+      ImportVerdict result = validateCustomer(customer);
 
       // Extract different result types, loading a valid row as an imported customer
       Optional<ImportedCustomer> imported = VALID.mapOptional(valid -> load(valid.value()), result);
@@ -188,7 +187,7 @@ public class DataValidationPipelineExample {
     CustomerImportRow customer =
         new CustomerImportRow("C005", "Eve", "eve@example.com", "invalid-date", "active");
 
-    ValidationResult result = validateCustomer(customer);
+    ImportVerdict result = validateCustomer(customer);
 
     // Extract first error or warning using mapOptional
     String errorMessage =
@@ -227,7 +226,7 @@ public class DataValidationPipelineExample {
             new CustomerImportRow("C004", "Dave", "dave@example.com", "invalid", "inactive"),
             new CustomerImportRow("C005", "Eve", "eve@example.com", "1995-12-25", "active"));
 
-    List<ValidationResult> results =
+    List<ImportVerdict> results =
         batch.stream().map(DataValidationPipelineExample::validateCustomer).toList();
 
     long validCount = results.stream().filter(VALID::matches).count();
@@ -249,7 +248,7 @@ public class DataValidationPipelineExample {
 
   // Helper validation methods
 
-  private static ValidationResult validateCustomer(CustomerImportRow customer) {
+  private static ImportVerdict validateCustomer(CustomerImportRow customer) {
     List<String> errors = new ArrayList<>();
     List<String> warnings = new ArrayList<>();
 

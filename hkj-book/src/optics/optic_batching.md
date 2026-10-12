@@ -103,30 +103,30 @@ You did not write a `loadAll`. You did not write a for-loop, a buffer, or a `the
 
 ## When the Optic Can't Spell It: `Id -> Entity`
 
-The codegen produces type-preserving optics: a `Traversal<Team, UserId>` is `UserId` in and `UserId` out. So how do you express "load each `UserId` into a `User`" when the focus type *changes*?
+The codegen produces type-preserving optics: a `Traversal<StoredTeam, UserId>` is `UserId` in and `UserId` out. So how do you express "load each `UserId` into a `UserSummary`" when the focus type *changes*?
 
 `FetchOptics.fetchEach` builds the type-changing list-traversal the codegen does not produce:
 
 <!-- verify -->
 ```java
-record Team(String name, List<UserId> memberIds) {}
-record EnrichedTeam(String name, List<User> members) {}
+record StoredTeam(String name, List<UserId> memberIds) {}
+record LoadedTeam(String name, List<UserSummary> members) {}
 
-Optic<Team, EnrichedTeam, UserId, User> memberFetch =
+Optic<StoredTeam, LoadedTeam, UserId, UserSummary> memberFetch =
     FetchOptics.fetchEach(
-        Team::memberIds,
-        (team, users) -> new EnrichedTeam(team.name(), users));
+        StoredTeam::memberIds,
+        (team, users) -> new LoadedTeam(team.name(), users));
 
 var program = memberFetch.modifyF(
-    id -> FETCH.widen(Fetch.<UserId, User>fetch(id)),
+    id -> FETCH.widen(Fetch.<UserId, UserSummary>fetch(id)),
     team,
-    FetchApplicative.<UserId, User>instance());
+    FetchApplicative.<UserId, UserSummary>instance());
 
-Fetch.RunResult<UserId, EnrichedTeam> result =
+Fetch.RunResult<UserId, LoadedTeam> result =
     Fetch.runCached(FETCH.narrow(program), userResolver);
 ```
 
-The reader is the list-shaped field. The rebuilder reassembles the parent around the resolved values. One round, one batched call, regardless of how many members are in the team. The aggregate goes in `Team`, comes out `EnrichedTeam`.
+The reader is the list-shaped field. The rebuilder reassembles the parent around the resolved values. One round, one batched call, regardless of how many members are in the team. The aggregate goes in `StoredTeam`, comes out `LoadedTeam`.
 
 ---
 
@@ -150,7 +150,7 @@ Exceptions are great when nobody else needs to know about them. The moment a fai
 
 <!-- verify -->
 ```java
-Either<Throwable, Fetch.RunResult<UserId, User>> outcome =
+Either<Throwable, Fetch.RunResult<UserId, UserSummary>> outcome =
     SafeFetch.runCached(program, failingResolver);
 ```
 

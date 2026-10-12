@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/focus_reference.md
 //
 // The reference page's patterns, FAQ answers and troubleshooting recipes all
-// operate on a small company graph; the records live here and the annotation
+// operate on a small org chart; the records live here and the annotation
 // processor generates the *Focus and *Lenses companions during snippet
 // compilation.
 //
@@ -41,19 +41,27 @@ import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
 @GenerateFocus
-record Employee(String name, int age, Optional<String> email) {}
+record OrgMember(String name, int age, Optional<String> email, Integer salary) {}
 
 @GenerateLenses
 @GenerateFocus
-record Department(String name, List<Employee> employees) {}
+record OrgUnit(String name, List<OrgMember> members) {}
 
 @GenerateLenses
 @GenerateFocus
-record Company(String name, List<Department> departments) {}
+record OrgChart(String name, List<OrgUnit> units) {}
 
 // The records the generated-code settings point at, beside the chapter cast's Address
 @GenerateFocus
-record Settings(String theme, int fontSize) {}
+record Settings(boolean darkMode) {}
+
+record Company(String name, Address address) {}
+
+record Employee(String name, Company company) {}
+
+@GenerateLenses
+@GenerateFocus
+record Department(String name, List<Employee> staff) {}
 
 @GenerateFocus
 record Division(String name, Department department) {}
@@ -61,23 +69,24 @@ record Division(String name, Department department) {}
 // A Kind field behind a hand-written lens, for the traverseOver recipe
 record Role(String name) {}
 
-record User(String name, Kind<ListKind.Witness, Role> roles) {}
+record Operator(String name, Kind<ListKind.Witness, Role> roles) {}
 
 class Fixture {
-  static final Employee alice = new Employee("Alice", 41, Optional.of("alice@acme.test"));
+  static final OrgMember alice =
+      new OrgMember("Alice", 41, Optional.of("alice@acme.test"), 52000);
 
-  static final Employee bob = new Employee("Bob", 17, Optional.empty());
+  static final OrgMember bob = new OrgMember("Bob", 17, Optional.empty(), 18000);
 
-  static final Department department = new Department("Engineering", List.of(alice, bob));
+  static final OrgUnit unit = new OrgUnit("Engineering", List.of(alice, bob));
 
-  static final Company company = new Company("Acme", List.of(department));
+  static final OrgChart company = new OrgChart("Acme", List.of(unit));
 
-  static final List<Company> companies = List.of(company);
+  static final List<OrgChart> companies = List.of(company);
 
-  static final User user = new User("Ada", LIST.widen(List.of(new Role("admin"))));
+  static final Operator user = new Operator("Ada", LIST.widen(List.of(new Role("admin"))));
 
-  static final FocusPath<User, Kind<ListKind.Witness, Role>> rolesPath =
-      FocusPath.of(Lens.of(User::roles, (user, roles) -> new User(user.name(), roles)));
+  static final FocusPath<Operator, Kind<ListKind.Witness, Role>> rolesPath =
+      FocusPath.of(Lens.of(Operator::roles, (operator, roles) -> new Operator(operator.name(), roles)));
 
   static Validated<String, Integer> validateAge(int age) {
     return age >= 18 && age <= 100 ? Validated.valid(age) : Validated.invalid("Invalid age: " + age);

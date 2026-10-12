@@ -89,7 +89,7 @@ class FromMonocleBookTest {
   @Test
   @DisplayName("headOption reads the first element and writes every one")
   void headOptionWritesEveryElement() {
-    FromMonocleBook.HeadOption result = FromMonocleBook.headOption(ORDER);
+    FromMonocleBook.HeadOptionResults result = FromMonocleBook.headOption(ORDER);
 
     assertThat(result.read()).contains(1);
     assertThat(result.everyLine().lines()).extracting(LineItem::quantity).containsExactly(7, 7);

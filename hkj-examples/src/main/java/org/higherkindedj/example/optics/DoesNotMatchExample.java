@@ -4,8 +4,8 @@ package org.higherkindedj.example.optics;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import org.higherkindedj.example.optics.doesnotmatch.ApiResponsePrisms;
-import org.higherkindedj.example.optics.doesnotmatch.JsonValuePrisms;
+import org.higherkindedj.example.optics.doesnotmatch.JsonScalarPrisms;
+import org.higherkindedj.example.optics.doesnotmatch.LookupResponsePrisms;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 
@@ -31,25 +31,25 @@ public class DoesNotMatchExample {
 
   // Domain model for examples - uses targetPackage to avoid conflicts with other examples
   @GeneratePrisms(targetPackage = "org.higherkindedj.example.optics.doesnotmatch")
-  public sealed interface JsonValue permits JsonString, JsonNumber, JsonBoolean, JsonNull {}
+  public sealed interface JsonScalar permits JsonString, JsonNumber, JsonBoolean, JsonNull {}
 
-  public record JsonString(String value) implements JsonValue {}
+  public record JsonString(String value) implements JsonScalar {}
 
-  public record JsonNumber(double value) implements JsonValue {}
+  public record JsonNumber(double value) implements JsonScalar {}
 
-  public record JsonBoolean(boolean value) implements JsonValue {}
+  public record JsonBoolean(boolean value) implements JsonScalar {}
 
-  public record JsonNull() implements JsonValue {}
+  public record JsonNull() implements JsonScalar {}
 
   // API response model - uses targetPackage to avoid conflicts with other examples
   @GeneratePrisms(targetPackage = "org.higherkindedj.example.optics.doesnotmatch")
-  public sealed interface ApiResponse permits Success, ClientError, ServerError {}
+  public sealed interface LookupResponse permits SuccessResponse, ClientError, ServerError {}
 
-  public record Success(String data) implements ApiResponse {}
+  public record SuccessResponse(String data, int statusCode) implements LookupResponse {}
 
-  public record ClientError(int code, String message) implements ApiResponse {}
+  public record ClientError(int code, String message) implements LookupResponse {}
 
-  public record ServerError(String message, String traceId) implements ApiResponse {}
+  public record ServerError(String message, String traceId) implements LookupResponse {}
 
   public static void main(String[] args) {
     System.out.println("=== DoesNotMatch Examples ===\n");
@@ -69,10 +69,10 @@ public class DoesNotMatchExample {
   private static void demonstrateBasicUsage() {
     System.out.println("--- Basic Usage ---");
 
-    Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+    Prism<JsonScalar, JsonString> stringPrism = JsonScalarPrisms.jsonString();
 
-    JsonValue stringValue = new JsonString("hello");
-    JsonValue numberValue = new JsonNumber(42.0);
+    JsonScalar stringValue = new JsonString("hello");
+    JsonScalar numberValue = new JsonNumber(42.0);
 
     System.out.println("Testing doesNotMatch vs matches:");
     System.out.println();
@@ -98,10 +98,10 @@ public class DoesNotMatchExample {
   private static void demonstrateFilteringExclusion() {
     System.out.println("--- Filtering with Exclusion ---");
 
-    Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
-    Prism<JsonValue, JsonNull> nullPrism = JsonValuePrisms.jsonNull();
+    Prism<JsonScalar, JsonString> stringPrism = JsonScalarPrisms.jsonString();
+    Prism<JsonScalar, JsonNull> nullPrism = JsonScalarPrisms.jsonNull();
 
-    List<JsonValue> values =
+    List<JsonScalar> values =
         List.of(
             new JsonString("hello"),
             new JsonNumber(42.0),
@@ -110,27 +110,27 @@ public class DoesNotMatchExample {
             new JsonString("world"),
             new JsonNumber(3.14));
 
-    System.out.println("Original values: " + formatJsonValues(values));
+    System.out.println("Original values: " + formatJsonScalars(values));
 
     // Filter to get all non-string values
-    List<JsonValue> nonStrings =
+    List<JsonScalar> nonStrings =
         values.stream().filter(stringPrism::doesNotMatch).collect(Collectors.toList());
 
-    System.out.println("Non-string values: " + formatJsonValues(nonStrings));
+    System.out.println("Non-string values: " + formatJsonScalars(nonStrings));
 
     // Filter to get all non-null values
-    List<JsonValue> nonNulls =
+    List<JsonScalar> nonNulls =
         values.stream().filter(nullPrism::doesNotMatch).collect(Collectors.toList());
 
-    System.out.println("Non-null values: " + formatJsonValues(nonNulls));
+    System.out.println("Non-null values: " + formatJsonScalars(nonNulls));
 
     // Combine exclusions: neither strings nor nulls
-    List<JsonValue> numbersAndBooleans =
+    List<JsonScalar> numbersAndBooleans =
         values.stream()
             .filter(v -> stringPrism.doesNotMatch(v) && nullPrism.doesNotMatch(v))
             .collect(Collectors.toList());
 
-    System.out.println("Numbers and booleans only: " + formatJsonValues(numbersAndBooleans));
+    System.out.println("Numbers and booleans only: " + formatJsonScalars(numbersAndBooleans));
 
     System.out.println();
   }
@@ -143,16 +143,17 @@ public class DoesNotMatchExample {
   private static void demonstrateConditionalLogic() {
     System.out.println("--- Conditional Logic ---");
 
-    Prism<JsonValue, JsonNull> nullPrism = JsonValuePrisms.jsonNull();
+    Prism<JsonScalar, JsonNull> nullPrism = JsonScalarPrisms.jsonNull();
 
-    List<JsonValue> values = List.of(new JsonString("data"), new JsonNull(), new JsonNumber(100.0));
+    List<JsonScalar> values =
+        List.of(new JsonString("data"), new JsonNull(), new JsonNumber(100.0));
 
     System.out.println("Processing values with null check using doesNotMatch:");
-    for (JsonValue value : values) {
+    for (JsonScalar value : values) {
       if (nullPrism.doesNotMatch(value)) {
-        System.out.println("  " + formatJsonValue(value) + " -> Processing value");
+        System.out.println("  " + formatJsonScalar(value) + " -> Processing value");
       } else {
-        System.out.println("  " + formatJsonValue(value) + " -> Skipping null");
+        System.out.println("  " + formatJsonScalar(value) + " -> Skipping null");
       }
     }
 
@@ -175,13 +176,13 @@ public class DoesNotMatchExample {
   private static void demonstrateErrorHandling() {
     System.out.println("--- Error Handling Patterns ---");
 
-    Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
+    Prism<LookupResponse, SuccessResponse> successPrism = LookupResponsePrisms.successResponse();
 
-    List<ApiResponse> responses =
+    List<LookupResponse> responses =
         List.of(
-            new Success("Data loaded"),
+            new SuccessResponse("Data loaded", 200),
             new ClientError(404, "Not found"),
-            new Success("More data"),
+            new SuccessResponse("More data", 200),
             new ServerError("Database timeout", "trace-123"),
             new ClientError(401, "Unauthorized"));
 
@@ -189,21 +190,21 @@ public class DoesNotMatchExample {
     System.out.println();
 
     // Separate successes from failures
-    List<ApiResponse> failures =
+    List<LookupResponse> failures =
         responses.stream().filter(successPrism::doesNotMatch).collect(Collectors.toList());
 
-    List<ApiResponse> successes =
+    List<LookupResponse> successes =
         responses.stream().filter(successPrism::matches).collect(Collectors.toList());
 
     System.out.println("Successful responses (" + successes.size() + "):");
-    for (ApiResponse response : successes) {
+    for (LookupResponse response : successes) {
       System.out.println("  " + response);
     }
 
     System.out.println();
 
     System.out.println("Failed responses (" + failures.size() + "):");
-    for (ApiResponse response : failures) {
+    for (LookupResponse response : failures) {
       System.out.println("  " + response);
     }
 
@@ -223,9 +224,9 @@ public class DoesNotMatchExample {
   private static void demonstrateSymmetryWithMatches() {
     System.out.println("--- Symmetry: matches vs doesNotMatch ---");
 
-    Prism<JsonValue, JsonString> stringPrism = JsonValuePrisms.jsonString();
+    Prism<JsonScalar, JsonString> stringPrism = JsonScalarPrisms.jsonString();
 
-    List<JsonValue> testCases =
+    List<JsonScalar> testCases =
         List.of(
             new JsonString("hello"), new JsonNumber(42.0), new JsonBoolean(true), new JsonNull());
 
@@ -233,13 +234,13 @@ public class DoesNotMatchExample {
     System.out.println();
 
     boolean allSymmetric = true;
-    for (JsonValue value : testCases) {
+    for (JsonScalar value : testCases) {
       boolean matches = stringPrism.matches(value);
       boolean doesNotMatch = stringPrism.doesNotMatch(value);
       boolean symmetric = doesNotMatch == !matches;
       allSymmetric = allSymmetric && symmetric;
 
-      System.out.println(formatJsonValue(value) + ":");
+      System.out.println(formatJsonScalar(value) + ":");
       System.out.println("  matches: " + matches);
       System.out.println("  doesNotMatch: " + doesNotMatch);
       System.out.println("  symmetric: " + symmetric);
@@ -250,7 +251,7 @@ public class DoesNotMatchExample {
   }
 
   // Helper methods for formatting output
-  private static String formatJsonValue(JsonValue value) {
+  private static String formatJsonScalar(JsonScalar value) {
     return switch (value) {
       case JsonString js -> "JsonString(\"" + js.value() + "\")";
       case JsonNumber jn -> "JsonNumber(" + jn.value() + ")";
@@ -259,9 +260,9 @@ public class DoesNotMatchExample {
     };
   }
 
-  private static String formatJsonValues(List<JsonValue> values) {
+  private static String formatJsonScalars(List<JsonScalar> values) {
     return values.stream()
-        .map(DoesNotMatchExample::formatJsonValue)
+        .map(DoesNotMatchExample::formatJsonScalar)
         .collect(Collectors.toList())
         .toString();
   }

@@ -42,7 +42,7 @@ public class ContainerNavigationExample {
   // ============= Domain Models =============
 
   /** A configuration entry with a name and a port that may be an error message or a valid port. */
-  record Config(String name, Either<String, Integer> port) {}
+  record PortSetting(String name, Either<String, Integer> port) {}
 
   /** A service result containing the service name and a response that may have failed. */
   record ServiceResult(String service, Try<String> response) {}
@@ -62,14 +62,14 @@ public class ContainerNavigationExample {
   // ============= @GenerateFocus Records (SPI auto-widening) =============
 
   /**
-   * Same Config model but with {@code @GenerateFocus}.
+   * Same PortSetting model but with {@code @GenerateFocus}.
    *
    * <p>The SPI {@code EitherGenerator} recognises {@code Either<String, Integer>} as a ZERO_OR_ONE
-   * container, so {@code AutoConfigFocus.port()} automatically returns {@code
-   * AffinePath<AutoConfig, Integer>} — no manual {@code some(Affine)} needed.
+   * container, so {@code AutoPortSettingFocus.port()} automatically returns {@code
+   * AffinePath<AutoPortSetting, Integer>} — no manual {@code some(Affine)} needed.
    */
   @GenerateFocus
-  record AutoConfig(String name, Either<String, Integer> port) {}
+  record AutoPortSetting(String name, Either<String, Integer> port) {}
 
   /**
    * Same ServiceResult model but with {@code @GenerateFocus}.
@@ -92,8 +92,8 @@ public class ContainerNavigationExample {
 
   // ============= Manual Lenses =============
 
-  static final Lens<Config, Either<String, Integer>> CONFIG_PORT =
-      Lens.of(Config::port, (c, p) -> new Config(c.name(), p));
+  static final Lens<PortSetting, Either<String, Integer>> CONFIG_PORT =
+      Lens.of(PortSetting::port, (c, p) -> new PortSetting(c.name(), p));
 
   static final Lens<ServiceResult, Try<String>> RESULT_RESPONSE =
       Lens.of(ServiceResult::response, (r, resp) -> new ServiceResult(r.service(), resp));
@@ -131,11 +131,11 @@ public class ContainerNavigationExample {
   static void eitherNavigationExample() {
     System.out.println("--- Either Navigation with Affines.eitherRight() ---");
 
-    FocusPath<Config, Either<String, Integer>> portPath = FocusPath.of(CONFIG_PORT);
-    AffinePath<Config, Integer> portValue = portPath.some(Affines.eitherRight());
+    FocusPath<PortSetting, Either<String, Integer>> portPath = FocusPath.of(CONFIG_PORT);
+    AffinePath<PortSetting, Integer> portValue = portPath.some(Affines.eitherRight());
 
-    Config validConfig = new Config("web-server", Either.right(8080));
-    Config errorConfig = new Config("web-server", Either.left("PORT_NOT_SET"));
+    PortSetting validConfig = new PortSetting("web-server", Either.right(8080));
+    PortSetting errorConfig = new PortSetting("web-server", Either.left("PORT_NOT_SET"));
 
     // Get from Right
     Optional<Integer> fromRight = portValue.getOptional(validConfig);
@@ -146,11 +146,11 @@ public class ContainerNavigationExample {
     System.out.println("Get from Left:  " + fromLeft);
 
     // Set a new port value
-    Config updated = portValue.set(9090, validConfig);
+    PortSetting updated = portValue.set(9090, validConfig);
     System.out.println("After set(9090): " + updated.port());
 
     // Modify the port value
-    Config modified = portValue.modify(p -> p + 1, validConfig);
+    PortSetting modified = portValue.modify(p -> p + 1, validConfig);
     System.out.println("After modify(+1): " + modified.port());
 
     System.out.println();
@@ -275,26 +275,26 @@ public class ContainerNavigationExample {
    * <p>Manual approach (above examples):
    *
    * <pre>{@code
-   * Lens<Config, Either<String, Integer>> lens = Lens.of(Config::port, ...);
-   * AffinePath<Config, Integer> path = FocusPath.of(lens).some(Affines.eitherRight());
+   * Lens<PortSetting, Either<String, Integer>> lens = Lens.of(PortSetting::port, ...);
+   * AffinePath<PortSetting, Integer> path = FocusPath.of(lens).some(Affines.eitherRight());
    * }</pre>
    *
    * <p>Generated approach (SPI auto-widening):
    *
    * <pre>{@code
    * // @GenerateFocus on the record is all you need:
-   * AffinePath<AutoConfig, Integer> path = AutoConfigFocus.port();
+   * AffinePath<AutoPortSetting, Integer> path = AutoPortSettingFocus.port();
    * }</pre>
    */
   static void autoWideningComparisonExample() {
     System.out.println("--- @GenerateFocus SPI Auto-Widening Comparison ---");
 
     // --- Either: manual vs generated ---
-    AutoConfig validConfig = new AutoConfig("web-server", Either.right(8080));
-    AutoConfig errorConfig = new AutoConfig("web-server", Either.left("PORT_NOT_SET"));
+    AutoPortSetting validConfig = new AutoPortSetting("web-server", Either.right(8080));
+    AutoPortSetting errorConfig = new AutoPortSetting("web-server", Either.left("PORT_NOT_SET"));
 
-    // Generated: AutoConfigFocus.port() returns AffinePath<AutoConfig, Integer> directly
-    var portPath = AutoConfigFocus.port(); // AffinePath — auto-widened by EitherGenerator SPI
+    // Generated: AutoPortSettingFocus.port() returns AffinePath<AutoPortSetting, Integer> directly
+    var portPath = AutoPortSettingFocus.port(); // AffinePath — auto-widened by EitherGenerator SPI
     System.out.println("Either (generated):");
     System.out.println("  port() type:     " + portPath.getClass().getSimpleName());
     System.out.println("  Get from Right:  " + portPath.getOptional(validConfig));

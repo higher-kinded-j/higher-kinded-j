@@ -21,11 +21,12 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 public class OptionalTraversalExample {
 
   /**
-   * An immutable User record. A user must have an ID, but their email address is optional. We use
-   * {@code @GenerateTraversals} to ask the annotation processor to create optics for us.
+   * An immutable Respondent record. A respondent must have an ID, but their email address is
+   * optional. We use {@code @GenerateTraversals} to ask the annotation processor to create optics
+   * for us.
    */
   @GenerateTraversals
-  public record User(int id, Optional<String> email) {}
+  public record Respondent(int id, Optional<String> email) {}
 
   /**
    * An "effectful" function that validates an email address.
@@ -56,48 +57,52 @@ public class OptionalTraversalExample {
         Instances.validated(stringSemigroup);
 
     // 2. Get the generated traversal for the 'email' field.
-    // The annotation processor creates the `UserTraversals` class and the `email()` method.
-    var emailTraversal = UserTraversals.email();
+    // The annotation processor creates the `RespondentTraversals` class and the `email()` method.
+    var emailTraversal = RespondentTraversals.email();
 
     System.out.println("--- Running Traversal Scenarios ---");
 
-    // --- Scenario 1: A user with a valid email ---
-    User userWithValidEmail = new User(1, Optional.of("test@example.com"));
-    System.out.println("\nInput: " + userWithValidEmail);
+    // --- Scenario 1: A respondent with a valid email ---
+    Respondent respondentWithValidEmail = new Respondent(1, Optional.of("test@example.com"));
+    System.out.println("\nInput: " + respondentWithValidEmail);
 
     // Use the traversal to apply the validation function to the email field.
-    Kind<ValidatedKind.Witness<String>, User> result1 =
+    Kind<ValidatedKind.Witness<String>, Respondent> result1 =
         emailTraversal.modifyF(
-            OptionalTraversalExample::validateEmail, userWithValidEmail, validatedApplicative);
+            OptionalTraversalExample::validateEmail,
+            respondentWithValidEmail,
+            validatedApplicative);
 
     // Narrow the result back to a concrete Validated type to inspect it.
-    Validated<String, User> validatedResult1 = VALIDATED.narrow(result1);
+    Validated<String, Respondent> validatedResult1 = VALIDATED.narrow(result1);
     System.out.println("Result: " + validatedResult1);
-    // Expected: Valid(User[id=1, email=Optional[test@example.com]])
+    // Expected: Valid(Respondent[id=1, email=Optional[test@example.com]])
 
-    // --- Scenario 2: A user with an invalid email ---
-    User userWithInvalidEmail = new User(2, Optional.of("invalid-email"));
-    System.out.println("\nInput: " + userWithInvalidEmail);
+    // --- Scenario 2: A respondent with an invalid email ---
+    Respondent respondentWithInvalidEmail = new Respondent(2, Optional.of("invalid-email"));
+    System.out.println("\nInput: " + respondentWithInvalidEmail);
 
-    Kind<ValidatedKind.Witness<String>, User> result2 =
+    Kind<ValidatedKind.Witness<String>, Respondent> result2 =
         emailTraversal.modifyF(
-            OptionalTraversalExample::validateEmail, userWithInvalidEmail, validatedApplicative);
+            OptionalTraversalExample::validateEmail,
+            respondentWithInvalidEmail,
+            validatedApplicative);
 
-    Validated<String, User> validatedResult2 = VALIDATED.narrow(result2);
+    Validated<String, Respondent> validatedResult2 = VALIDATED.narrow(result2);
     System.out.println("Result: " + validatedResult2);
     // Expected: Invalid(Invalid email format)
 
-    // --- Scenario 3: A user with no email ---
-    User userWithNoEmail = new User(3, Optional.empty());
-    System.out.println("\nInput: " + userWithNoEmail);
+    // --- Scenario 3: A respondent with no email ---
+    Respondent respondentWithNoEmail = new Respondent(3, Optional.empty());
+    System.out.println("\nInput: " + respondentWithNoEmail);
 
     // The traversal function is NOT even called because the Optional is empty.
-    Kind<ValidatedKind.Witness<String>, User> result3 =
+    Kind<ValidatedKind.Witness<String>, Respondent> result3 =
         emailTraversal.modifyF(
-            OptionalTraversalExample::validateEmail, userWithNoEmail, validatedApplicative);
+            OptionalTraversalExample::validateEmail, respondentWithNoEmail, validatedApplicative);
 
-    Validated<String, User> validatedResult3 = VALIDATED.narrow(result3);
+    Validated<String, Respondent> validatedResult3 = VALIDATED.narrow(result3);
     System.out.println("Result: " + validatedResult3);
-    // Expected: Valid(User[id=3, email=Optional.empty])
+    // Expected: Valid(Respondent[id=3, email=Optional.empty])
   }
 }

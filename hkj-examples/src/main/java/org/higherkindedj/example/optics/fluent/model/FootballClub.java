@@ -6,7 +6,7 @@ import java.util.List;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
-/** Represents a team of players. */
+/** Represents a football club and its players. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
 @GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Team(String name, List<Player> players) {}
+public record FootballClub(String name, List<Footballer> players) {}

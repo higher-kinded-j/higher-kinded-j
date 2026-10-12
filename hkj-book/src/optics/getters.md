@@ -36,7 +36,7 @@ Consider a corporate reporting system where you need to extract various pieces o
 public record Person(String firstName, String lastName, int age, Address address) {}
 
 @GenerateGetters
-public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
+public record CompanyProfile(String name, Person ceo, List<Person> employees, Address headquarters) {}
 ```
 
 **Common Extraction Needs:**
@@ -305,14 +305,14 @@ import org.higherkindedj.optics.Getter;
 import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
 
-public record Employee(String id, PersonalInfo personalInfo) {}
+public record PersonnelFile(String id, PersonalInfo personalInfo) {}
 public record PersonalInfo(ContactInfo contactInfo, EmergencyContact emergencyContact) {}
 public record ContactInfo(String email, String phone, Address address) {}
 public record EmergencyContact(String name, String phone) {}
 
 public class EmployeeService {
-    private static final Getter<Employee, PersonalInfo> PERSONAL_INFO =
-        Getter.of(Employee::personalInfo);
+    private static final Getter<PersonnelFile, PersonalInfo> PERSONAL_INFO =
+        Getter.of(PersonnelFile::personalInfo);
     private static final Getter<PersonalInfo, ContactInfo> CONTACT_INFO =
         Getter.of(PersonalInfo::contactInfo);
     private static final Getter<ContactInfo, Address> ADDRESS =
@@ -321,7 +321,7 @@ public class EmployeeService {
         Getter.of(Address::city);
 
     // Extract employee city with full null safety
-    public Maybe<String> getEmployeeCity(Employee employee) {
+    public Maybe<String> getEmployeeCity(PersonnelFile employee) {
         return getMaybe(PERSONAL_INFO, employee)
             .flatMap(info -> getMaybe(CONTACT_INFO, info))
             .flatMap(contact -> getMaybe(ADDRESS, contact))
@@ -329,21 +329,21 @@ public class EmployeeService {
     }
 
     // Generate location-based welcome message
-    public String generateWelcomeMessage(Employee employee) {
+    public String generateWelcomeMessage(PersonnelFile employee) {
         return getEmployeeCity(employee)
             .map(city -> "Welcome to our " + city + " office!")
             .orElse("Welcome to our company!");
     }
 
     // Check if employee is in specific city
-    public boolean isEmployeeInCity(Employee employee, String targetCity) {
+    public boolean isEmployeeInCity(PersonnelFile employee, String targetCity) {
         return getEmployeeCity(employee)
             .map(city -> city.equalsIgnoreCase(targetCity))
             .orElse(false);
     }
 
     // Collect all cities from employee list (skipping unknowns)
-    public List<String> getAllCities(List<Employee> employees) {
+    public List<String> getAllCities(List<PersonnelFile> employees) {
         return employees.stream()
             .map(this::getEmployeeCity)
             .filter(Maybe::isJust)
@@ -353,7 +353,7 @@ public class EmployeeService {
     }
 
     // Get city or fallback to emergency contact location
-    public String getAnyCityInfo(Employee employee) {
+    public String getAnyCityInfo(PersonnelFile employee) {
         Getter<PersonalInfo, EmergencyContact> emergencyGetter =
             Getter.of(PersonalInfo::emergencyContact);
 
@@ -438,7 +438,7 @@ Getter<Person, String> email = Getter.of(p ->
     p.firstName().toLowerCase() + "." + p.lastName().toLowerCase() + "@company.com");
 
 // Good: Composable pipeline
-Getter<Company, String> ceoCityUppercase = ceoGetter
+Getter<CompanyProfile, String> ceoCityUppercase = ceoGetter
     .andThen(addressGetter)
     .andThen(cityGetter)
     .andThen(Getter.of(String::toUpperCase));
@@ -509,7 +509,7 @@ for (Person emp : company.employees()) {
 
 <!-- verify -->
 ```java
-Fold<Company, Person> allEmployees = Fold.of(Company::employees);
+Fold<CompanyProfile, Person> allEmployees = Fold.of(CompanyProfile::employees);
 Getter<Person, Integer> age = Getter.of(Person::age);
 
 // Calculate total age

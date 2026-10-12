@@ -184,15 +184,15 @@ public final class CoreTypesBook {
     return new EitherTraversalResults(doubled, enriched);
   }
 
-  static List<String> customerEmails(ApiResponse response) {
+  static List<String> customerEmails(OrderReply response) {
     // ANCHOR: composition
-    // Full composition: ApiResponse -> Maybe<Order> -> Order -> Customer -> email
-    Lens<ApiResponse, Maybe<Order>> dataLens = ApiResponseLenses.data();
+    // Full composition: OrderReply -> Maybe<Order> -> Order -> Customer -> email
+    Lens<OrderReply, Maybe<Order>> dataLens = OrderReplyLenses.data();
     Traversal<Maybe<Order>, Order> orderTraversal = MaybeTraversals.just();
     Lens<Order, Customer> customerLens = OrderLenses.customer();
     Lens<Customer, String> emailLens = CustomerLenses.email().andThen(EmailAddressLenses.value());
 
-    Traversal<ApiResponse, String> emailPath =
+    Traversal<OrderReply, String> emailPath =
         dataLens.andThen(orderTraversal).andThen(customerLens).andThen(emailLens);
 
     List<String> emails = Traversals.getAll(emailPath, response);
@@ -204,5 +204,5 @@ public final class CoreTypesBook {
 
 // ANCHOR: composition_records
 @GenerateLenses
-record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
+record OrderReply(int statusCode, Maybe<Order> data, List<String> warnings) {}
 // ANCHOR_END: composition_records

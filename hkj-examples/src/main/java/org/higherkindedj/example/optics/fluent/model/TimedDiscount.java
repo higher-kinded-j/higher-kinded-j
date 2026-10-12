@@ -2,11 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent.model;
 
-import java.util.List;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 
-/** Represents a product catalogue with categories. */
+/** Represents a percentage discount with a validity period. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-@GenerateTraversals(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Catalogue(String catalogueId, String name, List<Category> categories) {}
+public record TimedDiscount(
+    String promotionId, BigDecimal discountPercent, LocalDate startDate, LocalDate endDate) {}

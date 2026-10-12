@@ -44,7 +44,7 @@ public class ConfigurationManagementExample {
 
   // Application configuration
   @GenerateLenses
-  public record AppConfig(Map<String, ConfigValue> settings) {}
+  public record SettingsTree(Map<String, ConfigValue> settings) {}
 
   // Prisms for type-safe access
   private static final Prism<ConfigValue, IntValue> INT = ConfigValuePrisms.intValue();
@@ -70,8 +70,8 @@ public class ConfigurationManagementExample {
   private static void demonstrateBasicAccess() {
     System.out.println("--- Basic Type-Safe Configuration Access ---");
 
-    AppConfig config =
-        new AppConfig(
+    SettingsTree config =
+        new SettingsTree(
             Map.of(
                 "pool.size", new IntValue(20),
                 "server.host", new StringValue("localhost"),
@@ -109,8 +109,8 @@ public class ConfigurationManagementExample {
     System.out.println("--- Type Coercion with Fallback Strategies ---");
 
     // Config with mixed types - some values might be strings that need parsing
-    AppConfig config =
-        new AppConfig(
+    SettingsTree config =
+        new SettingsTree(
             Map.of(
                 "timeout.ms", new IntValue(3000),
                 "pool.size", new StringValue("15"), // String instead of int
@@ -166,13 +166,13 @@ public class ConfigurationManagementExample {
             "database", new NestedConfig(databaseSettings),
             "timeout", new IntValue(30000));
 
-    AppConfig config = new AppConfig(Map.of("server", new NestedConfig(serverSettings)));
+    SettingsTree config = new SettingsTree(Map.of("server", new NestedConfig(serverSettings)));
 
     // Build path to nested value: config -> server -> database -> host
-    Lens<AppConfig, Map<String, ConfigValue>> settingsLens = AppConfigLenses.settings();
+    Lens<SettingsTree, Map<String, ConfigValue>> settingsLens = SettingsTreeLenses.settings();
     Lens<NestedConfig, Map<String, ConfigValue>> valuesLens = NestedConfigLenses.values();
 
-    Traversal<AppConfig, String> databaseHost =
+    Traversal<SettingsTree, String> databaseHost =
         settingsLens
             .asTraversal()
             .andThen(Traversals.forMap("server"))
@@ -190,7 +190,7 @@ public class ConfigurationManagementExample {
     System.out.println("Database host: " + host.orElse("N/A"));
 
     // Extract nested integer
-    Traversal<AppConfig, Integer> databasePort =
+    Traversal<SettingsTree, Integer> databasePort =
         settingsLens
             .asTraversal()
             .andThen(Traversals.forMap("server"))
@@ -213,8 +213,8 @@ public class ConfigurationManagementExample {
   private static void demonstrateValidation() {
     System.out.println("--- Configuration Validation and Constraints ---");
 
-    AppConfig config =
-        new AppConfig(
+    SettingsTree config =
+        new SettingsTree(
             Map.of(
                 "pool.size", new IntValue(150), // Too large
                 "timeout.ms", new IntValue(-100), // Negative
