@@ -138,6 +138,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.external.ConstructorOrderChecks*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
                 "org.higherkindedj.optics.processing.util.ProcessorUtils*",
+                "org.higherkindedj.optics.processing.util.NamingConvention*",
                 "org.higherkindedj.optics.processing.util.Reachability*",
             )
             limit {

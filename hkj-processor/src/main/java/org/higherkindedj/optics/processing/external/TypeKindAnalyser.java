@@ -27,6 +27,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -188,13 +189,13 @@ public class TypeKindAnalyser {
   }
 
   /**
-   * How far down {@link ProcessorUtils#getterSpellings} a wither's getter is, in the order the
-   * pairing rule prefers them. Two withers that reach one field name are told apart by it, so which
-   * lens is generated does not depend on the order the class declares its members in. The getter is
-   * always one of the spellings, since that is what paired it.
+   * How far down the spellings of {@link NamingConvention#ACCESSOR} a wither's getter is, in the
+   * order the pairing rule prefers them. Two withers that reach one field name are told apart by
+   * it, so which lens is generated does not depend on the order the class declares its members in.
+   * The getter is always one of the spellings, since that is what paired it.
    */
   private static int getterRank(WitherInfo wither) {
-    return ProcessorUtils.getterSpellings(wither.fieldName()).indexOf(wither.getterMethodName());
+    return NamingConvention.ACCESSOR.of(wither.fieldName()).indexOf(wither.getterMethodName());
   }
 
   /**
@@ -326,7 +327,7 @@ public class TypeKindAnalyser {
       TypeElement classElement, String fieldName, VariableElement witherParam) {
     TypeMirror expectedType = witherParam.asType();
 
-    List<String> getterCandidates = ProcessorUtils.getterSpellings(fieldName);
+    List<String> getterCandidates = NamingConvention.ACCESSOR.of(fieldName);
 
     // The spellings are tried in order, so a class that declares more than one of them pairs
     // through the same spelling whichever order its members are read in.

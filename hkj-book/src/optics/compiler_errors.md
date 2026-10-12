@@ -81,6 +81,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`for the generated lens to set through`](#-has-no-method--for-the-generated-lens-to-set-through) | A `setter` names no method of the type it is called on |
 | [`hands back '...', which is not a builder`](#viabuilder-the-chain-the-lens-rebuilds-through) | A `@ViaBuilder` step leads somewhere the next call cannot be made |
 | [`is static, so the generated lens cannot set through`](#-has-no-method--for-the-generated-lens-to-set-through) | The `setter` the focus binds is a static method |
+| [`takes one argument`](#-has-no-method--for-the-generated-lens-to-set-through) | No method the `setter` names takes an argument, and the focus is a wildcard |
 | [`names no argument for the lens's own`](#viaconstructor-order) | A `@ViaConstructor` order leaves out the lens method |
 | [`'parameterOrder' passes`](#viaconstructor-order) | A `@ViaConstructor` order contradicts the constructor's parameter names |
 | [`No constructor of '...' takes`](#viaconstructor-order) | No constructor takes a `@ViaConstructor` order's arguments |
@@ -1271,7 +1272,7 @@ interface MemoOpticsSpec<T> extends OpticsSpec<Memo<T>> {
 
 The method a spec's `@Wither` names is not one the generated class can call on the source type: the name is misspelt, or the method is `private`, or package-private in another package. Where the name is declared but out of reach, the message says so rather than claiming the type has no such method.
 
-**Fix.** Correct the name. The message lists the source type's withers with the value each one takes, its one-parameter instance methods that hand it back, and offers the nearest when the name is a near miss. Where the type has none, rebuild it with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
+**Fix.** Correct the name. The message lists the source type's withers, its one-parameter instance methods that hand it back, with the value each one takes. It offers the `with` method you likely meant: one a near miss away, or one naming the same value, `withId` for `id` or `setId`. Where the type has none, rebuild it with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
 
 ~~~admonish note title="Why" collapsible=true
 The generated lens sets through `source.withX(newValue)`, so the method has to exist, declared or inherited, where the class generated beside your spec can reach it. The name is checked at the spec method rather than left to javac, whose `cannot find symbol` would point into the generated file.
@@ -1308,7 +1309,7 @@ interface LicenceOpticsSpec extends OpticsSpec<Licence> {
 
 ### "@Wither: No method '...' of '...' takes the lens's focus type '...'"
 
-The source type has methods of the name `@Wither` gives, and none of them takes the value the lens sets, whose type is the lens's focus.
+The source type has methods of the name `@Wither` gives, and none of them takes the value the lens sets, whose type is the lens's focus. Where none takes one argument, the name is usually an accessor's, `id` written for `withId`, and the message offers the wither for that value. The `@ViaBuilder` and `@ViaCopyAndSet` messages offer the setter for that value the same way, in the strategy's convention.
 
 **Fix.** Name a wither that takes the value the getter reads, or point `getter` at an accessor one of the listed methods takes and declare the focus as its type. The focus alone rarely settles it: the getter pins it from below, so a focus wide enough to read the getter is usually too wide for a parameter the getter's own type already failed. The exception is a focus wider than the wrapper of a primitive getter, `Number` over an `int` one, which is never unboxed: there the message offers the wrapper, `Integer`, as the focus to declare. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. Where the parameter is a type the source type's wildcard stands for, the `T` of `withValue(T)` on a spec over `Cell<?>`, declare the spec over the type the wildcard stands for, a type parameter of the spec if need be: `interface CellOpticsSpec<T> extends OpticsSpec<Cell<T>>`.
 
@@ -1444,7 +1445,7 @@ The same shape of message covers every name a strategy calls with no argument, e
 | `for the generated lens to finish the value it rebuilds` | `@ViaBuilder`'s `build`, read on what the setter hands back |
 | `for the generated lens to read the argument '...'` | an accessor named in `@ViaConstructor`'s `parameterOrder` |
 
-**Fix.** Point the strategy's attribute at a method the type declares, which the message offers where the name is a near miss. Where the strategy has no such attribute, name the lens method after the accessor it reads.
+**Fix.** Point the strategy's attribute at a method the type declares. The message offers one where the name is a near miss, or the same accessor under another naming convention, however many letters apart: `getName` for `name`, `name` for `getName`, `isActive` for `getActive`. Where the strategy has no such attribute, name the lens method after the accessor it reads.
 
 ~~~admonish note title="Why" collapsible=true
 The generated optic calls the name as written. Checked here, the spec method is where the mistake is reported, rather than `cannot find symbol` inside a file you did not write. A `static` method is not one, since the lens calls it on the value it focuses; nor is one that takes an argument, since the lens passes none.
@@ -1575,9 +1576,9 @@ interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
 
 The `setter` a `@ViaBuilder` or `@ViaCopyAndSet` names is not a method of the type it is called on: the builder for the first, the source type for the second.
 
-Where the name exists, the call is held to what a wither's is, under the strategy's own tag: [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) where no overload takes the focus, [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) where more than one does, and `is static, so the generated lens cannot set through it` where the one it binds is `static`, since a static method never reads the value it is called on.
+Where the name exists, the call is held to what a wither's is, under the strategy's own tag: [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) where no overload takes the focus, [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) where more than one does, and `is static, so the generated lens cannot set through it` where the one it binds is `static`, since a static method never reads the value it is called on. Where the focus is a wildcard and no method of the name takes one argument, the message says `takes one argument` instead.
 
-**Fix.** Set the strategy's `setter` to a method that type declares, and one that takes the value the getter reads.
+**Fix.** Set the strategy's `setter` to a method that type declares, and one that takes the value the getter reads. The message offers one where the name is a near miss, or names the same value in the strategy's convention. Under `@ViaBuilder`, it offers a fluent builder's `name`, a protobuf builder's `setName` or a `withName` step, as the builder declares them. Since the setter defaults to the lens method's name, a lens named `getName` is offered `name`. Under `@ViaCopyAndSet`, it offers only a `set` method, near miss or not, since a bare or `with` method may hand back a copy, which the generated call drops.
 
 ~~~admonish note title="Why" collapsible=true
 `@ViaBuilder` sets through `source.toBuilder().setter(newValue).build()` and `@ViaCopyAndSet` through a copy, so the setter is looked for where the call is made rather than on the source type in both cases. A builder's setter that returns `void` ends the chain, which the [chain entry](#viabuilder-the-chain-the-lens-rebuilds-through) covers.

@@ -1498,6 +1498,438 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
+    @DisplayName("a name spelt in another convention is offered the type's own, however far apart")
+    void nameSpeltInAnotherConventionIsOfferedTheTypesOwn() {
+      // A bean reads and writes through prefixed names, a record and its fluent builder through
+      // bare ones; a prefix added, taken away or swapped is three or more edits, too many for a
+      // near miss. A server reads through a bare name and sets through a fluent setter beside a
+      // wither; a draft has only a wither and a bare method that copies, which a copy's setter
+      // call would drop; a site's builder steps through a wither; and a chain's only one-argument
+      // method is a fluent setter, which a wither must not be. A box's value takes a type its
+      // wildcard stands in, which no value is, and a site's title setter ends the builder chain.
+      var profile =
+          external(
+              "Profile",
+              """
+              public final class Profile {
+                  private String name;
+                  private boolean active;
+
+                  public Profile() {}
+                  public Profile(Profile other) { this.name = other.name; this.active = other.active; }
+
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+                  public boolean isActive() { return active; }
+                  public void setActive(boolean active) { this.active = active; }
+              }
+              """);
+      var card =
+          external(
+              "Card",
+              """
+              public record Card(String title) {
+                  public Card withTitle(String title) { return new Card(title); }
+                  public Builder toBuilder() { return new Builder(); }
+
+                  public static final class Builder {
+                      private String title;
+                      public Builder title(String title) { this.title = title; return this; }
+                      public Card build() { return new Card(title); }
+                  }
+              }
+              """);
+      var server =
+          external(
+              "Server",
+              """
+              public final class Server {
+                  private String host;
+
+                  public Server() {}
+                  public Server(Server other) { this.host = other.host; }
+
+                  public String host() { return host; }
+                  public Server setHost(String host) { this.host = host; return this; }
+                  public Server withHost(String host) {
+                      Server copy = new Server(this);
+                      copy.host = host;
+                      return copy;
+                  }
+              }
+              """);
+      var draft =
+          external(
+              "Draft",
+              """
+              public final class Draft {
+                  private final String title;
+
+                  public Draft(String title) { this.title = title; }
+                  public Draft(Draft other) { this.title = other.title; }
+
+                  public String title() { return title; }
+                  public Draft title(String title) { return new Draft(title); }
+                  public Draft withTitle(String title) { return new Draft(title); }
+              }
+              """);
+      var site =
+          external(
+              "Site",
+              """
+              public final class Site {
+                  private final String url;
+
+                  public Site(String url) { this.url = url; }
+
+                  public String getUrl() { return url; }
+                  public String getTitle() { return url; }
+                  public Builder toBuilder() { return new Builder(url); }
+
+                  public static final class Builder {
+                      private String url;
+                      Builder(String url) { this.url = url; }
+                      public Builder withUrl(String url) { this.url = url; return this; }
+                      public void setTitle(String title) {}
+                      public Site build() { return new Site(url); }
+                  }
+              }
+              """);
+      var chain =
+          external(
+              "Chain",
+              """
+              public final class Chain {
+                  private String label;
+
+                  public String getLabel() { return label; }
+                  public Chain setLabel(String label) { this.label = label; return this; }
+              }
+              """);
+      var prefixAdded =
+          spec(
+              "PrefixAddedSpec",
+              """
+              @ImportOptics
+              public interface PrefixAddedSpec extends OpticsSpec<Profile> {
+                  @ViaCopyAndSet(setter = "setName")
+                  Lens<Profile, String> name();
+              }
+              """);
+      var prefixSwapped =
+          spec(
+              "PrefixSwappedSpec",
+              """
+              @ImportOptics
+              public interface PrefixSwappedSpec extends OpticsSpec<Profile> {
+                  @ViaBuilder(getter = "getActive")
+                  Lens<Profile, Boolean> active();
+              }
+              """);
+      var prefixTakenAway =
+          spec(
+              "PrefixTakenAwaySpec",
+              """
+              @ImportOptics
+              public interface PrefixTakenAwaySpec extends OpticsSpec<Card> {
+                  @Wither(value = "withTitle", getter = "getTitle")
+                  Lens<Card, String> title();
+              }
+              """);
+      var builderSetter =
+          spec(
+              "BuilderSetterSpec",
+              """
+              @ImportOptics
+              public interface BuilderSetterSpec extends OpticsSpec<Card> {
+                  @ViaBuilder(setter = "setTitle")
+                  Lens<Card, String> title();
+              }
+              """);
+      var beanSetter =
+          spec(
+              "BeanSetterSpec",
+              """
+              @ImportOptics
+              public interface BeanSetterSpec extends OpticsSpec<Profile> {
+                  @ViaCopyAndSet(setter = "name")
+                  Lens<Profile, String> getName();
+              }
+              """);
+      var wither =
+          spec(
+              "WitherSpec",
+              """
+              @ImportOptics
+              public interface WitherSpec extends OpticsSpec<Card> {
+                  @Wither(value = "setTitle", getter = "title")
+                  Lens<Card, String> title();
+              }
+              """);
+
+      var accessorAsSetter =
+          spec(
+              "AccessorAsSetterSpec",
+              """
+              @ImportOptics
+              public interface AccessorAsSetterSpec extends OpticsSpec<Server> {
+                  @ViaCopyAndSet(setter = "host")
+                  Lens<Server, String> host();
+              }
+              """);
+      var accessorAsWildcardSetter =
+          spec(
+              "AccessorAsWildcardSetterSpec",
+              """
+              @ImportOptics
+              public interface AccessorAsWildcardSetterSpec extends OpticsSpec<Server> {
+                  @ViaCopyAndSet(setter = "host")
+                  Lens<Server, ? extends CharSequence> host();
+              }
+              """);
+      var accessorAsWither =
+          spec(
+              "AccessorAsWitherSpec",
+              """
+              @ImportOptics
+              public interface AccessorAsWitherSpec extends OpticsSpec<Server> {
+                  @Wither("host")
+                  Lens<Server, String> host();
+              }
+              """);
+      var witherForSetter =
+          spec(
+              "WitherForSetterSpec",
+              """
+              @ImportOptics
+              public interface WitherForSetterSpec extends OpticsSpec<Draft> {
+                  @ViaCopyAndSet(setter = "setTitle")
+                  Lens<Draft, String> title();
+              }
+              """);
+
+      var box =
+          external(
+              "Box",
+              """
+              public final class Box<T> {
+                  private T value;
+
+                  public T getValue() { return value; }
+                  public Box<T> withValue(T value) {
+                      Box<T> copy = new Box<>();
+                      copy.value = value;
+                      return copy;
+                  }
+                  public Builder<T> toBuilder() { return new Builder<>(); }
+
+                  public static final class Builder<T> {
+                      public Builder<T> setValue(T value) { return this; }
+                      public Box<T> build() { return new Box<>(); }
+                  }
+              }
+              """);
+      var wildcardWither =
+          spec(
+              "WildcardWitherSpec",
+              """
+              @ImportOptics
+              public interface WildcardWitherSpec extends OpticsSpec<Box<?>> {
+                  @Wither(value = "value", getter = "getValue")
+                  Lens<Box<?>, Object> value();
+              }
+              """);
+      var concreteWither =
+          spec(
+              "ConcreteWitherSpec",
+              """
+              @ImportOptics
+              public interface ConcreteWitherSpec extends OpticsSpec<Box<String>> {
+                  @Wither(value = "value", getter = "getValue")
+                  Lens<Box<String>, String> value();
+              }
+              """);
+      var wildcardBuilderSetter =
+          spec(
+              "WildcardBuilderSetterSpec",
+              """
+              @ImportOptics
+              public interface WildcardBuilderSetterSpec extends OpticsSpec<Box<?>> {
+                  @ViaBuilder(getter = "getValue")
+                  Lens<Box<?>, Object> value();
+              }
+              """);
+      var voidBuilderSetter =
+          spec(
+              "VoidBuilderSetterSpec",
+              """
+              @ImportOptics
+              public interface VoidBuilderSetterSpec extends OpticsSpec<Site> {
+                  @ViaBuilder(getter = "getTitle")
+                  Lens<Site, String> title();
+              }
+              """);
+      var builderWither =
+          spec(
+              "BuilderWitherSpec",
+              """
+              @ImportOptics
+              public interface BuilderWitherSpec extends OpticsSpec<Site> {
+                  @ViaBuilder(getter = "getUrl", setter = "setUrl")
+                  Lens<Site, String> url();
+              }
+              """);
+      var accessorAsFluentWither =
+          spec(
+              "AccessorAsFluentWitherSpec",
+              """
+              @ImportOptics
+              public interface AccessorAsFluentWitherSpec extends OpticsSpec<Chain> {
+                  @Wither(value = "getLabel", getter = "getLabel")
+                  Lens<Chain, String> label();
+              }
+              """);
+      var nearWitherForSetter =
+          spec(
+              "NearWitherForSetterSpec",
+              """
+              @ImportOptics
+              public interface NearWitherForSetterSpec extends OpticsSpec<Draft> {
+                  @ViaCopyAndSet(setter = "withTitl")
+                  Lens<Draft, String> title();
+              }
+              """);
+      var nearSetterForWither =
+          spec(
+              "NearSetterForWitherSpec",
+              """
+              @ImportOptics
+              public interface NearSetterForWitherSpec extends OpticsSpec<Chain> {
+                  @Wither(value = "setLabl", getter = "getLabel")
+                  Lens<Chain, String> label();
+              }
+              """);
+      var recordObjectMethod =
+          spec(
+              "RecordObjectMethodSpec",
+              """
+              @ImportOptics
+              public interface RecordObjectMethodSpec extends OpticsSpec<Card> {
+                  @Wither(value = "withTitle", getter = "hashcode")
+                  Lens<Card, Integer> hash();
+              }
+              """);
+      var objectMethod =
+          spec(
+              "ObjectMethodSpec",
+              """
+              @ImportOptics
+              public interface ObjectMethodSpec extends OpticsSpec<Profile> {
+                  @ViaCopyAndSet(setter = "setName")
+                  Lens<Profile, String> at();
+              }
+              """);
+
+      var compilation =
+          compile(
+              profile,
+              card,
+              server,
+              draft,
+              site,
+              chain,
+              box,
+              wildcardWither,
+              concreteWither,
+              wildcardBuilderSetter,
+              voidBuilderSetter,
+              builderWither,
+              accessorAsFluentWither,
+              nearWitherForSetter,
+              nearSetterForWither,
+              recordObjectMethod,
+              objectMethod,
+              prefixAdded,
+              prefixSwapped,
+              prefixTakenAway,
+              builderSetter,
+              beanSetter,
+              wither,
+              accessorAsSetter,
+              accessorAsWildcardSetter,
+              accessorAsWither,
+              witherForSetter);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: 'Profile' has no method 'name()' for the generated lens to read the"
+                  + " value it focuses. The generated lens calls 'name()' on 'source', so it needs a"
+                  + " zero-parameter instance method of that name that the generated class in"
+                  + " 'com.myapp' can call. Did you mean 'getName'? Name the lens method after a"
+                  + " zero-parameter method 'Profile' declares, which is the accessor this strategy"
+                  + " reads through.")
+          .inFile(prefixAdded);
+      assertThat(compilation).hadErrorContaining("Did you mean 'isActive'?").inFile(prefixSwapped);
+      assertThat(compilation).hadErrorContaining("Did you mean 'title'?").inFile(prefixTakenAway);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Card.Builder' has no method 'setTitle' for the generated lens to set"
+                  + " through. The generated lens sets through 'setTitle(newValue)' on"
+                  + " 'Card.Builder', so it needs a method of that name there that the generated"
+                  + " class in 'com.myapp' can call. Did you mean 'title'?")
+          .inFile(builderSetter);
+      assertThat(compilation).hadErrorContaining("Did you mean 'setName'?").inFile(beanSetter);
+      assertThat(compilation).hadErrorContaining("Did you mean 'withTitle'?").inFile(wither);
+      // A name that only reads, written where a setter or a wither was meant, is offered the one
+      // that spells the same value in the convention the call needs.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: No method 'host' of 'Server' takes the lens's focus type 'String'."
+                  + " The generated lens sets through 'host(newValue)' with the new value typed"
+                  + " 'String'. Found on 'Server': [host()]. Did you mean 'setHost'?")
+          .inFile(accessorAsSetter);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: No method 'host' of 'Server' takes one argument. The generated lens"
+                  + " sets through 'host(newValue)', passing the one value it sets. Found on"
+                  + " 'Server': [host()]. Did you mean 'setHost'?")
+          .inFile(accessorAsWildcardSetter);
+      assertThat(compilation)
+          .hadErrorContaining("Found on 'Server': [host()]. Did you mean 'withHost'?")
+          .inFile(accessorAsWither);
+      // A builder carries on with what its setter hands back, so a wither step is offered there.
+      assertThat(compilation).hadErrorContaining("Did you mean 'withUrl'?").inFile(builderWither);
+      assertThat(compilation)
+          .hadErrorContaining("Did you mean 'withValue'?")
+          .inFile(concreteWither);
+      // A copy's setter call drops what it returns, so neither the bare method nor the wither,
+      // each of which copies, is offered for it, however near the name; a wither is offered no
+      // fluent setter, which would change its source; neither Object's 'wait' nor a record's
+      // 'hashCode' is ever what was meant; a method whose parameter a wildcard stands in takes no
+      // value; and a builder setter that hands back nothing ends the chain.
+      for (String refusal :
+          List.of(
+              "'Draft' has no method 'setTitle'",
+              "'Draft' has no method 'withTitl'",
+              "No method 'getLabel' of 'Chain'",
+              "'Chain' has no method 'setLabl'",
+              "'Card' has no method 'hashcode()'",
+              "'Profile' has no method 'at()'",
+              "'Box<?>' has no method 'value' for the generated lens to call",
+              "'Box.Builder<",
+              "'Site.Builder' has no method 'title'")) {
+        Assertions.assertThat(compilation.errors())
+            .filteredOn(error -> error.getMessage(null).contains(refusal))
+            .singleElement()
+            .satisfies(
+                error ->
+                    Assertions.assertThat(error.getMessage(null)).doesNotContain("Did you mean"));
+      }
+      assertThat(compilation).hadErrorCount(20);
+    }
+
+    @Test
     @DisplayName("a static method, and one that takes an argument, are not accessors")
     void staticMethodAndOneThatTakesAnArgumentAreNotAccessors() {
       var compilation =

@@ -97,7 +97,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              marker="A leaf is a zero-parameter",
              display="leaf '…' names no component of",
              meaning="A leaf declared on the spec is named after nothing the domain has, which is usually a typo.",
-             fix="Rename it after the component it parses; the message names the nearest one when it is close. Make it `private` or `static` if it is a helper.",
+             fix="Rename it after the component it parses. The message names that component when the leaf's name is close to it, or is its name with an accessor prefix, `getEmail` for `email`. Make the method `private` or `static` if it is a helper.",
              rule=("How the two `default` families are told apart", "rules.md#how-the-two-default-families-are-told-apart"),
              code="""record Customer(String name, EmailAddress email) {}
 
@@ -858,7 +858,7 @@ interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}"""),
              heading="@Unmapped method 'x' names no accessor 'Y' leaves out",
              fragment="names no accessor",
              meaning="An `@Unmapped` marker names something the bean does not leave unpaired, which is usually a misspelling.",
-             fix="Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it.",
+             fix="Name the marker after the property of the accessor meant to stay out, which the message lists, or remove it. For a marker named after the accessor itself, `setStamp` for `stamp`, the message offers the property.",
              rule=("Accessors meant to stay out", "beans.md#accessors-meant-to-stay-out"),
              code="""record Merchant(String id, String name) {}
 
@@ -921,7 +921,7 @@ interface AuthorViewMapping extends MappingSpec<Author, AuthorView> {
              heading="@ReadOnly method 'x' names no getter 'Y' leaves unpaired",
              fragment="names no getter",
              meaning="A `@ReadOnly` marker names no getter the bean declares without a setter, which is usually a misspelling.",
-             fix="Name the marker after the getter's property, which the message lists, or remove it.",
+             fix="Name the marker after the getter's property, which the message lists, or remove it. For a marker named after the getter itself, `getId` for `id`, the message offers the property.",
              rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
              code="""record Merchant(String id, String name) {}
 

@@ -75,6 +75,7 @@ import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
@@ -3871,9 +3872,13 @@ public class MappingProcessor extends AbstractProcessor {
     return true;
   }
 
-  /** A nearest-name hint for the unmatched-leaf diagnostic, when one is close enough to help. */
+  /**
+   * A hint naming what a spec member named after nothing meant, when one is close enough to help:
+   * the same name spelt as another accessor would spell it, or a near miss.
+   */
   private static String didYouMean(String name, List<String> candidates) {
-    return ProcessorUtils.nearestName(name, candidates)
+    return NamingConvention.ACCESSOR
+        .nearest(name, candidates)
         .map(best -> " Did you mean '" + best + "()'?")
         .orElse("");
   }

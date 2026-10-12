@@ -1307,6 +1307,17 @@ class MappingProcessorReadOnlyTest {
     }
 
     @Test
+    @DisplayName("naming the getter rather than its property, with the property")
+    void namingTheGetter() {
+      assertThat(refused(PET, PET_MODEL, petSpec("@ReadOnly Long getId();")))
+          .hadErrorContaining(
+              "@ReadOnly method 'getId' names no getter 'PetModel' leaves unpaired. The marker"
+                  + " reads a getter with no setter as a read-only property. Getters 'PetModel'"
+                  + " leaves unpaired that a domain component maps to: [id]. Name the marker after"
+                  + " the getter's property, or remove it. Did you mean 'id()'?");
+    }
+
+    @Test
     @DisplayName("naming nothing, on a bean that leaves no getter unpaired")
     void namingNothingWithNoCandidate() {
       JavaFileObject model =

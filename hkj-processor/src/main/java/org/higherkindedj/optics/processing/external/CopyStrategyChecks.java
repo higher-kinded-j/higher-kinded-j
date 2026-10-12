@@ -33,6 +33,7 @@ import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
@@ -332,6 +333,142 @@ final class CopyStrategyChecks {
         .toList();
   }
 
+  /** The names of a type's instance methods the generated class can call with no argument. */
+  private List<String> accessorNames(TypeElement type, String targetPackage) {
+    return namesOf(
+        callableMembers(type, targetPackage).stream()
+            .filter(member -> member.getParameters().isEmpty() && offerable(member, type))
+            .toList());
+  }
+
+  /**
+   * The names a strategy's setter is offered from: {@code owner}'s instance methods the generated
+   * class can call with one argument, but under {@code @ViaBuilder} none that hands nothing back,
+   * which ends the chain.
+   */
+  private List<String> setterNames(
+      String tag, DeclaredType owner, TypeElement ownerElement, String targetPackage) {
+    return namesOf(
+        callableMembers(ownerElement, targetPackage).stream()
+            .filter(
+                member ->
+                    member.getParameters().size() == 1
+                        && offerable(member, ownerElement)
+                        && takesTheValue(owner, member)
+                        && !(tag.equals("@ViaBuilder")
+                            && member.getReturnType().getKind() == TypeKind.VOID))
+            .toList());
+  }
+
+  /**
+   * Whether a diagnostic may offer {@code member}: an instance method, and none of {@code
+   * Object}'s, {@code wait} or a record's {@code hashCode}, which is never what a spec meant.
+   */
+  private boolean offerable(ExecutableElement member, TypeElement type) {
+    return !member.getModifiers().contains(Modifier.STATIC)
+        && ElementFilter.methodsIn(
+                elementUtils.getTypeElement("java.lang.Object").getEnclosedElements())
+            .stream()
+            .noneMatch(
+                method -> method.equals(member) || elementUtils.overrides(member, method, type));
+  }
+
+  /**
+   * Whether a one-parameter method can take a value the lens holds when called on {@code owner}:
+   * not where its parameter is a type one of {@code owner}'s wildcards stands in, which takes no
+   * value at all, as {@code withValue(T)} on a {@code Box<?>}.
+   */
+  private boolean takesTheValue(DeclaredType owner, ExecutableElement member) {
+    DeclaredType captured = (DeclaredType) typeUtils.capture(owner);
+    List<? extends TypeMirror> written = owner.getTypeArguments();
+    TypeMirror parameter =
+        ProcessorUtils.memberOf(typeUtils, captured, member).getParameterTypes().getFirst();
+    return IntStream.range(0, written.size())
+        .filter(at -> written.get(at).getKind() == TypeKind.WILDCARD)
+        .mapToObj(at -> typeUtils.asElement(captured.getTypeArguments().get(at)))
+        .noneMatch(standIn -> ProcessorUtils.mentions(parameter, standIn));
+  }
+
+  /**
+   * The convention a strategy's setter is offered in: a builder carries on with what its setter
+   * hands back, where a copy's setter call drops it.
+   */
+  private static NamingConvention setterConvention(String tag) {
+    return tag.equals("@ViaBuilder") ? NamingConvention.BUILDER_SETTER : NamingConvention.SETTER;
+  }
+
+  /**
+   * The setter offered for a name the type declares: where none of its methods, {@code named},
+   * takes one argument, the name is usually an accessor's, written where the setter for the same
+   * value was meant. Only that value's setter is offered, since a name the type declares is not
+   * misspelt.
+   */
+  private String setterOffer(
+      String tag,
+      List<ExecutableElement> named,
+      String setterName,
+      DeclaredType owner,
+      TypeElement ownerElement,
+      String targetPackage) {
+    return takesNoSingleArgument(named)
+        ? didYouMean(
+            setterConvention(tag)
+                .sameValueAmong(setterName, setterNames(tag, owner, ownerElement, targetPackage)))
+        : "";
+  }
+
+  /** The wither offered for a name the type declares, as {@link #setterOffer} offers a setter. */
+  private String witherOffer(
+      List<ExecutableElement> named,
+      String witherName,
+      DeclaredType sourceType,
+      List<ExecutableElement> callable) {
+    return takesNoSingleArgument(named)
+        ? didYouMean(
+            NamingConvention.WITHER.sameValueAmong(
+                witherName, witherNames(sourceType, withersAmong(sourceType, callable))))
+        : "";
+  }
+
+  /** The names of {@code withers} a diagnostic may offer: those that can take a value at all. */
+  private List<String> witherNames(DeclaredType sourceType, List<ExecutableElement> withers) {
+    return namesOf(withers.stream().filter(wither -> takesTheValue(sourceType, wither)).toList());
+  }
+
+  /** Whether none of {@code methods} takes one argument. */
+  private static boolean takesNoSingleArgument(List<ExecutableElement> methods) {
+    return methods.stream().noneMatch(member -> member.getParameters().size() == 1);
+  }
+
+  /**
+   * The source type's withers among {@code callable}: one-parameter instance methods that hand it
+   * back.
+   */
+  private List<ExecutableElement> withersAmong(
+      DeclaredType sourceType, List<ExecutableElement> callable) {
+    return callable.stream()
+        .filter(
+            member ->
+                member.getParameters().size() == 1
+                    && !member.getModifiers().contains(Modifier.STATIC)
+                    && ProcessorUtils.returnsOwner(typeUtils, sourceType, member))
+        .toList();
+  }
+
+  /** The names of {@code methods}, once each, sorted. */
+  private static List<String> namesOf(List<ExecutableElement> methods) {
+    return methods.stream()
+        .map(member -> member.getSimpleName().toString())
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  /** A diagnostic's offer of the name likely meant, as a sentence that follows the reason. */
+  private static String didYouMean(Optional<String> near) {
+    return near.map(name -> " Did you mean '" + name + "'?").orElse("");
+  }
+
   /** The constructors of a type the generated class can call. */
   private List<ExecutableElement> callableConstructors(TypeElement type, String targetPackage) {
     return ElementFilter.constructorsIn(type.getEnclosedElements()).stream()
@@ -410,16 +547,6 @@ final class CopyStrategyChecks {
       String fix,
       String targetPackage) {
     String ownerName = ProcessorUtils.simpleTypeName(owner);
-    List<String> accessors =
-        callableMembers(ownerElement, targetPackage).stream()
-            .filter(
-                member ->
-                    member.getParameters().isEmpty()
-                        && !member.getModifiers().contains(Modifier.STATIC))
-            .map(member -> member.getSimpleName().toString())
-            .distinct()
-            .sorted()
-            .toList();
     Diagnostics.error(
         messager,
         method,
@@ -439,9 +566,9 @@ final class CopyStrategyChecks {
             + " class in '"
             + targetPackage
             + "' can call."
-            + ProcessorUtils.nearestName(name, accessors)
-                .map(near -> " Did you mean '" + near + "'?")
-                .orElse(""),
+            + didYouMean(
+                NamingConvention.ACCESSOR.nearest(
+                    name, accessorNames(ownerElement, targetPackage))),
         fix);
   }
 
@@ -873,7 +1000,15 @@ final class CopyStrategyChecks {
     }
     if (focusRead(focusType) == null) {
       if (oneParameter.isEmpty()) {
-        reportSetterOfAnotherArity(method, tag, owner, setterName, named, attribute, sourceName);
+        reportSetterOfAnotherArity(
+            method,
+            tag,
+            owner,
+            setterName,
+            named,
+            attribute,
+            sourceName,
+            setterOffer(tag, named, setterName, owner, ownerElement, targetPackage));
         return new SetterCall.Refused();
       }
       // Which of several such methods the call binds is javac's to settle, and so is what it
@@ -926,7 +1061,8 @@ final class CopyStrategyChecks {
                 + ProcessorUtils.simpleTypeName(owner)
                 + "': "
                 + named.stream().map(member -> signatureOn(owner, member)).toList()
-                + ".",
+                + "."
+                + setterOffer(tag, named, setterName, owner, ownerElement, targetPackage),
             narrowerFocus(source, getterName, focusType, owner, named)
                     .orElse(
                         "Set "
@@ -991,7 +1127,10 @@ final class CopyStrategyChecks {
     record Undecided() implements SetterCall {}
   }
 
-  /** Reports a setter no overload of which takes one argument, whatever the lens's focus is. */
+  /**
+   * Reports a setter no overload of which takes one argument, whatever the lens's focus is, with
+   * {@code offer}, the {@link #setterOffer} for its name.
+   */
   private void reportSetterOfAnotherArity(
       ExecutableElement method,
       String tag,
@@ -999,7 +1138,8 @@ final class CopyStrategyChecks {
       String setterName,
       List<ExecutableElement> named,
       String attribute,
-      String sourceName) {
+      String sourceName,
+      String offer) {
     String ownerName = ProcessorUtils.simpleTypeName(owner);
     Diagnostics.error(
         messager,
@@ -1012,7 +1152,8 @@ final class CopyStrategyChecks {
             + ownerName
             + "': "
             + named.stream().map(member -> signatureOn(owner, member)).toList()
-            + ".",
+            + "."
+            + offer,
         "Set "
             + tag
             + "'s '"
@@ -1026,22 +1167,12 @@ final class CopyStrategyChecks {
   private void reportMissingSetter(
       ExecutableElement method,
       String tag,
-      TypeMirror owner,
+      DeclaredType owner,
       TypeElement ownerElement,
       String setterName,
       String attribute,
       String targetPackage) {
     String ownerName = ProcessorUtils.simpleTypeName(owner);
-    List<String> setters =
-        callableMembers(ownerElement, targetPackage).stream()
-            .filter(
-                member ->
-                    member.getParameters().size() == 1
-                        && !member.getModifiers().contains(Modifier.STATIC))
-            .map(member -> member.getSimpleName().toString())
-            .distinct()
-            .sorted()
-            .toList();
     Diagnostics.error(
         messager,
         method,
@@ -1059,9 +1190,9 @@ final class CopyStrategyChecks {
             + "', so it needs a method of that name there that the generated class in '"
             + targetPackage
             + "' can call."
-            + ProcessorUtils.nearestName(setterName, setters)
-                .map(near -> " Did you mean '" + near + "'?")
-                .orElse(""),
+            + didYouMean(
+                setterConvention(tag)
+                    .nearest(setterName, setterNames(tag, owner, ownerElement, targetPackage))),
         "Set " + tag + "'s '" + attribute + "' to a method '" + ownerName + "' declares.");
   }
 
@@ -1511,7 +1642,7 @@ final class CopyStrategyChecks {
         yield true;
       }
       case CallBinding.NoneApplies() -> {
-        reportInapplicableWither(method, sourceType, getterName, focusType, named);
+        reportInapplicableWither(method, sourceType, getterName, focusType, named, callable);
         yield true;
       }
       case CallBinding.Ambiguous(List<ExecutableElement> methods) -> {
@@ -1593,14 +1724,7 @@ final class CopyStrategyChecks {
       String targetPackage,
       boolean declared) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
-    List<ExecutableElement> withers =
-        callable.stream()
-            .filter(
-                member ->
-                    member.getParameters().size() == 1
-                        && !member.getModifiers().contains(Modifier.STATIC)
-                        && ProcessorUtils.returnsOwner(typeUtils, sourceType, member))
-            .toList();
+    List<ExecutableElement> withers = withersAmong(sourceType, callable);
     String sets =
         "The generated lens sets through 'source."
             + witherName
@@ -1622,12 +1746,6 @@ final class CopyStrategyChecks {
           ProcessorUtils.capitalise(rebuildWith(source, "@Wither")) + ".");
       return;
     }
-    List<String> names =
-        withers.stream()
-            .map(member -> member.getSimpleName().toString())
-            .distinct()
-            .sorted()
-            .toList();
     List<String> signatures =
         withers.stream()
             .map(member -> signatureOn(sourceType, member))
@@ -1640,9 +1758,8 @@ final class CopyStrategyChecks {
         "@Wither",
         "'" + source + "' has no method '" + witherName + "' for the generated lens to call.",
         sets
-            + ProcessorUtils.nearestName(witherName, names)
-                .map(near -> " Did you mean '" + near + "'?")
-                .orElse("")
+            + didYouMean(
+                NamingConvention.WITHER.nearest(witherName, witherNames(sourceType, withers)))
             + " Withers found on '"
             + source
             + "': "
@@ -1657,13 +1774,17 @@ final class CopyStrategyChecks {
             + ".");
   }
 
-  /** Reports a {@code @Wither} none of whose methods takes the value the lens sets. */
+  /**
+   * Reports a {@code @Wither} none of whose methods takes the value the lens sets, offering a
+   * wither from {@code callable}, as {@link #witherOffer} says.
+   */
   private void reportInapplicableWither(
       ExecutableElement method,
       DeclaredType sourceType,
       String getterName,
       TypeMirror focusType,
-      List<ExecutableElement> named) {
+      List<ExecutableElement> named,
+      List<ExecutableElement> callable) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
     String witherName = named.getFirst().getSimpleName().toString();
     String found =
@@ -1674,7 +1795,7 @@ final class CopyStrategyChecks {
             + named.stream().map(member -> signatureOn(sourceType, member)).toList()
             + ".";
     // A parameter typed by one of the source's wildcards takes no value whatever the focus, so the
-    // remedy there is the source type, not the focus.
+    // remedy there is the source type, not the focus, nor another wither.
     boolean wildcardSource =
         sourceType.getTypeArguments().stream()
             .anyMatch(typeArgument -> typeArgument.getKind() == TypeKind.WILDCARD);
@@ -1694,7 +1815,7 @@ final class CopyStrategyChecks {
                 + " A parameter a wildcard of '"
                 + source
                 + "' stands in takes no value at all, since the type it stands for is unknown."
-            : found,
+            : found + witherOffer(named, witherName, sourceType, callable),
         (wildcardSource
                 ? "Declare the spec over the type each wildcard stands for, or "
                     + rebuildWith(source, "@Wither")

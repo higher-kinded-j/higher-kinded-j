@@ -805,6 +805,45 @@ class MappingProcessorUnpairedAccessorTest {
     }
 
     @Test
+    @DisplayName("named after the accessor rather than its property, it is offered the property")
+    void markerNamedAfterTheAccessorIsOfferedItsProperty() {
+      JavaFileObject bean =
+          source(
+              "ContactBean",
+              """
+              public class ContactBean {
+                private String name;
+                private String email;
+                private String phone;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+                public String getPhone() { return phone; }
+                public void setPhone(String phone) { this.phone = phone; }
+                public void setStamp(String stamp) {}
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "ContactBeanMapping",
+              """
+              @GenerateMapping
+              public interface ContactBeanMapping extends MappingSpec<Contact, ContactBean> {
+                @Unmapped
+                String setStamp();
+              }
+              """);
+      assertThat(compile(CONTACT, bean, spec))
+          .hadErrorContaining(
+              "@Unmapped method 'setStamp' names no accessor 'ContactBean' leaves out. The marker"
+                  + " reads an accessor with no partner as deliberate. Left unpaired on"
+                  + " 'ContactBean': [stamp]. Name the marker after the accessor's property, or"
+                  + " remove it. Did you mean 'stamp()'?");
+    }
+
+    @Test
     @DisplayName(
         "a bean crossed one way, or one that pairs every accessor, leaves a marker nothing to"
             + " leave out")

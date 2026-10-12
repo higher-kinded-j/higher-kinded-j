@@ -25,6 +25,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -39,11 +40,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * for, is refused at the spec method rather than in the generated file.
  *
  * <p>A constructor's parameter names are the only thing that tells two parameters of one type
- * apart. A parameter named after an accessor that reads a value it takes, under one of {@link
- * ProcessorUtils#getterSpellings}, has to be passed that accessor's value: {@code {"y", "x"}} for a
- * lens {@code x} over {@code Point(int x, int y)} compiles, and writes each value into the other's
- * field. A parameter named after nothing the type reads, as every parameter of a class compiled
- * with neither {@code -parameters} nor {@code -g} is, leaves its place to the order.
+ * apart. A parameter named after an accessor that reads a value it takes, under one of the
+ * spellings of {@link NamingConvention#ACCESSOR}, has to be passed that accessor's value: {@code
+ * {"y", "x"}} for a lens {@code x} over {@code Point(int x, int y)} compiles, and writes each value
+ * into the other's field. A parameter named after nothing the type reads, as every parameter of a
+ * class compiled with neither {@code -parameters} nor {@code -g} is, leaves its place to the order.
  *
  * <p>Every order a refusal offers to paste is one resolved here to a constructor that follows it,
  * so that a fix line does not lead into another refusal; where none is, the remedy is another
@@ -1255,16 +1256,16 @@ final class ConstructorOrderChecks {
   /**
    * For each parameter of a constructor, the spellings of its name that name an accessor the
    * generated class can call and that reads a value the parameter takes, in the order {@link
-   * ProcessorUtils#getterSpellings} prefers them. An empty list is a parameter named after nothing
-   * that reads. The parameters are read as {@link CallBinding} reads them, so a constructor's own
-   * type variable stands as its erasure.
+   * NamingConvention#ACCESSOR} prefers them. An empty list is a parameter named after nothing that
+   * reads. The parameters are read as {@link CallBinding} reads them, so a constructor's own type
+   * variable stands as its erasure.
    */
   private List<List<String>> namedReaders(Rebuild rebuild, ExecutableElement constructor) {
     List<TypeMirror> parameters = parametersRead(rebuild, constructor);
     return IntStream.range(0, parameters.size())
         .mapToObj(
             at ->
-                ProcessorUtils.getterSpellings(parameterName(constructor, at)).stream()
+                NamingConvention.ACCESSOR.of(parameterName(constructor, at)).stream()
                     .filter(
                         spelling ->
                             Optional.ofNullable(
