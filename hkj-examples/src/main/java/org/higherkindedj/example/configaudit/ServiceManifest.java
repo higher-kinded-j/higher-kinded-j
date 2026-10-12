@@ -7,9 +7,9 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 /**
- * Represents the top-level application configuration. Lenses and Traversals will be generated for
- * its properties.
+ * Represents a service's top-level configuration: its name, its settings and where it deploys.
+ * Lenses and Traversals will be generated for its properties.
  */
 @GenerateLenses
 @GenerateTraversals
-public record AppConfig(String appId, List<Setting> settings, DeploymentTarget target) {}
+public record ServiceManifest(String name, List<Setting> settings, DeploymentTarget target) {}

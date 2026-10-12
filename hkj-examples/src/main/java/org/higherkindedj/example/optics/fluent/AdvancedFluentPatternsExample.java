@@ -9,16 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.higherkindedj.example.optics.fluent.generated.CatalogueTraversals;
-import org.higherkindedj.example.optics.fluent.generated.CategoryTraversals;
+import org.higherkindedj.example.optics.fluent.generated.ListingCatalogueTraversals;
+import org.higherkindedj.example.optics.fluent.generated.ListingCategoryTraversals;
 import org.higherkindedj.example.optics.fluent.generated.ProductLenses;
 import org.higherkindedj.example.optics.fluent.generated.ProductListingLenses;
-import org.higherkindedj.example.optics.fluent.model.Catalogue;
-import org.higherkindedj.example.optics.fluent.model.Category;
+import org.higherkindedj.example.optics.fluent.model.ListingCatalogue;
+import org.higherkindedj.example.optics.fluent.model.ListingCategory;
 import org.higherkindedj.example.optics.fluent.model.Product;
 import org.higherkindedj.example.optics.fluent.model.ProductListing;
 import org.higherkindedj.example.optics.fluent.model.ProductStatus;
-import org.higherkindedj.example.optics.fluent.model.Promotion;
+import org.higherkindedj.example.optics.fluent.model.TimedDiscount;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.fluent.OpticOps;
@@ -48,22 +48,22 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 public class AdvancedFluentPatternsExample {
 
   // Every listing in the catalogue, across its categories
-  private static final Traversal<Catalogue, ProductListing> ALL_LISTINGS =
-      CatalogueTraversals.categories().andThen(CategoryTraversals.listings());
+  private static final Traversal<ListingCatalogue, ProductListing> ALL_LISTINGS =
+      ListingCatalogueTraversals.categories().andThen(ListingCategoryTraversals.listings());
 
   // The product each listing holds
-  private static final Traversal<Catalogue, Product> ALL_PRODUCTS =
+  private static final Traversal<ListingCatalogue, Product> ALL_PRODUCTS =
       ALL_LISTINGS.andThen(ProductListingLenses.product().asTraversal());
 
   // The price of each listed product
-  private static final Traversal<Catalogue, BigDecimal> ALL_PRICES =
+  private static final Traversal<ListingCatalogue, BigDecimal> ALL_PRICES =
       ALL_PRODUCTS.andThen(ProductLenses.price().asTraversal());
 
   public static void main(String[] args) {
     System.out.println("=== ADVANCED FLUENT PATTERNS EXAMPLE ===\n");
 
     // Create sample catalogue
-    Catalogue catalogue = createSampleCatalogue();
+    ListingCatalogue catalogue = createSampleCatalogue();
     System.out.println("Initial Catalogue:");
     printCatalogueSummary(catalogue);
     System.out.println("\n" + "=".repeat(60) + "\n");
@@ -90,7 +90,7 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 1: Complex Queries with Multiple Criteria
   // ============================================================================
 
-  private static void pattern1_ComplexQueries(Catalogue catalogue) {
+  private static void pattern1_ComplexQueries(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 1: Complex Queries ---\n");
 
     // Query 1: Find all active products
@@ -129,7 +129,7 @@ public class AdvancedFluentPatternsExample {
 
     // Query 4: Check stock levels
     System.out.println("Query 4: Check if any products are low stock (< 10)");
-    Traversal<Catalogue, Integer> allStockLevels =
+    Traversal<ListingCatalogue, Integer> allStockLevels =
         ALL_PRODUCTS.andThen(ProductLenses.stock().asTraversal());
 
     boolean hasLowStock =
@@ -142,7 +142,7 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 2: Conditional Bulk Updates
   // ============================================================================
 
-  private static void pattern2_ConditionalBulkUpdates(Catalogue catalogue) {
+  private static void pattern2_ConditionalBulkUpdates(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 2: Conditional Bulk Updates ---\n");
 
     // Scenario: Increase prices by 10% for products > £50, by 5% for others
@@ -160,7 +160,7 @@ public class AdvancedFluentPatternsExample {
     System.out.println("  Average price: £" + avgBefore);
 
     // Apply conditional price increases
-    Catalogue updated =
+    ListingCatalogue updated =
         OpticOps.modifyAll(
             catalogue,
             ALL_PRODUCTS,
@@ -202,7 +202,7 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 3: Pipelined Transformations
   // ============================================================================
 
-  private static void pattern3_PipelinedTransformations(Catalogue catalogue) {
+  private static void pattern3_PipelinedTransformations(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 3: Pipelined Transformations ---\n");
 
     System.out.println("Scenario: Multi-stage product update pipeline\n");
@@ -211,7 +211,7 @@ public class AdvancedFluentPatternsExample {
     System.out.println("Stage 3: Normalise prices to 2 decimal places\n");
 
     // Build pipeline using fluent chaining
-    Catalogue result = catalogue;
+    ListingCatalogue result = catalogue;
 
     // Stage 1: Mark out-of-stock products
     result =
@@ -269,13 +269,13 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 4: Validated Workflow with Free Monad
   // ============================================================================
 
-  private static void pattern4_ValidatedWorkflow(Catalogue catalogue) {
+  private static void pattern4_ValidatedWorkflow(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 4: Validated Workflow (Free Monad DSL) ---\n");
 
     System.out.println("Scenario: Bulk price increase with validation\n");
 
     // Build the price increase program
-    Free<OpticOpKind.Witness, Catalogue> program =
+    Free<OpticOpKind.Witness, ListingCatalogue> program =
         bulkPriceIncreaseProgram(catalogue, new BigDecimal("1.15"));
 
     // Phase 1: Validate the changes
@@ -298,7 +298,7 @@ public class AdvancedFluentPatternsExample {
     // Phase 2: Execute with audit logging
     System.out.println("Phase 2: Execution with audit trail");
     LoggingOpticInterpreter logger = OpticInterpreters.logging();
-    Catalogue result = logger.run(program);
+    ListingCatalogue result = logger.run(program);
 
     System.out.println("  Audit log:");
     logger.getLog().stream().limit(5).forEach(entry -> System.out.println("    " + entry));
@@ -323,7 +323,7 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 5: Combining Static and Fluent Styles
   // ============================================================================
 
-  private static void pattern5_CombiningStaticAndFluent(Catalogue catalogue) {
+  private static void pattern5_CombiningStaticAndFluent(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 5: Combining Static and Fluent Styles ---\n");
 
     System.out.println("Scenario: Smart inventory management\n");
@@ -344,7 +344,7 @@ public class AdvancedFluentPatternsExample {
 
     // Use static for transformation
     System.out.println("Step 2: Apply clearance discounts to low-stock items");
-    Catalogue updated =
+    ListingCatalogue updated =
         OpticOps.modifyAll(
             catalogue,
             ALL_PRODUCTS,
@@ -380,7 +380,7 @@ public class AdvancedFluentPatternsExample {
   // PATTERN 6: Real-World Seasonal Promotion Workflow
   // ============================================================================
 
-  private static void pattern6_RealWorldSeasonalPromotion(Catalogue catalogue) {
+  private static void pattern6_RealWorldSeasonalPromotion(ListingCatalogue catalogue) {
     System.out.println("--- Pattern 6: Real-World Seasonal Promotion ---\n");
 
     System.out.println("Scenario: Black Friday promotion setup\n");
@@ -389,12 +389,12 @@ public class AdvancedFluentPatternsExample {
     System.out.println("  - Only active products eligible");
     System.out.println("  - Must have sufficient stock (> 5)\n");
 
-    Promotion blackFriday =
-        new Promotion(
+    TimedDiscount blackFriday =
+        new TimedDiscount(
             "BF2025", new BigDecimal("20.00"), LocalDate.now(), LocalDate.now().plusDays(3));
 
     // Build the promotion program
-    Free<OpticOpKind.Witness, Catalogue> program =
+    Free<OpticOpKind.Witness, ListingCatalogue> program =
         buildSeasonalPromotionProgram(catalogue, blackFriday);
 
     // Execute with full workflow
@@ -411,7 +411,7 @@ public class AdvancedFluentPatternsExample {
 
     System.out.println("Phase 2: Execution");
     DirectOpticInterpreter executor = OpticInterpreters.direct();
-    Catalogue promoted = executor.run(program);
+    ListingCatalogue promoted = executor.run(program);
     System.out.println("  ✓ Promotions applied");
     System.out.println();
 
@@ -448,16 +448,16 @@ public class AdvancedFluentPatternsExample {
   // Program Builders
   // ============================================================================
 
-  private static Free<OpticOpKind.Witness, Catalogue> bulkPriceIncreaseProgram(
-      Catalogue catalogue, BigDecimal multiplier) {
+  private static Free<OpticOpKind.Witness, ListingCatalogue> bulkPriceIncreaseProgram(
+      ListingCatalogue catalogue, BigDecimal multiplier) {
     return OpticPrograms.modifyAll(
         catalogue,
         ALL_PRICES,
         price -> price.multiply(multiplier).setScale(2, RoundingMode.HALF_UP));
   }
 
-  private static Free<OpticOpKind.Witness, Catalogue> buildSeasonalPromotionProgram(
-      Catalogue catalogue, Promotion promotion) {
+  private static Free<OpticOpKind.Witness, ListingCatalogue> buildSeasonalPromotionProgram(
+      ListingCatalogue catalogue, TimedDiscount promotion) {
     return OpticPrograms.modifyAll(
         catalogue,
         ALL_LISTINGS,
@@ -475,8 +475,8 @@ public class AdvancedFluentPatternsExample {
   // Helper Methods
   // ============================================================================
 
-  private static Catalogue createSampleCatalogue() {
-    List<Category> categories = new ArrayList<>();
+  private static ListingCatalogue createSampleCatalogue() {
+    List<ListingCategory> categories = new ArrayList<>();
 
     // Electronics category
     List<ProductListing> electronics = new ArrayList<>();
@@ -490,7 +490,7 @@ public class AdvancedFluentPatternsExample {
             new Product("ELEC-002", "Smartphone", new BigDecimal("599.99"), 25),
             ProductStatus.ACTIVE,
             Optional.of(
-                new Promotion(
+                new TimedDiscount(
                     "EARLY-BIRD",
                     new BigDecimal("10.00"),
                     LocalDate.now().minusDays(5),
@@ -501,7 +501,7 @@ public class AdvancedFluentPatternsExample {
             ProductStatus.ACTIVE,
             Optional.empty()));
 
-    categories.add(new Category("CAT-001", "Electronics", electronics));
+    categories.add(new ListingCategory("CAT-001", "Electronics", electronics));
 
     // Clothing category
     List<ProductListing> clothing = new ArrayList<>();
@@ -521,7 +521,7 @@ public class AdvancedFluentPatternsExample {
             ProductStatus.ACTIVE,
             Optional.empty()));
 
-    categories.add(new Category("CAT-002", "Clothing", clothing));
+    categories.add(new ListingCategory("CAT-002", "Clothing", clothing));
 
     // Home & Garden category
     List<ProductListing> homeGarden = new ArrayList<>();
@@ -536,17 +536,17 @@ public class AdvancedFluentPatternsExample {
             ProductStatus.ACTIVE,
             Optional.empty()));
 
-    categories.add(new Category("CAT-003", "Home & Garden", homeGarden));
+    categories.add(new ListingCategory("CAT-003", "Home & Garden", homeGarden));
 
-    return new Catalogue("CAT-2025-MAIN", "Main Product Catalogue", categories);
+    return new ListingCatalogue("CAT-2025-MAIN", "Main Product Catalogue", categories);
   }
 
-  private static void printCatalogueSummary(Catalogue catalogue) {
+  private static void printCatalogueSummary(ListingCatalogue catalogue) {
     System.out.println("  Catalogue: " + catalogue.name());
     System.out.println("  Categories: " + catalogue.categories().size());
 
     int totalProducts = 0;
-    for (Category cat : catalogue.categories()) {
+    for (ListingCategory cat : catalogue.categories()) {
       totalProducts += cat.listings().size();
     }
     System.out.println("  Total products: " + totalProducts);

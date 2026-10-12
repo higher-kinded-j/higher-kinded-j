@@ -44,15 +44,15 @@ The Interpreter pattern, described in the Gang of Four's *Design Patterns*, sugg
 <!-- verify -->
 ```java
 // Our "AST" - a program built from operations
-Free<OpticOpKind.Witness, Person> program =
-    OpticPrograms.get(person, PersonLenses.age())
+Free<OpticOpKind.Witness, Saver> program =
+    OpticPrograms.get(saver, SaverLenses.age())
         .flatMap(age ->
-            OpticPrograms.modify(person, PersonLenses.age(), a -> a + 1)
+            OpticPrograms.modify(saver, SaverLenses.age(), a -> a + 1)
         );
 
 // Our "interpreter" - executes the AST
 DirectOpticInterpreter interpreter = OpticInterpreters.direct();
-Person result = interpreter.run(program);
+Saver result = interpreter.run(program);
 ```
 
 ### Why Multiple Interpreters?
@@ -76,11 +76,13 @@ The `DirectOpticInterpreter` is the simplest interpreter: it executes optic oper
 
 ### Basic Usage
 
+A saver, the customer behind this page's accounts, has a name and an age:
+
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/interpreters/InterpretersBook.java:person}}
 ```
 
-A program that adds a year to the person's age, run by the direct interpreter:
+A program that adds a year to the saver's age, run by the direct interpreter:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/interpreters/InterpretersBook.java:direct}}
@@ -102,16 +104,16 @@ A program that adds a year to the person's age, run by the direct interpreter:
 <!-- verify -->
 ```java
 @GenerateLenses
-record Employee(String name, int salary, String status) {}
+record PayrollEntry(String name, int salary, EmployeeStatus status) {}
 
 enum PerformanceRating { EXCELLENT, GOOD, SATISFACTORY, POOR }
 
 // Employee management system
-public Employee processAnnualReview(
-    Employee employee,
+public PayrollEntry processAnnualReview(
+    PayrollEntry employee,
     PerformanceRating rating
 ) {
-    Free<OpticOpKind.Witness, Employee> program =
+    Free<OpticOpKind.Witness, PayrollEntry> program =
         buildReviewProgram(employee, rating);
 
     // Direct execution in production
@@ -348,7 +350,7 @@ Use the validation interpreter in unit tests to assert that a program's operatio
 ```java
 @Test
 void testProgramLogic() {
-    Free<OpticOpKind.Witness, Person> program =
+    Free<OpticOpKind.Witness, Saver> program =
         buildComplexProgram(testData);
 
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
@@ -384,7 +386,7 @@ folds it over the whole program:
 // answer(kind) is your own code: it carries out one operation and returns its result
 Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
     kind -> Id.of(Free.pure(answer(kind)));   // the fold expects the next Free node
-Kind<IdKind.Witness, Person> resultKind = program.foldMap(transform, Instances.monad(id()));
+Kind<IdKind.Witness, Saver> resultKind = program.foldMap(transform, Instances.monad(id()));
 ```
 
 Your own interpreter is a class that does the same. It does not extend or implement
@@ -495,8 +497,8 @@ avgTimes.forEach((op, time) ->
 <!-- verify -->
 ```java
 // The stubs are the caller's, because no single canned value can be type-correct for a
-// whole program: `get` through a Lens<Person, String> must yield a String, while `set`
-// must yield a Person. Returning one object for both is a ClassCastException waiting in
+// whole program: `get` through a Lens<Saver, String> must yield a String, while `set`
+// must yield a Saver. Returning one object for both is a ClassCastException waiting in
 // the next continuation.
 public final class MockOpticInterpreter {
     private final Function<OpticOp<?, ?>, Object> stubs;
@@ -533,15 +535,15 @@ public final class MockOpticInterpreter {
 @Test
 void testBusinessLogic() {
     // Create mock data
-    Person mockPerson = new Person("MockUser", 99);
+    Saver mockSaver = new Saver("MockUser", 99);
 
     // Build program (business logic)
-    Free<OpticOpKind.Witness, Person> program =
-        buildComplexBusinessLogic(mockPerson);
+    Free<OpticOpKind.Witness, Saver> program =
+        buildComplexBusinessLogic(mockSaver);
 
     // Execute with mock interpreter (no real data needed!)
-    MockOpticInterpreter mock = new MockOpticInterpreter(op -> mockPerson);
-    Person result = mock.run(program);
+    MockOpticInterpreter mock = new MockOpticInterpreter(op -> mockSaver);
+    Saver result = mock.run(program);
 
     // Verify result
     assertEquals("MockUser", result.name());

@@ -311,11 +311,11 @@ if (errors.isEmpty()) {
 
 <!-- verify -->
 ```java
-public sealed interface ValidationResult permits OrderApproved, OrderRejected {}
-record OrderApproved(Order order) implements ValidationResult {}
-record OrderRejected(List<String> errors) implements ValidationResult {}
+public sealed interface OrderVerdict permits OrderApproved, OrderRejected {}
+record OrderApproved(Order order) implements OrderVerdict {}
+record OrderRejected(List<String> errors) implements OrderVerdict {}
 
-public ValidationResult validateOrder(Order order) {
+public OrderVerdict validateOrder(Order order) {
     Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
     Lens<LineItem, Integer> quantityLens = LineItemLenses.quantity();
 

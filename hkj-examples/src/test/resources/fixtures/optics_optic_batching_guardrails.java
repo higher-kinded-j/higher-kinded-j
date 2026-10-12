@@ -20,13 +20,15 @@ import org.higherkindedj.optics.fetch.SafeFetch;
 
 record UserId(String value) {}
 
-record User(UserId id, String name) {}
+record UserSummary(UserId id, String name) {}
 
-record Team(String name, List<UserId> memberIds) {}
+record StoredTeam(String name, List<UserId> memberIds) {}
+
+record LoadedTeam(String name, List<UserSummary> members) {}
 
 class Backend {
 
-  Map<UserId, User> loadAll(Set<UserId> keys) {
+  Map<UserId, UserSummary> loadAll(Set<UserId> keys) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }
@@ -56,7 +58,7 @@ class Fixture {
 
   static final Backend backend = new Backend();
 
-  static final Fetch<UserId, User, Team> program = sample();
+  static final Fetch<UserId, UserSummary, LoadedTeam> program = sample();
 
   static final Guard<UserId> composed = sample();
 
@@ -64,7 +66,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Response ok(Team value) {
+  static Response ok(LoadedTeam value) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }

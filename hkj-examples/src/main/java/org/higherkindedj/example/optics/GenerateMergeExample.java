@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import org.higherkindedj.example.optics.GenerateMappingExample.CustomerDto;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -15,26 +17,25 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  */
 public final class GenerateMergeExample {
 
-  public record User(String name, String email) {}
-
-  public record Account(String iban, int balance) {}
+  public record Account(String accountId, BigDecimal balance) {}
 
   public record Settings(boolean darkMode) {}
 
   public record EmailAddress(String value) {}
 
-  public record Dashboard(String name, String iban, boolean darkMode) {}
+  public record Dashboard(String name, String accountId, boolean darkMode) {}
 
   @GenerateMerge
   public interface DashboardAssembly {
-    Dashboard assemble(User user, Account account, Settings settings);
+    Dashboard assemble(CustomerDto customer, Account account, Settings settings);
   }
 
-  public record TypedDashboard(String name, EmailAddress email, int balance) {}
+  public record TypedDashboard(String name, EmailAddress email, BigDecimal balance) {}
 
   @GenerateMerge
   public interface TypedDashboardAssembly {
-    Validated<NonEmptyList<FieldError>, TypedDashboard> assemble(User user, Account account);
+    Validated<NonEmptyList<FieldError>, TypedDashboard> assemble(
+        CustomerDto customer, Account account);
 
     default ValidatedPrism<String, EmailAddress> email() {
       return ValidatedPrism.of(
@@ -46,7 +47,7 @@ public final class GenerateMergeExample {
     }
   }
 
-  public record Wrapper(GenerateMappingExample.CustomerDto customer) {}
+  public record Wrapper(CustomerDto customer) {}
 
   public record ProfileCard(String name, GenerateMappingExample.Customer customer) {}
 
@@ -56,35 +57,35 @@ public final class GenerateMergeExample {
    */
   @GenerateMerge
   public interface ProfileCardAssembly {
-    Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, Wrapper wrapper);
+    Validated<NonEmptyList<FieldError>, ProfileCard> assemble(CustomerDto named, Wrapper wrapper);
   }
 
   public static void main(String[] args) {
     System.out.println("=== Identity Merge Example (lossless, plain return) ===");
-    User ada = new User("Ada", "ada@corp.example");
-    Account account = new Account("GB29-XXXX", 4200);
+    CustomerDto ada = new CustomerDto("Ada", "ada@corp.example");
+    Account account = new Account("ACC001", new BigDecimal("4200.00"));
     Settings settings = new Settings(true);
     Dashboard dashboard =
         GenerateMergeExampleDashboardAssemblyImpl.INSTANCE.assemble(ada, account, settings);
     System.out.println("Assembled:  " + dashboard);
-    System.out.println("Expected: name from User, iban from Account, darkMode from Settings\n");
+    System.out.println(
+        "Expected: name from CustomerDto, accountId from Account, darkMode from Settings\n");
 
     System.out.println("=== Validated Merge Example (fallible leaf, located errors) ===");
     var typedDashboardAssembly = GenerateMergeExampleTypedDashboardAssemblyImpl.INSTANCE;
     System.out.println("Valid:   " + typedDashboardAssembly.assemble(ada, account));
     System.out.println(
-        "Invalid: " + typedDashboardAssembly.assemble(new User("Bob", "not-an-email"), account));
+        "Invalid: "
+            + typedDashboardAssembly.assemble(new CustomerDto("Bob", "not-an-email"), account));
     System.out.println("Expected: Valid(TypedDashboard...), then Invalid located at \"email\"\n");
 
     System.out.println("=== Nested Merge Example (fill through a sibling @GenerateMapping) ===");
     var profileCardAssembly = GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE;
-    Wrapper wrapper =
-        new Wrapper(new GenerateMappingExample.CustomerDto("Grace", "grace@corp.example"));
+    Wrapper wrapper = new Wrapper(new CustomerDto("Grace", "grace@corp.example"));
     System.out.println("Valid:   " + profileCardAssembly.assemble(ada, wrapper));
     System.out.println(
         "Invalid: "
-            + profileCardAssembly.assemble(
-                ada, new Wrapper(new GenerateMappingExample.CustomerDto("Bob", "nope"))));
+            + profileCardAssembly.assemble(ada, new Wrapper(new CustomerDto("Bob", "nope"))));
     System.out.println(
         "Expected: Valid(ProfileCard...), then Invalid located at \"customer.email\"");
   }

@@ -26,11 +26,14 @@ public class AffineUsageExample {
   //    nickname.
   public record Review(String sku, Optional<CustomerProfile> author) {}
 
-  public record AppConfig(String appName, Optional<DatabaseConfig> database) {}
+  public record AppConfig(
+      String appName, Optional<DatabaseConfig> database, Optional<CacheConfig> cache) {}
 
   public record DatabaseConfig(String host, int port, Optional<PoolConfig> pool) {}
 
   public record PoolConfig(int minSize, int maxSize) {}
+
+  public record CacheConfig(String provider, int ttlSeconds) {}
 
   public static void main(String[] args) {
     // 2. Create initial data with nested optionals.
@@ -229,13 +232,14 @@ public class AffineUsageExample {
     var fullConfig =
         new AppConfig(
             "MyApp",
-            Optional.of(new DatabaseConfig("localhost", 5432, Optional.of(new PoolConfig(5, 20)))));
+            Optional.of(new DatabaseConfig("localhost", 5432, Optional.of(new PoolConfig(5, 20)))),
+            Optional.empty());
 
-    var minimalConfig = new AppConfig("MinimalApp", Optional.empty());
+    var minimalConfig = new AppConfig("MinimalApp", Optional.empty(), Optional.empty());
 
     // Build affines for configuration access.
     Lens<AppConfig, Optional<DatabaseConfig>> dbLens =
-        Lens.of(AppConfig::database, (c, db) -> new AppConfig(c.appName(), db));
+        Lens.of(AppConfig::database, (c, db) -> new AppConfig(c.appName(), db, c.cache()));
 
     Lens<DatabaseConfig, String> hostLens =
         Lens.of(DatabaseConfig::host, (db, h) -> new DatabaseConfig(h, db.port(), db.pool()));

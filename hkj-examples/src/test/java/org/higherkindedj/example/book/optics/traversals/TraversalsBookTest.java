@@ -68,7 +68,7 @@ class TraversalsBookTest {
   @DisplayName("partsOf reads, sorts and writes back every price across both categories")
   void partsOfSortsAcrossCategories() {
     TraversalsBook.SortedPrices sorted =
-        TraversalsBook.sortAllPrices(TraversalsBook.springCatalogue());
+        TraversalsBook.sortAllPrices(TraversalsBook.springAssortment());
 
     // Scale is part of the claim: the page prints each price with two decimal places.
     assertThat(sorted.allPricesList())
@@ -79,7 +79,7 @@ class TraversalsBookTest {
             decimals("19.99", "29.99", "49.99", "499.99", "799.99", "999.99"));
     // the first product gets the lowest price, whichever category it is in
     assertThat(
-            sorted.sortedCatalogue().categories().stream()
+            sorted.sortedAssortment().categories().stream()
                 .flatMap(category -> category.products().stream())
                 .toList())
         .extracting(Product::name, Product::price)

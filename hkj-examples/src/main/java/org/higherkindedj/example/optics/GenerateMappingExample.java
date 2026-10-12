@@ -54,27 +54,29 @@ public final class GenerateMappingExample {
     }
   }
 
-  public record Person(String name, int age) {}
+  public record Attendee(String name, int age) {}
 
-  public record PersonDto(String fullName, int age) {}
+  public record AttendeeDto(String fullName, int age) {}
 
   @GenerateMapping
-  public interface PersonMapping extends MappingSpec<Person, PersonDto> {
+  public interface AttendeeMapping extends MappingSpec<Attendee, AttendeeDto> {
     @MapField(to = "fullName")
     String name();
   }
 
-  public record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
+  public record DistributionList(
+      String name, List<EmailAddress> members, Optional<EmailAddress> owner) {}
 
-  public record TeamDto(String name, List<String> members, Optional<String> lead) {}
+  public record DistributionListDto(String name, List<String> members, Optional<String> owner) {}
 
   @GenerateMapping
-  public interface TeamMapping extends MappingSpec<Team, TeamDto> {
+  public interface DistributionListMapping
+      extends MappingSpec<DistributionList, DistributionListDto> {
     default ValidatedPrism<String, EmailAddress> members() {
       return emailPrism();
     }
 
-    default ValidatedPrism<String, EmailAddress> lead() {
+    default ValidatedPrism<String, EmailAddress> owner() {
       return emailPrism();
     }
 
@@ -104,14 +106,14 @@ public final class GenerateMappingExample {
     }
   }
 
-  public record Profile(String first, String last) {}
+  public record Recipient(String first, String last) {}
 
-  public record ProfileDto(String first, String last, String displayName) {}
+  public record RecipientDto(String first, String last, String displayName) {}
 
   @GenerateMapping
-  public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
-    default Getter<Profile, String> displayName() {
-      return Getter.of(p -> p.first() + " " + p.last());
+  public interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+    default Getter<Recipient, String> displayName() {
+      return Getter.of(r -> r.first() + " " + r.last());
     }
   }
 
@@ -122,12 +124,12 @@ public final class GenerateMappingExample {
   @GenerateMapping
   public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
-  public record Tree(String value, List<Tree> children) {}
+  public record Topic(String value, List<Topic> children) {}
 
-  public record TreeDto(String value, List<TreeDto> children) {}
+  public record TopicDto(String value, List<TopicDto> children) {}
 
   @GenerateMapping
-  public interface TreeMapping extends MappingSpec<Tree, TreeDto> {}
+  public interface TopicMapping extends MappingSpec<Topic, TopicDto> {}
 
   public sealed interface Payment permits Card, Bank {}
 
@@ -157,12 +159,12 @@ public final class GenerateMappingExample {
   @GenerateMapping
   public interface WalletMapping extends MappingSpec<Wallet, WalletDto> {}
 
-  public record Employee(String name, String department, int age) {}
+  public record BadgeHolder(String name, String department, int age) {}
 
-  public record EmployeeCardDto(String name, String department) {}
+  public record BadgeDto(String name, String department) {}
 
   @GenerateMapping
-  public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
+  public interface BadgeMapping extends MappingSpec<BadgeHolder, BadgeDto> {}
 
   // A mutable getter/setter DTO - the shape a JAXB, Jackson or OpenAPI generator emits. It is not a
   // record and is not annotatable, yet it maps: build fills it through setters, parse reads it back
@@ -201,14 +203,14 @@ public final class GenerateMappingExample {
     }
   }
 
-  public record Point(int x, String label) {}
+  public record Waypoint(int x, String label) {}
 
   // An immutable bean built through a static builder() - the Lombok / Immutables / AutoValue shape.
-  public static final class PointDto {
+  public static final class WaypointDto {
     private final int x;
     private final String label;
 
-    private PointDto(int x, String label) {
+    private WaypointDto(int x, String label) {
       this.x = x;
       this.label = label;
     }
@@ -239,14 +241,14 @@ public final class GenerateMappingExample {
         return this;
       }
 
-      public PointDto build() {
-        return new PointDto(x, label);
+      public WaypointDto build() {
+        return new WaypointDto(x, label);
       }
     }
   }
 
   @GenerateMapping
-  public interface PointMapping extends MappingSpec<Point, PointDto> {}
+  public interface WaypointMapping extends MappingSpec<Waypoint, WaypointDto> {}
 
   public static void main(String[] args) {
     System.out.println("=== Validated Mapping Example ===");
@@ -260,35 +262,35 @@ public final class GenerateMappingExample {
     System.out.println("Expected: built DTO, Valid(round trip), Invalid located at \"email\"\n");
 
     System.out.println("=== Lossless Mapping Example (renames + asIso) ===");
-    Person grace = new Person("Grace", 36);
-    var personMapping = GenerateMappingExamplePersonMappingImpl.INSTANCE;
-    PersonDto personDto = personMapping.build(grace);
-    System.out.println("Built:      " + personDto);
-    System.out.println("Iso back:   " + personMapping.asIso().reverseGet(personDto));
-    System.out.println("Iso there:  " + personMapping.asIso().get(grace));
+    Attendee grace = new Attendee("Grace", 36);
+    var attendeeMapping = GenerateMappingExampleAttendeeMappingImpl.INSTANCE;
+    AttendeeDto attendeeDto = attendeeMapping.build(grace);
+    System.out.println("Built:      " + attendeeDto);
+    System.out.println("Iso back:   " + attendeeMapping.asIso().reverseGet(attendeeDto));
+    System.out.println("Iso there:  " + attendeeMapping.asIso().get(grace));
     System.out.println("Expected: fullName carries the rename; the Iso round-trips both ways\n");
 
     System.out.println("=== Container Lifting Example (List + Optional) ===");
-    Team core =
-        new Team(
+    DistributionList core =
+        new DistributionList(
             "Core",
             List.of(new EmailAddress("ada@corp.example"), new EmailAddress("grace@corp.example")),
             Optional.of(new EmailAddress("ada@corp.example")));
-    var teamMapping = GenerateMappingExampleTeamMappingImpl.INSTANCE;
-    TeamDto teamDto = teamMapping.build(core);
-    System.out.println("Built:        " + teamDto);
-    System.out.println("Round trip:   " + teamMapping.parse(teamDto));
+    var distributionListMapping = GenerateMappingExampleDistributionListMappingImpl.INSTANCE;
+    DistributionListDto distributionListDto = distributionListMapping.build(core);
+    System.out.println("Built:        " + distributionListDto);
+    System.out.println("Round trip:   " + distributionListMapping.parse(distributionListDto));
     System.out.println(
-        "Absent lead:  "
-            + teamMapping.parse(
-                new TeamDto("Core", List.of("ada@corp.example"), Optional.empty())));
+        "Absent owner: "
+            + distributionListMapping.parse(
+                new DistributionListDto("Core", List.of("ada@corp.example"), Optional.empty())));
     System.out.println(
         "Located fail: "
-            + teamMapping.parse(
-                new TeamDto(
+            + distributionListMapping.parse(
+                new DistributionListDto(
                     "Core", List.of("bad-one", "grace@corp.example"), Optional.of("bad-two"))));
     System.out.println(
-        "Expected: strings in the DTO, Valid(round trip), Valid with empty lead, and BOTH bad"
+        "Expected: strings in the DTO, Valid(round trip), Valid with empty owner, and BOTH bad"
             + " values reported at once\n");
 
     System.out.println(
@@ -307,14 +309,14 @@ public final class GenerateMappingExample {
             + " key as \"contacts.sre\"\n");
 
     System.out.println("=== Derived Wire Field Example (Getter, filled on build) ===");
-    Profile profile = new Profile("Ada", "Lovelace");
-    var profileMapping = GenerateMappingExampleProfileMappingImpl.INSTANCE;
-    ProfileDto profileDto = profileMapping.build(profile);
-    System.out.println("Built:        " + profileDto);
+    Recipient recipient = new Recipient("Ada", "Lovelace");
+    var recipientMapping = GenerateMappingExampleRecipientMappingImpl.INSTANCE;
+    RecipientDto recipientDto = recipientMapping.build(recipient);
+    System.out.println("Built:        " + recipientDto);
     System.out.println(
-        "Parse:        " + profileMapping.parse(new ProfileDto("Ada", "Lovelace", "nonsense")));
+        "Parse:        " + recipientMapping.parse(new RecipientDto("Ada", "Lovelace", "nonsense")));
     System.out.println(
-        "Expected: build fills displayName from the whole Profile; parse ignores even an"
+        "Expected: build fills displayName from the whole Recipient; parse ignores even an"
             + " inconsistent displayName (the data is derivable) and stays Valid\n");
 
     System.out.println("=== Nested Mapping Example (spec delegates to spec) ===");
@@ -332,17 +334,17 @@ public final class GenerateMappingExample {
         "Expected: nested DTO built by CustomerMapping, Valid(round trip), and the failure"
             + " located through the nesting\n");
 
-    System.out.println("=== Self-Recursive Mapping Example (Tree of Trees) ===");
-    Tree tree =
-        new Tree(
+    System.out.println("=== Self-Recursive Mapping Example (Topics within Topics) ===");
+    Topic root =
+        new Topic(
             "root",
             List.of(
-                new Tree("left", List.of(new Tree("leaf", List.of()))),
-                new Tree("right", List.of())));
-    var treeMapping = GenerateMappingExampleTreeMappingImpl.INSTANCE;
-    TreeDto treeDto = treeMapping.build(tree);
-    System.out.println("Built:      " + treeDto);
-    System.out.println("Round trip: " + treeMapping.parse(treeDto));
+                new Topic("left", List.of(new Topic("leaf", List.of()))),
+                new Topic("right", List.of())));
+    var topicMapping = GenerateMappingExampleTopicMappingImpl.INSTANCE;
+    TopicDto topicDto = topicMapping.build(root);
+    System.out.println("Built:      " + topicDto);
+    System.out.println("Round trip: " + topicMapping.parse(topicDto));
     System.out.println("Expected: depth-3 round trip terminates and is Valid\n");
 
     System.out.println("=== Sealed Dispatch Example ===");
@@ -361,12 +363,12 @@ public final class GenerateMappingExample {
             + " inside Wallet like any other spec\n");
 
     System.out.println("=== Projection Example (Lens tier) ===");
-    Employee engineer = new Employee("Ada", "Engineering", 36);
-    var employeeCardMapping = GenerateMappingExampleEmployeeCardMappingImpl.INSTANCE;
-    EmployeeCardDto badge = employeeCardMapping.build(engineer);
+    BadgeHolder engineer = new BadgeHolder("Ada", "Engineering", 36);
+    var badgeMapping = GenerateMappingExampleBadgeMappingImpl.INSTANCE;
+    BadgeDto badge = badgeMapping.build(engineer);
     System.out.println("Projected:  " + badge);
-    Lens<Employee, EmployeeCardDto> badgeLens = employeeCardMapping.asLens();
-    Employee moved = badgeLens.set(new EmployeeCardDto("Ada", "Platform"), engineer);
+    Lens<BadgeHolder, BadgeDto> badgeLens = badgeMapping.asLens();
+    BadgeHolder moved = badgeLens.set(new BadgeDto("Ada", "Platform"), engineer);
     System.out.println("Written back: " + moved);
     System.out.println(
         "Expected: build drops age; asLens().set writes name and department back and keeps"
@@ -390,13 +392,17 @@ public final class GenerateMappingExample {
             + " as must-not-be-null (a null never reaches the leaf)\n");
 
     System.out.println("=== Builder-Based Bean Example (immutable DTO via builder()) ===");
-    Point origin = new Point(3, "origin");
-    var pointMapping = GenerateMappingExamplePointMappingImpl.INSTANCE;
-    PointDto pointDto = pointMapping.build(origin);
+    Waypoint origin = new Waypoint(3, "origin");
+    var waypointMapping = GenerateMappingExampleWaypointMappingImpl.INSTANCE;
+    WaypointDto waypointDto = waypointMapping.build(origin);
     System.out.println(
-        "Built:        PointDto[x=" + pointDto.getX() + ", label=" + pointDto.getLabel() + "]");
-    System.out.println("Round trip:   " + pointMapping.parse(pointDto));
-    System.out.println("Expected: built through PointDto.builder(); the round trip is Valid");
+        "Built:        WaypointDto[x="
+            + waypointDto.getX()
+            + ", label="
+            + waypointDto.getLabel()
+            + "]");
+    System.out.println("Round trip:   " + waypointMapping.parse(waypointDto));
+    System.out.println("Expected: built through WaypointDto.builder(); the round trip is Valid");
   }
 
   private GenerateMappingExample() {}

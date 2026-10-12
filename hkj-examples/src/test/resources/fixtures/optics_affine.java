@@ -32,14 +32,22 @@ import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.Nullable;
 
-record ConnectionSettings(Optional<Integer> timeout) {}
-
-record DatabaseSettings(String host, int port, Optional<ConnectionSettings> connection) {}
+record DatabaseSettings(String host, int port) {}
 
 record Config(Optional<DatabaseSettings> database) {
 
   static final Config DEFAULT = new Config(Optional.empty());
 }
+
+// The configuration management example's model, ConfigOptics' on the page: the pitfalls reach
+// through its two optional levels.
+record AppConfig(String appName, Optional<DatabaseConfig> database, Optional<CacheConfig> cache) {}
+
+record DatabaseConfig(String host, int port, Optional<PoolConfig> pool) {}
+
+record PoolConfig(int minSize, int maxSize) {}
+
+record CacheConfig(String provider, int ttlSeconds) {}
 
 // A product review, a supporting type beside the cast: an anonymous review has no author.
 record Review(String sku, Optional<CustomerProfile> author) {}
@@ -78,11 +86,7 @@ class Fixture<S, A, B, C> {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final Config config = sample();
-
   static final Config existingConfig = sample();
-
-  static final DatabaseSettings defaultSettings = sample();
 
   static final DatabaseSettings newSettings = sample();
 
@@ -100,11 +104,16 @@ class Fixture<S, A, B, C> {
 
   static final Prism<Optional<String>, String> nicknamePrism = Prisms.some();
 
-  static final Affine<Config, DatabaseSettings> databaseAffine = sample();
+  // The pitfalls' optics and values, under the names ConfigOptics gives them.
+  static final AppConfig config = sample();
 
-  static final Affine<DatabaseSettings, ConnectionSettings> connectionAffine = sample();
+  static final DatabaseConfig defaultDatabase = sample();
 
-  static final Lens<ConnectionSettings, Optional<Integer>> timeoutLens = sample();
+  static final Affine<AppConfig, DatabaseConfig> databaseAffine = sample();
+
+  static final Lens<DatabaseConfig, Optional<PoolConfig>> pool = sample();
+
+  static final Lens<PoolConfig, Integer> maxSize = sample();
 
   static Optional<Config> loadConfig() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");

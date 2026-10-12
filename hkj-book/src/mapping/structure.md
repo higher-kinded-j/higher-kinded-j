@@ -37,10 +37,10 @@ That is the `lines.1.price` error from the [chapter's opening response](ch_intro
 %%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
 sequenceDiagram
     accTitle: How an error path grows outward
-    accDescr: The price leaf reports a bare message. LineItemMapping puts price in front of it, the list puts the index 1 in front of that, and CartMapping puts lines in front, so the client reads lines.1.price.
+    accDescr: The price leaf reports a bare message. CartLineMapping puts price in front of it, the list puts the index 1 in front of that, and CartMapping puts lines in front, so the client reads lines.1.price.
     participant C as CartMapping
     participant L as lines list
-    participant I as LineItemMapping
+    participant I as CartLineMapping
     participant P as price leaf
     C->>L: parse lines
     L->>I: parse index 1
@@ -197,7 +197,7 @@ A domain `Optional` against a plain nullable wire component is the [bridge](#opt
 
 An array that needs no conversion crosses as a clone. A record compares an array by reference, so a record with an array and no `equals` of its own is not equal to its own round trip.
 
-The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a catalogue's `Category(String name, List<Category> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
+The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a shop menu's `MenuSection(String name, List<MenuSection> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
 
 ### Converting Map keys {#converting-map-keys}
 
@@ -215,7 +215,7 @@ A leaf that parses two wire values to one domain value (`"1"` and `"01"`, say) b
 
 ## Flattening a nested component onto a flat wire {#flattening-a-nested-component-onto-a-flat-wire}
 
-Nesting assumes the wire nests too. When a courier's API, fixed by someone else, lists a pickup point's [`Address`](basics.md#your-first-mapping) as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
+Nesting assumes the wire nests too. When a courier's API, fixed by someone else, lists a collection point's [`Address`](basics.md#your-first-mapping) as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:flatten_spec}}
@@ -226,13 +226,13 @@ Nesting assumes the wire nests too. When a courier's API, fixed by someone else,
 ```mermaid
 flowchart LR
     accTitle: A flattened address
-    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat PickupPointDto field of the same name.
-    subgraph D["PickupPoint.address"]
+    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat CollectionPointDto field of the same name.
+    subgraph D["CollectionPoint.address"]
         AS["address.street"]
         AC["address.city"]
         AP["address.postcode"]
     end
-    subgraph W["PickupPointDto"]
+    subgraph W["CollectionPointDto"]
         S["street"]
         C["city"]
         P["postcode"]
@@ -249,7 +249,7 @@ flowchart LR
 
 In words: each member of the address pairs with the flat field of the same name, so a bad `street` comes back as `address.street`.
 
-The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the pickup point's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
+The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the collection point's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
 
 The vocabulary applies inside the group by name:
 

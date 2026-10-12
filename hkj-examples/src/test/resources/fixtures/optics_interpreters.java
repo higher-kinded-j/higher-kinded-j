@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +42,7 @@ import org.higherkindedj.optics.free.ValidationOpticInterpreter;
 import org.junit.jupiter.api.Test;
 
 @GenerateLenses
-record Person(String name, int age) {}
+record Saver(String name, int age) {}
 
 enum PerformanceRating {
   EXCELLENT,
@@ -53,18 +52,20 @@ enum PerformanceRating {
 }
 
 @GenerateLenses
-record Employee(String name, int salary, String status) {}
+record PayrollEntry(String name, int salary, EmployeeStatus status) {}
+
+enum EmployeeStatus {
+  JUNIOR,
+  SENIOR,
+  PROBATION,
+  RETIRED
+}
 
 @GenerateLenses
 record Account(String accountId, BigDecimal balance) {}
 
 @GenerateLenses
-record Transaction(
-    String txnId,
-    Account from,
-    Account to,
-    BigDecimal amount,
-    LocalDateTime timestamp) {}
+record Transaction(String txnId, Account from, Account to, BigDecimal amount) {}
 
 @GenerateLenses
 record UserV1(String username, String email, Integer age) {}
@@ -185,9 +186,9 @@ class Fixture {
 
   static final AuditRepository auditRepository = new AuditRepository();
 
-  static final Person person = sample();
+  static final Saver saver = sample();
 
-  static final Person testData = person;
+  static final Saver testData = saver;
 
   static final Team team = sample();
 
@@ -199,24 +200,24 @@ class Fixture {
 
   static final List<Transaction> transactions = List.of();
 
-  static final Free<OpticOpKind.Witness, Person> program = sample();
+  static final Free<OpticOpKind.Witness, Saver> program = sample();
 
   static final Free<OpticOpKind.Witness, Order> orderProcessing = sample();
 
-  static final Free<OpticOpKind.Witness, Person> program1 = program;
+  static final Free<OpticOpKind.Witness, Saver> program1 = program;
 
-  static final Free<OpticOpKind.Witness, Person> program2 = program;
+  static final Free<OpticOpKind.Witness, Saver> program2 = program;
 
-  static Free<OpticOpKind.Witness, Employee> buildReviewProgram(
-      Employee employee, PerformanceRating rating) {
+  static Free<OpticOpKind.Witness, PayrollEntry> buildReviewProgram(
+      PayrollEntry employee, PerformanceRating rating) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Free<OpticOpKind.Witness, Person> buildComplexProgram(Person data) {
+  static Free<OpticOpKind.Witness, Saver> buildComplexProgram(Saver data) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Free<OpticOpKind.Witness, Person> buildComplexBusinessLogic(Person data) {
+  static Free<OpticOpKind.Witness, Saver> buildComplexBusinessLogic(Saver data) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 

@@ -158,7 +158,7 @@ record Consignment(UUID orderId, Address to, ConsignmentState state) {
   }
 }
 
-/** A supporting type named for its role beside the cast: a catalogue's prices, keyed by SKU. */
+/** A supporting type named for its role beside the cast: a price list, its prices keyed by SKU. */
 @GenerateLenses
 @GenerateFocus
-record Catalogue(String name, Map<String, BigDecimal> prices) {}
+record PriceList(String name, Map<String, BigDecimal> prices) {}

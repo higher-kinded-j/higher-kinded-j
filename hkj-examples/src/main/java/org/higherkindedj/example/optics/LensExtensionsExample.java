@@ -47,16 +47,16 @@ public class LensExtensionsExample {
   record Affiliate(String id, String name, String email, Integer commission, String bio) {}
 
   // Validation errors
-  sealed interface ValidationError permits FieldError, BusinessRuleError {}
+  sealed interface Rejection permits FieldError, BusinessRuleError {}
 
-  record FieldError(String field, String message) implements ValidationError {
+  record FieldError(String field, String message) implements Rejection {
     @Override
     public String toString() {
       return field + ": " + message;
     }
   }
 
-  record BusinessRuleError(String code, String message) implements ValidationError {
+  record BusinessRuleError(String code, String message) implements Rejection {
     @Override
     public String toString() {
       return "[" + code + "] " + message;

@@ -42,7 +42,7 @@ class GroupIntrosBookTest {
   @Test
   @DisplayName("Collections: one composed traversal reads and raises every player's score")
   void collections() {
-    GroupIntrosBook.Bonus bonus = GroupIntrosBook.collections(LEAGUE);
+    GroupIntrosBook.BulkUpdate bonus = GroupIntrosBook.collections(LEAGUE);
 
     assertThat(Traversals.getAll(bonus.everyScore(), LEAGUE)).containsExactly(100, 90, 110, 120);
     assertThat(Traversals.getAll(bonus.everyScore(), bonus.bonus()))

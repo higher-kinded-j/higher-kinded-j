@@ -54,7 +54,7 @@ class GettersBookTest {
   @Test
   @DisplayName("composed with a fold, a getter reads every employee's name")
   void composedWithAFoldReadsEveryName() {
-    Company company = new Company("TechCorp", JANE, EMPLOYEES, ADDRESS);
+    CompanyProfile company = new CompanyProfile("TechCorp", JANE, EMPLOYEES, ADDRESS);
 
     assertThat(GettersBook.withFolds(company, EMPLOYEES))
         .containsExactly(List.of("John Doe", "Alice Johnson", "Bob Williams"), false);

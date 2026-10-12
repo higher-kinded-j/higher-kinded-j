@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/each_typeclass.md
 //
 // The page catalogues the Each instances and then walks a depot's bays, a list of orders, products
-// and a user's projects through them. The orders are the chapter cast's Order, imported from its
-// package; the other models are declared here, and a snippet that shows one shadows this copy.
+// and a contributor's task boards through them. The orders are the chapter cast's Order, imported
+// from its package; the other models are declared here, and a snippet that shows one shadows this
+// copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -48,7 +49,7 @@ import org.higherkindedj.optics.util.Traversals;
 // catalogue snippet reads as it is written.
 record AppError(String message) {}
 
-record Value(String value) {}
+record Payload(String value) {}
 
 // A depot's bays, each holding its stock by SKU, for the Focus DSL section.
 record Depot(String name, List<Bay> bays) {}
@@ -67,16 +68,16 @@ record MyContainer<A>(List<A> items) {}
 
 record MyList<A>(List<A> items) {}
 
-record Task(String title, boolean reviewed) {
+record Task(String title, int priority) {
 
-  Task markReviewed() {
-    return new Task(title, true);
+  Task escalated() {
+    return new Task(title, priority + 1);
   }
 }
 
-record Project(String name, Map<String, Task> tasks) {}
+record TaskBoard(String name, Map<String, Task> tasks) {}
 
-record User(String name, List<Project> projects) {}
+record Contributor(String name, List<TaskBoard> boards) {}
 
 class Fixture {
 
@@ -89,7 +90,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final User user = sample();
+  static final Contributor contributor = sample();
 
   static final Depot depot = sample();
 
@@ -97,9 +98,9 @@ class Fixture {
 
   static final List<Product> products = List.of();
 
-  static final Lens<User, List<Project>> userProjectsLens = sample();
+  static final Lens<Contributor, List<TaskBoard>> contributorBoardsLens = sample();
 
-  static final Lens<Project, Map<String, Task>> projectTasksLens = sample();
+  static final Lens<TaskBoard, Map<String, Task>> boardTasksLens = sample();
 
   static Kind<org.higherkindedj.hkt.validated.ValidatedKind.Witness<List<String>>, Order>
       validateOrder(Order order) {

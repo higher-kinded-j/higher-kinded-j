@@ -152,26 +152,26 @@ Map<String, Integer> deleted = aliceLens.set(Optional.empty(), scores);
 
 <!-- verify -->
 ```java
-record Config(Map<String, String> settings) {}
+record ConfigMap(Map<String, String> settings) {}
 
-Lens<Config, Map<String, String>> settingsLens =
-    Lens.of(Config::settings, (c, s) -> new Config(s));
+Lens<ConfigMap, Map<String, String>> settingsLens =
+    Lens.of(ConfigMap::settings, (c, s) -> new ConfigMap(s));
 
 At<Map<String, String>, String, String> settingsAt = AtInstances.mapAt();
 
-// Compose: Config → Map<String, String> → Optional<String>
-Lens<Config, Optional<String>> debugSettingLens =
+// Compose: ConfigMap → Map<String, String> → Optional<String>
+Lens<ConfigMap, Optional<String>> debugSettingLens =
     settingsLens.andThen(settingsAt.at("debug"));
 
-Config config = new Config(new HashMap<>());
+ConfigMap config = new ConfigMap(new HashMap<>());
 
 // Insert new setting through composed lens
-Config withDebug = debugSettingLens.set(Optional.of("true"), config);
-// Result: Config[settings={debug=true}]
+ConfigMap withDebug = debugSettingLens.set(Optional.of("true"), config);
+// Result: ConfigMap[settings={debug=true}]
 
 // Delete setting through composed lens
-Config withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
-// Result: Config[settings={}]
+ConfigMap withoutDebug = debugSettingLens.set(Optional.empty(), withDebug);
+// Result: ConfigMap[settings={}]
 ```
 
 ---
@@ -262,29 +262,29 @@ List<String> unchanged = IxedInstances.update(listIx, 10, "grape", items);
 
 <!-- verify -->
 ```java
-record Config(Map<String, Integer> settings) {}
+record ConnectionLimits(Map<String, Integer> settings) {}
 
-Lens<Config, Map<String, Integer>> settingsLens =
-    Lens.of(Config::settings, (c, s) -> new Config(s));
+Lens<ConnectionLimits, Map<String, Integer>> settingsLens =
+    Lens.of(ConnectionLimits::settings, (c, s) -> new ConnectionLimits(s));
 
 Ixed<Map<String, Integer>, String, Integer> mapIx = IxedInstances.mapIx();
 
-// Compose: Config → Map<String, Integer> → Integer (0-or-1)
-Traversal<Config, Integer> maxConnectionsTraversal =
+// Compose: ConnectionLimits → Map<String, Integer> → Integer (0-or-1)
+Traversal<ConnectionLimits, Integer> maxConnectionsTraversal =
     settingsLens.andThen(mapIx.ix("maxConnections"));
 
-Config config = new Config(new HashMap<>(Map.of("maxConnections", 100)));
+ConnectionLimits limits = new ConnectionLimits(new HashMap<>(Map.of("maxConnections", 100)));
 
 // Safe modification through composed traversal
-Config updated = Traversals.modify(maxConnectionsTraversal, x -> x * 2, config);
-// Result: Config[settings={maxConnections=200}]
+ConnectionLimits updated = Traversals.modify(maxConnectionsTraversal, x -> x * 2, limits);
+// Result: ConnectionLimits[settings={maxConnections=200}]
 
 // Missing key = empty focus, modification is no-op
-Traversal<Config, Integer> missingTraversal =
+Traversal<ConnectionLimits, Integer> missingTraversal =
     settingsLens.andThen(mapIx.ix("nonexistent"));
 
-Config unchanged = Traversals.modify(missingTraversal, x -> x + 1, config);
-// Result: Config unchanged, no "nonexistent" key added
+ConnectionLimits unchanged = Traversals.modify(missingTraversal, x -> x + 1, limits);
+// Result: limits unchanged, no "nonexistent" key added
 ```
 
 ---
@@ -363,15 +363,15 @@ Map<String, Integer> result = IxedInstances.update(mapIx, "key", 100, empty);
 ~~~admonish success title="Do: Use Prisms.some() for value-level operations with At"
 <!-- verify -->
 ```java
-Lens<Config, Optional<String>> settingLens =
+Lens<ConfigMap, Optional<String>> settingLens =
     settingsLens.andThen(settingsAt.at("theme"));
 
 Prism<Optional<String>, String> some = Prisms.some();
-Affine<Config, String> value =
+Affine<ConfigMap, String> value =
     settingLens.andThen(some);
 
 // Now you can work with the actual String, not Optional<String>
-Config result = value.modify(String::trim, config);
+ConfigMap result = value.modify(String::trim, config);
 ```
 ~~~
 

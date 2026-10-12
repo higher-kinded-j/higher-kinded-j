@@ -32,7 +32,7 @@ import org.higherkindedj.optics.annotations.GenerateGetters;
 @GenerateGetters
 record Person(String firstName, String lastName, int age, Address address) {}
 
-record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
+record CompanyProfile(String name, Person ceo, List<Person> employees, Address headquarters) {}
 
 // An order service's API response to an order lookup, wrapping the order it returns
 record OrderLookup(Order order) {}
@@ -53,7 +53,7 @@ class Fixture {
 
   static final Address headquarters = address;
 
-  static final Company company = new Company("Initech", ceo, employees, headquarters);
+  static final CompanyProfile company = new CompanyProfile("Initech", ceo, employees, headquarters);
 
   static final Getter<Person, Address> addressGetter = Getter.of(Person::address);
 
@@ -61,7 +61,7 @@ class Fixture {
 
   static final Getter<Person, String> nameGetter = Getter.of(Person::firstName);
 
-  static final Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
+  static final Getter<CompanyProfile, Person> ceoGetter = Getter.of(CompanyProfile::ceo);
 
   static final Getter<Person, String> fullName =
       Getter.of(p -> p.firstName() + " " + p.lastName());

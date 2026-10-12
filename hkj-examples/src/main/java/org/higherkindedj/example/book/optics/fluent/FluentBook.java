@@ -294,9 +294,9 @@ public final class FluentBook {
   }
 
   /** What the page's filtered block computes. */
-  record BulkDiscount(Order discounted, List<LineItem> bulkLines) {}
+  record DiscountedLines(Order discounted, List<LineItem> bulkLines) {}
 
-  static BulkDiscount discountBulkLines(Order order) {
+  static DiscountedLines discountBulkLines(Order order) {
     // ANCHOR: filtered
     Traversal<Order, LineItem> bulk =
         OrderTraversals.lines().filtered(line -> line.quantity() >= 4);
@@ -309,7 +309,7 @@ public final class FluentBook {
 
     List<LineItem> bulkLines = OpticOps.getAll(discounted, bulk);
     // ANCHOR_END: filtered
-    return new BulkDiscount(discounted, bulkLines);
+    return new DiscountedLines(discounted, bulkLines);
   }
 
   static int totalQuantity(Order order) {

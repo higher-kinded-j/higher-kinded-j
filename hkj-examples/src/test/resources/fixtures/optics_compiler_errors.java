@@ -6,7 +6,7 @@
 // imports they all elide.
 //
 // The Focus DSL and Free monad entries are the exception: they quote *working* code, so they are
-// ordinary `<!-- verify -->` snippets over the company graph and the person program below.
+// ordinary `<!-- verify -->` snippets over the org chart and the saver program below.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -54,26 +54,26 @@ import org.higherkindedj.optics.free.OpticInterpreters;
 import org.higherkindedj.optics.free.OpticOpKind;
 import org.higherkindedj.optics.free.OpticPrograms;
 
-/** The company graph the Focus DSL entries navigate. */
+/** The org chart the Focus DSL entries navigate. */
 @GenerateLenses
 @GenerateFocus
-record Employee(String name, Integer salary) {}
+record OrgMember(String name, int age, Optional<String> email, Integer salary) {}
 
 @GenerateLenses
 @GenerateFocus
-record Department(String name, List<Employee> employees) {}
+record OrgUnit(String name, List<OrgMember> members) {}
 
 @GenerateLenses
 @GenerateFocus
-record Company(String name, List<Department> departments) {}
+record OrgChart(String name, List<OrgUnit> units) {}
 
 /** The record the Free monad entries build a program over. */
-record Person(String name, int age) {}
+record Saver(String name, int age) {}
 
 /** A `Kind`-typed component, which is what `traverseOver` is for. */
 record Role(String name) {}
 
-record User(String name, Kind<ListKind.Witness, Role> roles) {}
+record Operator(String name, Kind<ListKind.Witness, Role> roles) {}
 
 /** A single-component record: no two-argument constructor for `Lens.of` to reach. */
 record Inner(String value) {}
@@ -86,17 +86,17 @@ class Fixture {
    * Written by hand rather than generated: `@GenerateFocus` recognises `ListKind.Witness` and would
    * hand back a `TraversalPath` already traversed, which is the very step the entry is about.
    */
-  static final FocusPath<User, Kind<ListKind.Witness, Role>> rolesPath =
-      FocusPath.of(Lens.of(User::roles, (user, roles) -> new User(user.name(), roles)));
+  static final FocusPath<Operator, Kind<ListKind.Witness, Role>> rolesPath =
+      FocusPath.of(Lens.of(Operator::roles, (user, roles) -> new Operator(user.name(), roles)));
 
-  static final Person person = new Person("Ada", 36);
+  static final Saver person = new Saver("Ada", 36);
 
   /**
    * Written against a hand-made lens rather than a generated one on purpose: a snippet under
-   * `verify:rejects` stops annotation processing, so a fixture that named `PersonLenses` would add
+   * `verify:rejects` stops annotation processing, so a fixture that named `SaverLenses` would add
    * a cascading "cannot find symbol" to every refusal on the page.
    */
-  static final Free<OpticOpKind.Witness, Person> program =
+  static final Free<OpticOpKind.Witness, Saver> program =
       OpticPrograms.set(
-          person, Lens.of(Person::age, (subject, age) -> new Person(subject.name(), age)), 37);
+          person, Lens.of(Saver::age, (subject, age) -> new Saver(subject.name(), age)), 37);
 }

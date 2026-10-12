@@ -90,11 +90,11 @@ public class IntegrationPatternsExample {
   record IPApiResponse<T>(int statusCode, Maybe<T> data, List<String> errors) {}
 
   // Validation results
-  sealed interface ValidationResult permits ValidationSuccess, ValidationFailure {}
+  sealed interface OrderVerdict permits OrderApproved, OrderRejected {}
 
-  record ValidationSuccess(Order order) implements ValidationResult {}
+  record OrderApproved(Order order) implements OrderVerdict {}
 
-  record ValidationFailure(List<String> errors) implements ValidationResult {}
+  record OrderRejected(List<String> errors) implements OrderVerdict {}
 
   public static void main(String[] args) {
     System.out.println("=== Integrated Optics Patterns Example ===\n");
@@ -148,10 +148,10 @@ public class IntegrationPatternsExample {
 
           // Step 4: Validate all order items
           System.out.println("\nStep 3: Order Items Validation");
-          ValidationResult itemsValidation = validateOrderItems(order);
+          OrderVerdict itemsValidation = validateOrderItems(order);
 
           switch (itemsValidation) {
-            case ValidationSuccess success -> {
+            case OrderApproved approved -> {
               System.out.println("  ✅ All items valid");
 
               // Step 5: Apply discounts where applicable
@@ -177,10 +177,10 @@ public class IntegrationPatternsExample {
                     return null;
                   });
             }
-            case ValidationFailure failure -> {
+            case OrderRejected rejected -> {
               System.out.println(
-                  "  ❌ Item validation failed (" + failure.errors().size() + " errors):");
-              failure.errors().forEach(err -> System.out.println("     • " + err));
+                  "  ❌ Item validation failed (" + rejected.errors().size() + " errors):");
+              rejected.errors().forEach(err -> System.out.println("     • " + err));
             }
           }
           return null;
@@ -223,7 +223,7 @@ public class IntegrationPatternsExample {
         : Validated.invalidNel(FieldError.of("valid email is required"));
   }
 
-  private static ValidationResult validateOrderItems(Order order) {
+  private static OrderVerdict validateOrderItems(Order order) {
     List<LineItem> items = order.lines();
     Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
     Traversal<List<LineItem>, BigDecimal> allPrices =
@@ -266,9 +266,9 @@ public class IntegrationPatternsExample {
         List.of(priceErrors, quantityErrors).stream().flatMap(List::stream).toList();
 
     if (allErrors.isEmpty()) {
-      return new ValidationSuccess(order);
+      return new OrderApproved(order);
     } else {
-      return new ValidationFailure(allErrors);
+      return new OrderRejected(allErrors);
     }
   }
 

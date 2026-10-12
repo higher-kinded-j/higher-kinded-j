@@ -36,10 +36,10 @@ record Company(String name, Address address) {}
 @GenerateLenses
 record Employee(String name, Company company) {}
 
-record Settings(String theme) {}
+record Settings(boolean darkMode) {}
 
 @GenerateLenses
-record User(Optional<Settings> settings) {}
+record Visitor(Optional<Settings> settings) {}
 
 class Fixture {
 

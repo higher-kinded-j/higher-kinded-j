@@ -29,7 +29,9 @@ public final class ValidationBook {
   /** The page's sample form: a user with one allowed permission and one that is not. */
   static final Form FORM =
       new Form(
-          42, new User("alice", List.of(new Permission("PERM_READ"), new Permission("PERM_FLY"))));
+          42,
+          new RegisteredUser(
+              "alice", List.of(new Permission("PERM_READ"), new Permission("PERM_FLY"))));
 
   private ValidationBook() {}
 
@@ -43,8 +45,8 @@ public final class ValidationBook {
     // ANCHOR: payoff
     Traversal<Form, String> everyPermissionName =
         FormLenses.principal()
-            .andThen(PrincipalPrisms.user())
-            .andThen(UserTraversals.permissions())
+            .andThen(PrincipalPrisms.registeredUser())
+            .andThen(RegisteredUserTraversals.permissions())
             .andThen(PermissionLenses.name());
 
     Validated<String, Form> checked =
@@ -64,11 +66,11 @@ public final class ValidationBook {
 record Permission(String name) {}
 
 @GeneratePrisms
-sealed interface Principal permits User, Guest {}
+sealed interface Principal permits RegisteredUser, Guest {}
 
 @GenerateLenses
 @GenerateTraversals
-record User(String username, List<Permission> permissions) implements Principal {}
+record RegisteredUser(String username, List<Permission> permissions) implements Principal {}
 
 record Guest() implements Principal {}
 

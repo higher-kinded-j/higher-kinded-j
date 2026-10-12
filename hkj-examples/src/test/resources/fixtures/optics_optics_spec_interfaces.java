@@ -4,7 +4,7 @@
 // JsonApiBook classes, so those types are real. What the page invents for the sake of an
 // illustration lives here: `Value`, the check-and-extract API standing in for a library with no
 // sealed hierarchy, `Shape`/`Circle`, the hierarchy the @InstanceOf narrowing rules are explained
-// on, and `Box`, the generic source type for the spec type-parameter rules.
+// on, and `Carton`, the generic source type for the spec type-parameter rules.
 //
 // Two of the page's snippets declare their own `Shape` and `Circle`, which shadow the ones here:
 // the narrowing rules turn on whether the base pins the argument, so the page shows both bases.
@@ -61,14 +61,14 @@ class Circle<X> extends Shape {
 }
 
 /** A generic source type, for the rules about which parameters a generated method declares. */
-record Box<U>(String label, U content) {
+record Carton<T>(String label, T content) {
 
-  Box<U> withLabel(String label) {
-    return new Box<>(label, content);
+  Carton<T> withLabel(String label) {
+    return new Carton<>(label, content);
   }
 
-  Box<U> withContent(U content) {
-    return new Box<>(label, content);
+  Carton<T> withContent(T content) {
+    return new Carton<>(label, content);
   }
 }
 

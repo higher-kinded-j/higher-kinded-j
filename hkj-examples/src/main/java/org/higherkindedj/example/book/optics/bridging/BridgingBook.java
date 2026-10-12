@@ -4,7 +4,7 @@ package org.higherkindedj.example.book.optics.bridging;
 
 import java.util.List;
 import org.higherkindedj.example.optics.bridge.CompanyBridge;
-import org.higherkindedj.example.optics.bridge.domain.Company;
+import org.higherkindedj.example.optics.bridge.domain.OfficeNetwork;
 
 /**
  * The code shown on the book's <a
@@ -19,14 +19,14 @@ public final class BridgingBook {
   private BridgingBook() {}
 
   /** What the page's reads and write through the bridge return, so the test can read each. */
-  record Reads(String city, Company moved, List<String> emails, List<String> phones) {}
+  record BridgeReads(String city, OfficeNetwork moved, List<String> emails, List<String> phones) {}
 
-  static Reads readThroughTheBridge(Company acme) {
+  static BridgeReads readThroughTheBridge(OfficeNetwork acme) {
     // ANCHOR: bridge_reads
     String city = CompanyBridge.HEADQUARTERS_CITY.get(acme);
     // "New York": read straight through the Immutables Address
 
-    Company moved = CompanyBridge.HEADQUARTERS_CITY.set("Seattle", acme);
+    OfficeNetwork moved = CompanyBridge.HEADQUARTERS_CITY.set("Seattle", acme);
     // headquarters.city is "Seattle"; every other Address field, and acme itself, is untouched
 
     List<String> emails = CompanyBridge.allCompanyEmails().getAll(acme);
@@ -35,6 +35,6 @@ public final class BridgingBook {
     List<String> phones = CompanyBridge.allCompanyPhones().getAll(acme);
     // [617-555-0101, 617-555-0102, 312-555-0201]
     // ANCHOR_END: bridge_reads
-    return new Reads(city, moved, emails, phones);
+    return new BridgeReads(city, moved, emails, phones);
   }
 }

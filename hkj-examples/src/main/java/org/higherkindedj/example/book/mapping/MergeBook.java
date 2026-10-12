@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.math.BigDecimal;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -32,16 +33,17 @@ public final class MergeBook {
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
             new Customer("Ada", new EmailAddress("ada@corp.example")),
-            new Account("GB29-XXXX", 4200),
+            new Account("ACC001", new BigDecimal("4200.00")),
             new Settings(true));
-    // Dashboard[name=Ada, iban=GB29-XXXX, darkMode=true]
+    // Dashboard[name=Ada, accountId=ACC001, darkMode=true]
     // ANCHOR_END: merge_usage
     System.out.println(dashboard);
 
     // ANCHOR: nested_merge_usage
     Validated<NonEmptyList<FieldError>, TicketCard> card =
         TicketCardAssemblyImpl.INSTANCE.assemble(
-            new Employee("Grace", "Support", 41), new TicketForm(new CustomerDto("Bob", "nope")));
+            new BadgeHolder("Grace", "Support", 41),
+            new TicketForm(new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[customer.email: not an email address])
     // ANCHOR_END: nested_merge_usage
     System.out.println(card);
@@ -51,11 +53,11 @@ public final class MergeBook {
 // ANCHOR: merge_spec
 // Customer is the chapter's own, from Record Mapping Basics.
 
-record Account(String iban, int balance) {}
+record Account(String accountId, BigDecimal balance) {}
 
 record Settings(boolean darkMode) {}
 
-record Dashboard(String name, String iban, boolean darkMode) {}
+record Dashboard(String name, String accountId, boolean darkMode) {}
 
 @GenerateMerge
 interface DashboardAssembly {
@@ -65,7 +67,7 @@ interface DashboardAssembly {
 // ANCHOR_END: merge_spec
 
 // ANCHOR: nested_merge_spec
-// A support desk ticket: the department of the agent who opens it (an Employee, as on What Your
+// A support desk ticket: the department of the agent who opens it (a BadgeHolder, as on What Your
 // Spec Generates), and the customer a form describes.
 record TicketForm(CustomerDto customer) {} // the wire side
 
@@ -75,6 +77,6 @@ record TicketCard(String department, Customer customer) {} // the domain side
 interface TicketCardAssembly {
   // TicketCard.department fills from the agent's; TicketCard.customer from TicketForm.customer,
   // through CustomerMapping, which can fail.
-  Validated<NonEmptyList<FieldError>, TicketCard> assemble(Employee agent, TicketForm form);
+  Validated<NonEmptyList<FieldError>, TicketCard> assemble(BadgeHolder agent, TicketForm form);
 }
 // ANCHOR_END: nested_merge_spec

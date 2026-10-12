@@ -26,7 +26,9 @@ class ValidationBookTest {
   void everyFailureIsCollected() {
     Form twoBad =
         new Form(
-            7, new User("bob", List.of(new Permission("PERM_FLY"), new Permission("PERM_SWIM"))));
+            7,
+            new RegisteredUser(
+                "bob", List.of(new Permission("PERM_FLY"), new Permission("PERM_SWIM"))));
 
     assertThat(ValidationBook.check(twoBad))
         .hasToString("Invalid(Invalid permission: PERM_FLY; Invalid permission: PERM_SWIM)");

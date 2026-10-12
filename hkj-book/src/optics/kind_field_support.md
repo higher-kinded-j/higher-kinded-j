@@ -19,10 +19,10 @@ Domain records in a Higher-Kinded-J codebase often hold their contents in a `Kin
 <!-- verify -->
 ```java
 // Kind<ListKind.Witness, Member> members, and yet:
-List<Member> everyone = TeamFocus.members().getAll(team);
+List<Member> everyone = SkillsTeamFocus.members().getAll(team);
 
-Team levelled =
-    TeamFocus.members()
+SkillsTeam levelled =
+    SkillsTeamFocus.members()
         .via(MemberFocus.skills())
         .modifyAll(Fixture::improve, team);
 ```
@@ -38,8 +38,8 @@ Without automatic detection, every `Kind` field would need its `Traverse` instan
 <!-- verify -->
 ```java
 // What you would otherwise write, once per field, per call site
-TraversalPath<Team, Member> memberPath =
-    FocusPath.of(TeamLenses.members()).<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+TraversalPath<SkillsTeam, Member> memberPath =
+    FocusPath.of(SkillsTeamLenses.members()).<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
 ```
 
 The processor knows which `Traverse` belongs to `ListKind.Witness`, so the generated method has already applied it.
@@ -67,14 +67,14 @@ A *witness* is the marker type that stands in for the higher-kinded `F` (see [Hi
 
 Parameterised witnesses are handled too: an `EitherKind.Witness<String>` field generates a call to `EitherTraverse.<String>instance()` with the type argument carried through.
 
-A wildcard resolves to the type it stands for, as it does for `List<? extends Member>` through `.each()`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<Team, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`, and with the annotation a note says so.
+A wildcard resolves to the type it stands for, as it does for `List<? extends Member>` through `.each()`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<SkillsTeam, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`, and with the annotation a note says so.
 
 <!-- verify -->
 ```java
 // One record, three witnesses, three path types
-AffinePath<ApiResponse, Member> lead = ApiResponseFocus.lead();          // MaybeKind
-TraversalPath<ApiResponse, String> warnings = ApiResponseFocus.warnings(); // ListKind
-AffinePath<ApiResponse, String> result = ApiResponseFocus.result();      // EitherKind<String>
+AffinePath<LeadLookup, Member> lead = LeadLookupFocus.lead();          // MaybeKind
+TraversalPath<LeadLookup, String> warnings = LeadLookupFocus.warnings(); // ListKind
+AffinePath<LeadLookup, String> result = LeadLookupFocus.result();      // EitherKind<String>
 
 Optional<Member> theLead = lead.getOptional(response);
 List<String> allWarnings = warnings.getAll(response);
@@ -152,14 +152,14 @@ Kind field paths are ordinary paths, so filtering, conditional modification and 
 <!-- verify -->
 ```java
 // Members who have a weak skill
-TraversalPath<Team, Member> needsTraining =
-    TeamFocus.members().filter(m -> MemberFocus.skills().exists(s -> s.proficiency() < 50, m));
+TraversalPath<SkillsTeam, Member> needsTraining =
+    SkillsTeamFocus.members().filter(m -> MemberFocus.skills().exists(s -> s.proficiency() < 50, m));
 
 List<Member> juniors = needsTraining.getAll(team);
 
 // Improve only their skills
-Team afterTraining =
-    TeamFocus.members()
+SkillsTeam afterTraining =
+    SkillsTeamFocus.members()
         .modifyWhen(
             m -> MemberFocus.skills().exists(s -> s.proficiency() < 50, m),
             m -> MemberFocus.skills().modifyAll(Fixture::improve, m),

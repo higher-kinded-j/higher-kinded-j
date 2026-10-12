@@ -38,11 +38,13 @@ import org.jspecify.annotations.Nullable;
 sealed interface SourceData permits CsvRow, JsonObject, XmlNode {}
 
 @GeneratePrisms
-sealed interface JsonValue permits JsonString, JsonNumber, JsonObject {}
+sealed interface JsonValue permits JsonString, JsonNumber, JsonBoolean, JsonObject {}
 
 record JsonString(String value) implements JsonValue {}
 
 record JsonNumber(double value) implements JsonValue {}
+
+record JsonBoolean(boolean value) implements JsonValue {}
 
 record JsonObject(Map<String, JsonValue> fields) implements JsonValue, SourceData {}
 
@@ -56,53 +58,57 @@ record CsvRow(Map<String, String> columns) implements SourceData {
 record XmlNode(String tag) implements SourceData {}
 
 @GeneratePrisms
-sealed interface DomainEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
+sealed interface ShopEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
 
-record UserEvent(String userId) implements DomainEvent {}
+record UserEvent(String userId) implements ShopEvent {}
 
-record OrderEvent(String orderId) implements DomainEvent {}
+record OrderEvent(String orderId) implements ShopEvent {}
 
-record PaymentEvent(String paymentId, BigDecimal amount) implements DomainEvent {}
+record PaymentEvent(String paymentId, BigDecimal amount) implements ShopEvent {}
 
-record OrderCompleted(String orderId, List<LineItem> lines) implements DomainEvent {}
+record OrderCompleted(String orderId, List<LineItem> lines) implements ShopEvent {}
 
 @GeneratePrisms
-sealed interface ApiResponse permits SuccessResponse, ValidationError, ServerError {}
+sealed interface SubmissionResponse permits SuccessResponse, InputError, ServerError {}
 
-record SuccessResponse(String data, int status) implements ApiResponse {}
+record SuccessResponse(String data, int statusCode) implements SubmissionResponse {}
 
 @GenerateLenses
-record ValidationError(String code, String message) implements ApiResponse {}
+record InputError(String code, String message) implements SubmissionResponse {}
 
-record ServerError(String message) implements ApiResponse {}
+record ServerError(String message, String traceId) implements SubmissionResponse {}
 
 @GeneratePrisms
 sealed interface ParsedValue permits IntValue, StringValue, InvalidValue {}
 
-record IntValue(int value) implements ParsedValue {}
+record IntValue(int value) implements ParsedValue, ConfigValue {}
 
-record StringValue(String value) implements ParsedValue {}
+record StringValue(String value) implements ParsedValue, ConfigValue {}
 
 record InvalidValue(String reason) implements ParsedValue {}
 
 @GeneratePrisms
 sealed interface ConfigSource permits DatabaseConfig, FileConfig {}
 
-record DatabaseConfig(String host, int port) implements ConfigSource {
+record DatabaseConfig(String host, int port, Optional<PoolConfig> pool) implements ConfigSource {
 
-  static final DatabaseConfig DEFAULT_POSTGRES = new DatabaseConfig("localhost", 5432);
+  static final DatabaseConfig DEFAULT_POSTGRES =
+      new DatabaseConfig("localhost", 5432, Optional.empty());
 }
+
+record PoolConfig(int minSize, int maxSize) {}
 
 record FileConfig(String path) implements ConfigSource {}
 
-record ApplicationConfig(ConfigSource source) {}
+record StartupConfig(ConfigSource source) {}
 
 @GeneratePrisms
-sealed interface ConfigValue permits StringConfig, IntConfig {}
+sealed interface ConfigValue permits StringValue, IntValue, BoolValue, NestedConfig {}
 
-record StringConfig(String value) implements ConfigValue {}
+record BoolValue(boolean value) implements ConfigValue {}
 
-record IntConfig(int value) implements ConfigValue {}
+@GenerateLenses
+record NestedConfig(Map<String, ConfigValue> values) implements ConfigValue {}
 
 // A quote's progress towards becoming an order, which the cast's OrderStatus then takes up.
 @GeneratePrisms
@@ -123,13 +129,18 @@ record Rejected(String reason) implements QuoteStatus {}
 
 record Data(String value) {}
 
-record User(String name) {}
+record User(String username, String email, int loginCount, UserSettings settings) {}
+
+record UserSettings(
+    String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
 @GenerateLenses
-record Config(String name) {
+record Config(Optional<DatabaseSettings> database) {
 
-  static final Config DEFAULT = new Config("default");
+  static final Config DEFAULT = new Config(Optional.empty());
 }
+
+record DatabaseSettings(String host, int port) {}
 
 // The reader's own logger, whatever it is. Named here so the page's snippets can say what they
 // would log without the gate carrying a logging framework.
@@ -159,9 +170,9 @@ class Fixture {
 
   static final List<JsonValue> values = List.of(jsonValue);
 
-  static final ApiResponse response = new SuccessResponse("ok", 200);
+  static final SubmissionResponse response = new SuccessResponse("ok", 200);
 
-  static final ConfigValue configValue = new StringConfig("theme");
+  static final ConfigValue configValue = new StringValue("theme");
 
   static final Optional<Config> optionalConfig = sample();
 
@@ -183,7 +194,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Either<ValidationError, Data> validate(Data toCheck) {
+  static Either<InputError, Data> validate(Data toCheck) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 

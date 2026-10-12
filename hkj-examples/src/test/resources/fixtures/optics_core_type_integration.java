@@ -39,19 +39,19 @@ record Profile(String email) {
 }
 
 @GenerateLenses
-record User(String email, Profile profile) {
+record ProfileOwner(String email, Profile profile) {
 
   Profile getProfile() {
     return profile;
   }
 
-  User withProfile(Profile newProfile) {
-    return new User(email, newProfile);
+  ProfileOwner withProfile(Profile newProfile) {
+    return new ProfileOwner(email, newProfile);
   }
 }
 
 @GenerateLenses
-record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
+record OrderReply(int statusCode, Maybe<Order> data, List<String> warnings) {}
 
 class ValidationException extends RuntimeException {
 
@@ -84,13 +84,13 @@ class Fixture {
 
   static final Log logger = log;
 
-  static final User user = sample();
+  static final ProfileOwner user = sample();
 
-  static final Maybe<User> maybeUser = sample();
+  static final Maybe<ProfileOwner> maybeUser = sample();
 
   static final Try<Order> tryOrder = sample();
 
-  static final ApiResponse response = sample();
+  static final OrderReply response = sample();
 
   static final List<Order> orders = List.of();
 
@@ -106,7 +106,7 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static List<Try<User>> loadUsersFromDatabase(List<String> ids) {
+  static List<Try<ProfileOwner>> loadUsersFromDatabase(List<String> ids) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }

@@ -5,6 +5,7 @@ package org.higherkindedj.example.book.mapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -24,10 +25,10 @@ class MergeBookTest {
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
             new Customer(null, new EmailAddress("ada@corp.example")),
-            new Account("GB29-XXXX", 4200),
+            new Account("ACC001", new BigDecimal("4200.00")),
             new Settings(true));
 
-    assertThat(dashboard).isEqualTo(new Dashboard(null, "GB29-XXXX", true)); // no check, no error
+    assertThat(dashboard).isEqualTo(new Dashboard(null, "ACC001", true)); // no check, no error
     // ANCHOR_END: check_plain_null
   }
 

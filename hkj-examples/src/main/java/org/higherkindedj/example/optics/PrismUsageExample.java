@@ -41,6 +41,8 @@ public class PrismUsageExample {
 
   public record JsonNumber(double value) implements JsonValue {}
 
+  public record JsonBoolean(boolean value) implements JsonValue {}
+
   @GenerateLenses
   @GenerateTraversals // Generates JsonObjectTraversals.fields()
   public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}

@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/coupled_fields.md
 //
 // The page's running example is a Range whose constructor rejects a crossed pair, and it reaches
-// for a rectangle, a server configuration and a trade to show the same shape elsewhere. Every
+// for a viewport, a server configuration and a trade to show the same shape elsewhere. Every
 // model and every lens it names is declared here; a snippet that shows one shadows this copy,
 // which is why the values below are `sample()` stand-ins rather than constructor calls.
 //
@@ -30,7 +30,7 @@ record Range(int lo, int hi) {
   }
 }
 
-record Transaction(String id, int min, int max, String note) {}
+record QuantityLimit(String id, int min, int max, String note) {}
 
 record Packet(byte[] data, long checksum) {}
 
@@ -41,11 +41,11 @@ record Point(int x, int y) {
   }
 }
 
-record Rectangle(Point topLeft, Point bottomRight) {}
+record Viewport(Point topLeft, Point bottomRight) {}
 
-record ServerConfig(String host, int minPort, int maxPort) {}
+record ServerPorts(String host, int minPort, int maxPort) {}
 
-record Config(ServerConfig server) {}
+record Deployment(ServerPorts server) {}
 
 // Both carry generated lenses for the closing pair of coupled3 forms, which names them through
 // TradeLenses and TripleLenses. The page declares its own Triple, which shadows this copy, and
@@ -80,31 +80,31 @@ class Fixture {
 
   static final Lens<Range, Pair<Integer, Integer>> boundsLens = sample();
 
-  static final Lens<Transaction, Integer> minLens = sample();
+  static final Lens<QuantityLimit, Integer> minLens = sample();
 
-  static final Lens<Transaction, Integer> maxLens = sample();
+  static final Lens<QuantityLimit, Integer> maxLens = sample();
 
-  static final Rectangle rect = sample();
+  static final Viewport viewport = sample();
 
-  static final Lens<Rectangle, Point> topLeftLens = sample();
+  static final Lens<Viewport, Point> topLeftLens = sample();
 
-  static final Lens<Rectangle, Point> bottomRightLens = sample();
+  static final Lens<Viewport, Point> bottomRightLens = sample();
 
   static final int dx = 3;
 
   static final int dy = 4;
 
-  static final ServerConfig serverConfig = sample();
+  static final ServerPorts ports = sample();
 
-  static final Lens<ServerConfig, Integer> minPortLens = sample();
+  static final Lens<ServerPorts, Integer> minPortLens = sample();
 
-  static final Lens<ServerConfig, Integer> maxPortLens = sample();
+  static final Lens<ServerPorts, Integer> maxPortLens = sample();
 
-  static final Config config = sample();
+  static final Deployment deployment = sample();
 
-  static final Lens<Config, ServerConfig> configServerLens = sample();
+  static final Lens<Deployment, ServerPorts> deploymentServerLens = sample();
 
-  static final Lens<ServerConfig, Pair<Integer, Integer>> serverPortsLens = sample();
+  static final Lens<ServerPorts, Pair<Integer, Integer>> serverPortsLens = sample();
 
   static final Lens<Trade, String> currencyLens = sample();
 

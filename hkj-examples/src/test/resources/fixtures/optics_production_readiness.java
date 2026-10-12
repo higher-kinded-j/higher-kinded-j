@@ -11,6 +11,7 @@
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -21,4 +22,4 @@ import org.higherkindedj.optics.focus.TraversalPath;
 
 @GenerateLenses
 @GenerateFocus
-record Company(String name) {}
+record Company(String name, Address address) {}

@@ -142,7 +142,7 @@ javac offers each round's annotations to the processors in processor-path order,
 
 | Situation | Recommendation |
 |---|---|
-| Path used once in a method body | Inline at call site (`UserFocus.address().city().get(user)`) |
+| Path used once in a method body | Inline at call site (`ConsignmentFocus.to().city().get(consignment)`) |
 | Path used multiple times in the same class | Extract to a `private static final` field |
 | Path used across packages | Extract to a `public static final` field on a domain-optics utility class |
 | Path constructed dynamically from runtime input | Build inside the method; do not cache |

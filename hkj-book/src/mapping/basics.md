@@ -60,7 +60,7 @@ A constant on the spec holding something built from the Impl, such as its `Valid
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:surface_constant}}
 ```
 
-This one fails harder than a `null`. A program that uses `LockerMappingImpl.INSTANCE` first evaluates `PRISM` while `INSTANCE` is still `null`, so the Impl fails to initialise with an `ExceptionInInitializerError`, and every later use throws `NoClassDefFoundError`. Keep the Impl and its surfaces in the calling code.
+This one fails harder than a `null`. A program that uses `ParcelLockerMappingImpl.INSTANCE` first evaluates `PRISM` while `INSTANCE` is still `null`, so the Impl fails to initialise with an `ExceptionInInitializerError`, and every later use throws `NoClassDefFoundError`. Keep the Impl and its surfaces in the calling code.
 ~~~
 
 ---

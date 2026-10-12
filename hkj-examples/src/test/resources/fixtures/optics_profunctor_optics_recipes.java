@@ -24,4 +24,4 @@ record UserName(String value) {}
 record Email(String value) {}
 
 @GenerateLenses
-record User(UserId id, UserName name, Email email, LocalDate createdAt) {}
+record SiteMember(UserId id, UserName name, Email email, LocalDate createdAt) {}

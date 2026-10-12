@@ -12,11 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.higherkindedj.example.optics.fluent.generated.AccountLenses;
-import org.higherkindedj.example.optics.fluent.generated.TransactionLenses;
+import org.higherkindedj.example.optics.fluent.generated.TransferLenses;
 import org.higherkindedj.example.optics.fluent.model.Account;
-import org.higherkindedj.example.optics.fluent.model.AccountStatus;
-import org.higherkindedj.example.optics.fluent.model.Transaction;
-import org.higherkindedj.example.optics.fluent.model.TransactionStatus;
+import org.higherkindedj.example.optics.fluent.model.Transfer;
+import org.higherkindedj.example.optics.fluent.model.TransferStatus;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
@@ -54,10 +53,10 @@ public class OpticInterpretersExample {
   public static void main(String[] args) {
     System.out.println("=== OPTIC INTERPRETERS EXAMPLE ===\n");
 
-    // Create sample transaction
-    Transaction txn = createSampleTransaction();
-    System.out.println("Initial Transaction:");
-    printTransaction(txn);
+    // Create a sample transfer
+    Transfer txn = createSampleTransfer();
+    System.out.println("Initial Transfer:");
+    printTransfer(txn);
     System.out.println("\n" + "=".repeat(60) + "\n");
 
     directInterpreterExample(txn);
@@ -82,19 +81,19 @@ public class OpticInterpretersExample {
   // PART 1: Direct Interpreter - Production Execution
   // ============================================================================
 
-  private static void directInterpreterExample(Transaction txn) {
+  private static void directInterpreterExample(Transfer txn) {
     System.out.println("--- Part 1: Direct Interpreter (Production) ---\n");
 
     // Build the transaction processing program
-    Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = processTransactionProgram(txn);
 
     // Execute with direct interpreter
     System.out.println("Executing transaction directly...");
     DirectOpticInterpreter direct = OpticInterpreters.direct();
-    Transaction result = direct.run(program);
+    Transfer result = direct.run(program);
 
     System.out.println("\nResult:");
-    System.out.println("  Transaction Status: " + result.status());
+    System.out.println("  Transfer Status: " + result.status());
     System.out.println("  From Balance: " + result.fromAccount().balance());
     System.out.println("  To Balance: " + result.toAccount().balance());
     System.out.println();
@@ -104,16 +103,16 @@ public class OpticInterpretersExample {
   // PART 2: Logging Interpreter - Audit Trail
   // ============================================================================
 
-  private static void loggingInterpreterExample(Transaction txn) {
+  private static void loggingInterpreterExample(Transfer txn) {
     System.out.println("--- Part 2: Logging Interpreter (Audit Trail) ---\n");
 
     // Build the same program
-    Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = processTransactionProgram(txn);
 
     // Execute with logging interpreter for audit trail
     System.out.println("Executing transaction with audit logging...");
     LoggingOpticInterpreter logging = OpticInterpreters.logging();
-    Transaction result = logging.run(program);
+    Transfer result = logging.run(program);
 
     System.out.println("\n✓ Transaction completed");
     System.out.println("\nAudit Trail:");
@@ -131,11 +130,11 @@ public class OpticInterpretersExample {
   // PART 3: Validation Interpreter - Dry-Run Testing
   // ============================================================================
 
-  private static void validationInterpreterExample(Transaction txn) {
+  private static void validationInterpreterExample(Transfer txn) {
     System.out.println("--- Part 3: Validation Interpreter (Dry-Run) ---\n");
 
     // Build the program
-    Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = processTransactionProgram(txn);
 
     // Execute with validation interpreter (doesn't modify data)
     System.out.println("Validating transaction (dry-run, no changes applied)...");
@@ -165,16 +164,16 @@ public class OpticInterpretersExample {
   // PART 4: Custom Profiling Interpreter
   // ============================================================================
 
-  private static void customProfilingInterpreterExample(Transaction txn) {
+  private static void customProfilingInterpreterExample(Transfer txn) {
     System.out.println("--- Part 4: Custom Profiling Interpreter ---\n");
 
     // Build a more complex program to profile
-    Free<OpticOpKind.Witness, Transaction> program = complexTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = complexTransactionProgram(txn);
 
     // Execute with profiling interpreter
     System.out.println("Executing transaction with performance profiling...");
     ProfilingOpticInterpreter profiler = new ProfilingOpticInterpreter();
-    Transaction result = profiler.run(program);
+    Transfer result = profiler.run(program);
 
     System.out.println("\n✓ Transaction completed");
     System.out.println("\nPerformance Profile:");
@@ -195,11 +194,11 @@ public class OpticInterpretersExample {
   // PART 5: Custom Mocking Interpreter for Testing
   // ============================================================================
 
-  private static void customMockingInterpreterExample(Transaction txn) {
+  private static void customMockingInterpreterExample(Transfer txn) {
     System.out.println("--- Part 5: Custom Mocking Interpreter (Testing) ---\n");
 
     // Build the program
-    Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = processTransactionProgram(txn);
 
     // Execute with mocking interpreter
     System.out.println("Executing transaction with mocked data...");
@@ -208,7 +207,7 @@ public class OpticInterpretersExample {
     // Configure mock responses
     mocker.mockGet(AccountLenses.balance(), new BigDecimal("999999.99"));
 
-    Transaction result = mocker.run(program);
+    Transfer result = mocker.run(program);
 
     System.out.println("\nMocked Result:");
     System.out.println("  From Balance (mocked): " + result.fromAccount().balance());
@@ -224,10 +223,10 @@ public class OpticInterpretersExample {
   // PART 6: Combining Interpreters
   // ============================================================================
 
-  private static void combiningInterpretersExample(Transaction txn) {
+  private static void combiningInterpretersExample(Transfer txn) {
     System.out.println("--- Part 6: Combining Interpreters ---\n");
 
-    Free<OpticOpKind.Witness, Transaction> program = processTransactionProgram(txn);
+    Free<OpticOpKind.Witness, Transfer> program = processTransactionProgram(txn);
 
     System.out.println("Phase 1: Validation");
     ValidationOpticInterpreter validator = OpticInterpreters.validating();
@@ -243,7 +242,7 @@ public class OpticInterpretersExample {
 
     System.out.println("Phase 2: Execution with Audit Logging");
     LoggingOpticInterpreter logger = OpticInterpreters.logging();
-    Transaction result = logger.run(program);
+    Transfer result = logger.run(program);
     System.out.println("  ✓ Transaction completed");
     System.out.println();
 
@@ -262,44 +261,43 @@ public class OpticInterpretersExample {
   // ============================================================================
 
   /** Builds a program that processes a financial transaction. */
-  private static Free<OpticOpKind.Witness, Transaction> processTransactionProgram(Transaction txn) {
+  private static Free<OpticOpKind.Witness, Transfer> processTransactionProgram(Transfer txn) {
     BigDecimal amount = txn.amount();
 
     // Step 1: Update status to PROCESSING
-    return OpticPrograms.set(txn, TransactionLenses.status(), TransactionStatus.PROCESSING)
+    return OpticPrograms.set(txn, TransferLenses.status(), TransferStatus.PROCESSING)
         .flatMap(
             t1 ->
                 // Step 2: Deduct from source account
                 OpticPrograms.modify(
                     t1,
-                    TransactionLenses.fromAccount().andThen(AccountLenses.balance()),
+                    TransferLenses.fromAccount().andThen(AccountLenses.balance()),
                     balance -> balance.subtract(amount)))
         .flatMap(
             t2 ->
                 // Step 3: Add to destination account
                 OpticPrograms.modify(
                     t2,
-                    TransactionLenses.toAccount().andThen(AccountLenses.balance()),
+                    TransferLenses.toAccount().andThen(AccountLenses.balance()),
                     balance -> balance.add(amount)))
         .flatMap(
             t3 ->
                 // Step 4: Update status to COMPLETED
-                OpticPrograms.set(t3, TransactionLenses.status(), TransactionStatus.COMPLETED));
+                OpticPrograms.set(t3, TransferLenses.status(), TransferStatus.COMPLETED));
   }
 
   /** Builds a more complex program for profiling demonstration. */
-  private static Free<OpticOpKind.Witness, Transaction> complexTransactionProgram(Transaction txn) {
+  private static Free<OpticOpKind.Witness, Transfer> complexTransactionProgram(Transfer txn) {
     return processTransactionProgram(txn)
         .flatMap(
             t1 ->
                 // Additional operations for profiling
                 OpticPrograms.get(
-                    t1, TransactionLenses.fromAccount().andThen(AccountLenses.balance())))
+                    t1, TransferLenses.fromAccount().andThen(AccountLenses.balance())))
         .flatMap(
             fromBalance ->
-                OpticPrograms.get(
-                    txn, TransactionLenses.toAccount().andThen(AccountLenses.balance())))
-        .flatMap(toBalance -> OpticPrograms.set(txn, TransactionLenses.timestamp(), Instant.now()));
+                OpticPrograms.get(txn, TransferLenses.toAccount().andThen(AccountLenses.balance())))
+        .flatMap(toBalance -> OpticPrograms.set(txn, TransferLenses.timestamp(), Instant.now()));
   }
 
   // ============================================================================
@@ -482,33 +480,31 @@ public class OpticInterpretersExample {
   // Helper Methods
   // ============================================================================
 
-  private static Transaction createSampleTransaction() {
-    Account fromAccount =
-        new Account("ACC-001", "Alice Smith", new BigDecimal("1000.00"), AccountStatus.ACTIVE);
+  private static Transfer createSampleTransfer() {
+    Account fromAccount = new Account("ACC-001", new BigDecimal("1000.00"));
 
-    Account toAccount =
-        new Account("ACC-002", "Bob Jones", new BigDecimal("500.00"), AccountStatus.ACTIVE);
+    Account toAccount = new Account("ACC-002", new BigDecimal("500.00"));
 
-    return new Transaction(
+    return new Transfer(
         "TXN-2025-001",
         fromAccount,
         toAccount,
         new BigDecimal("100.00"),
-        TransactionStatus.PENDING,
+        TransferStatus.PENDING,
         Instant.now());
   }
 
-  private static void printTransaction(Transaction txn) {
-    System.out.println("  Transaction ID: " + txn.txnId());
+  private static void printTransfer(Transfer txn) {
+    System.out.println("  Transfer ID: " + txn.txnId());
     System.out.println("  Amount: £" + txn.amount());
     System.out.println("  Status: " + txn.status());
     System.out.println(
         "  From: "
-            + txn.fromAccount().owner()
+            + txn.fromAccount().accountId()
             + " (Balance: £"
             + txn.fromAccount().balance()
             + ")");
     System.out.println(
-        "  To: " + txn.toAccount().owner() + " (Balance: £" + txn.toAccount().balance() + ")");
+        "  To: " + txn.toAccount().accountId() + " (Balance: £" + txn.toAccount().balance() + ")");
   }
 }

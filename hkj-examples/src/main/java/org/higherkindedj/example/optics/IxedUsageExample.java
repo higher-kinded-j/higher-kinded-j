@@ -29,9 +29,9 @@ import org.higherkindedj.optics.util.Traversals;
 public class IxedUsageExample {
 
   // Domain model for server configuration with nested collections
-  // @GenerateLenses creates ServerConfigLenses with lens accessors for each field
+  // @GenerateLenses creates GatewayConfigLenses with lens accessors for each field
   @GenerateLenses
-  public record ServerConfig(
+  public record GatewayConfig(
       String name,
       Map<String, Integer> ports,
       Map<String, String> environment,
@@ -136,10 +136,10 @@ public class IxedUsageExample {
     System.out.println("--- Deep Composition: Lens + Ixed ---");
 
     // Use generated lenses from @GenerateLenses annotation
-    Lens<ServerConfig, Map<String, Integer>> portsLens = ServerConfigLenses.ports();
+    Lens<GatewayConfig, Map<String, Integer>> portsLens = GatewayConfigLenses.ports();
 
-    ServerConfig config =
-        new ServerConfig(
+    GatewayConfig config =
+        new GatewayConfig(
             "production",
             new HashMap<>(Map.of("http", 8080, "https", 8443, "ws", 8765)),
             new HashMap<>(Map.of("NODE_ENV", "production", "LOG_LEVEL", "info")),
@@ -147,9 +147,9 @@ public class IxedUsageExample {
 
     System.out.println("Initial config: " + config);
 
-    // Compose: ServerConfig → Map<String, Integer> → Integer (0-or-1)
+    // Compose: GatewayConfig → Map<String, Integer> → Integer (0-or-1)
     Ixed<Map<String, Integer>, String, Integer> portIx = IxedInstances.mapIx();
-    Traversal<ServerConfig, Integer> httpPortTraversal =
+    Traversal<GatewayConfig, Integer> httpPortTraversal =
         portsLens.asTraversal().andThen(portIx.ix("http"));
 
     // Safe access through composition
@@ -157,17 +157,17 @@ public class IxedUsageExample {
     System.out.println("HTTP port via traversal: " + httpPorts);
 
     // Safe modification through composition
-    ServerConfig updatedConfig = Traversals.modify(httpPortTraversal, p -> p + 1000, config);
+    GatewayConfig updatedConfig = Traversals.modify(httpPortTraversal, p -> p + 1000, config);
     System.out.println("After incrementing HTTP port: " + updatedConfig.ports());
 
     // Non-existent key = empty focus
-    Traversal<ServerConfig, Integer> ftpPortTraversal =
+    Traversal<GatewayConfig, Integer> ftpPortTraversal =
         portsLens.asTraversal().andThen(portIx.ix("ftp"));
 
     List<Integer> ftpPorts = Traversals.getAll(ftpPortTraversal, config);
     System.out.println("FTP port (missing): " + ftpPorts);
 
-    ServerConfig stillSameConfig = Traversals.modify(ftpPortTraversal, p -> p + 1, config);
+    GatewayConfig stillSameConfig = Traversals.modify(ftpPortTraversal, p -> p + 1, config);
     System.out.println("After 'modify' missing FTP: " + stillSameConfig.ports());
     System.out.println("Config unchanged - Ixed didn't insert FTP");
     System.out.println();

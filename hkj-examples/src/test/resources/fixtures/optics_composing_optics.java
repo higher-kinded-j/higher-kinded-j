@@ -47,7 +47,7 @@ sealed interface Principal {}
 
 @GenerateLenses
 @GenerateTraversals
-record User(String username, List<Permission> permissions) implements Principal {}
+record RegisteredUser(String username, List<Permission> permissions) implements Principal {}
 
 record Guest() implements Principal {}
 

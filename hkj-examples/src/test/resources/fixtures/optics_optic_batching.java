@@ -30,11 +30,11 @@ import org.higherkindedj.optics.focus.FocusPaths;
 
 record UserId(String value) {}
 
-record User(UserId id, String name) {}
+record UserSummary(UserId id, String name) {}
 
-record Team(String name, List<UserId> memberIds) {}
+record StoredTeam(String name, List<UserId> memberIds) {}
 
-record EnrichedTeam(String name, List<User> members) {}
+record LoadedTeam(String name, List<UserSummary> members) {}
 
 class Fixture {
 
@@ -47,11 +47,11 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final Team team = sample();
+  static final StoredTeam team = sample();
 
-  static final Function<Set<UserId>, Map<UserId, User>> userResolver = sample();
+  static final Function<Set<UserId>, Map<UserId, UserSummary>> userResolver = sample();
 
-  static final Function<Set<UserId>, Map<UserId, User>> failingResolver = sample();
+  static final Function<Set<UserId>, Map<UserId, UserSummary>> failingResolver = sample();
 
-  static final Fetch<UserId, User, User> program = sample();
+  static final Fetch<UserId, UserSummary, UserSummary> program = sample();
 }

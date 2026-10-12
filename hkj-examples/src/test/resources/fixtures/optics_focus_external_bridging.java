@@ -103,5 +103,5 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final Company acme = sample();
+  static final OfficeNetwork acme = sample();
 }

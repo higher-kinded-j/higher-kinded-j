@@ -14,7 +14,7 @@ This group covers the edges of a service, and you can skip it until one of them 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/validation/ValidationBook.java:payoff}}
 ```
 
-The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `ValidationBook` is the compiled example's own class, not library API.
+The sample `Form` holds a `RegisteredUser` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `ValidationBook` is the compiled example's own class, not library API.
 
 ~~~admonish tip title="Why this matters"
 Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an [`Applicative`](../glossary/type-classes.md#applicative) to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.

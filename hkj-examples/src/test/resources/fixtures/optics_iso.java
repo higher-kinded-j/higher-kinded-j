@@ -38,23 +38,18 @@ import org.higherkindedj.optics.laws.IsoLaws;
 
 record Point(int x, int y) {}
 
-record UserId(Long value) {}
+record UserId(String value) {}
 
-record Money(BigDecimal amount) {}
-
-record ProductId(UUID value) {}
+record VariantId(UUID value) {}
 
 record CategoryId(UUID value) {}
-
-@GenerateLenses
-record Person(String name, LocalDate birthDate) {}
 
 record Celsius(double value) {}
 
 record Fahrenheit(double value) {}
 
 @GenerateLenses
-record Department(String name, int budget) {}
+record CostCentre(String name, int budget) {}
 
 class Converters {
 
@@ -89,7 +84,7 @@ class Fixture {
   static final Iso<Integer, BigDecimal> centsToDollars =
       Iso.of(cents -> BigDecimal.valueOf(cents, 2), dollars -> dollars.movePointRight(2).intValueExact());
 
-  static final Department department = new Department("Sales", 70000);
+  static final CostCentre department = new CostCentre("Sales", 70000);
 
-  static final Lens<Department, Integer> budgetLens = DepartmentLenses.budget();
+  static final Lens<CostCentre, Integer> budgetLens = CostCentreLenses.budget();
 }

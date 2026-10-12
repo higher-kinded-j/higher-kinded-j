@@ -25,7 +25,7 @@ public record UserName(String value) {}
 public record Email(String value) {}
 
 @GenerateLenses
-public record User(UserId id, UserName name, Email email, LocalDate createdAt) {}
+public record SiteMember(UserId id, UserName name, Email email, LocalDate createdAt) {}
 ```
 
 **The Solution**: A single-field wrapper and its raw value are the textbook lossless pair, so give each wrapper an `Iso` and compose. `Lens.andThen(Iso) = Lens`, so the full API survives:
@@ -39,15 +39,15 @@ public class WrapperAdapters {
     public static final Iso<UserName, String> USER_NAME_VALUE = Iso.of(UserName::value, UserName::new);
     public static final Iso<Email, String> EMAIL_VALUE = Iso.of(Email::value, Email::new);
 
-    // Composed lenses for User operations
-    public static final Lens<User, String> USER_NAME_STRING =
-        UserLenses.name().andThen(USER_NAME_VALUE);
+    // Composed lenses for SiteMember operations
+    public static final Lens<SiteMember, String> USER_NAME_STRING =
+        SiteMemberLenses.name().andThen(USER_NAME_VALUE);
 
-    public static final Lens<User, String> USER_EMAIL_STRING =
-        UserLenses.email().andThen(EMAIL_VALUE);
+    public static final Lens<SiteMember, String> USER_EMAIL_STRING =
+        SiteMemberLenses.email().andThen(EMAIL_VALUE);
 
     // Usage examples
-    public User normaliseUser(User user) {
+    public SiteMember normaliseUser(SiteMember user) {
         return USER_NAME_STRING.modify(name -> {
             String trimmed = name.trim();
             if (trimmed.isEmpty()) {
@@ -59,7 +59,7 @@ public class WrapperAdapters {
         }, user);
     }
 
-    public User updateEmailDomain(User user, String newDomain) {
+    public SiteMember updateEmailDomain(SiteMember user, String newDomain) {
         return USER_EMAIL_STRING.modify(email -> {
             String localPart = email.substring(0, email.indexOf('@'));
             return localPart + "@" + newDomain;
@@ -154,7 +154,7 @@ If the two versions hold exactly the same information in different shapes, write
 
 [OpticProfunctorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java) works each adaptation style end to end (hand-building with `Lens.of`, rather than the raw `Optic` operations), and it compiles and runs on every build:
 
-- **The nested-source ("contramap") wish**: a `Person` first-name lens reaching through `Employee`, hand-built with `Lens.of`
+- **The nested-source ("contramap") wish**: a `PersonalDetails` first-name lens reaching through `StaffRecord`, hand-built with `Lens.of`
 - **Map-style**: a `LocalDate` lens exposed as a formatted-string lens (read formats, write parses)
 - **Dimap-style**: a hobbies traversal driven across the `PersonDto` wire shape through `modifyF`, with the conversion pair supplied at the boundary
 - **Wrapper integration**: a hand-built value lens reaching through a `UserName` wrapper

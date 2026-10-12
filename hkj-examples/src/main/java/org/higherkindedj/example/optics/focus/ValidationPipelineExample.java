@@ -50,10 +50,11 @@ public class ValidationPipelineExample {
 
   // ============= Domain Model =============
 
-  /** Configuration with various fields that need validation. */
+  /** An integration's configuration, with various fields that need validation. */
   @GenerateLenses
   @GenerateFocus
-  public record Config(String apiKey, String databaseUrl, int timeout, int maxConnections) {}
+  public record IntegrationConfig(
+      String apiKey, String databaseUrl, int timeout, int maxConnections) {}
 
   // The customers and orders are the chapter's Customer, Order and LineItem.
 
@@ -88,8 +89,10 @@ public class ValidationPipelineExample {
   static void basicValidationExample() {
     System.out.println("--- Basic Validation with modifyF() ---");
 
-    Config validConfig = new Config("abc123xyz", "jdbc:postgresql://localhost/db", 30, 10);
-    Config invalidConfig = new Config("short", "jdbc:postgresql://localhost/db", 30, 10);
+    IntegrationConfig validConfig =
+        new IntegrationConfig("abc123xyz", "jdbc:postgresql://localhost/db", 30, 10);
+    IntegrationConfig invalidConfig =
+        new IntegrationConfig("short", "jdbc:postgresql://localhost/db", 30, 10);
 
     // Validation function: API key must be at least 8 characters
     Function<String, Kind<MaybeKind.Witness, String>> validateApiKey =
@@ -104,23 +107,23 @@ public class ValidationPipelineExample {
         };
 
     // Use generated Focus class for type-safe navigation
-    FocusPath<Config, String> apiKeyPath = ConfigFocus.apiKey();
+    FocusPath<IntegrationConfig, String> apiKeyPath = IntegrationConfigFocus.apiKey();
 
     // Validate and transform valid config
-    Kind<MaybeKind.Witness, Config> validResult =
+    Kind<MaybeKind.Witness, IntegrationConfig> validResult =
         apiKeyPath.modifyF(validateApiKey, validConfig, Instances.monadError(maybe()));
 
-    Maybe<Config> validMaybe = MaybeKindHelper.MAYBE.narrow(validResult);
+    Maybe<IntegrationConfig> validMaybe = MaybeKindHelper.MAYBE.narrow(validResult);
     System.out.println("Valid config result: " + (validMaybe.isJust() ? "Success" : "Failure"));
     if (validMaybe.isJust()) {
       System.out.println("  Transformed API key: " + validMaybe.get().apiKey());
     }
 
     // Validate invalid config
-    Kind<MaybeKind.Witness, Config> invalidResult =
+    Kind<MaybeKind.Witness, IntegrationConfig> invalidResult =
         apiKeyPath.modifyF(validateApiKey, invalidConfig, Instances.monadError(maybe()));
 
-    Maybe<Config> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);
+    Maybe<IntegrationConfig> invalidMaybe = MaybeKindHelper.MAYBE.narrow(invalidResult);
     System.out.println("Invalid config result: " + (invalidMaybe.isJust() ? "Success" : "Failure"));
 
     System.out.println();

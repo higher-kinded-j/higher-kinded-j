@@ -243,7 +243,7 @@ Fold<Order, String> skus = linesFold.andThen(skuFold);
 Fold<Person, String> allNames = firstNameFold.plus(lastNameFold);
 
 // Both together: compose then combine
-Fold<Team, String> allEmails = Fold.sum(
+Fold<ProjectTeam, String> allEmails = Fold.sum(
     leadLens.asFold().andThen(emailLens.asFold()),
     membersFold.andThen(emailLens.asFold())
 );

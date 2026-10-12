@@ -52,16 +52,16 @@ public final class TraversalsBook {
     return new Bonus(updatedLeague, allScores);
   }
 
-  /** The prices read as one list, that list sorted, and the catalogue with it written back. */
+  /** The prices read as one list, that list sorted, and the assortment with it written back. */
   record SortedPrices(
-      List<BigDecimal> allPricesList, List<BigDecimal> sortedPrices, Catalogue sortedCatalogue) {}
+      List<BigDecimal> allPricesList, List<BigDecimal> sortedPrices, Assortment sortedAssortment) {}
 
-  /** The two-category catalogue the page sorts with {@code partsOf}. */
-  static Catalogue springCatalogue() {
-    // ANCHOR: spring_catalogue
+  /** The two-category assortment the page sorts with {@code partsOf}. */
+  static Assortment springAssortment() {
+    // ANCHOR: spring_assortment
     // Two categories of three products, priced in no particular order
-    Catalogue spring =
-        new Catalogue(
+    Assortment spring =
+        new Assortment(
             "Spring",
             List.of(
                 new Category(
@@ -76,19 +76,19 @@ public final class TraversalsBook {
                         new Product("CASE", "Case", new BigDecimal("29.99"), 40),
                         new Product("CHARGER", "Charger", new BigDecimal("49.99"), 25),
                         new Product("CABLE", "Cable", new BigDecimal("19.99"), 60)))));
-    // ANCHOR_END: spring_catalogue
+    // ANCHOR_END: spring_assortment
     return spring;
   }
 
-  static SortedPrices sortAllPrices(Catalogue spring) {
-    Traversal<Catalogue, BigDecimal> allPrices =
-        CatalogueTraversals.categories()
+  static SortedPrices sortAllPrices(Assortment spring) {
+    Traversal<Assortment, BigDecimal> allPrices =
+        AssortmentTraversals.categories()
             .andThen(CategoryTraversals.products())
             .andThen(ProductLenses.price());
 
     // ANCHOR: parts_of
     // Convert traversal to a lens on the list of all prices
-    Lens<Catalogue, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
+    Lens<Assortment, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
 
     // Get all prices as a list
     List<BigDecimal> allPricesList = pricesLens.get(spring);
@@ -100,9 +100,9 @@ public final class TraversalsBook {
     // Result: [19.99, 29.99, 49.99, 499.99, 799.99, 999.99]
 
     // Set the sorted prices back
-    Catalogue sortedCatalogue = pricesLens.set(sortedPrices, spring);
+    Assortment sortedAssortment = pricesLens.set(sortedPrices, spring);
     // ANCHOR_END: parts_of
-    return new SortedPrices(allPricesList, sortedPrices, sortedCatalogue);
+    return new SortedPrices(allPricesList, sortedPrices, sortedAssortment);
   }
 
   /** Three new prices written over five products. */
@@ -169,4 +169,4 @@ record Category(String name, List<Product> products) {}
 
 @GenerateLenses
 @GenerateTraversals
-record Catalogue(String name, List<Category> categories) {}
+record Assortment(String name, List<Category> categories) {}

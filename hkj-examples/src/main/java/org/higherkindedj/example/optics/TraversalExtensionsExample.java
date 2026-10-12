@@ -72,23 +72,23 @@ public class TraversalExtensionsExample {
   }
 
   // Validation errors
-  sealed interface ValidationError permits PriceError, QuantityError, StatusError {}
+  sealed interface LineItemError permits PriceError, QuantityError, StatusError {}
 
-  record PriceError(String sku, String message) implements ValidationError {
+  record PriceError(String sku, String message) implements LineItemError {
     @Override
     public String toString() {
       return "Price[" + sku + "]: " + message;
     }
   }
 
-  record QuantityError(String sku, String message) implements ValidationError {
+  record QuantityError(String sku, String message) implements LineItemError {
     @Override
     public String toString() {
       return "Quantity[" + sku + "]: " + message;
     }
   }
 
-  record StatusError(String sku, String message) implements ValidationError {
+  record StatusError(String sku, String message) implements LineItemError {
     @Override
     public String toString() {
       return "Status[" + sku + "]: " + message;

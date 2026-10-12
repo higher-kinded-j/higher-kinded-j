@@ -30,21 +30,21 @@ public class CrossOpticCompositionExample {
 
   // --- Domain models for Lens.andThen(Prism) example ---
   @GenerateLenses
-  record Config(String name, Optional<DatabaseSettings> database) {}
+  record Config(Optional<DatabaseSettings> database) {}
 
   @GenerateLenses
-  record DatabaseSettings(String host, int port, String username) {}
+  record DatabaseSettings(String host, int port) {}
 
   // --- Domain models for Prism.andThen(Lens) example ---
-  sealed interface ApiResponse permits Success, Failure {}
+  sealed interface CallOutcome permits Completed, Failure {}
 
   @GenerateLenses
-  record Success(ResponseData data, String timestamp) implements ApiResponse {}
+  record Completed(ResponseData data, String timestamp) implements CallOutcome {}
 
   @GenerateLenses
   record ResponseData(String message, int count) {}
 
-  record Failure(String error, int code) implements ApiResponse {}
+  record Failure(String error, int code) implements CallOutcome {}
 
   // --- Domain models for combined example ---
   sealed interface Shape permits Circle, Rectangle {}
@@ -76,7 +76,7 @@ public class CrossOpticCompositionExample {
 
     // Create optics
     Lens<Config, Optional<DatabaseSettings>> databaseLens =
-        Lens.of(Config::database, (config, db) -> new Config(config.name(), db));
+        Lens.of(Config::database, (_, db) -> new Config(db));
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
@@ -84,9 +84,8 @@ public class CrossOpticCompositionExample {
     Affine<Config, DatabaseSettings> databaseAffine = databaseLens.andThen(somePrism);
 
     // Test data
-    Config configWithDb =
-        new Config("production", Optional.of(new DatabaseSettings("localhost", 5432, "admin")));
-    Config configWithoutDb = new Config("development", Optional.empty());
+    Config configWithDb = new Config(Optional.of(new DatabaseSettings("localhost", 5432)));
+    Config configWithoutDb = new Config(Optional.empty());
 
     // Get focused value (Optional)
     Optional<DatabaseSettings> withDbResult = databaseAffine.getOptional(configWithDb);
@@ -104,8 +103,7 @@ public class CrossOpticCompositionExample {
 
     // Modify the focused value
     Config modifiedConfig =
-        databaseAffine.modify(
-            db -> new DatabaseSettings(db.host(), db.port() + 1, db.username()), configWithDb);
+        databaseAffine.modify(db -> new DatabaseSettings(db.host(), db.port() + 1), configWithDb);
 
     System.out.println("After modifying port (+1):");
     System.out.println("  Result: " + modifiedConfig);
@@ -113,8 +111,7 @@ public class CrossOpticCompositionExample {
 
     // Modification on empty config leaves it unchanged
     Config unchangedConfig =
-        databaseAffine.modify(
-            db -> new DatabaseSettings("new-host", 9999, db.username()), configWithoutDb);
+        databaseAffine.modify(db -> new DatabaseSettings("new-host", 9999), configWithoutDb);
 
     System.out.println("Modifying config without database:");
     System.out.println("  Result: " + unchangedConfig + " (unchanged - nothing to modify)");
@@ -129,22 +126,22 @@ public class CrossOpticCompositionExample {
    */
   private static void demonstratePrismAndThenLens() {
     System.out.println("--- Prism.andThen(Lens) = Affine ---");
-    System.out.println("Scenario: ApiResponse sum type with Success/Failure cases\n");
+    System.out.println("Scenario: CallOutcome sum type with Completed/Failure cases\n");
 
     // Create optics
-    Prism<ApiResponse, Success> successPrism =
-        Prism.of(resp -> resp instanceof Success s ? Optional.of(s) : Optional.empty(), s -> s);
+    Prism<CallOutcome, Completed> successPrism =
+        Prism.of(resp -> resp instanceof Completed s ? Optional.of(s) : Optional.empty(), s -> s);
 
-    Lens<Success, ResponseData> dataLens =
-        Lens.of(Success::data, (success, data) -> new Success(data, success.timestamp()));
+    Lens<Completed, ResponseData> dataLens =
+        Lens.of(Completed::data, (success, data) -> new Completed(data, success.timestamp()));
 
     // Direct composition: Prism.andThen(Lens) = Affine
-    Affine<ApiResponse, ResponseData> successDataAffine = successPrism.andThen(dataLens);
+    Affine<CallOutcome, ResponseData> successDataAffine = successPrism.andThen(dataLens);
 
     // Test data
-    ApiResponse successResponse =
-        new Success(new ResponseData("Operation completed", 42), "2024-01-15T10:30:00Z");
-    ApiResponse failureResponse = new Failure("Not found", 404);
+    CallOutcome successResponse =
+        new Completed(new ResponseData("Operation completed", 42), "2024-01-15T10:30:00Z");
+    CallOutcome failureResponse = new Failure("Not found", 404);
 
     // Get focused value (Optional)
     Optional<ResponseData> fromSuccess = successDataAffine.getOptional(successResponse);
@@ -161,11 +158,11 @@ public class CrossOpticCompositionExample {
     System.out.println();
 
     // Modify only success responses
-    ApiResponse modifiedSuccess =
+    CallOutcome modifiedSuccess =
         successDataAffine.modify(
             data -> new ResponseData(data.message().toUpperCase(), data.count()), successResponse);
 
-    ApiResponse unchangedFailure =
+    CallOutcome unchangedFailure =
         successDataAffine.modify(
             data -> new ResponseData(data.message().toUpperCase(), data.count()), failureResponse);
 
@@ -186,14 +183,12 @@ public class CrossOpticCompositionExample {
 
     // Create optics
     Lens<Config, Optional<DatabaseSettings>> databaseLens =
-        Lens.of(Config::database, (config, db) -> new Config(config.name(), db));
+        Lens.of(Config::database, (_, db) -> new Config(db));
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
     Lens<DatabaseSettings, String> hostLens =
-        Lens.of(
-            DatabaseSettings::host,
-            (db, host) -> new DatabaseSettings(host, db.port(), db.username()));
+        Lens.of(DatabaseSettings::host, (db, host) -> new DatabaseSettings(host, db.port()));
 
     // Chain: Lens.andThen(Prism) = Affine, then Affine.andThen(Lens) = Affine,
     // viewed as a Traversal so Traversals.getAll and Traversals.modify can take it
@@ -201,8 +196,7 @@ public class CrossOpticCompositionExample {
         databaseLens.andThen(somePrism).andThen(hostLens).asTraversal();
 
     // Test data
-    Config config =
-        new Config("prod", Optional.of(new DatabaseSettings("db.example.com", 5432, "admin")));
+    Config config = new Config(Optional.of(new DatabaseSettings("db.example.com", 5432)));
 
     // Get all hosts
     List<String> hosts = Traversals.getAll(hostTraversal, config);

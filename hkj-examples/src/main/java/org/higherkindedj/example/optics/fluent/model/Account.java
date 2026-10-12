@@ -7,4 +7,4 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 
 /** Represents a financial account. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Account(String accountId, String owner, BigDecimal balance, AccountStatus status) {}
+public record Account(String accountId, BigDecimal balance) {}

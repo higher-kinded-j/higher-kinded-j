@@ -54,7 +54,7 @@ public final class StructureBook {
         CartMappingImpl.INSTANCE.parse(
             new CartDto(
                 "C-1",
-                List.of(new LineItemDto("SKU-1", "9.99"), new LineItemDto("SKU-2", "12,50"))));
+                List.of(new CartLineDto("SKU-1", "9.99"), new CartLineDto("SKU-2", "12,50"))));
     // Invalid(NonEmptyList[lines.1.price: not a number in plain notation (expected e.g. 123.45)])
     // ANCHOR_END: list_usage
     System.out.println(cart);
@@ -104,14 +104,14 @@ public final class StructureBook {
     System.out.println(badInvitee);
 
     // ANCHOR: flatten_usage
-    PickupPointMappingImpl pickupMapping = PickupPointMappingImpl.INSTANCE;
+    CollectionPointMappingImpl collectionMapping = CollectionPointMappingImpl.INSTANCE;
 
-    PickupPointDto flat =
-        pickupMapping.build(
-            new PickupPoint("Kirkstall", new Address("1 High Street", "Leeds", "LS1 4AP")));
-    // PickupPointDto[name=Kirkstall, street=1 High Street, city=Leeds, postcode=LS1 4AP]
-    Validated<NonEmptyList<FieldError>, PickupPoint> missing =
-        pickupMapping.parse(new PickupPointDto("Kirkstall", null, "Leeds", null));
+    CollectionPointDto flat =
+        collectionMapping.build(
+            new CollectionPoint("Kirkstall", new Address("1 High Street", "Leeds", "LS1 4AP")));
+    // CollectionPointDto[name=Kirkstall, street=1 High Street, city=Leeds, postcode=LS1 4AP]
+    Validated<NonEmptyList<FieldError>, CollectionPoint> missing =
+        collectionMapping.parse(new CollectionPointDto("Kirkstall", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
     // ANCHOR_END: flatten_usage
     System.out.println(flat + " / " + missing);
@@ -143,23 +143,23 @@ interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 // ANCHOR_END: nesting_spec
 
 // ANCHOR: list_spec
-record LineItem(String sku, BigDecimal price) {}
+record CartLine(String sku, BigDecimal price) {}
 
-record LineItemDto(String sku, String price) {}
+record CartLineDto(String sku, String price) {}
 
-record Cart(String id, List<LineItem> lines) {}
+record Cart(String id, List<CartLine> lines) {}
 
-record CartDto(String id, List<LineItemDto> lines) {}
+record CartDto(String id, List<CartLineDto> lines) {}
 
 @GenerateMapping
-interface LineItemMapping extends MappingSpec<LineItem, LineItemDto> {
+interface CartLineMapping extends MappingSpec<CartLine, CartLineDto> {
   default ValidatedPrism<String, BigDecimal> price() {
     return StandardCodecs.bigDecimal();
   }
 }
 
 @GenerateMapping
-interface CartMapping extends MappingSpec<Cart, CartDto> {} // lines: LineItemMapping, per element
+interface CartMapping extends MappingSpec<Cart, CartDto> {} // lines: CartLineMapping, per element
 
 // ANCHOR_END: list_spec
 
@@ -196,13 +196,13 @@ interface PromotionMapping extends MappingSpec<Promotion, PromotionDto> {
 // ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
-// A courier's pickup point, whose API lists its address as plain fields.
-record PickupPoint(String name, Address address) {} // Address as on Record Mapping Basics
+// A courier's collection point, whose API lists its address as plain fields.
+record CollectionPoint(String name, Address address) {} // Address as on Record Mapping Basics
 
-record PickupPointDto(String name, String street, String city, String postcode) {} // flat
+record CollectionPointDto(String name, String street, String city, String postcode) {} // flat
 
 @GenerateMapping
-interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
+interface CollectionPointMapping extends MappingSpec<CollectionPoint, CollectionPointDto> {
   @Flatten
   Address address(); // spread by name: street, city and postcode
 }

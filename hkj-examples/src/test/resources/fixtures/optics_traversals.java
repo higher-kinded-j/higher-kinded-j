@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/traversals.md
 //
-// The page runs a league of teams and players from end to end, and reaches for a product catalogue
-// for `partsOf`, a company for effectful validation and a project for `reversed`. Every model the
-// page names but does not declare is declared here; a snippet that shows one shadows this copy.
+// The page runs a league of teams and players from end to end, and reaches for a product assortment
+// for `partsOf`, a staff directory for effectful validation and a project for `reversed`. Every
+// model the page names but does not declare is declared here; a snippet that shows one shadows this
+// copy.
 //
 // The optics in `Fixture` and `LeagueOptics` are written by hand rather than taken from the
 // generated companions: a snippet that shows the model shadows the annotated records above, and in
@@ -30,6 +31,7 @@ import java.util.OptionalDouble;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Semigroups;
@@ -63,7 +65,7 @@ record Category(String name, List<Product> products) {}
 
 @GenerateLenses
 @GenerateTraversals
-record Catalogue(String name, List<Category> categories) {}
+record Assortment(String name, List<Category> categories) {}
 
 @GenerateLenses
 record Task(String title, int priority) {}
@@ -73,15 +75,15 @@ record Task(String title, int priority) {}
 record Project(String name, List<Task> tasks) {}
 
 @GenerateLenses
-record ContactInfo(String email, String phone) {}
+record ContactInfo(String email, String phone, Address address) {}
 
 @GenerateLenses
 @GenerateTraversals
-record Employee(String name, List<ContactInfo> contactInfo) {}
+record DirectoryEntry(String name, List<ContactInfo> contactInfo) {}
 
 @GenerateLenses
 @GenerateTraversals
-record Company(String name, List<Employee> employees) {}
+record StaffDirectory(String name, List<DirectoryEntry> employees) {}
 
 class StatsService {
 
@@ -141,8 +143,8 @@ class Fixture {
           new Product("DOOHICKEY", "Doohickey", new BigDecimal("400.00"), 7),
           new Product("THINGUMMY", "Thingummy", new BigDecimal("500.00"), 0));
 
-  static final Catalogue catalogue =
-      new Catalogue("Autumn", List.of(new Category("Everything", products)));
+  static final Assortment assortment =
+      new Assortment("Autumn", List.of(new Category("Everything", products)));
 
   static final Lens<Product, BigDecimal> productToPrice =
       Lens.of(Product::price, (p, v) -> new Product(p.sku(), p.name(), v, p.stock()));
@@ -159,8 +161,9 @@ class Fixture {
   static final Lens<List<Product>, List<BigDecimal>> productPrices =
       Traversals.partsOf(priceTraversal);
 
-  static final Traversal<Catalogue, BigDecimal> allPrices =
-      Lens.<Catalogue, List<Category>>of(Catalogue::categories, (c, v) -> new Catalogue(c.name(), v))
+  static final Traversal<Assortment, BigDecimal> allPrices =
+      Lens.<Assortment, List<Category>>of(
+              Assortment::categories, (c, v) -> new Assortment(c.name(), v))
           .asTraversal()
           .andThen(Traversals.forList())
           .andThen(
@@ -170,14 +173,20 @@ class Fixture {
           .andThen(Traversals.forList())
           .andThen(productToPrice.asTraversal());
 
-  static final Lens<Catalogue, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
+  static final Lens<Assortment, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
 
   static final Project project =
       new Project("Apollo", List.of(new Task("Design", 1), new Task("Build", 2)));
 
-  static final Company company =
-      new Company(
-          "Initech", List.of(new Employee("Alice", List.of(new ContactInfo("A@X.com", "1")))));
+  static final StaffDirectory directory =
+      new StaffDirectory(
+          "Initech",
+          List.of(
+              new DirectoryEntry(
+                  "Alice",
+                  List.of(
+                      new ContactInfo(
+                          "A@X.com", "1", new Address("1 High Street", "Leeds", "LS1 4AP"))))));
 
   static final StatsService statsService = new StatsService();
 }

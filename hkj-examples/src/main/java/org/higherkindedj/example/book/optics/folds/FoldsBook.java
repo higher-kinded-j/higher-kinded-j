@@ -37,12 +37,12 @@ import org.higherkindedj.optics.annotations.GenerateFolds;
 public final class FoldsBook {
 
   /** The lens the page's ordering example reads a name through. */
-  static final Lens<Employee, String> NAME_LENS =
-      Lens.of(Employee::name, (e, name) -> new Employee(name, e.email()));
+  static final Lens<TeamMember, String> NAME_LENS =
+      Lens.of(TeamMember::name, (m, name) -> new TeamMember(name, m.email()));
 
   /** The lens the page's ordering example reads an email through. */
-  static final Lens<Employee, String> EMAIL_LENS =
-      Lens.of(Employee::email, (e, email) -> new Employee(e.name(), email));
+  static final Lens<TeamMember, String> EMAIL_LENS =
+      Lens.of(TeamMember::email, (m, email) -> new TeamMember(m.name(), email));
 
   private FoldsBook() {}
 
@@ -225,9 +225,9 @@ public final class FoldsBook {
     return List.of(allLines, noLines);
   }
 
-  static List<Object> emptyFold(Team team) {
+  static List<Object> emptyFold(ProjectTeam team) {
     // ANCHOR: empty
-    Fold<Team, String> nothing = Fold.empty();
+    Fold<ProjectTeam, String> nothing = Fold.empty();
 
     List<String> none = nothing.getAll(team);
     // []
@@ -240,14 +240,14 @@ public final class FoldsBook {
   }
 
   static List<List<String>> ordering(
-      Lens<Employee, String> nameLens, Lens<Employee, String> emailLens, Employee employee) {
+      Lens<TeamMember, String> nameLens, Lens<TeamMember, String> emailLens, TeamMember member) {
     // ANCHOR: ordering
-    Fold<Employee, String> nameFirst = nameLens.asFold().plus(emailLens.asFold());
-    List<String> nameThenEmail = nameFirst.getAll(employee);
+    Fold<TeamMember, String> nameFirst = nameLens.asFold().plus(emailLens.asFold());
+    List<String> nameThenEmail = nameFirst.getAll(member);
     // [Alice, alice@example.com]
 
-    Fold<Employee, String> emailFirst = emailLens.asFold().plus(nameLens.asFold());
-    List<String> emailThenName = emailFirst.getAll(employee);
+    Fold<TeamMember, String> emailFirst = emailLens.asFold().plus(nameLens.asFold());
+    List<String> emailThenName = emailFirst.getAll(member);
     // [alice@example.com, Alice]
     // ANCHOR_END: ordering
     return List.of(nameThenEmail, emailThenName);
@@ -261,6 +261,6 @@ record OrderHistory(List<Order> orders) {}
 
 // ANCHOR_END: order_history
 
-record Employee(String name, String email) {}
+record TeamMember(String name, String email) {}
 
-record Team(String name, Employee lead, List<Employee> members) {}
+record ProjectTeam(String name, TeamMember lead, List<TeamMember> members) {}

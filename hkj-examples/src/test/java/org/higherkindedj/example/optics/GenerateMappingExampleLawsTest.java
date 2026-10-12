@@ -5,21 +5,21 @@ package org.higherkindedj.example.optics;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.example.optics.GenerateMappingExample.Attendee;
+import org.higherkindedj.example.optics.GenerateMappingExample.AttendeeDto;
+import org.higherkindedj.example.optics.GenerateMappingExample.BadgeDto;
+import org.higherkindedj.example.optics.GenerateMappingExample.BadgeHolder;
 import org.higherkindedj.example.optics.GenerateMappingExample.Bank;
 import org.higherkindedj.example.optics.GenerateMappingExample.Card;
 import org.higherkindedj.example.optics.GenerateMappingExample.Customer;
 import org.higherkindedj.example.optics.GenerateMappingExample.CustomerDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.DirectoryDto;
+import org.higherkindedj.example.optics.GenerateMappingExample.DistributionListDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.EmailAddress;
-import org.higherkindedj.example.optics.GenerateMappingExample.Employee;
-import org.higherkindedj.example.optics.GenerateMappingExample.EmployeeCardDto;
 import org.higherkindedj.example.optics.GenerateMappingExample.InvoiceDto;
-import org.higherkindedj.example.optics.GenerateMappingExample.Person;
-import org.higherkindedj.example.optics.GenerateMappingExample.PersonDto;
-import org.higherkindedj.example.optics.GenerateMappingExample.Point;
-import org.higherkindedj.example.optics.GenerateMappingExample.Profile;
-import org.higherkindedj.example.optics.GenerateMappingExample.TeamDto;
-import org.higherkindedj.example.optics.GenerateMappingExample.Tree;
+import org.higherkindedj.example.optics.GenerateMappingExample.Recipient;
+import org.higherkindedj.example.optics.GenerateMappingExample.Topic;
+import org.higherkindedj.example.optics.GenerateMappingExample.Waypoint;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,13 +34,13 @@ import org.junit.jupiter.api.Test;
 class GenerateMappingExampleLawsTest {
 
   @Test
-  @DisplayName("lossless tier: PersonMapping passes the iso, round-trip and coherence laws")
-  void personMappingIsLawful() {
+  @DisplayName("lossless tier: AttendeeMapping passes the iso, round-trip and coherence laws")
+  void attendeeMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        GenerateMappingExamplePersonMappingImpl.INSTANCE.asIso(),
-        GenerateMappingExamplePersonMappingImpl.INSTANCE.asValidatedPrism(),
-        new Person("Ada", 36),
-        new PersonDto("Grace", 41));
+        GenerateMappingExampleAttendeeMappingImpl.INSTANCE.asIso(),
+        GenerateMappingExampleAttendeeMappingImpl.INSTANCE.asValidatedPrism(),
+        new Attendee("Ada", 36),
+        new AttendeeDto("Grace", 41));
   }
 
   @Test
@@ -53,12 +53,13 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("container tier: TeamMapping lifts List and Optional lawfully")
-  void teamMappingIsLawful() {
+  @DisplayName("container tier: DistributionListMapping lifts List and Optional lawfully")
+  void distributionListMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        GenerateMappingExampleTeamMappingImpl.INSTANCE.asValidatedPrism(),
-        new TeamDto("Core", List.of("ada@corp.example"), Optional.of("grace@corp.example")),
-        new TeamDto("Core", List.of("not-an-email"), Optional.empty()));
+        GenerateMappingExampleDistributionListMappingImpl.INSTANCE.asValidatedPrism(),
+        new DistributionListDto(
+            "Core", List.of("ada@corp.example"), Optional.of("grace@corp.example")),
+        new DistributionListDto("Core", List.of("not-an-email"), Optional.empty()));
   }
 
   @Test
@@ -71,13 +72,13 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("derived-field tier: ProfileMapping round-trips its non-derived components")
-  void profileMappingIsLawful() {
+  @DisplayName("derived-field tier: RecipientMapping round-trips its non-derived components")
+  void recipientMappingIsLawful() {
     // Parse is total (the derived displayName is ignored), so no non-parsing wire value
     // exists: the domain-sample overload asserts exactly what a derived-field mapping offers.
     MappingLaws.assertMappingLaws(
-        GenerateMappingExampleProfileMappingImpl.INSTANCE.asValidatedPrism(),
-        new Profile("Ada", "Lovelace"));
+        GenerateMappingExampleRecipientMappingImpl.INSTANCE.asValidatedPrism(),
+        new Recipient("Ada", "Lovelace"));
   }
 
   @Test
@@ -90,11 +91,11 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("self-recursive tier: TreeMapping round-trips a finite tree")
-  void treeMappingIsLawful() {
+  @DisplayName("self-recursive tier: TopicMapping round-trips a finite tree")
+  void topicMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        GenerateMappingExampleTreeMappingImpl.INSTANCE.asValidatedPrism(),
-        new Tree("root", List.of(new Tree("leaf", List.of()))));
+        GenerateMappingExampleTopicMappingImpl.INSTANCE.asValidatedPrism(),
+        new Topic("root", List.of(new Topic("leaf", List.of()))));
   }
 
   @Test
@@ -111,13 +112,13 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("projection tier: EmployeeCardMapping's asLens() passes the three lens laws")
-  void employeeCardMappingIsLawful() {
+  @DisplayName("projection tier: BadgeMapping's asLens() passes the three lens laws")
+  void badgeMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        GenerateMappingExampleEmployeeCardMappingImpl.INSTANCE.asLens(),
-        new Employee("Ada", "Engineering", 36),
-        new EmployeeCardDto("Grace", "Compilers"),
-        new EmployeeCardDto("Alan", "Computing"));
+        GenerateMappingExampleBadgeMappingImpl.INSTANCE.asLens(),
+        new BadgeHolder("Ada", "Engineering", 36),
+        new BadgeDto("Grace", "Compilers"),
+        new BadgeDto("Alan", "Computing"));
   }
 
   @Test
@@ -131,9 +132,10 @@ class GenerateMappingExampleLawsTest {
   }
 
   @Test
-  @DisplayName("builder-bean tier: PointMapping's domain round trip is lawful")
-  void pointMappingIsLawful() {
+  @DisplayName("builder-bean tier: WaypointMapping's domain round trip is lawful")
+  void waypointMappingIsLawful() {
     MappingLaws.assertMappingLaws(
-        GenerateMappingExamplePointMappingImpl.INSTANCE.asValidatedPrism(), new Point(3, "origin"));
+        GenerateMappingExampleWaypointMappingImpl.INSTANCE.asValidatedPrism(),
+        new Waypoint(3, "origin"));
   }
 }

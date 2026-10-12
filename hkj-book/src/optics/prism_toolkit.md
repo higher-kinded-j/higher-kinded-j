@@ -54,12 +54,12 @@ List<JsonValue> onlyStrings = values.stream()
 <!-- verify -->
 ```java
 @GeneratePrisms
-sealed interface DomainEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
+sealed interface ShopEvent permits UserEvent, OrderEvent, PaymentEvent, OrderCompleted {}
 
 // Business logic: process only payment events
-public void processPayments(List<DomainEvent> events) {
-    Prism<DomainEvent, PaymentEvent> paymentPrism =
-        DomainEventPrisms.paymentEvent();
+public void processPayments(List<ShopEvent> events) {
+    Prism<ShopEvent, PaymentEvent> paymentPrism =
+        ShopEventPrisms.paymentEvent();
 
     long paymentCount = events.stream()
         .filter(paymentPrism::matches)
@@ -81,8 +81,8 @@ When you need fallback values, `getOrElse()` is more concise than `getOptional()
 
 <!-- verify -->
 ```java
-Prism<ApiResponse, SuccessResponse> successPrism =
-    ApiResponsePrisms.successResponse();
+Prism<SubmissionResponse, SuccessResponse> successPrism =
+    SubmissionResponsePrisms.successResponse();
 
 // Extract success data or use default
 String data = successPrism.getOrElse(
@@ -115,7 +115,7 @@ public int parseUserQuantity(String input, int defaultQty) {
 }
 
 // Application settings with fallback
-public DatabaseConfig getDatabaseConfig(ApplicationConfig config) {
+public DatabaseConfig getDatabaseConfig(StartupConfig config) {
     Prism<ConfigSource, DatabaseConfig> dbConfigPrism =
         ConfigSourcePrisms.databaseConfig();
 
@@ -170,9 +170,9 @@ public List<Customer> extractCustomers(List<SourceData> sources) {
 }
 
 // Extract business metrics from polymorphic events
-public Optional<BigDecimal> extractRevenue(DomainEvent event) {
-    Prism<DomainEvent, OrderCompleted> orderPrism =
-        DomainEventPrisms.orderCompleted();
+public Optional<BigDecimal> extractRevenue(ShopEvent event) {
+    Prism<ShopEvent, OrderCompleted> orderPrism =
+        ShopEventPrisms.orderCompleted();
 
     return orderPrism.mapOptional(
         order -> order.lines().stream()
@@ -212,20 +212,20 @@ These methods combine matching with predicate-based filtering:
 
 <!-- verify -->
 ```java
-Prism<ConfigValue, StringConfig> stringConfig =
-    ConfigValuePrisms.stringConfig();
+Prism<ConfigValue, StringValue> stringValue =
+    ConfigValuePrisms.stringValue();
 
 // Only modify non-empty strings
-ConfigValue sanitised = stringConfig.modifyWhen(
+ConfigValue sanitised = stringValue.modifyWhen(
     str -> !str.value().isEmpty(),
-    str -> new StringConfig(str.value().trim()),
+    str -> new StringValue(str.value().trim()),
     configValue
 );
 
 // Only update if validation passes
-ConfigValue validated = stringConfig.setWhen(
+ConfigValue validated = stringValue.setWhen(
     str -> str.value().length() <= 255,
-    new StringConfig("validated"),
+    new StringValue("validated"),
     configValue
 );
 ```
@@ -300,9 +300,9 @@ When the variants hold *different* target types, `orElse` cannot chain them (and
 <!-- verify -->
 ```java
 Optional<String> message =
-    ApiResponsePrisms.validationError()
-        .mapOptional(ValidationError::message, response)
-        .or(() -> ApiResponsePrisms.serverError()
+    SubmissionResponsePrisms.inputError()
+        .mapOptional(InputError::message, response)
+        .or(() -> SubmissionResponsePrisms.serverError()
             .mapOptional(ServerError::message, response));
 ```
 
@@ -368,13 +368,13 @@ Optional<String> errorMsg = leftPrism.getOptional(error); // Optional.of("Failed
 Optional<Integer> noValue = rightPrism.getOptional(error); // Optional.empty()
 
 // Compose with lenses for deep access (Prism.andThen(Lens) = Affine)
-Lens<ValidationError, String> messageLens = ValidationErrorLenses.message();
+Lens<InputError, String> messageLens = InputErrorLenses.message();
 
-Affine<Either<ValidationError, Data>, String> errorMessage =
-    Prisms.<ValidationError, Data>left()
+Affine<Either<InputError, Data>, String> errorMessage =
+    Prisms.<InputError, Data>left()
         .andThen(messageLens);
 
-Either<ValidationError, Data> result = validate(data);
+Either<InputError, Data> result = validate(data);
 Optional<String> msg = errorMessage.getOptional(result);
 ```
 
@@ -517,18 +517,19 @@ The real power emerges when composing these utility prisms with your domain opti
 
 <!-- verify -->
 ```java
-@GenerateLenses record Config(Optional<Either<String, DatabaseSettings>> database) {}
+@GenerateLenses record LoadedConfig(Optional<Either<String, DatabaseSettings>> database) {}
 @GenerateLenses record DatabaseSettings(String host, int port) {}
 
 // Build a path through Optional -> Either -> Settings -> host: zero or one host
-Affine<Config, String> databaseHost =
-    ConfigLenses.database()                    // Lens<Config, Optional<Either<...>>>
+Affine<LoadedConfig, String> databaseHost =
+    LoadedConfigLenses.database()              // Lens<LoadedConfig, Optional<Either<...>>>
         // explicit witnesses: chained receivers lose the target types
         .andThen(Prisms.<Either<String, DatabaseSettings>>some())
         .andThen(Prisms.<String, DatabaseSettings>right())
         .andThen(DatabaseSettingsLenses.host()); // -> String
 
-Config config = new Config(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
+LoadedConfig config =
+    new LoadedConfig(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
 Optional<String> host = databaseHost.getOptional(config);
 ```
 
@@ -539,7 +540,7 @@ Utility prisms are lightweight and stateless; they're safe to create on-demand o
 ```java
 public class AppPrisms {
     public static final Prism<Optional<User>, User> SOME_USER = Prisms.some();
-    public static final Prism<ApiResponse, SuccessResponse> SUCCESS =
+    public static final Prism<SubmissionResponse, SuccessResponse> SUCCESS =
         Prisms.instanceOf(SuccessResponse.class);
 }
 ```

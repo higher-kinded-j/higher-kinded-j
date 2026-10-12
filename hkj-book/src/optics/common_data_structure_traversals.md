@@ -156,14 +156,14 @@ The `forMapValues()` method creates a traversal focusing on **all values** whils
 <!-- verify -->
 ```java
 @GenerateLenses
-public record DatabaseConfig(
+public record ConnectionProperties(
     Map<String, String> connectionProperties
 ) {}
 
 public class ConfigNormaliser {
 
     // Trim all connection property values
-    public static DatabaseConfig normaliseProperties(DatabaseConfig config) {
+    public static ConnectionProperties normaliseProperties(ConnectionProperties config) {
         Traversal<Map<String, String>, String> allPropertyValues =
             Traversals.forMapValues();
 
@@ -173,11 +173,11 @@ public class ConfigNormaliser {
             config.connectionProperties()
         );
 
-        return new DatabaseConfig(trimmed);
+        return new ConnectionProperties(trimmed);
     }
 
     // Redact sensitive values (password, token)
-    public static DatabaseConfig redactSensitive(DatabaseConfig config) {
+    public static ConnectionProperties redactSensitive(ConnectionProperties config) {
         // An indexed traversal sees both key and value (see Indexed Optics, in Precision and Filtering)
         IndexedTraversal<String, Map<String, String>, String> allProperties =
             IndexedTraversals.forMap();
@@ -193,7 +193,7 @@ public class ConfigNormaliser {
             config.connectionProperties()
         );
 
-        return new DatabaseConfig(redacted);
+        return new ConnectionProperties(redacted);
     }
 }
 ```
@@ -363,7 +363,7 @@ BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
 Traversal<ServiceConfig, Integer> allTimeouts =
     ServiceConfigLenses.endpoints()
         .andThen(Traversals.forMapValues())
-        .andThen(EndpointLenses.timeout())
+        .andThen(ServiceEndpointLenses.timeout())
         .andThen(Traversals.forOptional());
 
 ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceConfig);

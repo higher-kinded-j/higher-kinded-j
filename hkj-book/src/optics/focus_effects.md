@@ -14,7 +14,7 @@ _Run an update through an effect, fold a traversal into one value, and cross bet
 [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
 ~~~
 
-The examples here use a flatter model than the previous pages: an `Agency` holding its `Employee`s directly. One section needs a shape an `Agency` does not have and names its own: a `RoleBox` holding a `Kind<ListKind.Witness, Role>`. One variant of a sealed type is on [Collections, Optionals and Sealed Types](focus_navigation.md#working-with-sum-types-using-instanceof).
+The examples here use a flatter model than the previous pages: an `Agency` holding its `Agent`s directly. One section needs a shape an `Agency` does not have and names its own: a `RoleBox` holding a `Kind<ListKind.Witness, Role>`. One variant of a sealed type is on [Collections, Optionals and Sealed Types](focus_navigation.md#working-with-sum-types-using-instanceof).
 
 An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulate errors, or reach out to the network, it returns `A` wrapped in an effect, and the update has to thread that effect back out through the structure. That is what this page is about: the same paths, with effects along for the ride.
 
@@ -23,7 +23,7 @@ An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulat
 ## Effectful Modification with `modifyF()`
 
 ~~~admonish tip title="Why this matters"
-The path does not change. The same `AgencyFocus.employees().via(EmployeeFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that reports the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
+The path does not change. The same `AgencyFocus.agents().via(AgentFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that reports the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
 ~~~
 
 Every path type has `modifyF()`. The function returns the new value inside a `Kind`, and the whole modified structure comes back inside the same effect. The effect is chosen by the instance you pass, not by the path:
@@ -45,13 +45,13 @@ Accumulating validation is the same call with a `Validated` applicative, and sho
 
 <!-- verify -->
 ```java
-// Validate every employee email, accumulating all failures
+// Validate every agent's email, accumulating all failures
 Applicative<ValidatedKind.Witness<List<String>>> applicative =
     Instances.validated(Semigroups.<String>list());
 
 Kind<ValidatedKind.Witness<List<String>>, Agency> result =
-    AgencyFocus.employees()
-        .via(EmployeeFocus.email())
+    AgencyFocus.agents()
+        .via(AgentFocus.email())
         .modifyF(email -> VALIDATED.widen(Fixture.validateEmail(email)), agency, applicative);
 
 Validated<List<String>, Agency> validated = VALIDATED.narrow(result);
@@ -68,12 +68,12 @@ Validated<List<String>, Agency> validated = VALIDATED.narrow(result);
 
 <!-- verify -->
 ```java
-TraversalPath<Agency, Employee> employees = AgencyFocus.employees();
+TraversalPath<Agency, Agent> agents = AgencyFocus.agents();
 
-int payroll = employees.foldMap(Monoids.integerAddition(), Employee::salary, agency);
+int payroll = agents.foldMap(Monoids.integerAddition(), Agent::salary, agency);
 // 115000
 
-String roster = employees.foldMap(Monoids.string(), Employee::name, agency);
+String roster = agents.foldMap(Monoids.string(), Agent::name, agency);
 // "AliceBob"
 ```
 
@@ -118,10 +118,10 @@ When the `Kind<F, A>` field is on a `@GenerateFocus` record, the processor recog
 <!-- verify -->
 ```java
 Agency afterRise =
-    AgencyFocus.employees()
+    AgencyFocus.agents()
         .modifyWhen(
             e -> e.salary() < 58000,
-            e -> new Employee(e.name(), e.email(), e.nickname(), e.salary() + 2000),
+            e -> new Agent(e.name(), e.email(), e.nickname(), e.salary() + 2000),
             agency);
 ```
 
@@ -135,11 +135,11 @@ It is `filter(...).modifyAll(...)` with one fewer intermediate, and it reads as 
 
 <!-- verify -->
 ```java
-TraversalPath<Agency, Employee> traced =
-    AgencyFocus.employees()
-        .traced((source, found) -> System.out.println("focused " + found.size() + " employees"));
+TraversalPath<Agency, Agent> traced =
+    AgencyFocus.agents()
+        .traced((source, found) -> System.out.println("focused " + found.size() + " agents"));
 
-List<Employee> employees = traced.getAll(agency);
+List<Agent> agents = traced.getAll(agency);
 ```
 
 The observer receives the focused values in the shape the path guarantees: an `A` for `FocusPath`, an `Optional<A>` for `AffinePath`, and a `List<A>` for `TraversalPath`.
@@ -184,7 +184,7 @@ EitherPath<String, String> alwaysRight = AgencyFocus.name().toEitherPath(agency)
 
 // AffinePath: absence is a real outcome, so name it
 EitherPath<String, String> nickname =
-    EmployeeFocus.nickname().toEitherPath(alice, "No nickname on file");
+    AgentFocus.nickname().toEitherPath(alice, "No nickname on file");
 // Left("No nickname on file"), because Alice has none
 ```
 
@@ -239,7 +239,7 @@ The one-argument `toEitherPath`, `toTryPath` and `toIdPath` take only a focus th
 
 <!-- verify -->
 ```java
-FocusPath<Contact, @Nullable String> phone = FocusPath.of(ContactLenses.phone());
+FocusPath<Prospect, @Nullable String> phone = FocusPath.of(ProspectLenses.phone());
 
 EitherPath<String, String> reachable = phone.toEitherPath(carol, "No phone on file");
 // Left("No phone on file"), because Carol has none
@@ -261,8 +261,8 @@ EitherPath<String, String> agencyName = loaded.focus(AgencyFocus.name());
 // An AffinePath needs the error for the absent case
 EitherPath<String, String> firstNickname =
     loaded
-        .focus(AgencyFocus.employees().headOption(), "No employees")
-        .focus(EmployeeFocus.nickname(), "No nickname on file");
+        .focus(AgencyFocus.agents().headOption(), "No agents")
+        .focus(AgentFocus.nickname(), "No nickname on file");
 ```
 
 **`focus()` signatures:**
@@ -291,13 +291,13 @@ A `FocusPath` whose focus may be null reads the null as absent in the `MaybePath
 ```java
 // Optics first: extract, then validate
 EitherPath<String, String> checked =
-    EmployeeFocus.nickname()
+    AgentFocus.nickname()
         .toEitherPath(bob, "No nickname on file")
         .via(nick -> nick.length() >= 3 ? Path.right(nick) : Path.left("Nickname too short"));
 
 // Effect first: navigate what the call returned
 EitherPath<String, Integer> salary =
-    Path.<String, Employee>right(bob).focus(EmployeeFocus.salary());
+    Path.<String, Agent>right(bob).focus(AgentFocus.salary());
 ```
 
 ---

@@ -36,8 +36,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the Collections, Optionals and Sealed Types page")
 class NavigationBookTest {
 
-  private static final Catalogue CATALOGUE =
-      new Catalogue("Autumn", Map.of("LAMP", new BigDecimal("40.00")));
+  private static final PriceList PRICE_LIST =
+      new PriceList("Autumn", Map.of("LAMP", new BigDecimal("40.00")));
   private static final Consignment CONSIGNMENT = consignment(new ConsignmentState.Pending());
 
   @Test
@@ -52,19 +52,19 @@ class NavigationBookTest {
   void eachCustom() {
     SavedForLater saved = new SavedForLater(Maybe.just(BULB));
 
-    assertThat(NavigationBook.eachCustom(CATALOGUE, saved))
+    assertThat(NavigationBook.eachCustom(PRICE_LIST, saved))
         .containsExactly(new BigDecimal("40.00"), BULB);
   }
 
   @Test
   @DisplayName("indexing reads the first line and a map value; headOption writes to every line")
   void byIndex() {
-    NavigationBook.Indexed indexed = NavigationBook.byIndex(ORDER, CATALOGUE);
+    NavigationBook.Indexed indexed = NavigationBook.byIndex(ORDER, PRICE_LIST);
 
     assertThat(indexed.first()).contains(LAMP);
     assertThat(indexed.alsoFirst().getOptional(ORDER)).contains(LAMP);
     assertThat(indexed.lampPrice()).contains(new BigDecimal("40.00"));
-    assertThat(NavigationBook.byIndex(order(List.of()), new Catalogue("Empty", Map.of())).first())
+    assertThat(NavigationBook.byIndex(order(List.of()), new PriceList("Empty", Map.of())).first())
         .isEmpty();
     assertThat(indexed.alsoFirst().set(BULB, ORDER).lines()).containsExactly(BULB, BULB);
   }
@@ -82,7 +82,7 @@ class NavigationBookTest {
     PaymentHistory history =
         new PaymentHistory(ORDER_ID, List.of(new Card("4242424242424242"), new Bank("GB00TEST")));
 
-    NavigationBook.Variants variants = NavigationBook.sealedVariants(history);
+    NavigationBook.SealedVariants variants = NavigationBook.sealedVariants(history);
 
     assertThat(variants.pans()).containsExactly("4242424242424242");
     assertThat(variants.samePans().getAll(history)).containsExactly("4242424242424242");
@@ -95,7 +95,7 @@ class NavigationBookTest {
   @Test
   @DisplayName("composing with a lens, a prism and a traversal gives the three path types")
   void composeExisting() {
-    NavigationBook.Composed composed = NavigationBook.composeExisting();
+    NavigationBook.ComposedPaths composed = NavigationBook.composeExisting();
 
     assertThat(composed.street().get(CONSIGNMENT)).isEqualTo("1 Long Street");
     assertThat(composed.firstLine().getOptional(ORDER)).contains(LAMP);
@@ -170,8 +170,8 @@ class NavigationBookTest {
   @Test
   @DisplayName("nested containers widen as the table says")
   void nested() {
-    NestedConfig nestedConfig =
-        new NestedConfig(
+    NestedContainers containers =
+        new NestedContainers(
             Optional.of(List.of("alpha")),
             List.of(Optional.of("beta"), Optional.empty()),
             Optional.of(Optional.of("gamma")),
@@ -181,7 +181,7 @@ class NavigationBookTest {
             Either.right(Map.of("hits", 7)));
     WidenedConfig widenedConfig = new WidenedConfig(Either.right(Map.of("hits", 7)));
 
-    NavigationBook.Nested nested = NavigationBook.nested(nestedConfig, widenedConfig);
+    NavigationBook.Nested nested = NavigationBook.nested(containers, widenedConfig);
 
     assertThat(nested.tagValues()).containsExactly("alpha");
     assertThat(nested.innerValue()).contains("gamma");
@@ -193,8 +193,8 @@ class NavigationBookTest {
   @Test
   @DisplayName("the nested rows the example does not read widen as the table says")
   void nestedRows() {
-    NestedConfig nestedConfig =
-        new NestedConfig(
+    NestedContainers containers =
+        new NestedContainers(
             Optional.empty(),
             List.of(Optional.of("beta"), Optional.empty()),
             Optional.empty(),
@@ -203,13 +203,13 @@ class NavigationBookTest {
             Either.left("no data"),
             Either.left("no meta"));
 
-    TraversalPath<NestedConfig, String> items = NestedConfigFocus.items();
-    TraversalPath<NestedConfig, String> grid = NestedConfigFocus.grid();
-    AffinePath<NestedConfig, String> approval = NestedConfigFocus.approval();
+    TraversalPath<NestedContainers, String> items = NestedContainersFocus.items();
+    TraversalPath<NestedContainers, String> grid = NestedContainersFocus.grid();
+    AffinePath<NestedContainers, String> approval = NestedContainersFocus.approval();
 
-    assertThat(items.getAll(nestedConfig)).containsExactly("beta");
-    assertThat(grid.getAll(nestedConfig)).containsExactly("x", "y", "z");
-    assertThat(approval.getOptional(nestedConfig)).isEmpty();
+    assertThat(items.getAll(containers)).containsExactly("beta");
+    assertThat(grid.getAll(containers)).containsExactly("x", "y", "z");
+    assertThat(approval.getOptional(containers)).isEmpty();
   }
 
   @Test

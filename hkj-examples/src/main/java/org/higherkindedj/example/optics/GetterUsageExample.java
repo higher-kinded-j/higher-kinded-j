@@ -37,7 +37,8 @@ public class GetterUsageExample {
   public record Person(String firstName, String lastName, int age, Address address) {}
 
   @GenerateGetters
-  public record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
+  public record CompanyProfile(
+      String name, Person ceo, List<Person> employees, Address headquarters) {}
 
   public static void main(String[] args) {
     // Create sample data
@@ -50,7 +51,7 @@ public class GetterUsageExample {
     var emp3 = new Person("Bob", "Williams", 35, new Address("321 Pine Rd", "Leeds", "LS1 4AP"));
 
     var hqAddress = new Address("1000 Corporate Way", "London", "EC2A 4NE");
-    var company = new Company("TechCorp", ceo, List.of(emp1, emp2, emp3), hqAddress);
+    var company = new CompanyProfile("TechCorp", ceo, List.of(emp1, emp2, emp3), hqAddress);
 
     System.out.println("=== GETTER USAGE EXAMPLE ===\n");
 
@@ -97,9 +98,9 @@ public class GetterUsageExample {
     System.out.println("CEO postcode: " + personPostcodeGetter.get(ceo));
 
     // Deep composition
-    Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
-    Getter<Company, String> companyCeoNameGetter = ceoGetter.andThen(fullNameGetter);
-    Getter<Company, String> companyCeoCityGetter = ceoGetter.andThen(personCityGetter);
+    Getter<CompanyProfile, Person> ceoGetter = Getter.of(CompanyProfile::ceo);
+    Getter<CompanyProfile, String> companyCeoNameGetter = ceoGetter.andThen(fullNameGetter);
+    Getter<CompanyProfile, String> companyCeoCityGetter = ceoGetter.andThen(personCityGetter);
 
     System.out.println("Company CEO: " + companyCeoNameGetter.get(company));
     System.out.println("Company CEO city: " + companyCeoCityGetter.get(company));
@@ -126,8 +127,8 @@ public class GetterUsageExample {
     // --- SCENARIO 5: Combining with Folds for Collections ---
     System.out.println("\n--- Scenario 5: Combining Getters with Folds ---");
 
-    Fold<Company, Person> employeesFold = Fold.of(Company::employees);
-    Fold<Company, String> employeeNames = employeesFold.andThen(fullNameGetter.asFold());
+    Fold<CompanyProfile, Person> employeesFold = Fold.of(CompanyProfile::employees);
+    Fold<CompanyProfile, String> employeeNames = employeesFold.andThen(fullNameGetter.asFold());
 
     List<String> allEmployeeNames = employeeNames.getAll(company);
     System.out.println("All employee names: " + allEmployeeNames);
@@ -140,7 +141,7 @@ public class GetterUsageExample {
     System.out.println("Average employee age: " + String.format("%.1f", averageAge));
 
     // Check if all employees are in London
-    Fold<Company, String> employeeCities = employeesFold.andThen(personCityGetter.asFold());
+    Fold<CompanyProfile, String> employeeCities = employeesFold.andThen(personCityGetter.asFold());
     boolean allInLondon = employeeCities.all(c -> c.equals("London"), company);
     System.out.println("All employees in London: " + allInLondon);
 

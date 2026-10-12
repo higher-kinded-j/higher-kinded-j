@@ -53,11 +53,11 @@ public class CoreTypePrismsExample {
   @GenerateLenses
   record CustomerLookup(String requestId, Maybe<Customer> customer, List<String> warnings) {}
 
-  sealed interface ValidationError permits FieldError, BusinessError {}
+  sealed interface Rejection permits FieldError, BusinessRuleError {}
 
-  record FieldError(String field, String message) implements ValidationError {}
+  record FieldError(String field, String message) implements Rejection {}
 
-  record BusinessError(String code, String message) implements ValidationError {}
+  record BusinessRuleError(String code, String message) implements Rejection {}
 
   public static void main(String[] args) {
     System.out.println("=== Core Type Prisms & Traversals Examples ===\n");

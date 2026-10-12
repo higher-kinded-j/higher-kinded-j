@@ -90,7 +90,7 @@ class IndexedAdvancedBookTest {
     assertThat(lines).hasSize(1);
     assertThat(lines.getFirst()).matches("Field 'name' changed from Ada to Ada Lovelace at \\S+Z");
 
-    IndexedAdvancedBook.Audited audited = IndexedAdvancedBook.auditTrail();
+    IndexedAdvancedBook.AuditTrail audited = IndexedAdvancedBook.auditTrail();
     assertThat(audited.updated())
         .isEqualTo(new Customer("Ada Lovelace", new EmailAddress("ada@example.com")));
     assertThat(audited.audit())

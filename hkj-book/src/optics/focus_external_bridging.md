@@ -21,7 +21,7 @@ The page includes these directly, so the build compiles every bridge shown here.
 
 ---
 
-The best solution would be Focus DSL working seamlessly with every external type, no extra code. That is not possible; external libraries do not know about our optics. The second best is what this page builds: a bridge that feels invisible in use, so a developer navigates from `CompanyFocus.headquarters()` into `AddressOptics.city()` without thinking about the boundary.
+The best solution would be Focus DSL working seamlessly with every external type, no extra code. That is not possible; external libraries do not know about our optics. The second best is what this page builds: a bridge that feels invisible in use, so a developer navigates from `OfficeNetworkFocus.headquarters()` into `AddressOptics.city()` without thinking about the boundary.
 
 Here is the whole pattern, compiled by the build. A Focus path over your own records, joined by `.via()` to an optic generated for a type you do not own:
 
@@ -29,7 +29,7 @@ Here is the whole pattern, compiled by the build. A Focus path over your own rec
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/CompanyBridge.java:traversal_bridge}}
 ```
 
-`CompanyFocus.departments()` and `DepartmentFocus.staff()` are generated from your records; `ContactInfoOptics.email()` is generated from a spec interface for an Immutables value. `.via()` does not care which is which.
+`OfficeNetworkFocus.offices()` and `OfficeFocus.staff()` are generated from your records; `ContactDetailsOptics.email()` is generated from a spec interface for an Immutables value. `.via()` does not care which is which.
 
 ---
 
@@ -43,7 +43,7 @@ Focus covers the types you own. Spec interfaces cover the types you do not. The 
 
 ### The External Types
 
-`Address` and `ContactInfo` come from an Immutables-generated module: accessor methods with no `get` prefix, and wither methods for modification.
+`Address` and `ContactDetails` come from an Immutables-generated module: accessor methods with no `get` prefix, and wither methods for modification.
 
 ```java
 // An Immutables module's Address, with the chapter's Address components
@@ -73,15 +73,15 @@ Ordinary records, annotated as usual, with fields whose types come from the exte
 ```java
 @GenerateFocus
 @GenerateLenses
-public record Company(String name, Address headquarters, List<Department> departments) {}
+public record OfficeNetwork(String name, Address headquarters, List<Office> offices) {}
 
 @GenerateFocus
 @GenerateLenses
-public record Department(String name, Employee manager, List<Employee> staff, Address location) {}
+public record Office(String name, OfficeWorker manager, List<OfficeWorker> staff, Address location) {}
 
 @GenerateFocus
 @GenerateLenses
-public record Employee(String id, String name, ContactInfo contact, BigDecimal salary) {}
+public record OfficeWorker(String id, String name, ContactDetails contact, BigDecimal salary) {}
 ```
 
 ### The Bridge
@@ -92,14 +92,14 @@ public record Employee(String id, String name, ContactInfo contact, BigDecimal s
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/CompanyBridge.java:lens_bridge}}
 ```
 
-Using them looks like nothing in particular, which is the point. The values shown are for a sample `Acme Corp`, the one [FocusBridgingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/FocusBridgingExample.java) runs against. Its headquarters is in New York and its two departments sit in Boston and Chicago, and a test holds each value:
+Using them looks like nothing in particular, which is the point. The values shown are for a sample `Acme Corp`, the one [FocusBridgingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/FocusBridgingExample.java) runs against. Its headquarters is in New York and its two offices sit in Boston and Chicago, and a test holds each value:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/bridging/BridgingBook.java:bridge_reads}}
 ```
 
 ~~~admonish tip title="Why this matters"
-Nothing in that chain knows it crosses a library boundary. `DepartmentFocus.staff()` is generated from your record, `ContactInfoOptics.email()` from an Immutables interface, and `.via()` treats them identically because both are optics. The boundary that usually shows up as a helper method per field, or a stream pipeline with a manual rebuild, disappears into one composition.
+Nothing in that chain knows it crosses a library boundary. `OfficeFocus.staff()` is generated from your record, `ContactDetailsOptics.email()` from an Immutables interface, and `.via()` treats them identically because both are optics. The boundary that usually shows up as a helper method per field, or a stream pipeline with a manual rebuild, disappears into one composition.
 ~~~
 
 ~~~admonish note title="`.via()` needs no conversion"
@@ -117,26 +117,26 @@ The service layer sees one vocabulary:
 public final class CompanyService {
 
   /** Relocate the headquarters. */
-  public Company relocate(Company company, String newCity) {
+  public OfficeNetwork relocate(OfficeNetwork company, String newCity) {
     return CompanyBridge.HEADQUARTERS_CITY.set(newCity, company);
   }
 
   /** Every employee email, company-wide. */
-  public List<String> allEmails(Company company) {
+  public List<String> allEmails(OfficeNetwork company) {
     return CompanyBridge.allCompanyEmails().getAll(company);
   }
 
   /** Standardise phone numbers across the whole company. */
-  public Company standardisePhones(Company company, UnaryOperator<String> formatter) {
+  public OfficeNetwork standardisePhones(OfficeNetwork company, UnaryOperator<String> formatter) {
     return CompanyBridge.allCompanyPhones().modifyAll(formatter, company);
   }
 
   /** Raise salaries in one city only. */
-  public Company raiseIn(Company company, String city, BigDecimal multiplier) {
-    return CompanyFocus.departments()
-        .filter(d -> CompanyBridge.departmentCity().get(d).equals(city))
-        .via(DepartmentFocus.staff())
-        .via(EmployeeFocus.salary())
+  public OfficeNetwork raiseIn(OfficeNetwork company, String city, BigDecimal multiplier) {
+    return OfficeNetworkFocus.offices()
+        .filter(o -> CompanyBridge.officeCity().get(o).equals(city))
+        .via(OfficeFocus.staff())
+        .via(OfficeWorkerFocus.salary())
         .modifyAll(salary -> salary.multiply(multiplier), company);
   }
 }
@@ -195,12 +195,12 @@ See [Database Records with JOOQ](copy_strategies.md) for the strategies in full.
 <pre class="hkj-ascii-diagram" role="img" aria-label="The bridge layer as one package, com.myapp.optics. Its external package holds one spec per type you do not own, each generating that type's optics class; its bridges package holds one class of composed constants per domain, such as CompanyBridge and OrderBridge; and its package-info carries @ImportOptics for the simple types.">
 com.myapp.optics/
 ├── external/
-│   ├── AddressOpticsSpec.java       # spec, generates AddressOptics
-│   └── ContactInfoOpticsSpec.java   # spec, generates ContactInfoOptics
+│   ├── AddressOpticsSpec.java          # spec, generates AddressOptics
+│   └── ContactDetailsOpticsSpec.java   # spec, generates ContactDetailsOptics
 ├── bridges/
-│   ├── CompanyBridge.java           # composed constants for the Company domain
+│   ├── CompanyBridge.java              # composed constants for the company domain
 │   └── OrderBridge.java
-└── package-info.java                # @ImportOptics for the simple types
+└── package-info.java                   # @ImportOptics for the simple types
 </pre>
 
 Three habits keep the layer honest:

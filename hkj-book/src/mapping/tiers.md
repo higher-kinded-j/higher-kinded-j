@@ -13,23 +13,23 @@ So far every mapping in this chapter has offered `build` and `parse`. Not every 
 **The code on this page is [TiersBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/TiersBook.java) and its [TiersBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
-> **You:** `EmployeeCardDto` carries two of `Employee`'s three components. Where is my `parse`?
+> **You:** `BadgeDto` carries two of `BadgeHolder`'s three components. Where is my `parse`?
 >
-> **The processor:** Parse into what? The card has no `age`. I could invent one, and then `parse` would hand you an employee who never existed.
+> **The processor:** Parse into what? The badge has no `age`. I could invent one, and then `parse` would hand you an employee who never existed.
 >
-> **You:** So the card is write-only?
+> **You:** So the badge is write-only?
 >
-> **The processor:** Better than that. `asLens()` gives you a lens whose `set` takes the card *and* the employee you already hold, and writes the card's fields onto it. The `age` comes from your employee, so nothing is invented.
+> **The processor:** Better than that. `asLens()` gives you a lens whose `set` takes the badge *and* the employee you already hold, and writes the badge's fields onto it. The `age` comes from your employee, so nothing is invented.
 >
-> **You:** Suppose one of the card's fields went through a leaf, as an email address would.
+> **You:** Suppose one of the badge's fields went through a leaf, as an email address would.
 >
-> **The processor:** Then the write could refuse a value, and a lens's `set` has no way to report that. So you get `patch(employee, card)` instead: the same write-back, returning `Validated`, with every bad field located.
+> **The processor:** Then the write could refuse a value, and a lens's `set` has no way to report that. So you get `patch(employee, badge)` instead: the same write-back, returning `Validated`, with every bad field located.
 >
 > **You:** Why not generate everything, and throw when it cannot work?
 >
 > **The processor:** Because then the types would lie, and you would find out in production. Every method I generate is one whose laws hold for your pair, and one `MappingLaws` call checks it in your build.
 
-`EmployeeCardDto` has no `age`, so its Impl has no `parse`. Its `asLens().set` writes the card onto an employee you already hold, and keeps that employee's `age`. A [`Lens`](../glossary/optics.md#lens) works like a hand-written `withCard(card)` copy method, except that it is a value: it composes, and `MappingLaws` checks it.
+`BadgeDto` has no `age`, so its Impl has no `parse`. Its `asLens().set` writes the badge onto an employee you already hold, and keeps that employee's `age`. A [`Lens`](../glossary/optics.md#lens) works like a hand-written `withBadge(badge)` copy method, except that it is a value: it composes, and `MappingLaws` checks it.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/TiersBook.java:projection_spec}}
@@ -166,16 +166,16 @@ Where this lives: [Which methods your spec gets](#which-methods-your-spec-gets).
 ~~~
 
 ~~~admonish question title="Checkpoint: what does a projection's set do with a null?" id="check-tiers-lens-set"
-A client sends the employee card with no name, so the controller holds `new EmployeeCardDto(null, "Platform")`. It writes the card onto `new Employee("Ada", "Research", 36)` with `EmployeeCardMappingImpl.INSTANCE.asLens().set`. What comes back?
+A client sends the badge with no name, so the controller holds `new BadgeDto(null, "Platform")`. It writes the badge onto `new BadgeHolder("Ada", "Research", 36)` with `BadgeMappingImpl.INSTANCE.asLens().set`. What comes back?
 
 1. `Invalid(NonEmptyList[name: must not be null])`
 2. A `NullPointerException`
-3. `Employee[name=null, department=Platform, age=36]`
-4. `Employee[name=Ada, department=Platform, age=36]`, since `set` skips a `null`
+3. `BadgeHolder[name=null, department=Platform, age=36]`
+4. `BadgeHolder[name=Ada, department=Platform, age=36]`, since `set` skips a `null`
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-tiers-lens-set-answer"
-**3.** `set` builds through `Employee`'s constructor with no guard, as `reverseGet` does, and that constructor accepts a `null`. So the `null` reaches the domain with no error and no exception:
+**3.** `set` builds through `BadgeHolder`'s constructor with no guard, as `reverseGet` does, and that constructor accepts a `null`. So the `null` reaches the domain with no error and no exception:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:check_lens_set}}

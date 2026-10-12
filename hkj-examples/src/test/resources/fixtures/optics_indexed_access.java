@@ -26,7 +26,7 @@ import org.higherkindedj.optics.ixed.IxedInstances;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
-record Config(Map<String, String> settings) {}
+record ConfigMap(Map<String, String> settings) {}
 
 class Fixture {
 
@@ -39,9 +39,9 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static final Config config = sample();
+  static final ConfigMap config = sample();
 
-  static final Lens<Config, Map<String, String>> settingsLens = sample();
+  static final Lens<ConfigMap, Map<String, String>> settingsLens = sample();
 
   static final At<Map<String, String>, String, String> settingsAt = AtInstances.mapAt();
 

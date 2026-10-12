@@ -23,10 +23,10 @@ import org.higherkindedj.optics.util.Traversals;
 public class SelectivePerformanceExample {
 
   @GenerateLenses
-  public record Item(String id, boolean needsProcessing, int value) {}
+  public record WorkItem(String id, boolean needsProcessing, int value) {}
 
   @GenerateTraversals
-  public record Batch(String name, List<Item> items) {}
+  public record WorkBatch(String name, List<WorkItem> items) {}
 
   private static final AtomicInteger operationCount = new AtomicInteger(0);
 
@@ -45,19 +45,19 @@ public class SelectivePerformanceExample {
   private static void shortCircuitComparison() {
     System.out.println("--- Example 1: Short-Circuit Processing ---");
 
-    List<Item> items =
+    List<WorkItem> items =
         List.of(
-            new Item("ITEM-001", true, 10),
-            new Item("ITEM-002", true, 20),
-            new Item("ITEM-003", false, 30), // First item that doesn't need processing
-            new Item("ITEM-004", true, 40),
-            new Item("ITEM-005", true, 50));
+            new WorkItem("ITEM-001", true, 10),
+            new WorkItem("ITEM-002", true, 20),
+            new WorkItem("ITEM-003", false, 30), // First item that doesn't need processing
+            new WorkItem("ITEM-004", true, 40),
+            new WorkItem("ITEM-005", true, 50));
 
     // Standard Applicative approach - processes all items
     System.out.println("Applicative approach (processes all items):");
     operationCount.set(0);
 
-    Kind<IdKind.Witness, List<Item>> applicativeResult =
+    Kind<IdKind.Witness, List<WorkItem>> applicativeResult =
         Traversals.traverseList(
             items,
             item -> {
@@ -73,7 +73,7 @@ public class SelectivePerformanceExample {
     System.out.println("\nSelective approach (stops when condition met):");
     operationCount.set(0);
 
-    Kind<IdKind.Witness, List<Item>> selectiveResult =
+    Kind<IdKind.Witness, List<WorkItem>> selectiveResult =
         Traversals.traverseListUntil(
             items,
             item -> !item.needsProcessing(), // Stop condition
@@ -92,29 +92,29 @@ public class SelectivePerformanceExample {
   private static void conditionalProcessingComparison() {
     System.out.println("--- Example 2: Conditional Processing ---");
 
-    Batch batch =
-        new Batch(
+    WorkBatch batch =
+        new WorkBatch(
             "Mixed Batch",
             List.of(
-                new Item("ITEM-001", true, 10),
-                new Item("ITEM-002", false, 20),
-                new Item("ITEM-003", true, 30),
-                new Item("ITEM-004", false, 40),
-                new Item("ITEM-005", true, 50)));
+                new WorkItem("ITEM-001", true, 10),
+                new WorkItem("ITEM-002", false, 20),
+                new WorkItem("ITEM-003", true, 30),
+                new WorkItem("ITEM-004", false, 40),
+                new WorkItem("ITEM-005", true, 50)));
 
-    Traversal<Batch, Item> itemsTraversal = BatchTraversals.items();
+    Traversal<WorkBatch, WorkItem> itemsTraversal = WorkBatchTraversals.items();
 
     // Without selective - must process all items
     System.out.println("Without selective filtering:");
     operationCount.set(0);
 
-    Kind<IdKind.Witness, Batch> allProcessed =
+    Kind<IdKind.Witness, WorkBatch> allProcessed =
         itemsTraversal.modifyF(
             item -> {
               operationCount.incrementAndGet();
               if (item.needsProcessing()) {
                 System.out.println("  Processing: " + item.id());
-                return Id.of(new Item(item.id(), item.needsProcessing(), item.value() * 2));
+                return Id.of(new WorkItem(item.id(), item.needsProcessing(), item.value() * 2));
               } else {
                 System.out.println("  Skipping: " + item.id() + " (but still touched)");
                 return Id.of(item);
@@ -129,13 +129,13 @@ public class SelectivePerformanceExample {
     System.out.println("\nWith selective filtering:");
     operationCount.set(0);
 
-    Kind<IdKind.Witness, Batch> selectiveProcessed =
+    Kind<IdKind.Witness, WorkBatch> selectiveProcessed =
         itemsTraversal.modifyWhen(
-            Item::needsProcessing,
+            WorkItem::needsProcessing,
             item -> {
               operationCount.incrementAndGet();
               System.out.println("  Processing: " + item.id());
-              return Id.of(new Item(item.id(), item.needsProcessing(), item.value() * 2));
+              return Id.of(new WorkItem(item.id(), item.needsProcessing(), item.value() * 2));
             },
             batch,
             IdSelective.instance());
@@ -149,13 +149,13 @@ public class SelectivePerformanceExample {
   private static void branchingComparison() {
     System.out.println("--- Example 3: Branching Logic ---");
 
-    List<Item> items =
+    List<WorkItem> items =
         List.of(
-            new Item("SMALL-001", true, 5),
-            new Item("LARGE-001", true, 500),
-            new Item("SMALL-002", true, 8),
-            new Item("LARGE-002", true, 750),
-            new Item("SMALL-003", true, 3));
+            new WorkItem("SMALL-001", true, 5),
+            new WorkItem("LARGE-001", true, 500),
+            new WorkItem("SMALL-002", true, 8),
+            new WorkItem("LARGE-002", true, 750),
+            new WorkItem("SMALL-003", true, 3));
 
     // Standard approach - checks happen inside the function
     System.out.println("Standard approach (implicit branching):");

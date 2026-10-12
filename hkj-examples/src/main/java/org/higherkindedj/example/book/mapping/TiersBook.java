@@ -33,10 +33,10 @@ public final class TiersBook {
 
   public static void main(String[] args) {
     // ANCHOR: projection_usage
-    Employee employee = new Employee("Ada", "Research", 36);
-    Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
-    Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
-    // Employee[name=Ada, department=Platform, age=36]
+    BadgeHolder employee = new BadgeHolder("Ada", "Research", 36);
+    Lens<BadgeHolder, BadgeDto> badge = BadgeMappingImpl.INSTANCE.asLens();
+    BadgeHolder moved = badge.set(new BadgeDto("Ada", "Platform"), employee);
+    // BadgeHolder[name=Ada, department=Platform, age=36]
     // ANCHOR_END: projection_usage
     System.out.println(moved);
 
@@ -61,12 +61,12 @@ public final class TiersBook {
 }
 
 // ANCHOR: projection_spec
-record Employee(String name, String department, int age) {}
+record BadgeHolder(String name, String department, int age) {}
 
-record EmployeeCardDto(String name, String department) {}
+record BadgeDto(String name, String department) {}
 
 @GenerateMapping
-interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
+interface BadgeMapping extends MappingSpec<BadgeHolder, BadgeDto> {}
 
 // ANCHOR_END: projection_spec
 

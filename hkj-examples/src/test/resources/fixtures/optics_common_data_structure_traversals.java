@@ -37,16 +37,16 @@ record ApplicationConfig(String appName, Optional<ServerConfig> server) {}
 record FeatureFlags(Map<String, Optional<Boolean>> flags) {}
 
 @GenerateLenses
-record DatabaseConfig(Map<String, String> connectionProperties) {}
+record ConnectionProperties(Map<String, String> connectionProperties) {}
 
 @GenerateLenses
 record ServiceRegistry(Map<String, ServerConfig> services) {}
 
 @GenerateLenses
-record Endpoint(String path, Optional<Integer> timeout) {}
+record ServiceEndpoint(String path, Optional<Integer> timeout) {}
 
 @GenerateLenses
-record ServiceConfig(String name, Map<String, Integer> ports, Map<String, Endpoint> endpoints) {}
+record ServiceConfig(String name, Map<String, Integer> ports, Map<String, ServiceEndpoint> endpoints) {}
 
 @GenerateLenses
 record Location(String name, Tuple2<Double, Double> coordinates) {}

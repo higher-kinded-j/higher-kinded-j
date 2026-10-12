@@ -57,15 +57,15 @@ public final class GettersBook {
 
   static int deepChain(Person ceo, List<Person> employees, Address headquarters) {
     // ANCHOR: deep_chain
-    Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
+    Getter<CompanyProfile, Person> ceoGetter = Getter.of(CompanyProfile::ceo);
     Getter<Person, String> fullNameGetter = Getter.of(p -> p.firstName() + " " + p.lastName());
     Getter<String, Integer> lengthGetter = Getter.of(String::length);
 
-    // Compose: Company → Person → String → Integer
-    Getter<Company, Integer> ceoNameLength =
+    // Compose: CompanyProfile → Person → String → Integer
+    Getter<CompanyProfile, Integer> ceoNameLength =
         ceoGetter.andThen(fullNameGetter).andThen(lengthGetter);
 
-    Company company = new Company("TechCorp", ceo, employees, headquarters);
+    CompanyProfile company = new CompanyProfile("TechCorp", ceo, employees, headquarters);
     int length = ceoNameLength.get(company);
     // 10, the length of "Jane Smith"
     // ANCHOR_END: deep_chain
@@ -108,14 +108,14 @@ public final class GettersBook {
     return List.of(age, ages, isExperienced, isSenior, foundAge, count, empty);
   }
 
-  static List<Object> withFolds(Company company, List<Person> employees) {
+  static List<Object> withFolds(CompanyProfile company, List<Person> employees) {
     // ANCHOR: with_folds
-    Getter<Company, List<Person>> employeesGetter = Getter.of(Company::employees);
+    Getter<CompanyProfile, List<Person>> employeesGetter = Getter.of(CompanyProfile::employees);
     Fold<List<Person>, Person> listFold = Fold.of(list -> list);
     Getter<Person, String> fullNameGetter = Getter.of(p -> p.firstName() + " " + p.lastName());
 
-    // Company → List<Person> → Person (multiple) → String
-    Fold<Company, String> allEmployeeNames =
+    // CompanyProfile → List<Person> → Person (multiple) → String
+    Fold<CompanyProfile, String> allEmployeeNames =
         employeesGetter
             .asFold() // Convert Getter to Fold
             .andThen(listFold)
@@ -234,4 +234,4 @@ public final class GettersBook {
 }
 
 /** The page's company, around the package's {@code Person} and the cast's {@code Address}. */
-record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
+record CompanyProfile(String name, Person ceo, List<Person> employees, Address headquarters) {}

@@ -38,11 +38,11 @@ record Member(String name, Kind<ListKind.Witness, Skill> skills) {}
 
 @GenerateLenses
 @GenerateFocus
-record Team(String name, Kind<ListKind.Witness, Member> members) {}
+record SkillsTeam(String name, Kind<ListKind.Witness, Member> members) {}
 
 @GenerateLenses
 @GenerateFocus
-record ApiResponse(
+record LeadLookup(
     String requestId,
     Kind<MaybeKind.Witness, Member> lead,
     Kind<ListKind.Witness, String> warnings,
@@ -54,10 +54,10 @@ class Fixture {
 
   static final Member bob = new Member("Bob", LIST.widen(List.of(new Skill("Java", 30))));
 
-  static final Team team = new Team("Platform", LIST.widen(List.of(alice, bob)));
+  static final SkillsTeam team = new SkillsTeam("Platform", LIST.widen(List.of(alice, bob)));
 
-  static final ApiResponse response =
-      new ApiResponse(
+  static final LeadLookup response =
+      new LeadLookup(
           "req-1",
           MAYBE.widen(Maybe.just(alice)),
           LIST.widen(List.of("deprecated field")),

@@ -225,9 +225,9 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
 
-record Guest(String name, Optional<String> nickname) {}
+record Reviewer(String name, Optional<String> nickname) {}
 
-class GuestBean {
+class ReviewerBean {
   private String name;
   private String nickname;
 
@@ -238,7 +238,7 @@ class GuestBean {
 }
 
 @GenerateMapping
-interface GuestMapping extends MappingSpec<Guest, GuestBean> {
+interface ReviewerMapping extends MappingSpec<Reviewer, ReviewerBean> {
   @OptionalBridge
   Optional<String> nickname();
 }

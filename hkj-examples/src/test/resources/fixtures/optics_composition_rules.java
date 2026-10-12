@@ -16,6 +16,7 @@
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.example.book.optics.cast.Card;
 import org.higherkindedj.example.book.optics.cast.CardFocus;
 import org.higherkindedj.example.book.optics.cast.Consignment;
@@ -47,11 +48,11 @@ record DatabaseSettings(String host, int port) {}
 
 record Config(Optional<DatabaseSettings> database) {}
 
-record Person(String firstName, String lastName) {}
+record Person(String firstName, String lastName, int age, Address address) {}
 
-record Employee(String name, String email) {}
+record TeamMember(String name, String email) {}
 
-record Team(String name, Employee lead, List<Employee> members) {}
+record ProjectTeam(String name, TeamMember lead, List<TeamMember> members) {}
 
 class Fixture<A, B, C, D> {
 
@@ -84,11 +85,11 @@ class Fixture<A, B, C, D> {
 
   static final Fold<Person, String> lastNameFold = sample();
 
-  static final Lens<Team, Employee> leadLens = sample();
+  static final Lens<ProjectTeam, TeamMember> leadLens = sample();
 
-  static final Lens<Employee, String> emailLens = sample();
+  static final Lens<TeamMember, String> emailLens = sample();
 
-  static final Fold<Team, Employee> membersFold = sample();
+  static final Fold<ProjectTeam, TeamMember> membersFold = sample();
 
   // The summaries' optics, one per step, over the free A, B, C and D.
   final Lens<A, B> lensAB = sample();

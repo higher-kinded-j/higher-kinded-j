@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics.fluent;
 
-import org.higherkindedj.example.optics.fluent.generated.PlayerLenses;
-import org.higherkindedj.example.optics.fluent.model.Player;
+import org.higherkindedj.example.optics.fluent.generated.FootballerLenses;
+import org.higherkindedj.example.optics.fluent.model.Footballer;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.free.LoggingOpticInterpreter;
@@ -27,7 +27,7 @@ public final class FreeDslExample {
 
   public static void main(String[] args) {
     try {
-      Player player = new Player("Alice", 17, 85);
+      Footballer player = new Footballer("Alice", 17, 85);
 
       System.out.println("=== Free Monad DSL Examples ===\n");
 
@@ -35,12 +35,13 @@ public final class FreeDslExample {
       System.out.println("--- Simple Program ---");
 
       // Build a program that increments age and score
-      Free<OpticOpKind.Witness, Player> simpleProgram =
-          OpticPrograms.modify(player, PlayerLenses.age(), age -> age + 1)
-              .flatMap(p1 -> OpticPrograms.modify(p1, PlayerLenses.score(), score -> score + 10));
+      Free<OpticOpKind.Witness, Footballer> simpleProgram =
+          OpticPrograms.modify(player, FootballerLenses.age(), age -> age + 1)
+              .flatMap(
+                  p1 -> OpticPrograms.modify(p1, FootballerLenses.score(), score -> score + 10));
 
       // Execute with direct interpreter
-      Player result1 = OpticInterpreters.direct().run(simpleProgram);
+      Footballer result1 = OpticInterpreters.direct().run(simpleProgram);
       System.out.println("Original: " + player);
       System.out.println("Updated:  " + result1);
 
@@ -50,8 +51,8 @@ public final class FreeDslExample {
       System.out.println("--- Conditional Program ---");
 
       // Build a program with conditional logic
-      Free<OpticOpKind.Witness, Player> conditionalProgram =
-          OpticPrograms.get(player, PlayerLenses.age())
+      Free<OpticOpKind.Witness, Footballer> conditionalProgram =
+          OpticPrograms.get(player, FootballerLenses.age())
               .flatMap(
                   age -> {
                     if (age < 18) {
@@ -60,11 +61,11 @@ public final class FreeDslExample {
                     } else {
                       System.out.println("  Player is an adult, adding bonus");
                       return OpticPrograms.modify(
-                          player, PlayerLenses.score(), score -> score + 20);
+                          player, FootballerLenses.score(), score -> score + 20);
                     }
                   });
 
-      Player result2 = OpticInterpreters.direct().run(conditionalProgram);
+      Footballer result2 = OpticInterpreters.direct().run(conditionalProgram);
       System.out.println("Result: " + result2);
 
       System.out.println();
@@ -76,26 +77,28 @@ public final class FreeDslExample {
       // 1. Checks age
       // 2. If >= 18, increments age and adds bonus
       // 3. If score > 100, gives extra reward
-      Player adult = new Player("Bob", 25, 95);
+      Footballer adult = new Footballer("Bob", 25, 95);
 
-      Free<OpticOpKind.Witness, Player> complexProgram =
-          OpticPrograms.get(adult, PlayerLenses.age())
+      Free<OpticOpKind.Witness, Footballer> complexProgram =
+          OpticPrograms.get(adult, FootballerLenses.age())
               .flatMap(
                   age -> {
                     if (age >= 18) {
-                      return OpticPrograms.modify(adult, PlayerLenses.age(), a -> a + 1)
+                      return OpticPrograms.modify(adult, FootballerLenses.age(), a -> a + 1)
                           .flatMap(
                               p1 ->
                                   OpticPrograms.modify(
-                                          p1, PlayerLenses.score(), score -> score + 15)
+                                          p1, FootballerLenses.score(), score -> score + 15)
                                       .flatMap(
                                           p2 ->
-                                              OpticPrograms.get(p2, PlayerLenses.score())
+                                              OpticPrograms.get(p2, FootballerLenses.score())
                                                   .flatMap(
                                                       score -> {
                                                         if (score > 100) {
                                                           return OpticPrograms.modify(
-                                                              p2, PlayerLenses.score(), s -> s + 5);
+                                                              p2,
+                                                              FootballerLenses.score(),
+                                                              s -> s + 5);
                                                         } else {
                                                           return OpticPrograms.pure(p2);
                                                         }
@@ -105,7 +108,7 @@ public final class FreeDslExample {
                     }
                   });
 
-      Player result3 = OpticInterpreters.direct().run(complexProgram);
+      Footballer result3 = OpticInterpreters.direct().run(complexProgram);
       System.out.println("Original: " + adult);
       System.out.println("Updated:  " + result3);
 
@@ -116,7 +119,7 @@ public final class FreeDslExample {
 
       // Execute with logging to see what happened
       LoggingOpticInterpreter logger = OpticInterpreters.logging();
-      Player result4 = logger.run(complexProgram);
+      Footballer result4 = logger.run(complexProgram);
 
       System.out.println("Operations log:");
       logger.getLog().forEach(log -> System.out.println("  " + log));
@@ -147,35 +150,35 @@ public final class FreeDslExample {
       System.out.println("--- Reusable Components ---");
 
       // Define reusable program pieces
-      Player youngPlayer = new Player("Charlie", 16, 75);
+      Footballer youngPlayer = new Footballer("Charlie", 16, 75);
 
-      Free<OpticOpKind.Witness, Player> agePlayer =
-          OpticPrograms.modify(youngPlayer, PlayerLenses.age(), age -> age + 1);
+      Free<OpticOpKind.Witness, Footballer> agePlayer =
+          OpticPrograms.modify(youngPlayer, FootballerLenses.age(), age -> age + 1);
 
-      Free<OpticOpKind.Witness, Player> addBonus =
+      Free<OpticOpKind.Witness, Footballer> addBonus =
           agePlayer.flatMap(
-              p -> OpticPrograms.modify(p, PlayerLenses.score(), score -> score + 10));
+              p -> OpticPrograms.modify(p, FootballerLenses.score(), score -> score + 10));
 
       // Compose them
-      Free<OpticOpKind.Witness, Player> reusableProgram =
+      Free<OpticOpKind.Witness, Footballer> reusableProgram =
           addBonus.flatMap(
               p ->
-                  OpticPrograms.get(p, PlayerLenses.age())
+                  OpticPrograms.get(p, FootballerLenses.age())
                       .flatMap(
                           age -> {
                             if (age >= 18) {
                               // Need to get the name first since p is a lambda parameter
-                              return OpticPrograms.get(p, PlayerLenses.name())
+                              return OpticPrograms.get(p, FootballerLenses.name())
                                   .flatMap(
                                       name ->
                                           OpticPrograms.set(
-                                              p, PlayerLenses.name(), name + " (Adult)"));
+                                              p, FootballerLenses.name(), name + " (Adult)"));
                             } else {
                               return OpticPrograms.pure(p);
                             }
                           }));
 
-      Player result5 = OpticInterpreters.direct().run(reusableProgram);
+      Footballer result5 = OpticInterpreters.direct().run(reusableProgram);
       System.out.println("Original: " + youngPlayer);
       System.out.println("Updated:  " + result5);
 
@@ -199,10 +202,10 @@ public final class FreeDslExample {
    * @param player The player to promote
    * @return A program that may promote the player
    */
-  private static Free<OpticOpKind.Witness, Player> promotePlayer(Player player) {
-    Lens<Player, Integer> scoreLens = PlayerLenses.score();
-    Lens<Player, Integer> ageLens = PlayerLenses.age();
-    Lens<Player, String> nameLens = PlayerLenses.name();
+  private static Free<OpticOpKind.Witness, Footballer> promotePlayer(Footballer player) {
+    Lens<Footballer, Integer> scoreLens = FootballerLenses.score();
+    Lens<Footballer, Integer> ageLens = FootballerLenses.age();
+    Lens<Footballer, String> nameLens = FootballerLenses.name();
 
     return OpticPrograms.get(player, scoreLens)
         .flatMap(

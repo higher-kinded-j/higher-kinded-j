@@ -192,15 +192,15 @@ The `takingWhile()` method focuses on the **longest prefix** of elements satisfy
 
 <!-- verify -->
 ```java
-// Time-series: Process transactions before cutoff
+// Time-series: Process payments before cutoff
 LocalDateTime cutoff = LocalDateTime.of(2025, 1, 1, 0, 0);
-Traversal<List<Transaction>, Transaction> beforeCutoff =
+Traversal<List<PaymentRecord>, PaymentRecord> beforeCutoff =
     ListTraversals.takingWhile(t -> t.timestamp().isBefore(cutoff));
 
-List<Transaction> processed = Traversals.modify(
+List<PaymentRecord> processed = Traversals.modify(
     beforeCutoff,
     t -> t.withStatus("PROCESSED"),
-    transactions
+    payments
 );
 ```
 

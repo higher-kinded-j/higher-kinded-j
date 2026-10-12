@@ -623,21 +623,21 @@ Consider a data structure with values scattered across different fields or branc
 
 <!-- verify -->
 ```java
-record Team(String name, Employee lead, List<Employee> members) {}
-record Employee(String name, String email) {}
+record ProjectTeam(String name, TeamMember lead, List<TeamMember> members) {}
+record TeamMember(String name, String email) {}
 
 // Fold.of builds a fold from a function that lists the targets;
 // asFold() turns a lens into a single-target fold
-Lens<Team, Employee> teamLeadLens =
-    Lens.of(Team::lead, (t, l) -> new Team(t.name(), l, t.members()));
-Lens<Employee, String> employeeEmailLens =
-    Lens.of(Employee::email, (e, m) -> new Employee(e.name(), m));
+Lens<ProjectTeam, TeamMember> teamLeadLens =
+    Lens.of(ProjectTeam::lead, (t, l) -> new ProjectTeam(t.name(), l, t.members()));
+Lens<TeamMember, String> memberEmailLens =
+    Lens.of(TeamMember::email, (m, email) -> new TeamMember(m.name(), email));
 
 // Separate folds for different paths
-Fold<Team, String> leadEmail = teamLeadLens.asFold()
-    .andThen(employeeEmailLens.asFold());
-Fold<Team, String> memberEmails = Fold.<Team, Employee>of(Team::members)
-    .andThen(employeeEmailLens.asFold());
+Fold<ProjectTeam, String> leadEmail = teamLeadLens.asFold()
+    .andThen(memberEmailLens.asFold());
+Fold<ProjectTeam, String> memberEmails = Fold.<ProjectTeam, TeamMember>of(ProjectTeam::members)
+    .andThen(memberEmailLens.asFold());
 
 // Manual combination - verbose and error-prone
 List<String> allEmails = new ArrayList<>();
@@ -652,7 +652,7 @@ allEmails.addAll(memberEmails.getAll(team));
 <!-- verify -->
 ```java
 // Clean, composable combination
-Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
+Fold<ProjectTeam, String> allEmails = leadEmail.plus(memberEmails);
 
 // Use like any other fold
 List<String> emails = allEmails.getAll(team);
@@ -680,7 +680,7 @@ For combining three or more folds, use `Fold.sum()`:
 
 <!-- verify -->
 ```java
-Fold<Team, String> allText = Fold.sum(
+Fold<ProjectTeam, String> allText = Fold.sum(
     teamNameFold,
     leadNameFold,
     memberNamesFold
@@ -695,16 +695,16 @@ Any optic can participate in fold combination via its `asFold()` method:
 <!-- verify -->
 ```java
 // Lens-derived fold (exactly one element)
-Fold<Config, String> hostFold = hostLens.asFold();
+Fold<ConnectionConfig, String> hostFold = hostLens.asFold();
 
 // Prism-derived fold (zero or one element)
-Fold<Config, String> optionalPortFold = portPrism.asFold();
+Fold<ConnectionConfig, String> optionalPortFold = portPrism.asFold();
 
 // Affine-derived fold (zero or one element)
-Fold<Config, String> optionalDbFold = dbAffine.asFold();
+Fold<ConnectionConfig, String> optionalDbFold = dbAffine.asFold();
 
 // Combine them all
-Fold<Config, String> allConfigStrings = Fold.sum(
+Fold<ConnectionConfig, String> allConfigStrings = Fold.sum(
     hostFold, optionalPortFold, optionalDbFold
 );
 ```

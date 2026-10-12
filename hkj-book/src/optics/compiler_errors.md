@@ -215,14 +215,14 @@ A permitted subtype needs a type parameter that its `implements` clause leaves f
 | The message says | The shape |
 |---|---|
 | `'Pair' declares [B], which 'Shape' does not bind` | `Pair<A, B> implements Shape<A>`: the subtype's own `B` appears nowhere in its clause |
-| `The prism for 'Box' declares Y extends X, and 'Shape' does not bind [X]` | `Box<Y extends X> implements Shape<Y>`, an inner class of `Shapes<X>`: a bound names the enclosing class's `X`, which the clause leaves free |
+| `The prism for 'Hexagon' declares Y extends X, and 'Shape' does not bind [X]` | `Hexagon<Y extends X> implements Shape<Y>`, an inner class of `Shapes<X>`: a bound names the enclosing class's `X`, which the clause leaves free |
 
 **Fix.** Bind the free parameter in the clause, as the message shows, giving the sealed interface a type parameter for it if it has none to spare. Where you cannot change the clause, as for a sealed interface from a library, write the prism by hand with `Prism.of`.
 
 ~~~admonish note title="Why" collapsible=true
 A prism narrows by `instanceof`, which tests an erasure. A parameter the clause binds is pinned by the hierarchy: under `Tagged<T> implements Shape<T>`, a `Shape<T>` that is a `Tagged` can only be a `Tagged<T>`. A parameter it leaves free is pinned by nothing, so two callers could read one value at different types, and the second would get a `ClassCastException` from a call site that compiled cleanly.
 
-An enclosing class's parameter the clause leaves free is written as a wildcard, as [Generating the Prisms](prisms.md#step-1-generating-the-prisms) shows. A bound that names it then has nothing to name: the prism has no `X` to write in `<Y extends X>`, and javac refuses `Shapes<?>.Box<Y>` for such a `Y`.
+An enclosing class's parameter the clause leaves free is written as a wildcard, as [Generating the Prisms](prisms.md#step-1-generating-the-prisms) shows. A bound that names it then has nothing to name: the prism has no `X` to write in `<Y extends X>`, and javac refuses `Shapes<?>.Hexagon<Y>` for such a `Y`.
 ~~~
 
 ~~~admonish example title="Declarations that produce it" collapsible=true
@@ -234,14 +234,14 @@ sealed interface Shape<T> permits Pair {}
 record Pair<A, B>(A a, B b) implements Shape<A> {}
 ```
 
-<!-- verify:rejects "The prism for 'Box' declares Y extends X, and 'Shape' does not bind [X]" -->
+<!-- verify:rejects "The prism for 'Hexagon' declares Y extends X, and 'Shape' does not bind [X]" -->
 ```java
 class Shapes<X> {
 
     @GeneratePrisms
-    sealed interface Shape<T> permits Shapes.Box {}
+    sealed interface Shape<T> permits Shapes.Hexagon {}
 
-    final class Box<Y extends X> implements Shape<Y> {}
+    final class Hexagon<Y extends X> implements Shape<Y> {}
 }
 ```
 ~~~
@@ -376,7 +376,7 @@ class Shop {
     private record Sku(String value) {}
 
     @GenerateLenses
-    record Item(Sku sku, String name) {}
+    record Item(Sku sku) {}
 }
 ```
 ~~~
@@ -385,7 +385,7 @@ class Shop {
 
 A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Maybe`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
 
-**Fix.** Name the type argument, `Set<Leaf>` rather than `Set<? extends Leaf>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
+**Fix.** Name the type argument, `Set<Widget>` rather than `Set<? extends Widget>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
 
 ~~~admonish note title="Why" collapsible=true
 That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose element type is free to be whatever the field says.
@@ -734,10 +734,10 @@ interface SessionOpticsSpec extends OpticsSpec<Session> {
 
 ### "'XOpticsSpec' declares `OpticsSpec<S>`, which is a type variable"
 
-The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`.
+The spec interface is generic, and its own type parameter is the source type: `interface SessionOpticsSpec<S extends Session> extends OpticsSpec<S>`.
 
-**Fix.** Name the type the optics are for as the type argument, with its own type arguments where it has any: `OpticsSpec<Box>`. Where the bound names a single type that is not raw, the message suggests it for you.
-A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, String> label()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
+**Fix.** Name the type the optics are for as the type argument, with its own type arguments where it has any: `OpticsSpec<Session>`. Where the bound names a single type that is not raw, the message suggests it for you.
+A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, U> value()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
 
 ~~~admonish note title="Why" collapsible=true
 Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
@@ -761,7 +761,7 @@ interface SessionOpticsSpec<S extends Session> extends OpticsSpec<S> {
 
 The source type names a generic type without its arguments.
 
-**Fix.** Name the raw type's arguments in the `OpticsSpec` clause: `OpticsSpec<Box<String>>`, `OpticsSpec<Outer<String>.Holder>`, `OpticsSpec<Box<List<String>>>`. A spec whose optics should stay generic declares its own type parameters and passes them on, `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>`, as above. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces).
+**Fix.** Name the raw type's arguments in the `OpticsSpec` clause: `OpticsSpec<Box<String>>`, `OpticsSpec<Outer<String>.Holder>`, `OpticsSpec<Box<List<String>>>`. A spec whose optics should stay generic declares its own type parameters and passes them on, `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces).
 
 ~~~admonish note title="Why" collapsible=true
 Every generated optic repeats the source type verbatim, so the generated file, which you cannot edit, would carry a `[rawtypes]` warning that the `@SuppressWarnings` on your own spec does not cover, and a `@ViaConstructor` rebuild read under a raw type erases its parameters into an `[unchecked]` call besides. Three shapes draw the error: the source type itself written bare (`OpticsSpec<Box>` for a `Box<X>`), a member type behind a generic outer written bare (`OpticsSpec<Outer.Holder>`, raw by JLS 4.8 even though `Holder` declares nothing of its own), and a raw type argument (`OpticsSpec<Box<List>>`). Raw is not the same as bare: a non-generic source type, or a static nested type of a generic outer, has no arguments to supply and is accepted as written. A record component is different, and the optics generated for one carry that suppression for you: a component is the declared shape of your data, while an `OpticsSpec` clause is a signature written for the generator, where the type arguments are yours to supply. The focus type a spec method declares is the same kind of thing as a component, and its optic method carries the suppression too.
@@ -1228,22 +1228,22 @@ interface SlotOpticsSpec extends OpticsSpec<Slot<?>> {
 
 The method a spec's `@Wither` call binds hands back something other than the source type the spec declares: that type raw, the type under other arguments, or a supertype.
 
-**Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Draft<String> withId(String)` on a `Draft<T>`, declare the spec over that instantiation, `OpticsSpec<Draft<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
+**Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Memo<String> withId(String)` on a `Memo<T>`, declare the spec over that instantiation, `OpticsSpec<Memo<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
 
 ~~~admonish note title="Why" collapsible=true
-The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Draft<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Draft<? extends Number>`, is not inferred, and such a wither is refused.
+The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Memo<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Memo<? extends Number>`, is not inferred, and such a wither is refused.
 
-Where the name is overloaded, the method checked is the one the call binds. The lens passes the new value typed by its focus, and javac chooses among the overloads by that type, so beside a `withN(int)` that returns the source type, an `Object withN(Integer)` is the one an `Integer` focus calls, and the one refused. Where that choice rests on inference, a method whose parameter is one of its own type variables or one taking varargs, the name is accepted when one of the methods the call might bind is an instance method returning the source type, and javac checks the call itself. A focus written as a wildcard is read the same way, since such a lens infers its focus from the getter as much as from the wildcard. Imported by class literal instead, `@ImportOptics({Draft.class})`, such a wither is not paired at all, under the [pairing rule](importing_optics.md#wither-classes-to-lenses).
+Where the name is overloaded, the method checked is the one the call binds. The lens passes the new value typed by its focus, and javac chooses among the overloads by that type, so beside a `withN(int)` that returns the source type, an `Object withN(Integer)` is the one an `Integer` focus calls, and the one refused. Where that choice rests on inference, a method whose parameter is one of its own type variables or one taking varargs, the name is accepted when one of the methods the call might bind is an instance method returning the source type, and javac checks the call itself. A focus written as a wildcard is read the same way, since such a lens infers its focus from the getter as much as from the wildcard. Imported by class literal instead, `@ImportOptics({Memo.class})`, such a wither is not paired at all, under the [pairing rule](importing_optics.md#wither-classes-to-lenses).
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "not the source type 'Draft<T>'" -->
+<!-- verify:rejects "not the source type 'Memo<T>'" -->
 ```java
-final class Draft<T> {
+final class Memo<T> {
 
     private final String id;
 
-    Draft(String id) {
+    Memo(String id) {
         this.id = id;
     }
 
@@ -1252,16 +1252,16 @@ final class Draft<T> {
     }
 
     @SuppressWarnings("rawtypes")
-    public Draft withId(String id) {
-        return new Draft<>(id);
+    public Memo withId(String id) {
+        return new Memo<>(id);
     }
 }
 
 @ImportOptics
-interface DraftOpticsSpec<T> extends OpticsSpec<Draft<T>> {
+interface MemoOpticsSpec<T> extends OpticsSpec<Memo<T>> {
 
     @Wither(value = "withId", getter = "id")
-    Lens<Draft<T>, String> id();
+    Lens<Memo<T>, String> id();
 }
 ```
 ~~~
@@ -1279,11 +1279,11 @@ The generated lens sets through `source.withX(newValue)`, so the method has to e
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no method 'withIdentifier' for the generated lens to call" -->
 ```java
-final class Ticket {
+final class Licence {
 
     private final String id;
 
-    Ticket(String id) {
+    Licence(String id) {
         this.id = id;
     }
 
@@ -1291,16 +1291,16 @@ final class Ticket {
         return id;
     }
 
-    public Ticket withId(String id) {
-        return new Ticket(id);
+    public Licence withId(String id) {
+        return new Licence(id);
     }
 }
 
 @ImportOptics
-interface TicketOpticsSpec extends OpticsSpec<Ticket> {
+interface LicenceOpticsSpec extends OpticsSpec<Licence> {
 
     @Wither(value = "withIdentifier", getter = "id")
-    Lens<Ticket, String> id();
+    Lens<Licence, String> id();
 }
 ```
 ~~~
@@ -1452,11 +1452,11 @@ The generated optic calls the name as written. Checked here, the spec method is 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has no method 'getIdentifier()' for the generated lens to read the value it focuses" -->
 ```java
-final class Receipt {
+final class Permit {
 
     private final String id;
 
-    Receipt(String id) {
+    Permit(String id) {
         this.id = id;
     }
 
@@ -1464,16 +1464,16 @@ final class Receipt {
         return id;
     }
 
-    public Receipt withId(String id) {
-        return new Receipt(id);
+    public Permit withId(String id) {
+        return new Permit(id);
     }
 }
 
 @ImportOptics
-interface ReceiptOpticsSpec extends OpticsSpec<Receipt> {
+interface PermitOpticsSpec extends OpticsSpec<Permit> {
 
     @Wither(value = "withId", getter = "getIdentifier")
-    Lens<Receipt, String> id();
+    Lens<Permit, String> id();
 }
 ```
 ~~~
@@ -1577,13 +1577,13 @@ A builder chain is three calls, and only the first is made on the source type. R
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "not the source type 'Parcel'" -->
+<!-- verify:rejects "not the source type 'Hamper'" -->
 ```java
-final class Parcel {
+final class Hamper {
 
     private final String id;
 
-    Parcel(String id) {
+    Hamper(String id) {
         this.id = id;
     }
 
@@ -1611,10 +1611,10 @@ final class Parcel {
 }
 
 @ImportOptics
-interface ParcelOpticsSpec extends OpticsSpec<Parcel> {
+interface HamperOpticsSpec extends OpticsSpec<Hamper> {
 
     @ViaBuilder
-    Lens<Parcel, String> id();
+    Lens<Hamper, String> id();
 }
 ```
 ~~~
@@ -2198,7 +2198,7 @@ interface Orders {
 
 <!-- verify -->
 ```java
-TraversalPath<User, Role> allRoles =
+TraversalPath<Operator, Role> allRoles =
     rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
 ```
 
@@ -2214,13 +2214,13 @@ Usually one `.each()` too many.
 
 <!-- verify -->
 ```java
-TraversalPath<Company, Department> depts     = CompanyFocus.departments();
-TraversalPath<Company, Employee>   employees = depts.via(DepartmentFocus.employees());
-TraversalPath<Company, Integer>    salaries  = employees.via(EmployeeFocus.salary());
+TraversalPath<OrgChart, OrgUnit>   units    = OrgChartFocus.units();
+TraversalPath<OrgChart, OrgMember> members  = units.via(OrgUnitFocus.members());
+TraversalPath<OrgChart, Integer>   salaries = members.via(OrgMemberFocus.salary());
 ```
 
 ~~~admonish note title="Why" collapsible=true
-A generated accessor for a collection component is *already* element-level, so `CompanyFocus.departments()` is a `TraversalPath<Company, Department>` and adding `.each()` steps into a `Department` as though it were a list. Long chains can also overflow Java's inference budget.
+A generated accessor for a collection component is *already* element-level, so `OrgChartFocus.units()` is a `TraversalPath<OrgChart, OrgUnit>` and adding `.each()` steps into an `OrgUnit` as though it were a list. Long chains can also overflow Java's inference budget.
 ~~~
 
 ~~~admonish warning title="The extra `.each()` compiles"
@@ -2235,12 +2235,12 @@ Only the *final* `each()` in a chain can infer its element type from the target 
 
 <!-- verify -->
 ```java
-TraversalPath<Company, Integer> allSalaries =
-    FocusPath.of(CompanyLenses.departments())
-        .<Department>each()
-        .via(DepartmentLenses.employees())
-        .<Employee>each()
-        .via(EmployeeLenses.salary());
+TraversalPath<OrgChart, Integer> allSalaries =
+    FocusPath.of(OrgChartLenses.units())
+        .<OrgUnit>each()
+        .via(OrgUnitLenses.members())
+        .<OrgMember>each()
+        .via(OrgMemberLenses.salary());
 ```
 
 ### "Method reference ::new doesn't work with single-field records as BiFunction"
@@ -2277,7 +2277,7 @@ Forgetting to call an interpreter. A `Free` program is data; you must run it to 
 
 <!-- verify -->
 ```java
-Person result = OpticInterpreters.direct().run(program);
+Saver result = OpticInterpreters.direct().run(program);
 ```
 
 ---

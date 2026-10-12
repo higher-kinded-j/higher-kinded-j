@@ -3,10 +3,15 @@
 package org.higherkindedj.example.optics.fluent.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
-/** Represents a promotional discount with validity period. */
+/** Represents a transfer of money between accounts. */
 @GenerateLenses(targetPackage = "org.higherkindedj.example.optics.fluent.generated")
-public record Promotion(
-    String promotionId, BigDecimal discountPercent, LocalDate startDate, LocalDate endDate) {}
+public record Transfer(
+    String txnId,
+    Account fromAccount,
+    Account toAccount,
+    BigDecimal amount,
+    TransferStatus status,
+    Instant timestamp) {}

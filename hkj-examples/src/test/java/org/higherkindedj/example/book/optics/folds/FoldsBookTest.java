@@ -94,8 +94,9 @@ class FoldsBookTest {
   @Test
   @DisplayName("Fold.empty focuses on nothing")
   void emptyFoldFocusesOnNothing() {
-    Employee alice = new Employee("Alice", "alice@example.com");
-    Team team = new Team("Core", alice, List.of(new Employee("Bob", "bob@example.com")));
+    TeamMember alice = new TeamMember("Alice", "alice@example.com");
+    ProjectTeam team =
+        new ProjectTeam("Core", alice, List.of(new TeamMember("Bob", "bob@example.com")));
 
     assertThat(FoldsBook.emptyFold(team)).containsExactly(List.of(), 0, true);
   }
@@ -103,7 +104,7 @@ class FoldsBookTest {
   @Test
   @DisplayName("plus keeps the first fold's values before the second's")
   void plusKeepsTheOrder() {
-    Employee alice = new Employee("Alice", "alice@example.com");
+    TeamMember alice = new TeamMember("Alice", "alice@example.com");
 
     assertThat(FoldsBook.ordering(FoldsBook.NAME_LENS, FoldsBook.EMAIL_LENS, alice))
         .containsExactly(

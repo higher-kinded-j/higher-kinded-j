@@ -128,11 +128,11 @@ record Team(String name, List<Player> players) {}
 record League(String name, List<Team> teams) {}
 
 @GeneratePrisms
-sealed interface PaymentMethod {
-  record CreditCard(String number) implements PaymentMethod {}
+sealed interface Payment permits Card, Bank {}
 
-  record BankTransfer(String iban) implements PaymentMethod {}
-}
+record Card(String pan) implements Payment {}
+
+record Bank(String iban) implements Payment {}
 
 record EmailAddress(String value) {
 
@@ -253,7 +253,7 @@ class Fixture {
 
   static final League league = sample();
 
-  static final PaymentMethod payment = new PaymentMethod.CreditCard("4242");
+  static final Payment payment = new Card("4242424242424242");
 
   static final Person person = new Person("Alice", "a@b.test");
 

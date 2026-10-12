@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Kind;
@@ -35,39 +36,38 @@ public class EventProcessingExample {
 
   // Event type hierarchy
   @GeneratePrisms
-  public sealed interface DomainEvent permits UserEvent, OrderEvent, SystemEvent {}
+  public sealed interface PlatformEvent permits AccountEvent, PurchaseEvent, SystemEvent {}
 
   @GeneratePrisms
-  public sealed interface UserEvent extends DomainEvent
+  public sealed interface AccountEvent extends PlatformEvent
       permits UserRegistered, UserLoggedIn, UserUpdated {}
 
   @GenerateLenses
   public record UserRegistered(String userId, String email, Instant timestamp)
-      implements UserEvent {}
+      implements AccountEvent {}
 
   @GenerateLenses
   public record UserLoggedIn(String userId, String ipAddress, Instant timestamp)
-      implements UserEvent {}
+      implements AccountEvent {}
 
-  public record UserUpdated(
-      String userId, String field, String oldValue, String newValue, Instant timestamp)
-      implements UserEvent {}
+  public record UserUpdated(String userId, Map<String, String> changes, Instant timestamp)
+      implements AccountEvent {}
 
   @GeneratePrisms
-  public sealed interface OrderEvent extends DomainEvent
-      permits OrderPlaced, OrderShipped, OrderCancelled {}
+  public sealed interface PurchaseEvent extends PlatformEvent
+      permits OrderSubmitted, OrderShipped, OrderCancelled {}
 
-  public record OrderPlaced(String orderId, String userId, double amount, Instant timestamp)
-      implements OrderEvent {}
+  public record OrderSubmitted(String orderId, String userId, double amount, Instant timestamp)
+      implements PurchaseEvent {}
 
   public record OrderShipped(String orderId, String trackingNumber, Instant timestamp)
-      implements OrderEvent {}
+      implements PurchaseEvent {}
 
   public record OrderCancelled(String orderId, String reason, Instant timestamp)
-      implements OrderEvent {}
+      implements PurchaseEvent {}
 
   @GeneratePrisms
-  public sealed interface SystemEvent extends DomainEvent
+  public sealed interface SystemEvent extends PlatformEvent
       permits ServiceStarted, ServiceStopped, HealthCheck {}
 
   public record ServiceStarted(String serviceName, String version, Instant timestamp)
@@ -79,21 +79,24 @@ public class EventProcessingExample {
       implements SystemEvent {}
 
   // Prisms for event type access
-  private static final Prism<DomainEvent, UserEvent> USER_EVENT = DomainEventPrisms.userEvent();
-  private static final Prism<DomainEvent, OrderEvent> ORDER_EVENT = DomainEventPrisms.orderEvent();
-  private static final Prism<DomainEvent, SystemEvent> SYSTEM_EVENT =
-      DomainEventPrisms.systemEvent();
+  private static final Prism<PlatformEvent, AccountEvent> ACCOUNT_EVENT =
+      PlatformEventPrisms.accountEvent();
+  private static final Prism<PlatformEvent, PurchaseEvent> PURCHASE_EVENT =
+      PlatformEventPrisms.purchaseEvent();
+  private static final Prism<PlatformEvent, SystemEvent> SYSTEM_EVENT =
+      PlatformEventPrisms.systemEvent();
 
-  private static final Prism<UserEvent, UserRegistered> USER_REGISTERED =
-      UserEventPrisms.userRegistered();
-  private static final Prism<UserEvent, UserLoggedIn> USER_LOGGED_IN =
-      UserEventPrisms.userLoggedIn();
+  private static final Prism<AccountEvent, UserRegistered> USER_REGISTERED =
+      AccountEventPrisms.userRegistered();
+  private static final Prism<AccountEvent, UserLoggedIn> USER_LOGGED_IN =
+      AccountEventPrisms.userLoggedIn();
 
-  private static final Prism<OrderEvent, OrderPlaced> ORDER_PLACED = OrderEventPrisms.orderPlaced();
-  private static final Prism<OrderEvent, OrderShipped> ORDER_SHIPPED =
-      OrderEventPrisms.orderShipped();
-  private static final Prism<OrderEvent, OrderCancelled> ORDER_CANCELLED =
-      OrderEventPrisms.orderCancelled();
+  private static final Prism<PurchaseEvent, OrderSubmitted> ORDER_SUBMITTED =
+      PurchaseEventPrisms.orderSubmitted();
+  private static final Prism<PurchaseEvent, OrderShipped> ORDER_SHIPPED =
+      PurchaseEventPrisms.orderShipped();
+  private static final Prism<PurchaseEvent, OrderCancelled> ORDER_CANCELLED =
+      PurchaseEventPrisms.orderCancelled();
 
   public static void main(String[] args) {
     System.out.println("=== Event Processing with Prisms ===\n");
@@ -109,18 +112,18 @@ public class EventProcessingExample {
   private static void demonstrateEventRouting() {
     System.out.println("--- Event Routing ---");
 
-    List<DomainEvent> events =
+    List<PlatformEvent> events =
         List.of(
             new UserRegistered("U001", "alice@example.com", Instant.now()),
-            new OrderPlaced("O001", "U001", 99.99, Instant.now()),
+            new OrderSubmitted("O001", "U001", 99.99, Instant.now()),
             new ServiceStarted("payment-service", "1.0.0", Instant.now()),
             new UserLoggedIn("U002", "192.168.1.1", Instant.now()));
 
     // Route events to appropriate handlers
-    for (DomainEvent event : events) {
-      if (USER_EVENT.matches(event)) {
+    for (PlatformEvent event : events) {
+      if (ACCOUNT_EVENT.matches(event)) {
         System.out.println("  Routing to user event handler: " + event.getClass().getSimpleName());
-      } else if (ORDER_EVENT.matches(event)) {
+      } else if (PURCHASE_EVENT.matches(event)) {
         System.out.println("  Routing to order event handler: " + event.getClass().getSimpleName());
       } else if (SYSTEM_EVENT.matches(event)) {
         System.out.println(
@@ -134,21 +137,21 @@ public class EventProcessingExample {
   private static void demonstrateEventFiltering() {
     System.out.println("--- Event Filtering ---");
 
-    List<DomainEvent> events =
+    List<PlatformEvent> events =
         List.of(
             new UserRegistered("U001", "alice@example.com", Instant.now()),
-            new OrderPlaced("O001", "U001", 199.99, Instant.now()),
-            new OrderPlaced("O002", "U002", 49.99, Instant.now()),
+            new OrderSubmitted("O001", "U001", 199.99, Instant.now()),
+            new OrderSubmitted("O002", "U002", 49.99, Instant.now()),
             new OrderShipped("O001", "TRACK123", Instant.now()),
             new UserLoggedIn("U001", "192.168.1.1", Instant.now()));
 
     // Extract high-value orders (> £100)
-    List<OrderPlaced> highValue =
+    List<OrderSubmitted> highValue =
         events.stream()
             .flatMap(
                 event ->
-                    ORDER_EVENT
-                        .andThen(ORDER_PLACED)
+                    PURCHASE_EVENT
+                        .andThen(ORDER_SUBMITTED)
                         .getOptional(event)
                         .filter(order -> order.amount() > 100.0)
                         .stream())
@@ -166,7 +169,7 @@ public class EventProcessingExample {
         events.stream()
             .flatMap(
                 event ->
-                    USER_EVENT
+                    ACCOUNT_EVENT
                         .andThen(USER_LOGGED_IN)
                         .getOptional(event)
                         .filter(login -> login.userId().equals(targetUserId))
@@ -181,23 +184,24 @@ public class EventProcessingExample {
   private static void demonstrateEventEnrichment() {
     System.out.println("--- Event Enrichment ---");
 
-    DomainEvent orderEvent = new OrderPlaced("O001", "U123", 99.99, Instant.now().minusSeconds(60));
+    PlatformEvent orderEvent =
+        new OrderSubmitted("O001", "U123", 99.99, Instant.now().minusSeconds(60));
 
     // Enrich event with current timestamp if it's too old
     Instant cutoff = Instant.now().minusSeconds(30);
 
-    DomainEvent enriched =
-        ORDER_EVENT.modifyWhen(
+    PlatformEvent enriched =
+        PURCHASE_EVENT.modifyWhen(
             event ->
-                ORDER_PLACED
+                ORDER_SUBMITTED
                     .getOptional(event)
                     .map(order -> order.timestamp().isBefore(cutoff))
                     .orElse(false),
             event ->
                 Optional.ofNullable(
-                        ORDER_PLACED.modify(
+                        ORDER_SUBMITTED.modify(
                             order ->
-                                new OrderPlaced(
+                                new OrderSubmitted(
                                     order.orderId(), order.userId(), order.amount(), Instant.now()),
                             event))
                     .orElse(event),
@@ -207,10 +211,10 @@ public class EventProcessingExample {
     System.out.println("Enriched event: " + enriched);
 
     // Sanitise sensitive data in user events
-    DomainEvent userEvent = new UserRegistered("U001", "alice@example.com", Instant.now());
+    PlatformEvent userEvent = new UserRegistered("U001", "alice@example.com", Instant.now());
 
-    DomainEvent sanitised =
-        USER_EVENT.modify(
+    PlatformEvent sanitised =
+        ACCOUNT_EVENT.modify(
             event ->
                 Optional.ofNullable(
                         USER_REGISTERED.modify(
@@ -232,10 +236,10 @@ public class EventProcessingExample {
   private static void demonstrateCompositeHandlers() {
     System.out.println("--- Composite Event Handlers ---");
 
-    List<DomainEvent> events =
+    List<PlatformEvent> events =
         List.of(
             new UserRegistered("U001", "alice@example.com", Instant.now()),
-            new OrderPlaced("O001", "U001", 99.99, Instant.now()),
+            new OrderSubmitted("O001", "U001", 99.99, Instant.now()),
             new UserLoggedIn("U002", "192.168.1.1", Instant.now()),
             new UserRegistered("U003", "charlie@example.com", Instant.now()));
 
@@ -243,12 +247,12 @@ public class EventProcessingExample {
     events.stream()
         .flatMap(
             event ->
-                USER_EVENT
+                ACCOUNT_EVENT
                     .andThen(USER_REGISTERED)
                     .mapOptional(UserRegistered::userId, event)
                     .or(
                         () ->
-                            USER_EVENT
+                            ACCOUNT_EVENT
                                 .andThen(USER_LOGGED_IN)
                                 .mapOptional(UserLoggedIn::userId, event))
                     .stream())
@@ -260,21 +264,21 @@ public class EventProcessingExample {
   private static void demonstrateEventAggregation() {
     System.out.println("--- Event Aggregation Statistics ---");
 
-    List<DomainEvent> eventStream =
+    List<PlatformEvent> eventStream =
         List.of(
             new UserRegistered("U001", "alice@example.com", Instant.now()),
             new UserRegistered("U002", "bob@example.com", Instant.now()),
-            new OrderPlaced("O001", "U001", 199.99, Instant.now()),
-            new OrderPlaced("O002", "U002", 49.99, Instant.now()),
-            new OrderPlaced("O003", "U001", 299.99, Instant.now()),
+            new OrderSubmitted("O001", "U001", 199.99, Instant.now()),
+            new OrderSubmitted("O002", "U002", 49.99, Instant.now()),
+            new OrderSubmitted("O003", "U001", 299.99, Instant.now()),
             new OrderShipped("O001", "TRACK123", Instant.now()),
             new OrderCancelled("O002", "Out of stock", Instant.now()),
             new UserLoggedIn("U001", "192.168.1.1", Instant.now()),
             new ServiceStarted("order-service", "2.0.0", Instant.now()));
 
     // Count events by type
-    long userEvents = eventStream.stream().filter(USER_EVENT::matches).count();
-    long orderEvents = eventStream.stream().filter(ORDER_EVENT::matches).count();
+    long userEvents = eventStream.stream().filter(ACCOUNT_EVENT::matches).count();
+    long orderEvents = eventStream.stream().filter(PURCHASE_EVENT::matches).count();
     long systemEvents = eventStream.stream().filter(SYSTEM_EVENT::matches).count();
 
     System.out.println("Event counts by category:");
@@ -285,8 +289,8 @@ public class EventProcessingExample {
     // Calculate total order value
     double totalOrderValue =
         eventStream.stream()
-            .flatMap(event -> ORDER_EVENT.andThen(ORDER_PLACED).getOptional(event).stream())
-            .mapToDouble(OrderPlaced::amount)
+            .flatMap(event -> PURCHASE_EVENT.andThen(ORDER_SUBMITTED).getOptional(event).stream())
+            .mapToDouble(OrderSubmitted::amount)
             .sum();
 
     System.out.println("Total order value: £" + String.format("%.2f", totalOrderValue));
@@ -296,12 +300,12 @@ public class EventProcessingExample {
         eventStream.stream()
             .flatMap(
                 event ->
-                    USER_EVENT
+                    ACCOUNT_EVENT
                         .andThen(USER_REGISTERED)
                         .mapOptional(UserRegistered::userId, event)
                         .or(
                             () ->
-                                USER_EVENT
+                                ACCOUNT_EVENT
                                     .andThen(USER_LOGGED_IN)
                                     .mapOptional(UserLoggedIn::userId, event))
                         .stream())
@@ -325,35 +329,37 @@ public class EventProcessingExample {
 
     MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
 
-    List<DomainEvent> events =
+    List<PlatformEvent> events =
         List.of(
             new UserRegistered("U001", "alice@example.com", Instant.now()),
-            new OrderPlaced("O001", "U001", 199.99, Instant.now()),
-            new OrderPlaced("O002", "U002", 49.99, Instant.now()),
+            new OrderSubmitted("O001", "U001", 199.99, Instant.now()),
+            new OrderSubmitted("O002", "U002", 49.99, Instant.now()),
             new UserLoggedIn("U001", "192.168.1.1", Instant.now()),
             new OrderShipped("O001", "TRACK123", Instant.now()),
             new ServiceStarted("payment-service", "1.0.0", Instant.now()),
-            new OrderPlaced("O003", "U003", 350.00, Instant.now()));
+            new OrderSubmitted("O003", "U003", 350.00, Instant.now()));
 
     // Example 1: Extract high-value orders using For + match()
     // Compare with the traditional flatMap approach in demonstrateEventFiltering()
-    Prism<DomainEvent, OrderPlaced> orderPlacedPrism = ORDER_EVENT.andThen(ORDER_PLACED);
+    Prism<PlatformEvent, OrderSubmitted> orderSubmittedPrism =
+        PURCHASE_EVENT.andThen(ORDER_SUBMITTED);
 
-    Kind<ListKind.Witness, OrderPlaced> highValueOrders =
+    Kind<ListKind.Witness, OrderSubmitted> highValueOrders =
         For.from(listMonad, LIST.widen(events))
-            .match(orderPlacedPrism)
+            .match(orderSubmittedPrism)
             .when(t -> t._2().amount() > 100.0)
             .yield((event, order) -> order);
 
-    List<OrderPlaced> highValueList = LIST.narrow(highValueOrders);
+    List<OrderSubmitted> highValueList = LIST.narrow(highValueOrders);
 
     System.out.println("High-value orders (> £100) using For + match():");
-    for (OrderPlaced order : highValueList) {
+    for (OrderSubmitted order : highValueList) {
       System.out.printf("  Order %s: £%.2f%n", order.orderId(), order.amount());
     }
 
     // Example 2: Extract user registration emails
-    Prism<DomainEvent, UserRegistered> userRegisteredPrism = USER_EVENT.andThen(USER_REGISTERED);
+    Prism<PlatformEvent, UserRegistered> userRegisteredPrism =
+        ACCOUNT_EVENT.andThen(USER_REGISTERED);
 
     Kind<ListKind.Witness, String> registrationEmails =
         For.from(listMonad, LIST.widen(events))
@@ -371,7 +377,7 @@ public class EventProcessingExample {
     // Extract order IDs along with amounts for orders from specific users
     Kind<ListKind.Witness, String> orderSummaries =
         For.from(listMonad, LIST.widen(events))
-            .match(orderPlacedPrism)
+            .match(orderSubmittedPrism)
             .focus(t -> t._2().userId())
             .when(t -> t._3().startsWith("U00"))
             .yield(
@@ -387,10 +393,10 @@ public class EventProcessingExample {
     }
 
     // Example 4: Count events by type using match() short-circuit behaviour
-    // Only UserEvents pass through this comprehension
+    // Only AccountEvents pass through this comprehension
     Kind<ListKind.Witness, String> userEventTypes =
         For.from(listMonad, LIST.widen(events))
-            .match(USER_EVENT)
+            .match(ACCOUNT_EVENT)
             .yield((event, userEvent) -> userEvent.getClass().getSimpleName());
 
     List<String> userEventTypeList = LIST.narrow(userEventTypes);
@@ -412,7 +418,7 @@ public class EventProcessingExample {
     return email.charAt(0) + "***" + email.substring(atIndex);
   }
 
-  private static Prism<UserEvent, UserEvent> filter(Predicate<UserEvent> predicate) {
+  private static Prism<AccountEvent, AccountEvent> filter(Predicate<AccountEvent> predicate) {
     return Prism.of(
         event -> predicate.test(event) ? Optional.of(event) : Optional.empty(), event -> event);
   }

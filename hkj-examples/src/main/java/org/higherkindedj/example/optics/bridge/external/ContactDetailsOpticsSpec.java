@@ -8,16 +8,16 @@ import org.higherkindedj.optics.annotations.ImportOptics;
 import org.higherkindedj.optics.annotations.OpticsSpec;
 import org.higherkindedj.optics.annotations.Wither;
 
-/** Spec interface defining optics for the external {@link ContactInfo} type. */
+/** Spec interface defining optics for the external {@link ContactDetails} type. */
 @ImportOptics
-public interface ContactInfoOpticsSpec extends OpticsSpec<ContactInfo> {
+public interface ContactDetailsOpticsSpec extends OpticsSpec<ContactDetails> {
 
   @Wither(value = "withEmail", getter = "email")
-  Lens<ContactInfo, String> email();
+  Lens<ContactDetails, String> email();
 
   @Wither(value = "withPhone", getter = "phone")
-  Lens<ContactInfo, String> phone();
+  Lens<ContactDetails, String> phone();
 
   @Wither(value = "withFax", getter = "fax")
-  Lens<ContactInfo, Optional<String>> fax();
+  Lens<ContactDetails, Optional<String>> fax();
 }

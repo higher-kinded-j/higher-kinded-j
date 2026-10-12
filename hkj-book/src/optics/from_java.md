@@ -47,7 +47,7 @@ A stream over a list field reads the elements, and a wither puts the new list ba
 | `stream().filter(p).map(f).toList()` | `.filter(p)` on the path, then `modifyAll(f, order)` | the stream drops what `p` rejects; the filtered path keeps it, unchanged |
 | `stream().map(f).toList()`, to read the values | `path.getAll(order)` | |
 | `reduce`, `anyMatch`, `count` | `foldMap(monoid, f, order)`, `exists(p, order)` and `count(order)` on the path | only reads; `exists` stops at its first match, as [What reads cost](production_readiness.md#read-cost) explains |
-| `Collectors.toMap` over a map's entries, to change every value | `CatalogueFocus.prices().each(EachInstances.mapValuesEach()).modifyAll(f, catalogue)` | `toMap` promises no map type and no order; the path keeps the source's iteration order |
+| `Collectors.toMap` over a map's entries, to change every value | `PriceListFocus.prices().each(EachInstances.mapValuesEach()).modifyAll(f, priceList)` | `toMap` promises no map type and no order; the path keeps the source's iteration order |
 | `limit(n)` or `skip(n)`, then `map(f)` | `ListTraversals.taking(n)` or `dropping(n)`, reached from the list's lens | the stream drops the rest; the [limited traversal](limiting_traversals.md) keeps it, unchanged |
 | A loop that checks every element and collects the failures | `OpticOps.modifyAllValidated(order, path.toTraversal(), check)` | every bad value reported at once: [Updates That Can Fail](fluent_api.md#every-element-every-error) |
 

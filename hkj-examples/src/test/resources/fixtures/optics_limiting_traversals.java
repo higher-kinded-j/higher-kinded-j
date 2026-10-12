@@ -1,6 +1,6 @@
 // Fixture for hkj-book/src/optics/limiting_traversals.md
 //
-// The page pages through a product catalogue, and reaches for orders, transactions and log lines
+// The page pages through a product catalogue, and reaches for orders, payments and log lines
 // to show `takingWhile` and `droppingWhile` on other shapes. The orders are the chapter's cast,
 // through the on-demand import; the other models are declared here, and the snippet that shows
 // them shadows this copy.
@@ -42,10 +42,10 @@ record Catalogue(String name, List<Product> products) {}
 @GenerateLenses
 record SalesMetric(LocalDate date, BigDecimal revenue, int transactions) {}
 
-record Transaction(LocalDateTime timestamp, String status) {
+record PaymentRecord(String id, LocalDateTime timestamp, BigDecimal amount, String status) {
 
-  Transaction withStatus(String newStatus) {
-    return new Transaction(timestamp, newStatus);
+  PaymentRecord withStatus(String newStatus) {
+    return new PaymentRecord(id, timestamp, amount, newStatus);
   }
 }
 
@@ -63,8 +63,8 @@ class Fixture {
 
   static final List<Order> orders = List.of();
 
-  static final List<Transaction> transactions =
-      List.of(new Transaction(LocalDateTime.MIN, "PENDING"));
+  static final List<PaymentRecord> payments =
+      List.of(new PaymentRecord("PAY-1", LocalDateTime.MIN, BigDecimal.ONE, "PENDING"));
 
   static final Traversal<List<Product>, Product> first5 = ListTraversals.taking(5);
 

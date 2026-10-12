@@ -44,13 +44,11 @@ public class OptionalMapTraversalsExample {
     }
   }
 
-  record ApplicationConfig(
-      String appName, Optional<ServerConfig> server, Map<String, String> properties) {
+  record ApplicationConfig(String appName, Optional<ServerConfig> server) {
     @Override
     public String toString() {
       return String.format(
-          "App[name=%s, server=%s, props=%d]",
-          appName, server.map(s -> "configured").orElse("none"), properties.size());
+          "App[name=%s, server=%s]", appName, server.map(s -> "configured").orElse("none"));
     }
   }
 

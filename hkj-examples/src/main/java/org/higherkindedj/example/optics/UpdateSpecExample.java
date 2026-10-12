@@ -22,9 +22,9 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * contract, sparseness is an explicit opt-in: the spec extends {@link UpdateSpec} instead of {@code
  * MappingSpec}.
  *
- * <p>The generated {@code UpdateSpecExampleUserPatchMappingImpl} exposes a single method, {@code
- * updateFrom(UserPatchRequest) : Edits.Accumulated<User>} — no {@code build}, {@code parse} or
- * {@code as*} tier. It folds the present (non-null) properties into an {@link
+ * <p>The generated {@code UpdateSpecExampleProfilePatchMappingImpl} exposes a single method, {@code
+ * updateFrom(ProfilePatchRequest) : Edits.Accumulated<MemberProfile>} — no {@code build}, {@code
+ * parse} or {@code as*} tier. It folds the present (non-null) properties into an {@link
  * org.higherkindedj.hkt.Update}:
  *
  * <ul>
@@ -44,10 +44,10 @@ public final class UpdateSpecExample {
   public record EmailAddress(String value) {}
 
   /** The immutable domain record a PATCH is applied onto. */
-  public record User(String name, EmailAddress email, int age) {}
+  public record MemberProfile(String name, EmailAddress email, int age) {}
 
   /** A PATCH request bean: reference-typed getters/setters, a wrapper {@code Integer} for age. */
-  public static final class UserPatchRequest {
+  public static final class ProfilePatchRequest {
     private String name;
     private String email;
     private Integer age;
@@ -78,7 +78,7 @@ public final class UpdateSpecExample {
   }
 
   @GenerateMapping
-  public interface UserPatchMapping extends UpdateSpec<User, UserPatchRequest> {
+  public interface ProfilePatchMapping extends UpdateSpec<MemberProfile, ProfilePatchRequest> {
     default ValidatedPrism<String, EmailAddress> email() {
       return emailPrism();
     }
@@ -94,38 +94,39 @@ public final class UpdateSpecExample {
   }
 
   /**
-   * Applies a PATCH request onto the current user: the present fields are folded in and validated,
-   * the absent ones keep their current value. A present-but-invalid field fails the whole patch,
-   * located — the endpoint would answer {@code 400} with the errors rather than persist a partial
-   * write.
+   * Applies a PATCH request onto the current profile: the present fields are folded in and
+   * validated, the absent ones keep their current value. A present-but-invalid field fails the
+   * whole patch, located — the endpoint would answer {@code 400} with the errors rather than
+   * persist a partial write.
    */
-  public static Validated<NonEmptyList<FieldError>, User> applyPatch(
-      User current, UserPatchRequest request) {
-    Edits.Accumulated<User> patch =
-        UpdateSpecExampleUserPatchMappingImpl.INSTANCE.updateFrom(request);
+  public static Validated<NonEmptyList<FieldError>, MemberProfile> applyPatch(
+      MemberProfile current, ProfilePatchRequest request) {
+    Edits.Accumulated<MemberProfile> patch =
+        UpdateSpecExampleProfilePatchMappingImpl.INSTANCE.updateFrom(request);
     return patch.apply(current);
   }
 
   public static void main(String[] args) {
-    User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
+    MemberProfile current = new MemberProfile("Ada", new EmailAddress("ada@corp.example"), 36);
 
     System.out.println("=== Present fields are applied, absent ones survive ===");
-    UserPatchRequest rename = new UserPatchRequest();
+    ProfilePatchRequest rename = new ProfilePatchRequest();
     rename.setName("Ada Lovelace"); // email and age left unset (null)
     System.out.println("Rename only:     " + applyPatch(current, rename));
     System.out.println(
-        "Expected: Valid(User[name=Ada Lovelace, email=ada@corp.example, age=36]) — only the name"
-            + " changed\n");
+        "Expected: Valid(MemberProfile[name=Ada Lovelace,"
+            + " email=EmailAddress[value=ada@corp.example], age=36]) — only the name changed\n");
 
     System.out.println("=== An all-absent request is the identity update ===");
-    System.out.println("Empty patch:     " + applyPatch(current, new UserPatchRequest()));
-    System.out.println("Expected: Valid(the unchanged user)\n");
+    System.out.println("Empty patch:     " + applyPatch(current, new ProfilePatchRequest()));
+    System.out.println("Expected: Valid(the unchanged profile)\n");
 
     System.out.println("=== A present invalid field fails, located ===");
-    UserPatchRequest bad = new UserPatchRequest();
+    ProfilePatchRequest bad = new ProfilePatchRequest();
     bad.setEmail("not-an-email");
     System.out.println("Bad email:       " + applyPatch(current, bad));
-    System.out.println("Expected: Invalid([email: not an email address]) — nothing is written");
+    System.out.println(
+        "Expected: Invalid(NonEmptyList[email: not an email address]) — nothing is written");
   }
 
   private UpdateSpecExample() {}

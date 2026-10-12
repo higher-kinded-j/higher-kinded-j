@@ -60,11 +60,11 @@ public final class NavigationBook {
     return List.of(lines, sameThing.getAll(order));
   }
 
-  static List<Object> eachCustom(Catalogue catalogue, SavedForLater saved) {
+  static List<Object> eachCustom(PriceList priceList, SavedForLater saved) {
     // ANCHOR: each_custom
     // A Map field: traverse the values
-    TraversalPath<Catalogue, BigDecimal> allPrices =
-        CatalogueFocus.prices().each(EachInstances.mapValuesEach());
+    TraversalPath<PriceList, BigDecimal> allPrices =
+        PriceListFocus.prices().each(EachInstances.mapValuesEach());
 
     // An HKJ container held behind a hand-written lens
     Lens<SavedForLater, Maybe<LineItem>> itemLens =
@@ -72,7 +72,7 @@ public final class NavigationBook {
     TraversalPath<SavedForLater, LineItem> savedItem =
         FocusPath.of(itemLens).each(EachExtensions.maybeEach());
     // ANCHOR_END: each_custom
-    List<Object> found = new ArrayList<>(allPrices.getAll(catalogue));
+    List<Object> found = new ArrayList<>(allPrices.getAll(priceList));
     found.addAll(savedItem.getAll(saved));
     return found;
   }
@@ -83,7 +83,7 @@ public final class NavigationBook {
       AffinePath<Order, LineItem> alsoFirst,
       Optional<BigDecimal> lampPrice) {}
 
-  static Indexed byIndex(Order order, Catalogue catalogue) {
+  static Indexed byIndex(Order order, PriceList priceList) {
     // ANCHOR: by_index
     // A List field: start from the lens, because the generated path is element-level
     AffinePath<Order, LineItem> firstLine = FocusPath.of(OrderLenses.lines()).at(0);
@@ -94,8 +94,8 @@ public final class NavigationBook {
     AffinePath<Order, LineItem> alsoFirst = OrderFocus.lines().headOption();
 
     // A Map field: the generated path still focuses the whole map, so .atKey() applies
-    AffinePath<Catalogue, BigDecimal> lamp = CatalogueFocus.prices().atKey("LAMP");
-    Optional<BigDecimal> lampPrice = lamp.getOptional(catalogue);
+    AffinePath<PriceList, BigDecimal> lamp = PriceListFocus.prices().atKey("LAMP");
+    Optional<BigDecimal> lampPrice = lamp.getOptional(priceList);
     // ANCHOR_END: by_index
     return new Indexed(first, alsoFirst, lampPrice);
   }
@@ -112,10 +112,10 @@ public final class NavigationBook {
   }
 
   /** What the page's sealed-type block reads and writes. */
-  record Variants(
+  record SealedVariants(
       List<String> pans, PaymentHistory masked, TraversalPath<PaymentHistory, String> samePans) {}
 
-  static Variants sealedVariants(PaymentHistory history) {
+  static SealedVariants sealedVariants(PaymentHistory history) {
     // ANCHOR: sealed
     // A sealed type you own: @GeneratePrisms names each variant
     TraversalPath<PaymentHistory, String> cardPans =
@@ -129,16 +129,16 @@ public final class NavigationBook {
     TraversalPath<PaymentHistory, String> samePans =
         PaymentHistoryFocus.payments().via(AffinePath.instanceOf(Card.class)).via(CardFocus.pan());
     // ANCHOR_END: sealed
-    return new Variants(pans, masked, samePans);
+    return new SealedVariants(pans, masked, samePans);
   }
 
   /** The three paths the page's composition block builds. */
-  record Composed(
+  record ComposedPaths(
       FocusPath<Consignment, String> street,
       AffinePath<Order, LineItem> firstLine,
       TraversalPath<Order, LineItem> allLines) {}
 
-  static Composed composeExisting() {
+  static ComposedPaths composeExisting() {
     // ANCHOR: compose_existing
     // Path + Lens = Path
     FocusPath<Consignment, String> street =
@@ -152,7 +152,7 @@ public final class NavigationBook {
     TraversalPath<Order, LineItem> allLines =
         FocusPath.of(OrderLenses.lines()).via(Traversals.forList());
     // ANCHOR_END: compose_existing
-    return new Composed(street, firstLine, allLines);
+    return new ComposedPaths(street, firstLine, allLines);
   }
 
   static List<String> navigatorAsPath(Consignment consignment) {
@@ -255,19 +255,19 @@ public final class NavigationBook {
       Optional<Map<String, Integer>> meta,
       List<Integer> hits) {}
 
-  static Nested nested(NestedConfig nestedConfig, WidenedConfig widenedConfig) {
+  static Nested nested(NestedContainers containers, WidenedConfig widenedConfig) {
     // ANCHOR: nested
-    TraversalPath<NestedConfig, String> allTags = NestedConfigFocus.tags();
-    List<String> tagValues = allTags.getAll(nestedConfig);
+    TraversalPath<NestedContainers, String> allTags = NestedContainersFocus.tags();
+    List<String> tagValues = allTags.getAll(containers);
 
-    AffinePath<NestedConfig, String> nestedOpt = NestedConfigFocus.nested();
-    Optional<String> innerValue = nestedOpt.getOptional(nestedConfig);
+    AffinePath<NestedContainers, String> nestedOpt = NestedContainersFocus.nested();
+    Optional<String> innerValue = nestedOpt.getOptional(containers);
 
     // Either<String, List<Integer>>: a nested List is stepped into unconditionally
-    TraversalPath<NestedConfig, Integer> data = NestedConfigFocus.data();
+    TraversalPath<NestedContainers, Integer> data = NestedContainersFocus.data();
 
     // Either<String, Map<String, Integer>>: an SPI ZERO_OR_MORE stops at the Map...
-    AffinePath<NestedConfig, Map<String, Integer>> meta = NestedConfigFocus.meta();
+    AffinePath<NestedContainers, Map<String, Integer>> meta = NestedContainersFocus.meta();
 
     // ...unless widenCollections is on
     TraversalPath<WidenedConfig, Integer> hits = WidenedConfigFocus.meta();
@@ -275,8 +275,8 @@ public final class NavigationBook {
     return new Nested(
         tagValues,
         innerValue,
-        data.getAll(nestedConfig),
-        meta.getOptional(nestedConfig),
+        data.getAll(containers),
+        meta.getOptional(containers),
         hits.getAll(widenedConfig));
   }
 }
@@ -286,7 +286,7 @@ public final class NavigationBook {
 // ANCHOR: catalogue
 @GenerateLenses
 @GenerateFocus
-record Catalogue(String name, Map<String, BigDecimal> prices) {}
+record PriceList(String name, Map<String, BigDecimal> prices) {}
 
 // ANCHOR_END: catalogue
 
@@ -322,7 +322,7 @@ record Stockroom(String name, Map<String, Integer> stock, Either<String, String>
 
 @GenerateLenses
 @GenerateFocus
-record NestedConfig(
+record NestedContainers(
     Optional<List<String>> tags,
     List<Optional<String>> items,
     Optional<Optional<String>> nested,
