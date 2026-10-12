@@ -21,6 +21,12 @@
  *       org.higherkindedj.optics.Traversal}, focusing on zero or more elements
  * </ul>
  *
+ * <p>A navigator that {@code @GenerateFocus} generates is a path of one of these types too: it
+ * extends {@link org.higherkindedj.optics.focus.NavigatorFocusPath}, {@link
+ * org.higherkindedj.optics.focus.NavigatorAffinePath} or {@link
+ * org.higherkindedj.optics.focus.NavigatorTraversalPath}, and adds a navigation method for each
+ * field of the record it focuses on. So it goes wherever a path goes.
+ *
  * <h2>Quick Start</h2>
  *
  * <pre>{@code

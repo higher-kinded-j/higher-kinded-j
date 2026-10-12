@@ -51,7 +51,7 @@ record PricingError(String reason) {}
 
 record MarketPrice(double amount) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Position(String ticker, Either<PricingError, MarketPrice> livePrice) {}
 
 class Fixture {

@@ -8,7 +8,7 @@
 
 ---
 
-The [Focus DSL](focus_dsl.md) and [Collections, Optionals and Sealed Types](focus_navigation.md) cover the paths most code needs. This group covers what those pages leave out: running a path under an effect, containers the processor does not know, and record fields typed `Kind<F, A>`. It also has the prisms and extension methods that join optics to the library's core types. Read a page when one of those comes up, and skip the group until then. As a reminder of where the everyday pages left off, here are a deep read and a bulk update over the chapter's order, where `Order` and `Customer` carry `@GenerateFocus(generateNavigators = true)`. The build compiles and runs it, and a test holds each value the comments show:
+The [Focus DSL](focus_dsl.md) and [Collections, Optionals and Sealed Types](focus_navigation.md) cover the paths most code needs. This group covers what those pages leave out: running a path under an effect, containers the processor does not know, and record fields typed `Kind<F, A>`. It also has the prisms and extension methods that join optics to the library's core types. Read a page when one of those comes up, and skip the group until then. As a reminder of where the everyday pages left off, here are a deep read and a bulk update over the chapter's order, where `Order` and `Customer` carry `@GenerateFocus`. The build compiles and runs it, and a test holds each value the comments show:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/groups/GroupIntrosBook.java:focus_in_depth}}

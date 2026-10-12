@@ -201,8 +201,8 @@ public interface TraversableGenerator {
      * that names an optic expression, it decides the path tier the Focus DSL gives
      * the field:
      *   ZERO_OR_ONE  → AffinePath, always  (Either, Try, Validated)
-     *   ZERO_OR_MORE → TraversalPath under widenCollections, or when the element
-     *                  is itself a navigable record
+     *   ZERO_OR_MORE → TraversalPath under widenCollections, or when widenFields
+     *                  names the field
      *
      * Default is ZERO_OR_MORE, which is correct for collection-like types.
      */
@@ -393,7 +393,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns
-* **The optic expression opts in to widening, and cardinality picks the tier**: for a generator that names an optic, `ZERO_OR_ONE` produces an `AffinePath`, always. `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when the container's element is itself a navigable record. Static Focus methods and navigator methods read the same answer
+* **The optic expression opts in to widening, and cardinality picks the tier**: for a generator that names an optic, `ZERO_OR_ONE` produces an `AffinePath`, always. `ZERO_OR_MORE` produces a `TraversalPath` under `widenCollections = true`, or when `widenFields` names the field. Static Focus methods and navigator methods read the same answer
 ~~~
 
 ~~~admonish tip title="See Also"

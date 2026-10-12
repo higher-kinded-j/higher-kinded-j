@@ -15,8 +15,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for NavigatorClassGenerator TraversalPath generation.
  *
- * <p>Covers the previously uncovered addTraversalPathDelegateMethods, TRAVERSAL path kind
- * description, getDelegateMethodNames TRAVERSAL branch, and List-of-navigable-type navigators.
+ * <p>Covers the TRAVERSAL path kind description and List-of-navigable-type navigators.
  */
 @DisplayName("Navigator TraversalPath Tests")
 class NavigatorTraversalPathTest {
@@ -83,36 +82,6 @@ class NavigatorTraversalPathTest {
             """);
 
     Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(leaf, branch);
-
-    assertThat(compilation).succeeded();
-  }
-
-  @Test
-  @DisplayName("navigator field name collision with delegate methods is handled")
-  void shouldHandleFieldNameCollisionWithDelegateMethods() {
-    // A record with a field named "get" which collides with FocusPath delegate methods
-    final JavaFileObject innerSource =
-        JavaFileObjects.forSourceString(
-            "com.example.Inner",
-            """
-            package com.example;
-            import org.higherkindedj.optics.annotations.GenerateFocus;
-            @GenerateFocus(generateNavigators = true)
-            public record Inner(String get, String value) {}
-            """);
-
-    final JavaFileObject outerSource =
-        JavaFileObjects.forSourceString(
-            "com.example.Outer",
-            """
-            package com.example;
-            import org.higherkindedj.optics.annotations.GenerateFocus;
-            @GenerateFocus(generateNavigators = true)
-            public record Outer(String name, Inner inner) {}
-            """);
-
-    Compilation compilation =
-        javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
 
     assertThat(compilation).succeeded();
   }

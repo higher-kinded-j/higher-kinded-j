@@ -55,7 +55,7 @@ record Company(String name, List<Department> departments) {}
 @GenerateFocus
 record Settings(String theme, int fontSize) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Division(String name, Department department) {}
 
 // A Kind field behind a hand-written lens, for the traverseOver recipe

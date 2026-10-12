@@ -26,7 +26,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * An array component widens the way any other {@code ZERO_OR_MORE} SPI container does: under {@code
- * widenCollections}, and whenever its element reaches a navigator.
+ * widenCollections}, or where {@code widenFields} names it. A navigator over its elements follows
+ * the widening, and never forces it.
  *
  * <p>The reads and modifications run the generated path, because an array rebuilt into the wrong
  * component type compiles and then throws on first use.
@@ -112,7 +113,7 @@ class FocusArrayWideningTest {
 
           import org.higherkindedj.optics.annotations.GenerateFocus;
 
-          @GenerateFocus(generateNavigators = true)
+          @GenerateFocus(widenFields = "leaves")
           public record Shelf(Leaf[] leaves) {}
           """);
 
@@ -170,7 +171,7 @@ class FocusArrayWideningTest {
         delimiterString = " | ",
         value = {
           "HolderFocus | TraversalPath<Holder, String> tags()",
-          "HolderFocus | TraversalPath<Holder, Box<String>> boxes()",
+          "HolderFocus | BoxesNavigator<Holder, String> boxes()",
           "HolderFocus | TraversalPath<Holder, String> grid()",
           "HolderFocus | TraversalPath<Holder, String> rows()",
           "HolderFocus | TraversalPath<Holder, String> extra()",
@@ -183,9 +184,10 @@ class FocusArrayWideningTest {
         })
     @DisplayName("each array widens as its settings and its element say")
     void eachArrayWidensAsItsSettingsAndItsElementSay(String focusClass, String signature) {
-      // A reference array is a ZERO_OR_MORE container, stepped into under widenCollections and
-      // when its element reaches a navigator. A primitive array has no Each to widen through, and
-      // one in a record with the default settings stays in focus, as a Map does.
+      // A reference array is a ZERO_OR_MORE container, stepped into under widenCollections or
+      // widenFields, and its navigable element then gets a navigator, which is the traversal. A
+      // primitive array has no Each to widen through, and one in a record with the default
+      // settings stays in focus, as a Map does.
       assertGeneratedCodeContains(COMPILATION, "com.example." + focusClass, signature);
     }
 

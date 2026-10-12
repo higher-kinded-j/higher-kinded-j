@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.example.book.optics.cast.AddressFocus;
 import org.higherkindedj.example.book.optics.cast.AddressLenses;
 import org.higherkindedj.example.book.optics.cast.Card;
@@ -154,13 +155,14 @@ public final class NavigationBook {
     return new Composed(street, firstLine, allLines);
   }
 
-  static List<String> withAndWithoutNavigators(Consignment consignment) {
+  static List<String> navigatorAsPath(Consignment consignment) {
     // ANCHOR: navigator_use
-    // With navigators
+    // The navigator chains the next hop as a method call
     String city = ConsignmentFocus.to().city().get(consignment);
 
-    // Without them, the same path, spelled out
-    String same = FocusPath.of(ConsignmentLenses.to()).via(AddressFocus.city()).get(consignment);
+    // It is the path itself, so it goes wherever a path goes
+    FocusPath<Consignment, Address> to = ConsignmentFocus.to();
+    String same = to.via(AddressFocus.city()).get(consignment);
     // ANCHOR_END: navigator_use
     return List.of(city, same);
   }
@@ -179,20 +181,19 @@ public final class NavigationBook {
     return new NavigatorOrVia(email, skus);
   }
 
-  /** What the page's toPath block computes, and the postcodes its trace saw. */
+  /** What the page's path-methods block computes, and the postcodes its trace saw. */
   record Normalised(Consignment consignment, List<String> seen) {}
 
   static Normalised normalisePostcode(Consignment consignment) {
-    // ANCHOR: to_path
+    // ANCHOR: path_methods
     List<String> seen = new ArrayList<>();
     Consignment normalised =
         ConsignmentFocus.to()
-            .toPath()
             .traced((_, address) -> seen.add(address.postcode()))
             .modify(
                 address -> AddressLenses.postcode().modify(String::toUpperCase, address),
                 consignment);
-    // ANCHOR_END: to_path
+    // ANCHOR_END: path_methods
     return new Normalised(normalised, seen);
   }
 
@@ -238,8 +239,8 @@ public final class NavigationBook {
     // Either is ZERO_OR_ONE via the SPI: AffinePath
     AffinePath<Stockroom, String> verified = StockroomFocus.verifiedName();
 
-    // Map is ZERO_OR_MORE via the SPI, but a static Focus method widens it only
-    // under widenCollections; otherwise the path still focuses the whole map
+    // Map is ZERO_OR_MORE via the SPI, but a Focus method widens it only under
+    // widenCollections or widenFields; otherwise the path still focuses the whole map
     FocusPath<Stockroom, Map<String, Integer>> stock = StockroomFocus.stock();
     TraversalPath<Stockroom, Integer> quantities = stock.each(EachInstances.mapValuesEach());
     // ANCHOR_END: spi_widening
@@ -312,7 +313,7 @@ record PaymentHistory(UUID customerId, List<Payment> payments) {}
 // ANCHOR: stockroom
 // The stockroom an order is picked from: stock by SKU, and a name verified by a check
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Stockroom(String name, Map<String, Integer> stock, Either<String, String> verifiedName) {}
 
 // ANCHOR_END: stockroom

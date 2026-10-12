@@ -11,48 +11,50 @@ Every container type has a **cardinality** that determines the generated Focus p
 
 ## HKJ and JDK Types
 
-| Container         | Cardinality    | Navigator Path   | Static Focus Method | Optic Used                       |
-|-------------------|----------------|------------------|---------------------|----------------------------------|
-| `Either<L, R>`    | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.eitherRight()`          |
-| `Try<A>`          | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.trySuccess()`           |
-| `Validated<E, A>` | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.validatedValid()`       |
-| `Maybe<A>`        | Zero or one    | `AffinePath`     | `AffinePath`        | `Affines.just()` (built-in)      |
-| `Optional<A>`     | Zero or one    | `AffinePath`     | `AffinePath`        | `.some()` (built-in)             |
-| `Map<K, V>`       | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.mapValuesEach()`  |
-| `T[]` (arrays) ^2 | Zero or more   | `TraversalPath`  | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
-| `List<A>`         | Zero or more   | `TraversalPath`  | `TraversalPath`     | `.each()` (built-in)            |
-| `Set<A>`          | Zero or more   | `TraversalPath`  | `TraversalPath`     | `EachInstances.setEach()` (built-in) |
-| `Collection<A>`   | Zero or more   | `TraversalPath`  | `TraversalPath`     | `EachInstances.collectionEach()` (built-in) |
+| Container         | Cardinality    | Static Focus Method | Optic Used                       |
+|-------------------|----------------|---------------------|----------------------------------|
+| `Either<L, R>`    | Zero or one    | `AffinePath`        | `Affines.eitherRight()`          |
+| `Try<A>`          | Zero or one    | `AffinePath`        | `Affines.trySuccess()`           |
+| `Validated<E, A>` | Zero or one    | `AffinePath`        | `Affines.validatedValid()`       |
+| `Maybe<A>`        | Zero or one    | `AffinePath`        | `Affines.just()` (built-in)      |
+| `Optional<A>`     | Zero or one    | `AffinePath`        | `.some()` (built-in)             |
+| `Map<K, V>`       | Zero or more   | **`FocusPath`** ^1  | `EachInstances.mapValuesEach()`  |
+| `T[]` (arrays) ^2 | Zero or more   | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
+| `List<A>`         | Zero or more   | `TraversalPath`     | `.each()` (built-in)            |
+| `Set<A>`          | Zero or more   | `TraversalPath`     | `EachInstances.setEach()` (built-in) |
+| `Collection<A>`   | Zero or more   | `TraversalPath`     | `EachInstances.collectionEach()` (built-in) |
 
-^1 SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Set `@GenerateFocus(widenCollections = true)` to widen them there, or call `.each(eachInstance)` to widen manually.
+^1 SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Set `@GenerateFocus(widenCollections = true)` to widen them all, name one in `widenFields` to widen just that field, or call `.each(eachInstance)` to widen manually.
+
+A navigator's method returns the same path type as the static method for the same component: a navigator only adds navigation methods to that path. So a container of `@GenerateFocus` records gets a navigator over its elements only where the record widens it. `Optional`, `Maybe`, `List`, `Set` and `Collection` never get one.
 
 ^2 An array of a reference type. A primitive array such as `int[]` stays a `FocusPath` under every setting: `arrayEach()` is `Each<A[], A>`, and no primitive is an `A`.
 
 ## Eclipse Collections
 
-| Container                | Navigator Path   | Static Focus Method | Optic Used                                                      |
-|--------------------------|------------------|---------------------|-----------------------------------------------------------------|
-| `ImmutableList<A>`       | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Lists.immutable.ofAll(list))`   |
-| `MutableList<A>`         | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Lists.mutable.ofAll(list))`     |
-| `ImmutableSet<A>`        | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Sets.immutable.ofAll(list))`    |
-| `MutableSet<A>`          | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Sets.mutable.ofAll(list))`      |
-| `ImmutableBag<A>`        | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.immutable.ofAll(list))`    |
-| `MutableBag<A>`          | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.mutable.ofAll(list))`      |
-| `ImmutableSortedSet<A>`  | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))` |
-| `MutableSortedSet<A>`    | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))` |
+| Container                | Static Focus Method | Optic Used                                                      |
+|--------------------------|---------------------|-----------------------------------------------------------------|
+| `ImmutableList<A>`       | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Lists.immutable.ofAll(list))`   |
+| `MutableList<A>`         | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Lists.mutable.ofAll(list))`     |
+| `ImmutableSet<A>`        | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Sets.immutable.ofAll(list))`    |
+| `MutableSet<A>`          | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Sets.mutable.ofAll(list))`      |
+| `ImmutableBag<A>`        | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.immutable.ofAll(list))`    |
+| `MutableBag<A>`          | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.mutable.ofAll(list))`      |
+| `ImmutableSortedSet<A>`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))` |
+| `MutableSortedSet<A>`    | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))` |
 
 All Eclipse Collections types have cardinality `ZERO_OR_MORE`.
 
 ## Guava, Vavr, and Apache Commons
 
-| Container                          | Library        | Navigator Path   | Static Focus Method | Optic Used                                              |
-|------------------------------------|----------------|------------------|---------------------|---------------------------------------------------------|
-| `ImmutableList<A>`                 | Guava          | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(ImmutableList::copyOf)`          |
-| `ImmutableSet<A>`                  | Guava          | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(ImmutableSet::copyOf)`           |
-| `io.vavr.collection.List<A>`      | Vavr           | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> List.ofAll(list))`       |
-| `io.vavr.collection.Set<A>`       | Vavr           | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> HashSet.ofAll(list))`    |
-| `HashBag<A>`                       | Apache Commons | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(HashBag::new)`                   |
-| `UnmodifiableList<A>`              | Apache Commons | `TraversalPath`  | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
+| Container                          | Library        | Static Focus Method | Optic Used                                              |
+|------------------------------------|----------------|---------------------|---------------------------------------------------------|
+| `ImmutableList<A>`                 | Guava          | **`FocusPath`** ^1  | `fromIterableCollecting(ImmutableList::copyOf)`          |
+| `ImmutableSet<A>`                  | Guava          | **`FocusPath`** ^1  | `fromIterableCollecting(ImmutableSet::copyOf)`           |
+| `io.vavr.collection.List<A>`      | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> List.ofAll(list))`       |
+| `io.vavr.collection.Set<A>`       | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> HashSet.ofAll(list))`    |
+| `HashBag<A>`                       | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashBag::new)`                   |
+| `UnmodifiableList<A>`              | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
 
 All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`.
 
@@ -138,7 +140,7 @@ record Holder(Either<String, Leaf> either) {}
 - A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Leaf>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
 - The built-in `Optional` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify.
 - `Maybe`, `Set` and `Collection` are built in too, but each widens by naming an optic instance (`Affines.just()` or an `Each`). So the rule applies to them as it does to an SPI container: `Maybe<?>`, `Set<? extends Leaf>` and a raw `Set` are rejected at the declaration.
-- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or a navigator reaching a navigable element inside it. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
+- A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or `widenFields` naming the field. At the default settings it stays a `FocusPath`, and so does everything beneath it — `Map<String, Either<String, ? extends Leaf>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
 - A custom generator that names no optic expression is exempt, because it widens nothing: the path stops at its container, as if no generator supported it. Every generator HKJ ships for a type the SPI widens names one.
 - This is a rule about composing an optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and emits a `Traversal` over the type the wildcard stands for: `? extends T` is `T`, and `?` or `? super T` is `Object`.
 
@@ -157,11 +159,11 @@ TraversalPath<AssetClass, Position> traversal = positions.each(
 ```
 
 A navigator method reports the same path type as the static method for the same component, so
-widening it is the same decision either way. The exception is a container whose element is
-itself a `@GenerateFocus` record that gets a navigator: that one is always stepped into, because
-the navigator it hands back has to reach the element. A generic element gets a navigator when the
-container names a type for each of its parameters, so `Map<String, Box<String>>` is stepped into
-and `Map<String, Box<?>>` is not.
+widening it is the same decision either way. To navigate into the elements of a container of
+`@GenerateFocus` records, widen it, with `widenFields = "positions"` for that one field; the method
+then returns a navigator over the elements. A generic element gets a navigator when the container
+names a type for each of its parameters, so a widened `Map<String, Box<String>>` gets one and
+`Map<String, Box<?>>` does not.
 
 ## Registering Custom Container Types (TraversableGenerator SPI)
 

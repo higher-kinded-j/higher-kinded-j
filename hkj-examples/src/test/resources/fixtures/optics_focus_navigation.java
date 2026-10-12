@@ -26,7 +26,7 @@ import org.higherkindedj.optics.focus.FocusPath;
 @GenerateFocus
 record EmailAddress(String value) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Customer(String name, EmailAddress email) {}
 
 @GenerateFocus

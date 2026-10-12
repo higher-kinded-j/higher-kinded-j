@@ -14,31 +14,30 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Additional coverage tests for NavigatorClassGenerator delegate methods, path widening branches,
+ * Additional coverage tests for NavigatorClassGenerator's navigator tiers, path widening branches,
  * and FocusProcessor edge cases.
  *
  * <p>Targets uncovered branches:
  *
  * <ul>
- *   <li>AffinePath delegate methods (getOptional, set, modify, matches, toPath)
- *   <li>TraversalPath delegate methods (getAll, setAll, modifyAll, count, isEmpty, toPath)
+ *   <li>A navigator over an AffinePath or a TraversalPath extending its tier's base
  *   <li>{@code @Nullable} field widening in navigator navigation methods
  *   <li>Navigator for Optional&lt;Navigable&gt; wrapping in AffinePath navigator
  *   <li>{@code @Nullable} on primitive type fields in FocusProcessor
- *   <li>composing a navigator delegate with a target Focus method across path tiers
+ *   <li>composing a navigator's path with a target Focus method across path tiers
  *   <li>Container recognition shared with the static Focus methods
  * </ul>
  */
-@DisplayName("Navigator Delegate and Widening Coverage Tests")
+@DisplayName("Navigator Tier and Widening Coverage Tests")
 class NavigatorDelegateAndWideningTest {
 
   @Nested
-  @DisplayName("AffinePath Navigator Delegate Methods")
-  class AffinePathDelegates {
+  @DisplayName("AffinePath Navigators")
+  class AffinePathNavigators {
 
     @Test
-    @DisplayName("should generate AffinePath delegate methods for @Nullable navigable field")
-    void shouldGenerateAffinePathDelegateMethods() {
+    @DisplayName("should generate an AffinePath navigator for a @Nullable navigable field")
+    void shouldGenerateAffinePathNavigator() {
       final JavaFileObject innerSource =
           JavaFileObjects.forSourceString(
               "com.example.Inner",
@@ -65,17 +64,14 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // AffinePath delegate methods: getOptional, set, modify, matches, toPath
+      // The navigator is an AffinePath: NavigatorAffinePath forwards getOptional, set, modify,
+      // matches and the rest, so the navigator declares only its navigation methods.
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "Optional<Inner> getOptional(S source)");
+          compilation,
+          "com.example.OuterFocus",
+          "public static final class InnerNavigator<S> extends NavigatorAffinePath<S, Inner>");
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "S set(Inner value, S source)");
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "S modify(Function<Inner, Inner> f, S source)");
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "boolean matches(S source)");
-      assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "AffinePath<S, Inner> toPath()");
+          compilation, "com.example.OuterFocus", "public AffinePath<S, String> label()");
     }
 
     @Test
@@ -585,7 +581,7 @@ class NavigatorDelegateAndWideningTest {
               """
               package com.example;
               import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus
+              @GenerateFocus(generateNavigators = false)
               public record Outer(String name, Inner inner) {}
               """);
 

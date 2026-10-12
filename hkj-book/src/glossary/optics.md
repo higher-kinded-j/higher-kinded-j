@@ -154,7 +154,7 @@ FieldError located = bare.at("zip").at("address");      // pathString() == "addr
 
 **Definition:** A domain-specific language for fluent, type-safe navigation and manipulation of immutable data structures. The Focus DSL provides a composable way to build paths through nested records without manual lens composition.
 
-**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.via(...)` hops off a generated path, with the optic types inferred automatically. With navigators on, a hop can be named after its field instead, such as `.address()`.
+**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.via(...)` hops off a generated path, with the optic types inferred automatically. Through a navigator, a hop can be named after its field instead, such as `.address()`.
 
 **Example:**
 <!-- verify -->
@@ -493,15 +493,15 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 
 ## Navigator
 
-**Definition:** A small class the Focus processor generates, under `@GenerateFocus(generateNavigators = true)`, for a field whose type is another `@GenerateFocus` record, given a type for each of its type parameters if it has any. A `Map`, an `Either` or a similar container of such a record gets one too. It wraps the field's path and adds one method per field of that record, so `UserFocus.address().city()` chains where the plain path needs `.via(AddressFocus.city())`. A navigator carries the core reads and writes of the path it wraps:
+**Definition:** A path the Focus processor generates for a field whose type is another `@GenerateFocus` record, given a type for each of its type parameters if it has any. An `Either` of such a record gets one too, and so does a `Map` or an array the record widens. A navigator is the field's own path, a `FocusPath`, `AffinePath` or `TraversalPath`, with one method added per field of that record. So `UserFocus.address().city()` chains where a plain path needs `.via(AddressFocus.city())`, and the navigator still goes wherever its path goes:
 
-| Wrapped path | Operations on the navigator |
+| The field on `User` | Its method returns |
 |---|---|
-| `FocusPath` | `get`, `set`, `modify`, `toLens`, `toPath` |
-| `AffinePath` | `getOptional`, `set`, `modify`, `matches`, `toPath` |
-| `TraversalPath` | `getAll`, `setAll`, `modifyAll`, `count`, `isEmpty`, `toPath` |
+| `Address address` | `AddressNavigator<User>`, a `FocusPath<User, Address>` |
+| `@Nullable Address billing` | `BillingNavigator<User>`, an `AffinePath<User, Address>` |
+| `Map<String, Address> sites`, named in `widenFields` | `SitesNavigator<User>`, a `TraversalPath<User, Address>` |
 
-`toPath()` returns the path it wraps, for everything else.
+Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns them off.
 
 **Related:** [Collections, Optionals and Sealed Types](../optics/focus_navigation.md#fluent-navigation-with-generated-navigators), [Focus DSL](#focus-dsl), [Focus path type](#focus-path-type)
 

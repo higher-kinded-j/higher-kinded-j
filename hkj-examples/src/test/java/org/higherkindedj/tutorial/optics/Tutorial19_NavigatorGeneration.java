@@ -26,8 +26,8 @@ import org.junit.jupiter.api.Test;
  *       .via(FocusPath.of(Address.class).into(a -&gt; a.city()));
  * </pre>
  *
- * <p>{@code @GenerateFocus(generateNavigators = true)} adds navigator companion classes that
- * collapse the cross-type boundaries:
+ * <p>{@code @GenerateFocus} adds navigator classes, on by default, that collapse the cross-type
+ * boundaries:
  *
  * <pre>
  *   OrderFocus.customer().address().city();  // generated chain, one dot per step
@@ -44,7 +44,7 @@ import org.junit.jupiter.api.Test;
  * <p>Key concepts:
  *
  * <ul>
- *   <li><b>Navigator delegation</b>: Navigators wrap a path and delegate get/set/modify
+ *   <li><b>A navigator is a path</b>: get/set/modify are the path's own
  *   <li><b>Path kind widening</b>: FocusPath widens to AffinePath or TraversalPath through
  *       container types
  *   <li><b>SPI-aware widening</b>: The {@code TraversableGenerator} SPI with {@code Cardinality}
@@ -100,11 +100,11 @@ public class Tutorial19_NavigatorGeneration {
       Lens.of(Warehouse::inventory, (w, inv) -> new Warehouse(w.id(), inv));
 
   /**
-   * Exercise 1: Navigator delegation with get
+   * Exercise 1: Reading through a navigator
    *
-   * <p>A navigator wraps a FocusPath and delegates operations to it. In generated code, calling
-   * {@code CompanyFocus.headquarters()} returns a {@code HeadquartersNavigator} that wraps a {@code
-   * FocusPath<Company, Address>}. The navigator's {@code city()} method composes further.
+   * <p>A navigator is a FocusPath. In generated code, {@code CompanyFocus.headquarters()} returns a
+   * {@code HeadquartersNavigator}, which is a {@code FocusPath<Company, Address>} with a method for
+   * each {@code Address} field. The navigator's {@code city()} method composes further.
    *
    * <p>Here we simulate the navigator pattern manually: compose a path from Company to city, then
    * use it to extract a value.
@@ -116,8 +116,8 @@ public class Tutorial19_NavigatorGeneration {
    * </pre>
    */
   @Test
-  @DisplayName("Exercise 1: navigator delegation: get")
-  void exercise1_navigatorDelegationGet() {
+  @DisplayName("Exercise 1: reading through a navigator")
+  void exercise1_navigatorGet() {
     Company acme = new Company("Acme", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
     // TODO: Create a FocusPath for headquarters, then compose via addressCityLens
@@ -133,9 +133,8 @@ public class Tutorial19_NavigatorGeneration {
   /**
    * Exercise 2: Navigator set and modify
    *
-   * <p>Navigators delegate set and modify to the underlying path. Setting replaces the focused
-   * value; modifying transforms it with a function. Both return a new structure with the rest
-   * unchanged.
+   * <p>A navigator's set and modify are its path's own. Setting replaces the focused value;
+   * modifying transforms it with a function. Both return a new structure with the rest unchanged.
    *
    * <p>Task: Use the composed path to set and modify the city
    *
@@ -437,7 +436,7 @@ public class Tutorial19_NavigatorGeneration {
    * <p>You now understand:
    *
    * <ul>
-   *   <li>How navigators wrap FocusPath and delegate get/set/modify
+   *   <li>That a navigator is a FocusPath, so get/set/modify are the path's own
    *   <li>How path widening works: FocusPath → AffinePath → TraversalPath
    *   <li>That the SPI determines correct widening for Map, Either, Try, and Validated
    *   <li>That compound widening only increases (AFFINE + TRAVERSAL = TRAVERSAL)
@@ -449,8 +448,7 @@ public class Tutorial19_NavigatorGeneration {
    * <p>Key takeaways:
    *
    * <ul>
-   *   <li>In production, use @GenerateFocus(generateNavigators = true) to get this behaviour
-   *       automatically
+   *   <li>In production, {@code @GenerateFocus} generates this behaviour automatically
    *   <li>The TraversableGenerator SPI is extensible; custom generators can declare their own
    *       Cardinality and priority
    *   <li>Navigator generation respects includeFields and excludeFields for fine-grained control

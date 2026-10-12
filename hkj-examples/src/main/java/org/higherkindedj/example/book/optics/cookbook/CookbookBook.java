@@ -316,7 +316,7 @@ public final class CookbookBook {
     Validated<NonEmptyList<FieldError>, Customer> patched =
         Edits.accumulate(
                 parseIfPresent(CustomerFocus.name(), patch.name(), Names::parse),
-                parseIfPresent(CustomerFocus.email().toPath(), patch.email(), Emails::parse))
+                parseIfPresent(CustomerFocus.email(), patch.email(), Emails::parse))
             .apply(customer);
     // ANCHOR_END: patch
     return patched;
@@ -500,7 +500,7 @@ record PaymentHistory(UUID customerId, List<Payment> payments) {}
 // ANCHOR: stockroom
 // The stockroom an order is picked from: stock by SKU, and a name verified by a check
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Stockroom(String name, Map<String, Integer> stock, Either<String, String> verifiedName) {}
 
 // ANCHOR_END: stockroom

@@ -82,7 +82,7 @@ public class PortfolioRiskExample {
    * A trading position with ticker, quantity, optional stop-loss, and a live price that may have
    * failed to fetch.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Position(
       String ticker,
       int quantity,
@@ -94,7 +94,7 @@ public class PortfolioRiskExample {
    * An asset class grouping positions, with a valuation that may have failed and currency
    * exposures.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus(widenFields = "positions")
   public record AssetClass(
       String className,
       ImmutableList<Position> positions, // Eclipse Collections → TraversalPath
@@ -105,7 +105,7 @@ public class PortfolioRiskExample {
   /**
    * A portfolio containing asset class holdings, a validated risk report, and compliance status.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus(widenFields = "holdings")
   public record Portfolio(
       String portfolioId,
       ImmutableList<AssetClass> holdings, // Eclipse Collections → TraversalPath

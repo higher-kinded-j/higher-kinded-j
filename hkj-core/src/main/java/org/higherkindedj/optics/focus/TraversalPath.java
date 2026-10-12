@@ -77,6 +77,9 @@ import org.jspecify.annotations.Nullable;
  * TraversalPath<Company, Employee> seniors = employeesPath.filter(e -> e.age() > 50);
  * }</pre>
  *
+ * <p>A navigator {@code @GenerateFocus} generates at this tier is a TraversalPath too: it extends
+ * {@link NavigatorTraversalPath}.
+ *
  * @param <S> the source type (the whole structure)
  * @param <A> the focused value type (the parts)
  * @see FocusPath for paths focusing on exactly one element
@@ -85,7 +88,7 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nullable Object>
-    permits TraversalFocusPath, TracedTraversalFocusPath {
+    permits TraversalFocusPath, TracedTraversalFocusPath, NavigatorTraversalPath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.

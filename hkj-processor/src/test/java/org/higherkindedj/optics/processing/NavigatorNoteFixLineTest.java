@@ -70,8 +70,6 @@ class NavigatorNoteFixLineTest {
           "@Nullable Inner<?> absent",
           "Either<String, Inner<?>> either",
           "Either<String, @Nullable Inner<?>> loose",
-          "Map<String, Inner<?>> byName",
-          "Inner<?>[] boxes",
           "Num<?> number",
           "Num<? super Integer> whole");
 
@@ -130,8 +128,6 @@ class NavigatorNoteFixLineTest {
                       null,
                       Either.right(new Inner<>("either", "e")),
                       Either.right(new Inner<>("loose", "l")),
-                      Map.of(),
-                      new Inner<?>[0],
                       new Num<>(2),
                       new Num<>(3));
               Map<String, Inner<?>> gaps = new HashMap<>();
@@ -246,28 +242,21 @@ class NavigatorNoteFixLineTest {
       delimiterString = " | ",
       textBlock =
           """
-          Outer | any | FocusPath<Outer, Inner<?>> | Inner<?> | Inner<Object> | true
-          Outer | raw | FocusPath<Outer, Inner> | the raw Inner | Inner<Object> | true
-          Outer | bounded | FocusPath<Outer, Inner<? extends Number>> | Inner<? extends Number> | Inner<Number> | true
-          Outer | absent | AffinePath<Outer, Inner<?>> | Inner<?> | Inner<Object> | true
-          Outer | either | AffinePath<Outer, Inner<?>> | Inner<?> | Inner<Object> | true
-          Outer | loose | AffinePath<Outer, @Nullable Inner<?>> | Inner<?> | Inner<Object> | true
-          Outer | byName | FocusPath<Outer, Map<String, Inner<?>>> | Inner<?> | Inner<Object> | false
-          Outer | boxes | FocusPath<Outer, Inner<?>[]> | Inner<?> | Inner<Object> | false
-          Outer | number | FocusPath<Outer, Num<?>> | Num<?> | Num<Number> | true
-          Outer | whole | FocusPath<Outer, Num<? super Integer>> | Num<? super Integer> | Num<Integer> | true
-          Wide | catalogue | TraversalPath<Wide, Inner<?>> | Inner<?> | Inner<Object> | true
-          Wide | shelf | TraversalPath<Wide, Inner<?>> | Inner<?> | Inner<Object> | true
-          Wide | gaps | TraversalPath<Wide, @Nullable Inner<?>> | Inner<?> | Inner<Object> | true
+          Outer | any | FocusPath<Outer, Inner<?>> | Inner<?> | Inner<Object>
+          Outer | raw | FocusPath<Outer, Inner> | the raw Inner | Inner<Object>
+          Outer | bounded | FocusPath<Outer, Inner<? extends Number>> | Inner<? extends Number> | Inner<Number>
+          Outer | absent | AffinePath<Outer, Inner<?>> | Inner<?> | Inner<Object>
+          Outer | either | AffinePath<Outer, Inner<?>> | Inner<?> | Inner<Object>
+          Outer | loose | AffinePath<Outer, @Nullable Inner<?>> | Inner<?> | Inner<Object>
+          Outer | number | FocusPath<Outer, Num<?>> | Num<?> | Num<Number>
+          Outer | whole | FocusPath<Outer, Num<? super Integer>> | Num<? super Integer> | Num<Integer>
+          Wide | catalogue | TraversalPath<Wide, Inner<?>> | Inner<?> | Inner<Object>
+          Wide | shelf | TraversalPath<Wide, Inner<?>> | Inner<?> | Inner<Object>
+          Wide | gaps | TraversalPath<Wide, @Nullable Inner<?>> | Inner<?> | Inner<Object>
           """)
-  @DisplayName("the note names the method's return type, and a lens only where one composes")
+  @DisplayName("the note names the method's return type, and the lens that composes with it")
   void theNoteNamesTheMethodsReturnType(
-      String record,
-      String field,
-      String signature,
-      String written,
-      String offered,
-      boolean lensComposes) {
+      String record, String field, String signature, String written, String offered) {
     String target = offered.substring(0, offered.indexOf('<'));
     // A lens composes with a focus that may be null once the null is ruled out.
     String through = signature.contains("@Nullable") ? ".some(Affines.nullable()).via()" : ".via()";
@@ -277,8 +266,6 @@ class NavigatorNoteFixLineTest {
     assertGeneratedCodeContains(
         COMPILATION, focusClass, "public static " + signature + " " + field + "()");
     assertGeneratedCodeDoesNotContain(COMPILATION, focusClass, capitalised(field) + "Navigator");
-    // Where the method's path focuses on a container it does not step into, no lens from the
-    // record composes with it, so the note offers none.
     assertThat(COMPILATION.notes())
         .extracting(note -> note.getMessage(Locale.ROOT))
         .contains(
@@ -294,17 +281,13 @@ class NavigatorNoteFixLineTest {
                 + field
                 + "() returns "
                 + signature
-                + " instead. "
-                + (lensComposes
-                    ? "A path from one instantiation of "
-                        + target
-                        + " does not compose with it, but a lens you write from "
-                        + written
-                        + " does, through "
-                        + through
-                        + ". "
-                    : "")
-                + "Write "
+                + " instead. A path from one instantiation of "
+                + target
+                + " does not compose with it, but a lens you write from "
+                + written
+                + " does, through "
+                + through
+                + ". Write "
                 + offered
                 + ", or another concrete instantiation, in place of "
                 + written
@@ -333,6 +316,33 @@ class NavigatorNoteFixLineTest {
                 List.of("mapped"),
                 "shelved!",
                 List.of("gap")));
+  }
+
+  @Test
+  @DisplayName("a container the record does not widen has no navigator to miss, and no note")
+  void anUnwidenedContainerGetsNoNote() {
+    Compilation compilation =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withOptions("-Xlint:all,-processing", "-Werror")
+            .compile(
+                INNER,
+                NUM,
+                recordSource(
+                    "Outer",
+                    OUTER_SETTINGS,
+                    List.of("Map<String, Inner<?>> byName", "Inner<?>[] boxes")));
+
+    // A navigator steps into a container only where the record widens it, so neither field is
+    // missing one, whatever its element, and the method keeps the container in focus.
+    assertThat(compilation).succeededWithoutWarnings();
+    assertThat(compilation.notes()).isEmpty();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.OuterFocus",
+        "public static FocusPath<Outer, Map<String, Inner<?>>> byName()");
+    assertGeneratedCodeContains(
+        compilation, "com.myapp.OuterFocus", "public static FocusPath<Outer, Inner<?>[]> boxes()");
   }
 
   @Test

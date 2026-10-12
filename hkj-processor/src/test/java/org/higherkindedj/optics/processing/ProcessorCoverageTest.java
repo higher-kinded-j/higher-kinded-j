@@ -1062,42 +1062,6 @@ class ProcessorCoverageTest {
   }
 
   @Nested
-  @DisplayName("Navigator with AffinePath delegate collision checks")
-  class NavigatorAffinePathDelegates {
-
-    @Test
-    @DisplayName("should skip field colliding with AffinePath delegate 'getOptional'")
-    void shouldSkipFieldCollidingWithAffineDelegate() {
-
-      final JavaFileObject innerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.Inner",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              @GenerateFocus(generateNavigators = true)
-              public record Inner(String getOptional, String value) {}
-              """);
-
-      final JavaFileObject outerSource =
-          JavaFileObjects.forSourceString(
-              "com.example.AffineOuter",
-              """
-              package com.example;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-              import org.jspecify.annotations.Nullable;
-              @GenerateFocus(generateNavigators = true)
-              public record AffineOuter(@Nullable Inner inner, String name) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(innerSource, outerSource);
-
-      assertThat(compilation).succeeded();
-    }
-  }
-
-  @Nested
   @DisplayName("TraversalProcessor with custom target package")
   class TraversalProcessorTargetPackage {
 

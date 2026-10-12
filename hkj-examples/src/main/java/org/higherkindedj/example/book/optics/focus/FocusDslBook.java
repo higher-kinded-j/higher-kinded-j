@@ -208,7 +208,7 @@ public final class FocusDslBook {
 
 // ANCHOR: basket
 // The basket a customer pays for before it becomes an Order, with a field of every kind
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Basket(
     Customer customer,
     String reference,

@@ -12,7 +12,7 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 
 // ANCHOR: order
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 @GenerateTraversals
 public record Order(
     UUID id,

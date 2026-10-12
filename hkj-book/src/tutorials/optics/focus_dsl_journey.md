@@ -166,13 +166,13 @@ TraversalPath<User, Role> allRolesPath = rolesKindPath
 Learn how generated navigators enable fluent cross-type navigation, and how SPI-aware path widening determines the correct path type for container fields.
 
 **What you'll learn**:
-- Navigator delegation: wrapping FocusPath with get/set/modify
+- A navigator is a path: get, set and modify work on it directly
 - Path widening through Optional (AffinePath) and List (TraversalPath)
 - SPI-aware widening for Map, Either, Try, and Validated via Cardinality
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
 - Making a navigator's own hops return plain paths with `maxNavigatorDepth = 1`, and composing further with `.via()`
 
-**Key insight**: The `TraversableGenerator` SPI declares a `Cardinality` for each container type, and one widening analysis consults it to select `AffinePath` (ZERO_OR_ONE) or `TraversalPath` (ZERO_OR_MORE, under `widenCollections` or when the element is itself navigable), so types like `Map`, `Either` and `Try` are handled without hardcoding — and a navigator method reports the same path type as the static Focus method for the same component.
+**Key insight**: The `TraversableGenerator` SPI declares a `Cardinality` for each container type, and one widening analysis consults it to select `AffinePath` (ZERO_OR_ONE) or `TraversalPath` (ZERO_OR_MORE, under `widenCollections` or `widenFields`), so types like `Map`, `Either` and `Try` are handled without hardcoding — and a navigator method reports the same path type as the static Focus method for the same component.
 
 **Compound widening rules**:
 ```
@@ -186,14 +186,14 @@ TRAVERSAL + anything = TRAVERSAL
 **Example**:
 <!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Company(String name, Either<String, Address> backup) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus(widenFields = "metadata")
 record Address(String street, Map<String, String> metadata) {}
 
-// Either (AFFINE via SPI) reaches the Address; the Map field is one more hop
-TraversalPath<Company, String> values = CompanyFocus.backup().metadata().each();
+// Either (AFFINE via SPI) reaches the Address; the widened Map field is one more hop
+TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
 ```
 
 Note the container: `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened
@@ -217,12 +217,12 @@ Navigate container types discovered via the `TraversableGenerator` SPI, includin
 - Composing SPI-aware container paths with lens-based field access
 - Navigating `Validated` valid values via SPI-generated `AffinePath`
 
-**Key insight**: Container navigation paths are generated automatically when `@GenerateFocus(generateNavigators = true)` is used. The `TraversableGenerator` SPI determines the cardinality, so `Either`, `Try`, and `Validated` all produce `AffinePath` navigators without any manual optic composition.
+**Key insight**: `@GenerateFocus` generates container navigation paths automatically, navigators included. The `TraversableGenerator` SPI determines the cardinality, so `Either`, `Try`, and `Validated` all produce `AffinePath` navigators without any manual optic composition.
 
 **Example**:
 <!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Position(
     String ticker,
     Either<PricingError, MarketPrice> livePrice  // → AffinePath

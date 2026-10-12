@@ -67,6 +67,9 @@ import org.jspecify.annotations.Nullable;
  * FocusPath<User, String> cityPath = namePath.via(AddressLenses.city());
  * }</pre>
  *
+ * <p>A navigator {@code @GenerateFocus} generates at this tier is a FocusPath too: it extends
+ * {@link NavigatorFocusPath}.
+ *
  * @param <S> the source type (the whole structure)
  * @param <A> the focused value type (the part)
  * @see AffinePath for paths focusing on zero or one element
@@ -75,7 +78,7 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullable Object>
-    permits LensFocusPath {
+    permits LensFocusPath, NavigatorFocusPath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.

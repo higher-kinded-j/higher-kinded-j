@@ -1484,7 +1484,7 @@ class NullableFocusNullnessTest {
                   import org.higherkindedj.optics.annotations.GenerateFocus;
                   import org.jspecify.annotations.Nullable;
 
-                  @GenerateFocus(generateNavigators = true)
+                  @GenerateFocus(widenCollections = true)
                   public record Crate(@Nullable Leaf[] row, Map<String, @Nullable Leaf> byName) {}
                   """),
               source(

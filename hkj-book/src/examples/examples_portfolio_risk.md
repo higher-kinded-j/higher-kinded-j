@@ -80,11 +80,11 @@ prices, balloons to 30+ lines of nested conditionals.
 
 ## The Solution
 
-Annotate each record with `@GenerateFocus(generateNavigators = true)`:
+Annotate each record with `@GenerateFocus`, and name in `widenFields` each collection a navigator should step into:
 
 <!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 public record Position(
     String ticker,
     int quantity,
@@ -92,7 +92,7 @@ public record Position(
     Either<PricingError, MarketPrice> livePrice     // HKJ Either    → AffinePath
 ) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus(widenFields = "positions")
 public record AssetClass(
     String className,
     ImmutableList<Position> positions,              // Eclipse Collections → TraversalPath
@@ -100,7 +100,7 @@ public record AssetClass(
     Map<String, Double> exposures                   // JDK Map            → FocusPath
 ) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus(widenFields = "holdings")
 public record Portfolio(
     String portfolioId,
     ImmutableList<AssetClass> holdings,             // Eclipse Collections → TraversalPath
@@ -175,8 +175,8 @@ annotation processor handles each one via the SPI:
 
 | Container | Library | Cardinality | Generated Path | SPI Generator |
 |-----------|---------|-------------|----------------|---------------|
-| `ImmutableList<AssetClass>` | Eclipse Collections | ZERO_OR_MORE | `TraversalPath` | `EclipseImmutableListGenerator` |
-| `ImmutableList<Position>` | Eclipse Collections | ZERO_OR_MORE | `TraversalPath` | `EclipseImmutableListGenerator` |
+| `ImmutableList<AssetClass>` | Eclipse Collections | ZERO_OR_MORE | `TraversalPath`, under `widenFields` | `EclipseImmutableListGenerator` |
+| `ImmutableList<Position>` | Eclipse Collections | ZERO_OR_MORE | `TraversalPath`, under `widenFields` | `EclipseImmutableListGenerator` |
 | `Either<PricingError, MarketPrice>` | HKJ | ZERO_OR_ONE | `AffinePath` | `EitherGenerator` |
 | `Either<ComplianceViolation, Approval>` | HKJ | ZERO_OR_ONE | `AffinePath` | `EitherGenerator` |
 | `Try<ValuationResult>` | HKJ | ZERO_OR_ONE | `AffinePath` | `TryGenerator` |
@@ -184,12 +184,11 @@ annotation processor handles each one via the SPI:
 | `Optional<StopLoss>` | JDK | ZERO_OR_ONE | `AffinePath` | `OptionalGenerator` |
 | `Map<String, Double>` | JDK | ZERO_OR_MORE | `FocusPath`, or `TraversalPath` under `widenCollections` | `MapValueGenerator` |
 
-No manual widening is needed for any of these but the last: the generated code calls
-the appropriate `each()` or `some()` for you. A `ZERO_OR_MORE` container holding a
-non-navigable element — `Map<String, Double>` here — stops at the container until the
-record declaring it sets `widenCollections = true`, which is what `WidenedAssetClass`
-below demonstrates. Static Focus methods and navigator methods report the same path
-type for the same component.
+The generated code calls the appropriate `each()` or `some()` for you. A `ZERO_OR_MORE`
+container stops at the container until the record declaring it widens it. Here `widenFields`
+names the two `ImmutableList` fields. `widenCollections = true` widens every such field, as
+the `WidenedAssetClass` record in the example demonstrates for the `Map`. Static Focus methods and
+navigator methods report the same path type for the same component.
 
 ---
 
@@ -319,9 +318,9 @@ navigating complex data:
 | **Library coupling** | Import every container type | Only `@GenerateFocus` and path types |
 
 When a new container library appears, say Guava's `ImmutableList` or Vavr's `Option`,
-you register a `TraversableGenerator` via SPI, and every `@GenerateFocus` record that uses
-that container type gets correct navigator methods on the next compile. No existing code
-changes.
+you register a `TraversableGenerator` via SPI. Every `@GenerateFocus` record that uses
+that container type then widens it correctly on the next compile, with a navigator over
+its elements wherever the record widens the field.
 
 ---
 

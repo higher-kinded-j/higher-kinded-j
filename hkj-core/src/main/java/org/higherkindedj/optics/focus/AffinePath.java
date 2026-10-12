@@ -71,6 +71,9 @@ import org.jspecify.annotations.Nullable;
  * }
  * }</pre>
  *
+ * <p>A navigator {@code @GenerateFocus} generates at this tier is an AffinePath too: it extends
+ * {@link NavigatorAffinePath}.
+ *
  * @param <S> the source type (the whole structure)
  * @param <A> the focused value type (the part)
  * @see FocusPath for paths focusing on exactly one element
@@ -80,7 +83,7 @@ import org.jspecify.annotations.Nullable;
  */
 @NullMarked
 public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullable Object>
-    permits AffineFocusPath {
+    permits AffineFocusPath, NavigatorAffinePath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.

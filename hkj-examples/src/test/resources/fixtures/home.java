@@ -37,11 +37,9 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
-// Plain `@GenerateFocus`, deliberately: the focus/effect bridge example passes
-// `UserFocus.address()` to `EitherPath.focus`, which takes a `FocusPath`. Navigators would make
-// that accessor return `UserFocus.AddressNavigator` instead, and the bridge would not compile.
-// The optics quick example declares its own copies of these records WITH navigators, which is
-// what its fluent `.address().street().name()` chain needs.
+// The focus/effect bridge example passes `UserFocus.address()` to `EitherPath.focus`, which takes
+// a `FocusPath`. That accessor returns `UserFocus.AddressNavigator`, which is one, so the bridge
+// compiles with navigators on, as they are by default.
 @GenerateLenses
 @GenerateFocus
 record Street(String name, int number) {}

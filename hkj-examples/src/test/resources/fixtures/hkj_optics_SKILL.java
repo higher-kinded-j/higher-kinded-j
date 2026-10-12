@@ -41,25 +41,25 @@ import tools.jackson.databind.node.StringNode;
 
 /** The address of the "Setting Up Optics" walkthrough. */
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Address(String city, String postcode, Optional<String> floor) {}
 
 /** The record the walkthrough navigates from. */
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record User(String name, Address address) {}
 
 /** The three levels the cross-type navigator chain walks: Company -> Department -> Employee. */
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Employee(String name) {}
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Department(List<Employee> employees) {}
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Company(List<Department> departments) {}
 
 /** The structure the Edits examples patch. */

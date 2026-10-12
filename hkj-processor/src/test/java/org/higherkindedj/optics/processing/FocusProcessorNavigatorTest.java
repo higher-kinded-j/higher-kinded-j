@@ -65,13 +65,15 @@ public class FocusProcessorNavigatorTest {
       // Expected: Navigator inner class
       final String expectedNavigatorClass =
           """
-          public static final class HeadquartersNavigator<S> {
+          public static final class HeadquartersNavigator<S> extends NavigatorFocusPath<S, Address> {
           """;
 
-      // Expected: Delegate field
-      final String expectedDelegateField =
+      // Expected: built from the path it is
+      final String expectedConstructor =
           """
-          private final FocusPath<S, Address> delegate;
+          public HeadquartersNavigator(FocusPath<S, Address> path) {
+              super(path);
+          }
           """;
 
       // Expected: Navigation methods for Address fields
@@ -93,7 +95,7 @@ public class FocusProcessorNavigatorTest {
       final String generatedClassName = "com.example.CompanyFocus";
       assertGeneratedCodeContains(compilation, generatedClassName, expectedNavigatorMethod);
       assertGeneratedCodeContains(compilation, generatedClassName, expectedNavigatorClass);
-      assertGeneratedCodeContains(compilation, generatedClassName, expectedDelegateField);
+      assertGeneratedCodeContains(compilation, generatedClassName, expectedConstructor);
       assertGeneratedCodeContains(compilation, generatedClassName, expectedStreetNavigation);
       assertGeneratedCodeContains(compilation, generatedClassName, expectedCityNavigation);
     }
@@ -177,12 +179,12 @@ public class FocusProcessorNavigatorTest {
   }
 
   @Nested
-  @DisplayName("Navigator Delegate Methods")
-  class NavigatorDelegateMethods {
+  @DisplayName("Inherited Path Methods")
+  class InheritedPathMethods {
 
     @Test
-    @DisplayName("should generate FocusPath delegate methods")
-    void shouldGenerateFocusPathDelegateMethods() {
+    @DisplayName("should inherit the path's methods rather than declare them")
+    void shouldInheritThePathsMethods() {
       final JavaFileObject companySource =
           JavaFileObjects.forSourceString(
               "com.example.Company",
@@ -207,45 +209,20 @@ public class FocusProcessorNavigatorTest {
               public record Address(String street, String city) {}
               """);
 
-      // Expected delegate methods
-      final String expectedGetMethod =
-          """
-          public Address get(S source) {
-              return delegate.get(source);
-          }
-          """;
-
-      final String expectedSetMethod =
-          """
-          public S set(Address value, S source) {
-              return delegate.set(value, source);
-          }
-          """;
-
-      final String expectedModifyMethod =
-          """
-          public S modify(java.util.function.Function<Address, Address> f, S source) {
-              return delegate.modify(f, source);
-          }
-          """;
-
-      final String expectedToPathMethod =
-          """
-          public FocusPath<S, Address> toPath() {
-              return delegate;
-          }
-          """;
-
       Compilation compilation =
           javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
 
       assertThat(compilation).succeeded();
 
+      // NavigatorFocusPath forwards get, set, modify, toPath and the rest, each final.
       final String generatedClassName = "com.example.CompanyFocus";
-      assertGeneratedCodeContains(compilation, generatedClassName, expectedGetMethod);
-      assertGeneratedCodeContains(compilation, generatedClassName, expectedSetMethod);
-      assertGeneratedCodeContains(compilation, generatedClassName, expectedModifyMethod);
-      assertGeneratedCodeContains(compilation, generatedClassName, expectedToPathMethod);
+      assertGeneratedCodeContains(
+          compilation,
+          generatedClassName,
+          "public static final class HeadquartersNavigator<S> extends NavigatorFocusPath<S, Address>");
+      assertGeneratedCodeDoesNotContain(
+          compilation, generatedClassName, "public Address get(S source)");
+      assertGeneratedCodeDoesNotContain(compilation, generatedClassName, "delegate");
     }
   }
 
@@ -789,7 +766,7 @@ public class FocusProcessorNavigatorTest {
 
       assertThat(compilation).succeeded();
 
-      // Inside HeadquartersNavigator (FOCUS delegate):
+      // Inside HeadquartersNavigator (FOCUS tier):
       // validated() should be AffinePath with inner type (Either focuses on String at index 1)
       final String expectedEitherAffine =
           """
@@ -839,19 +816,13 @@ public class FocusProcessorNavigatorTest {
 
       assertThat(compilation).succeeded();
 
-      // The navigator delegate for an Either field should use AffinePath
+      // The navigator for an Either field is an AffinePath
       final String expectedNavigatorClass =
           """
-          public static final class ResultNavigator<S> {
-          """;
-
-      final String expectedDelegateField =
-          """
-          private final AffinePath<S, Address> delegate;
+          public static final class ResultNavigator<S> extends NavigatorAffinePath<S, Address> {
           """;
 
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedNavigatorClass);
-      assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedDelegateField);
     }
   }
 
@@ -1186,7 +1157,9 @@ public class FocusProcessorNavigatorTest {
       assertGeneratedCodeContains(
           downstream, focus, "public static HeadquartersNavigator<Company> headquarters() {");
       assertGeneratedCodeContains(
-          downstream, focus, "public static final class HeadquartersNavigator<S> {");
+          downstream,
+          focus,
+          "public static final class HeadquartersNavigator<S> extends NavigatorFocusPath<S, Address> {");
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> street() {");
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> city() {");
     }
@@ -1802,7 +1775,7 @@ public class FocusProcessorNavigatorTest {
     }
 
     @Test
-    @DisplayName("an unpublished record inside a container draws the same note")
+    @DisplayName("an unpublished record inside a container the record widens draws the same note")
     void anUnpublishedElementDrawsTheSameNote() throws IOException {
       JavaFileObject directory =
           JavaFileObjects.forSourceString(
@@ -1844,15 +1817,16 @@ public class FocusProcessorNavigatorTest {
           .hadNoteContaining(
               "Navigator for field 'offices' is not generated: com.upstream.Address carries"
                   + " @GenerateFocus, but no public com.upstream.AddressFocus");
-      // The note names the path each method returns: the map itself, unless the record widens it.
-      assertThat(downstream)
-          .hadNoteContaining(
-              "until then DirectoryFocus.offices() returns FocusPath<Directory, Map<String,"
-                  + " Address>>.");
+      // A navigator steps into the map only where the record widens it, so only WideDirectory has
+      // a navigator to miss, and the note names the path its method returns.
       assertThat(downstream)
           .hadNoteContaining(
               "until then WideDirectoryFocus.offices() returns TraversalPath<WideDirectory,"
                   + " Address>.");
+      Assertions.assertThat(downstream.notes())
+          .extracting(note -> note.getMessage(null))
+          .filteredOn(message -> message.contains("'offices'"))
+          .hasSize(1);
     }
 
     @Test

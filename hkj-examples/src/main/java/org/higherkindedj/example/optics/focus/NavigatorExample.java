@@ -10,41 +10,42 @@ import org.higherkindedj.optics.focus.FocusPath;
 /**
  * Demonstrates fluent navigation using generated navigator classes.
  *
- * <p>This example shows how to use {@code @GenerateFocus(generateNavigators = true)} to enable
- * fluent cross-type navigation without explicit {@code .via()} calls.
+ * <p>This example shows the navigators {@code @GenerateFocus} generates, which enable fluent
+ * cross-type navigation without explicit {@code .via()} calls.
  *
  * <h2>Key Concepts</h2>
  *
  * <ul>
- *   <li>Enabling navigator generation with {@code generateNavigators = true}
  *   <li>Fluent cross-type navigation: {@code CompanyFocus.headquarters().city()}
- *   <li>Navigator delegate methods: {@code get()}, {@code set()}, {@code modify()}
+ *   <li>A navigator is a path: {@code get()}, {@code set()}, {@code modify()} and the rest work on
+ *       it directly
  *   <li>Choosing which fields get navigators with {@code includeFields} and {@code excludeFields}
  *   <li>What {@code maxNavigatorDepth} changes: only a value of 1 or less changes the generated
  *       code
- *   <li>Composing with {@code .via()} from a navigator's underlying path
+ *   <li>Composing with {@code .via()} straight from a navigator
  *   <li>Using {@code widenCollections = true} to auto-widen SPI ZERO_OR_MORE types
  *   <li>SPI generator priority for resolving conflicts between overlapping generators
  * </ul>
  *
- * <h2>Comparison: With vs Without Navigators</h2>
+ * <h2>Comparison: Explicit Composition vs Fluent Navigation</h2>
  *
- * <p><strong>Without navigators</strong> (explicit composition):
+ * <p><strong>Explicit composition</strong>, which a navigator still accepts:
  *
  * <pre>{@code
  * String city = CompanyFocus.headquarters()
- *     .via(AddressFocus.city().toLens())
+ *     .via(AddressFocus.city())
  *     .get(company);
  * }</pre>
  *
- * <p><strong>With navigators</strong> (fluent navigation):
+ * <p><strong>Fluent navigation</strong>:
  *
  * <pre>{@code
  * String city = CompanyFocus.headquarters().city().get(company);
  * }</pre>
  *
  * <p>Navigators are generated for fields whose types are also annotated with
- * {@code @GenerateFocus(generateNavigators = true)}.
+ * {@code @GenerateFocus}. A record turns them off with {@code @GenerateFocus(generateNavigators =
+ * false)}.
  */
 public class NavigatorExample {
 
@@ -53,19 +54,18 @@ public class NavigatorExample {
   /**
    * A company with a headquarters address.
    *
-   * <p>With {@code generateNavigators = true}, the processor generates a {@code
-   * HeadquartersNavigator} inner class in {@code CompanyFocus} that enables fluent navigation to
-   * {@code Address} fields.
+   * <p>The processor generates a {@code HeadquartersNavigator} inner class in {@code CompanyFocus},
+   * a {@code FocusPath} that also navigates fluently to {@code Address} fields.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Company(String name, Address headquarters, int employeeCount) {}
 
   /**
    * An address with street and city fields.
    *
-   * <p>Both fields are navigable from parent types when navigators are enabled.
+   * <p>Both fields are navigable from parent types through their navigators.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Address(String street, String city, String postcode) {}
 
   // ============= Domain Model with a Navigator Depth Setting =============
@@ -81,15 +81,15 @@ public class NavigatorExample {
    * of 1 or less changes the generated code: it makes a navigator's own navigation methods return
    * plain paths.
    */
-  @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
+  @GenerateFocus(maxNavigatorDepth = 2)
   public record Organisation(String name, Division mainDivision) {}
 
   /** A division containing a department. */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Division(String name, Department department) {}
 
   /** A department with a manager name. */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Department(String name, String managerName) {}
 
   // ============= Domain Model with Field Filtering =============
@@ -101,9 +101,7 @@ public class NavigatorExample {
    * fields. Here, only {@code homeAddress} gets a navigator; {@code workAddress} uses standard
    * {@code FocusPath}.
    */
-  @GenerateFocus(
-      generateNavigators = true,
-      includeFields = {"homeAddress"})
+  @GenerateFocus(includeFields = {"homeAddress"})
   public record Person(String name, Address homeAddress, Address workAddress) {}
 
   // ============= Domain Model with SPI-Aware Navigator Widening =============
@@ -112,16 +110,16 @@ public class NavigatorExample {
    * A warehouse with inventory tracked as a Map and a location address.
    *
    * <p>The {@code inventory} field is a {@code Map<String, Integer>}, which the SPI recognises via
-   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. Its values are not themselves
-   * navigable, so the path stops at the map until {@code widenCollections} says otherwise — the
-   * same answer whether the field is reached through {@code WarehouseFocus.inventory()} or through
-   * a navigator on a record holding a {@code Warehouse}.
+   * {@code MapValueGenerator} with {@code ZERO_OR_MORE} cardinality. The path stops at the map
+   * until {@code widenCollections} or {@code widenFields} widens it, whatever its values are, and
+   * the answer is the same whether the field is reached through {@code WarehouseFocus.inventory()}
+   * or through a navigator on a record holding a {@code Warehouse}.
    *
    * <p>The {@code verifiedName} field is an {@code Either<String, String>}, which the SPI
    * recognises via {@code EitherGenerator} with {@code ZERO_OR_ONE} cardinality. A zero-or-one
    * container is always stepped into, so that path is an {@code AffinePath}.
    */
-  @GenerateFocus(generateNavigators = true)
+  @GenerateFocus
   public record Warehouse(
       String name,
       Map<String, Integer> inventory,
@@ -160,7 +158,7 @@ public class NavigatorExample {
     System.out.println("=== Navigator Example ===\n");
 
     basicNavigatorUsage();
-    navigatorDelegateMethods();
+    navigatorPathMethods();
     spiAwareNavigationExample();
     widenCollectionsExample();
     spiPriorityExample();
@@ -190,12 +188,11 @@ public class NavigatorExample {
     Company company =
         new Company("Acme Corp", new Address("123 Main St", "London", "SW1A 1AA"), 100);
 
-    // Without navigators - explicit composition with .via()
-    String cityManual =
-        CompanyFocus.headquarters().toPath().via(AddressFocus.city().toLens()).get(company);
+    // Explicit composition with .via(), straight on the navigator
+    String cityManual = CompanyFocus.headquarters().via(AddressFocus.city()).get(company);
     System.out.println("City (manual .via() composition): " + cityManual);
 
-    // With navigators - fluent cross-type navigation
+    // Fluent cross-type navigation
     String cityNavigator = CompanyFocus.headquarters().city().get(company);
     System.out.println("City (navigator):                 " + cityNavigator);
 
@@ -207,20 +204,20 @@ public class NavigatorExample {
   }
 
   /**
-   * Demonstrates navigator delegate methods.
+   * Demonstrates that a navigator is a path.
    *
-   * <p>Navigator classes delegate all {@code FocusPath} operations to the underlying path:
+   * <p>A navigator is a {@code FocusPath}, with a navigation method for each field of the record it
+   * reaches, so every path operation works on it directly:
    *
    * <ul>
    *   <li>{@code get(source)} - Extract the focused value
    *   <li>{@code set(value, source)} - Replace the focused value
    *   <li>{@code modify(f, source)} - Transform the focused value
-   *   <li>{@code toPath()} - Access the underlying {@code FocusPath}
-   *   <li>{@code toLens()} - Extract the underlying {@code Lens}
+   *   <li>{@code via(...)}, {@code toLens()} and the rest - as on any {@code FocusPath}
    * </ul>
    */
-  static void navigatorDelegateMethods() {
-    System.out.println("--- Navigator Delegate Methods ---");
+  static void navigatorPathMethods() {
+    System.out.println("--- A Navigator Is a Path ---");
 
     Company company = new Company("TechCo", new Address("456 Oak Ave", "Manchester", "M1 1AA"), 50);
 
@@ -243,7 +240,7 @@ public class NavigatorExample {
     System.out.println(
         "modify(): Street is now " + CompanyFocus.headquarters().get(updatedCompany).street());
 
-    // Navigated delegate methods work on nested paths too
+    // The path a navigation method returns works the same way
     FocusPath<Company, String> cityPath = CompanyFocus.headquarters().city();
     System.out.println("Nested get():    " + cityPath.get(company));
 
@@ -267,8 +264,8 @@ public class NavigatorExample {
    * <ul>
    *   <li>{@code ZERO_OR_ONE} (Either, Try, Validated) → {@code AffinePath}, always
    *   <li>{@code ZERO_OR_MORE} (Map, arrays, third-party collections) → {@code TraversalPath} under
-   *       {@code widenCollections = true}, or when the element is itself a navigable record and the
-   *       container has to be stepped into to reach it
+   *       {@code widenCollections = true}, or {@code widenFields} naming the field; a navigator
+   *       over a navigable element follows the widening and never forces it
    * </ul>
    *
    * <p>A navigator method reports the same path type as the static Focus method for the same
@@ -292,7 +289,7 @@ public class NavigatorExample {
             Either.right("Verified Central"),
             new Address("10 Dock Rd", "Bristol", "BS1 1AA"));
 
-    // location is a plain record field → navigator returns FocusPath delegates
+    // location is a plain record field → its navigator is a FocusPath that navigates on
     String locationCity = WarehouseFocus.location().city().get(warehouse);
     System.out.println("location().city():    " + locationCity);
 
@@ -403,7 +400,7 @@ public class NavigatorExample {
    * hop is composed with {@code .via()}.
    *
    * <pre>{@code
-   * @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
+   * @GenerateFocus(maxNavigatorDepth = 2)
    * record Organisation(Division mainDivision) {}
    *
    * // Hop 1: returns OrganisationFocus.MainDivisionNavigator, over the Division
@@ -415,8 +412,8 @@ public class NavigatorExample {
    * // Hop 3: returns a plain FocusPath to the department's name, which is a leaf
    * OrganisationFocus.mainDivision().department().name()
    *
-   * // .toPath() hands over the underlying FocusPath, for composing with .via()
-   * OrganisationFocus.mainDivision().department().toPath().via(DepartmentFocus.managerName().toLens())
+   * // A navigator is a FocusPath, so .via() composes straight on
+   * OrganisationFocus.mainDivision().department().via(DepartmentFocus.managerName())
    * }</pre>
    */
   static void navigatorDepthExample() {
@@ -438,14 +435,10 @@ public class NavigatorExample {
     String deptName = OrganisationFocus.mainDivision().department().name().get(org);
     System.out.println("Department name:  " + deptName);
 
-    // Or use .toPath() to hand over the underlying FocusPath, for composing with .via()
+    // Or compose with .via(), straight on the navigator
     String manager =
-        OrganisationFocus.mainDivision()
-            .department()
-            .toPath()
-            .via(DepartmentFocus.managerName().toLens())
-            .get(org);
-    System.out.println("Via toPath().via(): " + manager);
+        OrganisationFocus.mainDivision().department().via(DepartmentFocus.managerName()).get(org);
+    System.out.println("Via .via():       " + manager);
 
     System.out.println();
   }
@@ -463,7 +456,7 @@ public class NavigatorExample {
    * <p>If both are specified, {@code includeFields} takes precedence.
    *
    * <pre>{@code
-   * @GenerateFocus(generateNavigators = true, includeFields = {"homeAddress"})
+   * @GenerateFocus(includeFields = {"homeAddress"})
    * record Person(String name, Address homeAddress, Address workAddress) {}
    *
    * // homeAddress gets a navigator

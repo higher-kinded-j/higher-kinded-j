@@ -8,6 +8,6 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 
 // ANCHOR: consignment
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 public record Consignment(UUID orderId, Address to, ConsignmentState state) {}
 // ANCHOR_END: consignment

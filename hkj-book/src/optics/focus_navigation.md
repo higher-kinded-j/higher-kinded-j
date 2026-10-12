@@ -131,7 +131,7 @@ For a history of a card numbered 4242424242424242 and a bank payment, `pans` hol
 
 ## Fluent navigation with generated navigators {#fluent-navigation-with-generated-navigators}
 
-Set `generateNavigators = true` and the processor emits a small wrapper class per navigable field, so the next hop is a method call rather than a `.via()`:
+A field whose type is another `@GenerateFocus` record gets a navigator: the field's own path, with a method added for each field of the record it reaches. So the next hop is a method call rather than a `.via()`, and the navigator still goes wherever its path goes:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Consignment.java:consignment}}
@@ -152,10 +152,10 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart LR
     accTitle: Which fields get a navigator
-    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container whose element is such a record. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments gets no navigator, so chain a lens you write with via. Anything else keeps a plain path chained with via.
+    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container of such a record that the declaring record widens. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments gets no navigator, so chain a lens you write with via. Anything else keeps a plain path chained with via.
     F{"The field's<br/>type is..."}
     F --- R1["a record with<br/>@GenerateFocus, its Focus<br/>class generated and each<br/>type parameter named"]
-    F --- R2["an SPI container<br/>whose element is<br/>such a record"]
+    F --- R2["a widened SPI<br/>container of<br/>such a record"]
     F --- R3["Optional, Maybe, List,<br/>Set, Collection"]
     F --- R4["a generic record<br/>given a wildcard or<br/>no type arguments"]
     F --- R5["anything else"]
@@ -173,7 +173,7 @@ flowchart LR
     class N,W,Q,P tier
 ```
 
-The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
+The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible. One gets a navigator when its element type is itself annotated and the record widens the container: an `Either` always, a `Map` or an array under `widenCollections`, or when `widenFields` names the field. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_or_via}}
@@ -181,25 +181,19 @@ The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`,
 
 ### What a navigator provides {#what-a-navigator-provides}
 
-A navigator is a thin wrapper around one path, so it exposes that path's core operations plus one method per field of the target type:
-
-| Wrapped path | Operations on the navigator |
-|--------------|-----------------------------|
-| `FocusPath` | `get`, `set`, `modify`, `toLens`, `toPath` |
-| `AffinePath` | `getOptional`, `set`, `modify`, `matches`, `toPath` |
-| `TraversalPath` | `getAll`, `setAll`, `modifyAll`, `count`, `isEmpty`, `toPath` |
-
-Everything else (`filter`, `modifyF`, `traced`, `via`, `foldMap`) lives on the path, so call `toPath()` first. Here `traced` records each postcode it passes before the path normalises it, so a consignment to `n1 1aa` comes back addressed to `N1 1AA`:
+A navigator is its path, with one method added per field of the target type. Every method of its path type works on it directly, such as `via`, `modifyF` and `traced`. Here `traced` records each postcode it passes before the path normalises it, so a consignment to `n1 1aa` comes back addressed to `N1 1AA`:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:to_path}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:path_methods}}
 ```
+
+`toPath()` hands back the path without the navigation methods, where a type must name the plain path.
 
 ### When to use navigators {#when-to-use-navigators}
 
-**Enable them when** you navigate across record types often, deep navigation is common, or you want the IDE to autocomplete the whole path.
+**They are on by default.** A navigator adds one small class per navigable field. Its type is a subtype of the plain path's, so code that names the path type keeps compiling, and your IDE can autocomplete the whole path.
 
-**Leave them off when** the fields reference types you cannot annotate, generated-code size matters, or the structures are shallow enough that `.via()` costs nothing.
+**Turn them off** with `@GenerateFocus(generateNavigators = false)` when generated-code size matters more than fluent hops, or the structures are shallow enough that `.via()` costs nothing.
 
 ~~~admonish tip title="You can ship now"
 You can now step into a collection, read an optional or nullable value, pick one variant of a sealed type, and chain into another record with a navigator or `.via()`. The rest of this page is for a field that surprises you.
@@ -216,7 +210,7 @@ Where this lives: [Access by index](#access-by-index).
 ~~~
 
 ~~~admonish question title="Checkpoint: a hop from a list" id="check-navigation-list-hop"
-`Order` has `generateNavigators = true`, and `LineItem` carries `@GenerateFocus`. Does this compile?
+`Order` and `LineItem` both carry `@GenerateFocus`. Does this compile?
 
 <!-- verify:rejects "cannot find symbol" -->
 ```java
@@ -234,7 +228,7 @@ Where this lives: [Which fields get a navigator](#which-fields-get-a-navigator).
 
 ## The fine print {#the-fine-print}
 
-The rest of this page is detail for an unusual field or build: an SPI container, a list you take apart, a record in another module, the annotation's navigator options, a target with type parameters, where a `@Nullable` counts, and the rules by which a path widens.
+The rest of this page is detail for an unusual field or build. It covers an SPI container, a list you take apart, a record in another module, and the annotation's navigator options. Then come a field named like a path method, a target with type parameters, where a `@Nullable` counts, and the rules by which a path widens.
 
 ### `.some(Affine)`: navigate SPI container types {#someaffine-navigate-spi-container-types}
 
@@ -294,11 +288,11 @@ Three things can keep such a navigator from being generated in full, and the pro
 
 ### Controlling navigator generation {#controlling-navigator-generation}
 
-**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path, from a navigator over an `Optional` or a collection into a record, still does. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
+**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path into a record still does, such as one from a navigator over an `Either`. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
 
 <!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
+@GenerateFocus(maxNavigatorDepth = 1)
 record Order(
     UUID id,
     Customer customer,
@@ -316,13 +310,17 @@ record Order(
 <!-- verify -->
 ```java
 // Only these fields get one
-@GenerateFocus(generateNavigators = true, includeFields = {"delivery"})
+@GenerateFocus(includeFields = {"delivery"})
 record Contacts(Address billing, Address delivery, Address returns) {}
 
 // All but these do
-@GenerateFocus(generateNavigators = true, excludeFields = {"referrer"})
+@GenerateFocus(excludeFields = {"referrer"})
 record CustomerReferral(Customer referrer, Customer referred) {}
 ```
+
+### A field named like a path method {#a-field-named-like-a-path-method}
+
+A navigator already has its path's methods, so it cannot navigate to a field named like one that takes no arguments, such as `last`, `head` or `segments`. On a record that leaves navigators to the default, the field that reaches such a record keeps its plain path, with a note; on one that writes `generateNavigators = true`, the processor refuses it. [Compiler Messages](compiler_errors.md#generatefocus-navigator-cannot-navigate) gives both and their fixes. A field named like a method that takes arguments, such as `get` or `count`, navigates as usual.
 
 ### A target with type parameters {#a-target-with-type-parameters}
 
@@ -331,10 +329,10 @@ A navigator into a generic record declares that record's type parameters after i
 <!-- verify -->
 ```java
 // A value kept with the time it last changed, generic so that it can hold any of the cast's values
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Revision<T>(T current, Instant changedAt) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instant openedAt) {}
 
 FocusPath<ContactHistory, EmailAddress> current = ContactHistoryFocus.email().current();
@@ -346,10 +344,10 @@ A field that names no single type for one of those parameters gets no navigator.
 
 <!-- verify:reports "returns FocusPath<ContactHistory, Revision<?>> instead. A path from one instantiation of Revision does not compose with it, but a lens you write from Revision<?> does, through .via()." -->
 ```java
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record Revision<T>(T current, Instant changedAt) {}
 
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instant openedAt) {}
 ```
 
@@ -357,7 +355,7 @@ record ContactHistory(Revision<EmailAddress> email, Revision<?> lastEdit, Instan
 Note: Navigator for field 'lastEdit' is not generated: a navigator into Revision has to name one type for each of its type parameters, which Revision<?> does not. ContactHistoryFocus.lastEdit() returns FocusPath<ContactHistory, Revision<?>> instead. A path from one instantiation of Revision does not compose with it, but a lens you write from Revision<?> does, through .via(). Write Revision<Object>, or another concrete instantiation, in place of Revision<?> to get a navigator.
 ```
 
-The note names the path the field's method returns, which follows the field's [path widening](#path-widening). Where that path focuses on the record, a lens you write from `Revision<?>` composes with it, as [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows. If the focus may be null, as an element written `@Nullable` may, the note puts `.some(Affines.nullable())` before the lens. Without `widenCollections`, a `Map` or an array keeps a path to the whole container, so its note offers only the type to write. If the record's companion is also missing or out of reach, the offer says what else a navigator needs.
+The note names the path the field's method returns, which follows the field's [path widening](#path-widening). That path focuses on the record, so a lens you write from `Revision<?>` composes with it, as [A wildcard inside the element](focus_containers.md#a-wildcard-inside-the-element) shows. If the focus may be null, as an element written `@Nullable` may, the note puts `.some(Affines.nullable())` before the lens. A `Map` or an array the record does not widen keeps a path to the whole container, so it has no navigator to miss and draws no note about its wildcard. If the record's companion is also missing or out of reach, the offer says what else a navigator needs.
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 
@@ -376,13 +374,13 @@ Each SPI generator that names an optic declares a `Cardinality`, the number of v
 | Cardinality | Path | Types |
 |-------------|------|-------|
 | `ZERO_OR_ONE` | `AffinePath` | `Either<L,R>`, `Try<A>`, `Validated<E,A>` |
-| `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections` or when the element is itself navigable | `Map<K,V>`, arrays of a reference type, Eclipse Collections, Guava, Vavr, Apache Commons |
+| `ZERO_OR_MORE` | `TraversalPath`, under `widenCollections`, or when `widenFields` names the field | `Map<K,V>`, arrays of a reference type, Eclipse Collections, Guava, Vavr, Apache Commons |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:spi_widening}}
 ```
 
-`ZERO_OR_MORE` SPI types are the one asymmetry: a Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `StockroomFocus.stock()` returns the `TraversalPath` directly. A navigator method reports the same path type as the static method for the same component. Without the flag, the path still steps into a container whose element is a navigable record, because the navigator has to reach it; with the flag, it steps into every such container. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
+`ZERO_OR_MORE` SPI types are the one asymmetry: a Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `StockroomFocus.stock()` returns the `TraversalPath` directly, or widen that one field with `widenFields = "stock"`. A navigator follows the same rule: it steps into a container only where the record widens it, so a navigator never changes what a field's method focuses on. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
 
 #### Compound widening {#compound-widening}
 
@@ -429,8 +427,8 @@ Beyond three levels, compose the rest with `.via()`.
 * **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
-* **Navigators cover a field whose type is another annotated record.** A `Map`, an array or an `Either` of one gets a navigator too, but `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
-* **`toPath()` is the escape hatch.** A navigator carries only the core operations; `filter`, `modifyF`, `traced` and `via` are one `toPath()` away.
+* **Navigators cover a field whose type is another annotated record.** An `Either` of one gets a navigator too, and so does a `Map` or an array the record widens. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
+* **A navigator is a path.** Every path method works on it, and it goes wherever a path of its type goes.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

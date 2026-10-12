@@ -14,7 +14,7 @@ A wither copies one record with one component replaced. A [lens](lenses.md) is t
 |---|---|---|
 | `order.withStatus(PAID)`, one level deep | `OrderFocus.status().set(PAID, order)`, or the lens `OrderLenses.status()` | a wither is enough for one shallow change; a lens earns its place once it is reused or composed |
 | `x.withA(f.apply(x.a()))`, a read and then a write | `path.modify(f, x)` | one call reads and writes |
-| A wither cascade three records deep | `OrderFocus.customer().email().value().modify(f, order)` | a chained hop needs [navigators](focus_navigation.md#fluent-navigation-with-generated-navigators), `generateNavigators = true`; without them, each hop is `.via(...)` |
+| A wither cascade three records deep | `OrderFocus.customer().email().value().modify(f, order)` | a chained hop uses [navigators](focus_navigation.md#fluent-navigation-with-generated-navigators), on by default; with them off, each hop is `.via(...)` |
 | `withLo(5).withHi(10)` on a record whose constructor checks both | `Lens.paired`, which constructs once | two lens writes fail at the first, just as two withers do: [Coupled Fields](coupled_fields.md) |
 | `toBuilder().sku(s).price(p).build()`, several fields at once | `Edits.combine(set(LineItemFocus.sku(), s), set(LineItemFocus.price(), p)).apply(line)` | `combine` builds a record per edit; for a constructor that checks fields together, [accumulate onto a focus](multi_edit.md#fields-a-constructor-checks-together) |
 | `@Builder`, to create a record | keep it | a lens writes into a value you already have, so it replaces `@With`, never `@Builder` |
@@ -114,7 +114,7 @@ A consignment returned with the reason `damaged`, padded with spaces, comes back
 
 ## Migrating one method {#migrating-one-method}
 
-1. Add `@GenerateFocus(generateNavigators = true)` beside `@With` on the records the method changes. The two sit side by side.
+1. Add `@GenerateFocus` beside `@With` on the records the method changes. The two sit side by side.
 2. Replace the deepest cascade first, and assert that the old and new versions agree on a few fixtures.
 3. Once a second method uses a path, name it as a `static final` constant, as [Caching optics](production_readiness.md#caching-optics) suggests.
 4. Keep `@With` for one-level changes, and `@Builder` for creating records.

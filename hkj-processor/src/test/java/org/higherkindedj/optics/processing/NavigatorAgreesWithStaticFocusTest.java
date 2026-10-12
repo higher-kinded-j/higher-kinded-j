@@ -37,9 +37,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 class NavigatorAgreesWithStaticFocusTest {
 
   /** A component, and the path type both routes must report for it. */
-  private record Shape(String declaration, String field) {}
+  record Shape(String declaration, String field) {}
 
-  private static final List<Shape> SHAPES =
+  static final List<Shape> SHAPES =
       List.of(
           new Shape("String plain", "plain"),
           new Shape("List<String> list", "list"),
@@ -79,7 +79,7 @@ class NavigatorAgreesWithStaticFocusTest {
           new Shape("@SuppressWarnings(\"rawtypes\") Box rawBox", "rawBox"),
           new Shape("Map<String, Box<?>> looseBoxMap", "looseBoxMap"));
 
-  private static final JavaFileObject LEAF =
+  static final JavaFileObject LEAF =
       JavaFileObjects.forSourceString(
           "com.example.Leaf",
           """
@@ -94,7 +94,7 @@ class NavigatorAgreesWithStaticFocusTest {
   /**
    * A generic navigable record, which a component instantiates, leaves to a wildcard or leaves raw.
    */
-  private static final JavaFileObject BOX =
+  static final JavaFileObject BOX =
       JavaFileObjects.forSourceString(
           "com.example.Box",
           """
@@ -119,6 +119,11 @@ class NavigatorAgreesWithStaticFocusTest {
           """);
 
   private static JavaFileObject shapes(boolean widenCollections) {
+    return shapes("generateNavigators = true, widenCollections = " + widenCollections);
+  }
+
+  /** The corpus as one record, annotated {@code @GenerateFocus(settings)}. */
+  static JavaFileObject shapes(String settings) {
     String components =
         SHAPES.stream().map(Shape::declaration).reduce((a, b) -> a + ",\n    " + b).orElseThrow();
     return JavaFileObjects.forSourceString(
@@ -139,11 +144,11 @@ class NavigatorAgreesWithStaticFocusTest {
         import org.higherkindedj.optics.annotations.GenerateFocus;
         import org.jspecify.annotations.Nullable;
 
-        @GenerateFocus(generateNavigators = true, widenCollections = %s)
+        @GenerateFocus(%s)
         public record Shapes(
             %s) {}
         """
-            .formatted(widenCollections, components));
+            .formatted(settings, components));
   }
 
   @ParameterizedTest(name = "widenCollections = {0}")
@@ -184,12 +189,21 @@ class NavigatorAgreesWithStaticFocusTest {
         .containsEntry("members", "TraversalPath<_, String>")
         .containsEntry("eitherLeaf", "EitherLeafNavigator<_>")
         .containsEntry("box", "BoxNavigator<_, String>")
-        .containsEntry("boxMap", "BoxMapNavigator<_, String>")
+        .containsEntry(
+            "boxMap",
+            widenCollections
+                ? "BoxMapNavigator<_, String>"
+                : "FocusPath<_, Map<String, Box<String>>>")
         .containsEntry("looseBox", "FocusPath<_, Box<?>>")
-        .containsEntry("leafArray", "LeafArrayNavigator<_>")
-        .containsEntry("nullableLeaves", "NullableLeavesNavigator<_>")
+        .containsEntry(
+            "leafArray", widenCollections ? "LeafArrayNavigator<_>" : "FocusPath<_, Leaf[]>")
+        .containsEntry(
+            "nullableLeaves",
+            widenCollections ? "NullableLeavesNavigator<_>" : "FocusPath<_, @Nullable Leaf[]>")
         .containsEntry("counts", "FocusPath<_, int[]>")
-        .containsEntry("boxArray", "BoxArrayNavigator<_, String>")
+        .containsEntry(
+            "boxArray",
+            widenCollections ? "BoxArrayNavigator<_, String>" : "FocusPath<_, Box<String>[]>")
         .containsEntry("nullableList", "TraversalPath<_, String>")
         .containsEntry(
             "map",
@@ -202,7 +216,7 @@ class NavigatorAgreesWithStaticFocusTest {
   }
 
   @Test
-  @DisplayName("should compose a navigator whose delegate is wider than the target's own")
+  @DisplayName("should compose a navigator whose path is wider than the target's own")
   void shouldComposeANavigatorWiderThanItsTargets() {
     JavaFileObject outer =
         JavaFileObjects.forSourceString(
@@ -213,7 +227,7 @@ class NavigatorAgreesWithStaticFocusTest {
             import java.util.Map;
             import org.higherkindedj.optics.annotations.GenerateFocus;
 
-            @GenerateFocus(generateNavigators = true)
+            @GenerateFocus(generateNavigators = true, widenFields = "mids")
             public record Root(Map<String, Mid> mids) {}
             """);
     JavaFileObject mid =
@@ -276,7 +290,7 @@ class NavigatorAgreesWithStaticFocusTest {
         .as("a navigator over a record with a redirected companion compiles")
         .isEqualTo(Compilation.Status.SUCCESS);
     assertThat(generated(compilation, "com.example.HolderFocus"))
-        .contains("delegate.via(InnerFocus.name())")
+        .contains("toPath().via(InnerFocus.name())")
         .contains("import com.other.InnerFocus;");
   }
 
@@ -290,7 +304,7 @@ class NavigatorAgreesWithStaticFocusTest {
     // The navigator's own path carries the field name, and via() concatenates the segment the
     // composed static method carries, so a navigated path self-locates like a static one (#592).
     assertThat(outerFocus).contains("newValue)), \"shapes\")");
-    assertThat(outerFocus).contains("delegate.via(ShapesFocus.plain())");
+    assertThat(outerFocus).contains("toPath().via(ShapesFocus.plain())");
   }
 
   /** The text of a generated file. */

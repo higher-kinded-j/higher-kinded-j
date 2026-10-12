@@ -24,7 +24,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | Annotation | Place On | Generates |
 |------------|----------|-----------|
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
-| `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
+| `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders; a field holding another annotated record gets a navigator for cross-type chaining |
 | `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws a processor note (a note, not a warning: there is no per-component opt-out) |
 | `@GeneratePrisms` | `sealed interface` or `enum` | `{Type}Prisms` class with a `Prism<S, A>` for each permitted subtype or constant |
 | `@GenerateIsos` | a `static`, no-argument method returning an `Iso` with concrete type arguments | a companion class holding that `Iso<S, A>` as a static field |
@@ -55,17 +55,18 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 <!-- verify -->
 ```java
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 public record User(String name, Address address) {}
 
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 public record Address(String city, String postcode, Optional<String> floor) {}
 ```
 
-`generateNavigators = true` is what makes the cross-type chains below (`UserFocus.address().city()`)
-exist; it defaults to `false`, in which case `UserFocus.address()` is a plain
-`FocusPath<User, Address>` with nothing to chain onto.
+`UserFocus.address()` returns a navigator: the `FocusPath<User, Address>` itself, with a method for
+each `Address` field, which is what makes the cross-type chains below (`UserFocus.address().city()`)
+exist. A navigator goes wherever a path goes. Navigators are on by default;
+`@GenerateFocus(generateNavigators = false)` turns them off for a record.
 
 ### 2. Use generated Focus classes
 
@@ -100,14 +101,15 @@ Company updated = allNames.modifyAll(String::toUpperCase, company);
 ```
 
 Navigators are generated for **nested record** fields (`UserFocus.address().city()` above) and for
-SPI container types holding one; `List`, `Set`, `Optional` and `Maybe` fields are widened instead,
-so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
+SPI containers of one that the record widens: an `Either` always, and a `Map`, an array or a
+third-party collection under `widenCollections = true` or when `widenFields` names the field.
+`List`, `Set`, `Optional` and `Maybe` fields are widened instead, so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
 field's type arguments: `Revision<EmailAddress> email` chains as `.email().current()`. A field that
 names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, gets no
 navigator, and the processor says so in a note naming the path its method returns. No
 `.via(RevisionFocus...)` chain reaches inside that path either. Declare the field with concrete type
 arguments (`Revision<EmailAddress>`) to get the navigator, or compose a lens you write from
-`Revision<?>` itself, as the note offers unless the field is a `Map` or array left unwidened:
+`Revision<?>` itself, as the note offers:
 
 ```java
 Lens<Revision<?>, Object> current =
@@ -118,6 +120,12 @@ Object value = ContactHistoryFocus.lastEdit().via(current).get(history);
 A navigator method composes the static Focus method for the field it navigates to, so the two always
 report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one
 source type further out.
+
+A nested record's field named like one of the path's no-argument methods, such as `last`, `head`,
+`each` or `segments`, cannot be navigated to, since the call would reach the path's own method. On
+a record that leaves navigators to the default, the field that reaches it keeps its plain path,
+with a note; on one that writes `generateNavigators = true`, the processor refuses it. Rename the
+field, or keep the navigating field a plain path with `excludeFields`.
 
 The nested record may live in a dependency, provided that module ran hkj-processor: the navigator
 composes the `Focus` class the dependency published, whichever processor version built it. A

@@ -7,6 +7,6 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 
 // ANCHOR: customer
 @GenerateLenses
-@GenerateFocus(generateNavigators = true)
+@GenerateFocus
 public record Customer(String name, EmailAddress email) {}
 // ANCHOR_END: customer
