@@ -355,10 +355,13 @@ public class SpecInterfaceGenerator {
    *
    * <p>Non-null only for an auto-detected traversal over a denotable lens focus whose every spec
    * variable this method's own signature declares: the local writes the focus out in full, so a
-   * variable only the lens names, a {@code Map} key under a source that never mentions it, has
-   * nowhere to come from and keeps the cast instead. The declared-parameter list is the one {@link
-   * #methodTypeParameters} chooses, so the two cannot diverge. The type itself is built by the same
-   * {@link #buildOpticReturnType} the sibling lens method's signature uses.
+   * variable only the lens names, a {@code Map} key under a source that never mentions it, would
+   * have nowhere to come from and keeps the cast instead. A getter reads only what the source
+   * names, so such a focus is reached only by an unchecked read, which the spec's analysis refuses;
+   * the cast is kept as a guard rather than for any lens that analysis admits. The
+   * declared-parameter list is the one {@link #methodTypeParameters} chooses, so the two cannot
+   * diverge. The type itself is built by the same {@link #buildOpticReturnType} the sibling lens
+   * method's signature uses.
    *
    * @param opticMethod the traversal method under generation
    * @param specInterface the spec interface declaring the parameters

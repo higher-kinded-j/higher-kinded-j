@@ -77,6 +77,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is static, so the generated lens cannot rebuild`](#wither--is-static-so-the-generated-lens-cannot-rebuild-a--through-it) | The overload the focus binds is a static method |
 | [`for the generated lens to read the value it focuses`](#-has-no-method--for-the-generated-lens-to-read-the-value-it-focuses) | A strategy's `getter`, or the lens method that stands in for it, names no accessor |
 | [`reads '...', not the lens's focus`](#-reads--not-the-lenss-focus-) | The accessor reads a value the lens cannot hand back as its focus |
+| [`only through an unchecked conversion`, `so the generated call to ... is unchecked`](#spec-unchecked-conversion) | A read or rebuild through a raw type is unchecked |
 | [`for the generated lens to set through`](#-has-no-method--for-the-generated-lens-to-set-through) | A `setter` names no method of the type it is called on |
 | [`hands back '...', which is not a builder`](#viabuilder-the-chain-the-lens-rebuilds-through) | A `@ViaBuilder` step leads somewhere the next call cannot be made |
 | [`is static, so the generated lens cannot set through`](#-has-no-method--for-the-generated-lens-to-set-through) | The `setter` the focus binds is a static method |
@@ -1519,6 +1520,53 @@ interface StampOpticsSpec extends OpticsSpec<Stamp> {
 
     @Wither(value = "withMonth", getter = "getMonth")
     Lens<Stamp, Integer> month();
+}
+```
+~~~
+
+### Unchecked reads and rebuilds through a raw type {#spec-unchecked-conversion}
+
+The external class declares an accessor, a builder or a supertype raw, or the spec writes the focus raw. The generated lens would read or rebuild through it in a way javac flags as unchecked. These messages report it, under the strategy's own tag:
+
+| The message says | What it means |
+|------------------|---------------|
+| `'getItems()' reads the raw type 'List', which reaches the lens's focus 'List<String>' only through an unchecked conversion` | The accessor reads a raw type, or a class that extends one, and the lens hands it back as a focus with type arguments |
+| `'withTyped(List<String>)' takes the lens's focus, the raw type 'List', only through an unchecked conversion to 'List<String>'` | The focus is written raw, and the method the lens rebuilds through takes the type with its arguments. For `@ViaConstructor` it reads `takes what 'getItems()' reads` where an accessor's value goes to the constructor |
+| `'toBuilder()' hands back the raw type 'Docket.Builder', so the generated call to 'id(T)' on it is unchecked` | The builder comes back raw, and erasing it changes a parameter of the setter: a type variable such as `T`, or a type with arguments such as `List<String>` |
+| `'Doc' inherits 'setValue(T)' from the raw type 'Base', so the generated call to it is unchecked` | The source type extends a raw type, and the method called is one it inherits from there |
+| `'build()' returns the raw type 'Tote', which reaches the source type 'Tote<String>' only through an unchecked conversion` | The builder chain turns raw at some step, so `build()` returns the erasure of the source type |
+
+**Fix.** Read and rebuild through members that name their types with arguments: an accessor that reads `List<String>`, a method that takes it, a builder whose steps hand back `Builder<T>`. Where the class offers only raw members, declare the lens over the raw type they read, `Lens<Shelf, List>`, with `@SuppressWarnings("rawtypes")` on the lens method. Otherwise rebuild with another strategy.
+
+~~~admonish note title="Why" collapsible=true
+A raw type is not refused in itself. A raw focus is your own declaration, and the optic generated for it carries the suppression, as it does for a record component. What is refused is generated code that converts a raw value to a type with arguments, or calls a method through a raw type that erases one of its parameters. javac flags both as unchecked in the generated file, which you cannot edit, and the `@SuppressWarnings` on your spec does not reach it. Under `-Xlint:unchecked` that is a warning, which `-Werror` turns into a failed build; without it, javac still notes that the file uses unchecked operations. A setter that erasure leaves as it is, such as `name(String)`, is called through a raw builder cleanly, so a chain through it that builds a type without arguments is accepted. Nor is a raw value refused where the type it reaches is reifiable, such as `List<?>` or `Class<?>`, which javac converts to with no warning. An accessor that declares a type variable of its own, such as `<T extends List> T items()`, is accepted too, since javac infers its type at the call.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "reads the raw type 'List', which reaches the lens's focus 'List<String>' only through an unchecked conversion" -->
+```java
+final class Shelf {
+
+    private final List items;
+
+    Shelf(List items) {
+        this.items = items;
+    }
+
+    public List getItems() {
+        return items;
+    }
+
+    public Shelf withItems(List items) {
+        return new Shelf(items);
+    }
+}
+
+@ImportOptics
+interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
+
+    @Wither(value = "withItems", getter = "getItems")
+    Lens<Shelf, List<String>> items();
 }
 ```
 ~~~

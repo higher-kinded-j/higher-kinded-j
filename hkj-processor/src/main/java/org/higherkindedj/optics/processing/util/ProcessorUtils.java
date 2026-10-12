@@ -310,6 +310,98 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a value of type {@code from} reaches {@code to} only through an unchecked conversion
+   * (JLS 5.1.9): it is assignable, and not as a subtype. A raw {@code List} reaches {@code
+   * List<String>} that way, and so does a class that extends a raw {@code ArrayList}.
+   *
+   * <p>Generated code that passes or hands back such a value carries an {@code [unchecked]} warning
+   * in a file its author cannot edit, so a caller holding a generated read or call to a type asks
+   * this as well as whether the value is assignable at all. Boxing and unboxing are assignable
+   * without subtyping too, and convert nothing unchecked, so a primitive on either side answers
+   * false. So does a reifiable target, such as {@code List<?>}, which javac converts a raw {@code
+   * List} to without a warning.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param from the type of the value passed or handed back; must not be null
+   * @param to the type it is passed or handed back as; must not be null
+   * @return true when the conversion is unchecked
+   * @since 0.5.0
+   */
+  public static boolean convertsUnchecked(Types types, TypeMirror from, TypeMirror to) {
+    return !from.getKind().isPrimitive()
+        && !to.getKind().isPrimitive()
+        && types.isAssignable(from, to)
+        && !types.isSubtype(from, to)
+        && !reifiableTarget(to);
+  }
+
+  /**
+   * Whether the target of an unchecked conversion is reifiable (JLS 4.7), which javac converts to
+   * without a warning (JLS 5.1.9): every type argument it names, and every one a type enclosing it
+   * names, an unbounded wildcard, or an array of such a type. Only a declared or an array type is
+   * the target of an unchecked conversion, and the walk out through enclosing types ends at the
+   * {@code NoType} past the outermost.
+   */
+  private static boolean reifiableTarget(TypeMirror target) {
+    return target.getKind() == TypeKind.ARRAY
+        ? reifiableTarget(((ArrayType) target).getComponentType())
+        : Stream.iterate(
+                target,
+                type -> type.getKind() == TypeKind.DECLARED,
+                type -> ((DeclaredType) type).getEnclosingType())
+            .flatMap(type -> ((DeclaredType) type).getTypeArguments().stream())
+            .allMatch(
+                argument ->
+                    argument.getKind() == TypeKind.WILDCARD
+                        && ((WildcardType) argument).getExtendsBound() == null
+                        && ((WildcardType) argument).getSuperBound() == null);
+  }
+
+  /**
+   * Whether a type reaches its members erased, as javac treats a raw type (JLS 4.8): raw itself, or
+   * a member type of a raw type, as {@code Outer.Builder} is for an inner class of a generic {@code
+   * Outer} named without its arguments. A static nested type has no enclosing instance, so the walk
+   * out through enclosing types ends there.
+   *
+   * @param type the type as it is reached; must not be null
+   * @return true when its members are read erased
+   * @since 0.5.0
+   */
+  public static boolean erasesItsMembers(DeclaredType type) {
+    TypeMirror enclosing = type.getEnclosingType();
+    return isRaw(type)
+        || (enclosing.getKind() == TypeKind.DECLARED && erasesItsMembers((DeclaredType) enclosing));
+  }
+
+  /**
+   * Whether a call to an instance member on {@code receiver} is unchecked (JLS 4.8): the receiver
+   * reaches the member's declaring type as a raw type, as {@link #erasesItsMembers} reads one, and
+   * erasing that type changes one of the member's parameters. {@code id(T)} called on a raw {@code
+   * Builder} is, and so is {@code add(E)} called on a class that extends a raw {@code ArrayList};
+   * {@code name(String)} on a raw {@code Builder} is not, since erasure leaves its parameter as it
+   * is.
+   *
+   * <p>javac reports such a call as {@code [unchecked]} wherever it is made, so generated code that
+   * makes one carries the warning in a file its author cannot edit.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param receiver the type the call is made on; must not be null
+   * @param member the instance method or constructor called; must not be null
+   * @return true when the call is unchecked
+   * @since 0.5.0
+   */
+  public static boolean callsUnchecked(
+      Types types, DeclaredType receiver, ExecutableElement member) {
+    // A member is reached on the type it is called on or on one of its supertypes.
+    DeclaredType declaring =
+        (DeclaredType) supertypeOf(types, receiver, (TypeElement) member.getEnclosingElement());
+    return erasesItsMembers(declaring)
+        && member.getParameters().stream()
+            .map(Element::asType)
+            .anyMatch(parameter -> !types.isSameType(parameter, types.erasure(parameter)));
+  }
+
+  /**
    * The annotations a generated member adds for the raw types it writes out or infers:
    * {@code @SuppressWarnings("rawtypes")} when one of its types names a raw type, none otherwise.
    *

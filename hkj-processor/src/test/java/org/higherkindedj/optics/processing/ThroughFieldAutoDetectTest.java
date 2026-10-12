@@ -2748,73 +2748,13 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("a variable outside the source but in the focus keeps the composition checked")
-    void focusVariableOutsideTheSourceKeepsTheCompositionChecked() {
-      // K reaches the lens focus and the traversal's own focus, so the generated method declares
-      // it and the checked local can name it, even though the source type never mentions K. The
-      // raw accessor is what lets such a lens generate at all (its body is an unchecked Lens.of
-      // invocation, which is why this row compiles without -Werror); the row is about the
-      // traversal's path.
-      var bagged =
-          JavaFileObjects.forSourceString(
-              "com.external.Bagged",
-              """
-              package com.external;
-              import java.util.List;
-              @SuppressWarnings({"rawtypes", "unchecked"})
-              public class Bagged {
-                  private final List items;
-                  public Bagged(List items) { this.items = items; }
-                  public List items() { return items; }
-                  public Builder toBuilder() { return new Builder().items(items); }
-                  public static class Builder {
-                      private List items;
-                      public Builder items(List i) { this.items = i; return this; }
-                      public Bagged build() { return new Bagged(items); }
-                  }
-              }
-              """);
-      var spec =
-          JavaFileObjects.forSourceString(
-              "com.test.BaggedSpec",
-              """
-              package com.test;
-              import java.util.List;
-              import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.Traversal;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-              import org.higherkindedj.optics.annotations.ThroughField;
-              import org.higherkindedj.optics.annotations.ViaBuilder;
-              import com.external.Bagged;
-
-              @ImportOptics
-              public interface BaggedSpec<K> extends OpticsSpec<Bagged> {
-                  @ViaBuilder
-                  Lens<Bagged, List<K>> items();
-
-                  @ThroughField(field = "items")
-                  Traversal<Bagged, K> eachItem();
-              }
-              """);
-
-      Compilation compilation = compile(bagged, spec);
-
-      assertThat(compilation).succeeded();
-      assertThat(compilation)
-          .generatedSourceFile("com.test.Bagged")
-          .contentsAsUtf8String()
-          .doesNotContain("(Traversal)");
-    }
-
-    @Test
-    @DisplayName("a variable only the lens focus names falls back to the cast path")
-    void lensOnlyVariableFallsBackToTheCastPath() {
-      // The spec's lens declares a focus naming K, which neither the source nor the traversal's
-      // own focus mentions, so the checked body could not declare K. The traversal analysis keeps
-      // the cast. The fixture's raw accessor and builder are what let such a lens generate at
-      // all (its body is an unchecked Lens.of invocation, which is why this row compiles without
-      // -Werror); the row is about which path the traversal takes beside it.
+    @DisplayName("a lens focus naming a variable the source never mentions is refused at the lens")
+    void aLensFocusNamingAVariableOutsideTheSourceIsRefused() {
+      // A getter reads only what the source type names, so a lens focus naming one of the spec's
+      // own variables that the source never mentions, the Map key K here, is reached only by an
+      // unchecked read of a raw accessor. That lens is refused at the spec, so the traversal
+      // through
+      // it is never generated, and the cast it would have kept is never needed.
       var tagged =
           JavaFileObjects.forSourceString(
               "com.external.Tagged",
@@ -2860,11 +2800,11 @@ class ThroughFieldAutoDetectTest {
 
       Compilation compilation = compile(tagged, spec);
 
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
       assertThat(compilation)
-          .generatedSourceFile("com.test.Tagged")
-          .contentsAsUtf8String()
-          .contains("andThen((Traversal)");
+          .hadErrorContaining(
+              "'tags()' reads the raw type 'Map', which reaches the lens's focus 'Map<K, V>' only"
+                  + " through an unchecked conversion.");
     }
   }
 }

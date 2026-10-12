@@ -43,15 +43,18 @@ import org.higherkindedj.optics.processing.util.Reachability.Crossing;
  * <p>Each of the four copy strategies names methods as strings: the accessor a lens reads through,
  * and the wither, builder chain, setter or constructor order it writes through. The generated lens
  * calls them as written, so a name the source type does not carry, or one that cannot take the
- * value the lens sets, is a compile error in a file its author never wrote. Every one of them is
- * read here instead, against the type the spec names, and refused at the spec method.
+ * value the lens sets, is a compile error in a file its author never wrote; and a read or call
+ * javac can only make unchecked is a warning there that no suppression its author writes reaches.
+ * Every one of them is read here instead, against the type the spec names, and refused at the spec
+ * method.
  *
  * <p>The rules the refusals rest on are javac's own, and two of them are deliberately not repeated:
  * a call whose binding rests on inference, and a focus written as a wildcard, whose type such a
  * lens draws from its getter as much as from the wildcard. Both are read leniently, so that nothing
- * javac would accept is refused here. {@link CallBinding} answers which method or constructor a
- * generated call binds, and {@link ConstructorOrderChecks} what order a {@code @ViaConstructor}
- * rebuild passes its arguments in.
+ * javac would accept without an unchecked warning is refused here; a wildcard focus's upper bound
+ * still holds a read against an unchecked one. {@link CallBinding} answers which method or
+ * constructor a generated call binds, and {@link ConstructorOrderChecks} what order a
+ * {@code @ViaConstructor} rebuild passes its arguments in.
  *
  * <p>Split from {@link SpecInterfaceAnalyser}, which asks it one question per lens method and keeps
  * the rest of a spec's reading: its source type, its optic kinds, and its prism and traversal
@@ -447,8 +450,9 @@ final class CopyStrategyChecks {
    *
    * <p>Every strategy reads with the same lambda, {@code source -> source.getX()}, so the name has
    * to be a zero-parameter instance method the generated class can call, and the value it reads has
-   * to be one the lens can hand back as its focus. A focus written as a wildcard is inferred from
-   * this very accessor, so there is nothing to hold it to.
+   * to be one the lens can hand back as its focus without an unchecked conversion. A focus written
+   * as a wildcard is inferred from this very accessor, so only its upper bound holds the read, and
+   * only against an unchecked one.
    *
    * @param method the annotated lens method, for error reporting
    * @param tag the strategy annotation, which the message names
@@ -496,8 +500,17 @@ final class CopyStrategyChecks {
         ProcessorUtils.returnTypeIn(
             typeUtils, (DeclaredType) typeUtils.capture(sourceType), getter);
     TypeMirror focus = focusRead(focusType);
-    if (focus == null || typeUtils.isAssignable(read, focus)) {
-      return false;
+    if (focus == null) {
+      // A wildcard focus is inferred from this accessor, within its upper bound: a read that
+      // reaches the bound only unchecked leaves whatever javac infers unchecked too.
+      TypeMirror bound = ((WildcardType) focusType).getExtendsBound();
+      return bound != null
+          && readsUnchecked(
+              method, tag, sourceType, getter, getterName, read, focusType, bound, namesItsGetter);
+    }
+    if (typeUtils.isAssignable(read, focus)) {
+      return readsUnchecked(
+          method, tag, sourceType, getter, getterName, read, focusType, focus, namesItsGetter);
     }
     // Named as the spec's own instantiation writes it, which is what the author reads, and in
     // full where a simple name would name both types.
@@ -546,6 +559,230 @@ final class CopyStrategyChecks {
   }
 
   /**
+   * Reports an accessor whose read reaches the lens's focus only through an unchecked conversion,
+   * and returns whether it did. A raw {@code List} reaches {@code List<String>} that way, and the
+   * generated read hands it back as the focus, so the conversion would be made in the generated
+   * file.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param getter the accessor the lens reads through
+   * @param getterName its name
+   * @param read what it reads on the captured source, as the generated call reads it
+   * @param focusType the lens's focus, as the spec writes it
+   * @param target the type the read has to reach: the focus, or the upper bound of a wildcard one
+   * @param namesItsGetter whether the strategy carries a {@code getter} attribute to point
+   *     elsewhere
+   * @return true when the read is unchecked, and an error was reported
+   */
+  private boolean readsUnchecked(
+      ExecutableElement method,
+      String tag,
+      DeclaredType sourceType,
+      ExecutableElement getter,
+      String getterName,
+      TypeMirror read,
+      TypeMirror focusType,
+      TypeMirror target,
+      boolean namesItsGetter) {
+    // An accessor that declares type variables of its own has them inferred at the generated
+    // call, from the focus the read is handed back as, so what it reads is not what it is passed.
+    TypeMirror returned = getter.getReturnType();
+    if (!ProcessorUtils.convertsUnchecked(typeUtils, read, target)
+        || getter.getTypeParameters().stream()
+            .anyMatch(variable -> ProcessorUtils.mentions(returned, variable))) {
+      return false;
+    }
+    TypeMirror declaredRead = ProcessorUtils.returnTypeIn(typeUtils, sourceType, getter);
+    String targetName = ProcessorUtils.simpleTypeName(target);
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + getterName
+            + "()' reads "
+            + described(typeUtils, declaredRead, target)
+            + ", which reaches the lens's focus '"
+            + ProcessorUtils.simpleTypeName(focusType)
+            + "' only through an unchecked conversion.",
+        "The generated lens hands what 'source."
+            + getterName
+            + "()' reads back as its focus, and "
+            + UNCHECKED_IN_GENERATED_CODE,
+        (namesItsGetter
+                ? "Point " + tag + "'s 'getter' at an accessor that reads '" + targetName + "'"
+                : "Name the lens method after an accessor that reads '" + targetName + "'")
+            + ", or declare the lens over '"
+            + ProcessorUtils.simpleTypeName(declaredRead)
+            + "'"
+            // The lens's own declaration then names the raw type, which the author answers for.
+            + (ProcessorUtils.firstRawIn(declaredRead) == null
+                ? ""
+                : ", with @SuppressWarnings(\"rawtypes\") on the lens method,")
+            + " and rebuild it through "
+            + (tag.equals("@ViaConstructor") ? "a constructor" : "a method")
+            + " that takes "
+            // A declared read converts unchecked only to a declared focus.
+            + (declaredRead.getKind() == TypeKind.DECLARED
+                ? "the raw '"
+                    + ProcessorUtils.simpleTypeName(
+                        rawView(typeUtils, (DeclaredType) declaredRead, (DeclaredType) target))
+                    + "'"
+                : "'" + ProcessorUtils.simpleTypeName(declaredRead) + "'")
+            + ".");
+    return true;
+  }
+
+  /**
+   * Why an unchecked conversion or call in generated code is refused, as the end of a reason: the
+   * clause after "and".
+   */
+  static final String UNCHECKED_IN_GENERATED_CODE =
+      "javac flags that as unchecked in the generated file, which no @SuppressWarnings on your spec"
+          + " reaches.";
+
+  /**
+   * The raw type a declared type converts to {@code to} unchecked through: itself where it is raw,
+   * and otherwise the raw supertype it reaches {@code to}'s class as, as a class extending a raw
+   * {@code ArrayList} reaches {@code List}. An unchecked conversion from a declared type is always
+   * to a declared type, whose class the source reaches through such a supertype.
+   */
+  private static DeclaredType rawView(Types types, DeclaredType from, DeclaredType to) {
+    return ProcessorUtils.isRaw(from)
+        ? from
+        : (DeclaredType) ProcessorUtils.supertypeOf(types, from, (TypeElement) to.asElement());
+  }
+
+  /**
+   * A type as an unchecked conversion's message names it: {@code the raw type 'List'} where the
+   * type is raw itself, {@code 'Legacy', a raw 'List'} where it reaches its target through a raw
+   * supertype, and the type alone where it is an array or a type variable, whose name shows the raw
+   * type it holds or is bounded by.
+   *
+   * @param types the round's type utilities
+   * @param from the type converted
+   * @param to the type it is converted to
+   * @return the description, in quotes
+   */
+  static String described(Types types, TypeMirror from, TypeMirror to) {
+    String name = "'" + ProcessorUtils.simpleTypeName(from) + "'";
+    if (from.getKind() != TypeKind.DECLARED) {
+      return name;
+    }
+    DeclaredType declared = (DeclaredType) from;
+    return ProcessorUtils.isRaw(declared)
+        ? "the raw type " + name
+        : name
+            + ", a raw '"
+            + ProcessorUtils.simpleTypeName(rawView(types, declared, (DeclaredType) to))
+            + "'";
+  }
+
+  /**
+   * Reports a one-argument call the generated lens would make unchecked, and returns whether it
+   * did: a call made through a raw type that erases its parameter, or one that takes the lens's
+   * focus only through an unchecked conversion, as a parameter written {@code List<String>} takes a
+   * focus written raw. The first rests on the call alone, so it is asked whatever the focus is; the
+   * second is not asked of a focus written as a wildcard, whose type javac infers.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param owner the type the call is made on
+   * @param bound the method the call binds, an instance method
+   * @param focusType the lens's focus, which the call passes
+   * @param call the call as the generated lens writes it, for the reason
+   * @param sourceName the source type's name, which the remedy offers another strategy for
+   * @param handedBackBy the call that hands {@code owner} back, {@code toBuilder()} for a builder's
+   *     setter; null where {@code owner} is the source type, which is never raw itself
+   * @return true when the call is unchecked, and an error was reported
+   */
+  private boolean setsUnchecked(
+      ExecutableElement method,
+      String tag,
+      DeclaredType owner,
+      ExecutableElement bound,
+      TypeMirror focusType,
+      String call,
+      String sourceName,
+      String handedBackBy) {
+    if (ProcessorUtils.callsUnchecked(typeUtils, owner, bound)) {
+      String signature = signatureAsDeclared(bound);
+      String reason =
+          "A raw type erases the parameters of the methods called through it, and "
+              + UNCHECKED_IN_GENERATED_CODE;
+      String rebuild = rebuildWith(sourceName, tag);
+      // The source type is never raw itself, so a raw owner is a builder its toBuilder handed
+      // back; otherwise the method is inherited from a raw supertype.
+      if (ProcessorUtils.erasesItsMembers(owner)) {
+        Diagnostics.error(
+            messager,
+            method,
+            tag,
+            "'"
+                + handedBackBy
+                + "' hands back the raw type '"
+                + ProcessorUtils.simpleTypeName(owner)
+                + "', so the generated call to '"
+                + signature
+                + "' on it is unchecked.",
+            reason,
+            "Point "
+                + tag
+                + "'s 'toBuilder' at a method that hands back the builder with its type"
+                + " arguments, or "
+                + rebuild
+                + ".");
+        return true;
+      }
+      Diagnostics.error(
+          messager,
+          method,
+          tag,
+          "'"
+              + ProcessorUtils.simpleTypeName(owner)
+              + "' inherits '"
+              + signature
+              + "' from the raw type '"
+              + ProcessorUtils.simpleTypeName(
+                  ProcessorUtils.supertypeOf(
+                      typeUtils, owner, (TypeElement) bound.getEnclosingElement()))
+              + "', so the generated call to it is unchecked.",
+          reason,
+          ProcessorUtils.capitalise(rebuild) + ".");
+      return true;
+    }
+    TypeMirror focus = focusRead(focusType);
+    TypeMirror parameter =
+        ProcessorUtils.memberOf(typeUtils, owner, bound).getParameterTypes().getFirst();
+    if (focus == null || !ProcessorUtils.convertsUnchecked(typeUtils, focus, parameter)) {
+      return false;
+    }
+    String parameterName = ProcessorUtils.simpleTypeName(parameter);
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + signatureOn(owner, bound)
+            + "' takes the lens's focus, "
+            + described(typeUtils, focus, parameter)
+            + ", only through an unchecked conversion to '"
+            + parameterName
+            + "'.",
+        "The generated lens sets through " + call + ", and " + UNCHECKED_IN_GENERATED_CODE,
+        "Declare the lens over '"
+            + parameterName
+            + "', the type '"
+            + bound.getSimpleName()
+            + "' takes; otherwise "
+            + rebuildWith(sourceName, tag)
+            + ".");
+    return true;
+  }
+
+  /**
    * Reports a setter a generated lens cannot set through on the source type, and returns whether it
    * did.
    *
@@ -568,7 +805,8 @@ final class CopyStrategyChecks {
       String setterName,
       TypeMirror focusType,
       String targetPackage) {
-    return boundSetter(
+    SetterCall setter =
+        boundSetter(
             method,
             tag,
             sourceType,
@@ -578,8 +816,18 @@ final class CopyStrategyChecks {
             "setter",
             sourceType,
             getterName,
-            targetPackage)
-        instanceof SetterCall.Refused;
+            targetPackage);
+    return setter instanceof SetterCall.Refused
+        || (setter instanceof SetterCall.Binds(ExecutableElement bound)
+            && setsUnchecked(
+                method,
+                tag,
+                sourceType,
+                bound,
+                focusType,
+                "'" + setterName + "(newValue)'",
+                ProcessorUtils.simpleTypeName(sourceType),
+                null));
   }
 
   /**
@@ -823,7 +1071,10 @@ final class CopyStrategyChecks {
    *
    * <p>The lens rebuilds with {@code source.toBuilder().setter(newValue).build()}, so each step has
    * to exist where the one before it leads: the builder the source hands back, the setter that
-   * takes the focus, and a {@code build} that hands the source type back.
+   * takes the focus, and a {@code build} that hands the source type back. None of it may be
+   * unchecked: a setter called through a raw builder that erases its parameter, or a {@code build}
+   * that reaches the source type only by an unchecked conversion, which a raw builder's erasure
+   * makes of a generic one.
    *
    * @param method the annotated lens method, for error reporting
    * @param sourceType the source type {@code S}, as the spec names it
@@ -901,6 +1152,17 @@ final class CopyStrategyChecks {
     if (!(setter instanceof SetterCall.Binds(ExecutableElement bound))) {
       return setter instanceof SetterCall.Refused;
     }
+    if (setsUnchecked(
+        method,
+        "@ViaBuilder",
+        (DeclaredType) builderType,
+        bound,
+        focusType,
+        "'" + setterName + "(newValue)'",
+        ProcessorUtils.simpleTypeName(sourceType),
+        toBuilderName + "()")) {
+      return true;
+    }
     TypeMirror setType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
     // A builder the processor does not wait on, one nested in the source type or read from a class
@@ -943,7 +1205,15 @@ final class CopyStrategyChecks {
     }
     TypeMirror built = ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) setType, build);
     if (typeUtils.isAssignable(built, sourceType)) {
-      return false;
+      return buildsUnchecked(
+          method,
+          sourceType,
+          toBuilderName,
+          (DeclaredType) builderType,
+          bound,
+          buildName,
+          (DeclaredType) setType,
+          built);
     }
     String source = ProcessorUtils.simpleTypeName(sourceType);
     String builtName = ProcessorUtils.simpleTypeName(built);
@@ -962,6 +1232,84 @@ final class CopyStrategyChecks {
         "Set @ViaBuilder's 'build' to the method that finishes a '"
             + source
             + "', or "
+            + rebuildWith(source, "@ViaBuilder")
+            + ".");
+    return true;
+  }
+
+  /**
+   * Reports a {@code build()} that returns the source type only through an unchecked conversion,
+   * and returns whether it did. Called on a raw builder, a method that returns the source type with
+   * the builder's type arguments returns its erasure, so a chain that turns raw at any step can end
+   * this way: at the builder {@code toBuilder()} hands back, at the one the setter hands back, or
+   * at {@code build()} itself.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, which the generated lens hands the result back as
+   * @param toBuilderName the method that hands back the builder
+   * @param builder the builder it hands back, which the setter is called on
+   * @param setter the setter the call binds
+   * @param buildName the builder method that hands the source type back
+   * @param set the builder the setter hands back, which {@code build()} is called on
+   * @param built what {@code build()} returns there
+   * @return true when the result is unchecked, and an error was reported
+   */
+  private boolean buildsUnchecked(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      String toBuilderName,
+      DeclaredType builder,
+      ExecutableElement setter,
+      String buildName,
+      DeclaredType set,
+      TypeMirror built) {
+    if (!ProcessorUtils.convertsUnchecked(typeUtils, built, sourceType)) {
+      return false;
+    }
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    // The step that turned the chain raw, and the attribute that names it.
+    String rawStep;
+    String attribute;
+    if (!ProcessorUtils.erasesItsMembers(set)) {
+      rawStep = null;
+      attribute = "build";
+    } else if (ProcessorUtils.erasesItsMembers(builder)) {
+      rawStep = toBuilderName + "()";
+      attribute = "toBuilder";
+    } else {
+      rawStep = signatureOn(builder, setter);
+      attribute = "setter";
+    }
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaBuilder",
+        "'"
+            + buildName
+            + "()' returns "
+            + described(typeUtils, built, sourceType)
+            + ", which reaches the source type '"
+            + source
+            + "' only through an unchecked conversion.",
+        "The generated lens hands what '"
+            + buildName
+            + "()' returns back as the source type"
+            + (rawStep == null
+                ? ""
+                : ", and on the raw '"
+                    + ProcessorUtils.simpleTypeName(set)
+                    + "' that '"
+                    + rawStep
+                    + "' hands back, it returns the erasure of what it declares")
+            + "; "
+            + UNCHECKED_IN_GENERATED_CODE,
+        "Point @ViaBuilder's '"
+            + attribute
+            + "' at "
+            + (rawStep == null
+                ? "a method that returns '" + source + "'"
+                : "a method that hands back the builder with its type arguments")
+            + ", or "
             + rebuildWith(source, "@ViaBuilder")
             + ".");
     return true;
@@ -1125,11 +1473,21 @@ final class CopyStrategyChecks {
     // the type the call passes is not the one the spec writes, and which method it binds is
     // javac's to settle.
     if (focusType.getKind() == TypeKind.WILDCARD) {
-      return noCandidateRebuilds(
-          method,
-          sourceType,
-          named.stream().filter(candidate -> candidate.getParameters().size() == 1).toList(),
-          null);
+      List<ExecutableElement> oneParameter =
+          named.stream().filter(candidate -> candidate.getParameters().size() == 1).toList();
+      // Where the name carries only one such method, that is the one called, and whether a call
+      // to it is unchecked rests on the call alone.
+      return noCandidateRebuilds(method, sourceType, oneParameter, null)
+          || (oneParameter.size() == 1
+              && setsUnchecked(
+                  method,
+                  "@Wither",
+                  sourceType,
+                  oneParameter.getFirst(),
+                  focusType,
+                  "'source." + witherName + "(newValue)'",
+                  ProcessorUtils.simpleTypeName(sourceType),
+                  null));
     }
     return switch (CallBinding.resolve(typeUtils, sourceType, List.of(focusType), named)) {
       case CallBinding.Binds(ExecutableElement bound) -> {
@@ -1138,7 +1496,15 @@ final class CopyStrategyChecks {
           yield true;
         }
         if (ProcessorUtils.returnsOwner(typeUtils, sourceType, bound)) {
-          yield false;
+          yield setsUnchecked(
+              method,
+              "@Wither",
+              sourceType,
+              bound,
+              focusType,
+              "'source." + witherName + "(newValue)'",
+              ProcessorUtils.simpleTypeName(sourceType),
+              null);
         }
         // Only an overloaded name needs the focus to say which method it binds.
         reportWitherOfAnotherType(method, sourceType, bound, named.size() > 1 ? focusType : null);
