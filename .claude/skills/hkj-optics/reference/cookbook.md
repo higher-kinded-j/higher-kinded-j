@@ -8,20 +8,20 @@ Practical recipes for common optics problems. Each recipe: problem, solution, ex
 
 <!-- verify -->
 ```java
-record User(String name, Optional<Profile> profile) {}
-record Profile(String bio, Optional<Settings> settings) {}
-record Settings(boolean darkMode, int fontSize) {}
+record Patron(String name, Optional<PatronProfile> profile) {}
+record PatronProfile(String bio, Optional<DisplaySettings> settings) {}
+record DisplaySettings(boolean darkMode, int fontSize) {}
 
 // Zero or one font size, so andThen gives an Affine: no asTraversal() needed
-Affine<User, Integer> userFontSize =
-    UserLenses.profile()                       // Lens<User, Optional<Profile>>
-        .andThen(Prisms.some())                // Prism -> Profile
-        .andThen(ProfileLenses.settings())     // Lens -> Optional<Settings>
-        .andThen(Prisms.<Settings>some())      // Prism -> Settings
-        .andThen(SettingsLenses.fontSize());   // Lens -> Integer
+Affine<Patron, Integer> patronFontSize =
+    PatronLenses.profile()                          // Lens<Patron, Optional<PatronProfile>>
+        .andThen(Prisms.some())                     // Prism -> PatronProfile
+        .andThen(PatronProfileLenses.settings())    // Lens -> Optional<DisplaySettings>
+        .andThen(Prisms.<DisplaySettings>some())    // Prism -> DisplaySettings
+        .andThen(DisplaySettingsLenses.fontSize()); // Lens -> Integer
 
 // Increase font size if it exists; otherwise unchanged
-User updated = userFontSize.modify(size -> size + 2, user);
+Patron updated = patronFontSize.modify(size -> size + 2, patron);
 ```
 
 Each `Prisms.some()` safely handles Optional: if any is empty, modification is skipped.
@@ -32,20 +32,20 @@ Each `Prisms.some()` safely handles Optional: if any is empty, modification is s
 
 <!-- verify -->
 ```java
-sealed interface ApiResponse permits Success, AppError, Loading {}
-record Success(Data data, String timestamp) implements ApiResponse {}
-record AppError(String message, int code) implements ApiResponse {}
+sealed interface FetchState permits Loaded, LoadFailed, Loading {}
+record Loaded(Data data, String timestamp) implements FetchState {}
+record LoadFailed(String message, int code) implements FetchState {}
 
-Prism<ApiResponse, Success> successPrism = Prism.of(
-    resp -> resp instanceof Success s ? Optional.of(s) : Optional.empty(),
-    s -> s
+Prism<FetchState, Loaded> loadedPrism = Prism.of(
+    fetch -> fetch instanceof Loaded loaded ? Optional.of(loaded) : Optional.empty(),
+    loaded -> loaded
 );
 
 // Prism + Lens = Affine: zero or one Data
-Affine<ApiResponse, Data> successData = successPrism.andThen(SuccessLenses.data());
+Affine<FetchState, Data> loadedData = loadedPrism.andThen(LoadedLenses.data());
 
-// Transform data only for Success responses; AppError/Loading pass through unchanged
-ApiResponse modified = successData.modify(data -> new Data(data.value().toUpperCase()), response);
+// Transform data only for Loaded states; LoadFailed/Loading pass through unchanged
+FetchState modified = loadedData.modify(data -> new Data(data.value().toUpperCase()), state);
 ```
 
 ---
@@ -54,19 +54,20 @@ ApiResponse modified = successData.modify(data -> new Data(data.value().toUpperC
 
 <!-- verify -->
 ```java
-record Order(String id, List<LineItem> items) {}
-record LineItem(String productId, int quantity, Money price) {}
+record Order(UUID id, Customer customer, List<LineItem> lines,
+             Instant placedAt, Currency currency, OrderStatus status) {}
+record LineItem(String sku, Integer quantity, BigDecimal price) {}
 
-Traversal<Order, LineItem> allItems =
-    OrderLenses.items().andThen(Traversals.forList());
+Traversal<Order, LineItem> allLines =
+    OrderLenses.lines().andThen(Traversals.forList());
 
-// Filter to high-quantity items only
-Traversal<Order, LineItem> bulkItems =
-    allItems.andThen(Traversals.filtered(item -> item.quantity() > 10));
+// Filter to high-quantity lines only
+Traversal<Order, LineItem> bulkLines =
+    allLines.andThen(Traversals.filtered(line -> line.quantity() > 10));
 
-// Apply 10% discount to bulk items
-Order discounted = Traversals.modify(bulkItems,
-    item -> new LineItem(item.productId(), item.quantity(), item.price().multiply(0.9)),
+// Apply 10% discount to bulk lines
+Order discounted = Traversals.modify(bulkLines,
+    line -> new LineItem(line.sku(), line.quantity(), line.price().multiply(new BigDecimal("0.9"))),
     order);
 ```
 
@@ -76,22 +77,22 @@ Order discounted = Traversals.modify(bulkItems,
 
 <!-- verify -->
 ```java
-sealed interface Event permits UserEvent, SystemEvent {}
-record UserEvent(String userId, String action) implements Event {}
-record SystemEvent(String level, String message) implements Event {}
+sealed interface Activity permits UserAction, SystemNotice {}
+record UserAction(String userId, String action) implements Activity {}
+record SystemNotice(String level, String message) implements Activity {}
 
-Prism<Event, UserEvent> userEventPrism = Prism.of(
-    e -> e instanceof UserEvent u ? Optional.of(u) : Optional.empty(),
+Prism<Activity, UserAction> userActionPrism = Prism.of(
+    a -> a instanceof UserAction u ? Optional.of(u) : Optional.empty(),
     u -> u
 );
 
-Traversal<List<Event>, String> userActions =
-    Traversals.<Event>forList()
-        .andThen(userEventPrism)
-        .andThen(UserEventLenses.action());
+Traversal<List<Activity>, String> userActions =
+    Traversals.<Activity>forList()
+        .andThen(userActionPrism)
+        .andThen(UserActionLenses.action());
 
-List<String> actions = Traversals.getAll(userActions, events);
-// Only UserEvent actions extracted; SystemEvents skipped
+List<String> actions = Traversals.getAll(userActions, activities);
+// Only UserAction actions extracted; SystemNotices skipped
 ```
 
 ---
@@ -100,10 +101,10 @@ List<String> actions = Traversals.getAll(userActions, events);
 
 <!-- verify -->
 ```java
-record Config(Map<String, String> settings) {}
+record ConfigMap(Map<String, String> settings) {}
 
-Traversal<Config, String> databaseUrl =
-    ConfigLenses.settings().andThen(Traversals.forMap("database.url"));
+Traversal<ConfigMap, String> databaseUrl =
+    ConfigMapLenses.settings().andThen(Traversals.forMap("database.url"));
 
 List<String> urls = Traversals.getAll(databaseUrl, config);
 String url = urls.isEmpty() ? "jdbc:postgresql://localhost/default" : urls.get(0);
@@ -115,19 +116,19 @@ String url = urls.isEmpty() ? "jdbc:postgresql://localhost/default" : urls.get(0
 
 <!-- verify -->
 ```java
-record Company(List<Department> departments) {}
-record Department(String name, List<Employee> employees) {}
-record Employee(String name, int salary) {}
+record OrgChart(String name, List<OrgUnit> units) {}
+record OrgUnit(String name, List<OrgMember> members) {}
+record OrgMember(String name, int age, Optional<String> email, Integer salary) {}
 
-Traversal<Company, Integer> allSalaries =
-    CompanyLenses.departments()
+Traversal<OrgChart, Integer> allSalaries =
+    OrgChartLenses.units()
         .andThen(Traversals.forList())
-        .andThen(DepartmentLenses.employees())
+        .andThen(OrgUnitLenses.members())
         .andThen(Traversals.forList())
-        .andThen(EmployeeLenses.salary());
+        .andThen(OrgMemberLenses.salary());
 
 // Give everyone a 5% raise
-Company afterRaise = Traversals.modify(allSalaries, s -> (int)(s * 1.05), company);
+OrgChart afterRaise = Traversals.modify(allSalaries, s -> (int)(s * 1.05), company);
 
 // Get total payroll
 List<Integer> salaries = Traversals.getAll(allSalaries, company);
@@ -140,16 +141,16 @@ int totalPayroll = salaries.stream().mapToInt(Integer::intValue).sum();
 
 <!-- verify -->
 ```java
-record Product(String name, Money price, boolean onSale) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
-Traversal<List<Product>, Money> salePrices =
+Traversal<List<Product>, BigDecimal> overstockPrices =
     Traversals.<Product>forList()
-        .andThen(Traversals.filtered(Product::onSale))
+        .andThen(Traversals.filtered(product -> product.stock() > 100))
         .andThen(ProductLenses.price());
 
 List<Product> discounted = Traversals.modify(
-    salePrices, price -> price.multiply(0.8), products);
-// Only on-sale products get 20% discount
+    overstockPrices, price -> price.multiply(new BigDecimal("0.8")), products);
+// Only overstocked products get a 20% discount
 ```
 
 ---
@@ -158,10 +159,10 @@ List<Product> discounted = Traversals.modify(
 
 <!-- verify -->
 ```java
-Prism<Either<ValidationError, UserData>, UserData> rightPrism = Prisms.right();
+Prism<Either<FormError, UserData>, UserData> rightPrism = Prisms.right();
 
 // Transform user data only on success; errors pass through unchanged
-Either<ValidationError, UserData> transformed = rightPrism.modify(
+Either<FormError, UserData> transformed = rightPrism.modify(
     user -> new UserData(user.name().toUpperCase(), user.email()), result);
 ```
 
@@ -171,24 +172,25 @@ Either<ValidationError, UserData> transformed = rightPrism.modify(
 
 <!-- verify -->
 ```java
-record Team(String name, Employee lead, List<Employee> members) {}
+record Guild(String name, Engineer lead, List<Engineer> members) {}
+record Engineer(String name, String email) {}
 
-Fold<Team, String> leadEmail = teamLeadLens.asFold()
-    .andThen(employeeEmailLens.asFold());
-Fold<Team, String> memberEmails = Fold.<Team, Employee>of(Team::members)
-    .andThen(employeeEmailLens.asFold());
+Fold<Guild, String> leadEmail = guildLeadLens.asFold()
+    .andThen(engineerEmailLens.asFold());
+Fold<Guild, String> memberEmails = Fold.<Guild, Engineer>of(Guild::members)
+    .andThen(engineerEmailLens.asFold());
 
 // Combine with plus
-Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
+Fold<Guild, String> allEmails = leadEmail.plus(memberEmails);
 
 // Or use sum for 3+ paths
-Fold<Team, String> allNames = Fold.sum(
-    Fold.of(t -> List.of(t.name())),
-    teamLeadLens.asFold().andThen(employeeNameLens.asFold()),
-    Fold.<Team, Employee>of(Team::members).andThen(employeeNameLens.asFold())
+Fold<Guild, String> allNames = Fold.sum(
+    Fold.of(g -> List.of(g.name())),
+    guildLeadLens.asFold().andThen(engineerNameLens.asFold()),
+    Fold.<Guild, Engineer>of(Guild::members).andThen(engineerNameLens.asFold())
 );
 
-List<String> emails = allEmails.getAll(team); // ["alice@co", "bob@co"]
+List<String> emails = allEmails.getAll(guild); // ["alice@co", "bob@co"]
 ```
 
 ---
@@ -196,13 +198,13 @@ List<String> emails = allEmails.getAll(team); // ["alice@co", "bob@co"]
 ## Recipe 10: Traversal-Derived Folds for Read-Only Queries
 
 ```java
-Traversal<Order, Double> allPrices = /* existing traversal */;
-Fold<Order, Double> pricesFold = allPrices.asFold();
+Traversal<Order, Integer> allQuantities = /* existing traversal */;
+Fold<Order, Integer> quantitiesFold = allQuantities.asFold();
 
-double total = pricesFold.foldMap(Monoids.doubleAddition(), p -> p, order);
-boolean hasExpensive = pricesFold.exists(p -> p > 100.0, order);
-boolean allAffordable = pricesFold.all(p -> p < 200.0, order);
-int itemCount = pricesFold.length(order);
+int totalUnits = quantitiesFold.foldMap(Monoids.integerAddition(), q -> q, order);
+boolean hasBulkLine = quantitiesFold.exists(q -> q > 10, order);
+boolean allWithinLimit = quantitiesFold.all(q -> q <= 100, order);
+int lineCount = quantitiesFold.length(order);
 ```
 
 `Traversal.asFold()` reuses the traversal's `modifyF` with a `Const` applicative for monoidal accumulation.
@@ -214,22 +216,22 @@ int itemCount = pricesFold.length(order);
 <!-- verify -->
 ```java
 // Using Focus DSL instead of manual lens composition. Mid-chain, each() has nothing to infer
-// its element type from, so give it a witness: `.<Department>each()`.
-TraversalPath<Company, Integer> allSalaries =
-    FocusPath.of(companyDeptsLens)
-        .<Department>each()
-        .via(deptEmployeesLens)
-        .<Employee>each()
-        .via(employeeSalaryLens);
+// its element type from, so give it a witness: `.<OrgUnit>each()`.
+TraversalPath<OrgChart, Integer> allSalaries =
+    FocusPath.of(chartUnitsLens)
+        .<OrgUnit>each()
+        .via(unitMembersLens)
+        .<OrgMember>each()
+        .via(memberSalaryLens);
 
-Company updated = allSalaries.modifyAll(s -> (int)(s * 1.05), company);
+OrgChart updated = allSalaries.modifyAll(s -> (int)(s * 1.05), company);
 
 // Or use generated Focus classes (@GenerateFocus): a List field widens to a TraversalPath,
 // so each hop is a .via()
-Company updatedViaFocus =
-    CompanyFocus.departments()
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.salary())
+OrgChart updatedViaFocus =
+    OrgChartFocus.units()
+        .via(OrgUnitFocus.members())
+        .via(OrgMemberFocus.salary())
         .modifyAll(s -> (int)(s * 1.05), company);
 ```
 
@@ -239,21 +241,21 @@ Company updatedViaFocus =
 
 <!-- verify -->
 ```java
-sealed interface Notification permits Email, SMS, Push {}
-record Email(String address, String subject, String body) implements Notification {}
+sealed interface Notification permits EmailMessage, SMS, Push {}
+record EmailMessage(String address, String subject, String body) implements Notification {}
 
-TraversalPath<User, Notification> allNotifications =
-    FocusPath.of(userNotificationsLens).each();
+TraversalPath<Outbox, Notification> allNotifications =
+    FocusPath.of(outboxNotificationsLens).each();
 
-TraversalPath<User, Email> emailsOnly =
-    allNotifications.via(AffinePath.instanceOf(Email.class));
+TraversalPath<Outbox, EmailMessage> emailsOnly =
+    allNotifications.via(AffinePath.instanceOf(EmailMessage.class));
 
 // Get all email addresses
-List<String> emailAddresses = emailsOnly.via(emailAddressLens).getAll(user);
+List<String> emailAddresses = emailsOnly.via(messageAddressLens).getAll(outbox);
 
 // Update all email subjects
-User updated = emailsOnly.via(emailSubjectLens)
-    .modifyAll(subject -> "[URGENT] " + subject, user);
+Outbox updated = emailsOnly.via(emailSubjectLens)
+    .modifyAll(subject -> "[URGENT] " + subject, outbox);
 ```
 
 ---
@@ -262,17 +264,17 @@ User updated = emailsOnly.via(emailSubjectLens)
 
 <!-- verify -->
 ```java
-record Inventory(List<Product> products) {}
-record Product(String name, int stock, BigDecimal price, Category category) {}
+record Inventory(List<Product> products, String warehouseId) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
 TraversalPath<Inventory, Product> allProducts =
     FocusPath.of(inventoryProductsLens).each();
 
-// Apply 20% discount to electronics with low stock
+// Apply 20% discount to premium products with low stock
 Inventory updated = allProducts.modifyWhen(
-    p -> p.category() == Category.ELECTRONICS && p.stock() < 10,
-    p -> new Product(p.name(), p.stock(),
-        p.price().multiply(new BigDecimal("0.80")), p.category()),
+    p -> p.price().compareTo(new BigDecimal("100")) > 0 && p.stock() < 10,
+    p -> new Product(p.sku(), p.name(),
+        p.price().multiply(new BigDecimal("0.80")), p.stock()),
     inventory);
 ```
 
@@ -282,12 +284,12 @@ Inventory updated = allProducts.modifyWhen(
 
 <!-- verify -->
 ```java
-TraversalPath<Order, LineItem> allItems = FocusPath.of(orderItemsLens).each();
+TraversalPath<Order, LineItem> allLines = FocusPath.of(orderLinesLens).each();
 
-int totalQuantity = allItems.via(lineItemQuantityLens)
+int totalQuantity = allLines.via(lineItemQuantityLens)
     .foldMap(intSumMonoid, q -> q, order);
 
-BigDecimal totalPrice = allItems.via(lineItemPriceLens)
+BigDecimal totalPrice = allLines.via(lineItemPriceLens)
     .foldMap(decimalSumMonoid, p -> p, order);
 ```
 
@@ -297,7 +299,7 @@ BigDecimal totalPrice = allItems.via(lineItemPriceLens)
 
 <!-- verify -->
 ```java
-FocusPath<Config, String> apiKeyPath = FocusPath.of(configApiKeyLens);
+FocusPath<ConfigMap, String> apiKeyPath = FocusPath.of(configApiKeyLens);
 
 Function<String, Kind<MaybeKind.Witness, String>> validateApiKey = key -> {
     if (key != null && key.length() >= 10) {
@@ -306,7 +308,7 @@ Function<String, Kind<MaybeKind.Witness, String>> validateApiKey = key -> {
     return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
 };
 
-Kind<MaybeKind.Witness, Config> result =
+Kind<MaybeKind.Witness, ConfigMap> result =
     apiKeyPath.modifyF(validateApiKey, config, MaybeMonad.INSTANCE);
 ```
 
@@ -318,8 +320,8 @@ Kind<MaybeKind.Witness, Config> result =
 <!-- verify -->
 ```java
 public final class OrderOptics {
-    public static final Traversal<Order, Money> ALL_PRICES =
-        OrderLenses.items()
+    public static final Traversal<Order, BigDecimal> ALL_PRICES =
+        OrderLenses.lines()
             .andThen(Traversals.forList())
             .andThen(LineItemLenses.price());
 }
@@ -329,34 +331,32 @@ public final class OrderOptics {
 <!-- verify -->
 ```java
 // Preferred: type-safe (Lens + Prism = Affine, the most precise type available)
-Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
+Affine<PatronProfile, DisplaySettings> direct = settingsLens.andThen(settingsPrism);
 
 // Fallback: maximum flexibility (everything widens to Traversal)
-Traversal<Config, Settings> manual =
-    configLens.asTraversal().andThen(settingsPrism.asTraversal());
+Traversal<PatronProfile, DisplaySettings> manual =
+    settingsLens.asTraversal().andThen(settingsPrism.asTraversal());
 ```
 
 **3. Document complex compositions:**
 ```java
 /**
- * Path: Order -> Customer -> Loyalty (if exists) -> Promotions list -> Active only
+ * Path: Order -> lines list -> bulk lines only (more than 10) -> SKU
  */
-public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
-    OrderLenses.customer()
-        .andThen(CustomerPrisms.loyaltyMember())
-        .andThen(LoyaltyLenses.promotions())
+public static final Traversal<Order, String> BULK_LINE_SKUS =
+    OrderLenses.lines()
         .andThen(Traversals.forList())
-        .andThen(Traversals.filtered(Promotion::isActive))
-        .andThen(PromotionLenses.code());
+        .andThen(Traversals.filtered(line -> line.quantity() > 10))
+        .andThen(LineItemLenses.sku());
 ```
 
 **4. Prefer specific types when available:**
 ```java
 // If always present, use Lens directly
-Lens<User, String> name = UserLenses.name();
-String userName = name.get(user);
+Lens<Patron, String> name = PatronLenses.name();
+String patronName = name.get(patron);
 
 // Only use Traversal when you need flexibility
-Traversal<User, String> optionalNickname = /* ... */;
-List<String> nicknames = Traversals.getAll(optionalNickname, user);
+Traversal<Patron, String> optionalBio = /* ... */;
+List<String> bios = Traversals.getAll(optionalBio, patron);
 ```

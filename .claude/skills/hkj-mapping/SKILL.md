@@ -41,24 +41,27 @@ Declare the mapping as a **spec interface**; the processor writes the implementa
 
 <!-- verify -->
 ```java
+public record Address(String street, String city, String postcode) {}
+public record AddressDto(String street, String city, String postcode) {}
+
 @GenerateMapping
-public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
-//                                                   ^domain    ^wire
+public interface AddressMapping extends MappingSpec<Address, AddressDto> {}
+//                                                  ^domain  ^wire
 ```
 
-Generated: `CustomerMappingImpl`, reached through `INSTANCE`. When code calls it more than once,
+Generated: `AddressMappingImpl`, reached through `INSTANCE`. When code calls it more than once,
 bind it once, typed as the Impl (the spec interface declares no methods), and reuse it:
 
 <!-- verify -->
 ```java
-CustomerMappingImpl customerMapping = CustomerMappingImpl.INSTANCE;           // bind once, reuse
-CustomerDto dto = customerMapping.build(customer);                            // total
-Validated<NonEmptyList<FieldError>, Customer> back =
-    customerMapping.parse(dto);                                               // accumulating
+AddressMappingImpl addressMapping = AddressMappingImpl.INSTANCE;              // bind once, reuse
+AddressDto dto = addressMapping.build(address);                               // total
+Validated<NonEmptyList<FieldError>, Address> back =
+    addressMapping.parse(dto);                                                // accumulating
 ```
 
 Where the binding lives: a local for a few calls in one method, a field in the class that owns the
-boundary (`private static final CustomerMappingImpl CUSTOMER_MAPPING`), or an injected surface
+boundary (`private static final AddressMappingImpl ADDRESS_MAPPING`), or an injected surface
 (see *Injecting and faking* below). Never declare it as a constant on the spec itself; *Common
 Mistakes* says why.
 
@@ -148,15 +151,24 @@ Renaming, and deriving a wire-only field:
 <!-- verify -->
 ```java
 @GenerateMapping
-public interface PersonMapping extends MappingSpec<Person, PersonDto> {
-  @MapField(to = "fullName")
+public interface PartnerCustomerMapping extends MappingSpec<Customer, PartnerCustomerDto> {
+  @MapField(to = "fullName")           // Customer.name <-> PartnerCustomerDto.fullName
   String name();                       // abstract: it is a declaration, not an implementation
+
+  // Not part of the rename: this wire also holds the email as a String, so it takes the email leaf
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
 }
 
 @GenerateMapping
-public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
-  default Getter<Profile, String> displayName() {         // filled on build, ignored on parse
-    return Getter.of(p -> p.first() + " " + p.last());
+public interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+  default Getter<Recipient, String> displayName() {       // filled on build, ignored on parse
+    return Getter.of(r -> r.first() + " " + r.last());
   }
 }
 ```
@@ -167,8 +179,8 @@ after the component; a separate marker beside it would be a second `email()`, wh
 <!-- verify -->
 ```java
 @GenerateMapping
-public interface SubscriberMapping extends MappingSpec<Subscriber, SubscriberDto> {
-  @MapField(to = "emailAddress")       // Subscriber.email <-> SubscriberDto.emailAddress
+public interface MailingListCustomerMapping extends MappingSpec<Customer, MailingListCustomerDto> {
+  @MapField(to = "emailAddress")       // Customer.email <-> MailingListCustomerDto.emailAddress
   default ValidatedPrism<String, EmailAddress> email() {
     return ValidatedPrism.of(
         raw -> raw.contains("@")
@@ -187,11 +199,11 @@ genuinely encodes *absence* as `null` (Jackson's default for an optional field),
 
 <!-- verify -->
 ```java
-public record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
-public record MemberDto(String name, @Nullable String nickname, @Nullable String altEmail) {} // absent: null
+public record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
+public record CustomerProfileDto(String name, @Nullable String nickname, @Nullable String altEmail) {} // absent: null
 
 @GenerateMapping
-public interface MemberMapping extends MappingSpec<Member, MemberDto> {
+public interface CustomerProfileMapping extends MappingSpec<CustomerProfile, CustomerProfileDto> {
 
   // Element copies, or its pair has its own spec: a bare abstract marker restating the component.
   @OptionalBridge
@@ -216,10 +228,10 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
   address();` against a nullable `AddressDto` needs no leaf when an `AddressMapping` exists (a bean
   wire needs nothing at all), and failures locate inside (`address.city: must not be null`). An
   element leaf wins over the spec.
-- A bridged **container lifts** as the unbridged one would: `@OptionalBridge Optional<List<Contact>>
-  contacts();` against a nullable `List<ContactDto>` (an optional JSON array) lifts element by
-  element through `ContactMapping` or an element leaf, and failures locate at the index
-  (`contacts.1.email`). `Set`, arrays and `Map` values lift alike, and a `@MapKey` leaf converts the keys of a bridged `Map`. A container whose
+- A bridged **container lifts** as the unbridged one would: `@OptionalBridge Optional<List<Customer>>
+  invitees();` against a nullable `List<CustomerDto>` (an optional JSON array) lifts element by
+  element through `CustomerMapping` or an element leaf, and failures locate at the index
+  (`invitees.1.email`). `Set`, arrays and `Map` values lift alike, and a `@MapKey` leaf converts the keys of a bridged `Map`. A container whose
   elements nothing converts is refused naming the element pair.
 - **Never inferred.** Without the annotation the component is `must not be null`, as usual.
 - A **bean** wire bridges automatically (bean conventions leave `Optional` off property types), so
@@ -253,11 +265,11 @@ arrays, `Optional` and a `Map`'s values (and, with `@MapKey`, its keys). A primi
 
 <!-- verify -->
 ```java
-public record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
-public record TeamDto(String name, List<String> members, Optional<String> lead) {}
+public record Rota(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
+public record RotaDto(String name, List<String> members, Optional<String> lead) {}
 
 @GenerateMapping
-public interface TeamMapping extends MappingSpec<Team, TeamDto> {
+public interface RotaMapping extends MappingSpec<Rota, RotaDto> {
   default ValidatedPrism<String, EmailAddress> members() { return emailPrism(); }
   default ValidatedPrism<String, EmailAddress> lead()    { return emailPrism(); }
 
@@ -315,14 +327,14 @@ cannot map it. `@Flatten` on an abstract marker named after the domain component
 
 <!-- verify -->
 ```java
-public record PostalAddress(String street, String city, String postcode) {}
-public record Vendor(String name, PostalAddress address) {}
-public record VendorDto(String name, String street, String city, String postcode) {}  // fixed, flat
+public record Address(String street, String city, String postcode) {}
+public record CollectionPoint(String name, Address address) {}
+public record CollectionPointDto(String name, String street, String city, String postcode) {}  // fixed, flat
 
 @GenerateMapping
-public interface VendorMapping extends MappingSpec<Vendor, VendorDto> {
+public interface CollectionPointMapping extends MappingSpec<CollectionPoint, CollectionPointDto> {
   @Flatten
-  PostalAddress address();   // build: street = domain.address().street() ...; parse: assembles it
+  Address address();   // build: street = domain.address().street() ...; parse: assembles it
 }
 ```
 
@@ -341,8 +353,8 @@ through its own spec, and a marker naming an inner component is refused. Not sup
 diagnostic): bean wires, generic specs, projections, sparse `UpdateSpec`s, and a group wider than
 one `fields()` ladder (16).
 
-Generic records map three ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
-PageDto<UserDto>>`): components classify under the substitution, so leaves/nesting/containers and
+Generic records map three ways. **Concrete instantiations** (`extends MappingSpec<Page<Customer>,
+PageDto<CustomerDto>>`): components classify under the substitution, so leaves/nesting/containers and
 the null doctrine apply unchanged. **Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>,
 PageDto<T>>`): one generic Impl serves every instantiation via `PageMappingImpl.<T>instance()` (the
 `EitherMonad.instance()` convention); same-variable elements copy by identity; multi-parameter and
@@ -409,6 +421,7 @@ seam.
 A `MappingSpec` may be declared over two **sealed interfaces**, not just two records. Give each
 permitted subtype pair its own spec; the parent dispatches over them:
 
+<!-- verify -->
 ```java
 @GenerateMapping public interface CardMapping    extends MappingSpec<Card, CardDto> {}
 @GenerateMapping public interface BankMapping    extends MappingSpec<Bank, BankDto> {}
@@ -606,8 +619,17 @@ that contract by extending **`UpdateSpec`** instead of `MappingSpec`. The wire m
 <!-- verify -->
 ```java
 @GenerateMapping
-public interface UserPatchMapping extends UpdateSpec<User, UserPatchBean> {}
-//                                                   ^domain ^PATCH request bean
+public interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
+//                                                      ^domain   ^PATCH request bean
+
+  default ValidatedPrism<String, EmailAddress> email() {         // a present email parses here
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
+}
 ```
 
 The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>` - no
@@ -616,10 +638,10 @@ ones:
 
 <!-- verify -->
 ```java
-UserPatchBean patch = new UserPatchBean();
+ContactPatchBean patch = new ContactPatchBean();
 patch.setEmail("new@corp.example");                              // name absent -> unchanged
-Edits.Accumulated<User> update = UserPatchMappingImpl.INSTANCE.updateFrom(patch);
-Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or applyPath / toValidated
+Edits.Accumulated<Customer> update = ContactPatchMappingImpl.INSTANCE.updateFrom(patch);
+Validated<NonEmptyList<FieldError>, Customer> updated = update.apply(customer);  // or applyPath / toValidated
 ```
 
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
@@ -721,10 +743,10 @@ the declaration.**
 ```java
 @GenerateMerge
 public interface DashboardAssembly {
-  Dashboard assemble(User user, Account account, Settings settings);
+  Dashboard assemble(Customer customer, Account account, Settings settings);
 }
 
-Dashboard d = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+Dashboard d = DashboardAssemblyImpl.INSTANCE.assemble(customer, account, settings);
 ```
 
 Each component of `Dashboard` is filled from the source that has a component of that name. Merging
@@ -736,12 +758,15 @@ Two things are **compile errors**, by design:
 - a target component that no source can fill
 - a target component that *two* sources could fill (ambiguous)
 
-For a fallible merge, return `Validated<NonEmptyList<FieldError>, Target>`:
+For a fallible merge, return `Validated<NonEmptyList<FieldError>, Target>`. Here the customer
+arrives as its wire form, so its `email` is still a `String`:
 
 ```java
+record Summary(EmailAddress email, String accountId) {}
+
 @GenerateMerge
-public interface DashboardAssembly {
-  Validated<NonEmptyList<FieldError>, Dashboard> assemble(User user, Account account);
+public interface SummaryMerge {
+  Validated<NonEmptyList<FieldError>, Summary> merge(CustomerDto customer, Account account);
 
   default ValidatedPrism<String, EmailAddress> email() { ... }   // leaf, as with @GenerateMapping
 }
@@ -777,20 +802,22 @@ Generated class is `<Record>Assembly` (nested records join their enclosing names
 ### Nested records compose
 
 If a component's type is *itself* `@GenerateAssembly`-annotated, its companion's result drops
-straight in, and the outer component name **prefixes the inner error paths** (`address.zip`):
+straight in, and the outer component name **prefixes the inner error paths** (`address.postcode`):
 
+<!-- verify -->
 ```java
-@GenerateAssembly record Address(String zip, String city) {}
-@GenerateAssembly record Customer(String name, Address address) {}
+@GenerateAssembly record Address(String street, String city, String postcode) {}
+@GenerateAssembly record CollectionPoint(String name, Address address) {}
 
-Validated<NonEmptyList<FieldError>, Customer> customer =
-    CustomerAssembly.fields()
+Validated<NonEmptyList<FieldError>, CollectionPoint> point =
+    CollectionPointAssembly.fields()
         .name(parseName(dto.name()))
         .address(AddressAssembly.fields()          // a sub-companion's result, used directly
-            .zip(parseZip(dto.zip()))
+            .street(parseStreet(dto.street()))
             .city(parseCity(dto.city()))
+            .postcode(parsePostcode(dto.postcode()))
             .assemble())
-        .assemble();                                // a bad zip reports as "address.zip"
+        .assemble();                                // a bad postcode reports as "address.postcode"
 ```
 
 **`@GenerateAssembly` does not support generic records.** Annotating one is a compile error; use the hand-written
@@ -816,17 +843,24 @@ wide record, the annotation is the answer, not the workaround.
 This is a **core + codegen** feature, not a web one. Put it on a sealed error hierarchy to give
 every variant a code, a message, a timestamp, and a **typed context**.
 
+<!-- verify -->
 ```java
 @GeneratePrisms
 @GenerateErrorEnvelope
-public sealed interface OrderError permits OrderError.OutOfStock, OrderError.PaymentDeclined {
+public sealed interface OrderError {
   ErrorEnvelope<OrderErrorContext> envelope();
 
   default String code() { return envelope().code(); }
+
+  record OutOfStock(List<ProductId> products, ErrorEnvelope<OrderErrorContext> envelope)
+      implements OrderError {}
+
+  record PaymentDeclined(CardRef card, ErrorEnvelope<OrderErrorContext> envelope)
+      implements OrderError {}
 }
 
 // The context is an ordinary record. Every component must be nullable.
-record OrderErrorContext(OrderId orderId, TraceId traceId) {}
+record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {}
 ```
 
 `ErrorEnvelope<C>` (`org.higherkindedj.hkt.error`) is a record

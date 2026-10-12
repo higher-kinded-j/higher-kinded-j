@@ -109,11 +109,11 @@ types must match.
 
 <!-- verify -->
 ```java
-public record Team(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
-public record TeamDto(String name, List<String> members, Optional<String> lead) {}
+public record Rota(String name, List<EmailAddress> members, Optional<EmailAddress> lead) {}
+public record RotaDto(String name, List<String> members, Optional<String> lead) {}
 
 @GenerateMapping
-public interface TeamMapping extends MappingSpec<Team, TeamDto> {
+public interface RotaMapping extends MappingSpec<Rota, RotaDto> {
   default ValidatedPrism<String, EmailAddress> members() { return emailPrism(); }
   default ValidatedPrism<String, EmailAddress> lead()    { return emailPrism(); }
 
@@ -136,13 +136,13 @@ which is exactly right: it is derived, so there is nothing to read back.
 
 <!-- verify -->
 ```java
-public record Profile(String first, String last) {}
-public record ProfileDto(String first, String last, String displayName) {}
+public record Recipient(String first, String last) {}
+public record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
-  default Getter<Profile, String> displayName() {
-    return Getter.of(p -> p.first() + " " + p.last());
+public interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+  default Getter<Recipient, String> displayName() {
+    return Getter.of(r -> r.first() + " " + r.last());
   }
 }
 ```
@@ -150,14 +150,25 @@ public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 ## Renaming
 
 The wire calls it `fullName`; the domain calls it `name`. Declare it **abstract**: you are stating
-a fact, not supplying an implementation.
+a fact, not supplying an implementation. The `email` leaf repeats the one in *The Spec*, since this
+wire also carries the email as a `String`.
 
 <!-- verify -->
 ```java
+public record PartnerCustomerDto(String fullName, String email) {}   // a partner's customer feed
+
 @GenerateMapping
-public interface PersonMapping extends MappingSpec<Person, PersonDto> {
+public interface PartnerCustomerMapping extends MappingSpec<Customer, PartnerCustomerDto> {
   @MapField(to = "fullName")
-  String name();
+  String name();                       // Customer.name <-> PartnerCustomerDto.fullName
+
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
+  }
 }
 ```
 
@@ -171,10 +182,8 @@ so a third-party DTO maps without being touched.
 
 <!-- verify -->
 ```java
-public record Contact(String name, EmailAddress email) {}
-
-// A generated getter/setter DTO - not a record, not annotatable.
-public class ContactDto {
+// The same Customer, against a generated getter/setter DTO - not a record, not annotatable.
+public class ContactBean {
   private String name;
   private String email;
 
@@ -185,7 +194,7 @@ public class ContactDto {
 }
 
 @GenerateMapping
-public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+public interface ContactMapping extends MappingSpec<Customer, ContactBean> {
   default ValidatedPrism<String, EmailAddress> email() {
     return ValidatedPrism.of(
         raw -> raw.contains("@")
@@ -251,10 +260,10 @@ A dashboard drawn from three aggregates. The method signature **is** the declara
 ```java
 @GenerateMerge
 public interface DashboardAssembly {
-  Dashboard assemble(User user, Account account, Settings settings);
+  Dashboard assemble(Customer customer, Account account, Settings settings);
 }
 
-Dashboard d = DashboardAssemblyImpl.INSTANCE.assemble(user, account, settings);
+Dashboard d = DashboardAssemblyImpl.INSTANCE.assemble(customer, account, settings);
 ```
 
 If two sources both offer a component of the same name, that is ambiguous and the build fails. If no

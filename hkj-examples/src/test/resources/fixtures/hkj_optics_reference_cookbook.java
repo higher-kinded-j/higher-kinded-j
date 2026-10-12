@@ -3,23 +3,26 @@
 // Each recipe is an independent illustration, so each is compiled independently. A recipe that
 // declares its own records shadows the ones here; a recipe that does not gets them from here. The
 // domain types below therefore mirror the shapes the recipes show, and the generated-style
-// companions (`OrderLenses`, `SuccessLenses`, ...) are hand-written rather than generated: the
+// companions (`OrderLenses`, `LoadedLenses`, ...) are hand-written rather than generated: the
 // processor cannot generate a companion for a record a snippet has re-declared for itself, and the
 // same class must compile against every recipe on the page.
 //
-// Where two recipes give one name two different shapes (Recipe 6's `Employee` has a salary, Recipe
-// 9's has an email; Recipe 7's `Product` has a `Money` price, Recipe 13's a `BigDecimal`), the one
-// optic that cannot bridge both is a typed `stub()`. Only its type is load-bearing for a compile
-// gate, and a stub says so honestly rather than faking a getter the record does not have.
+// A name keeps one shape across the page, so a recipe that re-declares a record declares the same
+// components as this copy. The order, its customer and lines, the org chart, the product, the
+// inventory and the configuration map are the book's own types, with its components; the rest are
+// the page's.
 //
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -41,33 +44,34 @@ import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
-// ===== Recipe 1: nested Optional fields =====
+// ===== Recipe 1 / best practice 2 / best practice 4: nested Optional fields =====
 
-record Settings(boolean darkMode, int fontSize) {}
+record DisplaySettings(boolean darkMode, int fontSize) {}
 
-record Profile(String bio, Optional<Settings> settings) {}
+record PatronProfile(String bio, Optional<DisplaySettings> settings) {}
 
-record User(String name, Optional<Profile> profile) {}
+record Patron(String name, Optional<PatronProfile> profile) {}
 
-final class SettingsLenses {
-  static Lens<Settings, Integer> fontSize() {
-    return Lens.of(Settings::fontSize, (s, size) -> new Settings(s.darkMode(), size));
+final class DisplaySettingsLenses {
+  static Lens<DisplaySettings, Integer> fontSize() {
+    return Lens.of(
+        DisplaySettings::fontSize, (s, size) -> new DisplaySettings(s.darkMode(), size));
   }
 }
 
-final class ProfileLenses {
-  static Lens<Profile, Optional<Settings>> settings() {
-    return Lens.of(Profile::settings, (p, s) -> new Profile(p.bio(), s));
+final class PatronProfileLenses {
+  static Lens<PatronProfile, Optional<DisplaySettings>> settings() {
+    return Lens.of(PatronProfile::settings, (p, s) -> new PatronProfile(p.bio(), s));
   }
 }
 
-final class UserLenses {
-  static Lens<User, String> name() {
-    return Lens.of(User::name, (u, name) -> new User(name, u.profile()));
+final class PatronLenses {
+  static Lens<Patron, String> name() {
+    return Lens.of(Patron::name, (p, name) -> new Patron(name, p.profile()));
   }
 
-  static Lens<User, Optional<Profile>> profile() {
-    return Lens.of(User::profile, (u, p) -> new User(u.name(), p));
+  static Lens<Patron, Optional<PatronProfile>> profile() {
+    return Lens.of(Patron::profile, (p, profile) -> new Patron(p.name(), profile));
   }
 }
 
@@ -75,212 +79,233 @@ final class UserLenses {
 
 record Data(String value) {}
 
-sealed interface ApiResponse permits Success, AppError, Loading {}
+sealed interface FetchState permits Loaded, LoadFailed, Loading {}
 
-record Success(Data data, String timestamp) implements ApiResponse {}
+record Loaded(Data data, String timestamp) implements FetchState {}
 
-record AppError(String message, int code) implements ApiResponse {}
+record LoadFailed(String message, int code) implements FetchState {}
 
-record Loading() implements ApiResponse {}
+record Loading() implements FetchState {}
 
-final class SuccessLenses {
-  static Lens<Success, Data> data() {
-    return Lens.of(Success::data, (s, d) -> new Success(d, s.timestamp()));
+final class LoadedLenses {
+  static Lens<Loaded, Data> data() {
+    return Lens.of(Loaded::data, (l, d) -> new Loaded(d, l.timestamp()));
   }
 }
 
-// ===== Recipe 3 / 10 / 14: orders and their line items =====
+// ===== Recipe 3 / 10 / 14 / best practices 1 and 3: orders and their lines =====
 
-record Money(BigDecimal amount) {
-  Money multiply(double factor) {
-    return new Money(amount.multiply(BigDecimal.valueOf(factor)));
-  }
+record EmailAddress(String value) {}
+
+record Customer(String name, EmailAddress email) {}
+
+enum OrderStatus {
+  NEW,
+  PAID,
+  SHIPPED
 }
 
-record LineItem(String productId, int quantity, Money price) {}
+record LineItem(String sku, Integer quantity, BigDecimal price) {}
 
-record Order(String id, List<LineItem> items) {}
+record Order(
+    UUID id,
+    Customer customer,
+    List<LineItem> lines,
+    Instant placedAt,
+    Currency currency,
+    OrderStatus status) {}
 
 final class OrderLenses {
-  static Lens<Order, List<LineItem>> items() {
-    return Lens.of(Order::items, (o, items) -> new Order(o.id(), items));
+  static Lens<Order, List<LineItem>> lines() {
+    return Lens.of(
+        Order::lines,
+        (o, lines) ->
+            new Order(o.id(), o.customer(), lines, o.placedAt(), o.currency(), o.status()));
   }
 }
 
 final class LineItemLenses {
-  static Lens<LineItem, Money> price() {
-    return Lens.of(
-        LineItem::price, (li, p) -> new LineItem(li.productId(), li.quantity(), p));
+  static Lens<LineItem, String> sku() {
+    return Lens.of(LineItem::sku, (li, sku) -> new LineItem(sku, li.quantity(), li.price()));
+  }
+
+  static Lens<LineItem, Integer> quantity() {
+    return Lens.of(LineItem::quantity, (li, q) -> new LineItem(li.sku(), q, li.price()));
+  }
+
+  static Lens<LineItem, BigDecimal> price() {
+    return Lens.of(LineItem::price, (li, p) -> new LineItem(li.sku(), li.quantity(), p));
   }
 }
 
-// ===== Recipe 4: polymorphic events =====
+// ===== Recipe 4: polymorphic activity =====
 
-sealed interface Event permits UserEvent, SystemEvent {}
+sealed interface Activity permits UserAction, SystemNotice {}
 
-record UserEvent(String userId, String action) implements Event {}
+record UserAction(String userId, String action) implements Activity {}
 
-record SystemEvent(String level, String message) implements Event {}
+record SystemNotice(String level, String message) implements Activity {}
 
-final class UserEventLenses {
-  static Lens<UserEvent, String> action() {
-    return Lens.of(UserEvent::action, (e, a) -> new UserEvent(e.userId(), a));
+final class UserActionLenses {
+  static Lens<UserAction, String> action() {
+    return Lens.of(UserAction::action, (a, action) -> new UserAction(a.userId(), action));
   }
 }
 
 // ===== Recipe 5 / 15: configuration =====
 
-record Config(Map<String, String> settings) {}
+record ConfigMap(Map<String, String> settings) {}
 
-final class ConfigLenses {
-  static Lens<Config, Map<String, String>> settings() {
-    return Lens.of(Config::settings, (c, s) -> new Config(s));
+final class ConfigMapLenses {
+  static Lens<ConfigMap, Map<String, String>> settings() {
+    return Lens.of(ConfigMap::settings, (c, s) -> new ConfigMap(s));
   }
 }
 
-// ===== Recipe 6 / 9 / 11: the org chart =====
+// ===== Recipe 6 / 11: the org chart =====
 
 @GenerateFocus
-record Employee(String name, int salary) {}
+record OrgMember(String name, int age, Optional<String> email, Integer salary) {}
 
 @GenerateFocus
-record Department(String name, List<Employee> employees) {}
+record OrgUnit(String name, List<OrgMember> members) {}
 
 @GenerateFocus
-record Company(List<Department> departments) {}
+record OrgChart(String name, List<OrgUnit> units) {}
 
-record Team(String name, Employee lead, List<Employee> members) {}
-
-final class EmployeeLenses {
-  static Lens<Employee, Integer> salary() {
-    return Lens.of(Employee::salary, (e, salary) -> new Employee(e.name(), salary));
+final class OrgMemberLenses {
+  static Lens<OrgMember, Integer> salary() {
+    return Lens.of(
+        OrgMember::salary, (m, salary) -> new OrgMember(m.name(), m.age(), m.email(), salary));
   }
 }
 
-final class DepartmentLenses {
-  static Lens<Department, List<Employee>> employees() {
-    return Lens.of(Department::employees, (d, es) -> new Department(d.name(), es));
+final class OrgUnitLenses {
+  static Lens<OrgUnit, List<OrgMember>> members() {
+    return Lens.of(OrgUnit::members, (u, members) -> new OrgUnit(u.name(), members));
   }
 }
 
-final class CompanyLenses {
-  static Lens<Company, List<Department>> departments() {
-    return Lens.of(Company::departments, (c, ds) -> new Company(ds));
+final class OrgChartLenses {
+  static Lens<OrgChart, List<OrgUnit>> units() {
+    return Lens.of(OrgChart::units, (c, units) -> new OrgChart(c.name(), units));
   }
 }
 
 // ===== Recipe 7 / 13: the catalogue =====
 
-/**
- * Recipe 7's product. Recipe 13 declares its own, with a stock level and a BigDecimal price; each
- * recipe's declaration shadows this one in its own compilation unit.
- */
-record Product(String name, Money price, boolean onSale) {}
+record Product(String sku, String name, BigDecimal price, int stock) {}
 
-record Inventory(List<Product> products) {}
-
-enum Category {
-  ELECTRONICS,
-  GROCERY
-}
+record Inventory(List<Product> products, String warehouseId) {}
 
 final class ProductLenses {
-  /**
-   * A typed stand-in: Recipe 7's {@code Product} has a {@code Money} price and Recipe 13's a {@code
-   * BigDecimal} one, so no single body can read the field on both.
-   */
-  static Lens<Product, Money> price() {
-    return Fixture.stub();
+  static Lens<Product, BigDecimal> price() {
+    return Lens.of(
+        Product::price, (p, price) -> new Product(p.sku(), p.name(), price, p.stock()));
   }
 }
 
 // ===== Recipe 8: Either =====
 
-record ValidationError(String message) {}
+record FormError(String message) {}
 
 record UserData(String name, String email) {}
 
+// ===== Recipe 9: a guild and its engineers =====
+
+record Engineer(String name, String email) {}
+
+record Guild(String name, Engineer lead, List<Engineer> members) {}
+
 // ===== Recipe 12: notifications =====
 
-sealed interface Notification permits Email, SMS, Push {}
+sealed interface Notification permits EmailMessage, SMS, Push {}
 
-record Email(String address, String subject, String body) implements Notification {}
+record EmailMessage(String address, String subject, String body) implements Notification {}
 
 record SMS(String number, String text) implements Notification {}
 
 record Push(String token, String text) implements Notification {}
 
+record Outbox(List<Notification> notifications) {}
+
 class Fixture {
 
   // --- the structures the recipes operate on ---
 
-  static final User user = new User("Alice", Optional.empty());
+  static final Patron patron = new Patron("Alice", Optional.empty());
 
-  static final ApiResponse response = new Success(new Data("ok"), "2026-01-01T00:00:00Z");
+  static final FetchState state = new Loaded(new Data("ok"), "2026-01-01T00:00:00Z");
 
-  static final Order order = new Order("o-1", List.of());
+  static final Order order =
+      new Order(
+          UUID.randomUUID(),
+          new Customer("Alice", new EmailAddress("alice@example.com")),
+          List.of(),
+          Instant.EPOCH,
+          Currency.getInstance("GBP"),
+          OrderStatus.NEW);
 
-  static final List<Event> events = List.of();
+  static final List<Activity> activities = List.of();
 
-  static final Config config = new Config(Map.of("api.key", "0123456789"));
+  static final ConfigMap config = new ConfigMap(Map.of("api.key", "0123456789"));
 
-  static final Company company = new Company(List.of());
+  static final OrgChart company = new OrgChart("Acme", List.of());
 
-  static final Team team = new Team("Platform", new Employee("Alice", 100), List.of());
+  static final Guild guild =
+      new Guild("Platform", new Engineer("Alice", "alice@co"), List.of());
 
   static final List<Product> products = List.of();
 
-  static final Inventory inventory = new Inventory(List.of());
+  static final Inventory inventory = new Inventory(List.of(), "WH-1");
 
-  static final Either<ValidationError, UserData> result =
+  static final Outbox outbox = new Outbox(List.of());
+
+  static final Either<FormError, UserData> result =
       Either.right(new UserData("alice", "alice@example.com"));
 
-  // --- Recipe 9: the folds and lenses the page names but never builds ---
+  // --- Recipe 9: the lenses the page names but never builds ---
 
-  static final Lens<Team, Employee> teamLeadLens =
-      Lens.of(Team::lead, (t, lead) -> new Team(t.name(), lead, t.members()));
+  static final Lens<Guild, Engineer> guildLeadLens =
+      Lens.of(Guild::lead, (g, lead) -> new Guild(g.name(), lead, g.members()));
 
-  static final Lens<Employee, String> employeeNameLens =
-      Lens.of(Employee::name, (e, name) -> new Employee(name, e.salary()));
+  static final Lens<Engineer, String> engineerNameLens =
+      Lens.of(Engineer::name, (e, name) -> new Engineer(name, e.email()));
 
-  /** Recipe 9's Employee has an email; Recipe 6's, which shadows it, has a salary. */
-  static final Lens<Employee, String> employeeEmailLens = stub();
+  static final Lens<Engineer, String> engineerEmailLens =
+      Lens.of(Engineer::email, (e, email) -> new Engineer(e.name(), email));
 
   // --- Recipe 11 ---
 
-  static final Lens<Company, List<Department>> companyDeptsLens = CompanyLenses.departments();
+  static final Lens<OrgChart, List<OrgUnit>> chartUnitsLens = OrgChartLenses.units();
 
-  static final Lens<Department, List<Employee>> deptEmployeesLens = DepartmentLenses.employees();
+  static final Lens<OrgUnit, List<OrgMember>> unitMembersLens = OrgUnitLenses.members();
 
-  static final Lens<Employee, Integer> employeeSalaryLens = EmployeeLenses.salary();
+  static final Lens<OrgMember, Integer> memberSalaryLens = OrgMemberLenses.salary();
 
   // --- Recipe 12 ---
 
-  /** Recipe 12's User carries notifications; Recipe 1's, which shadows it, carries a profile. */
-  static final Lens<User, List<Notification>> userNotificationsLens = stub();
+  static final Lens<Outbox, List<Notification>> outboxNotificationsLens =
+      Lens.of(Outbox::notifications, (o, ns) -> new Outbox(ns));
 
-  static final Lens<Email, String> emailAddressLens =
-      Lens.of(Email::address, (e, a) -> new Email(a, e.subject(), e.body()));
+  static final Lens<EmailMessage, String> messageAddressLens =
+      Lens.of(EmailMessage::address, (e, a) -> new EmailMessage(a, e.subject(), e.body()));
 
-  static final Lens<Email, String> emailSubjectLens =
-      Lens.of(Email::subject, (e, s) -> new Email(e.address(), s, e.body()));
+  static final Lens<EmailMessage, String> emailSubjectLens =
+      Lens.of(EmailMessage::subject, (e, s) -> new EmailMessage(e.address(), s, e.body()));
 
   // --- Recipe 13 ---
 
   static final Lens<Inventory, List<Product>> inventoryProductsLens =
-      Lens.of(Inventory::products, (i, ps) -> new Inventory(ps));
+      Lens.of(Inventory::products, (i, ps) -> new Inventory(ps, i.warehouseId()));
 
   // --- Recipe 14 ---
 
-  static final Lens<Order, List<LineItem>> orderItemsLens = OrderLenses.items();
+  static final Lens<Order, List<LineItem>> orderLinesLens = OrderLenses.lines();
 
-  static final Lens<LineItem, Integer> lineItemQuantityLens =
-      Lens.of(LineItem::quantity, (li, q) -> new LineItem(li.productId(), q, li.price()));
+  static final Lens<LineItem, Integer> lineItemQuantityLens = LineItemLenses.quantity();
 
-  static final Lens<LineItem, BigDecimal> lineItemPriceLens =
-      Lens.of(
-          li -> li.price().amount(),
-          (li, amount) -> new LineItem(li.productId(), li.quantity(), new Money(amount)));
+  static final Lens<LineItem, BigDecimal> lineItemPriceLens = LineItemLenses.price();
 
   static final Monoid<Integer> intSumMonoid = Monoids.integerAddition();
 
@@ -299,28 +324,20 @@ class Fixture {
 
   // --- Recipe 15 ---
 
-  static final Lens<Config, String> configApiKeyLens =
+  static final Lens<ConfigMap, String> configApiKeyLens =
       Lens.of(
           c -> c.settings().getOrDefault("api.key", ""),
           (c, key) -> {
             Map<String, String> updated = new HashMap<>(c.settings());
             updated.put("api.key", key);
-            return new Config(Map.copyOf(updated));
+            return new ConfigMap(Map.copyOf(updated));
           });
 
   // --- Best practice 2 ---
 
   /** An optional nested record: the field the page composes a Prisms.some() onto. */
-  static final Lens<Config, Optional<Settings>> configLens = stub();
+  static final Lens<PatronProfile, Optional<DisplaySettings>> settingsLens =
+      PatronProfileLenses.settings();
 
-  static final Prism<Optional<Settings>, Settings> settingsPrism = Prisms.some();
-
-  /**
-   * The reader's own optics, which the page names without ever building. Only their types are
-   * load-bearing for a compile gate, so they stand in unimplemented rather than pretending to a
-   * behaviour the page never claims.
-   */
-  static <T> T stub() {
-    throw new UnsupportedOperationException("the reader supplies this");
-  }
+  static final Prism<Optional<DisplaySettings>, DisplaySettings> settingsPrism = Prisms.some();
 }

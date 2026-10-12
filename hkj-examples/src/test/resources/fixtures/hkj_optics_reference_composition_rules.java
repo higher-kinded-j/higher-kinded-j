@@ -7,16 +7,20 @@
 // member cannot use its class's type parameters.
 //
 // The concrete patterns at the foot of the page get a real domain, annotated for real, so
-// `PaymentPrisms.creditCard()` and `OrderTraversals.lineItems()` are the genuinely generated
-// companions, and the composition results the page tabulates (Lens+Prism = Affine, Affine+Traversal
-// = Traversal) are checked by javac rather than asserted by a table.
+// `PaymentPrisms.card()` and `OrderTraversals.lines()` are the genuinely generated companions, and
+// the composition results the page tabulates (Lens+Prism = Affine, Affine+Traversal = Traversal)
+// are checked by javac rather than asserted by a table. The domain is the book's order service,
+// declared with the book's components.
 //
 // NOTE: the imports below look unused *here*. They are for the snippet this file is spliced into.
 // That is why spotless excludes src/test/resources/fixtures (see build.gradle.kts).
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Lens;
@@ -28,55 +32,68 @@ import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
 
-/** The reader's money type. */
-record Money(BigDecimal amount) {}
-
-/** A line of an order. */
+/** The book's order service: an order, its customer and lines, and its status. */
 @GenerateLenses
-record LineItem(String sku, Money price) {}
+record EmailAddress(String value) {}
 
-/** The customer sum type the page narrows with a prism. */
-@GeneratePrisms
-sealed interface Customer permits ActiveCustomer, LapsedCustomer {}
+record Customer(String name, EmailAddress email) {}
 
 @GenerateLenses
-record ActiveCustomer(String email) implements Customer {}
+record LineItem(String sku, Integer quantity, BigDecimal price) {}
 
-record LapsedCustomer(String email) implements Customer {}
+enum OrderStatus {
+  NEW,
+  PAID,
+  SHIPPED
+}
 
-/** The structure the page composes through. `isActive` is what Pattern 3 filters on. */
+/** The structure the page composes through. Pattern 3 filters on its status. */
 @GenerateLenses
 @GenerateTraversals
-record Order(Customer customer, List<LineItem> lineItems) {
-  boolean isActive() {
-    return true;
-  }
-}
+record Order(
+    UUID id,
+    Customer customer,
+    List<LineItem> lines,
+    Instant placedAt,
+    Currency currency,
+    OrderStatus status) {}
 
 /** Pattern 1: an optional nested record, reached with Prisms.some(). */
 @GenerateLenses
-record Address(String city) {}
-
-@GenerateLenses
-record User(Optional<Address> address) {}
+record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
 /** Pattern 2: a payment sum type whose variants carry fields. */
 @GeneratePrisms
-sealed interface Payment permits CreditCard, BankTransfer {}
+sealed interface Payment permits Card, Bank {}
 
 @GenerateLenses
-record CreditCard(String number) implements Payment {}
+record Card(String pan) implements Payment {}
 
-record BankTransfer(String iban) implements Payment {}
+record Bank(String iban) implements Payment {}
+
+/** The consignment the stored constant narrows: a sum type whose Returned variant has a field. */
+record Address(String street, String city, String postcode) {}
+
+@GenerateLenses
+record Consignment(UUID orderId, Address to, ConsignmentState state) {}
+
+@GeneratePrisms
+sealed interface ConsignmentState
+    permits ConsignmentState.Pending, ConsignmentState.Dispatched, ConsignmentState.Returned {
+  record Pending() implements ConsignmentState {}
+
+  record Dispatched(Instant at) implements ConsignmentState {}
+
+  @GenerateLenses
+  record Returned(String reason) implements ConsignmentState {}
+}
 
 /** The leaves of the Fold.plus example. */
-record Item(String sku) {}
+record Person(String firstName, String lastName, int age, Address address) {}
 
-record Employee(String email, String name) {}
+record Engineer(String name, String email) {}
 
-record Person(String firstName, String lastName) {}
-
-record Team(Employee lead, List<Employee> members) {}
+record Guild(String name, Engineer lead, List<Engineer> members) {}
 
 class Fixture<A, B, C, D> {
 
@@ -87,17 +104,17 @@ class Fixture<A, B, C, D> {
   final Lens<C, D> optic3 = stub();
 
   /** The folds of the parallel-composition example. */
-  final Fold<Customer, Order> ordersFold = stub();
+  final Fold<List<Order>, Order> ordersFold = Fold.of(orders -> orders);
 
-  final Fold<Order, Item> itemsFold = stub();
+  final Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
   final Fold<Person, String> firstNameFold = Fold.of(person -> List.of(person.firstName()));
   final Fold<Person, String> lastNameFold = Fold.of(person -> List.of(person.lastName()));
-  final Fold<Team, Employee> membersFold = Fold.of(Team::members);
+  final Fold<Guild, Engineer> membersFold = Fold.of(Guild::members);
 
-  final Lens<Team, Employee> leadLens =
-      Lens.of(Team::lead, (team, lead) -> new Team(lead, team.members()));
-  final Lens<Employee, String> emailLens =
-      Lens.of(Employee::email, (employee, email) -> new Employee(email, employee.name()));
+  final Lens<Guild, Engineer> leadLens =
+      Lens.of(Guild::lead, (guild, lead) -> new Guild(guild.name(), lead, guild.members()));
+  final Lens<Engineer, String> emailLens =
+      Lens.of(Engineer::email, (engineer, email) -> new Engineer(engineer.name(), email));
 
   /**
    * The reader's own optics, which the page names without ever building. Only their types are

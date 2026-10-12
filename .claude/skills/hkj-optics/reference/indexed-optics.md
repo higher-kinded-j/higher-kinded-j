@@ -41,7 +41,7 @@ List<Pair<Integer, LineItem>> indexedItems =
     IndexedTraversals.toIndexedList(itemsWithIndex, items);
 
 for (Pair<Integer, LineItem> pair : indexedItems) {
-    System.out.println("Position " + pair.first() + ": " + pair.second().productName());
+    System.out.println("Position " + pair.first() + ": " + pair.second().sku());
 }
 ```
 
@@ -58,24 +58,25 @@ Pair<Integer, LineItem> found = itemsFold.findWithIndex(
 
 // Check existence with index condition
 boolean hasExpensiveEven = itemsFold.existsWithIndex(
-    (index, item) -> index % 2 == 0 && item.price() > 500, items);
+    (index, item) -> index % 2 == 0 && item.price().compareTo(new BigDecimal("500")) > 0,
+    items);
 ```
 
 ## Position-Aware Modifications (imodify)
 
 <!-- verify -->
 ```java
-// Numbering items
+// Prefix each SKU with its pick-list position: "1-LAMP", "2-DESK"
 List<LineItem> numbered = IndexedTraversals.imodify(itemsWithIndex,
     (index, item) -> new LineItem(
-        "Item " + (index + 1) + ": " + item.productName(),
+        (index + 1) + "-" + item.sku(),
         item.quantity(), item.price()),
     items);
 
 // Position-based discount (even positions get 10% off)
 List<LineItem> discounted = IndexedTraversals.imodify(itemsWithIndex,
     (index, item) -> index % 2 == 0
-        ? new LineItem(item.productName(), item.quantity(), item.price() * 0.9)
+        ? new LineItem(item.sku(), item.quantity(), item.price().multiply(new BigDecimal("0.9")))
         : item,
     items);
 
@@ -95,7 +96,8 @@ IndexedTraversal<Integer, List<LineItem>, LineItem> evenPositions =
 
 // Filter by value with index available
 IndexedTraversal<Integer, List<LineItem>, LineItem> expensiveItems =
-    itemsWithIndex.filteredWithIndex((index, item) -> item.price() > 50);
+    itemsWithIndex.filteredWithIndex(
+        (index, item) -> item.price().compareTo(new BigDecimal("50")) > 0);
 // Note: indices are PRESERVED (0, 2, 4), not renumbered (0, 1, 2)
 
 // Filter map by key pattern
@@ -107,19 +109,19 @@ IndexedTraversal<String, Map<String, String>, String> deliveryMetadata =
 
 <!-- verify -->
 ```java
-IndexedLens<String, Customer, String> emailLens = IndexedLens.of(
+IndexedLens<String, Customer, EmailAddress> emailLens = IndexedLens.of(
     "email",                                                    // index: field name
     Customer::email,                                            // getter
     (customer, newEmail) -> new Customer(customer.name(), newEmail) // setter
 );
 
-Pair<String, String> fieldInfo = emailLens.iget(customer);
-// fieldInfo.first() = "email", fieldInfo.second() = "alice@example.com"
+Pair<String, EmailAddress> fieldInfo = emailLens.iget(customer);
+// fieldInfo.first() = "email", fieldInfo.second() = EmailAddress[value=alice@example.com]
 
 Customer updated = emailLens.imodify(
     (fieldName, oldValue) -> {
         System.out.println("Updating '" + fieldName + "' from " + oldValue);
-        return "alice.smith@example.com";
+        return new EmailAddress("alice.smith@example.com");
     }, customer);
 ```
 
@@ -149,7 +151,7 @@ IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
 // Compose: paired indices (orderIndex, itemIndex)
 IndexedTraversal<Pair<Integer, Integer>, List<Order>, LineItem> composed =
     ordersIndexed
-        .andThen(itemsLens.asTraversal())
+        .andThen(linesLens.asTraversal())
         .iandThen(itemsIndexed);
 
 List<Pair<Pair<Integer, Integer>, LineItem>> all =
@@ -158,7 +160,7 @@ List<Pair<Pair<Integer, Integer>, LineItem>> all =
 for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
     System.out.printf("Order %d, Item %d: %s%n",
         entry.first().first(), entry.first().second(),
-        entry.second().productName());
+        entry.second().sku());
 }
 ```
 
