@@ -18,6 +18,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -69,6 +70,12 @@ final class CopyStrategyChecks {
       "org.higherkindedj.optics.annotations.ViaConstructor";
   private static final String VIA_COPY_AND_SET_FQN =
       "org.higherkindedj.optics.annotations.ViaCopyAndSet";
+
+  /**
+   * The {@code @SuppressWarnings} id that keeps quiet a {@code @ViaCopyAndSet} setter spelt as a
+   * wither whose result the lens drops, where it sets the copy it is called on after all.
+   */
+  static final String DROPPED_RESULT = "dropped-result";
 
   private final Types typeUtils;
   private final Elements elementUtils;
@@ -271,44 +278,68 @@ final class CopyStrategyChecks {
           writtenFocusType(
               method, declaredSource, sourceTypeElement, "", setter, focusType, targetPackage);
       if (readsThroughUnusableGetter(
+          method,
+          "@ViaCopyAndSet",
+          declaredSource,
+          sourceTypeElement,
+          fieldName,
+          focusType,
+          targetPackage)) {
+        return Optional.empty();
+      }
+      TypeMirror argument = written == null ? focusType : written;
+      SetterCall setterCall =
+          copySetterCall(
               method,
-              "@ViaCopyAndSet",
-              declaredSource,
-              sourceTypeElement,
-              fieldName,
-              focusType,
-              targetPackage)
-          || setsThroughUnusableSetter(
-              method,
-              "@ViaCopyAndSet",
               declaredSource,
               sourceTypeElement,
               fieldName,
               setter,
-              written == null ? focusType : written,
-              targetPackage)) {
+              argument,
+              targetPackage);
+      if (setterCall instanceof SetterCall.Refused) {
         return Optional.empty();
       }
-      if (copyConstructor.isEmpty()) {
-        return Optional.of(
-            new CopyStrategyResult(
-                CopyStrategyKind.VIA_COPY_AND_SET,
-                CopyStrategyInfo.forCopyAndSet(null, setter, written)));
-      }
-      return resolveCopyConstructorParameterType(
-              method, declaredSource, targetPackage, copyConstructor)
-          .map(
-              parameterType ->
+      // A setter spelt as a wither is taken at its word: what it returns is the value set, a new
+      // one or, from a fluent wither, the copy. Any other setter is called for its effect, since a
+      // set method that returns the source type may hand back the value it replaced or a snapshot.
+      boolean witherSpelt = NamingConvention.WITHER.spells(setter);
+      List<ExecutableElement> reachable =
+          witherSpelt
+              ? settersOneArgumentReaches(sourceTypeElement, setter, argument, targetPackage)
+              : List.of();
+      boolean returnsSource =
+          witherSpelt
+              && reachable.stream()
+                  .allMatch(member -> returnsSourceForAnyArgument(declaredSource, member));
+      Optional<CopyStrategyResult> result =
+          copyConstructor.isEmpty()
+              ? Optional.of(
                   new CopyStrategyResult(
                       CopyStrategyKind.VIA_COPY_AND_SET,
-                      // Naming S itself is honoured by casting to nothing: a cast to the
-                      // argument's own type says nothing, and javac reports it as redundant.
-                      // Answering it here, with Types, leaves the generator one rule - a null
-                      // parameter type means no cast - rather than a comparison of rendered names.
-                      CopyStrategyInfo.forCopyAndSet(
-                          typeUtils.isSameType(parameterType, sourceType) ? null : parameterType,
-                          setter,
-                          written)));
+                      CopyStrategyInfo.forCopyAndSet(null, setter, written, returnsSource)))
+              : resolveCopyConstructorParameterType(
+                      method, declaredSource, targetPackage, copyConstructor)
+                  .map(
+                      parameterType ->
+                          new CopyStrategyResult(
+                              CopyStrategyKind.VIA_COPY_AND_SET,
+                              // Naming S itself is honoured by casting to nothing: a cast to the
+                              // argument's own type says nothing, and javac reports it as
+                              // redundant. Answering it here, with Types, leaves the generator one
+                              // rule - a null parameter type means no cast - rather than a
+                              // comparison of rendered names.
+                              CopyStrategyInfo.forCopyAndSet(
+                                  typeUtils.isSameType(parameterType, sourceType)
+                                      ? null
+                                      : parameterType,
+                                  setter,
+                                  written,
+                                  returnsSource)));
+      if (result.isPresent() && witherSpelt && !returnsSource) {
+        warnIfDropsWitherResult(method, declaredSource, setter, reachable, argument, setterCall);
+      }
+      return result;
     }
 
     Diagnostics.error(
@@ -391,7 +422,7 @@ final class CopyStrategyChecks {
 
   /**
    * The convention a strategy's setter is offered in: a builder carries on with what its setter
-   * hands back, where a copy's setter call drops it.
+   * hands back, where a copy's setter is meant to set the copy it is called on.
    */
   private static NamingConvention setterConvention(String tag) {
     return tag.equals("@ViaBuilder") ? NamingConvention.BUILDER_SETTER : NamingConvention.SETTER;
@@ -910,22 +941,20 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * Reports a setter a generated lens cannot set through on the source type, and returns whether it
-   * did.
+   * The setter call a {@code @ViaCopyAndSet} lens makes on its copy, refused where no method of the
+   * name can take the value or the call it binds is unchecked, and an error was reported.
    *
    * @param method the annotated lens method, for error reporting
-   * @param tag the strategy annotation, which the message names
    * @param sourceType the source type {@code S}, as the spec names it
    * @param sourceTypeElement the element of {@code S}, whose members are searched
    * @param getterName the accessor the lens reads its focus through
    * @param setterName the method the strategy sets through
-   * @param focusType the lens's focus, which the call passes
+   * @param focusType the value the call passes: the lens's focus, or the primitive it is unboxed to
    * @param targetPackage the package the optics class is generated into
-   * @return true when no method of the name can take the value, and an error was reported
+   * @return the method the call binds, a refusal that has been reported, or undecided
    */
-  private boolean setsThroughUnusableSetter(
+  private SetterCall copySetterCall(
       ExecutableElement method,
-      String tag,
       DeclaredType sourceType,
       TypeElement sourceTypeElement,
       String getterName,
@@ -935,7 +964,7 @@ final class CopyStrategyChecks {
     SetterCall setter =
         boundSetter(
             method,
-            tag,
+            "@ViaCopyAndSet",
             sourceType,
             sourceTypeElement,
             setterName,
@@ -944,17 +973,197 @@ final class CopyStrategyChecks {
             sourceType,
             getterName,
             targetPackage);
-    return setter instanceof SetterCall.Refused
-        || (setter instanceof SetterCall.Binds(ExecutableElement bound)
+    return setter instanceof SetterCall.Binds(ExecutableElement bound)
             && setsUnchecked(
                 method,
-                tag,
+                "@ViaCopyAndSet",
                 sourceType,
                 bound,
                 focusType,
                 "'" + setterName + "(newValue)'",
                 ProcessorUtils.simpleTypeName(sourceType),
-                null));
+                null)
+        ? new SetterCall.Refused()
+        : setter;
+  }
+
+  /**
+   * The methods of {@code setterName} on {@code S} that a {@code @ViaCopyAndSet} lens's setter call
+   * might bind: those the generated class can call that one argument reaches, as {@link
+   * CallBinding#takesArity} reads it, and that can take {@code argument}, read through their
+   * erasure so that none javac might bind is left out. A wildcard focus is inferred from the getter
+   * as much as from the wildcard, so every one its arity reaches stays.
+   */
+  private List<ExecutableElement> settersOneArgumentReaches(
+      TypeElement sourceTypeElement, String setterName, TypeMirror argument, String targetPackage) {
+    return callableMembers(sourceTypeElement, targetPackage).stream()
+        .filter(member -> member.getSimpleName().contentEquals(setterName))
+        .filter(member -> CallBinding.takesArity(member, 1))
+        .filter(
+            member -> argument.getKind() == TypeKind.WILDCARD || takesArgument(member, argument))
+        .toList();
+  }
+
+  /**
+   * Whether {@code argument} can be passed to {@code member}, one argument reaching it, read
+   * through its erasure: as its first parameter, or as the element of its array.
+   */
+  private boolean takesArgument(ExecutableElement member, TypeMirror argument) {
+    TypeMirror first = typeUtils.erasure(member.getParameters().getFirst().asType());
+    return typeUtils.isAssignable(argument, first)
+        || (member.isVarArgs()
+            && member.getParameters().size() == 1
+            && typeUtils.isAssignable(argument, ((ArrayType) first).getComponentType()));
+  }
+
+  /**
+   * Whether {@code member} returns an {@code S} whatever the call passes it, so that a wither's
+   * result can be handed back as one.
+   *
+   * <p>The call's result has to be an {@code S} whichever of the methods it might bind javac
+   * settles on, since that can rest on inference these checks do not repeat. Each has to return one
+   * as {@link ProcessorUtils#returnsOwner} reads it, and a return that names the method's own type
+   * variables only where nothing else it declares names them, since the call then infers them from
+   * more than the {@code S} it hands back.
+   */
+  private boolean returnsSourceForAnyArgument(DeclaredType sourceType, ExecutableElement member) {
+    return ProcessorUtils.returnsOwner(typeUtils, sourceType, member)
+        && (member.getTypeParameters().stream()
+                .noneMatch(variable -> ProcessorUtils.mentions(member.getReturnType(), variable))
+            || inferredFromTheTargetAlone(member));
+  }
+
+  /**
+   * Whether nothing a generic method declares but its return names its type variables: no
+   * parameter, no thrown type, and no bound of one variable names another.
+   */
+  private static boolean inferredFromTheTargetAlone(ExecutableElement member) {
+    List<? extends TypeParameterElement> variables = member.getTypeParameters();
+    List<TypeMirror> signature =
+        Stream.concat(
+                member.getParameters().stream().map(Element::asType),
+                member.getThrownTypes().stream())
+            .toList();
+    return variables.stream()
+        .noneMatch(
+            variable ->
+                signature.stream().anyMatch(type -> ProcessorUtils.mentions(type, variable))
+                    || variables.stream()
+                        .filter(other -> !other.equals(variable))
+                        .flatMap(other -> other.getBounds().stream())
+                        .anyMatch(bound -> ProcessorUtils.mentions(bound, variable)));
+  }
+
+  /**
+   * Warns that a {@code @ViaCopyAndSet} lens drops what its setter returns where the setter is
+   * spelt as a wither and some method of its name may return an {@code S}: a wither's new value
+   * would be lost. {@code @SuppressWarnings} with {@link #DROPPED_RESULT} on the lens method, or a
+   * declaration enclosing it, keeps it quiet.
+   *
+   * @param method the annotated lens method, which the warning is reported on
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param setterName the method the strategy sets through
+   * @param reachable the methods the setter call might bind, some of which do not return an {@code
+   *     S} whatever they are passed
+   * @param argument what the call passes
+   * @param setterCall the method the call binds, where that is decided, which {@code @Wither} would
+   *     bind too
+   */
+  private void warnIfDropsWitherResult(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      String setterName,
+      List<ExecutableElement> reachable,
+      TypeMirror argument,
+      SetterCall setterCall) {
+    // A call that binds a method returning no S drops nothing, whatever the others return.
+    if ((setterCall instanceof SetterCall.Binds(ExecutableElement binding)
+            && !mayReturnSource(sourceType, binding))
+        || reachable.stream().noneMatch(member -> mayReturnSource(sourceType, member))
+        || Diagnostics.suppressed(method, DROPPED_RESULT)) {
+      return;
+    }
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    List<String> unkept =
+        reachable.stream()
+            .filter(member -> !returnsSourceForAnyArgument(sourceType, member))
+            .map(member -> returnPhrase(sourceType, member))
+            .toList();
+    // @Wither binds the method the focus binds, and serves where that one returns an S. Where the
+    // binding is javac's to settle, under a wildcard focus or by inference, it may settle on
+    // another, so @Wither is not offered.
+    boolean witherServes =
+        argument.getKind() != TypeKind.WILDCARD
+            && setterCall instanceof SetterCall.Binds(ExecutableElement bound)
+            && ProcessorUtils.returnsOwner(typeUtils, sourceType, bound);
+    Diagnostics.warning(
+        messager,
+        method,
+        "@ViaCopyAndSet",
+        "The generated lens returns the copy it calls '"
+            + setterName
+            + "' on, and drops what '"
+            + setterName
+            + "' returns.",
+        "A method spelt as a wither usually hands back a new value and leaves the copy as it was,"
+            + " and then the lens's set changes nothing. The lens can hand back the result only"
+            + " where every method of that name the new value can be passed to returns a '"
+            + source
+            + "', and "
+            + listed(unkept)
+            + ".",
+        "Where '"
+            + setterName
+            + "' sets the copy it is called on, annotate '"
+            + method.getSimpleName()
+            + "()' @SuppressWarnings(\""
+            + DROPPED_RESULT
+            + "\"); otherwise "
+            + (witherServes
+                ? rebuildWith(source, "@ViaCopyAndSet")
+                : "name a setter that sets the copy, or rebuild '"
+                    + source
+                    + "' with @ViaBuilder or @ViaConstructor")
+            + ".");
+  }
+
+  /**
+   * Whether what {@code member} returns may be, or hold, an {@code S}, read through both erasures:
+   * the source type's class, a subclass or a supertype of it, a raw or another instantiation of
+   * one, or a type variable bounded by one; or a type with such an argument, as {@code Optional<S>}
+   * is.
+   */
+  private boolean mayReturnSource(DeclaredType sourceType, ExecutableElement member) {
+    TypeMirror returned = ProcessorUtils.returnTypeIn(typeUtils, sourceType, member);
+    return relatedByErasure(returned, sourceType)
+        || (returned instanceof DeclaredType declared
+            && declared.getTypeArguments().stream()
+                .anyMatch(argument -> relatedByErasure(argument, sourceType)));
+  }
+
+  /** Whether one of two types' erasures is assignable to the other's. */
+  private boolean relatedByErasure(TypeMirror type, TypeMirror other) {
+    TypeMirror erased = typeUtils.erasure(type);
+    TypeMirror otherErased = typeUtils.erasure(other);
+    return typeUtils.isAssignable(erased, otherErased)
+        || typeUtils.isAssignable(otherErased, erased);
+  }
+
+  /**
+   * What {@code member} returns, as the dropped-result warning's reason names it: a type that is
+   * not an {@code S}, or a retag that more than the source type infers.
+   */
+  private String returnPhrase(DeclaredType sourceType, ExecutableElement member) {
+    String returned =
+        "'"
+            + signatureOn(sourceType, member)
+            + "' returns '"
+            + ProcessorUtils.simpleTypeName(
+                ProcessorUtils.returnTypeIn(typeUtils, sourceType, member))
+            + "'";
+    return ProcessorUtils.returnsOwner(typeUtils, sourceType, member)
+        ? returned + ", whose type the call infers from more than what it is assigned to"
+        : returned;
   }
 
   /**
@@ -1091,9 +1300,7 @@ final class CopyStrategyChecks {
                 + "' on a '"
                 + ProcessorUtils.simpleTypeName(owner)
                 + "' cannot choose between "
-                + String.join(", ", signatures.subList(0, signatures.size() - 1))
-                + " and "
-                + signatures.getLast()
+                + listed(signatures)
                 + ".",
             "The generated lens sets through "
                 + call
@@ -1846,9 +2053,7 @@ final class CopyStrategyChecks {
         "The generated call to '"
             + witherName
             + "' cannot choose between "
-            + String.join(", ", signatures.subList(0, signatures.size() - 1))
-            + " and "
-            + signatures.getLast()
+            + listed(signatures)
             + ".",
         settingThrough(witherName, argument)
             + ", which each of them takes, with no parameter more specific than every other.",
@@ -1958,12 +2163,16 @@ final class CopyStrategyChecks {
         "Name a wither that returns '"
             + source
             + "', or declare the spec over the type the wither does return when that is an"
-            + " instantiation of the same class; otherwise "
-            + rebuildWith(source, "@Wither")
-            + ".");
+            + " instantiation of the same class; otherwise rebuild '"
+            + source
+            + "' with @ViaBuilder or @ViaConstructor, or with @ViaCopyAndSet through a setter that"
+            + " sets the copy it is called on.");
   }
 
-  /** The remedy every wither refusal ends on, for a diagnostic's fix: an unfinished clause. */
+  /**
+   * The remedy a diagnostic's fix ends on, offering every strategy but {@code tag}: an unfinished
+   * clause.
+   */
   static String rebuildWith(String source, String tag) {
     List<String> others =
         List.of("@Wither", "@ViaBuilder", "@ViaConstructor", "@ViaCopyAndSet").stream()
@@ -1975,6 +2184,13 @@ final class CopyStrategyChecks {
         + String.join(", ", others.subList(0, others.size() - 1))
         + " or "
         + others.getLast();
+  }
+
+  /** Names as a sentence lists them: {@code 'a()'}, {@code 'a()' and 'b()'}, or with commas. */
+  static String listed(List<String> names) {
+    return names.size() == 1
+        ? names.getFirst()
+        : String.join(", ", names.subList(0, names.size() - 1)) + " and " + names.getLast();
   }
 
   /** How the generated setter calls the wither, for a diagnostic's reason: an unfinished clause. */

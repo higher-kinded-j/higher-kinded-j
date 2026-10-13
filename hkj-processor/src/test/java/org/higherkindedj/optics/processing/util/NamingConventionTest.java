@@ -40,6 +40,19 @@ class NamingConventionTest {
     assertThatNullPointerException().isThrownBy(() -> NamingConvention.ACCESSOR.of(null));
     assertThatNullPointerException()
         .isThrownBy(() -> NamingConvention.ACCESSOR.sameValueAmong(null, List.of()));
+    assertThatNullPointerException().isThrownBy(() -> NamingConvention.WITHER.spells(null));
+  }
+
+  @Test
+  @DisplayName("a convention without the bare name spells a name only after one of its prefixes")
+  void spellsOnlyAfterItsOwnPrefixes() {
+    assertThat(NamingConvention.WITHER.spells("withTitle")).isTrue();
+    assertThat(NamingConvention.WITHER.spells("title")).isFalse();
+    assertThat(NamingConvention.WITHER.spells("setTitle")).isFalse();
+    assertThat(NamingConvention.WITHER.spells("without")).isFalse();
+    assertThat(NamingConvention.ACCESSOR.spells("title")).isTrue();
+    assertThat(NamingConvention.ACCESSOR.spells("getTitle")).isTrue();
+    assertThat(NamingConvention.ACCESSOR.spells("setTitle")).isTrue();
   }
 
   @ParameterizedTest(name = "{0} among {1} offers {2}")

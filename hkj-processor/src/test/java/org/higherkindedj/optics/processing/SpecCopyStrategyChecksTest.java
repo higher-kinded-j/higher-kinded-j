@@ -50,11 +50,22 @@ class SpecCopyStrategyChecksTest {
             + body);
   }
 
-  private static final List<String> LINT = List.of("-Xlint:unchecked,rawtypes,static", "-Werror");
+  /** The lint a call bound to the wrong method would trip. */
+  private static final String LINT_CHECKS = "-Xlint:unchecked,rawtypes,static";
+
+  private static final List<String> LINT = List.of(LINT_CHECKS, "-Werror");
 
   /** Compiles under the lint a call bound to the wrong method would trip, as an error. */
   private static Compilation compile(JavaFileObject... sources) {
     return javac().withProcessors(new ImportOpticsProcessor()).withOptions(LINT).compile(sources);
+  }
+
+  /** Compiles under the same lint with warnings left as warnings, so that one can be read. */
+  private static Compilation compileReporting(JavaFileObject... sources) {
+    return javac()
+        .withProcessors(new ImportOpticsProcessor())
+        .withOptions(List.of(LINT_CHECKS))
+        .compile(sources);
   }
 
   /**
@@ -1503,10 +1514,11 @@ class SpecCopyStrategyChecksTest {
       // A bean reads and writes through prefixed names, a record and its fluent builder through
       // bare ones; a prefix added, taken away or swapped is three or more edits, too many for a
       // near miss. A server reads through a bare name and sets through a fluent setter beside a
-      // wither; a draft has only a wither and a bare method that copies, which a copy's setter
-      // call would drop; a site's builder steps through a wither; and a chain's only one-argument
-      // method is a fluent setter, which a wither must not be. A box's value takes a type its
-      // wildcard stands in, which no value is, and a site's title setter ends the builder chain.
+      // wither; a draft has only a wither and a bare method that copies, which @Wither is for
+      // rather than a copy's setter; a site's builder steps through a wither; and a chain's only
+      // one-argument method is a fluent setter, which a wither must not be. A box's value takes a
+      // type its wildcard stands in, which no value is, and a site's title setter ends the builder
+      // chain.
       var profile =
           external(
               "Profile",
@@ -1903,8 +1915,8 @@ class SpecCopyStrategyChecksTest {
       assertThat(compilation)
           .hadErrorContaining("Did you mean 'withValue'?")
           .inFile(concreteWither);
-      // A copy's setter call drops what it returns, so neither the bare method nor the wither,
-      // each of which copies, is offered for it, however near the name; a wither is offered no
+      // A copy's setter is meant to set the copy, so neither the bare method nor the wither, each
+      // of which copies, is offered for it, however near the name; a wither is offered no
       // fluent setter, which would change its source; neither Object's 'wait' nor a record's
       // 'hashCode' is ever what was meant; a method whose parameter a wildcard stands in takes no
       // value; and a builder setter that hands back nothing ends the chain.
@@ -2949,6 +2961,692 @@ class SpecCopyStrategyChecksTest {
                   """));
 
       assertThat(compilation).succeededWithoutWarnings();
+    }
+  }
+
+  @Nested
+  @DisplayName("@ViaCopyAndSet Setter Result")
+  class ViaCopyAndSetSetterResult {
+
+    /** A set function that hands back what the wither returns. */
+    private static String keeping(String type, String setter) {
+      return "(source, newValue) -> new %1$s(source).%2$s(newValue)".formatted(type, setter);
+    }
+
+    /** A set function that calls the setter for its effect and hands back the copy. */
+    private static String dropping(String type, String setter) {
+      return """
+          (source, newValue) -> {
+            %1$s copy = new %1$s(source);
+            copy.%2$s(newValue);
+            return copy;
+          }"""
+          .formatted(type, setter);
+    }
+
+    @Test
+    @DisplayName("a wither that returns the source type whatever the call binds hands it back")
+    void setterReturningTheSourceTypeMayHandItBack() {
+      // A memo's wither hands back a new memo, and a rec's fluent wither the copy it set: the lens
+      // hands back either. So it does where the call might bind either of a pane's two withers,
+      // where a badge's wither takes a type variable of its own, and where a crate's wither retags
+      // its type argument, which the call infers back. The memo's other methods of the name return
+      // nothing, but no call passing one string reaches them.
+      var compilation =
+          compile(
+              external(
+                  "Memo",
+                  """
+                  public class Memo {
+                      private String title;
+                      public Memo() {}
+                      public Memo(Memo other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      public Memo withTitle(String title) {
+                          Memo copy = new Memo(this);
+                          copy.title = title;
+                          return copy;
+                      }
+                      public void withTitle(String title, String locale, String... notes) {
+                          this.title = title + locale + notes.length;
+                      }
+                      public void withTitle(int code) { this.title = "#" + code; }
+                      public void withTitle(String title, int revision) { this.title = title; }
+                      public void withTitle(int... codes) { this.title = "#" + codes.length; }
+                      public void withTitle(long code, String... notes) { this.title = "#" + code; }
+                  }
+                  """),
+              external(
+                  "Rec",
+                  """
+                  public class Rec {
+                      private String name;
+                      public Rec() {}
+                      public Rec(Rec other) { name = other.name; }
+                      public String getName() { return name; }
+                      public Rec withName(String name) { this.name = name; return this; }
+                  }
+                  """),
+              external(
+                  "Pane",
+                  """
+                  public class Pane {
+                      private CharSequence title = "";
+                      public Pane() {}
+                      public Pane(Pane other) { title = other.title; }
+                      public String getTitle() { return title.toString(); }
+                      public Pane withTitle(String title) { return copyWith(title); }
+                      public Pane withTitle(StringBuilder title) { return copyWith(title); }
+                      private Pane copyWith(CharSequence title) {
+                          Pane copy = new Pane(this);
+                          copy.title = title;
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Badge",
+                  """
+                  public class Badge {
+                      private String title;
+                      public Badge() {}
+                      public Badge(Badge other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      public <T extends CharSequence> Badge withTitle(T title) {
+                          Badge copy = new Badge(this);
+                          copy.title = title.toString();
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Crate",
+                  """
+                  public class Crate<T> {
+                      private String label;
+                      public Crate() {}
+                      public Crate(Crate<T> other) { label = other.label; }
+                      public String getLabel() { return label; }
+                      public <U> Crate<U> withLabel(String label) {
+                          Crate<U> copy = new Crate<>();
+                          copy.label = label;
+                          return copy;
+                      }
+                  }
+                  """),
+              spec(
+                  "MemoOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface MemoOpticsSpec extends OpticsSpec<Memo> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Memo, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "RecOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface RecOpticsSpec extends OpticsSpec<Rec> {
+                      @ViaCopyAndSet(setter = "withName")
+                      Lens<Rec, String> getName();
+                  }
+                  """),
+              spec(
+                  "PaneOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PaneOpticsSpec extends OpticsSpec<Pane> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Pane, ? extends CharSequence> getTitle();
+                  }
+                  """),
+              spec(
+                  "BadgeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BadgeOpticsSpec extends OpticsSpec<Badge> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Badge, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "CrateOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CrateOpticsSpec extends OpticsSpec<Crate<String>> {
+                      @ViaCopyAndSet(setter = "withLabel")
+                      Lens<Crate<String>, String> getLabel();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.MemoOptics", keeping("Memo", "withTitle"));
+      assertGeneratedCodeContains(compilation, "com.myapp.RecOptics", keeping("Rec", "withName"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.PaneOptics", keeping("Pane", "withTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.BadgeOptics", keeping("Badge", "withTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.CrateOptics", keeping("Crate<String>", "withLabel"));
+    }
+
+    @Test
+    @DisplayName("a set method, and a wither that returns nothing, are called for their effect")
+    void setterThatMayReturnSomethingElseIsCalledForItsEffect() {
+      // A page's setter returns nothing, and a leaf's hands back the base it is declared on. A
+      // sheet's fluent setter and a link's, which hands back the link it replaced, return the
+      // source type, but a set method may hand back anything of it, so each is called for its
+      // effect. A quire's string reaches only the wither that returns nothing, as the element of
+      // its array, and a ledger's wither returns nothing. A vane's string binds the wither that
+      // returns nothing, beside one taking any object, and a jar's wither returns a type that holds
+      // no jar, so none drops a jar and none warns.
+      var compilation =
+          compile(
+              external(
+                  "Page",
+                  """
+                  public class Page {
+                      private String title;
+                      public Page() {}
+                      public Page(Page other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      public void setTitle(String title) { this.title = title; }
+                  }
+                  """),
+              external(
+                  "LeafBase",
+                  """
+                  public class LeafBase {
+                      protected String title;
+                      public LeafBase setTitle(String title) { this.title = title; return this; }
+                  }
+                  """),
+              external(
+                  "Leaf",
+                  """
+                  public class Leaf extends LeafBase {
+                      public Leaf() {}
+                      public Leaf(Leaf other) { title = other.title; }
+                      public String getTitle() { return title; }
+                  }
+                  """),
+              external(
+                  "Sheet",
+                  """
+                  public class Sheet {
+                      private String title;
+                      public Sheet() {}
+                      public Sheet(Sheet other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      public Sheet setTitle(String title) { this.title = title; return this; }
+                  }
+                  """),
+              external(
+                  "Link",
+                  """
+                  public class Link {
+                      private Link next;
+                      public Link() {}
+                      public Link(Link other) { next = other.next; }
+                      public Link getNext() { return next; }
+                      public Link setNext(Link next) {
+                          Link replaced = this.next;
+                          this.next = next;
+                          return replaced;
+                      }
+                  }
+                  """),
+              external(
+                  "Quire",
+                  """
+                  public class Quire {
+                      private CharSequence title = "";
+                      public Quire() {}
+                      public Quire(Quire other) { title = other.title; }
+                      public String getTitle() { return title.toString(); }
+                      public Quire withTitle(StringBuilder title) { this.title = title; return this; }
+                      public void withTitle(String... parts) { this.title = String.join(" ", parts); }
+                  }
+                  """),
+              external(
+                  "Vane",
+                  """
+                  public class Vane {
+                      private Object title = "";
+                      public Vane() {}
+                      public Vane(Vane other) { title = other.title; }
+                      public String getTitle() { return title.toString(); }
+                      public void withTitle(String title) { this.title = title; }
+                      public Vane withTitle(Object title) {
+                          Vane copy = new Vane(this);
+                          copy.title = title;
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Jar",
+                  """
+                  import java.util.Optional;
+
+                  public class Jar {
+                      private String label = "";
+                      public Jar() {}
+                      public Jar(Jar other) { label = other.label; }
+                      public String getLabel() { return label; }
+                      public Optional<String> withLabel(String label) {
+                          String old = this.label;
+                          this.label = label;
+                          return Optional.of(old);
+                      }
+                  }
+                  """),
+              external(
+                  "Ledger",
+                  """
+                  public class Ledger {
+                      private String note;
+                      public Ledger() {}
+                      public Ledger(Ledger other) { note = other.note; }
+                      public String getNote() { return note; }
+                      public void withNote(String note) { this.note = note; }
+                  }
+                  """),
+              spec(
+                  "PageOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PageOpticsSpec extends OpticsSpec<Page> {
+                      @ViaCopyAndSet(setter = "setTitle")
+                      Lens<Page, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "LeafOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LeafOpticsSpec extends OpticsSpec<Leaf> {
+                      @ViaCopyAndSet(setter = "setTitle")
+                      Lens<Leaf, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "SheetOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SheetOpticsSpec extends OpticsSpec<Sheet> {
+                      @ViaCopyAndSet(setter = "setTitle")
+                      Lens<Sheet, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "LinkOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LinkOpticsSpec extends OpticsSpec<Link> {
+                      @ViaCopyAndSet(setter = "setNext")
+                      Lens<Link, Link> getNext();
+                  }
+                  """),
+              spec(
+                  "QuireOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface QuireOpticsSpec extends OpticsSpec<Quire> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Quire, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "VaneOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface VaneOpticsSpec extends OpticsSpec<Vane> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Vane, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "JarOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface JarOpticsSpec extends OpticsSpec<Jar> {
+                      @ViaCopyAndSet(setter = "withLabel")
+                      Lens<Jar, String> getLabel();
+                  }
+                  """),
+              spec(
+                  "LedgerOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LedgerOpticsSpec extends OpticsSpec<Ledger> {
+                      @ViaCopyAndSet(setter = "withNote")
+                      Lens<Ledger, String> getNote();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.PageOptics", dropping("Page", "setTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LeafOptics", dropping("Leaf", "setTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SheetOptics", dropping("Sheet", "setTitle"));
+      assertGeneratedCodeContains(compilation, "com.myapp.LinkOptics", dropping("Link", "setNext"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.QuireOptics", dropping("Quire", "withTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.VaneOptics", dropping("Vane", "withTitle"));
+      assertGeneratedCodeContains(compilation, "com.myapp.JarOptics", dropping("Jar", "withLabel"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LedgerOptics", dropping("Ledger", "withNote"));
+    }
+
+    @Test
+    @DisplayName("a wither whose result the lens drops warns, unless the lens method suppresses it")
+    void witherWhoseResultTheLensDropsWarns() {
+      // A sprig's wither hands back the base it is declared on, and a slip's the class under
+      // other type arguments, and a cask's an optional of one. A vial's returns whatever the call
+      // is assigned to, a bundle's might lose the call to a method that returns nothing, and a
+      // kit's has one taking any object beside it, which returns nothing. A parcel's, a bale's and
+      // a bin's retags are inferred from the value they are
+      // passed, from what they throw and through another variable's bound. So the lens can keep
+      // none of their results. A twig's is the sprig's shape, on a lens method that says it sets
+      // the copy after all.
+      var compilation =
+          compileReporting(
+              external(
+                  "SprigBase",
+                  """
+                  public class SprigBase {
+                      protected String title;
+                      public SprigBase withTitle(String title) {
+                          SprigBase copy = new SprigBase();
+                          copy.title = title;
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Sprig",
+                  """
+                  public class Sprig extends SprigBase {
+                      public Sprig() {}
+                      public Sprig(Sprig other) { title = other.title; }
+                      public String getTitle() { return title; }
+                  }
+                  """),
+              external(
+                  "Twig",
+                  """
+                  public class Twig extends SprigBase {
+                      public Twig() {}
+                      public Twig(Twig other) { title = other.title; }
+                      public String getTitle() { return title; }
+                  }
+                  """),
+              external(
+                  "Slip",
+                  """
+                  public class Slip<T> {
+                      private String id = "";
+                      public Slip() {}
+                      public Slip(Slip<T> other) { id = other.id; }
+                      public String getId() { return id; }
+                      public Slip<String> withId(String id) {
+                          Slip<String> copy = new Slip<>();
+                          copy.id = id;
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Cask",
+                  """
+                  import java.util.Optional;
+
+                  public class Cask {
+                      private String label = "";
+                      public Cask() {}
+                      public Cask(Cask other) { label = other.label; }
+                      public String getLabel() { return label; }
+                      public Optional<Cask> withLabel(String label) {
+                          Cask copy = new Cask(this);
+                          copy.label = label;
+                          return Optional.of(copy);
+                      }
+                  }
+                  """),
+              external(
+                  "Vial",
+                  """
+                  public class Vial {
+                      private String title;
+                      public Vial() {}
+                      public Vial(Vial other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      @SuppressWarnings("unchecked")
+                      public <R> R withTitle(String title) {
+                          Vial copy = new Vial(this);
+                          copy.title = title;
+                          return (R) copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Bundle",
+                  """
+                  public class Bundle {
+                      private CharSequence title = "";
+                      public Bundle() {}
+                      public Bundle(Bundle other) { title = other.title; }
+                      public String getTitle() { return title.toString(); }
+                      public Bundle withTitle(StringBuilder title) {
+                          Bundle copy = new Bundle(this);
+                          copy.title = title;
+                          return copy;
+                      }
+                      public void withTitle(CharSequence title, Object... notes) { this.title = title; }
+                  }
+                  """),
+              external(
+                  "Kit",
+                  """
+                  public class Kit {
+                      private Object title = "";
+                      public Kit() {}
+                      public Kit(Kit other) { title = other.title; }
+                      public String getTitle() { return title.toString(); }
+                      public Kit withTitle(String title) {
+                          Kit copy = new Kit(this);
+                          copy.title = title;
+                          return copy;
+                      }
+                      public void withTitle(Object title) { this.title = title; }
+                  }
+                  """),
+              external(
+                  "Parcel",
+                  """
+                  public class Parcel<T> {
+                      private final T value;
+                      public Parcel(T value) { this.value = value; }
+                      public Parcel(Parcel<T> other) { value = other.value; }
+                      public T getValue() { return value; }
+                      public <U> Parcel<U> withValue(U value) { return new Parcel<>(value); }
+                  }
+                  """),
+              external(
+                  "Bale",
+                  """
+                  public class Bale<T> {
+                      private String label = "";
+                      public Bale() {}
+                      public Bale(Bale<T> other) { label = other.label; }
+                      public String getLabel() { return label; }
+                      public <U extends Exception> Bale<U> withLabel(String label) throws U {
+                          Bale<U> copy = new Bale<>();
+                          copy.label = label;
+                          return copy;
+                      }
+                  }
+                  """),
+              external(
+                  "Bin",
+                  """
+                  import java.util.List;
+
+                  public class Bin<T> {
+                      private List<?> items = List.of();
+                      public Bin() {}
+                      public Bin(Bin<T> other) { items = other.items; }
+                      @SuppressWarnings("unchecked")
+                      public List<Integer> getItems() { return (List<Integer>) items; }
+                      public <U, P extends List<U>> Bin<U> withItems(P items) {
+                          Bin<U> copy = new Bin<>();
+                          copy.items = items;
+                          return copy;
+                      }
+                  }
+                  """),
+              spec(
+                  "SprigOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SprigOpticsSpec extends OpticsSpec<Sprig> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Sprig, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "TwigOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TwigOpticsSpec extends OpticsSpec<Twig> {
+                      @SuppressWarnings("dropped-result")
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Twig, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "SlipOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SlipOpticsSpec extends OpticsSpec<Slip<Integer>> {
+                      @ViaCopyAndSet(setter = "withId")
+                      Lens<Slip<Integer>, String> getId();
+                  }
+                  """),
+              spec(
+                  "CaskOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CaskOpticsSpec extends OpticsSpec<Cask> {
+                      @ViaCopyAndSet(setter = "withLabel")
+                      Lens<Cask, String> getLabel();
+                  }
+                  """),
+              spec(
+                  "VialOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface VialOpticsSpec extends OpticsSpec<Vial> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Vial, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "BundleOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BundleOpticsSpec extends OpticsSpec<Bundle> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Bundle, ? extends CharSequence> getTitle();
+                  }
+                  """),
+              spec(
+                  "KitOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface KitOpticsSpec extends OpticsSpec<Kit> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Kit, String> getTitle();
+                  }
+                  """),
+              spec(
+                  "ParcelOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface ParcelOpticsSpec extends OpticsSpec<Parcel<Integer>> {
+                      @ViaCopyAndSet(setter = "withValue")
+                      Lens<Parcel<Integer>, Integer> getValue();
+                  }
+                  """),
+              spec(
+                  "BaleOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BaleOpticsSpec extends OpticsSpec<Bale<java.io.IOException>> {
+                      @ViaCopyAndSet(setter = "withLabel")
+                      Lens<Bale<java.io.IOException>, String> getLabel();
+                  }
+                  """),
+              spec(
+                  "BinOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BinOpticsSpec extends OpticsSpec<Bin<String>> {
+                      @ViaCopyAndSet(setter = "withItems")
+                      Lens<Bin<String>, java.util.List<Integer>> getItems();
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ViaCopyAndSet: The generated lens returns the copy it calls 'withTitle' on, and"
+                  + " drops what 'withTitle' returns. A method spelt as a wither usually hands"
+                  + " back a new value and leaves the copy as it was, and then the lens's set"
+                  + " changes nothing. The lens can hand back the result only where every method"
+                  + " of that name the new value can be passed to returns a 'Sprig', and"
+                  + " 'withTitle(String)'"
+                  + " returns 'SprigBase'. Where 'withTitle' sets the copy it is called on,"
+                  + " annotate 'getTitle()' @SuppressWarnings(\"dropped-result\"); otherwise name"
+                  + " a setter that sets the copy, or rebuild 'Sprig' with @ViaBuilder or"
+                  + " @ViaConstructor.");
+      assertThat(compilation)
+          .hadWarningContaining("a 'Slip<Integer>', and 'withId(String)' returns 'Slip<String>'.");
+      assertThat(compilation)
+          .hadWarningContaining("a 'Cask', and 'withLabel(String)' returns 'Optional<Cask>'.");
+      assertThat(compilation)
+          .hadWarningContaining("a 'Vial', and 'withTitle(String)' returns 'R'. Where");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "a 'Bundle', and 'withTitle(CharSequence, Object...)' returns 'void'. Where"
+                  + " 'withTitle' sets the copy it is called on, annotate 'getTitle()'"
+                  + " @SuppressWarnings(\"dropped-result\"); otherwise name a setter");
+      // @Wither binds the call itself, so it can serve the kit's wither.
+      assertThat(compilation)
+          .hadWarningContaining(
+              "a 'Kit', and 'withTitle(Object)' returns 'void'. Where 'withTitle' sets the copy it"
+                  + " is called on, annotate 'getTitle()' @SuppressWarnings(\"dropped-result\");"
+                  + " otherwise rebuild 'Kit' with @Wither, @ViaBuilder or @ViaConstructor.");
+      assertThat(compilation)
+          .hadWarningContaining(
+              "a 'Parcel<Integer>', and 'withValue(U)' returns 'Parcel<U>', whose type the call"
+                  + " infers from more than what it is assigned to.");
+      assertThat(compilation)
+          .hadWarningContaining("a 'Bale<IOException>', and 'withLabel(String)' returns 'Bale<U>'");
+      assertThat(compilation)
+          .hadWarningContaining("a 'Bin<String>', and 'withItems(P)' returns 'Bin<U>'");
+      assertThat(compilation).hadWarningCount(9);
+      // A warning, so each lens is still written, calling the setter for its effect.
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.SprigOptics", dropping("Sprig", "withTitle"));
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.TwigOptics", dropping("Twig", "withTitle"));
     }
   }
 
@@ -4818,14 +5516,6 @@ class SpecCopyStrategyChecksTest {
   @Nested
   @DisplayName("@ViaConstructor Shorter Constructor")
   class ViaConstructorShorterConstructor {
-
-    /** Compiles under the same lint with warnings left as warnings, so that one can be read. */
-    private static Compilation compileReporting(JavaFileObject... sources) {
-      return javac()
-          .withProcessors(new ImportOpticsProcessor())
-          .withOptions(LINT.subList(0, 1))
-          .compile(sources);
-    }
 
     /** A fee whose shorter constructor defaults the currency. */
     private static final String FEE =

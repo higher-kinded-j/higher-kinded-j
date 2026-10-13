@@ -102,9 +102,7 @@ sealed interface CallBinding {
       // elements of its array, however many there are, and none at all.
       List<ExecutableElement> variableArity =
           named.stream()
-              .filter(
-                  method ->
-                      method.isVarArgs() && method.getParameters().size() <= arguments.size() + 1)
+              .filter(method -> method.isVarArgs() && takesArity(method, arguments.size()))
               .toList();
       return variableArity.isEmpty() ? new NoneApplies() : new Undecided(variableArity);
     }
@@ -165,6 +163,20 @@ sealed interface CallBinding {
         // A type none of whose inherited signatures has the most specific return is itself an
         // error, which javac reports at its declaration; the call there is ambiguous too.
         .orElse(new Ambiguous(applicable));
+  }
+
+  /**
+   * Whether a call passing {@code arguments} arguments can reach {@code candidate} by its arity:
+   * one of exactly that many parameters, or a variable-arity one with no more fixed parameters than
+   * that, which takes whatever follows them as the elements of its array.
+   *
+   * @param candidate the method or constructor; must not be null
+   * @param arguments how many arguments the call passes
+   * @return true when the call's arity reaches it
+   */
+  static boolean takesArity(ExecutableElement candidate, int arguments) {
+    int parameters = candidate.getParameters().size();
+    return parameters == arguments || (candidate.isVarArgs() && parameters <= arguments + 1);
   }
 
   /**

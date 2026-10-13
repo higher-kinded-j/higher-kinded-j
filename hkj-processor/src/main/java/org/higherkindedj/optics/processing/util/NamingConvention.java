@@ -19,7 +19,8 @@ import java.util.stream.Stream;
  * same value or a near miss, follows only this one, since a method of another kind can compile in
  * the call and quietly do something else.
  *
- * <p>{@link #ACCESSOR} is also the order a field's accessor is paired by; the others serve only
+ * <p>{@link #ACCESSOR} is also the order a field's accessor is paired by, and {@link #WITHER} what
+ * decides which {@code @ViaCopyAndSet} setter has its result handed back; the others serve only
  * what a diagnostic offers.
  *
  * @since 0.5.0
@@ -33,9 +34,9 @@ public enum NamingConvention {
   ACCESSOR("", "get", "is"),
 
   /**
-   * A setter called for its effect alone, as {@code @ViaCopyAndSet} calls one on a copy: {@code
-   * setName} only, since a bare or a {@code with} method may hand back a new value, which the call
-   * would drop.
+   * A setter that sets the copy it is called on, as {@code @ViaCopyAndSet} calls one: {@code
+   * setName} only. A bare or a {@code with} method may hand back a new value instead, and
+   * {@code @Wither} rebuilds through one of those without a copy.
    */
   SETTER("set"),
 
@@ -73,6 +74,18 @@ public enum NamingConvention {
   }
 
   /**
+   * Whether this convention spells {@code name}: {@code withName} as a wither, {@code name} or
+   * {@code getName} as an accessor. A convention that takes the bare name, as {@link #ACCESSOR} and
+   * {@link #BUILDER_SETTER} do, spells every name.
+   *
+   * @param name the name as written; must not be null
+   * @return true when {@code name} is a spelling of this convention's
+   */
+  public boolean spells(String name) {
+    return rank(Objects.requireNonNull(name, "name")) >= 0;
+  }
+
+  /**
    * The candidate that spells, in this convention, the value {@code written} spells in any: {@code
    * getName} for {@code name} as an accessor, {@code withName} for {@code setName} as a wither. Of
    * several, the one whose prefix this convention prefers; of those, the first.
@@ -102,7 +115,7 @@ public enum NamingConvention {
         .or(
             () ->
                 ProcessorUtils.nearestName(
-                    written, candidates.stream().filter(name -> rank(name) >= 0).toList()));
+                    written, candidates.stream().filter(this::spells).toList()));
   }
 
   /**

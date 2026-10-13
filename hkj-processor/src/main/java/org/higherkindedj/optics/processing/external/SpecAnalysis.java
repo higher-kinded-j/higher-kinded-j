@@ -160,6 +160,9 @@ public record SpecAnalysis(
    *     &#64;ViaCopyAndSet), or null to pass the source type unchanged
    * @param unboxedFocusType the primitive type the constructor or method the strategy writes
    *     through takes the focus as, or null to pass the focus unchanged
+   * @param keepsSetterResult whether the setter is a wither that returns the source type whichever
+   *     method the call binds (for &#64;ViaCopyAndSet), so that the lens hands back what it returns
+   *     rather than the copy it calls it on
    */
   public record CopyStrategyInfo(
       String getter,
@@ -169,7 +172,8 @@ public record SpecAnalysis(
       String witherMethod,
       String[] parameterOrder,
       TypeMirror copyConstructorParameterType,
-      TypeMirror unboxedFocusType) {
+      TypeMirror unboxedFocusType,
+      boolean keepsSetterResult) {
 
     /**
      * Creates an empty copy strategy info.
@@ -177,7 +181,7 @@ public record SpecAnalysis(
      * @return an empty CopyStrategyInfo
      */
     public static CopyStrategyInfo empty() {
-      return new CopyStrategyInfo("", "", "", "", "", new String[0], null, null);
+      return new CopyStrategyInfo("", "", "", "", "", new String[0], null, null, false);
     }
 
     /**
@@ -194,7 +198,7 @@ public record SpecAnalysis(
     public static CopyStrategyInfo forBuilder(
         String getter, String toBuilder, String setter, String build, TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          getter, toBuilder, setter, build, "", new String[0], null, unboxedFocusType);
+          getter, toBuilder, setter, build, "", new String[0], null, unboxedFocusType, false);
     }
 
     /**
@@ -209,7 +213,7 @@ public record SpecAnalysis(
     public static CopyStrategyInfo forWither(
         String getter, String witherMethod, TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          getter, "", "", "", witherMethod, new String[0], null, unboxedFocusType);
+          getter, "", "", "", witherMethod, new String[0], null, unboxedFocusType, false);
     }
 
     /**
@@ -222,7 +226,8 @@ public record SpecAnalysis(
      */
     public static CopyStrategyInfo forConstructor(
         String[] parameterOrder, TypeMirror unboxedFocusType) {
-      return new CopyStrategyInfo("", "", "", "", "", parameterOrder, null, unboxedFocusType);
+      return new CopyStrategyInfo(
+          "", "", "", "", "", parameterOrder, null, unboxedFocusType, false);
     }
 
     /**
@@ -233,12 +238,25 @@ public record SpecAnalysis(
      * @param setter the setter method name
      * @param unboxedFocusType the primitive type the setter takes the focus as, or null to pass the
      *     focus unchanged
+     * @param keepsSetterResult whether the setter is a wither that returns the source type
+     *     whichever method the call binds
      * @return a CopyStrategyInfo for copy-and-set pattern
      */
     public static CopyStrategyInfo forCopyAndSet(
-        TypeMirror copyConstructorParameterType, String setter, TypeMirror unboxedFocusType) {
+        TypeMirror copyConstructorParameterType,
+        String setter,
+        TypeMirror unboxedFocusType,
+        boolean keepsSetterResult) {
       return new CopyStrategyInfo(
-          "", "", setter, "", "", new String[0], copyConstructorParameterType, unboxedFocusType);
+          "",
+          "",
+          setter,
+          "",
+          "",
+          new String[0],
+          copyConstructorParameterType,
+          unboxedFocusType,
+          keepsSetterResult);
     }
   }
 

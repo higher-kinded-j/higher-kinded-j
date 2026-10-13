@@ -26,6 +26,23 @@ import java.lang.annotation.Target;
  * )
  * }</pre>
  *
+ * <p>A setter spelt as a wither, {@code withFieldName}, is taken at its word: where every method of
+ * that name the new value can be passed to returns the source type, the lens hands back what the
+ * wither returns, a new value or, from a fluent wither, the copy it set:
+ *
+ * <pre>{@code
+ * (source, newValue) -> new SourceType(source).withFieldName(newValue)
+ * }</pre>
+ *
+ * <p>{@link Wither} reaches the same value without the copy. A {@code with} method that returns
+ * anything but the value it builds, such as its argument, is taken at its word too, so rebuild such
+ * a type with {@link ViaBuilder} or {@link ViaConstructor}. Any other setter is called for its
+ * effect, as in the first shape, whatever it returns, since a set method that returns the source
+ * type may hand back the value it replaced. A setter spelt as a wither that may return the source
+ * type, but whose result the lens cannot keep, draws a warning, since a wither's new value would be
+ * lost. Where it does set the copy, {@code @SuppressWarnings("dropped-result")} on the lens method
+ * keeps the warning quiet.
+ *
  * <p><strong>Warning:</strong> This strategy produces mutable intermediate objects, which may
  * violate lens laws if:
  *
@@ -118,7 +135,8 @@ public @interface ViaCopyAndSet {
   /**
    * The setter method name.
    *
-   * <p>For example, "setName" for a name field.
+   * <p>For example, "setName" for a name field. A wither, "withName", has its result handed back,
+   * as the class description says.
    *
    * @return the setter method name
    */
