@@ -261,7 +261,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate copy and set setter")
     void shouldGenerateCopyAndSetSetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setName", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setName", null, false);
 
       GeneratedCode code =
           generateCode(CopyStrategyKind.VIA_COPY_AND_SET, info, "name", PERSON_SOURCE);
@@ -281,7 +281,7 @@ class CopyStrategyCodeGeneratorTest {
               CopyStrategyKind.VIA_COPY_AND_SET,
               elements ->
                   CopyStrategyInfo.forCopyAndSet(
-                      elements.getTypeElement("com.test.Named").asType(), "setName", null),
+                      elements.getTypeElement("com.test.Named").asType(), "setName", null, false),
               "name",
               PERSON_SOURCE);
 
@@ -289,6 +289,24 @@ class CopyStrategyCodeGeneratorTest {
           .contains("com.test.Person copy = new com.test.Person((com.test.Named) source)");
       assertThat(code.setter()).contains("copy.setName(newValue)");
       assertThat(code.setter()).contains("return copy");
+    }
+
+    @Test
+    @DisplayName("should hand back what a wither returns where the analyser keeps it")
+    void shouldHandBackWhatTheSetterReturns() {
+      GeneratedCode code =
+          generateCode(
+              CopyStrategyKind.VIA_COPY_AND_SET,
+              elements ->
+                  CopyStrategyInfo.forCopyAndSet(
+                      elements.getTypeElement("com.test.Named").asType(), "withName", null, true),
+              "name",
+              PERSON_SOURCE);
+
+      assertThat(code.setter())
+          .isEqualTo(
+              "(source, newValue) -> new com.test.Person((com.test.Named) source)"
+                  + ".withName(newValue)");
     }
   }
 

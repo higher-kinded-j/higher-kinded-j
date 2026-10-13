@@ -91,6 +91,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`not a constructor it was read from`](#viaconstructor-order) | An order read from names binds another constructor |
 | [`leaves out what '...' takes`](#viaconstructor-order) | An order read from names misses a longer constructor |
 | [`passes nothing for`](#viaconstructor-shorter-constructor) | **Warning.** A written `@ViaConstructor` order rebuilds through a shorter constructor |
+| [`drops what '...' returns`](#viacopyandset-dropped-result) | **Warning.** A `withX` setter's new value may be lost |
 | [`pairs more than one wither with the field`](#importoptics--pairs-more-than-one-wither-with-the-field--a-note) | **Note.** Two withers reach one field name, and one lens is generated |
 | [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
 | [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
@@ -1226,11 +1227,59 @@ interface SlotOpticsSpec extends OpticsSpec<Slot<?>> {
 ```
 ~~~
 
+### "@ViaCopyAndSet: The generated lens returns the copy it calls '...' on, and drops what '...' returns" (a warning) {#viacopyandset-dropped-result}
+
+The setter is spelt as a wither, `withTitle`, and may return the source type, but not every method of that name the new value can be passed to returns it. One returns a supertype, a raw type, `void`, or a type that holds the source type, such as an `Optional`. So the lens calls it for its effect and hands back the copy. A wither leaves the copy as it was, and then `set` changes nothing.
+
+**Fix.** Name a setter that sets the copy, or rebuild the source type with `@ViaBuilder` or `@ViaConstructor`. Where `@Wither` would rebuild through the method the focus binds, the warning offers it in place of naming another setter. Where the method does set the copy it is called on, as a fluent `withTitle` returning its base type does, annotate the lens method `@SuppressWarnings("dropped-result")`, or the spec interface to cover each lens it declares.
+
+~~~admonish note title="Why" collapsible=true
+A setter spelt as a wither is taken at its word, and the lens hands back what it returns. That needs the result to be the source type whichever method of that name the call binds, so every method the new value can be passed to counts. A call that binds one returning no source type drops nothing, and does not warn. So a `void withTitle(Object)` beside a `withTitle(String)` that returns the source type warns, though a `String` binds the second. So does a retag whose type the call infers from its argument, such as `<U> Memo<U> withId(U)`. A `set` method is never taken at its word, since one that returns the source type may hand back the value it replaced, so it never warns.
+~~~
+
+For this declaration, the warning reads `The lens can hand back the result only where every method of that name the new value can be passed to returns a 'Hedge', and 'withTitle(String)' returns 'Shrub'`.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "and 'withTitle(String)' returns 'Shrub'" -->
+```java
+class Shrub {
+
+    protected String title = "";
+
+    public Shrub withTitle(String title) {
+        Shrub copy = new Shrub();
+        copy.title = title;
+        return copy;
+    }
+}
+
+final class Hedge extends Shrub {
+
+    Hedge() {}
+
+    Hedge(Hedge other) {
+        this.title = other.title;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+}
+
+@ImportOptics
+interface HedgeOpticsSpec extends OpticsSpec<Hedge> {
+
+    @ViaCopyAndSet(setter = "withTitle")
+    Lens<Hedge, String> getTitle();
+}
+```
+~~~
+
 ### "@Wither: '...' returns '...', not the source type '...'"
 
 The method a spec's `@Wither` call binds hands back something other than the source type the spec declares: that type raw, the type under other arguments, or a supertype.
 
-**Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Memo<String> withId(String)` on a `Memo<T>`, declare the spec over that instantiation, `OpticsSpec<Memo<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
+**Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Memo<String> withId(String)` on a `Memo<T>`, declare the spec over that instantiation, `OpticsSpec<Memo<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder` or `@ViaConstructor`, or with `@ViaCopyAndSet` through a setter that sets the copy it is called on. The same wither named as that setter has its new value dropped, and draws [the dropped-result warning](#viacopyandset-dropped-result). See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
 
 ~~~admonish note title="Why" collapsible=true
 The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Memo<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Memo<? extends Number>`, is not inferred, and such a wither is refused.
@@ -1578,7 +1627,7 @@ The `setter` a `@ViaBuilder` or `@ViaCopyAndSet` names is not a method of the ty
 
 Where the name exists, the call is held to what a wither's is, under the strategy's own tag: [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) where no overload takes the focus, [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) where more than one does, and `is static, so the generated lens cannot set through it` where the one it binds is `static`, since a static method never reads the value it is called on. Where the focus is a wildcard and no method of the name takes one argument, the message says `takes one argument` instead.
 
-**Fix.** Set the strategy's `setter` to a method that type declares, and one that takes the value the getter reads. The message offers one where the name is a near miss, or names the same value in the strategy's convention. Under `@ViaBuilder`, it offers a fluent builder's `name`, a protobuf builder's `setName` or a `withName` step, as the builder declares them. Since the setter defaults to the lens method's name, a lens named `getName` is offered `name`. Under `@ViaCopyAndSet`, it offers only a `set` method, near miss or not, since a bare or `with` method may hand back a copy, which the generated call drops.
+**Fix.** Set the strategy's `setter` to a method that type declares, and one that takes the value the getter reads. The message offers one where the name is a near miss, or names the same value in the strategy's convention. Under `@ViaBuilder`, it offers a fluent builder's `name`, a protobuf builder's `setName` or a `withName` step, as the builder declares them. Since the setter defaults to the lens method's name, a lens named `getName` is offered `name`. Under `@ViaCopyAndSet`, it offers only a `set` method, near miss or not. A bare or `with` method may hand back a copy, and `@Wither` is the strategy for one of those.
 
 ~~~admonish note title="Why" collapsible=true
 `@ViaBuilder` sets through `source.toBuilder().setter(newValue).build()` and `@ViaCopyAndSet` through a copy, so the setter is looked for where the call is made rather than on the source type in both cases. A builder's setter that returns `void` ends the chain, which the [chain entry](#viabuilder-the-chain-the-lens-rebuilds-through) covers.

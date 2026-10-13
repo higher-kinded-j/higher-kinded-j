@@ -198,7 +198,8 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Mutable",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setValue", null);
+                CopyStrategyInfo info =
+                    CopyStrategyInfo.forCopyAndSet(null, "setValue", null, false);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,
@@ -244,7 +245,7 @@ class SpecMutationKillingTest {
               proc -> {
                 CopyStrategyInfo info =
                     CopyStrategyInfo.forCopyAndSet(
-                        proc.getTypeMirror("com.test.Base"), "setValue", null);
+                        proc.getTypeMirror("com.test.Base"), "setValue", null, false);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,

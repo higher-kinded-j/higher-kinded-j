@@ -224,6 +224,8 @@ interface HostSettingOpticsSpec extends OpticsSpec<HostSetting> {
 }
 ```
 
+A setter spelt as a wither, such as `withHost`, is taken at its word. Where every method of that name the new value can be passed to returns a `HostSetting`, the lens hands back what the wither returns: a new value, or the copy a fluent wither set. `@Wither` reaches the same value without the copy. A `with` method that returns anything else, such as its argument, is taken at its word too, so rebuild that type with `@ViaBuilder` or `@ViaConstructor`. Any other setter is called for its effect, whatever it returns, since a `set` method that returns a `HostSetting` may hand back the value it replaced. A setter spelt as a wither that may return a `HostSetting`, but whose result the lens cannot keep, draws [the dropped-result warning](compiler_errors.md#viacopyandset-dropped-result).
+
 ~~~admonish warning title="Lens laws and mutable types"
 `@ViaCopyAndSet` copies, then mutates the copy. That is lawful only if the copy constructor really copies everything: a shallow copy that shares a mutable field means a "set" can be seen through the original, which breaks the lens laws in the most confusing way possible. Verify with `LensLaws` on a type where this matters.
 

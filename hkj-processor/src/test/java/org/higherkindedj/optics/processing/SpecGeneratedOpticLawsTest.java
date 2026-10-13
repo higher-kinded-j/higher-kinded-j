@@ -550,6 +550,164 @@ class SpecGeneratedOpticLawsTest {
           }
           """);
 
+  // A setter that hands back a new memo and leaves the one it is called on as it was: a wither,
+  // named as a @ViaCopyAndSet setter.
+  private static final JavaFileObject EXTERNAL_MEMO =
+      JavaFileObjects.forSourceString(
+          "com.external.Memo",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Memo {
+              private final String title;
+              private final int revision;
+              public Memo(String title, int revision) { this.title = title; this.revision = revision; }
+              public Memo(Memo other) { this(other.title, other.revision); }
+              public String title() { return title; }
+              public int revision() { return revision; }
+              public Memo withTitle(String title) { return new Memo(title, revision); }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Memo m && revision == m.revision && Objects.equals(title, m.title);
+              }
+              @Override public int hashCode() { return Objects.hash(title, revision); }
+          }
+          """);
+
+  // A setter that takes a link and hands back the one it replaced, as List.set does: what it
+  // returns is a Link, but not the copy.
+  private static final JavaFileObject EXTERNAL_LINK =
+      JavaFileObjects.forSourceString(
+          "com.external.Link",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Link {
+              private final String name;
+              private Link next;
+              public Link(String name) { this.name = name; }
+              public Link(Link other) { this.name = other.name; this.next = other.next; }
+              public Link next() { return next; }
+              public Link setNext(Link next) {
+                  Link replaced = this.next;
+                  this.next = next;
+                  return replaced;
+              }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Link l && name.equals(l.name) && Objects.equals(next, l.next);
+              }
+              @Override public int hashCode() { return Objects.hash(name, next); }
+          }
+          """);
+
+  // A setter that sets the note it is called on and hands back its state before, for undo: what
+  // it returns is a Note, but not the one holding the new title.
+  private static final JavaFileObject EXTERNAL_NOTE =
+      JavaFileObjects.forSourceString(
+          "com.external.Note",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Note {
+              private String title;
+              public Note(String title) { this.title = title; }
+              public Note(Note other) { this(other.title); }
+              public String title() { return title; }
+              public Note setTitle(String title) {
+                  Note before = new Note(this);
+                  this.title = title;
+                  return before;
+              }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Note n && Objects.equals(title, n.title);
+              }
+              @Override public int hashCode() { return Objects.hashCode(title); }
+          }
+          """);
+
+  // A wither over a field of the source's own type, which hands back a new tree.
+  private static final JavaFileObject EXTERNAL_TREE =
+      JavaFileObjects.forSourceString(
+          "com.external.Tree",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Tree {
+              private final String name;
+              private final Tree left;
+              public Tree(String name) { this(name, null); }
+              private Tree(String name, Tree left) { this.name = name; this.left = left; }
+              public Tree(Tree other) { this(other.name, other.left); }
+              public Tree left() { return left; }
+              public Tree withLeft(Tree left) { return new Tree(name, left); }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Tree t && name.equals(t.name) && Objects.equals(left, t.left);
+              }
+              @Override public int hashCode() { return Objects.hash(name, left); }
+          }
+          """);
+
+  // A fluent setter, which sets the sheet it is called on and hands it back.
+  private static final JavaFileObject EXTERNAL_SHEET =
+      JavaFileObjects.forSourceString(
+          "com.external.Sheet",
+          """
+          package com.external;
+
+          public class Sheet {
+              private String title;
+              public Sheet(String title) { this.title = title; }
+              public Sheet(Sheet other) { this(other.title); }
+              public String title() { return title; }
+              public Sheet setTitle(String title) { this.title = title; return this; }
+          }
+          """);
+
+  private static final JavaFileObject MEMO_SPEC =
+      copyAndSetSpec("Memo", "withTitle", "String", "title");
+
+  private static final JavaFileObject LINK_SPEC = copyAndSetSpec("Link", "setNext", "Link", "next");
+
+  private static final JavaFileObject NOTE_SPEC =
+      copyAndSetSpec("Note", "setTitle", "String", "title");
+
+  private static final JavaFileObject TREE_SPEC =
+      copyAndSetSpec("Tree", "withLeft", "Tree", "left");
+
+  private static final JavaFileObject SHEET_SPEC =
+      copyAndSetSpec("Sheet", "setTitle", "String", "title");
+
+  /** A spec over {@code com.external.<type>} with one {@code @ViaCopyAndSet} lens. */
+  private static JavaFileObject copyAndSetSpec(
+      String type, String setter, String focus, String lens) {
+    return JavaFileObjects.forSourceString(
+        "com.test." + type + "Spec",
+        """
+        package com.test;
+
+        import org.higherkindedj.optics.Lens;
+        import org.higherkindedj.optics.annotations.ImportOptics;
+        import org.higherkindedj.optics.annotations.OpticsSpec;
+        import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+        import com.external.%1$s;
+
+        @ImportOptics
+        public interface %1$sSpec extends OpticsSpec<%1$s> {
+
+            @ViaCopyAndSet(setter = "%2$s")
+            Lens<%1$s, %3$s> %4$s();
+        }
+        """
+            .formatted(type, setter, focus, lens));
+  }
+
   // ==================== COMPILED RESULTS ====================
 
   private static SpecCompiledResult compiled;
@@ -572,6 +730,11 @@ class SpecGeneratedOpticLawsTest {
                 EXTERNAL_FULL,
                 EXTERNAL_NARROW_BASE,
                 EXTERNAL_NARROW,
+                EXTERNAL_MEMO,
+                EXTERNAL_LINK,
+                EXTERNAL_NOTE,
+                EXTERNAL_TREE,
+                EXTERNAL_SHEET,
                 EXTERNAL_RANGE,
                 EXTERNAL_RECT,
                 PERSON_SPEC,
@@ -580,6 +743,11 @@ class SpecGeneratedOpticLawsTest {
                 RESULT_SPEC,
                 FULL_SPEC,
                 NARROW_SPEC,
+                MEMO_SPEC,
+                LINK_SPEC,
+                NOTE_SPEC,
+                TREE_SPEC,
+                SHEET_SPEC,
                 RANGE_SPEC,
                 RECT_SPEC);
 
@@ -634,6 +802,65 @@ class SpecGeneratedOpticLawsTest {
           lensGetPutTest("Full.owner", "com.test.Full", "owner", "Ada", 100),
           lensPutGetTest("Full.owner", "com.test.Full", "owner", "Grace", "Ada", 100),
           lensPutPutTest("Full.owner", "com.test.Full", "owner", "Grace", "Alan", "Ada", 100));
+    }
+
+    @TestFactory
+    @DisplayName("a setter that hands back a copy sets through the copy it hands back")
+    Stream<DynamicTest> setterThatHandsBackACopySetsThroughIt() {
+      return Stream.of(
+          lensGetPutTest("Memo.title", "com.test.Memo", "title", "Draft", 1),
+          lensPutGetTest("Memo.title", "com.test.Memo", "title", "Final", "Draft", 1),
+          lensPutPutTest("Memo.title", "com.test.Memo", "title", "Second", "Final", "Draft", 1));
+    }
+
+    @TestFactory
+    @DisplayName("a setter that hands back the value it replaced sets the copy it is called on")
+    Stream<DynamicTest> setterThatHandsBackTheReplacedValueSetsTheCopy() throws Exception {
+      Object first = compiled.newInstance("com.external.Link", "b");
+      Object second = compiled.newInstance("com.external.Link", "c");
+      return Stream.of(
+          lensGetPutTest("Link.next", "com.test.Link", "next", "a"),
+          lensPutGetTest("Link.next", "com.test.Link", "next", first, "a"),
+          lensPutPutTest("Link.next", "com.test.Link", "next", first, second, "a"));
+    }
+
+    @TestFactory
+    @DisplayName("a setter that hands back its old state sets the copy it is called on")
+    Stream<DynamicTest> setterThatHandsBackItsOldStateSetsTheCopy() {
+      return Stream.of(
+          lensGetPutTest("Note.title", "com.test.Note", "title", "Draft"),
+          lensPutGetTest("Note.title", "com.test.Note", "title", "Final", "Draft"),
+          lensPutPutTest("Note.title", "com.test.Note", "title", "Second", "Final", "Draft"));
+    }
+
+    @TestFactory
+    @DisplayName("a wither over a field of the source's own type sets through what it hands back")
+    Stream<DynamicTest> witherOverAFieldOfTheSourcesOwnType() throws Exception {
+      Object first = compiled.newInstance("com.external.Tree", "b");
+      Object second = compiled.newInstance("com.external.Tree", "c");
+      return Stream.of(
+          lensGetPutTest("Tree.left", "com.test.Tree", "left", "a"),
+          lensPutGetTest("Tree.left", "com.test.Tree", "left", first, "a"),
+          lensPutPutTest("Tree.left", "com.test.Tree", "left", first, second, "a"));
+    }
+
+    @Test
+    @DisplayName("a setter that sets the copy leaves the source as it was")
+    void setterThatSetsTheCopyLeavesTheSourceAsItWas() throws Exception {
+      // The laws hold for a lens that sets its source in place, so these say what they cannot:
+      // the value the caller holds is not the one set.
+      Object sheetLens = compiled.invokeStatic("com.test.Sheet", "title");
+      Object sheet = compiled.newInstance("com.external.Sheet", "Draft");
+      Object retitled = compiled.invokeLensSet(sheetLens, "Final", sheet);
+      assertThat(compiled.invokeLensGet(sheetLens, retitled)).isEqualTo("Final");
+      assertThat(compiled.invokeLensGet(sheetLens, sheet)).isEqualTo("Draft");
+
+      Object linkLens = compiled.invokeStatic("com.test.Link", "next");
+      Object link = compiled.newInstance("com.external.Link", "a");
+      Object linked =
+          compiled.invokeLensSet(linkLens, compiled.newInstance("com.external.Link", "b"), link);
+      assertThat(compiled.invokeLensGet(linkLens, linked)).isNotNull();
+      assertThat(compiled.invokeLensGet(linkLens, link)).isNull();
     }
 
     @Test
@@ -1073,6 +1300,10 @@ class SpecGeneratedOpticLawsTest {
       case "com.test.Result" -> "com.external.Result";
       case "com.test.Full" -> "com.external.Full";
       case "com.test.Narrow" -> "com.external.Narrow";
+      case "com.test.Memo" -> "com.external.Memo";
+      case "com.test.Link" -> "com.external.Link";
+      case "com.test.Note" -> "com.external.Note";
+      case "com.test.Tree" -> "com.external.Tree";
       case "com.test.Range" -> "com.external.Range";
       case "com.test.Rect" -> "com.external.Rect";
       default -> throw new IllegalArgumentException("Unknown spec class: " + specClass);

@@ -20,7 +20,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>{@code @Wither} - uses wither method: {@code s.withField(a)}
  *   <li>{@code @ViaConstructor} - uses constructor: {@code new S(s.f1(), a, s.f3())}
  *   <li>{@code @ViaCopyAndSet} - uses copy and set: {@code S copy = new S(s); copy.setField(a);
- *       return copy;}
+ *       return copy;}, or {@code new S(s).withField(a)} where the setter is a wither
  * </ul>
  */
 public class CopyStrategyCodeGenerator {
@@ -162,6 +162,14 @@ public class CopyStrategyCodeGenerator {
    * }
    * }</pre>
    *
+   * <p>Where the setter is spelt as a wither and the analyser found that it returns a {@code Type}
+   * whichever method the call binds, the lens hands back what it returns: a wither's new value, or
+   * the copy a fluent wither set.
+   *
+   * <pre>{@code
+   * (source, newValue) -> new Type(source).withField(newValue)
+   * }</pre>
+   *
    * <p>{@code @ViaCopyAndSet(copyConstructor = ...)} names the copy constructor's parameter type,
    * which the analyser has resolved to a supertype of {@code S}. It is emitted as a cast on the
    * argument, {@code new Type((Base) source)}, so that an overloaded constructor resolves to the
@@ -182,6 +190,14 @@ public class CopyStrategyCodeGenerator {
             ? CodeBlock.of("source")
             : CodeBlock.of("($T) source", TypeName.get(parameterType));
 
+    if (info.keepsSetterResult()) {
+      return CodeBlock.of(
+          "(source, newValue) -> new $T($L).$L($L)",
+          sourceTypeName,
+          argument,
+          setter,
+          focusArgument(info.unboxedFocusType()));
+    }
     return CodeBlock.of(
         "(source, newValue) -> {\n"
             + "  $T copy = new $T($L);\n"

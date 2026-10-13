@@ -358,7 +358,9 @@ final class ConstructorOrderChecks {
     }
     List<String> accessors = leftOut.get().accessors();
     List<ExecutableElement> longer = leftOut.get().constructors();
-    String named = listed(accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
+    String named =
+        CopyStrategyChecks.listed(
+            accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
     String them = accessors.size() == 1 ? "it" : "them";
     List<List<String>> offers =
         namedOrders(rebuild, order).stream()
@@ -450,7 +452,7 @@ final class ConstructorOrderChecks {
    * {@code 'A(int a)' and 'A(long a)' take}.
    */
   private static String signaturesThat(List<ExecutableElement> constructors, String verb) {
-    return listed(
+    return CopyStrategyChecks.listed(
             constructors.stream()
                 .map(constructor -> "'" + constructorSignature(constructor) + "'")
                 .toList())
@@ -1423,13 +1425,6 @@ final class ConstructorOrderChecks {
     return orders.stream()
         .map(order -> "@ViaConstructor(parameterOrder = " + literal(order) + ")")
         .collect(Collectors.joining(" or "));
-  }
-
-  /** Names as a sentence lists them: {@code 'a()'}, {@code 'a()' and 'b()'}, or with commas. */
-  private static String listed(List<String> names) {
-    return names.size() == 1
-        ? names.getFirst()
-        : String.join(", ", names.subList(0, names.size() - 1)) + " and " + names.getLast();
   }
 
   /** An order as an annotation writes it, {@code {"x", "y"}}. */
