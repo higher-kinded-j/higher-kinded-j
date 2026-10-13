@@ -54,6 +54,7 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
@@ -7723,9 +7724,9 @@ public class MappingProcessor extends AbstractProcessor {
         }
         return PrismResolution.of(match.nestingPrism(need)).nesting(decides);
       }
-      Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
-      unify(match.domain(), domainType, bindings);
-      unify(match.wire(), wireType, bindings);
+      // The spec passed covers, so its variables are bound to arguments their bounds admit.
+      Map<Element, TypeMirror> bindings =
+          threadedBindings(spec, match, domainType, wireType).orElseThrow();
       List<ExecutableElement> leaves = abstractLeaves(match.spec());
       if (leaves.isEmpty()) {
         Map<Element, TypeName> witnesses = witnessNames(spec, name, match, domainType);
@@ -8000,7 +8001,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Whether a registered spec's declared pair covers a use site: a concrete registration must match
    * exactly, a threaded one by unification — every spec variable bound consistently across both
-   * sides to an argument the using spec supports (concrete, or its own variables).
+   * sides to an argument the using spec supports (concrete, or its own variables) and that the
+   * variable's bounds admit, since the Impl call hands each one over as the variable's type
+   * argument, written or inferred. So {@code NumPageMapping<T extends Number>} covers no {@code
+   * Page<String>}, just as a type variable never stands for a primitive.
    */
   private boolean covers(
       TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
@@ -8009,13 +8013,200 @@ public class MappingProcessor extends AbstractProcessor {
       return types.isSameType(candidate.domain(), domainType)
           && types.isSameType(candidate.wire(), wireType);
     }
+    return threadedBindings(user, candidate, domainType, wireType)
+        .filter(bindings -> outOfBounds(candidate, bindings).isEmpty())
+        .isPresent();
+  }
+
+  /**
+   * What a threaded spec's variables stand for at a use site, before their bounds are read: every
+   * variable bound by unification to an argument the using spec supports, or empty where the pair
+   * does not unify so.
+   */
+  private Optional<Map<Element, TypeMirror>> threadedBindings(
+      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
     Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
-    return unify(candidate.domain(), domainType, bindings)
-        && unify(candidate.wire(), wireType, bindings)
-        && bindings.size() == candidate.spec().getTypeParameters().size()
-        // unify binds only the candidate's own variables, so a full-size binding map is a total
-        // one; each bound argument must be usable by the spec at the use site.
-        && bindings.values().stream().allMatch(binding -> supportedArgument(user, binding));
+    boolean bound =
+        unify(candidate.domain(), domainType, bindings)
+            && unify(candidate.wire(), wireType, bindings)
+            && bindings.size() == candidate.spec().getTypeParameters().size()
+            // unify binds only the candidate's own variables, so a full-size binding map is a
+            // total one; each bound argument must be usable by the spec at the use site, which
+            // also keeps wildcards away from the bound check.
+            && bindings.values().stream().allMatch(binding -> supportedArgument(user, binding));
+    return bound ? Optional.of(Collections.unmodifiableMap(bindings)) : Optional.empty();
+  }
+
+  /**
+   * A variable of a threaded spec whose bounds refuse what it would stand for at a use site: the
+   * variable, its binding, and the bounds that refuse it, each read with every binding in place.
+   */
+  private record OutOfBound(
+      TypeParameterElement variable, TypeMirror binding, List<TypeMirror> refusing) {
+
+    OutOfBound {
+      refusing = List.copyOf(refusing);
+    }
+  }
+
+  /**
+   * The variables of a threaded spec, in declaration order, whose bounds refuse what {@code
+   * bindings} binds them to, as javac reads the type arguments the Impl call hands over ({@link
+   * ProcessorUtils#boundsRefusing}).
+   */
+  private List<OutOfBound> outOfBounds(
+      RegisteredSpec candidate, Map<Element, TypeMirror> bindings) {
+    Types types = processingEnv.getTypeUtils();
+    return candidate.spec().getTypeParameters().stream()
+        .map(
+            variable ->
+                new OutOfBound(
+                    variable,
+                    bindings.get(variable),
+                    ProcessorUtils.boundsRefusing(
+                        types, (TypeVariable) variable.asType(), bindings)))
+        .filter(outOfBound -> !outOfBound.refusing().isEmpty())
+        .toList();
+  }
+
+  /** A threaded spec whose pair unifies with a use site, and what its variables stand for there. */
+  private record Unified(RegisteredSpec candidate, Map<Element, TypeMirror> bindings) {}
+
+  /**
+   * Names a threaded spec whose pair has the use site's shape, but whose variables would stand
+   * there for arguments outside their bounds, which is why {@link #covers} passed it by; empty when
+   * no registered spec is passed by so. Asked only where no registered spec covers the pair, so
+   * every threaded spec whose pair unifies with it is one its bounds refuse.
+   *
+   * <p>One that serves the site is named in preference to one that does not, which also says what
+   * else it lacks, in {@code purpose}'s words, so that widening its bound does not read as the
+   * whole remedy. A bound to declare is offered only where the spec named serves the site and is
+   * the only one whose pair unifies, so that declaring it makes that spec, and only that one, cover
+   * the pair.
+   */
+  private String outOfBoundsHint(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Need need,
+      String purpose) {
+    List<Unified> passedBy =
+        registry.stream()
+            .filter(candidate -> !candidate.spec().getTypeParameters().isEmpty())
+            .flatMap(
+                candidate ->
+                    threadedBindings(spec, candidate, domainType, wireType)
+                        .map(bindings -> new Unified(candidate, bindings))
+                        .stream())
+            .toList();
+    return passedBy.stream()
+        .filter(unified -> unified.candidate().serves(need))
+        .findFirst()
+        .map(unified -> outOfBoundsClause(spec, unified, passedBy.size() == 1))
+        .or(
+            () ->
+                passedBy.stream()
+                    .findFirst()
+                    .map(
+                        unified ->
+                            outOfBoundsClause(spec, unified, false)
+                                + unified
+                                    .candidate()
+                                    .unusable("maps pairs within its bounds", purpose, need)))
+        .orElse("");
+  }
+
+  /**
+   * What a threaded spec's variables would stand for, the bounds it declares for those its bounds
+   * refuse, and the bounds that refuse each, as a sentence for a refusal's why. Every binding is
+   * named, since a bound may name another variable, as {@code B extends A} does. A binding that is
+   * a variable is one the using spec declares, as {@link #supportedArgument} requires, and is named
+   * as that spec's, since the two specs may share a variable's name. Where {@code offer} allows it
+   * and declaring one bound on that variable would admit it ({@link #boundToDeclare}), the sentence
+   * says so.
+   */
+  private String outOfBoundsClause(TypeElement spec, Unified unified, boolean offer) {
+    Map<Element, TypeMirror> bindings = unified.bindings();
+    List<OutOfBound> refused = outOfBounds(unified.candidate(), bindings);
+    String standsFor =
+        unified.candidate().spec().getTypeParameters().stream()
+            .map(
+                variable ->
+                    "'"
+                        + variable.getSimpleName()
+                        + "' as "
+                        + (bindings.get(variable) instanceof TypeVariable own
+                            ? spec.getSimpleName() + "'s '" + own.asElement().getSimpleName() + "'"
+                            : "'" + ProcessorUtils.simpleTypeName(bindings.get(variable)) + "'"))
+            .collect(Collectors.joining(" and "));
+    String declares =
+        refused.stream()
+            .map(
+                outOfBound ->
+                    "'"
+                        + outOfBound.variable().getSimpleName()
+                        + " extends "
+                        + joinedTypeNames(outOfBound.variable().getBounds())
+                        + "'")
+            .collect(Collectors.joining(" and "));
+    String conforms =
+        refused.stream()
+            .map(
+                outOfBound ->
+                    "'"
+                        + ProcessorUtils.simpleTypeName(outOfBound.binding())
+                        + "' does not conform to '"
+                        + joinedTypeNames(outOfBound.refusing())
+                        + "'")
+            .distinct()
+            .collect(Collectors.joining(" and "));
+    String unless =
+        (offer ? boundToDeclare(refused) : Optional.<TypeMirror>empty())
+            .map(
+                bound ->
+                    " unless '"
+                        + spec.getSimpleName()
+                        + "' declares '"
+                        + ProcessorUtils.simpleTypeName(refused.getFirst().binding())
+                        + " extends "
+                        + ProcessorUtils.simpleTypeName(bound)
+                        + "'")
+            .orElse("");
+    return " '"
+        + unified.candidate().describe()
+        + "' would map this pair with "
+        + standsFor
+        + ", but declares "
+        + declares
+        + ", and "
+        + conforms
+        + unless
+        + ".";
+  }
+
+  /** Types as a bound list names them, {@code Number & Comparable<T>}. */
+  private static String joinedTypeNames(List<? extends TypeMirror> types) {
+    return types.stream().map(ProcessorUtils::simpleTypeName).collect(Collectors.joining(" & "));
+  }
+
+  /**
+   * The one bound that, declared on the using spec's variable, would admit what a threaded spec's
+   * refused variables stand for, or empty where none plainly does. It is offered only where every
+   * refused variable stands for the same variable of the using spec, and the bounds refusing them
+   * come down to the one {@link ProcessorUtils#boundToDeclare} would declare.
+   */
+  private Optional<TypeMirror> boundToDeclare(List<OutOfBound> refused) {
+    Types types = processingEnv.getTypeUtils();
+    if (!(refused.getFirst().binding() instanceof TypeVariable variable)
+        || !refused.stream()
+            .allMatch(outOfBound -> types.isSameType(outOfBound.binding(), variable))) {
+      return Optional.empty();
+    }
+    return ProcessorUtils.boundToDeclare(
+        types,
+        variable,
+        refused.stream().flatMap(outOfBound -> outOfBound.refusing().stream()).toList());
   }
 
   /**
@@ -11263,8 +11454,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Names a spec that maps the pair but does not serve the site, and what it lacks; {@code purpose}
-   * is what the site would have used it for. Empty when no registered spec maps the pair. A generic
-   * spec maps it where it {@link #covers} it, as it would have been matched had it served.
+   * is what the site would have used it for. A generic spec maps it where it {@link #covers} it, as
+   * it would have been matched had it served. Where no spec maps the pair, it names instead a
+   * generic spec whose bounds refuse it ({@link #outOfBoundsHint}). Empty when there is neither.
    */
   private String unusableSpecHint(
       TypeElement spec,
@@ -11273,9 +11465,13 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       Need need,
       String purpose) {
-    return registry.stream()
+    List<RegisteredSpec> covering =
+        registry.stream().filter(r -> covers(spec, r, domainType, wireType)).toList();
+    if (covering.isEmpty()) {
+      return outOfBoundsHint(spec, registry, wireType, domainType, need, purpose);
+    }
+    return covering.stream()
         .filter(r -> !r.serves(need))
-        .filter(r -> covers(spec, r, domainType, wireType))
         .findFirst()
         .map(r -> r.unusable("maps this pair", purpose, need))
         .orElse("");

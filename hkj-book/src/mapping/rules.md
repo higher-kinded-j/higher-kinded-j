@@ -97,6 +97,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Generic specs** | | |
 | [Can a bean or PATCH mapping use a generic type?](#generic-boundaries) | No, not even at a concrete instantiation: generic mappings are record-to-record. | not supported yet |
 | [Can a leaf, rename or marker declare its own type parameters?](#generic-boundaries) | No: the element types go on the spec's parameters. | by design |
+| [Does a bounded generic spec cover an argument outside its bound?](#generic-spec-bounds) | No: the field is refused until a spec maps that pair, or the using spec bounds its variable. | by design |
 | [Can a generic sealed hierarchy be mapped?](#generic-boundaries) | No, not even at a concrete instantiation: model it as a record. | not supported yet |
 | [What supplies an element-mapped spec's prisms where it nests?](#element-mapped-nesting) | A leaf on the using spec, or another registered mapping. | by design |
 | **Merge and error envelopes** | | |
@@ -663,10 +664,110 @@ An element-mapped spec's `of(...)` takes one `ValidatedPrism` per abstract leaf,
 | a raw use, a raw *nested* argument, or a wildcard | diagnosed |
 | an array argument (`Page<String[]>`) | concrete: it maps, and unifies structurally at nested use sites |
 | a primitive array against an array of the spec's parameter (`Page<int[]>` against `Page<T[]>`) | not covered, since no type argument is a primitive: the field has [no usable source](compiler_errors.md#no-usable-source) until a spec maps that pair |
+| an argument outside a bound of the spec's parameter (`Page<String>` against `NumberPageMapping<T extends Number>`) | not covered, as [A bounded spec covers only what its bounds admit](#generic-spec-bounds) says |
 | an abstract leaf on a concrete or sealed spec | diagnosed, since nothing defers its parser |
 | a leaf, rename or bridge marker declaring its own type parameters (`<R> ValidatedPrism<R, R> items()`) | diagnosed: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>` |
 
 A leaf's element types go on the spec's own type parameters, and a rename declares a concrete return type, since the stub only names it.
+
+### A bounded spec covers only what its bounds admit {#generic-spec-bounds}
+
+**A threaded spec covers a use site only where each argument lies within its parameter's bounds.** The Impl call hands each argument over, as in `NumberPageMappingImpl.<Integer>instance()`, and javac checks it against the bound. So the processor reads each bound as javac does, with every argument in place: `T extends Comparable<T>` admits `String` and refuses `Object`, and `B extends A` reads as whatever `A` stands for. A conversion javac makes without a warning counts, so a class that extends a raw `ArrayList` lies within `Collection<?>`. A spec variable that stands for the using spec's own variable lies within a bound only through that variable's own bounds, so an unbounded `U` lies within none but `Object`.
+
+Where a bound refuses, the spec covers nothing there, and the processor refuses the field as it would with no spec for the pair, usually as having [no usable source](compiler_errors.md#no-usable-source). The message names the bound and the type that does not conform to it: `'NumberPageMapping' would map this pair with 'T' as 'String', but declares 'T extends Number', and 'String' does not conform to 'Number'`.
+
+<!-- verify:rejects "'NumberPageMapping' would map this pair with 'T' as 'String', but declares 'T extends Number', and 'String' does not conform to 'Number'" -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface NumberPageMapping<T extends Number> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+record TagSearch(Page<String> results) {}
+
+record TagSearchDto(PageDto<String> results) {}
+
+@GenerateMapping
+interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
+```
+
+Declare a spec for the pair. It is then the only spec that covers the pair, so the field nests through it without a leaf:
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface NumberPageMapping<T extends Number> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+@GenerateMapping
+interface TagPageMapping extends MappingSpec<Page<String>, PageDto<String>> {}
+
+record TagSearch(Page<String> results) {}
+
+record TagSearchDto(PageDto<String> results) {}
+
+@GenerateMapping
+interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
+```
+
+Where the argument is the using spec's own variable, a spec for the pair would have to be generic too. The message then offers the bound to declare instead, where one bound plainly admits the argument and the spec it names is the only one whose pair has the field's shape: `unless 'SearchMapping' declares 'U extends Number'`.
+
+<!-- verify:rejects "unless 'SearchMapping' declares 'U extends Number'" -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface NumberPageMapping<T extends Number> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+record Search<U>(Page<U> results) {}
+
+record SearchDto<U>(PageDto<U> results) {}
+
+@GenerateMapping
+interface SearchMapping<U> extends MappingSpec<Search<U>, SearchDto<U>> {}
+```
+
+Declare it, and the field nests through `NumberPageMapping`:
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface NumberPageMapping<T extends Number> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+record Search<U>(Page<U> results) {}
+
+record SearchDto<U>(PageDto<U> results) {}
+
+@GenerateMapping
+interface SearchMapping<U extends Number> extends MappingSpec<Search<U>, SearchDto<U>> {}
+```
 
 ---
 

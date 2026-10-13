@@ -12,6 +12,7 @@ import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.TypeVariableName;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
@@ -555,6 +556,177 @@ class ProcessorUtilsTest {
           .containsEntry("primitive", false)
           .containsEntry("rawDeclared", false)
           .containsEntry("W", false);
+    }
+  }
+
+  /** Contract tests for {@link ProcessorUtils#boundsRefusing}, against javac's own mirrors. */
+  @Nested
+  @DisplayName("boundsRefusing")
+  class BoundsRefusing {
+
+    /**
+     * Captures, for each probe method, the bounds of its last type parameter that refuse what the
+     * method's parameters bind: each parameter binds the type variable whose name it is,
+     * upper-cased.
+     */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, List<String>> refusing = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
+          for (VariableElement parameter : method.getParameters()) {
+            String named = parameter.getSimpleName().toString().toUpperCase(Locale.ROOT);
+            method.getTypeParameters().stream()
+                .filter(variable -> variable.getSimpleName().contentEquals(named))
+                .forEach(variable -> bindings.put(variable, parameter.asType()));
+          }
+          TypeVariable checked = (TypeVariable) method.getTypeParameters().getLast().asType();
+          refusing.put(
+              method.getSimpleName().toString(),
+              ProcessorUtils.boundsRefusing(processingEnv.getTypeUtils(), checked, bindings)
+                  .stream()
+                  .map(ProcessorUtils::simpleTypeName)
+                  .toList());
+        }
+        return false;
+      }
+    }
+
+    /** Compiles the subject once and hands back the processor holding the answers. */
+    private CapturingProcessor probe() {
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.util.ArrayList;
+              import java.util.Collection;
+              import java.util.concurrent.atomic.AtomicInteger;
+              @SuppressWarnings({"rawtypes", "serial"})
+              public interface Subject<U extends Integer, V> {
+                  class Tags extends ArrayList {}
+                  record Money(long cents) implements Comparable {
+                      public int compareTo(Object other) { return 0; }
+                  }
+                  <T extends Number> void within(Integer t);
+                  <T extends Number> void outside(String t);
+                  <T extends Comparable<T>> void selfBoundWithin(String t);
+                  <T extends Comparable<T>> void selfBoundOutside(Object t);
+                  <A, B extends A> void peerBoundWithin(Number a, Integer b);
+                  <A, B extends A> void peerBoundOutside(Integer a, Number b);
+                  <T extends Number & Comparable<T>> void intersectionWithin(Integer t);
+                  <T extends Number & Comparable<T>> void intersectionOutsideOneArm(AtomicInteger t);
+                  <T extends Number> void boundedVariableWithin(U t);
+                  <T extends Number> void unboundedVariableOutside(V t);
+                  <A, B extends A> void peerUnbound(Integer b);
+                  <T extends Collection<?>> void rawToReifiable(Tags t);
+                  <T extends Collection<? extends Object>> void rawToExtendsObject(Tags t);
+                  <T extends Collection<? extends Number>> void rawToBoundedWildcard(Tags t);
+                  <A, T extends Collection<? extends A>> void rawToVariableWildcard(Tags t);
+                  <T extends Comparable<T>> void rawUnchecked(Money t);
+              }
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+      return processor;
+    }
+
+    @Test
+    @DisplayName("admits a binding within every bound, read with every binding in place")
+    void admitsABindingWithinEveryBound() {
+      assertThat(probe().refusing)
+          .containsEntry("within", List.of())
+          .containsEntry("selfBoundWithin", List.of())
+          .containsEntry("peerBoundWithin", List.of())
+          .containsEntry("intersectionWithin", List.of())
+          .containsEntry("boundedVariableWithin", List.of())
+          // javac converts a raw ArrayList to the reifiable Collection<?> without a warning, and
+          // reads a wildcard bounded by Object alone as unbounded.
+          .containsEntry("rawToReifiable", List.of())
+          .containsEntry("rawToExtendsObject", List.of());
+    }
+
+    @Test
+    @DisplayName("hands back each bound that refuses, read with every binding in place")
+    void handsBackEachBoundThatRefuses() {
+      assertThat(probe().refusing)
+          .containsEntry("outside", List.of("Number"))
+          .containsEntry("selfBoundOutside", List.of("Comparable<Object>"))
+          .containsEntry("peerBoundOutside", List.of("Integer"))
+          .containsEntry("intersectionOutsideOneArm", List.of("Comparable<AtomicInteger>"))
+          .containsEntry("unboundedVariableOutside", List.of("Number"))
+          // A raw Comparable reaches Comparable<Money> only through an unchecked conversion, and
+          // so does a raw ArrayList reach Collection<? extends Number>, or one bounded by a
+          // variable.
+          .containsEntry("rawUnchecked", List.of("Comparable<Subject.Money>"))
+          .containsEntry("rawToBoundedWildcard", List.of("Collection<? extends Number>"))
+          .containsEntry("rawToVariableWildcard", List.of("Collection<? extends A>"))
+          // A is bound to nothing here, so B's bound reads as A itself, which Integer is not.
+          .containsEntry("peerUnbound", List.of("A"));
+    }
+
+    @Test
+    @DisplayName("rejects a variable the bindings hold nothing for")
+    void rejectsAVariableTheBindingsHoldNothingFor() {
+      var processor =
+          new AbstractProcessor() {
+            Throwable thrown;
+
+            @Override
+            public Set<String> getSupportedAnnotationTypes() {
+              return Set.of("*");
+            }
+
+            @Override
+            public SourceVersion getSupportedSourceVersion() {
+              return SourceVersion.latestSupported();
+            }
+
+            @Override
+            public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+              TypeElement subject =
+                  processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+              if (subject == null) {
+                return false;
+              }
+              TypeVariable variable =
+                  (TypeVariable) subject.getTypeParameters().getFirst().asType();
+              thrown =
+                  catchThrowable(
+                      () ->
+                          ProcessorUtils.boundsRefusing(
+                              processingEnv.getTypeUtils(), variable, Map.of()));
+              return false;
+            }
+          };
+      javac()
+          .withProcessors(processor)
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.test.Subject",
+                  """
+                  package com.test;
+                  public interface Subject<T extends Number> {}
+                  """));
+      assertThat(processor.thrown)
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("no binding for type parameter 'T' of 'Subject'");
     }
   }
 

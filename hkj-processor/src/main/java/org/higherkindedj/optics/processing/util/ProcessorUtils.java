@@ -338,9 +338,10 @@ public final class ProcessorUtils {
   /**
    * Whether the target of an unchecked conversion is reifiable (JLS 4.7), which javac converts to
    * without a warning (JLS 5.1.9): every type argument it names, and every one a type enclosing it
-   * names, an unbounded wildcard, or an array of such a type. Only a declared or an array type is
-   * the target of an unchecked conversion, and the walk out through enclosing types ends at the
-   * {@code NoType} past the outermost.
+   * names, an unbounded wildcard, or an array of such a type. A wildcard bounded above by {@code
+   * Object} alone, annotated or not, is unbounded too, as javac reads it (JLS 4.5.1). Only a
+   * declared or an array type is the target of an unchecked conversion, and the walk out through
+   * enclosing types ends at the {@code NoType} past the outermost.
    */
   private static boolean reifiableTarget(TypeMirror target) {
     return target.getKind() == TypeKind.ARRAY
@@ -352,9 +353,20 @@ public final class ProcessorUtils {
             .flatMap(type -> ((DeclaredType) type).getTypeArguments().stream())
             .allMatch(
                 argument ->
-                    argument.getKind() == TypeKind.WILDCARD
-                        && ((WildcardType) argument).getExtendsBound() == null
-                        && ((WildcardType) argument).getSuperBound() == null);
+                    argument instanceof WildcardType wildcard
+                        && wildcard.getSuperBound() == null
+                        && (wildcard.getExtendsBound() == null
+                            || isObject(wildcard.getExtendsBound())));
+  }
+
+  /**
+   * Whether a type is {@code java.lang.Object}, read by its class so an annotation is no matter.
+   */
+  private static boolean isObject(TypeMirror type) {
+    return type instanceof DeclaredType declared
+        && ((TypeElement) declared.asElement())
+            .getQualifiedName()
+            .contentEquals("java.lang.Object");
   }
 
   /**
@@ -604,12 +616,12 @@ public final class ProcessorUtils {
    * call infers back to the owner's own. That inference is repeated here. Each such variable is
    * bound to the owner's argument where the return first names it against a concrete argument; a
    * wildcard argument binds nothing, since the call reads it as a range rather than a type. Every
-   * bound of each variable then has to admit its argument with all of them in place, since a bound
-   * may name another ({@code <A, B extends A>}) or the variable itself ({@code <U extends
-   * Comparable<? super U>>}), and the return with them in place has to be the owner. A variable
-   * that only a wildcard stands for is left unbound, which refuses a retag javac might still infer.
-   * A raw return, one under other arguments ({@code Draft<String>}) and a supertype hand back
-   * something else.
+   * bound of each variable then has to admit its argument with all of them in place, as {@link
+   * #boundsRefusing} reads it, since a bound may name another ({@code <A, B extends A>}) or the
+   * variable itself ({@code <U extends Comparable<? super U>>}), and the return with them in place
+   * has to be the owner. A variable that only a wildcard stands for is left unbound, which refuses
+   * a retag javac might still infer. A raw return, one under other arguments ({@code
+   * Draft<String>}) and a supertype hand back something else.
    *
    * @param types the round's type utilities; must not be null
    * @param owner the type the method is read on, as the generated code names it; must not be null
@@ -652,26 +664,140 @@ public final class ProcessorUtils {
     if (inferred.isEmpty()) {
       return false;
     }
-    return variables.stream().allMatch(variable -> admits(types, variable, inferred))
+    return variables.stream()
+            .allMatch(variable -> boundsRefusing(types, variable, inferred).isEmpty())
         && substitute(types, returned, inferred, List.of())
             .map(substituted -> types.isSubtype(substituted, owner))
             .orElse(false);
   }
 
   /**
-   * Whether every bound of {@code variable} admits the argument it is bound to, read with every
-   * inferred variable in place. The bounds are read off the return rather than the declaration, so
-   * a bound naming the owner's own parameters is read under the owner's instantiation.
+   * The bounds of {@code variable} that refuse the type {@code bindings} binds it to, in the order
+   * the variable declares them, each read with every variable {@code bindings} holds replaced by
+   * its binding: empty when every bound admits it. This is the check javac makes, without a
+   * warning, of a type argument a method call is given or infers. So a bound may name another
+   * variable ({@code <A, B extends A>}) or the variable itself ({@code <T extends Comparable<T>>}),
+   * an intersection is read arm by arm, and a binding that is itself a type variable is weighed by
+   * its own bounds: a {@code U extends Integer} passes {@code Number}, and an unbounded {@code U}
+   * does not.
+   *
+   * <p>A binding passes a bound as a subtype of it, or by a conversion javac makes without a
+   * warning: a class extending a raw {@code ArrayList} passes the reifiable {@code Collection<?>},
+   * and {@code Collection<? extends Object>} too. One that reaches the bound only through an
+   * unchecked conversion ({@link #convertsUnchecked}), as a raw {@code Comparable} reaches {@code
+   * Comparable<Money>}, is refused, since javac would warn and erase the call's result. This is
+   * laxer than javac's check of a parameterised type's own arguments (JLS 4.5), which no raw
+   * supertype passes.
+   *
+   * <p>A variable {@code bindings} leaves out reads as itself, as javac reads one it does not
+   * substitute. A bound {@link #substitute} has no reading for, such as a member of a generic class
+   * named through a raw one, is left to javac, which refuses it where it is declared.
+   *
+   * <p>The bounds are read off the mirror given, so one read off a member under an instantiation,
+   * such as a method's return read on its owner, names the owner's arguments rather than its
+   * parameters.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param variable the variable whose bounds are checked; must not be null
+   * @param bindings each variable, by its element, to the reference type it stands for, never a
+   *     wildcard; must not be null, and must hold {@code variable}
+   * @return the bounds that refuse the binding, each read with the bindings in place; unmodifiable
+   * @throws IllegalArgumentException if {@code bindings} holds nothing for {@code variable}
+   * @since 0.5.0
    */
-  private static boolean admits(
-      Types types, TypeVariable variable, Map<Element, TypeMirror> inferred) {
-    TypeMirror argument = inferred.get(variable.asElement());
+  public static List<TypeMirror> boundsRefusing(
+      Types types, TypeVariable variable, Map<? extends Element, ? extends TypeMirror> bindings) {
+    TypeMirror argument = bindings.get(variable.asElement());
+    if (argument == null) {
+      throw new IllegalArgumentException(
+          "no binding for type parameter '"
+              + variable.asElement().getSimpleName()
+              + "' of '"
+              + variable.asElement().getEnclosingElement().getSimpleName()
+              + "'");
+    }
     return boundsOf(variable).stream()
-        .allMatch(
-            bound ->
-                substitute(types, bound, inferred, List.of())
-                    .map(substituted -> types.isSubtype(argument, substituted))
-                    .orElse(false));
+        .map(bound -> substitute(types, bound, bindings, List.of()))
+        .flatMap(Optional::stream)
+        .filter(
+            read -> !types.isAssignable(argument, read) || convertsUnchecked(types, argument, read))
+        .toList();
+  }
+
+  /**
+   * The one bound {@code variable} can be declared with to meet every type in {@code needed}, or
+   * empty where one bound will not plainly do, for a fix line that offers the declaration.
+   *
+   * <p>It is offered only where declaring it is plainly right. The types needed come down to one
+   * once any another implies is dropped ({@link #strongest}). That type is not raw, nor an array,
+   * which bounds no type parameter, nor a type variable bounded by this one, which would close a
+   * cycle. And it implies every bound the variable declares already, so declaring it alone keeps
+   * them. Two bounds or more can clash in ways only javac settles, a generic interface inherited
+   * twice or two methods of one signature, so they are left to the caller to list.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param variable the variable the bound would be declared on; must not be null
+   * @param needed the types the variable has to be, at least one; must not be null
+   * @return the one bound to declare, or empty where none plainly does
+   * @since 0.5.0
+   */
+  public static Optional<TypeMirror> boundToDeclare(
+      Types types, TypeVariable variable, Collection<? extends TypeMirror> needed) {
+    List<TypeMirror> strongest = strongest(types, needed);
+    if (strongest.size() != 1) {
+      return Optional.empty();
+    }
+    TypeMirror bound = strongest.getFirst();
+    boolean writable =
+        switch (bound.getKind()) {
+          case DECLARED -> firstRawIn(bound) == null;
+          case TYPEVAR -> !boundedBy((TypeVariable) bound, variable);
+          // An array bounds no type parameter.
+          default -> false;
+        };
+    boolean keepsItsBounds =
+        ((TypeParameterElement) variable.asElement())
+            .getBounds().stream().allMatch(declared -> types.isSubtype(bound, declared));
+    return writable && keepsItsBounds ? Optional.of(bound) : Optional.empty();
+  }
+
+  /**
+   * The types, each once, less any that another of them implies: {@code Integer} for {@code Number}
+   * and {@code Integer}, {@code Comparable<U>} for {@code Object & Comparable<U>}.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param candidates the types to reduce; must not be null
+   * @return the types none of the others implies, in the order first given; unmodifiable
+   * @since 0.5.0
+   */
+  public static List<TypeMirror> strongest(
+      Types types, Collection<? extends TypeMirror> candidates) {
+    List<TypeMirror> distinct = new ArrayList<>();
+    for (TypeMirror type : candidates) {
+      if (distinct.stream().noneMatch(kept -> types.isSameType(kept, type))) {
+        distinct.add(type);
+      }
+    }
+    return distinct.stream()
+        .filter(
+            type ->
+                distinct.stream().noneMatch(other -> other != type && types.isSubtype(other, type)))
+        .toList();
+  }
+
+  /**
+   * Whether a type variable is bounded by another through a chain of type variables: declaring
+   * {@code U extends V} closes a cycle where {@code V} is bounded by {@code U}.
+   */
+  private static boolean boundedBy(TypeVariable from, TypeVariable variable) {
+    TypeMirror current = from;
+    while (current instanceof TypeVariable link) {
+      if (link.asElement().equals(variable.asElement())) {
+        return true;
+      }
+      current = link.getUpperBound();
+    }
+    return false;
   }
 
   /**

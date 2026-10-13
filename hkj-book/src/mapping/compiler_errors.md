@@ -229,7 +229,7 @@ interface AuthorMapping extends MappingSpec<Author, AuthorDto> {}
 
 A wire component's type differs from its domain counterpart's, and nothing converts between them.
 
-**Fix.** Add the method the message spells out, or put it in place of the one the message names, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container. So does a `Page<int[]>` against a spec over `Page<T[]>`, since no type argument is a primitive: declare a spec for that pair.
+**Fix.** Add the method the message spells out, or put it in place of the one the message names, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container. So does a `Page<int[]>` against a spec over `Page<T[]>`, since no type argument is a primitive: declare a spec for that pair. So does a `Page<String>` against `NumberPageMapping<T extends Number>`, whose bound refuses `String`: the message names the bound, and [A bounded spec covers only what its bounds admit](rules.md#generic-spec-bounds) says what to declare.
 
 ```
 @GenerateMapping: target field 'CustomerDto.email' has no usable source. The types differ

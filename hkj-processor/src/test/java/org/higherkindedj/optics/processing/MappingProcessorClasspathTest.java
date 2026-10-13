@@ -975,6 +975,87 @@ class MappingProcessorClasspathTest {
     }
 
     @Test
+    @DisplayName(
+        "a spec in this compilation whose bound refuses the pair leaves it to the dependency's")
+    void localSpecOutsideItsBoundLeavesThePairToTheClasspath() throws Exception {
+      Path pages =
+          module(
+              "pages",
+              List.of(),
+              List.of(
+                  JavaFileObjects.forSourceString(
+                      "com.pages.Page",
+                      """
+                      package com.pages;
+
+                      import java.util.List;
+
+                      public record Page<T>(List<T> items, int total) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.pages.PageDto",
+                      """
+                      package com.pages;
+
+                      import java.util.List;
+
+                      public record PageDto<T>(List<T> items, int total) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.pages.TagPageMapping",
+                      """
+                      package com.pages;
+
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+
+                      @GenerateMapping
+                      public interface TagPageMapping
+                          extends MappingSpec<Page<String>, PageDto<String>> {}
+                      """)));
+      Compilation compilation =
+          compiler(pages)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.NumberPageMapping",
+                      """
+                      package com.downstream;
+
+                      import com.pages.Page;
+                      import com.pages.PageDto;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+
+                      @GenerateMapping
+                      public interface NumberPageMapping<T extends Number>
+                          extends MappingSpec<Page<T>, PageDto<T>> {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.TagSearch",
+                      """
+                      package com.downstream;
+
+                      import com.pages.Page;
+                      import com.pages.PageDto;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+
+                      public record TagSearch(Page<String> results) {}
+
+                      record TagSearchDto(PageDto<String> results) {}
+
+                      @GenerateMapping
+                      interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
+                      """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.TagSearchMappingImpl"))
+          .contains("TagPageMappingImpl.INSTANCE.asValidatedPrism()")
+          .doesNotContain("NumberPageMappingImpl");
+      Assertions.assertThat(compilation.notes())
+          .noneMatch(note -> note.getMessage(null).contains("resolves through"));
+    }
+
+    @Test
     @DisplayName("sealed dispatch prefers a subtype spec in this compilation, with a note")
     void localSubtypeSpecShadowsTheClasspath() throws Exception {
       JavaFileObject localCircle =
