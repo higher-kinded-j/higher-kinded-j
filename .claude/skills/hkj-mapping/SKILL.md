@@ -362,12 +362,11 @@ bounded variables thread. **Element-mapped specs** (`Page<T> <-> PageDto<TDto>` 
 `ValidatedPrism<TDto, T> items();` leaf): the generated Impl takes one prism per abstract leaf
 through `XImpl.of(...)` (declaration order: the spec's own leaves, then each mix-in's in
 `extends`-clause order, depth first; stateful, so no singleton). All three NEST: concrete
-registrations directly, threaded specs by type-argument unification at the use site
-(`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own variable), and
-element-mapped specs by composition (`of(entries())`, element pairs resolved via the using spec's
-component-named leaf for single-leaf specs, else recursively via the registry; unresolvable pairs
-diagnosed, failures
-located through the composed path `entries.items.1`). All generic mappings are record-to-record
+registrations directly, threaded specs by type-argument unification at the use site, within the
+spec's bounds (`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own
+variable), and element-mapped specs by composition (`of(entries())`, element pairs resolved via
+the using spec's component-named leaf for single-leaf specs, else recursively via the registry;
+unresolvable pairs diagnosed, failures located through the composed path `entries.items.1`). All generic mappings are record-to-record
 only (bean wires, `UpdateSpec` and sealed hierarchies take no generic type, even instantiated). Raw and wildcard shapes are diagnosed; array
 arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is
 diagnosed (nothing defers its parser), and so is a leaf or rename declaring type parameters of

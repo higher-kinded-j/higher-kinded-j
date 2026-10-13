@@ -12,7 +12,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -1124,7 +1123,7 @@ public class SpecInterfaceAnalyser {
             + " and "
             + named
             + " is not a '"
-            + strongest(outOfBound.bounds().stream()).stream()
+            + ProcessorUtils.strongest(typeUtils, outOfBound.bounds()).stream()
                 .map(ProcessorUtils::simpleTypeName)
                 .collect(Collectors.joining(" & "))
             + "'.",
@@ -1137,13 +1136,9 @@ public class SpecInterfaceAnalyser {
    * The one bound a spec's type parameter can be declared with to bring every argument outside its
    * bound within, or empty where one bound will not do.
    *
-   * <p>It is offered only where declaring it is plainly right. Every argument outside its bound is
-   * this variable, and each of their bounds reads without naming the target. Those bounds come down
-   * to one type once any another implies is dropped. That type is not raw, nor a type variable
-   * bounded by this one, which would close a cycle. And it implies every bound the variable
-   * declares already, so declaring it alone keeps them. Two bounds or more can clash in ways only
-   * javac settles, a generic interface inherited twice or two methods of one signature, so they are
-   * left to the bounds the message lists.
+   * <p>It is offered only where every argument outside its bound is this variable, and each of
+   * their bounds reads without naming the target. The bounds they need then come down to the one
+   * {@link ProcessorUtils#boundToDeclare} would declare, or to none.
    */
   private Optional<TypeMirror> boundToDeclare(
       TypeVariable variable, List<InstanceOfNarrowing.OutOfBound> outOfBounds) {
@@ -1153,58 +1148,10 @@ public class SpecInterfaceAnalyser {
                 outOfBound.complete() && typeUtils.isSameType(outOfBound.argument(), variable))) {
       return Optional.empty();
     }
-    List<TypeMirror> needed =
-        strongest(outOfBounds.stream().flatMap(outOfBound -> outOfBound.bounds().stream()));
-    if (needed.size() != 1) {
-      return Optional.empty();
-    }
-    TypeMirror bound = needed.getFirst();
-    boolean writable =
-        switch (bound.getKind()) {
-          case DECLARED -> ProcessorUtils.firstRawIn(bound) == null;
-          case TYPEVAR -> !boundedBy((TypeVariable) bound, variable);
-          // An array bounds no type parameter.
-          default -> false;
-        };
-    boolean keepsItsBounds =
-        ((TypeParameterElement) variable.asElement())
-            .getBounds().stream().allMatch(declared -> typeUtils.isSubtype(bound, declared));
-    return writable && keepsItsBounds ? Optional.of(bound) : Optional.empty();
-  }
-
-  /**
-   * The types, each once, less any that another of them implies: {@code Integer} for {@code Number}
-   * and {@code Integer}, {@code Comparable<U>} for {@code Object & Comparable<U>}.
-   */
-  private List<TypeMirror> strongest(Stream<TypeMirror> types) {
-    List<TypeMirror> distinct = new ArrayList<>();
-    types.forEach(
-        type -> {
-          if (distinct.stream().noneMatch(kept -> typeUtils.isSameType(kept, type))) {
-            distinct.add(type);
-          }
-        });
-    return distinct.stream()
-        .filter(
-            type ->
-                distinct.stream()
-                    .noneMatch(other -> other != type && typeUtils.isSubtype(other, type)))
-        .toList();
-  }
-
-  /**
-   * Whether a type variable is bounded by another through a chain of type variables: declaring
-   * {@code U extends V} closes a cycle where {@code V} is bounded by {@code U}.
-   */
-  private static boolean boundedBy(TypeVariable from, TypeVariable variable) {
-    TypeMirror current = from;
-    while (current instanceof TypeVariable link) {
-      if (link.asElement().equals(variable.asElement())) {
-        return true;
-      }
-      current = link.getUpperBound();
-    }
-    return false;
+    return ProcessorUtils.boundToDeclare(
+        typeUtils,
+        variable,
+        outOfBounds.stream().flatMap(outOfBound -> outOfBound.bounds().stream()).toList());
   }
 
   /**

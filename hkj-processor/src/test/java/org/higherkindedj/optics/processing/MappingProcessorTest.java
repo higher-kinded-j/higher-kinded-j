@@ -8319,6 +8319,504 @@ class MappingProcessorTest {
           .contains("IntPageMappingImpl");
     }
 
+    private static final JavaFileObject NUM_PAGE_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.NumPageMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface NumPageMapping<T extends Number>
+                extends MappingSpec<Page<T>, PageDto<T>> {}
+            """);
+
+    private static final JavaFileObject PAIR =
+        JavaFileObjects.forSourceString(
+            "com.example.Pair",
+            """
+            package com.example;
+
+            public record Pair<A, B>(A first, B second) {}
+            """);
+
+    private static final JavaFileObject PAIR_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.PairDto",
+            """
+            package com.example;
+
+            public record PairDto<A, B>(A first, B second) {}
+            """);
+
+    /** A mapping spec named {@code name}, declaring {@code variables}, over {@code pair}. */
+    private static JavaFileObject spec(String name, String variables, String pair) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+
+          @GenerateMapping
+          public interface %s%s extends MappingSpec<%s> {}
+          """
+              .formatted(name, variables, pair));
+    }
+
+    /**
+     * A report whose one field is a {@code domain} on the domain side and a {@code wire} on the
+     * wire, mapped by a spec that declares {@code variables} and passes them to both records as
+     * {@code arguments}.
+     */
+    private static List<JavaFileObject> report(
+        String variables, String arguments, String domain, String wire) {
+      return List.of(
+          JavaFileObjects.forSourceString(
+              "com.example.Report",
+              """
+              package com.example;
+
+              public record Report%s(%s results) {}
+              """
+                  .formatted(variables, domain)),
+          JavaFileObjects.forSourceString(
+              "com.example.ReportDto",
+              """
+              package com.example;
+
+              public record ReportDto%s(%s results) {}
+              """
+                  .formatted(variables, wire)),
+          spec("ReportMapping", variables, "Report" + arguments + ", ReportDto" + arguments));
+    }
+
+    private Compilation compileWith(List<JavaFileObject> sources, JavaFileObject... more) {
+      List<JavaFileObject> all = new ArrayList<>(sources);
+      all.addAll(Arrays.asList(more));
+      return compile(all.toArray(JavaFileObject[]::new));
+    }
+
+    @Test
+    @DisplayName("a threaded spec covers no argument outside its variable's bound")
+    void aThreadedSpecCoversNoArgumentOutsideItsBound() {
+      // The Impl call names String as NumPageMapping's T, which javac refuses against T's bound,
+      // so the spec covers nothing here, and the field is refused at the spec rather than in the
+      // generated file. ArrayPageMapping, which does not unify, is passed by in the hint.
+      Compilation refuses =
+          compileWith(
+              report("", "", "Page<String>", "PageDto<String>"),
+              PAGE,
+              PAGE_DTO,
+              ARRAY_PAGE_MAPPING,
+              NUM_PAGE_MAPPING);
+      assertThat(refuses).failed();
+      assertThat(refuses)
+          .hadErrorContaining("target field 'ReportDto.results' has no usable source");
+      assertThat(refuses)
+          .hadErrorContaining(
+              "'NumPageMapping' would map this pair with 'T' as 'String', but declares"
+                  + " 'T extends Number', and 'String' does not conform to 'Number'.");
+      assertThat(refuses).hadErrorCount(1);
+
+      // The message's remedy, a spec for the pair itself, is then the only one, so no leaf is
+      // needed.
+      Compilation followed =
+          compileWith(
+              report("", "", "Page<String>", "PageDto<String>"),
+              PAGE,
+              PAGE_DTO,
+              NUM_PAGE_MAPPING,
+              spec("StrPageMapping", "", "Page<String>, PageDto<String>"));
+      assertThat(followed).succeeded();
+      Assertions.assertThat(generatedSource(followed, "com.example.ReportMappingImpl"))
+          .contains("StrPageMappingImpl.INSTANCE.asValidatedPrism()")
+          .doesNotContain("NumPageMappingImpl");
+
+      Compilation within =
+          compileWith(
+              report("", "", "Page<Integer>", "PageDto<Integer>"),
+              PAGE,
+              PAGE_DTO,
+              NUM_PAGE_MAPPING);
+      assertThat(within).succeeded();
+      Assertions.assertThat(generatedSource(within, "com.example.ReportMappingImpl"))
+          .contains("NumPageMappingImpl.<Integer>instance().asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("a threaded spec's bounds are read with every binding in place")
+    void boundsAreReadWithEveryBindingInPlace() {
+      // An AtomicInteger is a Number, but not a Comparable<AtomicInteger>: one arm refuses it,
+      // and the message names that arm alone.
+      Compilation refusedByOneArm =
+          compileWith(
+              report(
+                  "",
+                  "",
+                  "Page<java.util.concurrent.atomic.AtomicInteger>",
+                  "PageDto<java.util.concurrent.atomic.AtomicInteger>"),
+              PAGE,
+              PAGE_DTO,
+              spec(
+                  "SortedPageMapping",
+                  "<T extends Number & Comparable<T>>",
+                  "Page<T>, PageDto<T>"));
+      assertThat(refusedByOneArm).failed();
+      assertThat(refusedByOneArm)
+          .hadErrorContaining(
+              "'SortedPageMapping' would map this pair with 'T' as 'AtomicInteger', but declares"
+                  + " 'T extends Number & Comparable<T>', and 'AtomicInteger' does not conform to"
+                  + " 'Comparable<AtomicInteger>'.");
+
+      // B's bound is A, read as whatever A stands for.
+      JavaFileObject narrowingPairMapping =
+          spec("NarrowingPairMapping", "<A, B extends A>", "Pair<A, B>, PairDto<A, B>");
+      Compilation narrows =
+          compileWith(
+              report("", "", "Pair<Number, Integer>", "PairDto<Number, Integer>"),
+              PAIR,
+              PAIR_DTO,
+              narrowingPairMapping);
+      assertThat(narrows).succeeded();
+      Assertions.assertThat(generatedSource(narrows, "com.example.ReportMappingImpl"))
+          .contains("NarrowingPairMappingImpl.<Number, Integer>instance().asValidatedPrism()");
+      Compilation widens =
+          compileWith(
+              report("", "", "Pair<Integer, Number>", "PairDto<Integer, Number>"),
+              PAIR,
+              PAIR_DTO,
+              narrowingPairMapping);
+      assertThat(widens).failed();
+      assertThat(widens)
+          .hadErrorContaining(
+              "'NarrowingPairMapping' would map this pair with 'A' as 'Integer' and 'B' as"
+                  + " 'Number', but declares 'B extends A', and 'Number' does not conform to"
+                  + " 'Integer'.");
+
+      // javac converts a class extending a raw ArrayList to the reifiable Collection<?> without
+      // a warning, so the bound admits it, as the Impl call does.
+      JavaFileObject tags =
+          JavaFileObjects.forSourceString(
+              "com.example.Tags",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+
+              @SuppressWarnings({"rawtypes", "serial"})
+              public class Tags extends ArrayList {}
+              """);
+      List<JavaFileObject> rawSources =
+          new ArrayList<>(report("", "", "Page<Tags>", "PageDto<Tags>"));
+      rawSources.addAll(
+          List.of(
+              PAGE,
+              PAGE_DTO,
+              tags,
+              spec(
+                  "TaggedPageMapping",
+                  "<T extends java.util.Collection<?>>",
+                  "Page<T>, PageDto<T>")));
+      Compilation raw =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(rawSources);
+      assertThat(raw).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(raw, "com.example.ReportMappingImpl"))
+          .contains("TaggedPageMappingImpl.<Tags>instance().asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName(
+        "a using spec's own variable is weighed by its bound, and offered the one it needs")
+    void aUsingSpecsOwnVariableIsWeighedByItsBound() {
+      Compilation unbounded =
+          compileWith(
+              report("<U>", "<U>", "Page<U>", "PageDto<U>"), PAGE, PAGE_DTO, NUM_PAGE_MAPPING);
+      assertThat(unbounded).failed();
+      assertThat(unbounded)
+          .hadErrorContaining(
+              "'NumPageMapping' would map this pair with 'T' as ReportMapping's 'U', but declares"
+                  + " 'T extends Number', and 'U' does not conform to 'Number' unless"
+                  + " 'ReportMapping' declares 'U extends Number'.");
+      assertThat(unbounded).hadErrorCount(1);
+
+      // The declaration the message offers.
+      Compilation followed =
+          compileWith(
+              report("<U extends Number>", "<U>", "Page<U>", "PageDto<U>"),
+              PAGE,
+              PAGE_DTO,
+              NUM_PAGE_MAPPING);
+      assertThat(followed).succeeded();
+      Assertions.assertThat(generatedSource(followed, "com.example.ReportMappingImpl"))
+          .contains("NumPageMappingImpl.<U>instance().asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("a bound is offered to declare where it alone admits what the variable stands for")
+    void aBoundIsOfferedWhereItAloneAdmitsTheVariable() {
+      /** A use the bound refuses, the bound offered, and the declaration that follows it. */
+      record Offered(
+          String shape,
+          List<JavaFileObject> sources,
+          String variables,
+          String domain,
+          String wire,
+          String offer,
+          String followed) {}
+      List<Offered> shapes =
+          List.of(
+              new Offered(
+                  "two of its variables stand for one",
+                  List.of(
+                      PAIR,
+                      PAIR_DTO,
+                      spec(
+                          "NumberPairMapping",
+                          "<A extends Number, B extends Number>",
+                          "Pair<A, B>, PairDto<A, B>")),
+                  "<U>",
+                  "Pair<U, U>",
+                  "PairDto<U, U>",
+                  "'U' does not conform to 'Number' unless 'ReportMapping' declares 'U extends"
+                      + " Number'.",
+                  "<U extends Number>"),
+              new Offered(
+                  "the bound is another variable",
+                  List.of(
+                      PAIR,
+                      PAIR_DTO,
+                      spec(
+                          "NarrowingPairMapping", "<A, B extends A>", "Pair<A, B>, PairDto<A, B>")),
+                  "<U, V>",
+                  "Pair<V, U>",
+                  "PairDto<V, U>",
+                  "'U' does not conform to 'V' unless 'ReportMapping' declares 'U extends V'.",
+                  "<U extends V, V>"),
+              new Offered(
+                  "one refusing bound implies the other",
+                  List.of(
+                      PAGE,
+                      PAGE_DTO,
+                      spec(
+                          "SerialPageMapping",
+                          "<T extends Number & java.io.Serializable>",
+                          "Page<T>, PageDto<T>")),
+                  "<U>",
+                  "Page<U>",
+                  "PageDto<U>",
+                  "'U' does not conform to 'Number & Serializable' unless 'ReportMapping' declares"
+                      + " 'U extends Number'.",
+                  "<U extends Number>"));
+      for (Offered shape : shapes) {
+        Compilation refused =
+            compileWith(
+                report(shape.variables(), shape.variables(), shape.domain(), shape.wire()),
+                shape.sources().toArray(JavaFileObject[]::new));
+        Assertions.assertThat(refused.errors())
+            .as(shape.shape())
+            .anyMatch(d -> d.getMessage(null).contains(shape.offer()));
+        // The arguments the records pass on are the variables' names, whatever they declare.
+        Compilation followed =
+            compileWith(
+                report(shape.followed(), shape.variables(), shape.domain(), shape.wire()),
+                shape.sources().toArray(JavaFileObject[]::new));
+        assertThat(followed).succeeded();
+      }
+    }
+
+    @Test
+    @DisplayName("no bound is offered where declaring it alone would not plainly compile")
+    void noBoundIsOfferedWhereDeclaringItAloneWouldNotPlainlyCompile() {
+      /** A use the bound refuses, and the words that end the reason, with no bound to declare. */
+      record NotOffered(
+          String shape,
+          List<JavaFileObject> sources,
+          String variables,
+          String domain,
+          String wire,
+          String conforms) {}
+      JavaFileObject pageView =
+          JavaFileObjects.forSourceString(
+              "com.example.PageView",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageView<T>(List<T> items) {}
+              """);
+      List<NotOffered> shapes =
+          List.of(
+              new NotOffered(
+                  "it would drop a bound the variable has",
+                  List.of(PAGE, PAGE_DTO, NUM_PAGE_MAPPING),
+                  "<U extends Comparable<U>>",
+                  "Page<U>",
+                  "PageDto<U>",
+                  "'U' does not conform to 'Number'."),
+              new NotOffered(
+                  "two bounds refuse it, neither implying the other",
+                  List.of(
+                      PAGE,
+                      PAGE_DTO,
+                      spec(
+                          "SortedPageMapping",
+                          "<T extends Number & Comparable<T>>",
+                          "Page<T>, PageDto<T>")),
+                  "<U>",
+                  "Page<U>",
+                  "PageDto<U>",
+                  "'U' does not conform to 'Number & Comparable<U>'."),
+              new NotOffered(
+                  "the bound is raw",
+                  List.of(
+                      PAGE,
+                      PAGE_DTO,
+                      spec("RawPageMapping", "<T extends Comparable>", "Page<T>, PageDto<T>")),
+                  "<U>",
+                  "Page<U>",
+                  "PageDto<U>",
+                  "'U' does not conform to 'Comparable'."),
+              new NotOffered(
+                  "another refused variable stands for something else",
+                  List.of(
+                      PAIR,
+                      PAIR_DTO,
+                      spec(
+                          "NumberPairMapping",
+                          "<A extends Number, B extends Number>",
+                          "Pair<A, B>, PairDto<A, B>")),
+                  "<U>",
+                  "Pair<U, String>",
+                  "PairDto<U, String>",
+                  "'U' does not conform to 'Number' and 'String' does not conform to 'Number'."),
+              new NotOffered(
+                  "another spec's pair unifies too, so the bound would choose between them",
+                  List.of(
+                      PAGE,
+                      PAGE_DTO,
+                      spec("IntPageMapping", "<T extends Integer>", "Page<T>, PageDto<T>"),
+                      NUM_PAGE_MAPPING),
+                  "<U>",
+                  "Page<U>",
+                  "PageDto<U>",
+                  "'U' does not conform to 'Integer'."),
+              new NotOffered(
+                  "the spec cannot serve the site",
+                  List.of(
+                      PAGE,
+                      pageView,
+                      spec("NumPageViewMapping", "<T extends Number>", "Page<T>, PageView<T>")),
+                  "<U>",
+                  "Page<U>",
+                  "PageView<U>",
+                  "'U' does not conform to 'Number'."));
+      for (NotOffered shape : shapes) {
+        Compilation compilation =
+            compileWith(
+                report(shape.variables(), "<U>", shape.domain(), shape.wire()),
+                shape.sources().toArray(JavaFileObject[]::new));
+        Assertions.assertThat(compilation.errors())
+            .as(shape.shape())
+            .anyMatch(d -> d.getMessage(null).contains(shape.conforms()))
+            .noneMatch(d -> d.getMessage(null).contains(" unless "));
+      }
+    }
+
+    @Test
+    @DisplayName("a bounded spec that cannot serve the site says so beside its bound")
+    void aBoundedSpecThatCannotServeTheSiteSaysSo() {
+      // A wire without the domain's total makes a projection, which has no parse to nest, so
+      // widening its bound would not be enough.
+      JavaFileObject pageView =
+          JavaFileObjects.forSourceString(
+              "com.example.PageView",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageView<T>(List<T> items) {}
+              """);
+      Compilation compilation =
+          compileWith(
+              report("", "", "Page<String>", "PageView<String>"),
+              PAGE,
+              pageView,
+              spec("NumPageViewMapping", "<T extends Number>", "Page<T>, PageView<T>"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'NumPageViewMapping' would map this pair with 'T' as 'String', but declares"
+                  + " 'T extends Number', and 'String' does not conform to 'Number'."
+                  + " 'NumPageViewMapping' maps pairs within its bounds but is a projection");
+    }
+
+    @Test
+    @DisplayName("a bound is named as the reason only where no spec maps the pair")
+    void aBoundIsNamedOnlyWhereNoSpecMapsThePair() {
+      // A PATCH bean's container does not lift a nested spec, so its refusal is about the element
+      // pair even where a spec maps that pair, and a bounded spec is then not why it failed.
+      JavaFileObject shelf =
+          JavaFileObjects.forSourceString(
+              "com.example.Shelf",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Shelf(List<Page<String>> pages) {}
+              """);
+      JavaFileObject shelfPatch =
+          JavaFileObjects.forSourceString(
+              "com.example.ShelfPatch",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public class ShelfPatch {
+                private List<PageDto<String>> pages;
+                public List<PageDto<String>> getPages() { return pages; }
+                public void setPages(List<PageDto<String>> pages) { this.pages = pages; }
+              }
+              """);
+      JavaFileObject shelfPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ShelfPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface ShelfPatchMapping extends UpdateSpec<Shelf, ShelfPatch> {}
+              """);
+      Compilation mapped =
+          compile(
+              PAGE, PAGE_DTO, PAGE_MAPPING, NUM_PAGE_MAPPING, shelf, shelfPatch, shelfPatchMapping);
+      assertThat(mapped).failed();
+      assertThat(mapped).hadErrorContaining("cannot be written into Shelf.pages");
+      Assertions.assertThat(mapped.errors())
+          .noneMatch(d -> d.getMessage(null).contains("would map this pair"));
+
+      Compilation bounded =
+          compile(PAGE, PAGE_DTO, NUM_PAGE_MAPPING, shelf, shelfPatch, shelfPatchMapping);
+      assertThat(bounded).failed();
+      assertThat(bounded)
+          .hadErrorContaining(
+              "'NumPageMapping' would map this pair with 'T' as 'String', but declares"
+                  + " 'T extends Number', and 'String' does not conform to 'Number'.");
+    }
+
     private static final JavaFileObject ELEMENT_SPEC =
         JavaFileObjects.forSourceString(
             "com.example.ElementMappedPageMapping",

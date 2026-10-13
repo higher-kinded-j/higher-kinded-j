@@ -686,6 +686,65 @@ class SpecInterfaceProcessingTest {
     }
 
     @Test
+    @DisplayName("a retag wither whose bound is reifiable takes a raw supertype, as the call does")
+    void retagWitherWhoseBoundIsReifiableTakesARawSupertype() {
+      // javac converts Money's raw Comparable to the reifiable Comparable<?> without a warning.
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Draft",
+              """
+              package com.external;
+
+              public final class Draft<T> {
+                  private final String id;
+                  public Draft(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public <U extends Comparable<?>> Draft<U> withId(String id) {
+                      return new Draft<>(id);
+                  }
+              }
+              """);
+      final var money =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Money",
+              """
+              package com.myapp;
+
+              @SuppressWarnings("rawtypes")
+              public record Money(long cents) implements Comparable {
+                  public int compareTo(Object other) { return 0; }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.DraftOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Draft;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface DraftOpticsSpec extends OpticsSpec<Draft<Money>> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Draft<Money>, String> id();
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(external, money, spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(compilation, "com.myapp.DraftOptics", "source.withId(newValue)");
+    }
+
+    @Test
     @DisplayName("a retag's bounds are read under the spec's instantiation")
     void retagBoundsAreReadUnderTheSpecInstantiation() {
       // Tier's U is bounded by the class's own T, which stands for Number here; Rank's bound is an

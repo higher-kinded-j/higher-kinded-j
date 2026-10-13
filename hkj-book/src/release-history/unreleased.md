@@ -19,6 +19,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Mapping {#mapping}
 
 - **A generic spec over an array of its parameter no longer breaks on a primitive array** ([#1091](https://github.com/higher-kinded-j/higher-kinded-j/issues/1091)). No type argument is a primitive, so a spec over `Page<T[]>` no longer covers a `Page<int[]>` field, which crashed the processor or failed in generated code. The field reports no usable source instead. See [The boundaries of a generic spec](../mapping/rules.md#generic-boundaries).
+- **A bounded generic spec no longer covers an argument outside its bound** ([#1118](https://github.com/higher-kinded-j/higher-kinded-j/issues/1118)). A spec over `Page<T>` with `T extends Number` covered a `Page<String>` field and broke the generated code. That field now reports no usable source, naming the bound, or nests through a spec for `Page<String>` declared beside it. See [A bounded spec covers only what its bounds admit](../mapping/rules.md#generic-spec-bounds).
 - **The processor names what an accessor-style leaf or marker meant** ([#907](https://github.com/higher-kinded-j/higher-kinded-j/issues/907)): a leaf written `getEmail()` for the component `email` now draws `Did you mean 'email()'?`, as a near misspelling already did. An `@Unmapped` or `@ReadOnly` marker named after its accessor, `setStamp()` or `getId()`, draws the property the same way. See [Compiler Messages](../mapping/compiler_errors.md#leaf-names-no-component).
 
 ---
