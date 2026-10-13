@@ -8881,7 +8881,8 @@ class MappingProcessorTest {
           compile(EMAIL, PAGE, PAGE_DTO, ELEMENT_SPEC, catalogue, catalogueDto, catalogueMapping);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
-          .contains("ElementMappedPageMappingImpl.of(entries()).asValidatedPrism()");
+          .contains(
+              "ElementMappedPageMappingImpl.<EmailAddress, String>of(entries()).asValidatedPrism()");
     }
 
     @Test
@@ -8957,8 +8958,8 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
           .contains(
-              "ElementMappedPageMappingImpl.of(Customer2MappingImpl.INSTANCE.asValidatedPrism())"
-                  + ".asValidatedPrism()");
+              "ElementMappedPageMappingImpl.<Customer2, Customer2Dto>of("
+                  + "Customer2MappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
     }
 
     @Test
@@ -9005,7 +9006,8 @@ class MappingProcessorTest {
       // pair (String, String) bottoming out on the nested() leaf: of(of(nested())).
       Assertions.assertThat(generatedSource(compilation, "com.example.OuterMappingImpl"))
           .contains(
-              "ElementMappedPageMappingImpl.of(ElementMappedPageMappingImpl.of(nested())"
+              "ElementMappedPageMappingImpl.<Page<String>, PageDto<String>>of("
+                  + "ElementMappedPageMappingImpl.<String, String>of(nested())"
                   + ".asValidatedPrism()).asValidatedPrism()");
     }
 
@@ -9119,7 +9121,7 @@ class MappingProcessorTest {
       // the type variables thread through unchanged.
       Assertions.assertThat(generatedSource(compilation, "com.example.FeedMappingImpl"))
           .contains("public final class FeedMappingImpl<T, D> implements FeedMapping<T, D>")
-          .contains("ElementMappedPageMappingImpl.of(results()).asValidatedPrism()");
+          .contains("ElementMappedPageMappingImpl.<T, D>of(results()).asValidatedPrism()");
     }
 
     @Test
@@ -9210,6 +9212,107 @@ class MappingProcessorTest {
       Assertions.assertThat(bad.getError().toJavaList())
           .containsExactly(
               new FieldError(List.of("entries", "items", "1"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("an element-mapped of(...) names a variable that only the records carry")
+    void elementMappedCallWritesItsTypeArguments() throws ReflectiveOperationException {
+      // No leaf's types name the tag's X, and the chained asValidatedPrism() gives of(...) no
+      // target type, so javac could not infer X: the call writes every argument, a variable of
+      // the using spec's own included.
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Tagged",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              record Tagged<T, X>(List<T> items, X tag) {}
+              record TaggedDto<TDto, X>(List<TDto> items, X tag) {}
+
+              @GenerateMapping
+              interface TaggedMapping<T, TDto, X extends Number>
+                  extends MappingSpec<Tagged<T, X>, TaggedDto<TDto, X>> {
+                ValidatedPrism<TDto, T> items();
+              }
+
+              interface Emails {
+                ValidatedPrism<String, EmailAddress> EMAIL =
+                    ValidatedPrism.of(
+                        raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+              }
+
+              record Catalogue(Tagged<EmailAddress, Integer> entries) {}
+              record CatalogueDto(TaggedDto<String, Integer> entries) {}
+
+              @GenerateMapping
+              interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return Emails.EMAIL;
+                }
+              }
+
+              record Shelf<Y extends Number>(Tagged<EmailAddress, Y> entries) {}
+              record ShelfDto<Y extends Number>(TaggedDto<String, Y> entries) {}
+
+              @GenerateMapping
+              interface ShelfMapping<Y extends Number> extends MappingSpec<Shelf<Y>, ShelfDto<Y>> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return Emails.EMAIL;
+                }
+              }
+
+              final class Probe {
+                static final Tagged<EmailAddress, Integer> ENTRIES =
+                    new Tagged<>(List.of(new EmailAddress("ada@corp.example")), 7);
+
+                static Catalogue catalogue() {
+                  return new Catalogue(ENTRIES);
+                }
+
+                static Object catalogueBack() {
+                  return CatalogueMappingImpl.INSTANCE.parse(
+                      CatalogueMappingImpl.INSTANCE.build(catalogue()));
+                }
+
+                static Shelf<Integer> shelf() {
+                  return new Shelf<>(ENTRIES);
+                }
+
+                static Object shelfBack() {
+                  ShelfMappingImpl<Integer> shelves = ShelfMappingImpl.instance();
+                  return shelves.parse(shelves.build(shelf()));
+                }
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+              .compile(EMAIL, sources);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
+          .contains(
+              "TaggedMappingImpl.<EmailAddress, String, Integer>of(entries()).asValidatedPrism()");
+      Assertions.assertThat(generatedSource(compilation, "com.example.ShelfMappingImpl"))
+          .contains("TaggedMappingImpl.<EmailAddress, String, Y>of(entries()).asValidatedPrism()");
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      @SuppressWarnings("unchecked") // reflective call into the generated Impl
+      Validated<NonEmptyList<FieldError>, Object> catalogueBack =
+          (Validated<NonEmptyList<FieldError>, Object>)
+              result.invokeStatic("com.example.Probe", "catalogueBack");
+      assertThatValidated(catalogueBack)
+          .hasValue(result.invokeStatic("com.example.Probe", "catalogue"));
+      @SuppressWarnings("unchecked") // reflective call into the generated Impl
+      Validated<NonEmptyList<FieldError>, Object> shelfBack =
+          (Validated<NonEmptyList<FieldError>, Object>)
+              result.invokeStatic("com.example.Probe", "shelfBack");
+      assertThatValidated(shelfBack).hasValue(result.invokeStatic("com.example.Probe", "shelf"));
     }
 
     @Test
@@ -9350,7 +9453,8 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BasketMappingImpl"))
           .contains(
-              "DuoMappingImpl.of(LeftPartMappingImpl.INSTANCE.asValidatedPrism(),"
+              "DuoMappingImpl.<LeftPart, LeftPartDto, RightPart, RightPartDto>of("
+                  + "LeftPartMappingImpl.INSTANCE.asValidatedPrism(),"
                   + " RightPartMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
     }
 
@@ -13841,7 +13945,8 @@ class MappingProcessorTest {
       assertThat(compiled).succeeded();
       Assertions.assertThat(generatedSource(compiled, "com.example.CatalogueMappingImpl"))
           .contains(
-              "domain.entries().map(PageMappingImpl.of(entries()).asValidatedPrism()::build)");
+              "domain.entries().map(PageMappingImpl.<Member, MemberDto>of(entries())"
+                  + ".asValidatedPrism()::build)");
     }
 
     @Test

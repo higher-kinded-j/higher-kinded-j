@@ -364,8 +364,11 @@ through `XImpl.of(...)` (declaration order: the spec's own leaves, then each mix
 `extends`-clause order, depth first; stateful, so no singleton). All three NEST: concrete
 registrations directly, threaded specs by type-argument unification at the use site, within the
 spec's bounds (`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own
-variable), and element-mapped specs by composition (`of(entries())`, element pairs resolved via
-the using spec's component-named leaf for single-leaf specs, else recursively via the registry;
+variable), and element-mapped specs by composition
+(`CodecPageMappingImpl.<EmailAddress, String>of(entries())`, type arguments written; a hand-written
+chained `of(...)`, as in a `@Bean` method, writes them too where no leaf names a type variable, or
+javac infers its bound; element pairs resolved via the using spec's component-named leaf for
+single-leaf specs, else recursively via the registry;
 unresolvable pairs diagnosed, failures located through the composed path `entries.items.1`). All generic mappings are record-to-record
 only (bean wires, `UpdateSpec` and sealed hierarchies take no generic type, even instantiated). Raw and wildcard shapes are diagnosed; array
 arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is

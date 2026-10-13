@@ -761,8 +761,8 @@ class MappingProcessorClasspathTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.downstream.RosterMappingImpl"))
           .contains(
-              "BatchMappingImpl.of(CustomerMappingImpl.INSTANCE.asValidatedPrism())"
-                  + ".asValidatedPrism()");
+              "BatchMappingImpl.<Upstream.Customer, Upstream.CustomerDto>of("
+                  + "CustomerMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
     }
 
     @Test
@@ -833,7 +833,8 @@ class MappingProcessorClasspathTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.downstream.HolderMappingImpl"))
           .contains(
-              "PairMappingImpl.of(CircleMappingImpl.INSTANCE.asValidatedPrism(),"
+              "PairMappingImpl.<Upstream.Customer, Upstream.CustomerDto, Upstream.Circle,"
+                  + " Upstream.CircleDto>of(CircleMappingImpl.INSTANCE.asValidatedPrism(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
     }
 
