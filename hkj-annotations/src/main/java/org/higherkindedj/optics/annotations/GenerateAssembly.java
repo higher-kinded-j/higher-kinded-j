@@ -23,11 +23,11 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @GenerateAssembly
- * record User(String name, String email, int age) {}
+ * record SignupUser(String name, String email, int age) {}
  *
  * // Generated companion:
- * Validated<NonEmptyList<FieldError>, User> user =
- *     UserAssembly.fields()
+ * Validated<NonEmptyList<FieldError>, SignupUser> signup =
+ *     SignupUserAssembly.fields()
  *         .name(parseName(dto.name()))      // label "name" attached automatically
  *         .email(parseEmail(dto.email()))
  *         .age(parseAge(dto.age()))
@@ -38,7 +38,7 @@ import java.lang.annotation.Target;
  * order. Once every component is valid, {@code assemble()} runs the canonical constructor, and an
  * exception it throws (the record's own invariant) is an unlabelled error carrying its message. A
  * component whose type is itself annotated accepts its sub-companion's result directly; the outer
- * component name is prepended onto the inner paths ({@code "address.zip"}).
+ * component name is prepended onto the inner paths ({@code "address.postcode"}).
  *
  * <p>Generic records are not supported. See the hand-written {@code Validated.fields()} builder for
  * records you cannot annotate.

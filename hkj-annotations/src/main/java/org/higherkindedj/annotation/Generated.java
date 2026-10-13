@@ -33,7 +33,7 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @Generated("optics-processor")
- * public Lens<Person, String> nameLens() { ... }
+ * public static Lens<Person, String> firstName() { ... }
  * }</pre>
  */
 @Documented

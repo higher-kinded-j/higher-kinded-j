@@ -13,12 +13,12 @@ package org.higherkindedj.optics.annotations;
  *
  * <pre>{@code
  * @GenerateMapping
- * public interface UserMapping extends MappingSpec<User, UserDto> {
+ * public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
  *   default ValidatedPrism<String, EmailAddress> email() { return EmailCodecs.EMAIL; }
  * }
- * // generates UserMappingImpl with:
- * //   UserDto build(User)                                        (total)
- * //   Validated<NonEmptyList<FieldError>, User> parse(UserDto)   (accumulating, located)
+ * // generates CustomerMappingImpl with:
+ * //   CustomerDto build(Customer)                                        (total)
+ * //   Validated<NonEmptyList<FieldError>, Customer> parse(CustomerDto)   (accumulating, located)
  * }</pre>
  *
  * <p>The generated Impl reads each {@code default} leaf and derived field it calls once, on its

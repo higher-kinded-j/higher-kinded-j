@@ -18,13 +18,19 @@ import java.lang.annotation.Target;
  * annotation is how a spec says so — per component, never implicitly:
  *
  * <pre>{@code
- * public record Customer(String name, Optional<String> nickname) {}
- * public record CustomerDto(String name, @Nullable String nickname) {}   // absent: null, as JSON has it
+ * public record CustomerProfile(
+ *     String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
+ * public record CustomerProfileDto(                     // absent: null, as JSON has it
+ *     String name, @Nullable String nickname, @Nullable String altEmail) {}
  *
  * @GenerateMapping
- * public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+ * public interface CustomerProfileMapping
+ *     extends MappingSpec<CustomerProfile, CustomerProfileDto> {
  *   @OptionalBridge
  *   Optional<String> nickname();
+ *
+ *   @OptionalBridge // on the leaf, since the element converts: the second placement below
+ *   default ValidatedPrism<String, EmailAddress> altEmail() { return EmailCodecs.EMAIL; }
  * }
  * // parse: null -> Valid(Optional.empty());  "ada" -> Valid(Optional.of("ada"))
  * // build: Optional.empty() -> null;         Optional.of("ada") -> "ada"
@@ -48,7 +54,7 @@ import java.lang.annotation.Target;
  *       so the leaf validates the value the bridge found, and wins over any spec for the pair:
  *       <pre>{@code
  * @OptionalBridge
- * default ValidatedPrism<String, Nickname> nickname() { return NICKNAME; }
+ * default ValidatedPrism<String, EmailAddress> altEmail() { return EmailCodecs.EMAIL; }
  * }</pre>
  *       The leaf is declared over the <em>element</em> types ({@code ValidatedPrism<WireComponent,
  *       OptionalElement>}), not over the {@code Optional}, matching the bean bridge. Where the

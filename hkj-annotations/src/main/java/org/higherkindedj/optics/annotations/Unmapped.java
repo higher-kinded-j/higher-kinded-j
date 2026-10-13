@@ -20,16 +20,16 @@ import java.lang.annotation.Target;
  * <em>accessor's</em> property:
  *
  * <pre>{@code
- * public record Contact(String id, String name) {}
+ * public record Merchant(String id, String name) {}
  *
- * public class ContactPatch {          // shared with the GET response
+ * public class MerchantPatchBean {     // shared with the GET response
  *   public String getId() { ... }      // server-assigned: no setter
  *   public String getName() { ... }
  *   public void setName(String name) { ... }
  * }
  *
  * @GenerateMapping
- * public interface ContactPatchMapping extends UpdateSpec<Contact, ContactPatch> {
+ * public interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
  *   @Unmapped
  *   String id();
  * }

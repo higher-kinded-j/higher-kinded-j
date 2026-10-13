@@ -37,13 +37,20 @@ import java.lang.annotation.Target;
  *
  * <pre>{@code
  * @ImportOptics
- * interface PersonOptics extends OpticsSpec<Person> {
+ * interface CustomerOpticsSpec extends OpticsSpec<Customer> {
  *
  *     @ViaBuilder
- *     Lens<Person, String> name();
+ *     Lens<Customer, String> name();
  *
- *     @ViaBuilder(setter = "emailAddress")  // builder method differs from getter
- *     Lens<Person, String> email();
+ *     @ViaBuilder
+ *     Lens<Customer, EmailAddress> email();
+ * }
+ *
+ * @ImportOptics
+ * interface RequestOpticsSpec extends OpticsSpec<Request> {
+ *
+ *     @ViaBuilder(setter = "timeoutMillis")  // builder method differs from getter
+ *     Lens<Request, Integer> timeout();
  *
  *     @ViaBuilder(getter = "getUrl", setter = "withUrl")  // explicit getter for JavaBean-style
  *     Lens<Request, String> url();

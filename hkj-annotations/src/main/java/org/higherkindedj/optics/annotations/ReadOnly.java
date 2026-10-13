@@ -19,20 +19,20 @@ import java.lang.annotation.Target;
  * requests. A client wants to parse it and must not build it:
  *
  * <pre>{@code
- * public record Pet(Long id, String name) {}
+ * public record Merchant(String id, String name) {}
  *
- * public class PetModel {             // generated: 'id' is readOnly
- *   public Long getId() { ... }       // no setter
+ * public class MerchantModel {        // generated: 'id' is readOnly
+ *   public String getId() { ... }     // no setter
  *   public String getName() { ... }
  *   public void setName(String name) { ... }
  * }
  *
  * @GenerateMapping
- * public interface PetMapping extends MappingSpec<Pet, PetModel> {
+ * public interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
  *   @ReadOnly
- *   Long id();
+ *   String id();
  * }
- * // parse reads getId() into Pet.id; build writes name, and leaves id unset
+ * // parse reads getId() into Merchant.id; build writes name, and leaves id unset
  * }</pre>
  *
  * <p>{@code build} then produces a wire that {@code parse} cannot read back whole, so the mapping

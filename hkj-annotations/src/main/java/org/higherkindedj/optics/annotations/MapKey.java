@@ -15,18 +15,21 @@ import java.lang.annotation.Target;
  * leaf carries this annotation instead, and {@code value} names the domain component it belongs to:
  *
  * <pre>{@code
- * @GenerateMapping
- * public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
+ * public record RegionalLeads(Map<Locale, EmailAddress> leads) {}      // a support lead per locale
+ * public record RegionalLeadsDto(Map<String, String> leads) {}
  *
- *   // values, named after the component: Map<..., UserDto> <-> Map<..., User>
- *   default ValidatedPrism<UserDto, User> attributes() {
- *     return UserCodecs.user();
+ * @GenerateMapping
+ * public interface RegionalLeadsMapping extends MappingSpec<RegionalLeads, RegionalLeadsDto> {
+ *
+ *   // values, named after the component: Map<..., String> <-> Map<..., EmailAddress>
+ *   default ValidatedPrism<String, EmailAddress> leads() {
+ *     return EmailCodecs.EMAIL;
  *   }
  *
  *   // keys: Map<String, ...> <-> Map<Locale, ...>
- *   @MapKey("attributes")
- *   default ValidatedPrism<String, Locale> attributeLocale() {
- *     return Codecs.locale();
+ *   @MapKey("leads")
+ *   default ValidatedPrism<String, Locale> leadLocale() {
+ *     return StandardCodecs.locale();
  *   }
  * }
  * }</pre>
