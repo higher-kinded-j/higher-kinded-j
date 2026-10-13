@@ -1125,7 +1125,9 @@ class MappingProcessorTwoHalvesTest {
               spec);
       assertThat(compilation).succeededWithoutWarnings();
       Assertions.assertThat(generatedSource(compilation, PKG + ".CatalogMappingImpl"))
-          .contains("PageMappingImpl.of(WholeOrderMappingImpl.INSTANCE.asValidatedPrism())")
+          .contains(
+              "PageMappingImpl.<Order, OrderModel>of("
+                  + "WholeOrderMappingImpl.INSTANCE.asValidatedPrism())")
           .contains("PetMappingImpl.INSTANCE.asValidatedBuild().build(domain.featured())")
           .doesNotContain("public ValidatedPrism<CatalogDto, Catalog> asValidatedPrism()");
     }

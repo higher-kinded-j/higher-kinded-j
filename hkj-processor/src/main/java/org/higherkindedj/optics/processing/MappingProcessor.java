@@ -7729,20 +7729,11 @@ public class MappingProcessor extends AbstractProcessor {
           threadedBindings(spec, match, domainType, wireType).orElseThrow();
       List<ExecutableElement> leaves = abstractLeaves(match.spec());
       if (leaves.isEmpty()) {
-        Map<Element, TypeName> witnesses = witnessNames(spec, name, match, domainType);
-        CodeBlock arguments =
-            match.spec().getTypeParameters().stream()
-                .map(
-                    variable ->
-                        CodeBlock.of(
-                            "$T",
-                            witnesses.getOrDefault(
-                                variable,
-                                ProcessorUtils.typeNameOf(
-                                    bindings.get(variable), implPackage(spec)))))
-                .collect(CodeBlock.joining(", "));
         return PrismResolution.of(
-                CodeBlock.of("$T.<$L>instance().asValidatedPrism()", match.impl(), arguments))
+                CodeBlock.of(
+                    "$T.<$L>instance().asValidatedPrism()",
+                    match.impl(),
+                    typeWitness(spec, name, match, bindings, domainType)))
             .nesting(decides);
       }
       PrismResolution composed =
@@ -7754,8 +7745,32 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The names a threaded spec's variables take in the type witness of a nested call, where the
-   * using record's component can supply them.
+   * The type witness a nested call on a generic spec's Impl writes, its variables in declaration
+   * order: each named as the using record names it ({@link #witnessNames}), or else as its binding.
+   * Written for {@code of(...)} as for {@code instance()}, since a variable no leaf's types name is
+   * one javac cannot infer from the prisms, and the chained call gives it no target type.
+   */
+  private CodeBlock typeWitness(
+      TypeElement spec,
+      String name,
+      RegisteredSpec match,
+      Map<Element, TypeMirror> bindings,
+      TypeMirror domainType) {
+    Map<Element, TypeName> witnesses = witnessNames(spec, name, match, domainType);
+    return match.spec().getTypeParameters().stream()
+        .map(
+            variable ->
+                CodeBlock.of(
+                    "$T",
+                    witnesses.getOrDefault(
+                        variable,
+                        ProcessorUtils.typeNameOf(bindings.get(variable), implPackage(spec)))))
+        .collect(CodeBlock.joining(", "));
+  }
+
+  /**
+   * The names a generic spec's variables take in the type witness of a nested call, where the using
+   * record's component can supply them.
    *
    * <p>Unification binds each variable from the use site's type, which was read under the using
    * spec's instantiation, and reading a record component that way drops what its declaration wrote
@@ -7765,7 +7780,10 @@ public class MappingProcessor extends AbstractProcessor {
    * component or the element a container lifts; and each variable takes the name at its place in
    * the registered spec's domain. A variable not reached that way keeps its binding's name: one
    * whose use site is not a component of the domain, as for a flattened group's inner component, or
-   * not a part of one, as for an element pair a composition builds.
+   * not a part of one, as for an element pair built from a leaf's own types. So does a variable
+   * only the registered spec's wire names, as an element-mapped spec's wire element is, and its
+   * binding drops an annotation the wire record wrote on a type variable's use; javac reads the
+   * witness the same either way.
    */
   private Map<Element, TypeName> witnessNames(
       TypeElement spec, String name, RegisteredSpec match, TypeMirror useSite) {
@@ -7844,11 +7862,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Composes an element-mapped nested call: {@code XImpl.of(prism, ...).asValidatedPrism()}, one
-   * prism per abstract leaf under the use site's bindings. A single-leaf spec's element pair may
-   * resolve through a leaf on the using spec named after the component (the container-leaf
-   * convention generalised); any pair may resolve through another registered mapping. An
-   * unresolvable pair is diagnosed with both levers.
+   * Composes an element-mapped nested call, {@code XImpl.<A, ...>of(prism, ...)}, then {@code
+   * asValidatedPrism()}: the spec's type witness ({@link #typeWitness}), and one prism per abstract
+   * leaf under the use site's bindings. A single-leaf spec's element pair may resolve through a
+   * leaf on the using spec named after the component (the container-leaf convention generalised);
+   * any pair may resolve through another registered mapping. An unresolvable pair is diagnosed with
+   * both levers.
    */
   private PrismResolution elementMappedComposition(
       TypeElement spec,
@@ -7979,12 +7998,20 @@ public class MappingProcessor extends AbstractProcessor {
                   : declare
                       + site.leaf(name, wireType, domainType)
                       + onThisSpec
-                      + ", returning "
-                      + match.impl().canonicalName()
-                      + ".of(...).asValidatedPrism() with one ValidatedPrism per leaf, in the order "
-                      + leaves.stream()
-                          .map(l -> "'" + l.getSimpleName() + "'")
-                          .collect(Collectors.joining(", ")))
+                      // an abstract leaf has no body to return from; the caller's of(...) takes it
+                      + (opensAbstractLeaf(wireType, domainType)
+                          ? ""
+                          : ", returning '"
+                              + match.impl().canonicalName()
+                              + ".<"
+                              + instantiated.getTypeArguments().stream()
+                                  .map(ProcessorUtils::qualifiedTypeName)
+                                  .collect(Collectors.joining(", "))
+                              + ">of(...).asValidatedPrism()' with one ValidatedPrism per leaf,"
+                              + " in the order "
+                              + leaves.stream()
+                                  .map(l -> "'" + l.getSimpleName() + "'")
+                                  .collect(Collectors.joining(", "))))
               + (records
                   ? ", or map "
                       + ProcessorUtils.qualifiedTypeName(elementWire)
@@ -7995,7 +8022,11 @@ public class MappingProcessor extends AbstractProcessor {
       return PrismResolution.REPORTED;
     }
     return PrismResolution.of(
-        CodeBlock.of("$T.of($L).asValidatedPrism()", match.impl(), CodeBlock.join(prisms, ", ")));
+        CodeBlock.of(
+            "$T.<$L>of($L).asValidatedPrism()",
+            match.impl(),
+            typeWitness(spec, name, match, bindings, domainType),
+            CodeBlock.join(prisms, ", ")));
   }
 
   /**
@@ -9781,7 +9812,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static String leafSpelling(
       String annotations, TypeMirror wireType, TypeMirror domainType, String name) {
-    boolean open = mentionsTypeVariable(wireType) || mentionsTypeVariable(domainType);
+    boolean open = opensAbstractLeaf(wireType, domainType);
     return "'"
         + annotations
         + (open ? "" : "default ")
@@ -9792,6 +9823,14 @@ public class MappingProcessor extends AbstractProcessor {
         + "> "
         + name
         + (open ? "();'" : "()'");
+  }
+
+  /**
+   * Whether the leaf a fix line offers for a pair is abstract, as {@link #leafSpelling} spells it:
+   * the pair names a type variable, which no body could convert.
+   */
+  private static boolean opensAbstractLeaf(TypeMirror wireType, TypeMirror domainType) {
+    return mentionsTypeVariable(wireType) || mentionsTypeVariable(domainType);
   }
 
   /** Whether a type is, or is built from, a type variable: an element, component or argument. */

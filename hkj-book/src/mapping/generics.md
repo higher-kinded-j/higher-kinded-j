@@ -71,6 +71,8 @@ An **element-mapped** spec declares its element mapping as an abstract leaf, usu
 
 A prism can be another mapping's `asValidatedPrism()`, so `CodecPageMappingImpl.of(CustomerMappingImpl.INSTANCE.asValidatedPrism())` maps a page of customers. Each `of(...)` call allocates a new Impl, so build one where it is used and keep it.
 
+A chained `of(...)` infers its type arguments from the prisms alone. Where no leaf names a type variable, as none names the pass-through `X` of a [`TaggedPage<T, X>`](rules.md#element-mapped-nesting), spell them all in the spec's order: `TaggedPageMappingImpl.<EmailAddress, String, Integer>of(EmailCodecs.EMAIL).asValidatedPrism()`. Bound to a variable typed as the Impl, plain `of(EmailCodecs.EMAIL)` is enough.
+
 ~~~admonish warning title="Not checked for you: pass the prisms in declaration order"
 `of(...)` takes one prism per abstract leaf, in the order the spec declares the leaves. Two leaves of the same type swap without a compile error, and each value then parses through the other's leaf, perhaps to a wrong value with no error at all. The generated `of(opens, closes)` names each parameter after its leaf, so your IDE's parameter hints show the order.
 ~~~

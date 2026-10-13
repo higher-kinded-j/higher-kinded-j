@@ -2157,15 +2157,17 @@ class MappingFixLineTest {
 
     private static final String BOX =
         """
-        record Box<T, U>(T first, U second) {}
-        record BoxDto<TD, UD>(TD first, UD second) {}
+        record Box<T, U, X>(T first, U second, X tag) {}
+        record BoxDto<TD, UD, X>(TD first, UD second, X tag) {}
         @GenerateMapping
-        interface CodecBox<T, TD, U, UD> extends MappingSpec<Box<T, U>, BoxDto<TD, UD>> {
+        interface CodecBox<T, TD, U, UD, X> extends MappingSpec<Box<T, U, X>, BoxDto<TD, UD, X>> {
           ValidatedPrism<TD, T> first();
           ValidatedPrism<UD, U> second();
         }
-        record Holder(Box<UUID, Integer> box) {}
-        record HolderDto(BoxDto<String, String> box) {}
+        record Holder(Box<UUID, Integer, Long> box) {}
+        record HolderDto(BoxDto<String, String, Long> box) {}
+        record GenericHolder<A>(Box<A, Integer, Long> box) {}
+        record GenericHolderDto<Q>(BoxDto<Q, String, Long> box) {}
 
         record Wrap<T>(T value) {}
         record WrapDto<TD>(TD value) {}
@@ -2182,8 +2184,13 @@ class MappingFixLineTest {
         """;
 
     private static final String WHOLE_LEAF =
-        "default ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String>,"
-            + " com.example.Box<java.util.UUID, java.lang.Integer>> box()";
+        "default ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String,"
+            + " java.lang.Long>, com.example.Box<java.util.UUID, java.lang.Integer, java.lang.Long>>"
+            + " box()";
+
+    private static final String ABSTRACT_LEAF =
+        "ValidatedPrism<com.example.BoxDto<Q, java.lang.String, java.lang.Long>,"
+            + " com.example.Box<A, java.lang.Integer, java.lang.Long>> box();";
 
     @Test
     @DisplayName("offers the leaf that element-mapped spec can take, and a spec only for records")
@@ -2205,6 +2212,10 @@ class MappingFixLineTest {
 
                   @GenerateMapping
                   interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}
+
+                  @GenerateMapping
+                  interface GenericHolderMapping<A, Q>
+                      extends MappingSpec<GenericHolder<A>, GenericHolderDto<Q>> {}
                   """);
       assertThat(compilation).failed();
       assertThat(compilation)
@@ -2213,12 +2224,17 @@ class MappingFixLineTest {
                   + " stand in only for a single-leaf mapping, so each prism must come from another"
                   + " mapping, here or in a dependency compiled with hkj-processor on its processor"
                   + " path.");
+      // no leaf names the tag, so javac could not infer it from the prisms: the line writes it
       assertThat(compilation)
           .hadErrorContaining(
               "Declare '"
                   + WHOLE_LEAF
-                  + "' on this spec, returning com.example.CodecBoxImpl.of(...).asValidatedPrism()"
-                  + " with one ValidatedPrism per leaf, in the order 'first', 'second'.");
+                  + "' on this spec, returning 'com.example.CodecBoxImpl.<java.util.UUID,"
+                  + " java.lang.String, java.lang.Integer, java.lang.String,"
+                  + " java.lang.Long>of(...).asValidatedPrism()' with one ValidatedPrism per leaf,"
+                  + " in the order 'first', 'second'.");
+      // over the using spec's own variables the leaf is abstract, which no body returns from
+      assertThat(compilation).hadErrorContaining("Declare '" + ABSTRACT_LEAF + "' on this spec.");
       // a leaf already named after the component is replaced, since the spec cannot hold both
       assertThat(compilation)
           .hadErrorContaining("Replace 'box()' with '" + WHOLE_LEAF + "' on this spec");
@@ -2232,7 +2248,7 @@ class MappingFixLineTest {
           .hadErrorContaining(
               "Declare 'default ValidatedPrism<java.lang.String, java.util.UUID> id()' on this"
                   + " spec.");
-      Assertions.assertThat(compilation.errors()).hasSize(4);
+      Assertions.assertThat(compilation.errors()).hasSize(5);
     }
 
     @Test
@@ -2245,7 +2261,10 @@ class MappingFixLineTest {
                   @GenerateMapping
                   interface HolderMapping extends MappingSpec<Holder, HolderDto> {
                     %s {
-                      return CodecBoxImpl.of(StandardCodecs.uuid(), StandardCodecs.intFromString())
+                      return CodecBoxImpl
+                          .<java.util.UUID, java.lang.String, java.lang.Integer, java.lang.String,
+                              java.lang.Long>of(
+                              StandardCodecs.uuid(), StandardCodecs.intFromString())
                           .asValidatedPrism();
                     }
                   }
@@ -2262,15 +2281,31 @@ class MappingFixLineTest {
                     }
                   }
 
+                  @GenerateMapping
+                  interface GenericHolderMapping<A, Q>
+                      extends MappingSpec<GenericHolder<A>, GenericHolderDto<Q>> {
+                    %s
+                  }
+
                   final class Probe {
                     static Object holder() {
                       return HolderMappingImpl.INSTANCE.parse(
-                          new HolderDto(new BoxDto<>("nope", "4")));
+                          new HolderDto(new BoxDto<>("nope", "4", 7L)));
+                    }
+
+                    static Object genericHolder() {
+                      return GenericHolderMappingImpl.<UUID, String>of(
+                              CodecBoxImpl.<UUID, String, Integer, String, Long>of(
+                                      StandardCodecs.uuid(), StandardCodecs.intFromString())
+                                  .asValidatedPrism())
+                          .parse(new GenericHolderDto<>(new BoxDto<>("nope", "4", 7L)));
                     }
                   }
                   """
-                      .formatted(WHOLE_LEAF));
+                      .formatted(WHOLE_LEAF, ABSTRACT_LEAF));
       assertThatValidated(probe(result, "holder")).hasFieldErrors("box.first: " + UUID_ERROR);
+      assertThatValidated(probe(result, "genericHolder"))
+          .hasFieldErrors("box.first: " + UUID_ERROR);
     }
   }
 

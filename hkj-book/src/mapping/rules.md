@@ -633,7 +633,7 @@ A one-directional mapping follows these rules:
 
 ### How an element-mapped spec nests {#element-mapped-nesting}
 
-**An [element-mapped](generics.md#element-mapped-specs) mapping nests as a composition.** Where a record's component matches the spec's pair, the processor resolves each element pair in turn and composes the Impl in place, `CodecPageMappingImpl.of(entries()).asValidatedPrism()` for a single leaf:
+**An [element-mapped](generics.md#element-mapped-specs) mapping nests as a composition.** Where a record's component matches the spec's pair, the processor resolves each element pair in turn and composes the Impl in place, `CodecPageMappingImpl.<EmailAddress, String>of(entries()).asValidatedPrism()` for a single leaf:
 
 | The element-mapped spec has | Each prism comes from |
 |---|---|
@@ -647,7 +647,54 @@ The registered mapping may itself be a composition, resolved the same way. A fai
 'z' has no mapping.
 ```
 
-The message goes on to offer the ways to supply it. For several leaves those are another registered mapping, or a leaf over the whole pair that builds the composition itself with `of(...)`.
+The message goes on to offer the ways to supply it. For several leaves those are another registered mapping, or a leaf over the whole pair. That leaf builds the composition itself with `of(...)`, its type arguments written, or is abstract where the pair names the using spec's own variables.
+
+The processor writes the spec's type arguments into the composition, as the use site binds them. Java infers `of(...)`'s arguments from the prisms alone, so a type variable that no leaf names would otherwise fall to its bound. Here only `TaggedPage`'s elements convert, and its `tag` is an `Integer` on both sides. `Newsletters` writes the same call by hand, and binds the Impl to a variable typed as the Impl:
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+
+record EmailAddress(String value) {}
+
+record TaggedPage<T, X>(List<T> items, X tag) {}
+
+record TaggedPageDto<TDto, X>(List<TDto> items, X tag) {}
+
+@GenerateMapping
+interface TaggedPageMapping<T, TDto, X>
+    extends MappingSpec<TaggedPage<T, X>, TaggedPageDto<TDto, X>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+record Newsletter(TaggedPage<EmailAddress, Integer> entries) {}
+
+record NewsletterDto(TaggedPageDto<String, Integer> entries) {}
+
+@GenerateMapping
+interface NewsletterMapping extends MappingSpec<Newsletter, NewsletterDto> {
+  default ValidatedPrism<String, EmailAddress> entries() {
+    return ValidatedPrism.of(raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+  }
+}
+
+final class Newsletters {
+  static ValidatedPrism<TaggedPageDto<String, Integer>, TaggedPage<EmailAddress, Integer>> pages(
+      ValidatedPrism<String, EmailAddress> email) {
+    return TaggedPageMappingImpl.<EmailAddress, String, Integer>of(email).asValidatedPrism();
+  }
+
+  static TaggedPageMappingImpl<EmailAddress, String, Integer> impl(
+      ValidatedPrism<String, EmailAddress> email) {
+    TaggedPageMappingImpl<EmailAddress, String, Integer> pages = TaggedPageMappingImpl.of(email);
+    return pages;
+  }
+}
+```
 
 ### Leaf order in `of(...)` {#leaf-order-in-of}
 
