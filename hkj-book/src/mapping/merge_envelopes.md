@@ -51,7 +51,7 @@ flowchart LR
 
 In words: each of `Dashboard`'s components comes from the one source that names it, and a source component the target lacks is not read.
 
-A fill copies when the types match, and a same-typed container [crosses as a copy](rules.md#same-typed-containers-cross-as-copies). Otherwise it converts through a leaf, a `default` method on the merge interface named after the target component. Or it parses through a `@GenerateMapping` spec whose wire is the source component and whose domain is the target component. Here a support desk ticket takes its agent's department and parses its `customer` through `CustomerMappingImpl`, and a failure locates as a dotted path:
+A fill copies when the types match, and a same-typed container [crosses as a copy](rules.md#same-typed-containers-cross-as-copies). Otherwise it converts through a leaf, a `default` method on the merge interface named after the target component. Or it parses through a `@GenerateMapping` spec whose wire is the source component and whose domain is the target component, a [threaded generic spec](rules.md#how-a-merge-fills) included. Here a support desk ticket takes its agent's department and parses its `customer` through `CustomerMappingImpl`, and a failure locates as a dotted path:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java:nested_merge_spec}}

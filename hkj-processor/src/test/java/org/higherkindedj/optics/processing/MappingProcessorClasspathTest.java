@@ -975,45 +975,75 @@ class MappingProcessorClasspathTest {
           .hadNoteContaining("customer()' if the classpath spec is the one meant");
     }
 
+    /** A search nesting a {@code Page<String>}, declared downstream of {@link #tagPages}. */
+    private static final JavaFileObject TAG_SEARCH =
+        JavaFileObjects.forSourceString(
+            "com.downstream.TagSearch",
+            """
+            package com.downstream;
+
+            import com.pages.Page;
+            import com.pages.PageDto;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            public record TagSearch(Page<String> results) {}
+
+            record TagSearchDto(PageDto<String> results) {}
+
+            @GenerateMapping
+            interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
+            """);
+
+    /**
+     * A dependency declaring {@code Page}, {@code PageDto} and a concrete spec for strings, with
+     * any further specs it declares beside them.
+     */
+    private Path tagPages(JavaFileObject... beside) throws Exception {
+      return module(
+          "pages",
+          List.of(),
+          Stream.concat(
+                  Stream.of(
+                      JavaFileObjects.forSourceString(
+                          "com.pages.Page",
+                          """
+                  package com.pages;
+
+                  import java.util.List;
+
+                  public record Page<T>(List<T> items, int total) {}
+                  """),
+                      JavaFileObjects.forSourceString(
+                          "com.pages.PageDto",
+                          """
+                  package com.pages;
+
+                  import java.util.List;
+
+                  public record PageDto<T>(List<T> items, int total) {}
+                  """),
+                      JavaFileObjects.forSourceString(
+                          "com.pages.TagPageMapping",
+                          """
+                  package com.pages;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface TagPageMapping
+                      extends MappingSpec<Page<String>, PageDto<String>> {}
+                  """)),
+                  Stream.of(beside))
+              .toList());
+    }
+
     @Test
     @DisplayName(
         "a spec in this compilation whose bound refuses the pair leaves it to the dependency's")
     void localSpecOutsideItsBoundLeavesThePairToTheClasspath() throws Exception {
-      Path pages =
-          module(
-              "pages",
-              List.of(),
-              List.of(
-                  JavaFileObjects.forSourceString(
-                      "com.pages.Page",
-                      """
-                      package com.pages;
-
-                      import java.util.List;
-
-                      public record Page<T>(List<T> items, int total) {}
-                      """),
-                  JavaFileObjects.forSourceString(
-                      "com.pages.PageDto",
-                      """
-                      package com.pages;
-
-                      import java.util.List;
-
-                      public record PageDto<T>(List<T> items, int total) {}
-                      """),
-                  JavaFileObjects.forSourceString(
-                      "com.pages.TagPageMapping",
-                      """
-                      package com.pages;
-
-                      import org.higherkindedj.optics.annotations.GenerateMapping;
-                      import org.higherkindedj.optics.annotations.MappingSpec;
-
-                      @GenerateMapping
-                      public interface TagPageMapping
-                          extends MappingSpec<Page<String>, PageDto<String>> {}
-                      """)));
+      Path pages = tagPages();
       Compilation compilation =
           compiler(pages)
               .compile(
@@ -1031,8 +1061,24 @@ class MappingProcessorClasspathTest {
                       public interface NumberPageMapping<T extends Number>
                           extends MappingSpec<Page<T>, PageDto<T>> {}
                       """),
+                  TAG_SEARCH);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.TagSearchMappingImpl"))
+          .contains("TagPageMappingImpl.INSTANCE.asValidatedPrism()")
+          .doesNotContain("NumberPageMappingImpl");
+      Assertions.assertThat(compilation.notes())
+          .noneMatch(note -> note.getMessage(null).contains("resolves through"));
+    }
+
+    @Test
+    @DisplayName("a threaded spec in this compilation still shadows a dependency's concrete one")
+    void localThreadedSpecShadowsTheDependencysConcreteOne() throws Exception {
+      // the nearer origin is chosen first, and a spec for exactly the pair wins only within it
+      Compilation compilation =
+          compiler(tagPages())
+              .compile(
                   JavaFileObjects.forSourceString(
-                      "com.downstream.TagSearch",
+                      "com.downstream.AnyPageMapping",
                       """
                       package com.downstream;
 
@@ -1041,19 +1087,48 @@ class MappingProcessorClasspathTest {
                       import org.higherkindedj.optics.annotations.GenerateMapping;
                       import org.higherkindedj.optics.annotations.MappingSpec;
 
-                      public record TagSearch(Page<String> results) {}
-
-                      record TagSearchDto(PageDto<String> results) {}
-
                       @GenerateMapping
-                      interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
-                      """));
+                      public interface AnyPageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+                      """),
+                  TAG_SEARCH);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.TagSearchMappingImpl"))
+          .contains("AnyPageMappingImpl.<String>instance().asValidatedPrism()")
+          .doesNotContain("TagPageMappingImpl");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "field 'results' resolves through 'AnyPageMapping' in this compilation, not through"
+                  + " [com.pages.TagPageMapping (classpath)]");
+    }
+
+    @Test
+    @DisplayName(
+        "a dependency's spec for exactly the pair takes precedence over its generic one, with a"
+            + " note")
+    void classpathConcreteSpecTakesPrecedenceOverClasspathGeneric() throws Exception {
+      Path pages =
+          tagPages(
+              JavaFileObjects.forSourceString(
+                  "com.pages.PageMapping",
+                  """
+              package com.pages;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+              """));
+      Compilation compilation = compiler(pages).compile(TAG_SEARCH);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.downstream.TagSearchMappingImpl"))
           .contains("TagPageMappingImpl.INSTANCE.asValidatedPrism()")
-          .doesNotContain("NumberPageMappingImpl");
-      Assertions.assertThat(compilation.notes())
-          .noneMatch(note -> note.getMessage(null).contains("resolves through"));
+          .doesNotContain("PageMappingImpl.<String>instance()");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "field 'results' resolves through 'com.pages.TagPageMapping (classpath)', the most"
+                  + " specific of the specs that cover the pair, not through"
+                  + " [com.pages.PageMapping (classpath)].");
     }
 
     @Test
@@ -1101,6 +1176,62 @@ class MappingProcessorClasspathTest {
           .hadNoteContaining(
               "target component 'customer' resolves through 'CustomerMapping' in this"
                   + " compilation, not through [com.upstream.CustomerMapping (classpath)]");
+    }
+
+    @Test
+    @DisplayName("a merge fill prefers a dependency's spec for exactly the pair, with a note")
+    void classpathConcreteSpecTakesPrecedenceForMergeFills() throws Exception {
+      Path pages =
+          tagPages(
+              JavaFileObjects.forSourceString(
+                  "com.pages.PageMapping",
+                  """
+                  package com.pages;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+                  """));
+      Compilation compilation =
+          compiler(pages)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.TagView",
+                      """
+                      package com.downstream;
+
+                      import com.pages.Page;
+                      import com.pages.PageDto;
+                      import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+                      import org.higherkindedj.hkt.validated.FieldError;
+                      import org.higherkindedj.hkt.validated.Validated;
+                      import org.higherkindedj.optics.annotations.GenerateMerge;
+
+                      public record TagView(String id, Page<String> results) {}
+
+                      record TagMeta(String id) {}
+
+                      record TagFeed(PageDto<String> results) {}
+
+                      @GenerateMerge
+                      interface TagViewMerge {
+                        Validated<NonEmptyList<FieldError>, TagView> merge(TagMeta meta, TagFeed feed);
+                      }
+                      """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.TagViewMergeImpl"))
+          .contains("TagPageMappingImpl.INSTANCE.asValidatedPrism()::parse");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "target component 'results' resolves through 'com.pages.TagPageMapping (classpath)',"
+                  + " the most specific of the specs that cover the pair, not through"
+                  + " [com.pages.PageMapping (classpath)].");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "returning 'com.pages.PageMappingImpl.<java.lang.String>instance().asValidatedPrism()',"
+                  + " if a less specific spec is the one meant.");
     }
 
     @Test

@@ -7787,53 +7787,177 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a concrete and a threaded spec covering the same pair are ambiguous")
-    void concreteAndThreadedCoverageIsAmbiguous() {
-      JavaFileObject concrete =
-          JavaFileObjects.forSourceString(
-              "com.example.StringPageMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface StringPageMapping
-                  extends MappingSpec<Page<String>, PageDto<String>> {}
-              """);
-      JavaFileObject report =
-          JavaFileObjects.forSourceString(
-              "com.example.Report",
-              """
-              package com.example;
-
-              public record Report(String id, Page<String> results) {}
-              """);
-      JavaFileObject reportDto =
-          JavaFileObjects.forSourceString(
-              "com.example.ReportDto",
-              """
-              package com.example;
-
-              public record ReportDto(String id, PageDto<String> results) {}
-              """);
-      JavaFileObject reportMapping =
-          JavaFileObjects.forSourceString(
-              "com.example.ReportMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface ReportMapping extends MappingSpec<Report, ReportDto> {}
-              """);
+    @DisplayName("a spec for exactly the pair takes precedence over a threaded one")
+    void concreteSpecTakesPrecedenceOverThreaded() {
       Compilation compilation =
-          compile(PAGE, PAGE_DTO, PAGE_MAPPING, concrete, report, reportDto, reportMapping);
+          compileWith(
+              report("", "", "Page<String>", "PageDto<String>"),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              spec("StringPageMapping", "", "Page<String>, PageDto<String>"));
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReportMappingImpl"))
+          .contains("StringPageMappingImpl.INSTANCE.asValidatedPrism()")
+          .doesNotContain("PageMappingImpl.<String>instance()");
+    }
+
+    @Test
+    @DisplayName("a threaded spec takes precedence over an element-mapped one on a same-typed pair")
+    void threadedSpecTakesPrecedenceOverElementMapped() {
+      Compilation compilation =
+          compileWith(
+              report("", "", "Page<String>", "PageDto<String>"),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              ELEMENT_SPEC);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReportMappingImpl"))
+          .contains("PageMappingImpl.<String>instance().asValidatedPrism()")
+          .doesNotContain("ElementMappedPageMappingImpl");
+    }
+
+    @Test
+    @DisplayName("two threaded specs for one pair stay ambiguous, the remedy a spec for the pair")
+    void twoThreadedSpecsStayAmbiguous() {
+      Compilation compilation =
+          compileWith(
+              report("", "", "Page<String>", "PageDto<String>"),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              spec("OtherPageMapping", "<T>", "Page<T>, PageDto<T>"));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("matches more than one mapping spec");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "field 'results' matches more than one mapping spec: [PageMapping,"
+                  + " OtherPageMapping]");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "delegating to the spec you want, returning"
+                  + " 'com.example.PageMappingImpl.<java.lang.String>instance().asValidatedPrism()'"
+                  + " or"
+                  + " 'com.example.OtherPageMappingImpl.<java.lang.String>instance().asValidatedPrism()',"
+                  + " or declare a @GenerateMapping spec for exactly the pair, which takes"
+                  + " precedence over a generic one.");
+    }
+
+    @Test
+    @DisplayName("two threaded specs that differ only in a bound stay ambiguous")
+    void boundsOnlyDifferenceStaysAmbiguous() {
+      Compilation compilation =
+          compileWith(
+              report("", "", "Page<Integer>", "PageDto<Integer>"),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              NUM_PAGE_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "field 'results' matches more than one mapping spec: [PageMapping, NumPageMapping]");
+    }
+
+    @Test
+    @DisplayName(
+        "over the using spec's own variable the delegating leaf has a body, and the duplicate goes")
+    void ambiguityOverAUsingSpecVariable() {
+      Compilation compilation =
+          compileWith(
+              report("<Y>", "<Y>", "Page<Y>", "PageDto<Y>"),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              spec("OtherPageMapping", "<T>", "Page<T>, PageDto<T>"));
+      assertThat(compilation).failed();
+      // no spec for exactly the pair can name Y, so the remedy is to remove one of the two
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add the leaf 'default ValidatedPrism<com.example.PageDto<Y>, com.example.Page<Y>>"
+                  + " results()' delegating to the spec you want, returning"
+                  + " 'com.example.PageMappingImpl.<Y>instance().asValidatedPrism()' or"
+                  + " 'com.example.OtherPageMappingImpl.<Y>instance().asValidatedPrism()', or remove"
+                  + " the duplicate spec.");
+
+      Compilation followed =
+          compileWith(
+              List.of(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Report",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+
+                      public record Report<Y>(Page<Y> results) {}
+
+                      record ReportDto<Y>(PageDto<Y> results) {}
+
+                      @GenerateMapping
+                      interface ReportMapping<Y> extends MappingSpec<Report<Y>, ReportDto<Y>> {
+                        default ValidatedPrism<com.example.PageDto<Y>, com.example.Page<Y>> results() {
+                          return com.example.PageMappingImpl.<Y>instance().asValidatedPrism();
+                        }
+                      }
+                      """)),
+              PAGE,
+              PAGE_DTO,
+              PAGE_MAPPING,
+              spec("OtherPageMapping", "<T>", "Page<T>, PageDto<T>"));
+      assertThat(followed).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("two element-mapped specs for one pair spell each composition as the delegation")
+    void twoElementMappedSpecsStayAmbiguous() {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              PAGE,
+              PAGE_DTO,
+              ELEMENT_SPEC,
+              JavaFileObjects.forSourceString(
+                  "com.example.OtherCodecPageMapping",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+                  import org.higherkindedj.optics.validated.ValidatedPrism;
+
+                  @GenerateMapping
+                  public interface OtherCodecPageMapping<T, TDto>
+                      extends MappingSpec<Page<T>, PageDto<TDto>> {
+                    ValidatedPrism<TDto, T> items();
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Catalogue",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  public record Catalogue(Page<EmailAddress> entries) {}
+
+                  record CatalogueDto(PageDto<String> entries) {}
+
+                  @GenerateMapping
+                  interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "returning 'com.example.ElementMappedPageMappingImpl.<com.example.EmailAddress,"
+                  + " java.lang.String>of(...).asValidatedPrism()' with one ValidatedPrism per"
+                  + " leaf, in the order 'items' or"
+                  + " 'com.example.OtherCodecPageMappingImpl.<com.example.EmailAddress,"
+                  + " java.lang.String>of(...).asValidatedPrism()' with one ValidatedPrism per"
+                  + " leaf, in the order 'items'");
     }
 
     @Test

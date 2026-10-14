@@ -48,7 +48,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a flattened record have more than 16 components?](#where-flattening-applies) | No: one `fields()` ladder assembles the group. | not supported yet |
 | **Across modules** | | |
 | [Does a spec compiled in another module nest?](structure.md#across-modules) | Yes, when that module ran `hkj-processor`. | by design |
-| [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | Ambiguous: your own spec, or a leaf, picks one. | by design |
+| [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | The more specific is used, with a note. Where neither is, your own spec or a leaf picks one. | by design |
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | **Emission tiers** | | |
 | [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
@@ -98,11 +98,14 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a bean or PATCH mapping use a generic type?](#generic-boundaries) | No, not even at a concrete instantiation: generic mappings are record-to-record. | not supported yet |
 | [Can a leaf, rename or marker declare its own type parameters?](#generic-boundaries) | No: the element types go on the spec's parameters. | by design |
 | [Does a bounded generic spec cover an argument outside its bound?](#generic-spec-bounds) | No: the field is refused until a spec maps that pair, or the using spec bounds its variable. | by design |
+| [Which of several specs for one pair is used?](#generic-spec-precedence) | The most specific: a spec for exactly the pair before a generic one, among your own specs or a dependency's. | by design |
 | [Can a generic sealed hierarchy be mapped?](#generic-boundaries) | No, not even at a concrete instantiation: model it as a record. | not supported yet |
 | [What supplies an element-mapped spec's prisms where it nests?](#element-mapped-nesting) | A leaf on the using spec, or another registered mapping. | by design |
 | **Merge and error envelopes** | | |
 | [Can a merge rename a component, or choose its source?](#how-a-merge-fills) | No: a target name must match exactly one source component. | not supported yet |
 | [Can a merge fill a component through a spec's `build`?](#how-a-merge-fills) | No: a merge runs a spec's `parse` only. | not supported yet |
+| [Can a merge fill a component through a threaded spec?](#how-a-merge-fills) | Yes, by the rule a mapping nests it by. | by design |
+| [Can a merge fill a component through an element-mapped spec?](#how-a-merge-fills) | No: a leaf over the whole pair builds it with `of(...)`. | not supported yet |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
 
 ## Find your symptom {#find-your-symptom}
@@ -380,10 +383,11 @@ flowchart LR
     class C domain
 ```
 
-Four rules keep the resolution predictable:
+Five rules keep the resolution predictable:
 
-- **Your own spec wins.** A spec in the compilation shadows a classpath spec for the same pair, so adding a dependency never changes a resolution that already worked. The shadowed spec is named in a compiler note; if it is the one you meant, a leaf named after the component delegates to it explicitly.
-- **Two dependencies for one pair are ambiguous.** The error is the same `matches more than one mapping spec` as for two specs in one compilation, each candidate listed by its qualified name with `(classpath)`. For a nested component the remedy is a leaf naming the one you mean; a sealed subtype pair has no leaf, so declare the spec yourself and it shadows both.
+- **Your own spec wins.** A spec in the compilation shadows a classpath spec for the same pair, so adding a dependency never changes a resolution your own spec makes. The shadowed spec is named in a compiler note; if it is the one you meant, a leaf named after the component delegates to it explicitly.
+- **The more specific of two dependencies' specs is used.** A compiler note names the one it displaced, as [The most specific spec for a pair is used](#generic-spec-precedence) says.
+- **Two dependencies for one pair are otherwise ambiguous.** The error is the same `matches more than one mapping spec` as for two specs in one compilation, each candidate listed by its qualified name with `(classpath)`. For a nested component the remedy is a leaf naming the one you mean; a sealed subtype pair has no leaf, so declare the spec yourself and it shadows both.
 - **A stale entry is passed over.** An entry naming a spec that is no longer on the classpath, or naming anything but an interface, describes nothing. One whose spec is present but whose `Impl` is missing (a partial build output, or a jar that dropped it) is never chosen, and a use site that needed the pair is told which dependency to rebuild.
 - **A spec is used whole or not at all.** A dependency's spec is read from its class file against this module's compile classpath, so every interface it extends has to be there too. If a mix-in, or anything a mix-in extends, is missing, the spec cannot be read in full (an element-mapped one would show fewer leaves than its `of(...)` takes) and its `Impl` cannot be called from here at all. Such a spec is never chosen, and a use site that needed the pair names the missing type; [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) says how to put it on the compile classpath.
 
@@ -631,6 +635,63 @@ A one-directional mapping follows these rules:
 
 ## Generic specs {#generic-specs}
 
+### The most specific spec for a pair is used {#generic-spec-precedence}
+
+**Where several specs cover a use site, the processor uses the one whose declared pair is the most specific.** One spec is more specific than another when its pair is an instance of the other's. A spec for exactly the pair is more specific than any generic spec that covers it. `PageMapping<T>`, over `Page<T>` and `PageDto<T>`, is more specific than `CodecPageMapping<T, TDto>`, which covers every pair `PageMapping` covers and more. So declaring a spec gives a pair a mapping of its own, and every other instantiation keeps the generic spec.
+
+The rule ranks your own specs among themselves, and a dependency's among themselves. Your own specs come before a dependency's, as [How a dependency's specs are found](#how-a-dependencys-specs-are-found) says, so a generic spec in this compilation comes before a dependency's spec for exactly the pair. Among a dependency's specs, a compiler note names any the chosen one displaced. Two specs where neither is more specific stay ambiguous: two for exactly the pair, two generic specs that differ only in their bounds, or two whose pairs overlap without either containing the other. The field then draws [`matches more than one mapping spec`](compiler_errors.md#more-than-one-spec).
+
+Here `TagSearch` nests `TagPageMapping`, `ScoreBoard` nests `PageMapping`, and `Tally`, whose page converts its elements, nests `CodecPageMapping`:
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.StandardCodecs;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+@GenerateMapping
+interface TagPageMapping extends MappingSpec<Page<String>, PageDto<String>> {}
+
+record ScoreBoard(Page<Integer> scores) {}
+
+record ScoreBoardDto(PageDto<Integer> scores) {}
+
+@GenerateMapping
+interface ScoreBoardMapping extends MappingSpec<ScoreBoard, ScoreBoardDto> {}
+
+record Tally(Page<Integer> counts) {}
+
+record TallyDto(PageDto<String> counts) {}
+
+@GenerateMapping
+interface TallyMapping extends MappingSpec<Tally, TallyDto> {
+  default ValidatedPrism<String, Integer> counts() {
+    return StandardCodecs.intFromString();
+  }
+}
+
+record TagSearch(Page<String> results) {}
+
+record TagSearchDto(PageDto<String> results) {}
+
+@GenerateMapping
+interface TagSearchMapping extends MappingSpec<TagSearch, TagSearchDto> {}
+```
+
 ### How an element-mapped spec nests {#element-mapped-nesting}
 
 **An [element-mapped](generics.md#element-mapped-specs) mapping nests as a composition.** Where a record's component matches the spec's pair, the processor resolves each element pair in turn and composes the Impl in place, `CodecPageMappingImpl.<EmailAddress, String>of(entries()).asValidatedPrism()` for a single leaf:
@@ -647,7 +708,7 @@ The registered mapping may itself be a composition, resolved the same way. A fai
 'z' has no mapping.
 ```
 
-The message goes on to offer the ways to supply it. For several leaves those are another registered mapping, or a leaf over the whole pair. That leaf builds the composition itself with `of(...)`, its type arguments written, or is abstract where the pair names the using spec's own variables.
+The message goes on to offer the ways to supply it. For several leaves those are another registered mapping, or a leaf over the whole pair. That leaf builds the composition itself with `of(...)`, its type arguments written, or is abstract where an element pair names the using spec's own variables, which no body could convert.
 
 The processor writes the spec's type arguments into the composition, as the use site binds them. Java infers `of(...)`'s arguments from the prisms alone, so a type variable that no leaf names would otherwise fall to its bound. Here only `TaggedPage`'s elements convert, and its `tag` is an `Integer` on both sides. `Newsletters` writes the same call by hand, and binds the Impl to a variable typed as the Impl:
 
@@ -828,7 +889,112 @@ interface SearchMapping<U extends Number> extends MappingSpec<Search<U>, SearchD
 - **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies).
 - **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
 - **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.
+- **A threaded spec fills by the rule a mapping nests it by.** It fills where its pair has the components' shape and its bounds admit each argument, through `PageMappingImpl.<Integer>instance()`, and [the most specific spec is used](#generic-spec-precedence), your own specs before a dependency's.
+- **An element-mapped spec does not fill a merge, not supported yet.** A mapping composes one from its element pairs' specs, and a merge leaves it out. Where it is the only spec for the pair, the fill is refused ([`which a merge does not compose`](compiler_errors.md#merge-element-mapped)). Add the leaf the message spells, which builds it with `of(...)`, or a spec for exactly the pair.
 - **The return type follows the fills.** A fill that can fail demands `Validated<NonEmptyList<FieldError>, Target>`, and a merge whose every fill is a copy must declare the plain target ([`every fill is an identity copy`](compiler_errors.md#merge-validated-identity)).
+
+Here a feed's page parses through the threaded `PageMapping`:
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.GenerateMerge;
+import org.higherkindedj.optics.annotations.MappingSpec;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+
+record Ranking(String board) {}
+
+record ScoreFeed(PageDto<Integer> scores) {}
+
+record Leaderboard(String board, Page<Integer> scores) {}
+
+@GenerateMerge
+interface LeaderboardMerge {
+  Validated<NonEmptyList<FieldError>, Leaderboard> merge(Ranking ranking, ScoreFeed feed);
+}
+```
+
+An element-mapped spec in its place is refused, `which a merge does not compose`, and the leaf the message offers declares the prisms:
+
+<!-- verify:rejects "which a merge does not compose" -->
+```java
+import java.util.List;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.GenerateMerge;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+record Ranking(String board) {}
+
+record RawScoreFeed(PageDto<String> scores) {}
+
+record Leaderboard(String board, Page<Integer> scores) {}
+
+@GenerateMerge
+interface LeaderboardMerge {
+  Validated<NonEmptyList<FieldError>, Leaderboard> merge(Ranking ranking, RawScoreFeed feed);
+}
+```
+
+<!-- verify -->
+```java
+import java.util.List;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.GenerateMerge;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.StandardCodecs;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+record Ranking(String board) {}
+
+record RawScoreFeed(PageDto<String> scores) {}
+
+record Leaderboard(String board, Page<Integer> scores) {}
+
+@GenerateMerge
+interface LeaderboardMerge {
+  Validated<NonEmptyList<FieldError>, Leaderboard> merge(Ranking ranking, RawScoreFeed feed);
+
+  default ValidatedPrism<PageDto<String>, Page<Integer>> scores() {
+    return CodecPageMappingImpl.<Integer, String>of(StandardCodecs.intFromString())
+        .asValidatedPrism();
+  }
+}
+```
 
 ### Nulls and guards in a merge {#nulls-and-guards-in-a-merge}
 

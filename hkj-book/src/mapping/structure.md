@@ -283,23 +283,23 @@ When several specs could map a pair, the processor picks one this way:
 ```mermaid
 flowchart TD
     accTitle: Which spec maps a pair
-    accDescr: One spec for the pair in this module wins. With none, a single dependency's spec is used. With none anywhere, the pair needs a leaf or the build stops. Two or more in this module are ambiguous until a leaf picks one; two or more in dependencies until a leaf or your own spec picks one.
+    accDescr: One spec for the pair in this module wins. With none, a single dependency's spec is used. With none anywhere, the pair needs a leaf or the build stops. Of two or more at one level, the most specific is used; where none is more specific they are ambiguous until a leaf, or at the dependency level your own spec, picks one.
     Q{"specs for the pair<br/>in this module?"} -->|one| O["yours wins"]
-    Q -->|two or more| A1["ambiguous:<br/>a leaf picks one"]
+    Q -->|two or more| A1["the most specific,<br/>else a leaf picks one"]
     Q -->|none| D{"specs in<br/>dependencies?"}
     D -->|one| U["the dependency's"]
-    D -->|two or more| A2["ambiguous: a leaf,<br/>or your own spec, picks one"]
+    D -->|two or more| A2["the most specific, with a note,<br/>else a leaf or your own spec"]
     D -->|none| N["no usable source,<br/>unless a leaf converts it"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef error fill:#e78284,stroke:#d20f39,color:#232634
     class Q,D decision
-    class O,U tier
-    class A1,A2,N error
+    class O,U,A1,A2 tier
+    class N error
 ```
 
-In words: your own spec for the pair wins, and with none, a single dependency's is used. Two or more at either level fail with [`matches more than one mapping spec`](compiler_errors.md#more-than-one-spec) until you choose, so a new dependency never quietly takes over a pair. [How a dependency's specs are found](rules.md#how-a-dependencys-specs-are-found) has the rest. A module with a `module-info.java` cannot resolve a dependency's specs yet.
+In words: your own spec for the pair wins, and with none, a single dependency's is used. Of two or more at one level, the processor uses the most specific, as [The most specific spec for a pair is used](rules.md#generic-spec-precedence) says: a spec for exactly the pair before a generic one. Where none is more specific, the build fails with [`matches more than one mapping spec`](compiler_errors.md#more-than-one-spec) until you choose. A compiler note names a dependency's spec that another displaced, so a new dependency never quietly takes over a pair. [How a dependency's specs are found](rules.md#how-a-dependencys-specs-are-found) has the rest. A module with a `module-info.java` cannot resolve a dependency's specs yet.
 
 ~~~admonish tip title="Why this matters"
 The delegation is an ordinary static reference in generated code, resolved at compile time from the dependency's class files: no runtime registry, no reflection, no service file to keep in step. Rename or remove a spec upstream and the downstream build fails at the use site, with the pair named, rather than a request failing later.

@@ -507,7 +507,9 @@ class TypeUseAnnotationSurvivalTest {
                       import java.util.Map;
                       import org.higherkindedj.optics.annotations.GenerateMapping;
                       import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.annotations.Flatten;
                       import org.higherkindedj.optics.annotations.UpdateSpec;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
                       import org.jspecify.annotations.Nullable;
 
                       public interface Nest {
@@ -574,6 +576,35 @@ class TypeUseAnnotationSurvivalTest {
 
                         @GenerateMapping
                         interface PatchedUpdate extends UpdateSpec<Patched, PatchedPatch> {}
+
+                        record Page<T>(List<T> items) {}
+
+                        record PageDto<TDto>(List<TDto> items) {}
+
+                        @GenerateMapping
+                        interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+                          ValidatedPrism<TDto, T> items();
+                        }
+
+                        record Catalogue<X>(Page<Box<@Nullable X>> entries) {}
+
+                        record CatalogueDto<X>(PageDto<BoxDto<@Nullable X>> entries) {}
+
+                        @GenerateMapping
+                        interface CatalogueMapping
+                            extends MappingSpec<Catalogue<String>, CatalogueDto<String>> {}
+
+                        record Inner(Box<@Nullable String> box) {}
+
+                        record Flat(String id, Inner inner) {}
+
+                        record FlatDto(String id, BoxDto<String> box) {}
+
+                        @GenerateMapping
+                        interface FlatMapping extends MappingSpec<Flat, FlatDto> {
+                          @Flatten
+                          Inner inner();
+                        }
                       }
                       """));
 
@@ -617,6 +648,19 @@ class TypeUseAnnotationSurvivalTest {
       assertGeneratedCodeContains(
           compilation,
           "com.example.NestPatchedUpdateImpl",
+          "NestBoxMappingImpl.<@Nullable String>instance()");
+      // A variable only the wire names, an element-mapped spec's wire element, is named from the
+      // wire record's component, as the domain's are from the domain's.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestCatalogueMappingImpl",
+          "NestCodecPageMappingImpl.<Nest.Box<@Nullable String>, Nest.BoxDto<@Nullable String>>of(");
+      // A flattened group's inner component is no component of the domain, so its variable keeps
+      // the binding, which is the inner record's declaration: the wire names only variables the
+      // registered spec's domain does not.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestFlatMappingImpl",
           "NestBoxMappingImpl.<@Nullable String>instance()");
     }
 

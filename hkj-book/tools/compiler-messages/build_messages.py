@@ -130,6 +130,7 @@ SHORT = {
     "generic-bean-or-patch": "A bean, PATCH or sealed mapping is generic",
     "abstract-leaf-needs-a-generic-spec": "A concrete spec declares a leaf with no body",
     "merge-component-ambiguous": "Several merge sources carry one component",
+    "merge-element-mapped": "A merge would fill through an element-mapped spec",
     "merge-plain-return": "A fallible merge declares a plain return",
     "merge-validated-identity": "A merge of copies declares a Validated return",
     "merge-unfilled": "No merge source names a target component",

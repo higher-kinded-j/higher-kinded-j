@@ -555,66 +555,84 @@ public class MergeProcessor extends AbstractProcessor {
                 null));
         continue;
       }
+      // A fill reaches the specs a mapping's nest reaches, by the same rule: a concrete spec for
+      // the pair, or a threaded one whose pair unifies with it and whose bounds admit each
+      // argument, the most specific chosen. A merge composes no element-mapped spec, so one is no
+      // candidate, and is named below only where nothing else covers the pair.
+      Types types = processingEnv.getTypeUtils();
+      TypeMirror sourceType = sourceComponent.asType();
+      TypeMirror targetType = targetComponent.asType();
+      List<MappingProcessor.RegisteredSpec> covering =
+          registry.stream()
+              .filter(r -> r.serves(MappingProcessor.Need.PARSE))
+              .filter(r -> MappingProcessor.covers(types, spec, r, targetType, sourceType))
+              .toList();
       MappingProcessor.Candidates candidates =
           MappingProcessor.Candidates.nearest(
-              registry.stream()
-                  .filter(r -> r.serves(MappingProcessor.Need.PARSE))
-                  .filter(
-                      r ->
-                          processingEnv
-                                  .getTypeUtils()
-                                  .isSameType(r.wire(), sourceComponent.asType())
-                              && processingEnv
-                                  .getTypeUtils()
-                                  .isSameType(r.domain(), targetComponent.asType()))
+              types,
+              covering.stream()
+                  .filter(r -> !MappingProcessor.elementMapped(processingEnv, r))
                   .toList());
       List<MappingProcessor.RegisteredSpec> nested = candidates.chosen();
       if (nested.size() > 1) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            mergeMethod,
-            TAG,
-            "target component '"
-                + name
-                + "' matches more than one mapping spec: "
-                + candidates.names()
-                + ".",
-            "A nested fill resolves to the single spec mapping ("
-                + ProcessorUtils.qualifiedTypeName(targetComponent.asType())
-                + ", "
-                + ProcessorUtils.qualifiedTypeName(sourceComponent.asType())
-                + "); with several, the choice would be arbitrary.",
-            "Add a leaf method '"
-                + name
-                + "()' delegating to the spec you want, or "
-                + (candidates.allClasspath()
-                    ? "declare a @GenerateMapping spec for the pair in this compilation, which"
-                        + " takes precedence over a dependency's."
-                    : "remove the duplicate spec."));
+        reportAmbiguous(spec, registry, mergeMethod, name, sourceType, targetType, candidates);
         return null;
       }
       if (nested.size() == 1) {
+        String keep =
+            "Keep it, or delegate explicitly with the leaf "
+                + leafDeclaration(name, sourceType, targetType);
         MappingProcessor.noteShadowed(
             processingEnv,
             mergeMethod,
             TAG,
             "target component '" + name + "'",
-            "Keep it, or delegate explicitly with a leaf '"
-                + name
-                + "()' if the classpath spec is the one meant.",
+            keep + " if the classpath spec is the one meant.",
+            candidates);
+        MappingProcessor.notePassedOver(
+            processingEnv,
+            mergeMethod,
+            TAG,
+            "target component '" + name + "'",
+            keep
+                + ", returning "
+                + MappingProcessor.delegations(
+                    processingEnv,
+                    spec,
+                    registry,
+                    candidates.passedOver(),
+                    MappingProcessor.Need.PARSE,
+                    targetType,
+                    sourceType)
+                + ", if a less specific spec is the one meant.",
             candidates);
         fills.add(
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                nested.getFirst().nestingPrism(MappingProcessor.Need.PARSE),
+                fillPrism(spec, target, holder, name, sourceType, targetType, nested.getFirst()),
                 true,
                 null,
                 null));
         continue;
       }
-      TypeMirror sourceType = sourceComponent.asType();
-      TypeMirror targetType = targetComponent.asType();
+      MappingProcessor.Candidates composed = MappingProcessor.Candidates.nearest(types, covering);
+      if (composed.chosen().size() > 1) {
+        reportAmbiguous(spec, registry, mergeMethod, name, sourceType, targetType, composed);
+        return null;
+      }
+      if (composed.chosen().size() == 1) {
+        reportElementMapped(
+            spec,
+            registry,
+            mergeMethod,
+            target,
+            name,
+            sourceType,
+            targetType,
+            composed.chosen().getFirst());
+        return null;
+      }
       boolean primitiveInvolved =
           sourceType.getKind().isPrimitive() || targetType.getKind().isPrimitive();
       // A spec is offered only for a record pair, the one it can map.
@@ -622,16 +640,7 @@ public class MergeProcessor extends AbstractProcessor {
           primitiveInvolved
               ? primitiveFix(spec, asRecord(holder.asType()), target, name, sourceType, targetType)
               : ProcessorUtils.capitalise(
-                      leafLine(
-                          spec,
-                          name,
-                          "'default ValidatedPrism<"
-                              + ProcessorUtils.qualifiedTypeName(sourceType)
-                              + ", "
-                              + ProcessorUtils.qualifiedTypeName(targetType)
-                              + "> "
-                              + name
-                              + "()'"))
+                      leafLine(spec, name, leafDeclaration(name, sourceType, targetType)))
                   + " (source first, target second)"
                   + (Stream.of(sourceType, targetType).allMatch(type -> asRecord(type) != null)
                       ? ", or declare a @GenerateMapping spec mapping those records,"
@@ -650,7 +659,14 @@ public class MergeProcessor extends AbstractProcessor {
               + ") and no matching leaf method was found."
               + leafNearMissHint(spec, name, sourceType, targetType)
               + (primitiveInvolved ? MappingProcessor.PRIMITIVE_REASON : "")
-              + unusableSpecHint(registry, sourceType, targetType),
+              + MappingProcessor.unusableSpecHint(
+                  types,
+                  spec,
+                  registry,
+                  sourceType,
+                  targetType,
+                  MappingProcessor.Need.PARSE,
+                  "fill a merge"),
           fix);
       return null;
     }
@@ -699,16 +715,7 @@ public class MergeProcessor extends AbstractProcessor {
         + (leaf != null
             ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
             : ", and "
-                + leafLine(
-                    spec,
-                    name,
-                    "'default ValidatedPrism<"
-                        + ProcessorUtils.qualifiedTypeName(sourceBoxed)
-                        + ", "
-                        + ProcessorUtils.qualifiedTypeName(targetBoxed)
-                        + "> "
-                        + name
-                        + "()'")
+                + leafLine(spec, name, leafDeclaration(name, sourceBoxed, targetBoxed))
                 + " (source first, target second).");
   }
 
@@ -757,19 +764,128 @@ public class MergeProcessor extends AbstractProcessor {
                 + "> (source first, target second).");
   }
 
-  private String unusableSpecHint(
-      List<MappingProcessor.RegisteredSpec> registry,
+  /**
+   * The prism a fill parses through, on the one spec chosen for its pair: a concrete spec's
+   * surface, or a threaded spec's {@code instance()}, its witness named from the target's and the
+   * source's components.
+   */
+  private CodeBlock fillPrism(
+      TypeElement spec,
+      TypeElement target,
+      VariableElement holder,
+      String name,
       TypeMirror sourceType,
-      TypeMirror targetType) {
-    return registry.stream()
-        .filter(r -> !r.serves(MappingProcessor.Need.PARSE))
-        .filter(
-            r ->
-                processingEnv.getTypeUtils().isSameType(r.wire(), sourceType)
-                    && processingEnv.getTypeUtils().isSameType(r.domain(), targetType))
-        .findFirst()
-        .map(r -> r.unusable("maps this pair", "fill a merge", MappingProcessor.Need.PARSE))
-        .orElse("");
+      TypeMirror targetType,
+      MappingProcessor.RegisteredSpec match) {
+    if (match.spec().getTypeParameters().isEmpty()) {
+      return match.nestingPrism(MappingProcessor.Need.PARSE);
+    }
+    return MappingProcessor.threadedNestingPrism(
+        processingEnv.getTypeUtils(),
+        spec,
+        match,
+        targetType,
+        sourceType,
+        MappingProcessor.PairSites.of(
+            (DeclaredType) target.asType(),
+            name,
+            targetType,
+            (DeclaredType) holder.asType(),
+            name,
+            sourceType));
+  }
+
+  /**
+   * Refuses a fill whose pair only an element-mapped spec covers: its Impl is built by {@code
+   * of(...)}, which a merge does not compose. The fix line is the leaf over the whole pair that
+   * builds it, with the prisms the registry knows ({@link MappingProcessor#compositionClause}), or
+   * a spec for exactly the pair, which a merge fills through directly.
+   */
+  private void reportElementMapped(
+      TypeElement spec,
+      List<MappingProcessor.RegisteredSpec> registry,
+      ExecutableElement mergeMethod,
+      TypeElement target,
+      String name,
+      TypeMirror sourceType,
+      TypeMirror targetType,
+      MappingProcessor.RegisteredSpec match) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        mergeMethod,
+        TAG,
+        "target component '"
+            + target.getSimpleName()
+            + "."
+            + name
+            + "' would fill through the element-mapped '"
+            + match.describe()
+            + "', which a merge does not compose (not supported yet).",
+        "An element-mapped Impl is built by of(...), from one ValidatedPrism per abstract leaf, and a"
+            + " merge builds no such Impl itself.",
+        ProcessorUtils.capitalise(
+                leafLine(spec, name, leafDeclaration(name, sourceType, targetType)))
+            + " (source first, target second), "
+            + MappingProcessor.compositionClause(
+                processingEnv, spec, registry, match, targetType, sourceType)
+            + ". Or declare a @GenerateMapping spec for exactly the pair,"
+            + MappingProcessor.declarationSites(processingEnv, spec)
+            + ".");
+  }
+
+  /**
+   * Refuses a fill whose pair several specs cover, none more specific than the others, with the
+   * leaf that delegates to the one meant and what it returns ({@link
+   * MappingProcessor#delegatingCalls}), or the declaration that settles it.
+   */
+  private void reportAmbiguous(
+      TypeElement spec,
+      List<MappingProcessor.RegisteredSpec> registry,
+      ExecutableElement mergeMethod,
+      String name,
+      TypeMirror sourceType,
+      TypeMirror targetType,
+      MappingProcessor.Candidates candidates) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        mergeMethod,
+        TAG,
+        "target component '"
+            + name
+            + "' matches more than one mapping spec: "
+            + candidates.names()
+            + ".",
+        "A nested fill resolves to the single spec mapping ("
+            + ProcessorUtils.qualifiedTypeName(targetType)
+            + ", "
+            + ProcessorUtils.qualifiedTypeName(sourceType)
+            + "); with several, the choice would be arbitrary.",
+        ProcessorUtils.capitalise(
+                leafLine(spec, name, leafDeclaration(name, sourceType, targetType)))
+            + " (source first, target second), delegating to the spec you want"
+            + MappingProcessor.delegatingCalls(
+                    processingEnv,
+                    spec,
+                    registry,
+                    candidates,
+                    MappingProcessor.Need.PARSE,
+                    targetType,
+                    sourceType)
+                .map(calls -> ", returning " + calls)
+                .orElse("")
+            + ", or "
+            + candidates.settle(targetType, sourceType));
+  }
+
+  /** The leaf a fix line offers for a fill, quoted: named after the component, source first. */
+  private static String leafDeclaration(String name, TypeMirror sourceType, TypeMirror targetType) {
+    return "'default ValidatedPrism<"
+        + ProcessorUtils.qualifiedTypeName(sourceType)
+        + ", "
+        + ProcessorUtils.qualifiedTypeName(targetType)
+        + "> "
+        + name
+        + "()'";
   }
 
   private ExecutableElement findLeaf(
