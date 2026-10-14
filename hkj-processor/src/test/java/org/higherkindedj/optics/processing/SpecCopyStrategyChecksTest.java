@@ -24,7 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
  * {@code @ViaConstructor} passes its arguments in, and when the focus is passed unboxed.
  *
  * <p>Kept apart from {@link SpecInterfaceProcessingTest}, which covers the rest of a spec's
- * reading, because these are the checks {@code CopyStrategyChecks} makes.
+ * reading, because these are the checks made by {@code CopyStrategyChecks} and the classes it asks.
  */
 @DisplayName("Spec Copy Strategy Checks")
 class SpecCopyStrategyChecksTest {

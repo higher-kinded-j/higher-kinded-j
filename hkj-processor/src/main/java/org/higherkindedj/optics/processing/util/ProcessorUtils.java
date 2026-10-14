@@ -254,6 +254,17 @@ public final class ProcessorUtils {
   }
 
   /**
+   * A type, or null where it is a wildcard, which names no one type.
+   *
+   * @param type the type; must not be null
+   * @return the type, or null where it is a wildcard
+   * @since 0.5.0
+   */
+  public static TypeMirror unlessWildcard(TypeMirror type) {
+    return type.getKind() == TypeKind.WILDCARD ? null : type;
+  }
+
+  /**
    * The first raw type named anywhere in {@code type}, or null when none is raw.
    *
    * <p>A generic type written without its arguments, at any depth: a bare {@code List} head, a
