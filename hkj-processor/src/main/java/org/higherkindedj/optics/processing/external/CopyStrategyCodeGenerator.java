@@ -57,7 +57,9 @@ public class CopyStrategyCodeGenerator {
   /**
    * Generates a builder-pattern setter lambda.
    *
-   * <p>Generated code: {@code (source, newValue) -> source.toBuilder().field(newValue).build()}
+   * <p>Generated code: {@code (source, newValue) -> source.toBuilder().field(newValue).build()},
+   * with the builder's clear method called before the setter where the strategy names one: {@code
+   * source.toBuilder().clearTags().tags(newValue).build()}.
    *
    * @param info the @ViaBuilder annotation values
    * @param fieldName the field name
@@ -70,10 +72,12 @@ public class CopyStrategyCodeGenerator {
     String toBuilder = info.toBuilder().isEmpty() ? "toBuilder" : info.toBuilder();
     String setter = info.setter().isEmpty() ? fieldName : info.setter();
     String build = info.build().isEmpty() ? "build" : info.build();
+    String clear = info.clear().isEmpty() ? "" : "." + info.clear() + "()";
 
     return CodeBlock.of(
-        "(source, newValue) -> source.$L().$L($L).$L()",
+        "(source, newValue) -> source.$L()$L.$L($L).$L()",
         toBuilder,
+        clear,
         setter,
         focusArgument(info.unboxedFocusType()),
         build);

@@ -19,6 +19,7 @@ import java.util.function.UnaryOperator;
 import org.higherkindedj.example.optics.bridge.*;
 import org.higherkindedj.example.optics.bridge.domain.*;
 import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
+import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
 import org.higherkindedj.example.optics.bridge.external.*;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;

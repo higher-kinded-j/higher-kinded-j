@@ -58,7 +58,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("VIA_BUILDER with empty defaults uses default method names")
     void viaBuilderWithEmptyDefaults() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", "", null);
       CodeBlock result =
           generator.generateSetterLambda(CopyStrategyKind.VIA_BUILDER, info, "name", null, null);
 
@@ -72,7 +72,7 @@ class SpecMutationKillingTest {
     @DisplayName("VIA_BUILDER with custom method names uses custom names")
     void viaBuilderWithCustomNames() {
       CopyStrategyInfo info =
-          CopyStrategyInfo.forBuilder("getX", "newBuilder", "setX", "create", null);
+          CopyStrategyInfo.forBuilder("getX", "newBuilder", "setX", "create", "", null);
       CodeBlock result =
           generator.generateSetterLambda(CopyStrategyKind.VIA_BUILDER, info, "x", null, null);
 
@@ -265,7 +265,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("generateGetterLambda with empty getter uses field name")
     void generateGetterLambdaWithEmptyGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", "", null);
       CodeBlock result = generator.generateGetterLambda("name", info, null);
 
       assertThat(result.toString()).contains("source.name()");
@@ -274,7 +274,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("generateGetterLambda with explicit getter uses it")
     void generateGetterLambdaWithExplicitGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getName", "", "", "", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getName", "", "", "", "", null);
       CodeBlock result = generator.generateGetterLambda("name", info, null);
 
       assertThat(result.toString()).contains("source.getName()");

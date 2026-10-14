@@ -64,7 +64,7 @@ String name = CustomerOptics.name().get(ada);
 ```
 
 ~~~admonish tip title="Why this matters"
-Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. With a `customer()` lens declared the same way, `OrderOptics.customer().andThen(CustomerOptics.email())` is a lens from an order to its customer's email. It obeys the lens laws as long as the builder round-trips faithfully: `toBuilder()`, the setter and `build()` have to give back the value they were handed and leave every other component alone. A builder that normalises, defaults or drops a field breaks that, and no annotation can detect it for you.
+Four annotated lines replaced a copy method per field, and what you get back is not a bespoke helper: it is a `Lens`, so it composes with every other optic in the library. With a `customer()` lens declared the same way, `OrderOptics.customer().andThen(CustomerOptics.email())` is a lens from an order to its customer's email. It obeys the lens laws as long as the builder round-trips faithfully: `toBuilder()`, the setter and `build()` have to give back the value they were handed and leave every other component alone. A builder that normalises, defaults or drops a field breaks that, and so does a setter that adds to what `toBuilder()` copied instead of replacing it. The processor recognises two such setters, a Lombok `@Singular` collection's and a protobuf-java repeated or map field's, and clears the builder's copy of the collection first. No annotation can detect the others for you.
 ~~~
 
 ---
@@ -87,6 +87,10 @@ Lens<Order, UUID> id();
     build = "create")          // how to finish
 Lens<LegacyType, String> name();
 ```
+
+Lombok's `@SuperBuilder(toBuilder = true)` needs nothing extra: on a class `Pet`, its `toBuilder()` hands back a `PetBuilder<?, ?>`, and with Lombok's `@Getter`, `@ViaBuilder(getter = "getName")` is enough. A spec over a parent class, `OpticsSpec<Animal>`, rebuilds a subclass as that subclass only when the subclass sets `toBuilder = true` too, since its own `toBuilder()` is then the one called. Without it, the subclass inherits its parent's `toBuilder()`, which builds the parent and drops the subclass's fields. Lombok writes no `toBuilder()` on an abstract class, so declare a spec over each concrete class. A lens over a `@Singular` collection replaces it. For a `@Singular List<String> tags`, whose setter adds to what `toBuilder()` copied, the generated lens first calls the `clearTags()` Lombok writes beside it.
+
+A protobuf-java message needs its getter and setter named. A repeated field `tags` is read by `getTagsList()` and set by `addAllTags`, so its lens is `@ViaBuilder(getter = "getTagsList", setter = "addAllTags")`. A map field `points` is read by `getPointsMap()` and set by `putAllPoints`. Each adds to what `toBuilder()` copied, so the generated lens first calls the `clearTags()` or `clearPoints()` protobuf writes beside it. An open enum's numbers work the same way, through `getKindsValueList()` and `addAllKindsValue`, and that lens keeps the laws for a number the enum does not name, which the enum-typed lens cannot set. A member of a `oneof`, or a field that tracks presence, keeps the lens laws only where it is already set. Setting it selects that member, or marks the field present, even to the value its getter reads when it is unset.
 
 ---
 
@@ -186,6 +190,8 @@ interface MoneyOpticsSpec extends OpticsSpec<Money> {
 ```
 
 Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use. The wither still has to hand back the source type, read under the arguments the spec gives it: on a `Draft<T>`, a `Draft<String> withId(String)` serves an `OpticsSpec<Draft<String>>`, and a wither that returns the type raw, or as a supertype, is refused at the spec method. Where the wither is overloaded, the one checked is the one the call binds: the lens passes the new value typed by its focus, `Long` here, and javac chooses among the overloads by that type. A name the type does not have, or that the generated class cannot call, one none of whose overloads takes the focus, a choice javac could not make, and a `static` method are each refused at the spec method too. See the [wither entries](compiler_errors.md#wither--has-no-method--for-the-generated-lens-to-call) in Compiler Errors.
+
+A wither that returns its class's own type parameter, as `S withName(String)` does on a `Shape<S extends Shape<S>>`, works on a spec over `Shape<?>`, since the call still hands back a `Shape`.
 
 Every other method name a strategy carries is checked the same way, at the spec method rather than in the generated file: the `getter` each one reads through, which for `@ViaCopyAndSet` and `@ViaConstructor` is the lens method's own name; `@ViaBuilder`'s `toBuilder`, `setter` and `build`, each read on what the step before it hands back; and each accessor a `@ViaConstructor` `parameterOrder` names, along with the constructor that order rebuilds through. An accessor that reads a type the lens cannot hand back as its focus is refused too, which is the [`LocalDate.getMonth()` pairing](importing_optics.md#wither-classes-to-lenses) a spec interface exists to sort out. So is a read or rebuild javac would report as unchecked, such as a raw `List` handed back as a `List<String>` focus, or a setter called through a raw builder. That warning would land in the generated file, beyond the reach of your own `@SuppressWarnings`. See [the unchecked conversion entry](compiler_errors.md#spec-unchecked-conversion) in Compiler Errors.
 
@@ -346,7 +352,7 @@ Start with `@ViaBuilder`: it is the pattern most generated code uses. Fall back 
 
 ~~~admonish tip title="Further Reading"
 - **jOOQ**: [jooq.org](https://www.jooq.org/): type-safe SQL in Java, and its [immutable POJO generation](https://www.jooq.org/doc/latest/manual/code-generation/codegen-pojos/)
-- **Lombok**: [projectlombok.org](https://projectlombok.org/): `@Builder`, `@Value`, and the `setterPrefix` option this page's naming examples assume
+- **Lombok**: [projectlombok.org](https://projectlombok.org/): `@Builder`, `@SuperBuilder`, `@Value`, and the `setterPrefix` option this page's naming examples assume
 - **Protocol Buffers**: [protobuf.dev](https://protobuf.dev/reference/java/java-generated/): generated builders, a natural `@ViaBuilder` target
 ~~~
 

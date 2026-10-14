@@ -10852,10 +10852,15 @@ public class MappingProcessor extends AbstractProcessor {
     if (ContainerCopy.of(domainType) != null && types.isSubtype(domainType, wireType)) {
       return domainType;
     }
+    // An unbounded wildcard resolves to nothing; what it stands for is held as an Object.
+    TypeMirror object = processingEnv.getElementUtils().getTypeElement("java.lang.Object").asType();
     TypeMirror[] elements =
         ((DeclaredType) wireType)
             .getTypeArguments().stream()
-                .map(ProcessorUtils::resolveWildcard)
+                .map(
+                    argument ->
+                        Objects.requireNonNullElse(
+                            ProcessorUtils.resolveWildcard(argument), object))
                 .toArray(TypeMirror[]::new);
     return LIFTABLE_CONTAINERS.stream()
         .filter(container -> isExactly(domainType, container))

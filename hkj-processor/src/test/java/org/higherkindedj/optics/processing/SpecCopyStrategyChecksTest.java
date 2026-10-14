@@ -117,6 +117,41 @@ class SpecCopyStrategyChecksTest {
       """;
 
   /**
+   * A bag whose {@code toBuilder()} hands back a builder of a list of its own type argument, which
+   * on a {@code Bag<?>} is a list of the type the wildcard stands for.
+   */
+  private static final String BAG =
+      """
+      import java.util.List;
+
+      public class Bag<T> {
+          public List<T> getItems() { return List.of(); }
+          public Builder<List<T>> toBuilder() { return new Builder<>(); }
+
+          public static final class Builder<U> {
+              public Builder<U> items(U items) { return this; }
+              public Bag<?> build() { return new Bag<String>(); }
+          }
+      }
+      """;
+
+  /** A type whose {@code toBuilder()} hands back its generic builder with a wildcard of its own. */
+  private static final String LEGACY =
+      """
+      import java.util.List;
+
+      public class Legacy {
+          public List<String> getItems() { return List.of(); }
+          public Builder<?> toBuilder() { return new Builder<String>(); }
+
+          public static final class Builder<T> {
+              public Builder<T> items(List<T> items) { return this; }
+              public Legacy build() { return new Legacy(); }
+          }
+      }
+      """;
+
+  /**
    * Compiles {@code specs} against {@code source} read from a class file javac wrote with {@code
    * options}: with none it keeps no parameter names, with {@code -g} it keeps them.
    */
@@ -498,12 +533,13 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("a wildcard focus is left to javac, which infers it from the getter")
-    void wildcardFocusIsLeftToJavac() {
+    @DisplayName("a wildcard focus binds as a call passing what its getter reads")
+    void wildcardFocusBindsAsACallPassingWhatItsGetterReads() {
       // A lens whose focus is a wildcard is inferred from its getter as much as from the
       // wildcard: Memo's is Lens<Memo, String>, not the CharSequence its bound names, so
       // withA(String) is the method the call binds. Reading the bound as the argument would
-      // refuse every one of these, and each compiles.
+      // refuse every one of these, and each compiles. b's focus is bounded from below, which javac
+      // weighs beside the getter, so which withB the call binds is javac's to settle.
       var compilation =
           compile(
               external(
@@ -524,6 +560,7 @@ class SpecCopyStrategyChecksTest {
                       public Memo withA(String a) { return new Memo(a, b, c); }
                       public Object withA(CharSequence a) { return this; }
                       public Memo withB(String b) { return new Memo(a, b, c); }
+                      public Object withB(Object b) { return this; }
                       public Memo withC(String c) { return new Memo(a, b, c); }
                       public Object withC(Object c) { return this; }
                   }
@@ -545,6 +582,166 @@ class SpecCopyStrategyChecksTest {
                   """));
 
       assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a wildcard focus is read through the getter javac calls")
+    void wildcardFocusIsReadThroughTheGetterJavacCalls() {
+      // Src inherits name() from two interfaces, returning CharSequence and String. javac calls
+      // the one with the most specific return, so the focus it infers is a String, and the call
+      // binds withName(String) rather than the raw Base's withName(T), which would be unchecked.
+      // Which interface Src names first does not decide it.
+      var compilation =
+          compile(
+              external(
+                  "HasCs",
+                  """
+                  public interface HasCs { String name(); }
+                  """),
+              external(
+                  "HasStr",
+                  """
+                  public interface HasStr { CharSequence name(); }
+                  """),
+              external(
+                  "Base",
+                  """
+                  public abstract class Base<T> { public abstract Src withName(T name); }
+                  """),
+              external(
+                  "Src",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public abstract class Src extends Base implements HasCs, HasStr {
+                      public abstract Src withName(String name);
+                  }
+                  """),
+              spec(
+                  "SrcOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SrcOpticsSpec extends OpticsSpec<Src> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Src, ?> name();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a wildcard focus over a generic getter is left to javac")
+    void wildcardFocusOverAGenericGetterIsLeftToJavac() {
+      // name() declares the T it returns, so javac infers it from the focus rather than the
+      // focus from it: the wildcard's bound, Object, which binds withName(Object). Read as the
+      // getter's T, the call would bind the raw Base's withName(T) and be refused as unchecked.
+      var compilation =
+          compile(
+              external(
+                  "Base",
+                  """
+                  public abstract class Base<T extends CharSequence> {
+                      public Src withName(T name) { return new Src(name.toString()); }
+                  }
+                  """),
+              external(
+                  "Src",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public class Src extends Base {
+                      private final String name;
+                      public Src(String name) { this.name = name; }
+                      @SuppressWarnings("unchecked")
+                      public <T extends CharSequence> T name() { return (T) name; }
+                      public Src withName(Object name) { return new Src(String.valueOf(name)); }
+                  }
+                  """),
+              spec(
+                  "SrcOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SrcOpticsSpec extends OpticsSpec<Src> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Src, ?> name();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a wither a wildcard focus binds through a raw supertype is refused")
+    void witherAWildcardFocusBindsThroughARawSupertypeIsRefused() {
+      // The focus javac infers is the String name() reads, which withName(Integer) cannot take,
+      // so the call binds the withName(T) Src inherits from the raw Base, and javac flags it as
+      // unchecked in the generated file.
+      var compilation =
+          compile(
+              external(
+                  "Base",
+                  """
+                  public abstract class Base<T> {
+                      public Src withName(T name) { return new Src(String.valueOf(name)); }
+                  }
+                  """),
+              external(
+                  "Src",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public class Src extends Base {
+                      private final String name;
+                      public Src(String name) { this.name = name; }
+                      public String name() { return name; }
+                      public Src withName(Integer code) { return this; }
+                  }
+                  """),
+              spec(
+                  "SrcOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SrcOpticsSpec extends OpticsSpec<Src> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Src, ? extends CharSequence> name();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'Src' inherits 'withName(T)' from the raw type 'Base', so the generated call to it"
+                  + " is unchecked.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a self-typed wither on a source written with a wildcard rebuilds it")
+    void selfTypedWitherOnASourceWrittenWithAWildcardRebuildsIt() {
+      // withName returns S, which a Shape<?> reads as the wildcard itself; the call is made on
+      // the source captured, where S is a type of its own bounded by Shape, and hands back a
+      // Shape<?> as the lens needs.
+      var compilation =
+          compile(
+              external(
+                  "Shape",
+                  """
+                  public abstract class Shape<S extends Shape<S>> {
+                      public abstract String getName();
+                      public abstract S withName(String name);
+                  }
+                  """),
+              spec(
+                  "ShapeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface ShapeOpticsSpec extends OpticsSpec<Shape<?>> {
+                      @Wither(value = "withName", getter = "getName")
+                      Lens<Shape<?>, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ShapeOptics", "(source, newValue) -> source.withName(newValue)");
     }
 
     @Test
@@ -744,13 +941,13 @@ class SpecCopyStrategyChecksTest {
                   + " @ViaCopyAndSet.");
       assertThat(compilation)
           .hadErrorContaining(
-              "@Wither: No method 'withValue' of 'Cell<?>' takes the lens's focus type 'Object'."
+              "@Wither: No method 'withValue' of 'Cell<T>' takes the lens's focus type 'Object'."
                   + " The generated lens sets through 'source.withValue(newValue)' with the new"
-                  + " value typed 'Object'. Found on 'Cell<?>': [withValue(?)]. A parameter a"
+                  + " value typed 'Object'. Found on 'Cell<T>': [withValue(T)]. A parameter that a"
                   + " wildcard of 'Cell<?>' stands in takes no value at all, since the type it"
-                  + " stands for is unknown. Declare the spec over the type each wildcard stands"
-                  + " for, or rebuild 'Cell<?>' with @ViaBuilder, @ViaConstructor or"
-                  + " @ViaCopyAndSet.");
+                  + " stands for is unknown. Declare the spec over 'Cell' with a type argument in"
+                  + " place of each wildcard, a type parameter of the spec if need be, and the"
+                  + " focus as the type 'withValue' then takes.");
       assertThat(compilation).hadErrorCount(2);
     }
 
@@ -1942,6 +2139,220 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
+    @DisplayName("a deprecated method is never offered, however near its name")
+    void deprecatedMethodIsNeverOffered() {
+      // A call to a deprecated method warns in the generated file, which a build under -Werror
+      // refuses, so neither an accessor, a builder's setter nor a wither that is deprecated is
+      // offered for a name it spells, though each would be otherwise.
+      var compilation =
+          compile(
+              external(
+                  "Memo",
+                  """
+                  public final class Memo {
+                      public String text() { return ""; }
+                      @Deprecated public String getTitle() { return ""; }
+                      @Deprecated public Memo withText(String text) { return this; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          @Deprecated public Builder setText(String text) { return this; }
+                          public Memo build() { return new Memo(); }
+                      }
+                  }
+                  """),
+              spec(
+                  "TitleOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TitleOpticsSpec extends OpticsSpec<Memo> {
+                      @ViaBuilder
+                      Lens<Memo, String> title();
+                  }
+                  """),
+              spec(
+                  "TextOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TextOpticsSpec extends OpticsSpec<Memo> {
+                      @ViaBuilder
+                      Lens<Memo, String> text();
+                  }
+                  """),
+              spec(
+                  "WitherOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface WitherOpticsSpec extends OpticsSpec<Memo> {
+                      @Wither(value = "withTxt", getter = "text")
+                      Lens<Memo, String> text();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Memo' has no method 'title()'");
+      assertThat(compilation).hadErrorContaining("'Memo.Builder' has no method 'text'");
+      assertThat(compilation).hadErrorContaining("'Memo' has no method 'withTxt'");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Each one-parameter instance method of 'Memo' that hands it back is deprecated, and"
+                  + " the generated file's call to one would warn.");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("Did you mean"));
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName("a builder no protobuf message's is offered no addAll or putAll")
+    void builderNoProtobufMessagesIsOfferedNoAddAll() {
+      // Ledger's builder has the shape Lombok gives two @Singular collections with a
+      // setterPrefix 'add', and addAllTags is the setter of 'allTags', not of 'tags'. Only a
+      // protobuf message's builder spells a whole field's adder so. Fold is abstract, and Lombok
+      // writes toBuilder() only on a concrete class.
+      var compilation =
+          compile(
+              external(
+                  "Ledger",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public final class Ledger {
+                      public List<String> getTags() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder addTags(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Builder addAllTags(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Ledger build() { return new Ledger(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Fold",
+                  """
+                  public abstract class Fold {
+                      public String getName() { return ""; }
+                  }
+                  """),
+              spec(
+                  "LedgerOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface LedgerOpticsSpec extends OpticsSpec<Ledger> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Ledger, List<String>> tags();
+                  }
+                  """),
+              spec(
+                  "FoldOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface FoldOpticsSpec extends OpticsSpec<Fold> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Fold, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'Ledger.Builder' has no method 'tags'");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("Did you mean 'addAllTags'?"));
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Set @ViaBuilder's 'toBuilder' to a method 'Fold' declares, or declare the spec over"
+                  + " a concrete subclass that declares one.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("an inner class is offered no strategy that calls a constructor")
+    void innerClassIsOfferedNoConstructorStrategy() {
+      // A constructor call to an inner class needs an enclosing instance the generated class has
+      // no way to reach, so a remedy offers only the strategies that rebuild through a method.
+      var compilation =
+          compile(
+              external(
+                  "Shed",
+                  """
+                  public final class Shed {
+                      public final class Door {
+                          public String getColour() { return ""; }
+                      }
+                  }
+                  """),
+              spec(
+                  "DoorOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface DoorOpticsSpec extends OpticsSpec<Shed.Door> {
+                      @Wither(value = "withColour", getter = "getColour")
+                      Lens<Shed.Door, String> colour();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'Shed.Door' has no method 'withColour' for the generated lens to call.");
+      assertThat(compilation).hadErrorContaining("Rebuild 'Shed.Door' with @ViaBuilder.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a clear method deprecated by its javadoc alone, in a class file, is not called")
+    void clearMethodDeprecatedByJavadocAloneIsNotCalled(@TempDir Path dir) throws IOException {
+      // A class file keeps a javadoc @deprecated as its Deprecated attribute, with no annotation,
+      // and javac warns of a call to the method all the same.
+      var compilation =
+          compileAgainstClassFile(
+              dir,
+              List.of(),
+              external(
+                  "Tote",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public final class Tote {
+                      public List<String> getTags() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder tags(Collection<? extends String> more) { return this; }
+
+                          /** @deprecated cleared another way. */
+                          @SuppressWarnings("dep-ann")
+                          public Builder clearTags() { return this; }
+
+                          public Tote build() { return new Tote(); }
+                      }
+                  }
+                  """),
+              spec(
+                  "ToteOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface ToteOpticsSpec extends OpticsSpec<Tote> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Tote, List<String>> tags();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ToteOptics", "source.toBuilder().tags(newValue).build()");
+    }
+
+    @Test
     @DisplayName("a static method, and one that takes an argument, are not accessors")
     void staticMethodAndOneThatTakesAnArgumentAreNotAccessors() {
       var compilation =
@@ -2523,13 +2934,85 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("a builder step bounded by more than one type is left to javac")
-    void builderStepBoundedByMoreThanOneTypeIsLeftToJavac() {
-      // A bound naming more than one type leaves no single type to read the next call on, and
-      // javac infers the step perfectly well from the bound itself. Crock's toBuilder is bounded
-      // that way, and Crank's setter is.
+    @DisplayName(
+        "a builder step bounded by more than one type is read on the bound declaring the call")
+    void builderStepBoundedByMoreThanOneTypeIsReadOnTheBoundDeclaringTheCall() {
+      // javac reads a call on a step bounded by several types among the methods of every bound, so
+      // the check reads it on the bound that declares it: CrockBuilder and CrankBuilder declare
+      // what Cloneable does not, and Seal's build() is declared by the class bound alone. Where a
+      // class bound implements an interface bound, its build() takes in the interface's, whether
+      // it overrides it, as Pet's builder does, or inherits it, as Can's does; Vet's, so taken in,
+      // returns no Vet. A class bound's method that is not abstract takes in an interface bound's
+      // of its signature without implementing it, as javac reads the bound as a class extending
+      // the one and implementing the other, so Crate's clear method hands back its builder; Jar's
+      // abstract one does not, and its clear method is left out, the setter alone being what the
+      // call can be sure of. Tag's setter is declared by its interface bound. Where unrelated
+      // bounds both declare the call, as Duo's do for build(), Pair's for the setter, and Tally's
+      // for a setter of another signature, which method it binds is javac's to settle. Hold's clear
+      // method hands back the self type, whose class bound declares the setter, so the chain
+      // carries on there. Capture bounds Lot's builder by a type variable and an interface, and the
+      // variable is read through to its own bound, LotBase, which declares the setter. Capture
+      // bounds Rack's by RackBase and RackClears, each declaring a clear method of its own, so
+      // which one the call binds is javac's, and the clear method is left out. Capture bounds
+      // Pail's by PailClears and PailSetter, and javac binds the class bound's clear method, which
+      // hands back no PailSetter, so the clear method is left out there too.
+      JavaFileObject seal =
+          external(
+              "Seal",
+              """
+              import java.io.Serializable;
+
+              public class Seal {
+                  private final String name;
+                  Seal(String name) { this.name = name; }
+                  public String getName() { return name; }
+                  public SealBuilder<?> toBuilder() { return new Impl(name); }
+
+                  public abstract static class SealBuilder<
+                          B extends SealBuilder<B> & Serializable> {
+                      protected String name;
+                      public abstract B name(String name);
+                      public Seal build() { return new Seal(name); }
+                  }
+
+                  static final class Impl extends SealBuilder<Impl> implements Serializable {
+                      private static final long serialVersionUID = 1L;
+                      Impl(String name) { this.name = name; }
+                      @Override public Impl name(String name) { return new Impl(name); }
+                  }
+              }
+              """);
+      JavaFileObject tag =
+          external(
+              "Tag",
+              """
+              public class Tag {
+                  private final String text;
+                  Tag(String text) { this.text = text; }
+                  public String getText() { return text; }
+
+                  @SuppressWarnings("unchecked")
+                  public <B extends Base & Texts> B toBuilder() { return (B) new Impl(text); }
+
+                  public interface Texts { Base text(String text); }
+
+                  public abstract static class Base {
+                      public abstract Tag build();
+                      public void touch(String note) {}
+                  }
+
+                  static final class Impl extends Base implements Texts {
+                      private final String text;
+                      Impl(String text) { this.text = text; }
+                      @Override public Impl text(String text) { return new Impl(text); }
+                      @Override public Tag build() { return new Tag(text); }
+                  }
+              }
+              """);
       var compilation =
           compile(
+              seal,
+              tag,
               external(
                   "Crock",
                   """
@@ -2584,6 +3067,271 @@ class SpecCopyStrategyChecksTest {
                       public Crank build() { return new Crank(id); }
                   }
                   """),
+              external(
+                  "Pet",
+                  """
+                  public class Pet {
+                      private final String name;
+                      Pet(String name) { this.name = name; }
+                      public String getName() { return name; }
+                      public PetBuilder<?> toBuilder() { return new Impl(); }
+
+                      public interface Builds { Pet build(); }
+
+                      public abstract static class PetBuilder<B extends PetBuilder<B> & Builds>
+                              implements Builds {
+                          protected String name;
+                          public B name(String name) { this.name = name; return self(); }
+                          protected abstract B self();
+                          @Override public Pet build() { return new Pet(name); }
+                      }
+
+                      static final class Impl extends PetBuilder<Impl> {
+                          @Override protected Impl self() { return this; }
+                      }
+                  }
+                  """),
+              external(
+                  "Can",
+                  """
+                  public class Can {
+                      private final String name;
+                      Can(String name) { this.name = name; }
+                      public String getName() { return name; }
+                      public CanBuilder<?> toBuilder() { return new Impl(); }
+
+                      public interface Builds { Can build(); }
+
+                      public abstract static class CanBuilder<B extends CanBuilder<B> & Builds>
+                              implements Builds {
+                          public abstract B name(String name);
+                      }
+
+                      static final class Impl extends CanBuilder<Impl> {
+                          @Override public Impl name(String name) { return this; }
+                          @Override public Can build() { return new Can(""); }
+                      }
+                  }
+                  """),
+              external(
+                  "Duo",
+                  """
+                  public class Duo {
+                      private final String label;
+                      Duo(String label) { this.label = label; }
+                      public String getLabel() { return label; }
+                      public DuoBuilder<?> toBuilder() { return new Impl(label); }
+
+                      public interface Builds { Duo build(); }
+
+                      public interface AlsoBuilds { Duo build(); }
+
+                      public abstract static class DuoBuilder<B extends Builds & AlsoBuilds> {
+                          public abstract B label(String label);
+                      }
+
+                      static final class Impl extends DuoBuilder<Impl>
+                              implements Builds, AlsoBuilds {
+                          private final String label;
+                          Impl(String label) { this.label = label; }
+                          @Override public Impl label(String label) { return new Impl(label); }
+                          @Override public Duo build() { return new Duo(label); }
+                      }
+                  }
+                  """),
+              external(
+                  "Pair",
+                  """
+                  public class Pair {
+                      private final String label;
+                      Pair(String label) { this.label = label; }
+                      public String getLabel() { return label; }
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends Labels & AlsoLabels> B toBuilder() {
+                          return (B) new Impl(label);
+                      }
+
+                      public interface Labels { Impl label(String label); }
+
+                      public interface AlsoLabels { Impl label(String label); }
+
+                      public static final class Impl implements Labels, AlsoLabels {
+                          private final String label;
+                          Impl(String label) { this.label = label; }
+                          @Override public Impl label(String label) { return new Impl(label); }
+                          public Pair build() { return new Pair(label); }
+                      }
+                  }
+                  """),
+              external(
+                  "Hold",
+                  """
+                  import java.io.Serializable;
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public class Hold {
+                      public List<String> getTags() { return List.of(); }
+                      public HoldBuilder<?> toBuilder() { return new Impl(); }
+
+                      public abstract static class HoldBuilder<
+                              B extends HoldBuilder<B> & Serializable> {
+                          public abstract B tags(Collection<? extends String> more);
+                          public abstract B clearTags();
+                          public Hold build() { return new Hold(); }
+                      }
+
+                      static final class Impl extends HoldBuilder<Impl> implements Serializable {
+                          private static final long serialVersionUID = 1L;
+                          @Override public Impl tags(Collection<? extends String> more) {
+                              return this;
+                          }
+                          @Override public Impl clearTags() { return this; }
+                      }
+                  }
+                  """),
+              external(
+                  "Crate",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public class Crate {
+                      public List<String> getItems() { return List.of(); }
+                      public CrateBuilder<?> toBuilder() { return new Impl(); }
+
+                      public interface Adding<B> { B items(Collection<? extends String> more); }
+
+                      public abstract static class CrateBuilder<
+                              B extends CrateBuilder<B> & Adding<B>> {
+                          public B items(Collection<? extends String> more) { return self(); }
+                          public B clearItems() { return self(); }
+                          protected abstract B self();
+                          public Crate build() { return new Crate(); }
+                      }
+
+                      static final class Impl extends CrateBuilder<Impl> implements Adding<Impl> {
+                          @Override protected Impl self() { return this; }
+                      }
+                  }
+                  """),
+              external(
+                  "Jar",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public class Jar {
+                      public List<String> getItems() { return List.of(); }
+                      public JarBuilder<?> toBuilder() { return new Impl(); }
+
+                      public interface Adding<B> { B items(Collection<? extends String> more); }
+
+                      public abstract static class JarBuilder<B extends JarBuilder<B> & Adding<B>> {
+                          public abstract B items(Collection<? extends String> more);
+                          public abstract B clearItems();
+                          public Jar build() { return new Jar(); }
+                      }
+
+                      static final class Impl extends JarBuilder<Impl> implements Adding<Impl> {
+                          @Override public Impl items(Collection<? extends String> more) {
+                              return this;
+                          }
+                          @Override public Impl clearItems() { return this; }
+                      }
+                  }
+                  """),
+              external(
+                  "Tally",
+                  """
+                  public class Tally {
+                      private final String label;
+                      Tally(String label) { this.label = label; }
+                      public String getLabel() { return label; }
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends Counter & Labels> B toBuilder() {
+                          return (B) new Impl(label);
+                      }
+
+                      public interface Labels { Impl label(String label); }
+
+                      public static class Counter {
+                          public Impl label(Integer count) { return new Impl(String.valueOf(count)); }
+                      }
+
+                      public static final class Impl extends Counter implements Labels {
+                          private final String label;
+                          Impl(String label) { this.label = label; }
+                          @Override public Impl label(String label) { return new Impl(label); }
+                          public Tally build() { return new Tally(label); }
+                      }
+                  }
+                  """),
+              external("Lid", "public interface Lid {}"),
+              external(
+                  "PailClears",
+                  "public class PailClears { public PailClears clearTags() { return this; } }"),
+              external(
+                  "PailSetter",
+                  """
+                  import java.util.Collection;
+
+                  public interface PailSetter {
+                      PailSetter clearTags();
+                      PailSetter tags(Collection<? extends String> tags);
+                      Pail<? extends PailClears> build();
+                  }
+                  """),
+              external(
+                  "Pail",
+                  """
+                  import java.util.List;
+
+                  public final class Pail<B extends PailSetter> {
+                      public List<String> getTags() { return List.of(); }
+                      public B toBuilder() { return null; }
+                  }
+                  """),
+              external("RackClears", "public interface RackClears { RackClears clearTags(); }"),
+              external(
+                  "RackBase",
+                  """
+                  import java.util.Collection;
+
+                  public abstract class RackBase {
+                      public abstract RackBase clearTags();
+                      public abstract RackBase tags(Collection<? extends String> tags);
+                      public abstract Rack<? extends RackClears> build();
+                  }
+                  """),
+              external(
+                  "Rack",
+                  """
+                  import java.util.List;
+
+                  public final class Rack<B extends RackBase> {
+                      public List<String> getTags() { return List.of(); }
+                      public B toBuilder() { return null; }
+                  }
+                  """),
+              external(
+                  "LotBase",
+                  """
+                  public class LotBase {
+                      public LotBase name(String name) { return this; }
+                      public Lot<?, ? extends Lid> build() { return null; }
+                  }
+                  """),
+              external(
+                  "Lot",
+                  """
+                  public final class Lot<A extends LotBase, B extends A> {
+                      public String getName() { return ""; }
+                      public B toBuilder() { return null; }
+                  }
+                  """),
               spec(
                   "CrockOpticsSpec",
                   """
@@ -2601,9 +3349,1353 @@ class SpecCopyStrategyChecksTest {
                       @ViaBuilder(getter = "getId")
                       Lens<Crank, String> id();
                   }
+                  """),
+              spec(
+                  "SealOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SealOpticsSpec extends OpticsSpec<Seal> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Seal, String> name();
+                  }
+                  """),
+              spec(
+                  "PetOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PetOpticsSpec extends OpticsSpec<Pet> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Pet, String> name();
+                  }
+                  """),
+              spec(
+                  "CanOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CanOpticsSpec extends OpticsSpec<Can> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Can, String> name();
+                  }
+                  """),
+              spec(
+                  "TagOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TagOpticsSpec extends OpticsSpec<Tag> {
+                      @ViaBuilder(getter = "getText")
+                      Lens<Tag, String> text();
+                  }
+                  """),
+              spec(
+                  "DuoOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface DuoOpticsSpec extends OpticsSpec<Duo> {
+                      @ViaBuilder(getter = "getLabel")
+                      Lens<Duo, String> label();
+                  }
+                  """),
+              spec(
+                  "PairOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PairOpticsSpec extends OpticsSpec<Pair> {
+                      @ViaBuilder(getter = "getLabel")
+                      Lens<Pair, String> label();
+                  }
+                  """),
+              spec(
+                  "CrateOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface CrateOpticsSpec extends OpticsSpec<Crate> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Crate, List<String>> items();
+                  }
+                  """),
+              spec(
+                  "JarOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface JarOpticsSpec extends OpticsSpec<Jar> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Jar, List<String>> items();
+                  }
+                  """),
+              spec(
+                  "TallyOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TallyOpticsSpec extends OpticsSpec<Tally> {
+                      @ViaBuilder(getter = "getLabel")
+                      Lens<Tally, String> label();
+                  }
+                  """),
+              spec(
+                  "PailOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface PailOpticsSpec extends OpticsSpec<Pail<? extends PailClears>> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Pail<? extends PailClears>, List<String>> tags();
+                  }
+                  """),
+              spec(
+                  "RackOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface RackOpticsSpec extends OpticsSpec<Rack<? extends RackClears>> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Rack<? extends RackClears>, List<String>> tags();
+                  }
+                  """),
+              spec(
+                  "LotOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LotOpticsSpec extends OpticsSpec<Lot<?, ? extends Lid>> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Lot<?, ? extends Lid>, String> name();
+                  }
+                  """),
+              spec(
+                  "HoldOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface HoldOpticsSpec extends OpticsSpec<Hold> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Hold, List<String>> tags();
+                  }
                   """));
 
       assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.HoldOptics", "source.toBuilder().clearTags().tags(newValue)");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.CrateOptics", "source.toBuilder().clearItems().items(newValue)");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.JarOptics", "source.toBuilder().items(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.RackOptics", "source.toBuilder().tags(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.PailOptics", "source.toBuilder().tags(newValue).build()");
+
+      // A call no bound declares is reported naming them all, with a near miss from any.
+      var refused =
+          compile(
+              seal,
+              tag,
+              external(
+                  "Vet",
+                  """
+                  public class Vet {
+                      public String getName() { return ""; }
+                      public VetBuilder<?> toBuilder() { return new Impl(); }
+
+                      public interface Builds { Object build(); }
+
+                      public abstract static class VetBuilder<B extends VetBuilder<B> & Builds>
+                              implements Builds {
+                          public B name(String name) { return self(); }
+                          protected abstract B self();
+                          @Override public Object build() { return new Vet(); }
+                      }
+
+                      static final class Impl extends VetBuilder<Impl> {
+                          @Override protected Impl self() { return this; }
+                      }
+                  }
+                  """),
+              spec(
+                  "VetOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface VetOpticsSpec extends OpticsSpec<Vet> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Vet, String> name();
+                  }
+                  """),
+              spec(
+                  "SealOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SealOpticsSpec extends OpticsSpec<Seal> {
+                      @ViaBuilder(getter = "getName", setter = "name", build = "create")
+                      Lens<Seal, String> created();
+                  }
+                  """),
+              spec(
+                  "TagOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TagOpticsSpec extends OpticsSpec<Tag> {
+                      @ViaBuilder(getter = "getText", setter = "txet")
+                      Lens<Tag, String> misspelt();
+                  }
+                  """));
+      assertThat(refused)
+          .hadErrorContaining(
+              "@ViaBuilder: 'name(String)' hands back a type bounded by 'Seal.SealBuilder' and"
+                  + " 'Serializable', which have no method 'create()' the generated class in"
+                  + " 'com.myapp' can call to finish the value it rebuilds. The generated lens calls"
+                  + " 'create()' on it, and javac looks the call up among the methods of every type"
+                  + " its bound names. Set @ViaBuilder's 'build' to a method one of them declares"
+                  + " that the generated class can call.");
+      assertThat(refused)
+          .hadErrorContaining(
+              "@ViaBuilder: 'toBuilder()' hands back a type bounded by 'Tag.Base' and 'Tag.Texts',"
+                  + " which have no method 'txet' the generated class in 'com.myapp' can call to set"
+                  + " through.");
+      assertThat(refused).hadErrorContaining("Did you mean 'text'?");
+      assertThat(refused)
+          .hadErrorContaining(
+              "@ViaBuilder: 'build()' returns 'Object', not the source type 'Vet'.");
+      assertThat(refused).hadErrorCount(3);
+    }
+
+    /**
+     * The self-typed builder Lombok's {@code @SuperBuilder(toBuilder = true)} generates, written
+     * out: {@code toBuilder()} hands back a {@code SupBuilder<?, ?>}, whose setter returns {@code
+     * B} and whose {@code build()} returns {@code C}.
+     */
+    private static JavaFileObject sup() {
+      return external(
+          "Sup",
+          """
+          public class Sup {
+              private final String name;
+              protected Sup(SupBuilder<?, ?> b) { this.name = b.name; }
+              public String getName() { return name; }
+              public SupBuilder<?, ?> toBuilder() { return new SupBuilderImpl().name(name); }
+
+              public abstract static class SupBuilder<C extends Sup, B extends SupBuilder<C, B>> {
+                  private String name;
+                  public B name(String name) { this.name = name; return self(); }
+                  protected abstract B self();
+                  public abstract C build();
+              }
+
+              private static final class SupBuilderImpl extends SupBuilder<Sup, SupBuilderImpl> {
+                  @Override protected SupBuilderImpl self() { return this; }
+                  @Override public Sup build() { return new Sup(this); }
+              }
+          }
+          """);
+    }
+
+    @Test
+    @DisplayName("a builder handed back with wildcards is walked as the generated call walks it")
+    void builderHandedBackWithWildcardsIsWalkedAsTheGeneratedCallWalksIt() {
+      // javac captures each receiver, so 'name' on a SupBuilder<?, ?> returns a builder bounded
+      // by SupBuilder, and build() a value bounded by Sup. Pup's builder inherits the setter,
+      // Relay's setter returns a variable bounded by the builder's own, and Tin's Builder<?>
+      // hands back its own parameter from build().
+      var compilation =
+          compile(
+              sup(),
+              external(
+                  "Pup",
+                  """
+                  public class Pup extends Sup {
+                      protected Pup(PupBuilder<?, ?> b) { super(b); }
+                      @Override public PupBuilder<?, ?> toBuilder() { return new PupBuilderImpl(); }
+
+                      public abstract static class PupBuilder<C extends Pup, B extends PupBuilder<C, B>>
+                              extends SupBuilder<C, B> {}
+
+                      private static final class PupBuilderImpl
+                              extends PupBuilder<Pup, PupBuilderImpl> {
+                          @Override protected PupBuilderImpl self() { return this; }
+                          @Override public Pup build() { return new Pup(this); }
+                      }
+                  }
+                  """),
+              external(
+                  "Tin",
+                  """
+                  public class Tin {
+                      private final String name;
+                      public Tin(String name) { this.name = name; }
+                      public String getName() { return name; }
+                      public Builder<?> toBuilder() { return new Builder<Tin>(name); }
+
+                      public static final class Builder<C extends Tin> {
+                          private String name;
+                          Builder(String name) { this.name = name; }
+                          public Builder<C> name(String name) { this.name = name; return this; }
+
+                          @SuppressWarnings("unchecked")
+                          public C build() { return (C) new Tin(name); }
+                      }
+                  }
+                  """),
+              external(
+                  "Relay",
+                  """
+                  public class Relay {
+                      private final String name;
+                      protected Relay(RelayBuilder<?, ?> b) { this.name = b.name; }
+                      public String getName() { return name; }
+                      public RelayBuilder<?, ?> toBuilder() { return new RelayBuilderImpl(); }
+
+                      public abstract static class RelayBuilder<
+                              C extends Relay, B extends RelayBuilder<C, B>> {
+                          private String name;
+
+                          @SuppressWarnings("unchecked")
+                          public <R extends B> R name(String name) {
+                              this.name = name;
+                              return (R) self();
+                          }
+
+                          protected abstract B self();
+                          public abstract C build();
+                      }
+
+                      private static final class RelayBuilderImpl
+                              extends RelayBuilder<Relay, RelayBuilderImpl> {
+                          @Override protected RelayBuilderImpl self() { return this; }
+                          @Override public Relay build() { return new Relay(this); }
+                      }
+                  }
+                  """),
+              spec(
+                  "SupOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SupOpticsSpec extends OpticsSpec<Sup> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Sup, String> name();
+                  }
+                  """),
+              spec(
+                  "RelayOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface RelayOpticsSpec extends OpticsSpec<Relay> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Relay, String> name();
+                  }
+                  """),
+              spec(
+                  "PupOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PupOpticsSpec extends OpticsSpec<Pup> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Pup, String> name();
+                  }
+                  """),
+              spec(
+                  "TinOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TinOpticsSpec extends OpticsSpec<Tin> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Tin, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      for (String optics : List.of("SupOptics", "PupOptics", "RelayOptics", "TinOptics")) {
+        assertGeneratedCodeContains(
+            compilation, "com.myapp." + optics, "source.toBuilder().name(newValue).build()");
+      }
+    }
+
+    @Test
+    @DisplayName("a builder step reached through a wildcard is named as the spec could write it")
+    void builderStepReachedThroughAWildcardIsNamedAsTheSpecCouldWriteIt() {
+      // The type capture makes of a wildcard has no name a reader can write. A setter handing back
+      // the builder it was called on is named as that builder; what build() returns, by the bound
+      // it reaches, or where that bound names a captured type, by its class. Gen's builder builds
+      // a Mid<String>, which a Gen<String> lens reaches only through Mid's raw supertype. Stray
+      // inherits Sup's toBuilder(), whose builder builds a Sup and sets none of Stray's own
+      // properties; Wolf inherits Beast's toBuilder() too, but its builder builds a Wolf, so a
+      // misspelt setter draws the plain message. Bag's build() reads as the source type on the
+      // Builder<?> as declared, so build() is named as it declares itself.
+      var compilation =
+          compile(
+              sup(),
+              external(
+                  "Other",
+                  """
+                  public class Other<T> {
+                      public abstract static class OtherBuilder<
+                              T, C extends Other<T>, B extends OtherBuilder<T, C, B>> {
+                          public B name(String name) { return self(); }
+                          protected abstract B self();
+                          public abstract C build();
+                      }
+                  }
+                  """),
+              external(
+                  "Odd",
+                  """
+                  public class Odd {
+                      public String getName() { return ""; }
+                      public Other.OtherBuilder<?, ?, ?> toBuilder() { return null; }
+                  }
+                  """),
+              external(
+                  "Gen",
+                  """
+                  public class Gen<T> {
+                      public String getName() { return ""; }
+                      public GenBuilder<?, ?> toBuilder() { return null; }
+
+                      public abstract static class GenBuilder<
+                              C extends Mid<String>, B extends GenBuilder<C, B>> {
+                          public B name(String name) { return self(); }
+                          protected abstract B self();
+                          public abstract C build();
+                      }
+                  }
+                  """),
+              external(
+                  "Mid",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public class Mid<X> extends Gen {}
+                  """),
+              external(
+                  "Stray",
+                  """
+                  public class Stray extends Sup {
+                      protected Stray(SupBuilder<?, ?> b) { super(b); }
+                      public String getNickname() { return ""; }
+                  }
+                  """),
+              external(
+                  "Bag",
+                  """
+                  import java.util.List;
+
+                  public class Bag<T> {
+                      public String getName() { return ""; }
+                      public Builder<?> toBuilder() { return null; }
+
+                      public abstract static class Builder<T> {
+                          public Builder<T> name(String name) { return this; }
+                          public abstract Bag<List<T>> build();
+                      }
+                  }
+                  """),
+              spec(
+                  "UnfinishedSpec",
+                  """
+                  @ImportOptics
+                  public interface UnfinishedSpec extends OpticsSpec<Sup> {
+                      @ViaBuilder(getter = "getName", setter = "name", build = "create")
+                      Lens<Sup, String> name();
+                  }
+                  """),
+              spec(
+                  "OddSpec",
+                  """
+                  @ImportOptics
+                  public interface OddSpec extends OpticsSpec<Odd> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Odd, String> name();
+                  }
+                  """),
+              spec(
+                  "GenSpec",
+                  """
+                  @ImportOptics
+                  public interface GenSpec extends OpticsSpec<Gen<String>> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Gen<String>, String> name();
+                  }
+                  """),
+              spec(
+                  "StraySpec",
+                  """
+                  @ImportOptics
+                  public interface StraySpec extends OpticsSpec<Stray> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Stray, String> name();
+                  }
+                  """),
+              spec(
+                  "StrayNicknameSpec",
+                  """
+                  @ImportOptics
+                  public interface StrayNicknameSpec extends OpticsSpec<Stray> {
+                      @ViaBuilder(getter = "getNickname")
+                      Lens<Stray, String> nickname();
+                  }
+                  """),
+              external(
+                  "Beast",
+                  """
+                  public class Beast<A extends Beast<A>> {
+                      public String getName() { return ""; }
+                      public Builder<A> toBuilder() { return new Builder<>(); }
+
+                      public static class Builder<A> {
+                          public Builder<A> name(String name) { return this; }
+                          public A build() { return null; }
+                      }
+                  }
+                  """),
+              external("Wolf", "public class Wolf extends Beast<Wolf> {}"),
+              spec(
+                  "WolfSpec",
+                  """
+                  @ImportOptics
+                  public interface WolfSpec extends OpticsSpec<Wolf> {
+                      @ViaBuilder(getter = "getName", setter = "nme")
+                      Lens<Wolf, String> name();
+                  }
+                  """),
+              spec(
+                  "BagSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface BagSpec extends OpticsSpec<Bag<List<?>>> {
+                      @ViaBuilder(getter = "getName", setter = "name")
+                      Lens<Bag<List<?>>, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Sup.SupBuilder<?, ?>' has no method 'create()' for the generated lens"
+                  + " to finish the value it rebuilds. The generated lens calls 'create()' on the"
+                  + " 'Sup.SupBuilder<?, ?>' the setter hands back");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Set @ViaBuilder's 'build' to a method 'Sup.SupBuilder<?, ?>' declares.");
+      assertThat(compilation)
+          .hadErrorContaining("@ViaBuilder: 'build()' returns 'Other', not the source type 'Odd'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'build()' returns 'Mid<String>', a raw 'Gen', which reaches the source"
+                  + " type 'Gen<String>' only through an unchecked conversion.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'build()' returns 'Sup', not the source type 'Stray'. The generated"
+                  + " lens finishes with 'build()' and hands its result back as the source type"
+                  + " 'Stray', which 'Sup' is not. 'Stray' inherits 'toBuilder()' from 'Sup', so"
+                  + " the chain builds with the builder that 'Sup' hands back. Declare a"
+                  + " 'toBuilder()' on 'Stray' that hands back its own builder (for"
+                  + " a Lombok @SuperBuilder, set toBuilder = true on 'Stray' too), or rebuild"
+                  + " 'Stray' with @Wither, @ViaConstructor or @ViaCopyAndSet.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Stray' inherits 'toBuilder()' from 'Sup', whose builder"
+                  + " 'Sup.SupBuilder<?, ?>' has no method 'nickname' for the generated lens to set"
+                  + " through. The generated lens rebuilds with"
+                  + " 'source.toBuilder().setter(newValue).build()', and the builder that 'Sup'"
+                  + " hands back neither sets 'nickname' nor builds 'Stray'. Declare a 'toBuilder()' on"
+                  + " 'Stray' that hands back its own builder");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'build()' returns 'Bag<List<T>>', not the source type 'Bag<List<?>>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Beast.Builder<Wolf>' has no method 'nme' for the generated lens to set"
+                  + " through.");
+      assertThat(compilation).hadErrorContaining("Did you mean 'name'?");
+      assertThat(compilation).hadErrorCount(7);
+    }
+
+    @Test
+    @DisplayName("toBuilder() is read on the source captured, as the generated call reads it")
+    void toBuilderIsReadOnTheSourceCaptured() {
+      // On a Node<?>, toBuilder() hands back the type capture makes of the wildcard, bounded by
+      // NodeBuilder, so the chain carries on there, the getter's int unboxed for the overload that
+      // takes it; a message names the builder as toBuilder() declares it. On a Bag<?>, the
+      // Builder<List<T>> it hands back takes a list of the type the wildcard stands for, which no
+      // focus the spec writes is, and the message names the builder so; Legacy's builder is handed
+      // back with a wildcard of its own. A wildcard bounded below, Box's ? super Integer, stands
+      // for a type an Integer is, so a parameter of that type takes values, and a focus it does not
+      // take is refused for the focus. Pen's wildcard is written in the bound of the spec's own,
+      // so the spec is where it is fixed; and Outer's inner builder reaches the wildcard of the
+      // type the source is a member of.
+      JavaFileObject nodeBuilder =
+          external(
+              "NodeBuilder",
+              """
+              public abstract class NodeBuilder<B extends NodeBuilder<B>> {
+                  public abstract B name(String name);
+                  public abstract B count(int count);
+                  public abstract B count(Object count);
+                  public abstract Node<?> build();
+              }
+              """);
+      JavaFileObject node =
+          external(
+              "Node",
+              """
+              public class Node<B extends NodeBuilder<B>> {
+                  private final B builder;
+                  public Node(B builder) { this.builder = builder; }
+                  public String getName() { return ""; }
+                  public int getCount() { return 0; }
+                  public B toBuilder() { return builder; }
+              }
+              """);
+      var compilation =
+          compile(
+              nodeBuilder,
+              node,
+              external("Bag", BAG),
+              external("Legacy", LEGACY),
+              external(
+                  "Box",
+                  """
+                  public class Box<T> {
+                      public Number getPayload() { return 0; }
+                      public Builder<T> toBuilder() { return new Builder<>(); }
+
+                      public static final class Builder<T> {
+                          public Builder<T> payload(T payload) { return this; }
+                          public Box<T> build() { return new Box<>(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Names",
+                  """
+                  import java.util.List;
+
+                  public interface Names<T> {
+                      Names<T> items(List<T> items);
+                      Pen<?, ?> build();
+                  }
+                  """),
+              external(
+                  "Pen",
+                  """
+                  import java.util.List;
+
+                  public class Pen<T, B> {
+                      public List<String> getItems() { return List.of(); }
+                      public B toBuilder() { return null; }
+                  }
+                  """),
+              external(
+                  "Outer",
+                  """
+                  import java.util.List;
+
+                  public final class Outer<T> {
+                      public final class Inner {
+                          public List<T> getItems() { return List.of(); }
+                          public Builder toBuilder() { return new Builder(); }
+                      }
+
+                      public final class Builder {
+                          public Builder items(List<T> items) { return this; }
+                          public Inner build() { return new Inner(); }
+                      }
+                  }
+                  """),
+              spec(
+                  "NodeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NodeOpticsSpec extends OpticsSpec<Node<?>> {
+                      @ViaBuilder(getter = "getName", setter = "nmae")
+                      Lens<Node<?>, String> misspelt();
+                  }
+                  """),
+              spec(
+                  "BagOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface BagOpticsSpec extends OpticsSpec<Bag<?>> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Bag<?>, List<?>> items();
+                  }
+                  """),
+              spec(
+                  "LegacyOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface LegacyOpticsSpec extends OpticsSpec<Legacy> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Legacy, List<String>> items();
+                  }
+                  """),
+              spec(
+                  "BoxOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BoxOpticsSpec extends OpticsSpec<Box<? super Integer>> {
+                      @ViaBuilder(getter = "getPayload")
+                      Lens<Box<? super Integer>, Number> payload();
+                  }
+                  """),
+              spec(
+                  "PenOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface PenOpticsSpec
+                          extends OpticsSpec<Pen<String, ? extends Names<?>>> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Pen<String, ? extends Names<?>>, List<String>> items();
+                  }
+                  """),
+              spec(
+                  "InnerOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface InnerOpticsSpec extends OpticsSpec<Outer<?>.Inner> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Outer<?>.Inner, List<?>> items();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'NodeBuilder<B>' has no method 'nmae' for the generated lens to set"
+                  + " through. The generated lens sets through 'nmae(newValue)' on"
+                  + " 'NodeBuilder<B>', so it needs a method of that name there that the generated"
+                  + " class in 'com.myapp' can call. Did you mean 'name'?");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'items' of 'Bag.Builder<List<T>>' takes the lens's focus"
+                  + " type 'List<?>'. The generated lens sets through 'items(newValue)' with the new"
+                  + " value typed 'List<?>'. Found on 'Bag.Builder<List<T>>': [items(List<T>)]. A"
+                  + " parameter that a wildcard of 'Bag<?>' stands in takes no value at all, since"
+                  + " the type it stands for is unknown. Declare the spec over 'Bag' with a type"
+                  + " argument in place of each wildcard, a type parameter of the spec if need be,"
+                  + " and the focus as the type 'items' then takes.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'items' of 'Legacy.Builder<?>' takes the lens's focus type"
+                  + " 'List<String>'. The generated lens sets through 'items(newValue)' with the"
+                  + " new value typed 'List<String>'. Found on 'Legacy.Builder<?>':"
+                  + " [items(List<T>)]. A parameter that a wildcard of 'Legacy.Builder<?>' stands"
+                  + " in takes no value at all, since the type it stands for is unknown. Point"
+                  + " @ViaBuilder's 'toBuilder' at a method that hands back the builder with its"
+                  + " type arguments, or rebuild 'Legacy' with @Wither, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'payload' of 'Box.Builder<? super Integer>' takes the lens's"
+                  + " focus type 'Number'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "A parameter that a wildcard of 'Pen<String, ? extends Names<?>>' stands in takes no"
+                  + " value at all, since the type it stands for is unknown. Declare the spec over"
+                  + " 'Pen' with a type argument in place of each wildcard");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'items' of 'Outer<T>.Builder' takes the lens's focus type"
+                  + " 'List<?>'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "A parameter that a wildcard of 'Outer<?>.Inner' stands in takes no value at all");
+      Assertions.assertThat(compilation.errors())
+          .filteredOn(error -> error.getMessage(null).contains("'payload'"))
+          .singleElement()
+          .satisfies(
+              error -> Assertions.assertThat(error.getMessage(null)).doesNotContain("stands in"));
+      assertThat(compilation).hadErrorCount(6);
+
+      var accepted =
+          compile(
+              nodeBuilder,
+              node,
+              spec(
+                  "NodeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NodeOpticsSpec extends OpticsSpec<Node<?>> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Node<?>, String> name();
+
+                      @ViaBuilder(getter = "getCount")
+                      Lens<Node<?>, Integer> count();
+                  }
+                  """));
+      assertThat(accepted).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          accepted, "com.myapp.NodeOptics", "source.toBuilder().name(newValue).build()");
+      assertGeneratedCodeContains(
+          accepted, "com.myapp.NodeOptics", "source.toBuilder().count((int) newValue).build()");
+    }
+
+    @Test
+    @DisplayName("a builder reached raw, or named with the spec's own argument, has no wildcard")
+    void builderReachedRawOrWithTheSpecsOwnArgumentHasNoWildcard() {
+      // Node extends Base raw, so the Builder<?> Base's toBuilder() declares is reached raw, with
+      // no wildcard for a parameter to name; Crib's toBuilder() declares a CribBuilder<?> bound,
+      // which the spec fills with a CribBuilder<U> of its own, whose U a raw focus reaches only
+      // unchecked.
+      var compilation =
+          compile(
+              external(
+                  "Base",
+                  """
+                  public class Base<T> {
+                      public String getName() { return ""; }
+                      public Builder<?> toBuilder() { return new Builder<String>(); }
+
+                      public static class Builder<T> {
+                          public Builder<T> name(String name) { return this; }
+                          public Node build() { return new Node(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Node",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public class Node extends Base {}
+                  """),
+              external(
+                  "CribBuilder",
+                  """
+                  import java.util.List;
+
+                  public class CribBuilder<U> {
+                      public CribBuilder<U> items(List<U> items) { return this; }
+                      public Crib<CribBuilder<U>> build() { return new Crib<>(); }
+                  }
+                  """),
+              external(
+                  "Crib",
+                  """
+                  import java.util.List;
+
+                  public final class Crib<B extends CribBuilder<?>> {
+                      public List<?> getItems() { return List.of(); }
+                      public B toBuilder() { return null; }
+                  }
+                  """),
+              spec(
+                  "NodeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NodeOpticsSpec extends OpticsSpec<Node> {
+                      @ViaBuilder(getter = "getName", setter = "nmae")
+                      Lens<Node, String> name();
+                  }
+                  """),
+              spec(
+                  "TextOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TextOpticsSpec extends OpticsSpec<Node> {
+                      @ViaBuilder(getter = "getName")
+                      Lens<Node, CharSequence> name();
+                  }
+                  """),
+              spec(
+                  "CribOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface CribOpticsSpec<U> extends OpticsSpec<Crib<CribBuilder<U>>> {
+                      @SuppressWarnings("rawtypes")
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Crib<CribBuilder<U>>, List> items();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Base.Builder' has no method 'nmae' for the generated lens to set"
+                  + " through.");
+      assertThat(compilation).hadErrorContaining("Did you mean 'name'?");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'name' of 'Base.Builder' takes the lens's focus type"
+                  + " 'CharSequence'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'items(List<U>)' takes the lens's focus, the raw type 'List', only"
+                  + " through an unchecked conversion to 'List<U>'.");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("stands"));
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName("a raw focus passed where a wildcard's type stands in is unchecked")
+    void rawFocusPassedWhereAWildcardsTypeStandsInIsUnchecked() {
+      // As written, items(List<T>) on Bin's builder reads as items(List<?>), which a raw List
+      // reaches freely; the call is made where capture has made each wildcard a type of its own,
+      // and there it reaches a List of that type only unchecked, which javac reports in the
+      // generated file. Bag's toBuilder() hands back a Builder<List<T>>, so its wildcard's type
+      // stands nested in the builder's argument. Bin's and Bag's specs carry the wildcard, and can
+      // name what it stands for, as Cask's wither, called on the source itself, can; Legacy's
+      // toBuilder() hands the wildcard back itself.
+      var compilation =
+          compile(
+              external(
+                  "Bin",
+                  """
+                  import java.util.List;
+
+                  public class Bin<T> {
+                      private final List<T> items;
+                      public Bin(List<T> items) { this.items = items; }
+                      public List<T> getItems() { return items; }
+                      public Builder<T> toBuilder() { return new Builder<>(items); }
+
+                      public static final class Builder<T> {
+                          private List<T> items;
+                          Builder(List<T> items) { this.items = items; }
+                          public Builder<T> items(List<T> items) { this.items = items; return this; }
+                          public Bin<T> build() { return new Bin<>(items); }
+                      }
+                  }
+                  """),
+              external("Bag", BAG),
+              external("Legacy", LEGACY),
+              external(
+                  "Cask",
+                  """
+                  import java.util.List;
+
+                  public final class Cask<T> {
+                      public List<T> getItems() { return List.of(); }
+                      public Cask<T> withItems(List<T> items) { return this; }
+                  }
+                  """),
+              spec(
+                  "CaskOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface CaskOpticsSpec extends OpticsSpec<Cask<?>> {
+                      @SuppressWarnings("rawtypes")
+                      @Wither(value = "withItems", getter = "getItems")
+                      Lens<Cask<?>, List> items();
+                  }
+                  """),
+              spec(
+                  "LegacyOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface LegacyOpticsSpec extends OpticsSpec<Legacy> {
+                      @SuppressWarnings("rawtypes")
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Legacy, List> items();
+                  }
+                  """),
+              spec(
+                  "BinOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface BinOpticsSpec extends OpticsSpec<Bin<?>> {
+                      @SuppressWarnings("rawtypes")
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Bin<?>, List> items();
+                  }
+                  """),
+              spec(
+                  "BagOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface BagOpticsSpec extends OpticsSpec<Bag<?>> {
+                      @SuppressWarnings("rawtypes")
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Bag<?>, List> items();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'items(List<T>)' takes a type that names what a wildcard of"
+                  + " 'Bin<?>' stands for, which the lens's focus, the raw type 'List',"
+                  + " reaches only through an unchecked conversion. The generated lens sets through"
+                  + " 'items(newValue)', and javac flags that as unchecked in the generated file,"
+                  + " which no @SuppressWarnings on your spec reaches. Declare the spec over 'Bin'"
+                  + " with a type argument in place of each wildcard, a type parameter of the spec"
+                  + " if need be, and the focus as the type 'items' then takes.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withItems(List<T>)' takes a type that names what a wildcard of 'Cask<?>'"
+                  + " stands for");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the spec over 'Cask' with a type argument in place of each wildcard, a type"
+                  + " parameter of the spec if need be, and the focus as the type 'withItems' then"
+                  + " takes.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'items(List<T>)' takes a type that names what a wildcard of"
+                  + " 'Legacy.Builder<?>' stands for");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Point @ViaBuilder's 'toBuilder' at a method that hands back the builder with its"
+                  + " type arguments; otherwise rebuild 'Legacy' with @Wither, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'items(List<T>)' takes a type that names what a wildcard of 'Bag<?>'"
+                  + " stands for, which the lens's focus, the raw type 'List', reaches only through"
+                  + " an unchecked conversion.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the spec over 'Bag' with a type argument in place of each wildcard, a type"
+                  + " parameter of the spec if need be, and the focus as the type 'items' then"
+                  + " takes.");
+      assertThat(compilation).hadErrorCount(4);
+    }
+
+    @Test
+    @DisplayName("a setter that adds to what toBuilder() copied is called after its clear method")
+    void setterThatAddsToWhatToBuilderCopiedIsCalledAfterItsClearMethod() {
+      // Shelf's builder has the shape Lombok gives a @Singular collection: a setter taking any
+      // collection of its elements, which adds to what the builder holds, beside clearTags(). The
+      // lens clears the collection first, so a set replaces it; each chain below says why it reads
+      // as it does. Ledger's has the shape Lombok gives two with a setterPrefix 'add', one of them
+      // named 'allTags', which protobuf's reading would take for the field 'tags'; Roster's the
+      // shape FreeBuilder gives them, where addAllTags adds to 'tags' after all.
+      // Tray's clear method hands back a Builder<Object> for a Builder<String>, and of
+      // Archive's, one deprecated is called only beside a setter deprecated as far, and one that
+      // throws a checked exception is not called at all.
+      var compilation =
+          compile(
+              external(
+                  "Shelf",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+                  import java.util.Map;
+
+                  public final class Shelf {
+                      public List<String> getTags() { return List.of(); }
+                      public Map<String, Integer> getScores() { return Map.of(); }
+                      public List<String> getLabels() { return List.of(); }
+                      public List<String> getNotes() { return List.of(); }
+                      public List<String> getWithTags() { return List.of(); }
+                      public List<Integer> getPoints() { return List.of(); }
+                      public List<String> getURLs() { return List.of(); }
+                      public List<String> getBigTags() { return List.of(); }
+                      public List<String> getMarks() { return List.of(); }
+                      public List<String> geteMails() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder tag(String tag) { return this; }
+                          public Builder tags(Collection<? extends String> more) { return this; }
+                          public Builder clearTags() { return this; }
+                          public Builder scores(Map<? extends String, ? extends Integer> more) {
+                              return this;
+                          }
+                          public Builder clearScores() { return this; }
+                          public Builder withLabel(String label) { return this; }
+                          public Builder withLabels(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearLabels() { return this; }
+                          public Builder notes(Collection<? extends String> more) { return this; }
+                          public void clearNotes() {}
+                          public Builder withTags(Collection<? extends String> more) { return this; }
+                          public Builder clearWithTags() { return this; }
+                          public Builder putPoint(Integer point) { return this; }
+                          public Builder putPoints(Collection<? extends Integer> more) {
+                              return this;
+                          }
+                          public Builder clearPoints() { return this; }
+                          public Builder URLs(Collection<? extends String> more) { return this; }
+                          public Builder clearURLs() { return this; }
+                          public Builder bigTags(Collection<? extends String> more) { return this; }
+                          public Builder recentMarks(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearMarks() { return this; }
+                          public Builder eMails(Collection<? extends String> more) { return this; }
+                          public Builder cleareMails() { return this; }
+                          public Shelf build() { return new Shelf(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Roster",
+                  """
+                  import java.util.List;
+
+                  public final class Roster {
+                      public List<String> getTags() { return List.of(); }
+                      public List<String> getAllTags() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder addTags(String tag) { return this; }
+                          public Builder addAllTags(Iterable<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearTags() { return this; }
+                          public Builder addAllTags(String allTag) { return this; }
+                          public Builder addAllAllTags(Iterable<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearAllTags() { return this; }
+                          public Roster build() { return new Roster(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Ledger",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public final class Ledger {
+                      public List<String> getTags() { return List.of(); }
+                      public List<String> getAllTags() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder addTag(String tag) { return this; }
+                          public Builder addTags(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearTags() { return this; }
+                          public Builder addAllTag(String allTag) { return this; }
+                          public Builder addAllTags(Collection<? extends String> more) {
+                              return this;
+                          }
+                          public Builder clearAllTags() { return this; }
+                          public Ledger build() { return new Ledger(); }
+                      }
+                  }
+                  """),
+              external(
+                  "Tray",
+                  """
+                  import java.util.ArrayList;
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public final class Tray<T> {
+                      private final List<T> items;
+                      Tray(List<T> items) { this.items = items; }
+                      public List<T> getItems() { return items; }
+                      public Builder<T> toBuilder() { return new Builder<T>().items(items); }
+
+                      public static final class Builder<T> {
+                          private final List<T> items = new ArrayList<>();
+                          public Builder<T> items(Collection<? extends T> more) {
+                              items.addAll(more);
+                              return this;
+                          }
+                          public Builder<Object> clearItems() {
+                              items.clear();
+                              return new Builder<>();
+                          }
+                          public Tray<T> build() { return new Tray<>(List.copyOf(items)); }
+                      }
+                  }
+                  """),
+              external(
+                  "Archive",
+                  """
+                  import java.util.Collection;
+                  import java.util.List;
+
+                  public final class Archive {
+                      public List<String> getOlds() { return List.of(); }
+                      public List<String> getStales() { return List.of(); }
+                      public List<String> getGones() { return List.of(); }
+                      public List<String> getRisks() { return List.of(); }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder olds(Collection<? extends String> more) { return this; }
+                          @Deprecated public Builder clearOlds() { return this; }
+                          @Deprecated public Builder stales(Collection<? extends String> more) {
+                              return this;
+                          }
+                          @Deprecated public Builder clearStales() { return this; }
+                          @Deprecated public Builder gones(Collection<? extends String> more) {
+                              return this;
+                          }
+                          @Deprecated(forRemoval = true) public Builder clearGones() {
+                              return this;
+                          }
+                          public Builder risks(Collection<? extends String> more) { return this; }
+                          public Builder clearRisks() throws java.io.IOException { return this; }
+                          public Archive build() { return new Archive(); }
+                      }
+                  }
+                  """),
+              spec(
+                  "ArchiveOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface ArchiveOpticsSpec extends OpticsSpec<Archive> {
+                      @ViaBuilder(getter = "getOlds")
+                      Lens<Archive, List<String>> olds();
+
+                      @ViaBuilder(getter = "getStales")
+                      Lens<Archive, List<String>> stales();
+
+                      @ViaBuilder(getter = "getGones")
+                      Lens<Archive, List<String>> gones();
+
+                      @ViaBuilder(getter = "getRisks")
+                      Lens<Archive, List<String>> risks();
+                  }
+                  """),
+              spec(
+                  "RosterOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface RosterOpticsSpec extends OpticsSpec<Roster> {
+                      @ViaBuilder(getter = "getTags", setter = "addAllTags")
+                      Lens<Roster, List<String>> tags();
+                  }
+                  """),
+              spec(
+                  "LedgerOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface LedgerOpticsSpec extends OpticsSpec<Ledger> {
+                      @ViaBuilder(getter = "getTags", setter = "addTags")
+                      Lens<Ledger, List<String>> tags();
+
+                      @ViaBuilder(getter = "getAllTags", setter = "addAllTags")
+                      Lens<Ledger, List<String>> allTags();
+                  }
+                  """),
+              spec(
+                  "TrayOpticsSpec",
+                  """
+                  import java.util.List;
+
+                  @ImportOptics
+                  public interface TrayOpticsSpec extends OpticsSpec<Tray<String>> {
+                      @ViaBuilder(getter = "getItems")
+                      Lens<Tray<String>, List<String>> items();
+                  }
+                  """),
+              spec(
+                  "ShelfOpticsSpec",
+                  """
+                  import java.util.List;
+                  import java.util.Map;
+
+                  @ImportOptics
+                  public interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
+                      @ViaBuilder(getter = "getTags")
+                      Lens<Shelf, List<String>> tags();
+
+                      @ViaBuilder(getter = "getScores")
+                      Lens<Shelf, Map<String, Integer>> scores();
+
+                      @ViaBuilder(getter = "getLabels", setter = "withLabels")
+                      Lens<Shelf, List<String>> labels();
+
+                      @ViaBuilder(getter = "getNotes")
+                      Lens<Shelf, List<String>> notes();
+
+                      @ViaBuilder(getter = "getWithTags")
+                      Lens<Shelf, List<String>> withTags();
+
+                      @ViaBuilder(getter = "getPoints", setter = "putPoints")
+                      Lens<Shelf, List<Integer>> points();
+
+                      @ViaBuilder(getter = "getURLs", setter = "URLs")
+                      Lens<Shelf, List<String>> urls();
+
+                      @ViaBuilder(getter = "getBigTags")
+                      Lens<Shelf, List<String>> bigTags();
+
+                      @ViaBuilder(getter = "getMarks", setter = "recentMarks")
+                      Lens<Shelf, List<String>> marks();
+
+                      @ViaBuilder(getter = "geteMails")
+                      Lens<Shelf, List<String>> eMails();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      for (String chain :
+          List.of(
+              // the shape Lombok gives a @Singular collection
+              "source.toBuilder().clearTags().tags(newValue).build()",
+              // a map
+              "source.toBuilder().clearScores().scores(newValue).build()",
+              // after a setterPrefix of lower-case letters the builder writes its adder with
+              "source.toBuilder().clearLabels().withLabels(newValue).build()",
+              "source.toBuilder().clearPoints().putPoints(newValue).build()",
+              // clearNotes() hands back nothing to carry the chain on
+              "source.toBuilder().notes(newValue).build()",
+              // the bare reading first: withTags is a property of its own
+              "source.toBuilder().clearWithTags().withTags(newValue).build()",
+              // a property whose name begins with capitals
+              "source.toBuilder().clearURLs().URLs(newValue).build()",
+              // the tags setter owns clearTags, and bigTags has none of its own
+              "source.toBuilder().bigTags(newValue).build()",
+              // no other method is spelt after 'recent', so it is no setterPrefix
+              "source.toBuilder().recentMarks(newValue).build()",
+              // spelt as Lombok's beanspec capitalisation spells it
+              "source.toBuilder().cleareMails().eMails(newValue).build()")) {
+        assertGeneratedCodeContains(compilation, "com.myapp.ShelfOptics", chain);
+      }
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.LedgerOptics",
+          "source.toBuilder().clearTags().addTags(newValue).build()");
+      // Roster's builder is spelt as FreeBuilder spells one, and addAllTags adds a whole 'tags':
+      // clearAllTags() empties 'allTags', which the source reads apart, so it is never called.
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.RosterOptics", "source.toBuilder().addAllTags(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.LedgerOptics",
+          "source.toBuilder().clearAllTags().addAllTags(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.TrayOptics", "source.toBuilder().items(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ArchiveOptics", "source.toBuilder().olds(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.ArchiveOptics",
+          "source.toBuilder().clearStales().stales(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ArchiveOptics", "source.toBuilder().gones(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.ArchiveOptics", "source.toBuilder().risks(newValue).build()");
     }
 
     @Test
@@ -2804,10 +4896,12 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
-    @DisplayName("a wildcard focus leaves every name that depends on it to javac")
-    void wildcardFocusLeavesEveryNameThatDependsOnItToJavac() {
-      // The accessors still have to exist; which method the value binds, and what that method
-      // hands back, is javac's to settle for a focus it infers.
+    @DisplayName("a wildcard focus is read as its getter reads, or left to javac where it is not")
+    void wildcardFocusIsReadAsItsGetterReadsOrLeftToJavac() {
+      // The accessors still have to exist. javac infers a focus bounded from above as what the
+      // getter reads, a String, so the builder's id(CharSequence) is the step the chain follows,
+      // whichever overload is declared first. A focus bounded from below it infers from the bound
+      // as well, so which overload that call binds, and what it hands back, is javac's to settle.
       var compilation =
           compile(
               external(
@@ -2824,7 +4918,7 @@ class SpecCopyStrategyChecksTest {
 
                       public static final class Builder {
                           // Declared first, and returning something the chain could not go on
-                          // from: which overload such a call binds is javac's to settle.
+                          // from.
                           public Object id(Integer id) { return this; }
                           public Builder id(CharSequence id) { return this; }
                           public Loose build() { return new Loose(""); }
@@ -2847,6 +4941,15 @@ class SpecCopyStrategyChecksTest {
                   public interface LooseBuilderSpec extends OpticsSpec<Loose> {
                       @ViaBuilder
                       Lens<Loose, ? extends CharSequence> id();
+                  }
+                  """),
+              spec(
+                  "LooseLowerSpec",
+                  """
+                  @ImportOptics
+                  public interface LooseLowerSpec extends OpticsSpec<Loose> {
+                      @ViaBuilder
+                      Lens<Loose, ? super String> id();
                   }
                   """));
 
@@ -2878,6 +4981,85 @@ class SpecCopyStrategyChecksTest {
                       Lens<Absent, String> id();
                   }
                   """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@ViaBuilder:"));
+    }
+
+    @Test
+    @DisplayName("a builder whose supertype is missing from the classpath is left to javac")
+    void builderWhoseSupertypeIsMissingIsLeftToJavac(@TempDir Path dir) throws IOException {
+      // Read from a class file, the builder inherits members this compilation cannot read, and no
+      // later round brings them: the chain is written out as it stands, for javac to report. So
+      // it is where Held's builder is bounded by such a class and an interface, neither of which
+      // declares the setter this compilation can see.
+      Compilation upstream =
+          javac()
+              .compile(
+                  external(
+                      "Held",
+                      """
+                      public final class Held {
+                          public String id() { return ""; }
+
+                          @SuppressWarnings("unchecked")
+                          public <B extends HeldBuilder & Finishes> B toBuilder() { return null; }
+
+                          public interface Finishes { Held build(); }
+
+                          public abstract static class HeldBuilder extends Base {}
+                      }
+                      """),
+                  external(
+                      "Kept",
+                      """
+                      public final class Kept {
+                          private final String id;
+                          public Kept(String id) { this.id = id; }
+                          public String id() { return id; }
+                          public Builder toBuilder() { return new Builder(); }
+
+                          public static final class Builder extends Base {
+                              public Kept build() { return new Kept(""); }
+                          }
+                      }
+                      """),
+                  external(
+                      "Base",
+                      """
+                      public class Base {
+                          public Kept.Builder id(String id) { return null; }
+                      }
+                      """));
+      assertThat(upstream).succeeded();
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions(LINT)
+              .withClasspath(
+                  GeneratorTestHelper.classpathWith(
+                      GeneratorTestHelper.classDirectoryWithout(
+                          upstream, dir, "com.external.Base")))
+              .compile(
+                  spec(
+                      "KeptSpec",
+                      """
+                      @ImportOptics
+                      public interface KeptSpec extends OpticsSpec<Kept> {
+                          @ViaBuilder
+                          Lens<Kept, String> id();
+                      }
+                      """),
+                  spec(
+                      "HeldSpec",
+                      """
+                      @ImportOptics
+                      public interface HeldSpec extends OpticsSpec<Held> {
+                          @ViaBuilder
+                          Lens<Held, String> id();
+                      }
+                      """));
 
       assertThat(compilation).failed();
       Assertions.assertThat(compilation.errors())
@@ -2982,6 +5164,45 @@ class SpecCopyStrategyChecksTest {
             return copy;
           }"""
           .formatted(type, setter);
+    }
+
+    @Test
+    @DisplayName("a wildcard focus calls the setter its getter's read binds, as the focus would")
+    void wildcardFocusCallsTheSetterItsGettersReadBinds() {
+      // getTitle() reads a String, which javac infers the focus as, so the call binds
+      // withTitle(String), which returns nothing: the lens calls it for its effect, with no
+      // warning that another overload's result is dropped, as a String focus does.
+      var compilation =
+          compile(
+              external(
+                  "Leaf",
+                  """
+                  public class Leaf {
+                      private String title = "";
+                      public Leaf() {}
+                      public Leaf(Leaf other) { title = other.title; }
+                      public String getTitle() { return title; }
+                      public void withTitle(String title) { this.title = title; }
+                      public Leaf withTitle(CharSequence title) {
+                          Leaf copy = new Leaf(this);
+                          copy.title = title.toString();
+                          return copy;
+                      }
+                  }
+                  """),
+              spec(
+                  "LeafOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LeafOpticsSpec extends OpticsSpec<Leaf> {
+                      @ViaCopyAndSet(setter = "withTitle")
+                      Lens<Leaf, ? extends CharSequence> getTitle();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.LeafOptics", dropping("Leaf", "withTitle"));
     }
 
     @Test
@@ -4568,8 +6789,8 @@ class SpecCopyStrategyChecksTest {
               "@ViaConstructor: 'Shape' is an abstract class, and this strategy rebuilds it through"
                   + " a constructor. The generated set function calls 'new Shape(...)', which is not"
                   + " something that can be written for a type that cannot be instantiated. Name a"
-                  + " concrete class as the spec's source type, or use @Wither, which rebuilds"
-                  + " through a method and needs no constructor.");
+                  + " concrete class as the spec's source type, or use @Wither or @ViaBuilder, which"
+                  + " rebuild through methods and need no constructor.");
       assertThat(compilation)
           .hadErrorContaining(
               "@ViaConstructor: 'Named' is an interface, and this strategy rebuilds it through a"

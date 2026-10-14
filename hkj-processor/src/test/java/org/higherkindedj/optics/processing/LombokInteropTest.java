@@ -24,17 +24,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Pins Lombok interop for bean-shaped wires: a {@code @Data} class has no source-level getters or
- * setters, so the bean analyser only sees them if Lombok's processor has materialised them in the
- * same javac run, and only if Lombok is listed first on the processor path (within a round, javac
- * invokes processors in listed order, and the bean analyser needs the accessors already
- * materialised). Both orders are pinned: the working one end to end, the broken one by its
- * diagnostic. The builders Lombok generates are pinned against its real output too:
- * {@code @Singular} collections, with their adders, and {@code @SuperBuilder}'s self-typed builder.
- * Lombok's {@code @With} beside {@code @GenerateFocus} on the same records is pinned too, as the
- * Optics chapter's introduction says it can be.
+ * Pins Lombok interop, for bean-shaped wires and for optics. A {@code @Data} class has no
+ * source-level getters or setters, so the bean analyser only sees them if Lombok's processor has
+ * materialised them in the same javac run, and only if Lombok is listed first on the processor path
+ * (within a round, javac invokes processors in listed order, and the bean analyser needs the
+ * accessors already materialised). Both orders are pinned: the working one end to end, the broken
+ * one by its diagnostic. The builders Lombok generates are pinned against its real output too:
+ * {@code @Singular} collections, with their adders, and {@code @SuperBuilder}'s self-typed builder,
+ * which a {@code @ViaBuilder} spec lens rebuilds through as well as a mapping does. Lombok's
+ * {@code @With} beside {@code @GenerateFocus} on the same records is pinned too, as the Optics
+ * chapter's introduction says it can be.
  */
-@DisplayName("Lombok interop - bean wires")
+@DisplayName("Lombok interop")
 class LombokInteropTest {
 
   private static Processor lombok() {
@@ -131,6 +132,374 @@ class LombokInteropTest {
     Object byFocus = result.invokeStatic("com.example.Moves", "byFocus", employee);
     Assertions.assertThat(byFocus).isEqualTo(byWithers);
     Assertions.assertThat(byFocus.toString()).contains("street=456 Main St");
+  }
+
+  @Test
+  @DisplayName(
+      "@ViaBuilder rebuilds through Lombok's builders, a subclass kept and @Singular replaced")
+  void viaBuilderRebuildsThroughLombokBuilders() throws ReflectiveOperationException {
+    // Lombok's toBuilder() hands back an AnimalBuilder<?, ?>, or a TaggedBuilder<T, ?, ?>, which
+    // the generated chain walks as javac does. It copies each @Singular collection into the
+    // builder, and the collection's setter adds to what it holds, so the lens calls the clear
+    // method Lombok writes beside it first.
+    JavaFileObject animal =
+        JavaFileObjects.forSourceString(
+            "com.example.Animal",
+            """
+            package com.example;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true)
+            public class Animal {
+              private final String name;
+            }
+            """);
+    JavaFileObject dog =
+        JavaFileObjects.forSourceString(
+            "com.example.Dog",
+            """
+            package com.example;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true)
+            public class Dog extends Animal {
+              private final int age;
+            }
+            """);
+    JavaFileObject animalSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.AnimalOpticsSpec",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface AnimalOpticsSpec extends OpticsSpec<Animal> {
+              @ViaBuilder(getter = "getName")
+              Lens<Animal, String> name();
+            }
+            """);
+    JavaFileObject dogSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.DogOpticsSpec",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface DogOpticsSpec extends OpticsSpec<Dog> {
+              @ViaBuilder(getter = "getName")
+              Lens<Dog, String> name();
+
+              @ViaBuilder(getter = "getAge")
+              Lens<Dog, Integer> age();
+            }
+            """);
+    JavaFileObject tagged =
+        JavaFileObjects.forSourceString(
+            "com.example.Tagged",
+            """
+            package com.example;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true)
+            public class Tagged<T> {
+              private final T value;
+              private final String label;
+            }
+            """);
+    JavaFileObject taggedSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.TaggedOpticsSpec",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface TaggedOpticsSpec extends OpticsSpec<Tagged<String>> {
+              @ViaBuilder(getter = "getValue")
+              Lens<Tagged<String>, String> value();
+
+              @ViaBuilder(getter = "getLabel")
+              Lens<Tagged<String>, String> label();
+            }
+            """);
+    JavaFileObject crate =
+        JavaFileObjects.forSourceString(
+            "com.example.Crate",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Map;
+
+            @lombok.Getter
+            @lombok.Builder(toBuilder = true)
+            public class Crate {
+              @lombok.Singular private final List<String> items;
+              @lombok.Singular private final Map<String, Integer> counts;
+              private final String label;
+            }
+            """);
+    JavaFileObject bundle =
+        JavaFileObjects.forSourceString(
+            "com.example.Bundle",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true, setterPrefix = "with")
+            public class Bundle {
+              @lombok.Singular private final List<String> parts;
+            }
+            """);
+    JavaFileObject crateSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.CrateOpticsSpec",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Map;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface CrateOpticsSpec extends OpticsSpec<Crate> {
+              @ViaBuilder(getter = "getItems")
+              Lens<Crate, List<String>> items();
+
+              @ViaBuilder(getter = "getCounts")
+              Lens<Crate, Map<String, Integer>> counts();
+            }
+            """);
+    JavaFileObject bundleSpec =
+        JavaFileObjects.forSourceString(
+            "com.example.BundleOpticsSpec",
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface BundleOpticsSpec extends OpticsSpec<Bundle> {
+              @ViaBuilder(getter = "getParts", setter = "withParts")
+              Lens<Bundle, List<String>> parts();
+            }
+            """);
+    JavaFileObject laws =
+        JavaFileObjects.forSourceString(
+            "com.example.Laws",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Map;
+
+            public final class Laws {
+              private Laws() {}
+
+              private static Crate crate() {
+                return Crate.builder().item("a").item("b").count("a", 1).label("l").build();
+              }
+
+              // set-get, the source untouched, and the other fields kept
+              public static String setGet() {
+                Crate before = crate();
+                Crate after = CrateOptics.items().set(List.of("x"), before);
+                return after.getItems() + " " + before.getItems() + " " + after.getLabel();
+              }
+
+              // get-set and set-set
+              public static String getSetAndSetSet() {
+                Crate before = crate();
+                Crate same = CrateOptics.items().set(CrateOptics.items().get(before), before);
+                Crate twice =
+                    CrateOptics.items().set(List.of("y"), CrateOptics.items().set(List.of("x"), before));
+                return same.getItems() + " " + twice.getItems();
+              }
+
+              public static String counts() {
+                return CrateOptics.counts().set(Map.of("k", 2), crate()).getCounts().toString();
+              }
+
+              public static String parts() {
+                Bundle bundle = Bundle.builder().withPart("q").build();
+                return BundleOptics.parts().set(List.of("p"), bundle).getParts().toString();
+              }
+            }
+            """);
+
+    JavaFileObject pets =
+        JavaFileObjects.forSourceString(
+            "com.example.Pets",
+            """
+            package com.example;
+
+            public final class Pets {
+              private Pets() {}
+
+              public static String renamed() {
+                return AnimalOptics.name().set("Felix", Animal.builder().name("Tom").build()).getName();
+              }
+
+              public static String renamedAndOlder() {
+                Dog rex = Dog.builder().name("Rex").age(3).build();
+                Dog dog = DogOptics.age().modify(age -> age + 1, DogOptics.name().set("Max", rex));
+                return dog.getName() + " " + dog.getAge() + ", was " + rex.getName() + " " + rex.getAge();
+              }
+
+              public static String retagged() {
+                Tagged<String> tag = Tagged.<String>builder().value("v").label("a").build();
+                Tagged<String> next = TaggedOptics.label().set("b", TaggedOptics.value().set("w", tag));
+                return next.getValue() + next.getLabel();
+              }
+
+              // Dog overrides toBuilder(), so the Animal lens hands a Dog back, its age kept.
+              public static String dogRenamedAsAnAnimal() {
+                Animal fido = AnimalOptics.name().set("Fido", Dog.builder().name("Rex").age(3).build());
+                return fido instanceof Dog dog ? dog.getName() + " " + dog.getAge() : "an Animal";
+              }
+            }
+            """);
+
+    Compilation compilation =
+        javac()
+            .withProcessors(lombok(), new ImportOpticsProcessor())
+            .withOptions(List.of("-Xlint:unchecked,rawtypes", "-Werror"))
+            .compile(
+                animal,
+                dog,
+                animalSpec,
+                dogSpec,
+                tagged,
+                taggedSpec,
+                crate,
+                bundle,
+                crateSpec,
+                bundleSpec,
+                laws,
+                pets);
+    assertThat(compilation).succeeded();
+
+    var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+    Assertions.assertThat(result.invokeStatic("com.example.Pets", "renamed")).isEqualTo("Felix");
+    Assertions.assertThat(result.invokeStatic("com.example.Pets", "renamedAndOlder"))
+        .isEqualTo("Max 4, was Rex 3");
+    Assertions.assertThat(result.invokeStatic("com.example.Pets", "retagged")).isEqualTo("wb");
+    Assertions.assertThat(result.invokeStatic("com.example.Laws", "setGet"))
+        .isEqualTo("[x] [a, b] l");
+    Assertions.assertThat(result.invokeStatic("com.example.Laws", "getSetAndSetSet"))
+        .isEqualTo("[a, b] [y]");
+    Assertions.assertThat(result.invokeStatic("com.example.Laws", "counts")).isEqualTo("{k=2}");
+    Assertions.assertThat(result.invokeStatic("com.example.Laws", "parts")).isEqualTo("[p]");
+    Assertions.assertThat(result.invokeStatic("com.example.Pets", "dogRenamedAsAnAnimal"))
+        .isEqualTo("Fido 3");
+  }
+
+  @Test
+  @DisplayName(
+      "a @SuperBuilder subclass's @Singular lens is cleared, in whichever order it compiles")
+  void superBuilderSubclassSingularLensIsClearedInEitherOrder()
+      throws ReflectiveOperationException {
+    // The round a spec is met in can meet a subclass's builder before the parent builder Lombok
+    // writes for it, so the spec waits a round for the hierarchy, and then finds clearTags().
+    JavaFileObject parent =
+        JavaFileObjects.forSourceString(
+            "com.example.Parent",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true)
+            public class Parent {
+              @lombok.Singular private final List<String> tags;
+            }
+            """);
+    JavaFileObject child =
+        JavaFileObjects.forSourceString(
+            "com.example.Child",
+            """
+            package com.example;
+
+            @lombok.Getter
+            @lombok.experimental.SuperBuilder(toBuilder = true)
+            public class Child extends Parent {
+              private final int age;
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ChildOpticsSpec",
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaBuilder;
+
+            @ImportOptics
+            public interface ChildOpticsSpec extends OpticsSpec<Child> {
+              @ViaBuilder(getter = "getTags")
+              Lens<Child, List<String>> tags();
+            }
+            """);
+    JavaFileObject retag =
+        JavaFileObjects.forSourceString(
+            "com.example.Retag",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public final class Retag {
+              private Retag() {}
+
+              public static String retag() {
+                Child child = Child.builder().tag("a").age(3).build();
+                Child next = ChildOptics.tags().set(List.of("b"), child);
+                return next.getTags() + " " + next.getAge();
+              }
+            }
+            """);
+
+    for (List<JavaFileObject> order :
+        List.of(List.of(parent, child, spec, retag), List.of(spec, retag, child, parent))) {
+      Compilation compilation =
+          javac()
+              .withProcessors(lombok(), new ImportOpticsProcessor())
+              .withOptions(List.of("-Xlint:unchecked,rawtypes", "-Werror"))
+              .compile(order);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              new RuntimeCompilationHelper.CompiledResult(compilation)
+                  .invokeStatic("com.example.Retag", "retag"))
+          .isEqualTo("[b] 3");
+    }
   }
 
   @Test
@@ -307,6 +676,33 @@ class LombokInteropTest {
               @GenerateMapping
               interface LabelsMapping extends MappingSpec<Labels, LabelsRequest> {}
 
+              // A collection named with a capital second letter, whose clear method Lombok names
+              // by capitalising it, clearEMails(), as no JavaBeans accessor would be.
+              record Mailing(String id, List<String> eMails) {}
+
+              @lombok.Builder
+              @lombok.ToString
+              static class MailingRequest {
+                private final String id;
+                @lombok.Singular("eMail") private final List<String> eMails;
+              }
+
+              @GenerateMapping
+              interface MailingMapping extends MappingSpec<Mailing, MailingRequest> {}
+
+              // A collection of an unbounded wildcard, whose adder Lombok declares to take an Object.
+              record Bag(String id, List<?> anys) {}
+
+              @lombok.Value
+              @lombok.Builder
+              static class BagDto {
+                String id;
+                @lombok.Singular List<?> anys;
+              }
+
+              @GenerateMapping
+              interface BagMapping extends MappingSpec<Bag, BagDto> {}
+
               // @SuperBuilder, whose build() is declared 'C build()', with a @Singular collection.
               record Crate(String id, String label, List<String> items) {}
 
@@ -414,6 +810,18 @@ class LombokInteropTest {
             RuntimeCompilationHelper.invoke(
                 result.instance("com.example.ShopLabelsMappingImpl"), "build", labels))
         .hasToString("Shop.LabelsRequest(count=2, tags=[x, y])");
+
+    Object mailing = newRecord(result, "Shop$Mailing", "m1", List.of("a@x", "b@x"));
+    Assertions.assertThat(
+            RuntimeCompilationHelper.invoke(
+                result.instance("com.example.ShopMailingMappingImpl"), "build", mailing))
+        .hasToString("Shop.MailingRequest(id=m1, eMails=[a@x, b@x])");
+
+    Object bag = newRecord(result, "Shop$Bag", "b1", List.of("x", 1));
+    Object bagMapping = result.instance("com.example.ShopBagMappingImpl");
+    Object bagDto = RuntimeCompilationHelper.invoke(bagMapping, "build", bag);
+    Assertions.assertThat(parsed(RuntimeCompilationHelper.invoke(bagMapping, "parse", bagDto)))
+        .isEqualTo(bag);
 
     Object crate = newRecord(result, "Shop$Crate", "c1", "fragile", List.of("i1", "i2"));
     Object crateMapping = result.instance("com.example.ShopCrateMappingImpl");

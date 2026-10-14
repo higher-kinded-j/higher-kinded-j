@@ -446,6 +446,111 @@ class ProcessorUtilsTest {
     }
   }
 
+  @Test
+  @DisplayName("singularClearNames gives Lombok's default spelling, then its beanspec one")
+  void singularClearNamesGivesBothSpellings() {
+    assertThat(ProcessorUtils.singularClearNames("tags")).containsExactly("clearTags");
+    assertThat(ProcessorUtils.singularClearNames("x")).containsExactly("clearX");
+    assertThat(ProcessorUtils.singularClearNames("eMails"))
+        .containsExactly("clearEMails", "cleareMails");
+    assertThat(ProcessorUtils.singularClearNames("URLs")).containsExactly("clearURLs");
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#takesAnyCollection}, driven through a real compilation
+   * so the type mirrors are javac's own. Each probe method's single parameter type is the type
+   * asked about.
+   */
+  @Nested
+  @DisplayName("takesAnyCollection")
+  class TakesAnyCollection {
+
+    /** Captures whether each probe parameter takes any collection, keyed by method name. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, Boolean> takes = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          takes.put(
+              method.getSimpleName().toString(),
+              ProcessorUtils.takesAnyCollection(
+                  processingEnv.getTypeUtils(),
+                  processingEnv.getElementUtils(),
+                  method.getParameters().getFirst().asType()));
+        }
+        return false;
+      }
+    }
+
+    /** Compiles the subject once and hands back what each parameter came to. */
+    private Map<String, Boolean> probe() {
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.nio.file.Path;
+              import java.util.Collection;
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              public interface Subject {
+                  void extendsCollection(Collection<? extends String> p);
+                  void extendsMap(Map<? extends String, ? extends Integer> p);
+                  void unboundedCollection(Collection<?> p);
+                  void guavaTable(
+                      com.google.common.collect.Table<? extends String, ? extends String, ?> p);
+                  void exactList(List<String> p);
+                  void superCollection(Collection<? super String> p);
+                  void halfWildMap(Map<? extends String, Integer> p);
+                  void ownIterable(Path p);
+                  void notAContainer(Optional<? extends String> p);
+                  void primitive(int p);
+              }
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+      return processor.takes;
+    }
+
+    @Test
+    @DisplayName("takes a container every type argument of which any element type fits")
+    void takesAContainerEveryArgumentOfWhichAnyElementFits() {
+      assertThat(probe())
+          .containsEntry("extendsCollection", true)
+          .containsEntry("extendsMap", true)
+          .containsEntry("unboundedCollection", true)
+          .containsEntry("guavaTable", true);
+    }
+
+    @Test
+    @DisplayName("refuses an exact, lower-bounded or argument-less container, or no container")
+    void refusesWhatTakesNoCollectionOfAnyElements() {
+      assertThat(probe())
+          .containsEntry("exactList", false)
+          .containsEntry("superCollection", false)
+          .containsEntry("halfWildMap", false)
+          .containsEntry("ownIterable", false)
+          .containsEntry("notAContainer", false)
+          .containsEntry("primitive", false);
+    }
+  }
+
   /**
    * Contract tests for {@link ProcessorUtils#namesTypeVariable}, driven through a real compilation
    * so the type mirrors are javac's own. Each probe method's single parameter type is the type to

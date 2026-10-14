@@ -645,6 +645,187 @@ class ImportOpticsRoundsTest {
                   + " OpticsSpec<ImmutableFoo> on 'BarOptics' itself, beside 'GeneratedBase'.");
       assertThat(compilation).hadErrorCount(1);
     }
+
+    @Test
+    @DisplayName("a builder bounded by several types waits for a base one of them extends")
+    void builderBoundedBySeveralTypesWaitsForAWrittenBase() {
+      // toBuilder() hands back a type bounded by a class and an interface, and the class's base is
+      // written in the first round. The importer waits a round for it, so the misspelt setter is
+      // refused at the spec with the setter the base declares offered, rather than written out to
+      // fail in the generated file.
+      var memo =
+          source(
+              "com.myapp.Memo",
+              """
+              package com.myapp;
+
+              public final class Memo {
+                  private final String text;
+
+                  public Memo(String text) { this.text = text; }
+
+                  public String text() { return text; }
+
+                  @SuppressWarnings("unchecked")
+                  public <B extends Base & Finishes> B toBuilder() { return (B) new Impl(text); }
+
+                  public interface Finishes { Memo build(); }
+
+                  public abstract static class Base extends com.gen.MemoBase {}
+
+                  static final class Impl extends Base implements Finishes {
+                      private String text;
+
+                      Impl(String text) { this.text = text; }
+
+                      @Override
+                      public Impl note(String note) {
+                          this.text = note;
+                          return this;
+                      }
+
+                      @Override
+                      public Memo build() { return new Memo(text); }
+                  }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.MemoOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              @ImportOptics
+              interface MemoOpticsSpec extends OpticsSpec<Memo> {
+                  @ViaBuilder(setter = "nott")
+                  Lens<Memo, String> text();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.MemoBase",
+                  """
+                  package com.gen;
+
+                  public abstract class MemoBase {
+                      public abstract MemoBase note(String note);
+                  }
+                  """),
+              memo,
+              spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which have no method 'nott' the generated class in 'com.myapp' can call to set"
+                  + " through.");
+      assertThat(compilation).hadErrorContaining("Did you mean 'note'?");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a builder an inherited generic toBuilder() hands back waits for its written base")
+    void builderAnInheritedGenericToBuilderHandsBackWaitsForItsWrittenBase() {
+      // Memo inherits B toBuilder() from Parent<B> and fills B with MemoBuilder, whose base is
+      // written in the first round. Read as Parent declares it, toBuilder() hands back B, bounded
+      // by Object; read on Memo, it hands back MemoBuilder, so the importer waits a round for its
+      // base, and the misspelt setter is refused at the spec with the setter the base declares
+      // offered, rather than written out to fail in the generated file.
+      var parent =
+          source(
+              "com.myapp.Parent",
+              """
+              package com.myapp;
+
+              public abstract class Parent<B> {
+                  public B toBuilder() { return builder(); }
+
+                  protected abstract B builder();
+              }
+              """);
+      var builder =
+          source(
+              "com.myapp.MemoBuilder",
+              """
+              package com.myapp;
+
+              public final class MemoBuilder extends com.gen.MemoBase {
+                  private String text;
+
+                  MemoBuilder(String text) { this.text = text; }
+
+                  @Override
+                  public MemoBuilder note(String note) {
+                      this.text = note;
+                      return this;
+                  }
+
+                  public Memo build() { return new Memo(text); }
+              }
+              """);
+      var memo =
+          source(
+              "com.myapp.Memo",
+              """
+              package com.myapp;
+
+              public final class Memo extends Parent<MemoBuilder> {
+                  private final String text;
+
+                  public Memo(String text) { this.text = text; }
+
+                  public String text() { return text; }
+
+                  @Override
+                  protected MemoBuilder builder() { return new MemoBuilder(text); }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.MemoOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              @ImportOptics
+              interface MemoOpticsSpec extends OpticsSpec<Memo> {
+                  @ViaBuilder(setter = "nott")
+                  Lens<Memo, String> text();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.MemoBase",
+                  """
+                  package com.gen;
+
+                  public abstract class MemoBase {
+                      public abstract MemoBase note(String note);
+                  }
+                  """),
+              parent,
+              builder,
+              memo,
+              spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'MemoBuilder' has no method 'nott'").inFile(spec);
+      assertThat(compilation).hadErrorContaining("Did you mean 'note'?");
+      assertThat(compilation).hadErrorCount(1);
+    }
   }
 
   @Nested
@@ -883,8 +1064,8 @@ class ImportOpticsRoundsTest {
     @Test
     @DisplayName("a builder extending a written base is not refused for what it inherits")
     void builderExtendingAWrittenBaseIsNotRefused() {
-      // The builder resolves, so nothing waits for it, and its setter comes from the written base:
-      // the chain is written out as it stands, and javac checks it once the base exists.
+      // The builder's base is written in the first round, so the importer waits a round for it,
+      // and then reads the chain through the setter and build() the base declares.
       var person =
           source(
               "com.myapp.Person",
