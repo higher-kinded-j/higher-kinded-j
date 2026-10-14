@@ -185,7 +185,7 @@ final class ConstructorOrderChecks {
                     + fieldName
                     + "' to @ViaConstructor's 'parameterOrder', at the place the constructor takes"
                     + " it, or "
-                    + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                    + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
                     + "."));
     return true;
   }
@@ -255,7 +255,7 @@ final class ConstructorOrderChecks {
               : "Name in @ViaConstructor's 'parameterOrder' the accessors '"
                   + source
                   + "' declares, in the order its constructor takes them, or "
-                  + CopyStrategyChecks.rebuildWith(source, TAG)
+                  + RefusalWording.rebuildWith(source, TAG)
                   + ".");
       return Optional.empty();
     }
@@ -284,13 +284,13 @@ final class ConstructorOrderChecks {
         !holding.isEmpty()
             ? "Write the one the lens rebuilds through: " + pasted(rebuild, holding)
             : focusFixes
-                ? CopyStrategyChecks.declareFocusAs(readAsFocus, fieldName)
+                ? RefusalWording.declareFocusAs(readAsFocus, fieldName)
                     + "; otherwise "
-                    + CopyStrategyChecks.rebuildWith(source, TAG)
+                    + RefusalWording.rebuildWith(source, TAG)
                     + "."
                 : "Write the order of the constructor the lens should rebuild through as"
                     + " @ViaConstructor's 'parameterOrder', or "
-                    + CopyStrategyChecks.rebuildWith(source, TAG)
+                    + RefusalWording.rebuildWith(source, TAG)
                     + ".");
     return Optional.empty();
   }
@@ -339,7 +339,7 @@ final class ConstructorOrderChecks {
             + " @ViaConstructor's 'parameterOrder'"
             + writtenOut
             + " Otherwise "
-            + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+            + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
             + ".");
     return true;
   }
@@ -359,8 +359,7 @@ final class ConstructorOrderChecks {
     List<String> accessors = leftOut.get().accessors();
     List<ExecutableElement> longer = leftOut.get().constructors();
     String named =
-        CopyStrategyChecks.listed(
-            accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
+        RefusalWording.listed(accessors.stream().map(accessor -> "'" + accessor + "()'").toList());
     String them = accessors.size() == 1 ? "it" : "them";
     List<List<String>> offers =
         namedOrders(rebuild, order).stream()
@@ -412,13 +411,13 @@ final class ConstructorOrderChecks {
                     + "()'. Where that is the same value read another way, "
                     + annotateToSuppress(rebuild)
                     + "; otherwise "
-                    + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                    + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
                     + "."
                 : oneTakesThemAll(rebuild, accessors)
                     ? "Write an order that passes "
                         + them
                         + ", or "
-                        + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                        + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
                         + ". If the constructor derives "
                         + them
                         + " on purpose, "
@@ -432,7 +431,7 @@ final class ConstructorOrderChecks {
                         + " through derives them on purpose, "
                         + annotateToSuppress(rebuild)
                         + "; otherwise "
-                        + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+                        + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
                         + ".");
   }
 
@@ -452,7 +451,7 @@ final class ConstructorOrderChecks {
    * {@code 'A(int a)' and 'A(long a)' take}.
    */
   private static String signaturesThat(List<ExecutableElement> constructors, String verb) {
-    return CopyStrategyChecks.listed(
+    return RefusalWording.listed(
             constructors.stream()
                 .map(constructor -> "'" + constructorSignature(constructor) + "'")
                 .toList())
@@ -631,7 +630,7 @@ final class ConstructorOrderChecks {
   private static boolean inferredArgument(Rebuild rebuild, String name, TypeMirror argument) {
     return argument.getKind() == TypeKind.WILDCARD
         || !name.equals(rebuild.fieldName())
-            && !CopyStrategyChecks.accessorNamed(rebuild.members(), name)
+            && !CallableMembers.accessorNamed(rebuild.members(), name)
                 .getTypeParameters()
                 .isEmpty();
   }
@@ -655,21 +654,21 @@ final class ConstructorOrderChecks {
             + "' takes "
             + (focus ? "the lens's focus" : "what '" + name + "()' reads")
             + ", "
-            + CopyStrategyChecks.described(typeUtils, argument, parameter)
+            + RefusalWording.described(typeUtils, argument, parameter)
             + ", only through an unchecked conversion to '"
             + parameterName
             + "'.",
         "The generated lens rebuilds with '"
             + call
             + "', and "
-            + CopyStrategyChecks.UNCHECKED_IN_GENERATED_CODE,
+            + RefusalWording.UNCHECKED_IN_GENERATED_CODE,
         (focus
                 ? "Declare the lens over '" + parameterName + "', the type the constructor takes; "
                 : "Name an accessor that reads '"
                     + parameterName
                     + "' in its place in 'parameterOrder'; ")
             + "otherwise "
-            + CopyStrategyChecks.rebuildWith(rebuild.sourceName(), TAG)
+            + RefusalWording.rebuildWith(rebuild.sourceName(), TAG)
             + ".");
   }
 
@@ -840,7 +839,7 @@ final class ConstructorOrderChecks {
             + signature
             + "' rather than to a constructor whose parameters the order follows.",
         takesNoParameterForTheLens(rebuild, List.of(bound))
-            ? ProcessorUtils.capitalise(CopyStrategyChecks.rebuildWith(source, TAG))
+            ? ProcessorUtils.capitalise(RefusalWording.rebuildWith(source, TAG))
                 + ", since '"
                 + signature
                 + "' takes no parameter named after the lens's own '"
@@ -849,7 +848,7 @@ final class ConstructorOrderChecks {
             : "Write the order '"
                 + signature
                 + "' takes its arguments in as @ViaConstructor's 'parameterOrder', or "
-                + CopyStrategyChecks.rebuildWith(source, TAG)
+                + RefusalWording.rebuildWith(source, TAG)
                 + ". Written out, "
                 + literal(order)
                 + " binds '"
@@ -883,9 +882,9 @@ final class ConstructorOrderChecks {
         rebuild.constructors().isEmpty()
             ? anotherStrategy(source)
             : focusFixes
-                ? CopyStrategyChecks.declareFocusAs(readAsFocus, fieldName)
+                ? RefusalWording.declareFocusAs(readAsFocus, fieldName)
                     + "; otherwise "
-                    + CopyStrategyChecks.rebuildWith(source, TAG)
+                    + RefusalWording.rebuildWith(source, TAG)
                     + "."
                 : namedRemedy(rebuild, order, List.of())
                     .orElse(
@@ -893,7 +892,7 @@ final class ConstructorOrderChecks {
                             + source
                             + "' for each parameter of a constructor found, in the order it"
                             + " takes them, or "
-                            + CopyStrategyChecks.rebuildWith(source, TAG)
+                            + RefusalWording.rebuildWith(source, TAG)
                             + "."));
   }
 
@@ -949,7 +948,7 @@ final class ConstructorOrderChecks {
                       + owner
                       + "' and write that name in the order too. ")
               + namedRemedy(rebuild, order, List.of())
-                  .orElse("Otherwise " + CopyStrategyChecks.rebuildWith(source, TAG) + "."));
+                  .orElse("Otherwise " + RefusalWording.rebuildWith(source, TAG) + "."));
       return true;
     }
     int at = misplaced.getAsInt();
@@ -1026,17 +1025,17 @@ final class ConstructorOrderChecks {
 
   /** What the lens's own getter reads, as a focus declares it. */
   private TypeMirror readAsFocus(Rebuild rebuild) {
-    return CopyStrategyChecks.asFocus(
+    return LensFocus.asFocus(
         typeUtils,
         ProcessorUtils.returnTypeIn(
             typeUtils,
             rebuild.source(),
-            CopyStrategyChecks.accessorNamed(rebuild.members(), rebuild.fieldName())));
+            CallableMembers.accessorNamed(rebuild.members(), rebuild.fieldName())));
   }
 
   /** The fix that turns to another strategy: a whole fix line. */
   private static String anotherStrategy(String source) {
-    return ProcessorUtils.capitalise(CopyStrategyChecks.rebuildWith(source, TAG)) + ".";
+    return ProcessorUtils.capitalise(RefusalWording.rebuildWith(source, TAG)) + ".";
   }
 
   /**
@@ -1101,7 +1100,7 @@ final class ConstructorOrderChecks {
         + "()' on a '"
         + source
         + "', since no constructor takes a parameter named after it: "
-        + CopyStrategyChecks.rebuildWith(source, TAG)
+        + RefusalWording.rebuildWith(source, TAG)
         + ".";
   }
 
@@ -1162,7 +1161,7 @@ final class ConstructorOrderChecks {
             .filter(name -> !name.equals(rebuild.fieldName()))
             .anyMatch(
                 name ->
-                    !CopyStrategyChecks.accessorNamed(rebuild.members(), name)
+                    !CallableMembers.accessorNamed(rebuild.members(), name)
                         .getTypeParameters()
                         .isEmpty());
   }
@@ -1195,7 +1194,7 @@ final class ConstructorOrderChecks {
                     : ProcessorUtils.returnTypeIn(
                         typeUtils,
                         rebuild.source(),
-                        CopyStrategyChecks.accessorNamed(rebuild.members(), name)))
+                        CallableMembers.accessorNamed(rebuild.members(), name)))
         .toList();
   }
 
@@ -1271,7 +1270,7 @@ final class ConstructorOrderChecks {
                     .filter(
                         spelling ->
                             Optional.ofNullable(
-                                    CopyStrategyChecks.accessorNamed(rebuild.members(), spelling))
+                                    CallableMembers.accessorNamed(rebuild.members(), spelling))
                                 .filter(
                                     accessor ->
                                         fitsParameter(
@@ -1457,7 +1456,7 @@ final class ConstructorOrderChecks {
    */
   private static String constructorSignature(ExecutableElement constructor) {
     List<String> written =
-        CopyStrategyChecks.parametersAsWritten(
+        CallableMembers.parametersAsWritten(
             constructor.getParameters().stream().map(VariableElement::asType).toList(),
             constructor.isVarArgs());
     return ((TypeElement) constructor.getEnclosingElement()).getSimpleName()

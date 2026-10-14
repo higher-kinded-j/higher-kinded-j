@@ -445,6 +445,38 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * The copy-strategy checks depend on one another one way.
+   *
+   * <p>{@code CopyStrategyChecks} builds the checks it asks, {@code SetterChecks}, {@code
+   * BuilderChainChecks} and {@code ConstructorOrderChecks}, and {@code BuilderChainChecks} asks
+   * {@code SetterChecks} for a setter's call. What they share they read from classes that ask none
+   * of them: {@code CallableMembers}, {@code LensFocus}, {@code RefusalWording}, {@code
+   * CallBinding} and {@code CollectionClear}. A check that called back into one that asks it, for a
+   * helper, would tie the classes into a cycle, and the only class outside them that may ask {@code
+   * CopyStrategyChecks} is the analyser that does. Comparing each class's dependencies with the
+   * ones it is allowed, rather than forbidding the rest, also fails the rule if a class it names is
+   * renamed or stops depending on what it allows.
+   */
+  @Test
+  @DisplayName("The copy-strategy checks should depend on one another one way")
+  void the_copy_strategy_checks_should_depend_on_one_another_one_way() {
+    assertThat(dependentsOf(EXTERNAL + "CopyStrategyChecks"))
+        .as(
+            "ask CopyStrategyChecks only from SpecInterfaceAnalyser, and move a helper another"
+                + " class needs into a class the checks share")
+        .isEqualTo(Set.of("SpecInterfaceAnalyser"));
+    CHECKS_EACH_MAY_ASK.forEach(
+        (owner, allowed) -> {
+          assertThat(classes.contain(EXTERNAL + owner))
+              .as("%s is not among the classes imported, so rename it here too", owner)
+              .isTrue();
+          assertThat(checksAskedBy(owner))
+              .as("move what %s needs from another check into a class the checks share", owner)
+              .isEqualTo(allowed);
+        });
+  }
+
+  /**
    * Only the methods that need a type's string form render a type through it.
    *
    * <p>A {@code TypeMirror}'s string form keeps type-use annotations and qualifies them, so a
@@ -745,6 +777,35 @@ class ProcessorArchitectureRules {
   private static final String NAVIGATOR_CLASS_GENERATOR =
       "org.higherkindedj.optics.processing.NavigatorClassGenerator";
 
+  /** The package the copy-strategy checks are declared in. */
+  private static final String EXTERNAL = "org.higherkindedj.optics.processing.external.";
+
+  /** The copy-strategy checks, which a class they share may not ask. */
+  private static final Set<String> COPY_STRATEGY_CHECKS =
+      Set.of("CopyStrategyChecks", "SetterChecks", "BuilderChainChecks", "ConstructorOrderChecks");
+
+  /** Each copy-strategy check and each class they share, with the checks it may ask. */
+  private static final Map<String, Set<String>> CHECKS_EACH_MAY_ASK =
+      Map.of(
+          "CopyStrategyChecks",
+          Set.of("SetterChecks", "BuilderChainChecks", "ConstructorOrderChecks"),
+          "BuilderChainChecks",
+          Set.of("SetterChecks"),
+          "SetterChecks",
+          Set.of(),
+          "ConstructorOrderChecks",
+          Set.of(),
+          "CallableMembers",
+          Set.of(),
+          "LensFocus",
+          Set.of(),
+          "RefusalWording",
+          Set.of(),
+          "CallBinding",
+          Set.of(),
+          "CollectionClear",
+          Set.of());
+
   /**
    * The methods that call or reference {@code owner}'s {@code method}, each as {@code
    * Class.method}.
@@ -756,6 +817,42 @@ class ProcessorArchitectureRules {
         .filter(access -> access.getTarget().getName().equals(method))
         .map(access -> access.getOriginOwner().getSimpleName() + "." + access.getOrigin().getName())
         .collect(Collectors.toSet());
+  }
+
+  /**
+   * The simple names of the top-level classes that depend on {@code owner} or a class nested in it,
+   * other than {@code owner} itself.
+   */
+  private static Set<String> dependentsOf(String owner) {
+    return StreamSupport.stream(classes.spliterator(), false)
+        .filter(javaClass -> topLevelName(javaClass).equals(owner))
+        .flatMap(javaClass -> javaClass.getDirectDependenciesToSelf().stream())
+        .map(dependency -> topLevelName(dependency.getOriginClass()))
+        .filter(origin -> !origin.equals(owner))
+        .map(origin -> origin.substring(origin.lastIndexOf('.') + 1))
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * The copy-strategy checks that {@code owner}, a class in their package, or one nested in it
+   * asks.
+   */
+  private static Set<String> checksAskedBy(String owner) {
+    return StreamSupport.stream(classes.spliterator(), false)
+        .filter(javaClass -> topLevelName(javaClass).equals(EXTERNAL + owner))
+        .flatMap(javaClass -> javaClass.getDirectDependenciesFromSelf().stream())
+        .map(dependency -> topLevelName(dependency.getTargetClass()))
+        .filter(target -> target.startsWith(EXTERNAL))
+        .map(target -> target.substring(EXTERNAL.length()))
+        .filter(target -> !target.equals(owner) && COPY_STRATEGY_CHECKS.contains(target))
+        .collect(Collectors.toSet());
+  }
+
+  /** The name of the top-level class {@code javaClass} is, or is nested in. */
+  private static String topLevelName(JavaClass javaClass) {
+    String name = javaClass.getName();
+    int nested = name.indexOf('$');
+    return nested < 0 ? name : name.substring(0, nested);
   }
 
   /** Method calls and method references from {@code javaClass}, which decide targets alike. */
