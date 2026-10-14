@@ -2168,6 +2168,8 @@ class MappingFixLineTest {
         record HolderDto(BoxDto<String, String, Long> box) {}
         record GenericHolder<A>(Box<A, Integer, Long> box) {}
         record GenericHolderDto<Q>(BoxDto<Q, String, Long> box) {}
+        record TaggedHolder<Y>(Box<UUID, Integer, Y> box) {}
+        record TaggedHolderDto<Y>(BoxDto<String, String, Y> box) {}
 
         record Wrap<T>(T value) {}
         record WrapDto<TD>(TD value) {}
@@ -2187,6 +2189,10 @@ class MappingFixLineTest {
         "default ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String,"
             + " java.lang.Long>, com.example.Box<java.util.UUID, java.lang.Integer, java.lang.Long>>"
             + " box()";
+
+    private static final String TAGGED_LEAF =
+        "default ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String, Y>,"
+            + " com.example.Box<java.util.UUID, java.lang.Integer, Y>> box()";
 
     private static final String ABSTRACT_LEAF =
         "ValidatedPrism<com.example.BoxDto<Q, java.lang.String, java.lang.Long>,"
@@ -2216,6 +2222,10 @@ class MappingFixLineTest {
                   @GenerateMapping
                   interface GenericHolderMapping<A, Q>
                       extends MappingSpec<GenericHolder<A>, GenericHolderDto<Q>> {}
+
+                  @GenerateMapping
+                  interface TaggedHolderMapping<Y>
+                      extends MappingSpec<TaggedHolder<Y>, TaggedHolderDto<Y>> {}
                   """);
       assertThat(compilation).failed();
       assertThat(compilation)
@@ -2235,6 +2245,15 @@ class MappingFixLineTest {
                   + " in the order 'first', 'second'.");
       // over the using spec's own variables the leaf is abstract, which no body returns from
       assertThat(compilation).hadErrorContaining("Declare '" + ABSTRACT_LEAF + "' on this spec.");
+      // a variable the elements leave alone passes through the composition, so the leaf has a body
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare '"
+                  + TAGGED_LEAF
+                  + "' on this spec, returning 'com.example.CodecBoxImpl.<java.util.UUID,"
+                  + " java.lang.String, java.lang.Integer, java.lang.String,"
+                  + " Y>of(...).asValidatedPrism()' with one ValidatedPrism per leaf, in the order"
+                  + " 'first', 'second'.");
       // a leaf already named after the component is replaced, since the spec cannot hold both
       assertThat(compilation)
           .hadErrorContaining("Replace 'box()' with '" + WHOLE_LEAF + "' on this spec");
@@ -2248,7 +2267,35 @@ class MappingFixLineTest {
           .hadErrorContaining(
               "Declare 'default ValidatedPrism<java.lang.String, java.util.UUID> id()' on this"
                   + " spec.");
-      Assertions.assertThat(compilation.errors()).hasSize(5);
+      Assertions.assertThat(compilation.errors()).hasSize(6);
+    }
+
+    @Test
+    @DisplayName(
+        "an element pair whose wildcard bound names a variable is offered an abstract leaf")
+    void wildcardElementPairIsOpen() {
+      Compilation compilation =
+          compile(
+              """
+              record Box<T, U, X>(List<? extends T> first, U second, X tag) {}
+              record BoxDto<TD, UD, X>(List<? extends TD> first, UD second, X tag) {}
+              @GenerateMapping
+              interface CodecBox<T, TD, U, UD, X> extends MappingSpec<Box<T, U, X>, BoxDto<TD, UD, X>> {
+                ValidatedPrism<List<? extends TD>, List<? extends T>> first();
+                ValidatedPrism<UD, U> second();
+              }
+              record Holder<Y>(Box<Y, Integer, Long> box) {}
+              record HolderDto<Y>(BoxDto<String, String, Long> box) {}
+              @GenerateMapping
+              interface HolderMapping<Y> extends MappingSpec<Holder<Y>, HolderDto<Y>> {}
+              """);
+      assertThat(compilation).failed();
+      // no body can convert List<? extends String> into List<? extends Y> for every Y
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String,"
+                  + " java.lang.Long>, com.example.Box<Y, java.lang.Integer, java.lang.Long>>"
+                  + " box();' on this spec.");
     }
 
     @Test
@@ -2287,6 +2334,16 @@ class MappingFixLineTest {
                     %s
                   }
 
+                  @GenerateMapping
+                  interface TaggedHolderMapping<Y>
+                      extends MappingSpec<TaggedHolder<Y>, TaggedHolderDto<Y>> {
+                    %s {
+                      return CodecBoxImpl.<UUID, String, Integer, String, Y>of(
+                              StandardCodecs.uuid(), StandardCodecs.intFromString())
+                          .asValidatedPrism();
+                    }
+                  }
+
                   final class Probe {
                     static Object holder() {
                       return HolderMappingImpl.INSTANCE.parse(
@@ -2300,12 +2357,18 @@ class MappingFixLineTest {
                                   .asValidatedPrism())
                           .parse(new GenericHolderDto<>(new BoxDto<>("nope", "4", 7L)));
                     }
+
+                    static Object taggedHolder() {
+                      return TaggedHolderMappingImpl.<Long>instance()
+                          .parse(new TaggedHolderDto<>(new BoxDto<>("nope", "4", 7L)));
+                    }
                   }
                   """
-                      .formatted(WHOLE_LEAF, ABSTRACT_LEAF));
+                      .formatted(WHOLE_LEAF, ABSTRACT_LEAF, TAGGED_LEAF));
       assertThatValidated(probe(result, "holder")).hasFieldErrors("box.first: " + UUID_ERROR);
       assertThatValidated(probe(result, "genericHolder"))
           .hasFieldErrors("box.first: " + UUID_ERROR);
+      assertThatValidated(probe(result, "taggedHolder")).hasFieldErrors("box.first: " + UUID_ERROR);
     }
   }
 

@@ -701,9 +701,10 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Where a registered spec came from. A spec in this compilation shadows a classpath spec for the
-   * same pair, so adding a dependency never changes a resolution that already worked; two classpath
-   * specs for one pair stay ambiguous. A classpath spec whose Impl is missing, or one extending a
-   * type missing from the classpath, is never a candidate, only a hint.
+   * same pair, so adding a dependency never changes a resolution that already worked here; among
+   * classpath specs for one pair the most specific is chosen, with a note naming any it displaced,
+   * and two neither of which is more specific stay ambiguous. A classpath spec whose Impl is
+   * missing, or one extending a type missing from the classpath, is never a candidate, only a hint.
    */
   enum Origin {
     THIS_COMPILATION,
@@ -900,6 +901,11 @@ public class MappingProcessor extends AbstractProcessor {
 
     RegisteredSpec {
       readOnly = List.copyOf(readOnly);
+    }
+
+    /** Whether the spec declares type parameters: threaded, or element-mapped. */
+    boolean generic() {
+      return !spec.getTypeParameters().isEmpty();
     }
 
     boolean local() {
@@ -1109,22 +1115,81 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The candidates a use site resolves among: the matching specs in this compilation when there are
-   * any, else the matching classpath specs. {@code shadowed} holds the classpath specs a local one
-   * displaced, for the note that names them; it is non-empty only when {@code chosen} is.
+   * any, else the matching classpath specs, and of those the most specific ({@link #mostSpecific}).
+   * {@code shadowed} holds the classpath specs a local one displaced, and {@code passedOver} the
+   * classpath specs a more specific classpath spec displaced, for the notes that name them; each is
+   * non-empty only when {@code chosen} is.
    */
-  record Candidates(List<RegisteredSpec> chosen, List<RegisteredSpec> shadowed) {
+  record Candidates(
+      List<RegisteredSpec> chosen, List<RegisteredSpec> shadowed, List<RegisteredSpec> passedOver) {
 
     Candidates {
       chosen = List.copyOf(chosen);
       shadowed = List.copyOf(shadowed);
+      passedOver = List.copyOf(passedOver);
     }
 
-    static Candidates nearest(List<RegisteredSpec> matching) {
+    static Candidates nearest(Types types, List<RegisteredSpec> matching) {
       List<RegisteredSpec> local = matching.stream().filter(RegisteredSpec::local).toList();
       if (local.isEmpty()) {
-        return new Candidates(matching, List.of());
+        List<RegisteredSpec> chosen = mostSpecific(types, matching);
+        return new Candidates(
+            chosen, List.of(), matching.stream().filter(r -> !chosen.contains(r)).toList());
       }
-      return new Candidates(local, matching.stream().filter(r -> !r.local()).toList());
+      return new Candidates(
+          mostSpecific(types, local),
+          matching.stream().filter(r -> !r.local()).toList(),
+          List.of());
+    }
+
+    /**
+     * The specs among {@code matching} that no other is more specific than. One spec is more
+     * specific than another when its declared pair is an instance of the other's and not the other
+     * way round: a spec for exactly the pair is more specific than any generic spec covering it,
+     * and {@code PageMapping<T>}, over {@code Page<T>} and {@code PageDto<T>}, more specific than
+     * {@code CodecPageMapping<T, TDto>}. Two for exactly the pair, or two generic specs whose pairs
+     * differ only in their bounds, are each as specific as the other, so both stay.
+     */
+    private static List<RegisteredSpec> mostSpecific(Types types, List<RegisteredSpec> matching) {
+      return matching.stream()
+          .filter(
+              spec ->
+                  matching.stream()
+                      .noneMatch(
+                          other ->
+                              instanceOf(types, other, spec) && !instanceOf(types, spec, other)))
+          .toList();
+    }
+
+    /**
+     * Whether {@code spec}'s declared pair is an instance of {@code of}'s, binding its variables.
+     */
+    private static boolean instanceOf(Types types, RegisteredSpec spec, RegisteredSpec of) {
+      Map<Element, TypeMirror> bindings = new HashMap<>();
+      return unify(types, of.domain(), spec.domain(), bindings)
+          && unify(types, of.wire(), spec.wire(), bindings);
+    }
+
+    /**
+     * The second half of an ambiguity's fix line, after its leaf: declaring a spec of this
+     * compilation where every candidate is a dependency's, one for exactly the pair where every one
+     * is generic and the pair names no type variable a spec could not, and otherwise removing the
+     * duplicate.
+     */
+    String settle(TypeMirror domainType, TypeMirror wireType) {
+      if (allClasspath()) {
+        return "declare a @GenerateMapping spec for the pair in this compilation, which takes"
+            + " precedence over a dependency's.";
+      }
+      return allGeneric() && !opensAbstractLeaf(wireType, domainType)
+          ? "declare a @GenerateMapping spec for exactly the pair, which takes precedence over a"
+              + " generic one."
+          : "remove the duplicate spec.";
+    }
+
+    /** Whether every candidate is generic, so a leaf delegating to one writes a type witness. */
+    boolean allGeneric() {
+      return chosen.stream().allMatch(RegisteredSpec::generic);
     }
 
     /** The chosen specs as an ambiguity diagnostic lists them. */
@@ -1192,6 +1257,39 @@ public class MappingProcessor extends AbstractProcessor {
             + ".",
         "A spec in the compilation takes precedence over a classpath spec mapping the same pair, so"
             + " a dependency never changes a resolution that already worked.",
+        fix);
+  }
+
+  /**
+   * Notes, once per use site, that a classpath spec was preferred to the less specific classpath
+   * specs that also cover the pair ({@link Candidates#mostSpecific}). Shared with {@link
+   * MergeProcessor}. A dependency added to the classpath can make the choice, so the note says
+   * which spec it displaced. Sealed dispatch asks for none: its candidates match the pair exactly,
+   * so none is more specific than another.
+   */
+  static void notePassedOver(
+      ProcessingEnvironment env,
+      Element at,
+      String tag,
+      String site,
+      String fix,
+      Candidates candidates) {
+    if (candidates.passedOver().isEmpty()) {
+      return;
+    }
+    Diagnostics.note(
+        env.getMessager(),
+        at,
+        tag,
+        site
+            + " resolves through '"
+            + candidates.chosen().getFirst().describe()
+            + "', the most specific of the specs that cover the pair, not through "
+            + candidates.passedOver().stream().map(RegisteredSpec::describe).toList()
+            + ".",
+        "Of the specs that cover a pair, the processor uses the one whose declared pair is an"
+            + " instance of the others': a spec for exactly the pair is an instance of a generic"
+            + " spec's.",
         fix);
   }
 
@@ -2800,10 +2898,16 @@ public class MappingProcessor extends AbstractProcessor {
 
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
   private boolean isAbstractLeaf(TypeElement owner, ExecutableElement method) {
+    return isAbstractLeaf(processingEnv.getTypeUtils(), owner, method);
+  }
+
+  /** {@link #isAbstractLeaf(TypeElement, ExecutableElement)}, for a static caller. */
+  private static boolean isAbstractLeaf(Types types, TypeElement owner, ExecutableElement method) {
     return method.getModifiers().contains(Modifier.ABSTRACT)
         && method.getAnnotation(Flatten.class) == null
         && method.getParameters().isEmpty()
-        && memberTypeIn(owner, method) instanceof DeclaredType returnType
+        && ProcessorUtils.returnTypeIn(types, (DeclaredType) owner.asType(), method)
+            instanceof DeclaredType returnType
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
         && returnType.getTypeArguments().size() == 2;
   }
@@ -2819,7 +2923,15 @@ public class MappingProcessor extends AbstractProcessor {
    * generated Impl, surfaced through the {@code of(...)} factory.
    */
   private List<ExecutableElement> abstractLeaves(TypeElement spec) {
-    return leafGroups(spec).stream().map(group -> narrowestMember(spec, group)).toList();
+    return abstractLeaves(processingEnv, spec);
+  }
+
+  /** {@link #abstractLeaves(TypeElement)} for a static caller, read through {@code env}. */
+  private static List<ExecutableElement> abstractLeaves(
+      ProcessingEnvironment env, TypeElement spec) {
+    return leafGroups(env, spec).stream()
+        .map(group -> narrowestMember(env.getTypeUtils(), spec, group))
+        .toList();
   }
 
   /**
@@ -2828,9 +2940,15 @@ public class MappingProcessor extends AbstractProcessor {
    * first member is the one that places the leaf.
    */
   private List<List<ExecutableElement>> leafGroups(TypeElement spec) {
+    return leafGroups(processingEnv, spec);
+  }
+
+  /** {@link #leafGroups(TypeElement)}, for a static caller. */
+  private static List<List<ExecutableElement>> leafGroups(
+      ProcessingEnvironment env, TypeElement spec) {
     Map<String, List<ExecutableElement>> leaves = new LinkedHashMap<>();
-    for (ExecutableElement method : specMembers(spec)) {
-      if (isAbstractLeaf(spec, method)) {
+    for (ExecutableElement method : specMembers(env.getElementUtils(), spec)) {
+      if (isAbstractLeaf(env.getTypeUtils(), spec, method)) {
         leaves
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
             .add(method);
@@ -4420,11 +4538,19 @@ public class MappingProcessor extends AbstractProcessor {
    * has verified exists before anything emits.
    */
   private ExecutableElement narrowestMember(TypeElement spec, List<ExecutableElement> group) {
-    Types types = processingEnv.getTypeUtils();
+    return narrowestMember(processingEnv.getTypeUtils(), spec, group);
+  }
+
+  /** {@link #narrowestMember(TypeElement, List)}, for a static caller. */
+  private static ExecutableElement narrowestMember(
+      Types types, TypeElement spec, List<ExecutableElement> group) {
+    DeclaredType owner = (DeclaredType) spec.asType();
     ExecutableElement narrowest = null;
     for (ExecutableElement method : group) {
       if (narrowest == null
-          || types.isSubtype(memberTypeIn(spec, method), memberTypeIn(spec, narrowest))) {
+          || types.isSubtype(
+              ProcessorUtils.returnTypeIn(types, owner, method),
+              ProcessorUtils.returnTypeIn(types, owner, narrowest))) {
         narrowest = method;
       }
     }
@@ -4707,7 +4833,7 @@ public class MappingProcessor extends AbstractProcessor {
    * A spec's own type variable threads through; anything else must be concrete. The two compose
    * recursively, so {@code Page<List<T>>} is a supported threaded use.
    */
-  private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
+  private static boolean supportedArgument(TypeElement spec, TypeMirror argument) {
     // An unresolved argument steps aside rather than reading as unsupported. Only a class file can
     // still carry one here, naming a type missing from the classpath: a spec naming one from source
     // waits for a later round. ErrorType extends DeclaredType, so this check runs before the
@@ -4730,19 +4856,27 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A component's type as seen under the spec's instantiation of its record. The substitution runs
-   * only for generic records, so concrete pairs stay on the exact pre-instantiation path (and never
-   * rely on {@code asMemberOf} accepting record components).
+   * A component's type as seen under the spec's instantiation of its record, on either side of the
+   * spec or a merge's. The substitution runs only for generic records, so concrete pairs stay on
+   * the exact pre-instantiation path (and never rely on {@code asMemberOf} accepting record
+   * components).
    *
    * <p>Reading the declaration's parameters rather than the site's arguments is what makes that
-   * true, and it is safe only because a raw domain never gets here: {@code @GenerateMapping}
-   * refuses one at the declaration. See {@link ProcessorUtils#memberOf} for why this reader and the
-   * two in {@code SpecInterfaceAnalyser} answer a raw site differently on purpose.
+   * true, and it is safe only because a raw record never gets here: {@code @GenerateMapping}
+   * refuses one at the declaration, and a merge's records are never generic. See {@link
+   * ProcessorUtils#memberOf} for why this reader and the two in {@code SpecInterfaceAnalyser}
+   * answer a raw site differently on purpose.
    */
   private TypeMirror componentType(DeclaredType owner, RecordComponentElement component) {
+    return componentType(processingEnv.getTypeUtils(), owner, component);
+  }
+
+  /** {@link #componentType(DeclaredType, RecordComponentElement)}, for a static caller. */
+  private static TypeMirror componentType(
+      Types types, DeclaredType owner, RecordComponentElement component) {
     return ((TypeElement) owner.asElement()).getTypeParameters().isEmpty()
         ? component.asType()
-        : processingEnv.getTypeUtils().asMemberOf(owner, component);
+        : types.asMemberOf(owner, component);
   }
 
   /**
@@ -5456,7 +5590,15 @@ public class MappingProcessor extends AbstractProcessor {
       // A nested record patched wholesale through its own full mapping spec's asValidatedPrism().
       PrismResolution nested =
           resolveNestedSpec(
-              spec, registry, domainName, wireType, domainType, Need.PARSE, site, List.of());
+              spec,
+              registry,
+              domainName,
+              property.name(),
+              wireType,
+              domainType,
+              Need.PARSE,
+              site,
+              List.of());
       if (nested.reported()) {
         return null;
       }
@@ -6987,6 +7129,8 @@ public class MappingProcessor extends AbstractProcessor {
               spec,
               registry,
               group.name(),
+              // a oneof's wire is a message, which has no record component to name a witness from
+              group.name(),
               memberType,
               variantType,
               need,
@@ -7623,17 +7767,30 @@ public class MappingProcessor extends AbstractProcessor {
       return leaf(name, wireType, domainType) + placement();
     }
 
+    /**
+     * The declaration of a leaf that delegates to a spec's Impl, which always has a body: over the
+     * using spec's own variables too, since the call it returns names them in its witness.
+     */
+    String delegatingDeclaration(String name, TypeMirror wireType, TypeMirror domainType) {
+      return leaf(name, wireType, domainType, false) + placement();
+    }
+
     /** The leaf alone, quoted, for a line that says itself where it goes. */
     String leaf(String name, TypeMirror wireType, TypeMirror domainType) {
-      return leafSpelling(annotation, wireType, domainType, name);
+      return leaf(name, wireType, domainType, opensAbstractLeaf(wireType, domainType));
+    }
+
+    /** The leaf alone, abstract where {@code open} says no body could convert the pair. */
+    String leaf(String name, TypeMirror wireType, TypeMirror domainType, boolean open) {
+      return leafSpelling(annotation, wireType, domainType, name, open);
     }
   }
 
   /**
    * The specs a use site resolves a pair among: those serving the site's direction whose declared
-   * pair covers it, this compilation's first. Shared by {@link #resolveNestedSpec} and {@link
-   * #bridgeOffer}, so the bridge is offered as a bare marker exactly when resolution would find a
-   * single spec.
+   * pair covers it, this compilation's first, and of those the most specific ({@link
+   * Candidates#nearest}). Shared by {@link #resolveNestedSpec} and {@link #bridgeOffer}, so the
+   * bridge is offered as a bare marker exactly when resolution would find a single spec.
    */
   private Candidates servingCandidates(
       TypeElement spec,
@@ -7642,6 +7799,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       Need need) {
     return Candidates.nearest(
+        processingEnv.getTypeUtils(),
         registry.stream()
             .filter(r -> r.serves(need))
             .filter(r -> covers(spec, r, domainType, wireType))
@@ -7658,15 +7816,19 @@ public class MappingProcessor extends AbstractProcessor {
    * nested spec is consulted no leaf exists for the pair. More than one candidate spec is reported
    * as an error.
    *
-   * <p>{@code site} is how a fix line declares the leaf that would stand in for the spec, or null
-   * where no leaf can, as for a oneof's variant, and {@code active} carries the (domain, wire)
-   * pairs already being composed on the current element-mapped recursion, so a spec whose leaf pair
-   * covers itself is caught instead of overflowing the stack.
+   * <p>{@code name} and {@code wireName} are the component's names on the domain and on the wire:
+   * the leaf a fix line offers is named after the first, and a nested call's type witness reads the
+   * components both name ({@link #pairSites}). {@code site} is how a fix line declares the leaf
+   * that would stand in for the spec, or null where no leaf can, as for a oneof's variant, and
+   * {@code active} carries the (domain, wire) pairs already being composed on the current
+   * element-mapped recursion, so a spec whose leaf pair covers itself is caught instead of
+   * overflowing the stack.
    */
   private PrismResolution resolveNestedSpec(
       TypeElement spec,
       List<RegisteredSpec> registry,
       String name,
+      String wireName,
       TypeMirror wireType,
       TypeMirror domainType,
       Need need,
@@ -7674,14 +7836,16 @@ public class MappingProcessor extends AbstractProcessor {
       List<DeclaredType> active) {
     Candidates candidates = servingCandidates(spec, registry, wireType, domainType, need);
     List<RegisteredSpec> nested = candidates.chosen();
+    // every leaf a message offers here delegates to a candidate, so it has a body
     Optional<String> leaf =
-        Optional.ofNullable(site).map(offer -> offer.declaration(name, wireType, domainType));
+        Optional.ofNullable(site)
+            .map(offer -> offer.delegatingDeclaration(name, wireType, domainType));
     if (nested.size() > 1) {
-      String settle =
-          candidates.allClasspath()
-              ? "declare a @GenerateMapping spec for the pair in this compilation, which takes"
-                  + " precedence over a dependency's."
-              : "remove the duplicate spec.";
+      String settle = candidates.settle(domainType, wireType);
+      String calls =
+          delegatingCalls(processingEnv, spec, registry, candidates, need, domainType, wireType)
+              .map(each -> ", returning " + each)
+              .orElse("");
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -7694,7 +7858,11 @@ public class MappingProcessor extends AbstractProcessor {
               + "); with several, the choice would be arbitrary.",
           leaf.map(
                   declaration ->
-                      "Add the leaf " + declaration + " delegating to the spec you want, or ")
+                      "Add the leaf "
+                          + declaration
+                          + " delegating to the spec you want"
+                          + calls
+                          + ", or ")
               .map(offer -> offer + settle)
               .orElseGet(() -> ProcessorUtils.capitalise(settle)));
       return PrismResolution.REPORTED;
@@ -7714,6 +7882,27 @@ public class MappingProcessor extends AbstractProcessor {
                   "Keep it, or remove the spec in this compilation if the classpath spec is the one"
                       + " meant."),
           candidates);
+      notePassedOver(
+          processingEnv,
+          spec,
+          TAG,
+          "field '" + name + "'",
+          leaf.map(
+                  declaration ->
+                      "Keep it, or delegate explicitly with the leaf "
+                          + declaration
+                          + ", returning "
+                          + delegations(
+                              processingEnv,
+                              spec,
+                              registry,
+                              candidates.passedOver(),
+                              need,
+                              domainType,
+                              wireType)
+                          + ", if a less specific spec is the one meant.")
+              .orElse("Keep it, or declare the spec you mean in this compilation."),
+          candidates);
       RegisteredSpec match = nested.getFirst();
       // Where the mapping builds and parses, the spec it nests decides whether it has two halves.
       RegisteredSpec decides = need == Need.BOTH ? match : null;
@@ -7724,85 +7913,366 @@ public class MappingProcessor extends AbstractProcessor {
         }
         return PrismResolution.of(match.nestingPrism(need)).nesting(decides);
       }
-      // The spec passed covers, so its variables are bound to arguments their bounds admit.
-      Map<Element, TypeMirror> bindings =
-          threadedBindings(spec, match, domainType, wireType).orElseThrow();
       List<ExecutableElement> leaves = abstractLeaves(match.spec());
       if (leaves.isEmpty()) {
         return PrismResolution.of(
-                CodeBlock.of(
-                    "$T.<$L>instance().asValidatedPrism()",
-                    match.impl(),
-                    typeWitness(spec, name, match, bindings, domainType)))
+                threadedNestingPrism(
+                    processingEnv.getTypeUtils(),
+                    spec,
+                    match,
+                    domainType,
+                    wireType,
+                    pairSites(spec, name, wireName, domainType, wireType)))
             .nesting(decides);
       }
+      // The spec passed covers, so its variables are bound to arguments their bounds admit.
+      Map<Element, TypeMirror> bindings =
+          threadedBindings(spec, match, domainType, wireType).orElseThrow();
       PrismResolution composed =
           elementMappedComposition(
-              spec, registry, name, match, bindings, leaves, domainType, wireType, site, active);
+              spec,
+              registry,
+              name,
+              wireName,
+              match,
+              bindings,
+              leaves,
+              domainType,
+              wireType,
+              site,
+              active);
       return composed.accessor() == null ? composed : composed.nesting(decides);
     }
     return PrismResolution.NONE;
   }
 
   /**
+   * Whether a registered spec is element-mapped: generic, with abstract leaves its {@code of(...)}
+   * takes. A merge, which composes none, asks this to leave such a spec out; a fix line asks it to
+   * spell the spec's composition rather than a call.
+   */
+  static boolean elementMapped(ProcessingEnvironment env, RegisteredSpec spec) {
+    return spec.generic() && !abstractLeaves(env, spec.spec()).isEmpty();
+  }
+
+  /**
+   * How a leaf delegating to {@code spec} at a use site calls its Impl, as a fix line spells it:
+   * the surface a concrete spec exposes to {@code need}, and on a threaded spec the type witness a
+   * chained call needs. Asked of a spec that covers the pair, and never of an element-mapped one,
+   * which {@link #compositionCall} spells.
+   */
+  private static String delegatingCall(
+      Types types,
+      TypeElement user,
+      RegisteredSpec spec,
+      Need need,
+      TypeMirror domainType,
+      TypeMirror wireType) {
+    if (!spec.generic()) {
+      return spec.nestingPrism(need).toString();
+    }
+    Map<Element, TypeMirror> bindings =
+        threadedBindings(types, user, spec, domainType, wireType).orElseThrow();
+    return spec.impl().canonicalName()
+        + ".<"
+        + spec.spec().getTypeParameters().stream()
+            .map(variable -> ProcessorUtils.qualifiedTypeName(bindings.get(variable)))
+            .collect(Collectors.joining(", "))
+        + ">instance().asValidatedPrism()";
+  }
+
+  /**
+   * What a leaf delegating to one of {@code specs} returns, quoted and joined by "or": a concrete
+   * or threaded spec's call ({@link #delegatingCall}), or an element-mapped spec's composition
+   * ({@link #compositionCall}). Shared with {@link MergeProcessor}.
+   */
+  static String delegations(
+      ProcessingEnvironment env,
+      TypeElement user,
+      List<RegisteredSpec> registry,
+      List<RegisteredSpec> specs,
+      Need need,
+      TypeMirror domainType,
+      TypeMirror wireType) {
+    return specs.stream()
+        .map(
+            spec ->
+                elementMapped(env, spec)
+                    ? compositionCall(env, user, registry, spec, domainType, wireType)
+                    : "'"
+                        + delegatingCall(env.getTypeUtils(), user, spec, need, domainType, wireType)
+                        + "'")
+        .collect(Collectors.joining(" or "));
+  }
+
+  /**
+   * What an ambiguity's leaf could return ({@link #delegations}), where every candidate is generic
+   * and so a delegating leaf must write a type witness; empty where they are concrete, as two
+   * duplicates are, whose {@code INSTANCE} needs none.
+   */
+  static Optional<String> delegatingCalls(
+      ProcessingEnvironment env,
+      TypeElement user,
+      List<RegisteredSpec> registry,
+      Candidates candidates,
+      Need need,
+      TypeMirror domainType,
+      TypeMirror wireType) {
+    return candidates.allGeneric()
+        ? Optional.of(
+            delegations(env, user, registry, candidates.chosen(), need, domainType, wireType))
+        : Optional.empty();
+  }
+
+  /**
+   * How a fix line says a leaf over the whole pair builds an element-mapped spec's Impl ({@link
+   * #compositionCall}), after "returning". Shared with {@link MergeProcessor}.
+   */
+  static String compositionClause(
+      ProcessingEnvironment env,
+      TypeElement user,
+      List<RegisteredSpec> registry,
+      RegisteredSpec match,
+      TypeMirror domainType,
+      TypeMirror wireType) {
+    return "returning " + compositionCall(env, user, registry, match, domainType, wireType);
+  }
+
+  /**
+   * An element-mapped spec's {@code of(...)}, quoted, with the type witness written: the prisms
+   * spelt where the registry maps every element pair through a single spec, and otherwise one prism
+   * per leaf in the order the leaves take. Asked of a spec that covers the pair.
+   */
+  private static String compositionCall(
+      ProcessingEnvironment env,
+      TypeElement user,
+      List<RegisteredSpec> registry,
+      RegisteredSpec match,
+      TypeMirror domainType,
+      TypeMirror wireType) {
+    Types types = env.getTypeUtils();
+    Map<Element, TypeMirror> bindings =
+        threadedBindings(types, user, match, domainType, wireType).orElseThrow();
+    DeclaredType instantiated =
+        types.getDeclaredType(
+            match.spec(),
+            match.spec().getTypeParameters().stream()
+                .map(bindings::get)
+                .toArray(TypeMirror[]::new));
+    List<ExecutableElement> leaves = abstractLeaves(env, match.spec());
+    List<Optional<String>> prisms =
+        leaves.stream()
+            .map(
+                leaf -> {
+                  DeclaredType pair =
+                      (DeclaredType) ProcessorUtils.returnTypeIn(types, instantiated, leaf);
+                  TypeMirror elementWire = pair.getTypeArguments().get(0);
+                  TypeMirror elementDomain = pair.getTypeArguments().get(1);
+                  List<RegisteredSpec> mapping =
+                      Candidates.nearest(
+                              types,
+                              registry.stream()
+                                  .filter(r -> r.serves(Need.ELEMENT) && !elementMapped(env, r))
+                                  .filter(r -> covers(types, user, r, elementDomain, elementWire))
+                                  .toList())
+                          .chosen();
+                  return mapping.size() == 1
+                      ? Optional.of(
+                          delegatingCall(
+                              types,
+                              user,
+                              mapping.getFirst(),
+                              Need.ELEMENT,
+                              elementDomain,
+                              elementWire))
+                      : Optional.<String>empty();
+                })
+            .toList();
+    String call =
+        match.impl().canonicalName()
+            + ".<"
+            + instantiated.getTypeArguments().stream()
+                .map(ProcessorUtils::qualifiedTypeName)
+                .collect(Collectors.joining(", "))
+            + ">of(";
+    return prisms.stream().allMatch(Optional::isPresent)
+        ? "'"
+            + call
+            + prisms.stream().map(Optional::orElseThrow).collect(Collectors.joining(", "))
+            + ").asValidatedPrism()'"
+        : "'"
+            + call
+            + "...).asValidatedPrism()' with one ValidatedPrism per leaf, in the order "
+            + leaves.stream()
+                .map(leaf -> "'" + leaf.getSimpleName() + "'")
+                .collect(Collectors.joining(", "));
+  }
+
+  /**
+   * The call a site makes on a threaded spec's Impl to nest it, {@code XImpl.<A, ...>instance()},
+   * then {@code asValidatedPrism()}: the one shape a mapping and a merge both write. Asked only of
+   * a spec that {@link #covers} the pair, so its variables are bound.
+   */
+  static CodeBlock threadedNestingPrism(
+      Types types,
+      TypeElement user,
+      RegisteredSpec match,
+      TypeMirror domainType,
+      TypeMirror wireType,
+      PairSites sites) {
+    return CodeBlock.of(
+        "$T.<$L>instance().asValidatedPrism()",
+        match.impl(),
+        typeWitness(
+            types,
+            implPackage(user),
+            match,
+            threadedBindings(types, user, match, domainType, wireType).orElseThrow(),
+            sites));
+  }
+
+  /**
    * The type witness a nested call on a generic spec's Impl writes, its variables in declaration
-   * order: each named as the using record names it ({@link #witnessNames}), or else as its binding.
+   * order: each named as the using records name it ({@link #witnessNames}), or else as its binding.
    * Written for {@code of(...)} as for {@code instance()}, since a variable no leaf's types name is
    * one javac cannot infer from the prisms, and the chained call gives it no target type.
    */
-  private CodeBlock typeWitness(
-      TypeElement spec,
-      String name,
+  private static CodeBlock typeWitness(
+      Types types,
+      String implPackage,
       RegisteredSpec match,
       Map<Element, TypeMirror> bindings,
-      TypeMirror domainType) {
-    Map<Element, TypeName> witnesses = witnessNames(spec, name, match, domainType);
+      PairSites sites) {
+    Map<Element, TypeName> witnesses = witnessNames(types, implPackage, match, sites);
     return match.spec().getTypeParameters().stream()
         .map(
             variable ->
                 CodeBlock.of(
                     "$T",
                     witnesses.getOrDefault(
-                        variable,
-                        ProcessorUtils.typeNameOf(bindings.get(variable), implPackage(spec)))))
+                        variable, ProcessorUtils.typeNameOf(bindings.get(variable), implPackage))))
         .collect(CodeBlock.joining(", "));
   }
 
   /**
+   * The record components holding a nested pair's two sides, each read under the record as the
+   * using spec instantiates it, with the side's type at the use site: the whole component, or an
+   * element a container lifts. A side lies in no component on a bean wire or in a sealed variant,
+   * and a merge's sides are its target's and its source's components.
+   */
+  record PairSites(Optional<ComponentSite> domain, Optional<ComponentSite> wire) {
+
+    /**
+     * The component of {@code domainOwner} named {@code domainName} holding {@code domainUse}, and
+     * the component of {@code wireOwner} named {@code wireName} holding {@code wireUse}; either is
+     * absent where its owner is no record or has no such component.
+     */
+    static PairSites of(
+        DeclaredType domainOwner,
+        String domainName,
+        TypeMirror domainUse,
+        DeclaredType wireOwner,
+        String wireName,
+        TypeMirror wireUse) {
+      return new PairSites(
+          ComponentSite.of(domainOwner, domainName, domainUse),
+          ComponentSite.of(wireOwner, wireName, wireUse));
+    }
+  }
+
+  /**
+   * One side of {@link PairSites}: a record component, read under its owner, and the use within it.
+   */
+  record ComponentSite(DeclaredType owner, RecordComponentElement component, TypeMirror use) {
+
+    static Optional<ComponentSite> of(DeclaredType owner, String name, TypeMirror use) {
+      return Optional.ofNullable(asRecord(owner))
+          .flatMap(record -> Optional.ofNullable(componentNamed(record, name)))
+          .map(component -> new ComponentSite(owner, component, use));
+    }
+
+    /**
+     * The use site's type as the Impl names it, part for part as the component's declaration wrote
+     * it, or empty where the use site is no part of the component.
+     */
+    Optional<TypeName> named(Types types, String implPackage) {
+      TypeMirror read = componentType(types, owner, component);
+      return nameAt(
+          types,
+          read,
+          ProcessorUtils.typeNameOf(read, component.asType(), owner, implPackage),
+          use);
+    }
+  }
+
+  /**
+   * The sites of a use site's pair in the records the spec maps: its domain's component {@code
+   * name} and its wire's component {@code wireName} ({@link PairSites#of}).
+   */
+  private static PairSites pairSites(
+      TypeElement spec, String name, String wireName, TypeMirror domainType, TypeMirror wireType) {
+    DeclaredType clause = findMappingSpec(spec);
+    List<? extends TypeMirror> pair =
+        (clause != null ? clause : findUpdateSpec(spec)).getTypeArguments();
+    return PairSites.of(
+        (DeclaredType) pair.getFirst(),
+        name,
+        domainType,
+        (DeclaredType) pair.get(1),
+        wireName,
+        wireType);
+  }
+
+  /**
    * The names a generic spec's variables take in the type witness of a nested call, where the using
-   * record's component can supply them.
+   * records' components can supply them.
    *
    * <p>Unification binds each variable from the use site's type, which was read under the using
    * spec's instantiation, and reading a record component that way drops what its declaration wrote
    * on a type variable's use: {@code Box<@Nullable T> box} under {@code Outer<String>} reads as
-   * {@code Box<String>}, and the witness would claim a non-null element. So the component is named
-   * as the Impl would name it, from its declaration; the use site is found inside it, the whole
-   * component or the element a container lifts; and each variable takes the name at its place in
-   * the registered spec's domain. A variable not reached that way keeps its binding's name: one
-   * whose use site is not a component of the domain, as for a flattened group's inner component, or
-   * not a part of one, as for an element pair built from a leaf's own types. So does a variable
-   * only the registered spec's wire names, as an element-mapped spec's wire element is, and its
-   * binding drops an annotation the wire record wrote on a type variable's use; javac reads the
-   * witness the same either way.
+   * {@code Box<String>}, and the witness would claim a non-null element. So each side's component
+   * is named as the Impl would name it, from its declaration; the use site is found inside it, the
+   * whole component or the element a container lifts; and each variable takes the name at its place
+   * in the registered spec's domain, or, for a variable only the spec's wire names, as an
+   * element-mapped spec's wire element is, at its place in the wire. A variable not reached that
+   * way keeps its binding's name: one whose use site is no component of the using spec's records,
+   * as for a flattened group's inner component, or not a part of one, as for an element pair built
+   * from a leaf's own types.
    */
-  private Map<Element, TypeName> witnessNames(
-      TypeElement spec, String name, RegisteredSpec match, TypeMirror useSite) {
-    DeclaredType clause = findMappingSpec(spec);
-    DeclaredType owner =
-        (DeclaredType)
-            (clause != null ? clause : findUpdateSpec(spec)).getTypeArguments().getFirst();
+  private static Map<Element, TypeName> witnessNames(
+      Types types, String implPackage, RegisteredSpec match, PairSites sites) {
     Map<Element, TypeName> witnesses = new HashMap<>();
-    Optional.ofNullable(componentNamed(asRecord(owner), name))
-        .flatMap(
-            component -> {
-              TypeMirror read = componentType(owner, component);
-              return nameAt(
-                  read,
-                  ProcessorUtils.typeNameOf(read, component.asType(), owner, implPackage(spec)),
-                  useSite);
-            })
+    sites
+        .domain()
+        .flatMap(site -> site.named(types, implPackage))
         .ifPresent(named -> collectWitnesses(match.domain(), named, witnesses));
+    Set<Element> domainVariables = variablesIn(match.domain());
+    Map<Element, TypeName> wireWitnesses = new HashMap<>();
+    sites
+        .wire()
+        .flatMap(site -> site.named(types, implPackage))
+        .ifPresent(named -> collectWitnesses(match.wire(), named, wireWitnesses));
+    wireWitnesses.forEach(
+        (variable, named) -> {
+          if (!domainVariables.contains(variable)) {
+            witnesses.putIfAbsent(variable, named);
+          }
+        });
     return witnesses;
+  }
+
+  /** The type variables {@code type} names, through arrays and type arguments. */
+  private static Set<Element> variablesIn(TypeMirror type) {
+    return switch (type.getKind()) {
+      case TYPEVAR -> Set.of(((TypeVariable) type).asElement());
+      case ARRAY -> variablesIn(((ArrayType) type).getComponentType());
+      case DECLARED ->
+          ((DeclaredType) type)
+              .getTypeArguments().stream()
+                  .flatMap(argument -> variablesIn(argument).stream())
+                  .collect(Collectors.toUnmodifiableSet());
+      default -> Set.of();
+    };
   }
 
   /**
@@ -7810,8 +8280,9 @@ public class MappingProcessor extends AbstractProcessor {
    * empty when it is no part of it. {@code named} is {@code read} as the Impl names it, part for
    * part. An array is not searched: a generic element cannot be lifted through one.
    */
-  private Optional<TypeName> nameAt(TypeMirror read, TypeName named, TypeMirror useSite) {
-    if (processingEnv.getTypeUtils().isSameType(read, useSite)) {
+  private static Optional<TypeName> nameAt(
+      Types types, TypeMirror read, TypeName named, TypeMirror useSite) {
+    if (types.isSameType(read, useSite)) {
       return Optional.of(named);
     }
     if (read.getKind() != TypeKind.DECLARED) {
@@ -7821,6 +8292,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (int index = 0; index < arguments.size(); index++) {
       Optional<TypeName> found =
           nameAt(
+              types,
               arguments.get(index),
               ((ParameterizedTypeName) named).typeArguments().get(index),
               useSite);
@@ -7832,24 +8304,25 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Records, for each variable of the registered spec's domain, the name at its place in {@code
-   * named}, which unification has already matched against the domain part for part.
+   * Records, for each variable of one side of the registered spec, its domain or its wire, the name
+   * at its place in {@code named}, which unification has already matched against that side part for
+   * part.
    *
-   * <p>A variable the domain names twice takes its first place: unification reads past the
+   * <p>A variable the side names twice takes its first place: unification reads past the
    * annotations, so {@code Pair<T, T>} matched against {@code Pair<@Nullable String, String>} is a
    * match either way round, and the first is the one written.
    */
   private static void collectWitnesses(
-      TypeMirror domain, TypeName named, Map<Element, TypeName> witnesses) {
-    switch (domain.getKind()) {
-      case TYPEVAR -> witnesses.putIfAbsent(((TypeVariable) domain).asElement(), named);
+      TypeMirror declared, TypeName named, Map<Element, TypeName> witnesses) {
+    switch (declared.getKind()) {
+      case TYPEVAR -> witnesses.putIfAbsent(((TypeVariable) declared).asElement(), named);
       case ARRAY ->
           collectWitnesses(
-              ((ArrayType) domain).getComponentType(),
+              ((ArrayType) declared).getComponentType(),
               ((ArrayTypeName) named).componentType(),
               witnesses);
       case DECLARED -> {
-        List<? extends TypeMirror> arguments = ((DeclaredType) domain).getTypeArguments();
+        List<? extends TypeMirror> arguments = ((DeclaredType) declared).getTypeArguments();
         for (int index = 0; index < arguments.size(); index++) {
           collectWitnesses(
               arguments.get(index),
@@ -7873,6 +8346,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement spec,
       List<RegisteredSpec> registry,
       String name,
+      String wireName,
       RegisteredSpec match,
       Map<Element, TypeMirror> bindings,
       List<ExecutableElement> leaves,
@@ -7929,7 +8403,15 @@ public class MappingProcessor extends AbstractProcessor {
       // directions whatever the site nesting the outer mapping does.
       PrismResolution nested =
           resolveNestedSpec(
-              spec, registry, name, elementWire, elementDomain, Need.ELEMENT, site, nestedActive);
+              spec,
+              registry,
+              name,
+              wireName,
+              elementWire,
+              elementDomain,
+              Need.ELEMENT,
+              site,
+              nestedActive);
       if (nested.reported()) {
         return nested;
       }
@@ -7965,6 +8447,18 @@ public class MappingProcessor extends AbstractProcessor {
           replaced.filter(existing -> !declaredLocally(existing, spec)).isPresent()
               ? ""
               : " on this spec";
+      // A leaf over the whole pair converts each element pair through the composition it builds,
+      // so it is abstract only where an element pair names a type variable, which no body could
+      // convert; a variable the elements leave alone passes through the composition's witness.
+      boolean opensElement =
+          !single
+              && leaves.stream()
+                  .map(
+                      each -> (DeclaredType) ProcessorUtils.returnTypeIn(types, instantiated, each))
+                  .anyMatch(
+                      pair ->
+                          opensAbstractLeaf(
+                              pair.getTypeArguments().get(0), pair.getTypeArguments().get(1)));
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -7996,22 +8490,14 @@ public class MappingProcessor extends AbstractProcessor {
           (single
                   ? declare + site.leaf(name, elementWire, elementDomain) + onThisSpec
                   : declare
-                      + site.leaf(name, wireType, domainType)
+                      + site.leaf(name, wireType, domainType, opensElement)
                       + onThisSpec
                       // an abstract leaf has no body to return from; the caller's of(...) takes it
-                      + (opensAbstractLeaf(wireType, domainType)
+                      + (opensElement
                           ? ""
-                          : ", returning '"
-                              + match.impl().canonicalName()
-                              + ".<"
-                              + instantiated.getTypeArguments().stream()
-                                  .map(ProcessorUtils::qualifiedTypeName)
-                                  .collect(Collectors.joining(", "))
-                              + ">of(...).asValidatedPrism()' with one ValidatedPrism per leaf,"
-                              + " in the order "
-                              + leaves.stream()
-                                  .map(l -> "'" + l.getSimpleName() + "'")
-                                  .collect(Collectors.joining(", "))))
+                          : ", "
+                              + compositionClause(
+                                  processingEnv, spec, registry, match, domainType, wireType)))
               + (records
                   ? ", or map "
                       + ProcessorUtils.qualifiedTypeName(elementWire)
@@ -8025,8 +8511,23 @@ public class MappingProcessor extends AbstractProcessor {
         CodeBlock.of(
             "$T.<$L>of($L).asValidatedPrism()",
             match.impl(),
-            typeWitness(spec, name, match, bindings, domainType),
+            typeWitness(
+                types,
+                implPackage(spec),
+                match,
+                bindings,
+                pairSites(spec, name, wireName, domainType, wireType)),
             CodeBlock.join(prisms, ", ")));
+  }
+
+  private boolean covers(
+      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
+    return covers(processingEnv.getTypeUtils(), user, candidate, domainType, wireType);
+  }
+
+  private Optional<Map<Element, TypeMirror>> threadedBindings(
+      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
+    return threadedBindings(processingEnv.getTypeUtils(), user, candidate, domainType, wireType);
   }
 
   /**
@@ -8035,17 +8536,21 @@ public class MappingProcessor extends AbstractProcessor {
    * sides to an argument the using spec supports (concrete, or its own variables) and that the
    * variable's bounds admit, since the Impl call hands each one over as the variable's type
    * argument, written or inferred. So {@code NumPageMapping<T extends Number>} covers no {@code
-   * Page<String>}, just as a type variable never stands for a primitive.
+   * Page<String>}, just as a type variable never stands for a primitive. Shared with {@link
+   * MergeProcessor}, whose spec, the merge interface, declares no variables of its own.
    */
-  private boolean covers(
-      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
-    Types types = processingEnv.getTypeUtils();
+  static boolean covers(
+      Types types,
+      TypeElement user,
+      RegisteredSpec candidate,
+      TypeMirror domainType,
+      TypeMirror wireType) {
     if (candidate.spec().getTypeParameters().isEmpty()) {
       return types.isSameType(candidate.domain(), domainType)
           && types.isSameType(candidate.wire(), wireType);
     }
-    return threadedBindings(user, candidate, domainType, wireType)
-        .filter(bindings -> outOfBounds(candidate, bindings).isEmpty())
+    return threadedBindings(types, user, candidate, domainType, wireType)
+        .filter(bindings -> outOfBounds(types, candidate, bindings).isEmpty())
         .isPresent();
   }
 
@@ -8054,12 +8559,16 @@ public class MappingProcessor extends AbstractProcessor {
    * variable bound by unification to an argument the using spec supports, or empty where the pair
    * does not unify so.
    */
-  private Optional<Map<Element, TypeMirror>> threadedBindings(
-      TypeElement user, RegisteredSpec candidate, TypeMirror domainType, TypeMirror wireType) {
+  private static Optional<Map<Element, TypeMirror>> threadedBindings(
+      Types types,
+      TypeElement user,
+      RegisteredSpec candidate,
+      TypeMirror domainType,
+      TypeMirror wireType) {
     Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
     boolean bound =
-        unify(candidate.domain(), domainType, bindings)
-            && unify(candidate.wire(), wireType, bindings)
+        unify(types, candidate.domain(), domainType, bindings)
+            && unify(types, candidate.wire(), wireType, bindings)
             && bindings.size() == candidate.spec().getTypeParameters().size()
             // unify binds only the candidate's own variables, so a full-size binding map is a
             // total one; each bound argument must be usable by the spec at the use site, which
@@ -8085,9 +8594,8 @@ public class MappingProcessor extends AbstractProcessor {
    * bindings} binds them to, as javac reads the type arguments the Impl call hands over ({@link
    * ProcessorUtils#boundsRefusing}).
    */
-  private List<OutOfBound> outOfBounds(
-      RegisteredSpec candidate, Map<Element, TypeMirror> bindings) {
-    Types types = processingEnv.getTypeUtils();
+  private static List<OutOfBound> outOfBounds(
+      Types types, RegisteredSpec candidate, Map<Element, TypeMirror> bindings) {
     return candidate.spec().getTypeParameters().stream()
         .map(
             variable ->
@@ -8115,7 +8623,8 @@ public class MappingProcessor extends AbstractProcessor {
    * the only one whose pair unifies, so that declaring it makes that spec, and only that one, cover
    * the pair.
    */
-  private String outOfBoundsHint(
+  private static String outOfBoundsHint(
+      Types types,
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeMirror wireType,
@@ -8127,21 +8636,21 @@ public class MappingProcessor extends AbstractProcessor {
             .filter(candidate -> !candidate.spec().getTypeParameters().isEmpty())
             .flatMap(
                 candidate ->
-                    threadedBindings(spec, candidate, domainType, wireType)
+                    threadedBindings(types, spec, candidate, domainType, wireType)
                         .map(bindings -> new Unified(candidate, bindings))
                         .stream())
             .toList();
     return passedBy.stream()
         .filter(unified -> unified.candidate().serves(need))
         .findFirst()
-        .map(unified -> outOfBoundsClause(spec, unified, passedBy.size() == 1))
+        .map(unified -> outOfBoundsClause(types, spec, unified, passedBy.size() == 1))
         .or(
             () ->
                 passedBy.stream()
                     .findFirst()
                     .map(
                         unified ->
-                            outOfBoundsClause(spec, unified, false)
+                            outOfBoundsClause(types, spec, unified, false)
                                 + unified
                                     .candidate()
                                     .unusable("maps pairs within its bounds", purpose, need)))
@@ -8157,9 +8666,10 @@ public class MappingProcessor extends AbstractProcessor {
    * and declaring one bound on that variable would admit it ({@link #boundToDeclare}), the sentence
    * says so.
    */
-  private String outOfBoundsClause(TypeElement spec, Unified unified, boolean offer) {
+  private static String outOfBoundsClause(
+      Types types, TypeElement spec, Unified unified, boolean offer) {
     Map<Element, TypeMirror> bindings = unified.bindings();
-    List<OutOfBound> refused = outOfBounds(unified.candidate(), bindings);
+    List<OutOfBound> refused = outOfBounds(types, unified.candidate(), bindings);
     String standsFor =
         unified.candidate().spec().getTypeParameters().stream()
             .map(
@@ -8193,7 +8703,7 @@ public class MappingProcessor extends AbstractProcessor {
             .distinct()
             .collect(Collectors.joining(" and "));
     String unless =
-        (offer ? boundToDeclare(refused) : Optional.<TypeMirror>empty())
+        (offer ? boundToDeclare(types, refused) : Optional.<TypeMirror>empty())
             .map(
                 bound ->
                     " unless '"
@@ -8227,8 +8737,7 @@ public class MappingProcessor extends AbstractProcessor {
    * refused variable stands for the same variable of the using spec, and the bounds refusing them
    * come down to the one {@link ProcessorUtils#boundToDeclare} would declare.
    */
-  private Optional<TypeMirror> boundToDeclare(List<OutOfBound> refused) {
-    Types types = processingEnv.getTypeUtils();
+  private static Optional<TypeMirror> boundToDeclare(Types types, List<OutOfBound> refused) {
     if (!(refused.getFirst().binding() instanceof TypeVariable variable)
         || !refused.stream()
             .allMatch(outOfBound -> types.isSameType(outOfBound.binding(), variable))) {
@@ -8242,12 +8751,14 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Structural first-order unification of a declared mirror against a use-site mirror, binding the
-   * declared side's type variables. ERROR kinds step aside (never a spurious match); bindings must
-   * stay consistent across repeated occurrences. A type variable stands for a reference type, so it
-   * never unifies with a primitive: {@code Page<T[]>} does not cover a {@code Page<int[]>}.
+   * declared side's type variables; {@link Candidates#mostSpecific} also unifies one spec's
+   * declared pair against another's, whose variables then stand as types of their own. ERROR kinds
+   * step aside (never a spurious match); bindings must stay consistent across repeated occurrences.
+   * A type variable stands for a reference type, so it never unifies with a primitive: {@code
+   * Page<T[]>} does not cover a {@code Page<int[]>}.
    */
-  private boolean unify(TypeMirror declared, TypeMirror actual, Map<Element, TypeMirror> bindings) {
-    Types types = processingEnv.getTypeUtils();
+  private static boolean unify(
+      Types types, TypeMirror declared, TypeMirror actual, Map<Element, TypeMirror> bindings) {
     // The declared side comes from a registered spec, whose mirrors resolved (an unresolved pair
     // never registers); only the use site can carry an ERROR, where a record read from a class file
     // names a type missing from the classpath, and it steps aside.
@@ -8274,14 +8785,15 @@ public class MappingProcessor extends AbstractProcessor {
         return false;
       }
       for (int i = 0; i < declaredArguments.size(); i++) {
-        if (!unify(declaredArguments.get(i), actualArguments.get(i), bindings)) {
+        if (!unify(types, declaredArguments.get(i), actualArguments.get(i), bindings)) {
           return false;
         }
       }
       return true;
     }
     if (declared instanceof ArrayType declaredArray && actual instanceof ArrayType actualArray) {
-      return unify(declaredArray.getComponentType(), actualArray.getComponentType(), bindings);
+      return unify(
+          types, declaredArray.getComponentType(), actualArray.getComponentType(), bindings);
     }
     return types.isSameType(declared, actual);
   }
@@ -9812,7 +10324,13 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static String leafSpelling(
       String annotations, TypeMirror wireType, TypeMirror domainType, String name) {
-    boolean open = opensAbstractLeaf(wireType, domainType);
+    return leafSpelling(
+        annotations, wireType, domainType, name, opensAbstractLeaf(wireType, domainType));
+  }
+
+  /** {@link #leafSpelling}, abstract where {@code open} says no body could convert the pair. */
+  private static String leafSpelling(
+      String annotations, TypeMirror wireType, TypeMirror domainType, String name, boolean open) {
     return "'"
         + annotations
         + (open ? "" : "default ")
@@ -9840,6 +10358,11 @@ public class MappingProcessor extends AbstractProcessor {
     }
     if (type instanceof ArrayType array) {
       return mentionsTypeVariable(array.getComponentType());
+    }
+    if (type instanceof WildcardType wildcard) {
+      return Stream.of(wildcard.getExtendsBound(), wildcard.getSuperBound())
+          .filter(Objects::nonNull)
+          .anyMatch(MappingProcessor::mentionsTypeVariable);
     }
     return type instanceof DeclaredType declared
         && declared.getTypeArguments().stream().anyMatch(MappingProcessor::mentionsTypeVariable);
@@ -9992,7 +10515,8 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror[] elements = elementPair(wireType, domainType);
     if (elements != null) {
       PrismResolution lifted =
-          resolveNestedSpec(spec, registry, name, elements[0], elements[1], need, site, List.of());
+          resolveNestedSpec(
+              spec, registry, name, wireName, elements[0], elements[1], need, site, List.of());
       if (lifted.reported()) {
         return PairResolution.REPORTED;
       }
@@ -10014,7 +10538,15 @@ public class MappingProcessor extends AbstractProcessor {
     if (arrayElements != null) {
       PrismResolution lifted =
           resolveNestedSpec(
-              spec, registry, name, arrayElements[0], arrayElements[1], need, site, List.of());
+              spec,
+              registry,
+              name,
+              wireName,
+              arrayElements[0],
+              arrayElements[1],
+              need,
+              site,
+              List.of());
       if (lifted.reported()) {
         return PairResolution.REPORTED;
       }
@@ -10029,7 +10561,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (wireElement != null && domainElement != null) {
       PrismResolution lifted =
           resolveNestedSpec(
-              spec, registry, name, wireElement, domainElement, need, site, List.of());
+              spec, registry, name, wireName, wireElement, domainElement, need, site, List.of());
       if (lifted.reported()) {
         return PairResolution.REPORTED;
       }
@@ -10098,6 +10630,7 @@ public class MappingProcessor extends AbstractProcessor {
               spec,
               registry,
               name,
+              wireName,
               wireMapType.getTypeArguments().get(1),
               domainMapType.getTypeArguments().get(1),
               need,
@@ -10118,7 +10651,8 @@ public class MappingProcessor extends AbstractProcessor {
       // caller's refusal, like List elements.
     }
     PrismResolution direct =
-        resolveNestedSpec(spec, registry, name, wireType, domainType, need, site, List.of());
+        resolveNestedSpec(
+            spec, registry, name, wireName, wireType, domainType, need, site, List.of());
     if (direct.reported()) {
       return PairResolution.REPORTED;
     }
@@ -11496,12 +12030,6 @@ public class MappingProcessor extends AbstractProcessor {
         spec, registry, wireType, domainType, need, "be nested in a mapping that " + need.site());
   }
 
-  /**
-   * Names a spec that maps the pair but does not serve the site, and what it lacks; {@code purpose}
-   * is what the site would have used it for. A generic spec maps it where it {@link #covers} it, as
-   * it would have been matched had it served. Where no spec maps the pair, it names instead a
-   * generic spec whose bounds refuse it ({@link #outOfBoundsHint}). Empty when there is neither.
-   */
   private String unusableSpecHint(
       TypeElement spec,
       List<RegisteredSpec> registry,
@@ -11509,10 +12037,29 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       Need need,
       String purpose) {
+    return unusableSpecHint(
+        processingEnv.getTypeUtils(), spec, registry, wireType, domainType, need, purpose);
+  }
+
+  /**
+   * Names a spec that maps the pair but does not serve the site, and what it lacks; {@code purpose}
+   * is what the site would have used it for. A generic spec maps it where it {@link #covers} it, as
+   * it would have been matched had it served. Where no spec maps the pair, it names instead a
+   * generic spec whose bounds refuse it ({@link #outOfBoundsHint}). Empty when there is neither.
+   * Shared with a merge's fills, whose spec is the merge interface.
+   */
+  static String unusableSpecHint(
+      Types types,
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Need need,
+      String purpose) {
     List<RegisteredSpec> covering =
-        registry.stream().filter(r -> covers(spec, r, domainType, wireType)).toList();
+        registry.stream().filter(r -> covers(types, spec, r, domainType, wireType)).toList();
     if (covering.isEmpty()) {
-      return outOfBoundsHint(spec, registry, wireType, domainType, need, purpose);
+      return outOfBoundsHint(types, spec, registry, wireType, domainType, need, purpose);
     }
     return covering.stream()
         .filter(r -> !r.serves(need))
@@ -12914,6 +13461,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (TypeMirror domainSubtype : domain.getPermittedSubclasses()) {
       Candidates nearest =
           Candidates.nearest(
+              processingEnv.getTypeUtils(),
               registry.stream()
                   .filter(r -> r.serves(Need.BOTH))
                   .filter(r -> processingEnv.getTypeUtils().isSameType(r.domain(), domainSubtype))

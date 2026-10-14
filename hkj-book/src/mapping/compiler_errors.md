@@ -150,6 +150,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | The message says | What it means |
 |---|---|
 | [`both carry it`](#merge-component-ambiguous) | Several merge sources carry one component |
+| [`which a merge does not compose`](#merge-element-mapped) | A merge would fill through an element-mapped spec |
 | [`uses fallible fills but declares a plain`](#merge-plain-return) | A fallible merge declares a plain return |
 | [`declares a Validated return but every fill is an identity copy`](#merge-validated-identity) | A merge of copies declares a Validated return |
 | [`is not filled by any source`](#merge-unfilled) | No merge source names a target component |
@@ -1205,9 +1206,9 @@ interface BannerMapping extends MappingSpec<Banner, BannerDto> {
 
 ### `field 'x' matches more than one mapping spec` {#more-than-one-spec}
 
-Two specs map the same pair, so a component of that pair has no single spec to nest through.
+Two specs map the same pair, and neither is the more specific. Both are declared for exactly the pair, or both are generic, over one shape or over pairs that overlap. So a component of that pair has no single spec to nest through.
 
-**Fix.** Remove the duplicate spec, or add the leaf the message spells out, delegating to the spec you mean.
+**Fix.** Remove the duplicate spec, declare a spec for exactly the pair where both are generic, or add the leaf the message spells out, delegating to the spec you mean.
 
 ```
 @GenerateMapping: field 'merchant' matches more than one mapping spec: [MerchantMapping,
@@ -1217,7 +1218,7 @@ Add the leaf 'default ValidatedPrism<com.example.MerchantDto, com.example.Mercha
 delegating to the spec you want, or remove the duplicate spec.
 ```
 
-The rule: [How a dependency's specs are found](rules.md#how-a-dependencys-specs-are-found).
+The rule: [The most specific spec for a pair is used](rules.md#generic-spec-precedence).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "matches more than one mapping spec" -->
@@ -2918,6 +2919,51 @@ record Dashboard(String name, String accountId, boolean darkMode) {}
 @GenerateMerge
 interface DashboardAssembly {
   Dashboard assemble(Customer customer, Account account, Settings settings);
+}
+```
+~~~
+
+### `@GenerateMerge: target component 'x' would fill through the element-mapped 'Y', which a merge does not compose (not supported yet)` {#merge-element-mapped}
+
+The only spec that maps the pair takes its element prisms through `of(...)`, and a merge does not compose one, as a mapping would from the element pairs' own specs.
+
+**Fix.** Add the leaf the message spells out, which builds the composition with `of(...)` and names each prism the registry maps, or declare a spec for exactly the pair.
+
+```
+@GenerateMerge: target component 'Leaderboard.scores' would fill through the element-mapped
+'CodecPageMapping', which a merge does not compose (not supported yet). An element-mapped Impl
+is built by of(...), from one ValidatedPrism per abstract leaf, and a merge builds no such Impl
+itself. Add 'default ValidatedPrism<com.example.PageDto<java.lang.String>,
+com.example.Page<java.lang.Integer>> scores()' to the spec (source first, target second),
+returning 'com.example.CodecPageMappingImpl.<java.lang.Integer,
+java.lang.String>of(...).asValidatedPrism()' with one ValidatedPrism per leaf, in the order
+'items'. Or declare a @GenerateMapping spec for exactly the pair, here or in a dependency
+compiled with hkj-processor on its processor path.
+```
+
+The rule: [How a merge fills](rules.md#how-a-merge-fills).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "which a merge does not compose" -->
+```java
+record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+record Ranking(String board) {}
+
+record RawScoreFeed(PageDto<String> scores) {}
+
+record Leaderboard(String board, Page<Integer> scores) {}
+
+@GenerateMerge
+interface LeaderboardMerge {
+  Validated<NonEmptyList<FieldError>, Leaderboard> merge(Ranking ranking, RawScoreFeed feed);
 }
 ```
 ~~~

@@ -304,7 +304,8 @@ by an index entry (an empty class in `org.higherkindedj.mapping.index`, in the j
 downstream compilation reads the index and resolves nested, sealed and merge pairs against those
 specs exactly as against its own, generic ones included. Rules: the dependency must have been
 compiled with `hkj-processor` on its processor path; a spec in the compilation shadows a classpath
-spec for the same pair (a note names the shadowed one); two dependencies mapping one pair are
+spec for the same pair (a note names the shadowed one); of two dependencies mapping one pair the
+more specific is used (a note names the other), and two neither of which is more specific are
 ambiguous, listed with `(classpath)` provenance, and a leaf delegating to the one meant settles a
 nested component while a sealed subtype pair, which has no leaf, takes a spec of your own (it
 shadows both); an entry whose Impl has gone missing (a partial build output, a jar that dropped
@@ -362,14 +363,17 @@ bounded variables thread. **Element-mapped specs** (`Page<T> <-> PageDto<TDto>` 
 `ValidatedPrism<TDto, T> items();` leaf): the generated Impl takes one prism per abstract leaf
 through `XImpl.of(...)` (declaration order: the spec's own leaves, then each mix-in's in
 `extends`-clause order, depth first; stateful, so no singleton). All three NEST: concrete
-registrations directly, threaded specs by type-argument unification at the use site, within the
+registrations directly, threaded specs by type-argument
+unification at the use site, within the
 spec's bounds (`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own
 variable), and element-mapped specs by composition
 (`CodecPageMappingImpl.<EmailAddress, String>of(entries())`, type arguments written; a hand-written
 chained `of(...)`, as in a `@Bean` method, writes them too where no leaf names a type variable, or
 javac infers its bound; element pairs resolved via the using spec's component-named leaf for
 single-leaf specs, else recursively via the registry;
-unresolvable pairs diagnosed, failures located through the composed path `entries.items.1`). All generic mappings are record-to-record
+unresolvable pairs diagnosed, failures located through the composed path `entries.items.1`). Of several specs that cover a pair the most specific nests: a spec for the exact pair
+before a generic one, `PageMapping<T>` before `CodecPageMapping<T, TDto>`; two neither of which is
+more specific are ambiguous. All generic mappings are record-to-record
 only (bean wires, `UpdateSpec` and sealed hierarchies take no generic type, even instantiated). Raw and wildcard shapes are diagnosed; array
 arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is
 diagnosed (nothing defers its parser), and so is a leaf or rename declaring type parameters of
@@ -775,7 +779,11 @@ public interface SummaryMerge {
 ```
 
 A component can also resolve through a sibling `@GenerateMapping` spec; nested failures then locate
-themselves as dotted paths, e.g. `"customer.email"`.
+themselves as dotted paths, e.g. `"customer.email"`. A threaded generic spec fills by the same rule a
+mapping nests it by (`PageMappingImpl.<Integer>instance()`). A merge leaves an element-mapped one
+out, and only where nothing else covers the pair refuses the fill, offering a leaf over the whole
+pair returning `XImpl.<A, ...>of(prisms).asValidatedPrism()` or a spec for
+exactly the pair (composing one in a merge is not supported yet).
 
 ---
 

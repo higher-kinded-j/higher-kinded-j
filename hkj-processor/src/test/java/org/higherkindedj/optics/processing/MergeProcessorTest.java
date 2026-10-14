@@ -477,7 +477,10 @@ class MergeProcessorTest {
       assertThat(compilation)
           .hadErrorContaining("target component 'customer' matches more than one mapping spec");
       assertThat(compilation)
-          .hadErrorContaining("Add a leaf method 'customer()' delegating to the spec you want");
+          .hadErrorContaining(
+              "Add 'default ValidatedPrism<com.example.Nested.CustomerDto,"
+                  + " com.example.Nested.Customer> customer()' to the spec (source first, target"
+                  + " second), delegating to the spec you want, or remove the duplicate spec.");
     }
 
     @Test
@@ -498,6 +501,365 @@ class MergeProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("uses fallible fills but declares a plain 'Profile' return");
+    }
+  }
+
+  @Nested
+  @DisplayName("Nested fills through a generic mapping spec")
+  class GenericFills {
+
+    private static final String THREADED =
+        """
+        @GenerateMapping
+        interface PageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+        """;
+
+    private static final String ELEMENT_MAPPED =
+        """
+        @GenerateMapping
+        interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+          ValidatedPrism<TDto, T> items();
+        }
+        """;
+
+    private static final String VIEW_MERGE =
+        """
+        @GenerateMerge
+        interface ViewMerge {
+          Validated<NonEmptyList<FieldError>, View> merge(Meta meta, Feed feed);
+        }
+        """;
+
+    private static final String TEXT_VIEW_MERGE =
+        """
+        @GenerateMerge
+        interface TextViewMerge {
+          Validated<NonEmptyList<FieldError>, View> merge(Meta meta, TextFeed feed);
+        }
+        """;
+
+    /** A feed's page merged into a view, beside the specs and merges {@code declarations} adds. */
+    private static JavaFileObject feeds(String declarations) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Feeds",
+          """
+          package com.example;
+
+          import java.util.Arrays;
+          import java.util.List;
+          import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+          import org.higherkindedj.hkt.validated.FieldError;
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.GenerateMerge;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.validated.StandardCodecs;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          record Page<T>(List<T> items, int total) {}
+
+          record PageDto<T>(List<T> items, int total) {}
+
+          record Meta(String id) {}
+
+          record Feed(PageDto<Integer> results) {}
+
+          record TextFeed(PageDto<String> results) {}
+
+          record View(String id, Page<Integer> results) {}
+          """
+              + declarations);
+    }
+
+    private Compilation compileStrict(JavaFileObject source) {
+      return javac()
+          .withProcessors(new MergeProcessor(), new MappingProcessor())
+          .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+          .compile(source);
+    }
+
+    @SuppressWarnings("unchecked") // reflective call into the generated Impl
+    private static Validated<NonEmptyList<FieldError>, Object> probe(
+        RuntimeCompilationHelper.CompiledResult result, String method)
+        throws ReflectiveOperationException {
+      return (Validated<NonEmptyList<FieldError>, Object>)
+          result.invokeStatic("com.example.Probe", method);
+    }
+
+    @Test
+    @DisplayName("a threaded spec fills through its instance(), a failure located through it")
+    void threadedSpecFillsAMerge() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  THREADED
+                      + VIEW_MERGE
+                      + """
+                      final class Probe {
+                        static Object merged() {
+                          return ViewMergeImpl.INSTANCE.merge(
+                              new Meta("m1"), new Feed(new PageDto<>(List.of(4, 2), 2)));
+                        }
+
+                        static Object withNull() {
+                          return ViewMergeImpl.INSTANCE.merge(
+                              new Meta("m1"), new Feed(new PageDto<>(Arrays.asList(4, null), 2)));
+                        }
+
+                        static View expected() {
+                          return new View("m1", new Page<>(List.of(4, 2), 2));
+                        }
+                      }
+                      """));
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ViewMergeImpl"))
+          .contains(
+              ".field(\"results\", hkj$ifPresent(feed.results(),"
+                  + " PageMappingImpl.<Integer>instance().asValidatedPrism()::parse))");
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      assertThatValidated(probe(result, "merged"))
+          .hasValue(result.invokeStatic("com.example.Probe", "expected"));
+      assertThatValidated(probe(result, "withNull"))
+          .hasFieldErrors("results.items.1: must not be null");
+    }
+
+    @Test
+    @DisplayName("a spec for exactly the pair takes precedence over a threaded one")
+    void concreteSpecTakesPrecedence() {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  THREADED
+                      + VIEW_MERGE
+                      + """
+                      @GenerateMapping
+                      interface IntPageMapping extends MappingSpec<Page<Integer>, PageDto<Integer>> {}
+                      """));
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ViewMergeImpl"))
+          .contains("IntPageMappingImpl.INSTANCE.asValidatedPrism()::parse")
+          .doesNotContain("PageMappingImpl.<Integer>instance()");
+    }
+
+    @Test
+    @DisplayName("two threaded specs for one pair are ambiguous, each call spelt with its witness")
+    void twoThreadedSpecsAreAmbiguous() {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  THREADED
+                      + VIEW_MERGE
+                      + """
+                      @GenerateMapping
+                      interface OtherPageMapping<T> extends MappingSpec<Page<T>, PageDto<T>> {}
+                      """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "target component 'results' matches more than one mapping spec: [PageMapping,"
+                  + " OtherPageMapping].");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "delegating to the spec you want, returning"
+                  + " 'com.example.PageMappingImpl.<java.lang.Integer>instance().asValidatedPrism()'"
+                  + " or"
+                  + " 'com.example.OtherPageMappingImpl.<java.lang.Integer>instance().asValidatedPrism()',"
+                  + " or declare a @GenerateMapping spec for exactly the pair, which takes"
+                  + " precedence over a generic one.");
+    }
+
+    @Test
+    @DisplayName("a threaded spec whose bound refuses the pair is named as the reason")
+    void boundedSpecIsNamed() {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  VIEW_MERGE
+                      + """
+                      @GenerateMapping
+                      interface TextPageMapping<T extends CharSequence>
+                          extends MappingSpec<Page<T>, PageDto<T>> {}
+                      """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target component 'View.results' has no usable fill.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'TextPageMapping' would map this pair with 'T' as 'Integer', but declares"
+                  + " 'T extends CharSequence', and 'Integer' does not conform to 'CharSequence'.");
+    }
+
+    @Test
+    @DisplayName("a threaded projection is named as unable to fill a merge")
+    void threadedProjectionIsNamed() {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  """
+                  record PageView<T>(List<T> items) {}
+
+                  record ViewFeed(PageView<Integer> results) {}
+
+                  @GenerateMapping
+                  interface PageViewMapping<T> extends MappingSpec<Page<T>, PageView<T>> {}
+
+                  @GenerateMerge
+                  interface ViewMerge {
+                    Validated<NonEmptyList<FieldError>, View> merge(Meta meta, ViewFeed feed);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'PageViewMapping' maps this pair but is a projection (no parse), so it cannot fill"
+                  + " a merge.");
+    }
+
+    @Test
+    @DisplayName("an element-mapped spec gives way to a spec the merge can call whole")
+    void elementMappedSpecGivesWay() {
+      Compilation compilation = compileStrict(feeds(THREADED + ELEMENT_MAPPED + VIEW_MERGE));
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ViewMergeImpl"))
+          .contains("PageMappingImpl.<Integer>instance().asValidatedPrism()::parse")
+          .doesNotContain("CodecPageMappingImpl");
+    }
+
+    private static final String ELEMENT_LEAF =
+        "default ValidatedPrism<com.example.PageDto<java.lang.String>,"
+            + " com.example.Page<java.lang.Integer>> results()";
+
+    @Test
+    @DisplayName("an element-mapped spec alone is refused with the leaf that builds it")
+    void elementMappedSpecIsRefused() {
+      Compilation compilation = compileStrict(feeds(ELEMENT_MAPPED + TEXT_VIEW_MERGE));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "target component 'View.results' would fill through the element-mapped"
+                  + " 'CodecPageMapping', which a merge does not compose (not supported yet).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '"
+                  + ELEMENT_LEAF
+                  + "' to the spec (source first, target second), returning"
+                  + " 'com.example.CodecPageMappingImpl.<java.lang.Integer,"
+                  + " java.lang.String>of(...).asValidatedPrism()' with one ValidatedPrism per"
+                  + " leaf, in the order 'items'. Or declare a @GenerateMapping spec for exactly"
+                  + " the pair,");
+    }
+
+    @Test
+    @DisplayName("two element-mapped specs alone are ambiguous, each composition spelt")
+    void twoElementMappedSpecsAreAmbiguous() {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  ELEMENT_MAPPED
+                      + TEXT_VIEW_MERGE
+                      + """
+                      @GenerateMapping
+                      interface OtherCodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+                        ValidatedPrism<TDto, T> items();
+                      }
+                      """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "target component 'results' matches more than one mapping spec: [CodecPageMapping,"
+                  + " OtherCodecPageMapping].");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "returning 'com.example.CodecPageMappingImpl.<java.lang.Integer,"
+                  + " java.lang.String>of(...).asValidatedPrism()' with one ValidatedPrism per"
+                  + " leaf, in the order 'items' or");
+    }
+
+    private static final String BASKETS =
+        """
+        record Item(String sku, int quantity) {}
+
+        record ItemDto(String sku, int quantity) {}
+
+        @GenerateMapping
+        interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+
+        // a projection maps the item too, but cannot stand for an element, so it is passed by
+        record ItemLabel(String sku) {}
+
+        @GenerateMapping
+        interface ItemLabelMapping extends MappingSpec<Item, ItemLabel> {}
+
+        record ItemFeed(PageDto<ItemDto> results) {}
+
+        record Basket(String id, Page<Item> results) {}
+
+        @GenerateMerge
+        interface BasketMerge {
+          Validated<NonEmptyList<FieldError>, Basket> merge(Meta meta, ItemFeed feed);
+          %s
+        }
+        """;
+
+    private static final String BASKET_CALL =
+        "com.example.CodecPageMappingImpl.<com.example.Item, com.example.ItemDto>of("
+            + "com.example.ItemMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()";
+
+    @Test
+    @DisplayName("the refusal spells the prisms the registry maps each element pair through")
+    void elementMappedRefusalSpellsKnownPrisms() {
+      Compilation refused = compileStrict(feeds(ELEMENT_MAPPED + BASKETS.formatted("")));
+      assertThat(refused).failed();
+      assertThat(refused)
+          .hadErrorContaining(
+              "Add 'default ValidatedPrism<com.example.PageDto<com.example.ItemDto>,"
+                  + " com.example.Page<com.example.Item>> results()' to the spec (source first,"
+                  + " target second), returning '"
+                  + BASKET_CALL
+                  + "'. Or declare a @GenerateMapping spec for exactly the pair,");
+
+      Compilation followed =
+          compileStrict(
+              feeds(
+                  ELEMENT_MAPPED
+                      + BASKETS.formatted(
+                          "default ValidatedPrism<com.example.PageDto<com.example.ItemDto>,"
+                              + " com.example.Page<com.example.Item>> results() { return "
+                              + BASKET_CALL
+                              + "; }")));
+      assertThat(followed).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("the leaf it offers composes the element-mapped Impl and merges through it")
+    void elementMappedSpecFollowed() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileStrict(
+              feeds(
+                  ELEMENT_MAPPED
+                      + """
+                      @GenerateMerge
+                      interface TextViewMerge {
+                        Validated<NonEmptyList<FieldError>, View> merge(Meta meta, TextFeed feed);
+
+                        %s {
+                          return com.example.CodecPageMappingImpl.<java.lang.Integer,
+                                  java.lang.String>of(StandardCodecs.intFromString())
+                              .asValidatedPrism();
+                        }
+                      }
+
+                      final class Probe {
+                        static Object merged() {
+                          return TextViewMergeImpl.INSTANCE.merge(
+                              new Meta("m1"), new TextFeed(new PageDto<>(List.of("4", "x"), 2)));
+                        }
+                      }
+                      """
+                          .formatted(ELEMENT_LEAF)));
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThatValidated(probe(new RuntimeCompilationHelper.CompiledResult(compilation), "merged"))
+          .hasFieldErrors("results.items.1: not a 32-bit integer (expected e.g. 42)");
     }
   }
 

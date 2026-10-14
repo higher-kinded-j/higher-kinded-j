@@ -595,9 +595,9 @@ interface BannerMapping extends MappingSpec<Banner, BannerDto> {
         dict(id="more-than-one-spec",
              heading="field 'x' matches more than one mapping spec",
              fragment="matches more than one mapping spec",
-             meaning="Two specs map the same pair, so a component of that pair has no single spec to nest through.",
-             fix="Remove the duplicate spec, or add the leaf the message spells out, delegating to the spec you mean.",
-             rule=("How a dependency's specs are found", "rules.md#how-a-dependencys-specs-are-found"),
+             meaning="Two specs map the same pair, and neither is the more specific. Both are declared for exactly the pair, or both are generic, over one shape or over pairs that overlap. So a component of that pair has no single spec to nest through.",
+             fix="Remove the duplicate spec, declare a spec for exactly the pair where both are generic, or add the leaf the message spells out, delegating to the spec you mean.",
+             rule=("The most specific spec for a pair is used", "rules.md#generic-spec-precedence"),
              code="""record Merchant(String id, String name) {}
 
 record MerchantDto(String id, String name) {}
@@ -1576,6 +1576,31 @@ record Dashboard(String name, String accountId, boolean darkMode) {}
 @GenerateMerge
 interface DashboardAssembly {
   Dashboard assemble(Customer customer, Account account, Settings settings);
+}"""),
+        dict(id="merge-element-mapped",
+             heading="@GenerateMerge: target component 'x' would fill through the element-mapped 'Y', which a merge does not compose (not supported yet)",
+             fragment="which a merge does not compose",
+             meaning="The only spec that maps the pair takes its element prisms through `of(...)`, and a merge does not compose one, as a mapping would from the element pairs' own specs.",
+             fix="Add the leaf the message spells out, which builds the composition with `of(...)` and names each prism the registry maps, or declare a spec for exactly the pair.",
+             rule=("How a merge fills", "rules.md#how-a-merge-fills"),
+             code="""record Page<T>(List<T> items, int total) {}
+
+record PageDto<T>(List<T> items, int total) {}
+
+@GenerateMapping
+interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+  ValidatedPrism<TDto, T> items();
+}
+
+record Ranking(String board) {}
+
+record RawScoreFeed(PageDto<String> scores) {}
+
+record Leaderboard(String board, Page<Integer> scores) {}
+
+@GenerateMerge
+interface LeaderboardMerge {
+  Validated<NonEmptyList<FieldError>, Leaderboard> merge(Ranking ranking, RawScoreFeed feed);
 }"""),
         dict(id="merge-plain-return",
              heading="@GenerateMerge: 'x' uses fallible fills but declares a plain 'T' return",
