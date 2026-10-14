@@ -186,6 +186,18 @@ interface CustomerMessageOpticsSpec extends OpticsSpec<CustomerMessage> {
 }
 ```
 
+A repeated field is set whole by protoc's `addAllSkus`, and the generated lens clears the field first, as [Non-Standard Naming](copy_strategies.md#non-standard-naming) explains. Over `DispatchRequest`'s `skus`:
+
+<!-- verify -->
+```java
+@ImportOptics
+interface DispatchRequestOpticsSpec extends OpticsSpec<DispatchRequest> {
+
+  @ViaBuilder(getter = "getSkusList", setter = "addAllSkus")
+  Lens<DispatchRequest, List<String>> skus();
+}
+```
+
 See [Database Records with JOOQ](copy_strategies.md) for the strategies in full.
 
 ---

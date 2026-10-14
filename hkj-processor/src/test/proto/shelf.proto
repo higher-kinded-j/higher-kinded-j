@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package shelf;
+
+option java_package = "com.example.proto";
+option java_outer_classname = "ShelfProto";
+
+// A repeated field beside one whose name begins with 'all', whose single adder shares the name
+// addAllTags with the method that adds a whole 'tags'; a map field; and an open enum, repeated and
+// as a map's values, whose adders of the numbers it holds spell the field with 'Value' after it.
+// protoc does not number a map whose 'Value' adder another field's name spells too, so tint_by's
+// putAllTintByValue sits beside tint_by_value's own clearTintByValue(); and sizes_value's adder
+// spells 'Value' beside a sizes map that holds no enum.
+message Shelf {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    RED = 1;
+    BLUE = 2;
+  }
+
+  repeated string tags = 1;
+  repeated string all_tags = 2;
+  map<string, int32> sizes = 3;
+  repeated Kind kinds = 4;
+  map<string, Kind> kind_by = 5;
+  map<string, Kind> tint_by = 6;
+  repeated string tint_by_value = 7;
+  map<string, int32> sizes_value = 8;
+}

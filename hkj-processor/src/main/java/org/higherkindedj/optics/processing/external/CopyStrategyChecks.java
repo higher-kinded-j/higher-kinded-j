@@ -6,14 +6,19 @@ import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.NestingKind;
@@ -36,6 +41,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKin
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.ProtobufCollection;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
@@ -151,14 +157,16 @@ final class CopyStrategyChecks {
               focusType,
               targetPackage);
       if (readsThroughUnusableGetter(
-              method,
-              "@ViaBuilder",
-              declaredSource,
-              sourceTypeElement,
-              getter.isEmpty() ? fieldName : getter,
-              focusType,
-              targetPackage)
-          || rebuildsThroughUnusableBuilder(
+          method,
+          "@ViaBuilder",
+          declaredSource,
+          sourceTypeElement,
+          getter.isEmpty() ? fieldName : getter,
+          focusType,
+          targetPackage)) {
+        return Optional.empty();
+      }
+      if (!(builderChain(
               method,
               declaredSource,
               sourceTypeElement,
@@ -167,13 +175,15 @@ final class CopyStrategyChecks {
               setter.isEmpty() ? fieldName : setter,
               build,
               builderWritten == null ? focusType : builderWritten,
-              targetPackage)) {
+              targetPackage)
+          instanceof BuilderChain.Rebuilds(String clear))) {
         return Optional.empty();
       }
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.VIA_BUILDER,
-              CopyStrategyInfo.forBuilder(getter, toBuilder, setter, build, builderWritten)));
+              CopyStrategyInfo.forBuilder(
+                  getter, toBuilder, setter, build, clear, builderWritten)));
     }
 
     // Check for @Wither
@@ -373,19 +383,18 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * The names a strategy's setter is offered from: {@code owner}'s instance methods the generated
-   * class can call with one argument, but under {@code @ViaBuilder} none that hands nothing back,
-   * which ends the chain.
+   * The names a strategy's setter is offered from: the instance methods of the type the call is
+   * made on that the generated class can call with one argument, but under {@code @ViaBuilder} none
+   * that hands nothing back, which ends the chain.
    */
-  private List<String> setterNames(
-      String tag, DeclaredType owner, TypeElement ownerElement, String targetPackage) {
+  private List<String> setterNames(String tag, Receiver on, String targetPackage) {
     return namesOf(
-        callableMembers(ownerElement, targetPackage).stream()
+        callableMembers(on.element(), targetPackage).stream()
             .filter(
                 member ->
                     member.getParameters().size() == 1
-                        && offerable(member, ownerElement)
-                        && takesTheValue(owner, member)
+                        && offerable(member, on.element())
+                        && takesTheValue(on, member)
                         && !(tag.equals("@ViaBuilder")
                             && member.getReturnType().getKind() == TypeKind.VOID))
             .toList());
@@ -393,10 +402,14 @@ final class CopyStrategyChecks {
 
   /**
    * Whether a diagnostic may offer {@code member}: an instance method, and none of {@code
-   * Object}'s, {@code wait} or a record's {@code hashCode}, which is never what a spec meant.
+   * Object}'s, {@code wait} or a record's {@code hashCode}, which is never what a spec meant. Nor
+   * one deprecated, by its annotation or by a javadoc tag a class file keeps, whose call the
+   * generated file would warn of, as a build under {@code -Werror} refuses: a protobuf map field's
+   * {@code getPoints()}, beside {@code getPointsMap()}.
    */
   private boolean offerable(ExecutableElement member, TypeElement type) {
     return !member.getModifiers().contains(Modifier.STATIC)
+        && !elementUtils.isDeprecated(member)
         && ElementFilter.methodsIn(
                 elementUtils.getTypeElement("java.lang.Object").getEnclosedElements())
             .stream()
@@ -405,19 +418,197 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * Whether a one-parameter method can take a value the lens holds when called on {@code owner}:
-   * not where its parameter is a type one of {@code owner}'s wildcards stands in, which takes no
-   * value at all, as {@code withValue(T)} on a {@code Box<?>}.
+   * Whether a one-parameter method can take a value the lens holds when called as {@code on} says:
+   * not where its parameter is the type a wildcard the call reaches it through stands for, which
+   * takes no value at all, as {@code withValue(T)} on a {@code Box<?>}.
    */
-  private boolean takesTheValue(DeclaredType owner, ExecutableElement member) {
-    DeclaredType captured = (DeclaredType) typeUtils.capture(owner);
-    List<? extends TypeMirror> written = owner.getTypeArguments();
+  private boolean takesTheValue(Receiver on, ExecutableElement member) {
+    DeclaredType captured = (DeclaredType) typeUtils.capture(on.type());
     TypeMirror parameter =
         ProcessorUtils.memberOf(typeUtils, captured, member).getParameterTypes().getFirst();
-    return IntStream.range(0, written.size())
-        .filter(at -> written.get(at).getKind() == TypeKind.WILDCARD)
-        .mapToObj(at -> typeUtils.asElement(captured.getTypeArguments().get(at)))
-        .noneMatch(standIn -> ProcessorUtils.mentions(parameter, standIn));
+    return standInNamed(on, captured, List.of(parameter)).isEmpty();
+  }
+
+  /**
+   * The types capture made, in {@code captured}, of the wildcards {@code written} writes, each a
+   * type of its own that no type a spec writes names. {@code written} is the type captured, or the
+   * same class as a declaration writes it; an inner class reaches the wildcards of the type it is a
+   * member of too.
+   */
+  private List<Element> standIns(DeclaredType written, DeclaredType captured) {
+    List<? extends TypeMirror> arguments = written.getTypeArguments();
+    // A type reached raw, as through a raw supertype, has no arguments to stand in for any.
+    List<? extends TypeMirror> capturedArguments = captured.getTypeArguments();
+    Stream<Element> here =
+        IntStream.range(0, capturedArguments.size() == arguments.size() ? arguments.size() : 0)
+            .filter(at -> arguments.get(at).getKind() == TypeKind.WILDCARD)
+            .mapToObj(at -> typeUtils.asElement(capturedArguments.get(at)));
+    TypeMirror enclosing = written.getEnclosingType();
+    return Stream.concat(
+            here,
+            enclosing.getKind() == TypeKind.DECLARED
+                ? standIns((DeclaredType) enclosing, (DeclaredType) captured.getEnclosingType())
+                    .stream()
+                : Stream.empty())
+        .toList();
+  }
+
+  /** Whether any of {@code types} names one of {@code standIns}. */
+  private static boolean mentionsAny(List<TypeMirror> types, List<Element> standIns) {
+    return types.stream()
+        .anyMatch(
+            type -> standIns.stream().anyMatch(standIn -> ProcessorUtils.mentions(type, standIn)));
+  }
+
+  /**
+   * Whose wildcard a parameter names the type of, where it does, as capture made it: the spec's
+   * source type's, or the builder's own, as {@code toBuilder()} declares it hands the builder back.
+   */
+  private enum StandIn {
+    SOURCE,
+    BUILDER
+  }
+
+  /**
+   * Whose wildcard {@code parameters} name the type of, if any: a call that passes them a value
+   * never compiles, nor converts to them but unchecked, since no type a spec writes names one. A
+   * parameter that is itself the type of a wildcard bounded below, {@code ? super Integer}, takes
+   * that bound's values, and is not counted. On a builder, a wildcard is the builder's own where
+   * {@code toBuilder()} writes it so, and the source type's wherever else the builder reaches it.
+   *
+   * @param on the type the call is made on
+   * @param captured {@code on}'s type captured
+   * @param parameters the parameters, read on {@code captured}
+   */
+  private Optional<StandIn> standInNamed(
+      Receiver on, DeclaredType captured, List<TypeMirror> parameters) {
+    List<TypeMirror> taking =
+        parameters.stream().filter(parameter -> !boundedBelow(parameter)).toList();
+    List<Element> owners = standIns(on.type(), captured);
+    return switch (on) {
+      case Receiver.OnSource ignored ->
+          mentionsAny(taking, owners) ? Optional.of(StandIn.SOURCE) : Optional.empty();
+      case Receiver.OnBuilder builder -> {
+        // Only a wildcard capture made of the builder as reached counts, where toBuilder() writes
+        // it: a type argument the source fills in is the source's to name.
+        List<Element> buildersOwn =
+            builder.declared() == null
+                ? List.of()
+                : standIns(builder.declared(), captured).stream().filter(owners::contains).toList();
+        List<Element> sources =
+            Stream.concat(
+                    builder.sourceStandIns().stream(),
+                    owners.stream().filter(standIn -> !buildersOwn.contains(standIn)))
+                .toList();
+        yield mentionsAny(taking, sources)
+            ? Optional.of(StandIn.SOURCE)
+            : mentionsAny(taking, buildersOwn) ? Optional.of(StandIn.BUILDER) : Optional.empty();
+      }
+    };
+  }
+
+  /** Whether a type is the type capture made of a wildcard bounded below, {@code ? super X}. */
+  private static boolean boundedBelow(TypeMirror type) {
+    return type.getKind() == TypeKind.TYPEVAR
+        && ((TypeVariable) type).getLowerBound().getKind() != TypeKind.NULL;
+  }
+
+  /**
+   * The type a generated one-argument call is made on, as the call reaches it and as a message
+   * names it: the source type itself, or the builder {@code toBuilder()} hands back.
+   */
+  private sealed interface Receiver {
+
+    /**
+     * The type the call is made on, as the call reaches it.
+     *
+     * @return that type
+     */
+    DeclaredType type();
+
+    /**
+     * The class of {@link #type()}, whose methods the call chooses among.
+     *
+     * @return that class
+     */
+    TypeElement element();
+
+    /**
+     * The type as a message names it.
+     *
+     * @return that type
+     */
+    DeclaredType shown();
+
+    /**
+     * The type as a message names it where the call's parameter names the type a wildcard of the
+     * source stands for: as it is declared, in its own type variables or the source's, which name
+     * what the wildcard stands in for.
+     *
+     * @return that type
+     */
+    DeclaredType named();
+
+    /**
+     * The source type, as the spec writes it.
+     *
+     * @param type the source type
+     * @param element its class
+     */
+    record OnSource(DeclaredType type, TypeElement element) implements Receiver {
+
+      /**
+       * The source type as the receiver of a call.
+       *
+       * @param type the source type, whose element is its class
+       * @return the receiver
+       */
+      static OnSource of(DeclaredType type) {
+        return new OnSource(type, (TypeElement) type.asElement());
+      }
+
+      @Override
+      public DeclaredType shown() {
+        return type;
+      }
+
+      @Override
+      public DeclaredType named() {
+        return (DeclaredType) element.asType();
+      }
+    }
+
+    /**
+     * The builder {@code toBuilder()} hands back, called on the source captured, so that each
+     * wildcard of the source type the spec writes is a type of its own wherever the builder names
+     * it.
+     *
+     * @param type the builder as the call reaches it
+     * @param element its class
+     * @param handedBackBy the call that hands it back, as a message names it
+     * @param shown the builder as a message names it
+     * @param declared the builder as {@code toBuilder()} declares it hands it back, in the source's
+     *     own type variables, or null where that declaration names no type of its class
+     * @param sourceStandIns the types capture made of the source type's wildcards
+     */
+    record OnBuilder(
+        DeclaredType type,
+        TypeElement element,
+        String handedBackBy,
+        DeclaredType shown,
+        DeclaredType declared,
+        List<Element> sourceStandIns)
+        implements Receiver {
+
+      public OnBuilder {
+        sourceStandIns = List.copyOf(sourceStandIns);
+      }
+
+      @Override
+      public DeclaredType named() {
+        return Objects.requireNonNullElse(declared, shown);
+      }
+    }
   }
 
   /**
@@ -438,14 +629,35 @@ final class CopyStrategyChecks {
       String tag,
       List<ExecutableElement> named,
       String setterName,
-      DeclaredType owner,
-      TypeElement ownerElement,
+      Receiver on,
       String targetPackage) {
-    return takesNoSingleArgument(named)
-        ? didYouMean(
-            setterConvention(tag)
-                .sameValueAmong(setterName, setterNames(tag, owner, ownerElement, targetPackage)))
-        : "";
+    List<String> names = setterNames(tag, on, targetPackage);
+    Optional<String> adder = collectionAdder(on, setterName, names);
+    return didYouMean(
+        takesNoSingleArgument(named)
+            ? adder.or(() -> setterConvention(tag).sameValueAmong(setterName, names))
+            : adder);
+  }
+
+  /**
+   * The method a protobuf-java message's builder writes a repeated or a map field whole with, for a
+   * setter spelt after the field another way, bare, as a setter or as the adder of one element:
+   * {@code addAllTags} for {@code tags}, {@code setTags} or {@code addTags}, {@code putAllPoints}
+   * for {@code putPoints}, among {@code names}, the setters a diagnostic may offer. Empty for any
+   * other builder, which spells its methods its own way.
+   */
+  private Optional<String> collectionAdder(Receiver on, String written, List<String> names) {
+    if (!ProcessorUtils.isSubtypeOfNamed(
+        typeUtils, elementUtils, on.type(), ProtobufCollection.MESSAGE_BUILDER)) {
+      return Optional.empty();
+    }
+    String field =
+        ProcessorUtils.capitalise(
+            written.replaceFirst("^(addAll|putAll|set|add|put|with)(?=\\p{Lu})", ""));
+    return Stream.of(ProtobufCollection.values())
+        .map(kind -> kind.adderPrefix() + field)
+        .filter(adder -> !adder.equals(written) && names.contains(adder))
+        .findFirst();
   }
 
   /** The wither offered for a name the type declares, as {@link #setterOffer} offers a setter. */
@@ -463,7 +675,11 @@ final class CopyStrategyChecks {
 
   /** The names of {@code withers} a diagnostic may offer: those that can take a value at all. */
   private List<String> witherNames(DeclaredType sourceType, List<ExecutableElement> withers) {
-    return namesOf(withers.stream().filter(wither -> takesTheValue(sourceType, wither)).toList());
+    return namesOf(
+        withers.stream()
+            .filter(wither -> offerable(wither, (TypeElement) sourceType.asElement()))
+            .filter(wither -> takesTheValue(Receiver.OnSource.of(sourceType), wither))
+            .toList());
   }
 
   /** Whether none of {@code methods} takes one argument. */
@@ -532,17 +748,233 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * The type a further call in a chain is made on: the step's own type, or for a step declared with
-   * a type variable of its own the bound that variable carries, which is what javac infers it to
-   * where nothing else pins it down. A bound naming more than one type leaves no single type to
-   * read members on, and answers null for the caller to leave to javac.
+   * The type a further call to {@code name} in a chain is read on: the step's own type, or for a
+   * type variable the bound it carries, followed through a variable bounded by another, as javac
+   * infers a step declared with a variable of its own where nothing else pins it down and reads
+   * members of a captured wildcard. Where the bound names several types, the one whose methods of
+   * that name take in every other's, as a class bound's do where it implements an interface bound;
+   * javac weighs the methods of every type the bound names, so where none takes in the others', or
+   * none has such a method, this answers null, for the caller to report or to leave to javac.
    */
-  private TypeMirror stepType(TypeMirror handedBack) {
-    if (handedBack.getKind() != TypeKind.TYPEVAR) {
-      return handedBack;
+  private TypeMirror stepTypeFor(TypeMirror handedBack, String name, String targetPackage) {
+    List<TypeMirror> bounds = ProcessorUtils.typesReached(handedBack);
+    if (bounds.size() == 1) {
+      return bounds.getFirst();
     }
-    TypeMirror bound = ((TypeVariable) handedBack).getUpperBound();
-    return bound.getKind() == TypeKind.INTERSECTION ? null : bound;
+    List<TypeMirror> declaring =
+        bounds.stream()
+            .filter(bound -> !methodsNamed(bound, name, targetPackage).isEmpty())
+            .toList();
+    return declaring.stream()
+        .filter(
+            bound ->
+                declaring.stream().allMatch(other -> takesIn(bound, other, name, targetPackage)))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * The methods named {@code name} of the class a bound names that the generated class can call.
+   */
+  private List<ExecutableElement> methodsNamed(
+      TypeMirror bound, String name, String targetPackage) {
+    return ElementFilter.typesIn(Stream.ofNullable(typeUtils.asElement(bound)).toList()).stream()
+        .flatMap(element -> callableMembers(element, targetPackage).stream())
+        .filter(member -> member.getSimpleName().contentEquals(name))
+        .toList();
+  }
+
+  /**
+   * Whether a bound's methods named {@code name} take in another's: each of the other's is one of
+   * them, inherited, or one of them overrides it, or overrides it as javac reads a type bounded by
+   * both, which {@link #overridesInTheIntersection} says.
+   */
+  private boolean takesIn(TypeMirror bound, TypeMirror other, String name, String targetPackage) {
+    List<ExecutableElement> own = methodsNamed(bound, name, targetPackage);
+    TypeElement element = elementOf(bound);
+    return methodsNamed(other, name, targetPackage).stream()
+        .allMatch(
+            theirs ->
+                own.stream()
+                    .anyMatch(
+                        mine ->
+                            mine.equals(theirs)
+                                || elementUtils.overrides(mine, theirs, element)
+                                || overridesInTheIntersection(bound, mine, other, theirs)));
+  }
+
+  /**
+   * Whether a method of a class bound overrides another bound's method as javac reads a type
+   * bounded by both: as a class that extends the one and implements the others, where a method that
+   * is not abstract overrides an interface's whose signature its own subsigns (JLS 8.4.8.1), though
+   * the class bound itself does not implement the interface. Two abstract methods are both weighed
+   * by javac, and neither overrides the other.
+   */
+  private boolean overridesInTheIntersection(
+      TypeMirror bound, ExecutableElement mine, TypeMirror other, ExecutableElement theirs) {
+    return elementOf(bound).getKind() == ElementKind.CLASS
+        && !mine.getModifiers().contains(Modifier.ABSTRACT)
+        && typeUtils.isSubsignature(
+            ProcessorUtils.memberOf(typeUtils, (DeclaredType) bound, mine),
+            ProcessorUtils.memberOf(typeUtils, (DeclaredType) other, theirs));
+  }
+
+  /**
+   * The type of {@code element}'s class among those {@code handedBack} names, as {@link
+   * ProcessorUtils#typesReached} reads them, or null where it names none: a builder step as a
+   * declaration writes it, which a message names and reads the step's methods on.
+   */
+  private DeclaredType declaredAs(TypeMirror handedBack, TypeElement element) {
+    return ProcessorUtils.typesReached(handedBack).stream()
+        .filter(
+            type ->
+                type.getKind() == TypeKind.DECLARED && element.equals(typeUtils.asElement(type)))
+        .map(DeclaredType.class::cast)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * A step reached through a wildcard, as a message names it where no declaration names its class:
+   * the type itself, or its class alone where it names a type variable, as the types capture makes
+   * of a wildcard do, none of which can be written.
+   */
+  private TypeMirror shownAlone(TypeMirror step) {
+    return ProcessorUtils.namesTypeVariable(step) ? typeUtils.erasure(step) : step;
+  }
+
+  /**
+   * Reports a call that none of the types a step's bound names declares, and returns whether it
+   * did. javac looks the call up among the methods of every one of them, so the message names them
+   * all, and offers a near miss from any.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param handedBack what the step before hands back
+   * @param step that step, as a message names it
+   * @param name the method the generated lens calls on it
+   * @param attribute the attribute that names the method, {@code setter} or {@code build}
+   * @param targetPackage the package the optics class is generated into
+   * @return true when no bound declares the method, and an error was reported
+   */
+  private boolean reportsUndeclaredOnEveryBound(
+      ExecutableElement method,
+      TypeMirror handedBack,
+      String step,
+      String name,
+      String attribute,
+      String targetPackage) {
+    List<TypeMirror> bounds = ProcessorUtils.typesReached(handedBack);
+    // A bound read from a class file can extend a type missing from the classpath, whose methods
+    // no round brings; the chain is then written out as it stands, for javac to report.
+    if (bounds.size() == 1
+        || bounds.stream().anyMatch(bound -> !methodsNamed(bound, name, targetPackage).isEmpty())
+        || bounds.stream().anyMatch(this::hierarchyUnresolved)) {
+      return false;
+    }
+    boolean setter = attribute.equals("setter");
+    List<String> names =
+        ElementFilter.typesIn(bounds.stream().map(typeUtils::asElement).toList()).stream()
+            .flatMap(
+                element ->
+                    setter
+                        ? callableMembers(element, targetPackage).stream()
+                            .filter(
+                                member ->
+                                    member.getParameters().size() == 1
+                                        && offerable(member, element)
+                                        && member.getReturnType().getKind() != TypeKind.VOID)
+                            .map(member -> member.getSimpleName().toString())
+                        : accessorNames(element, targetPackage).stream())
+            .distinct()
+            .sorted()
+            .toList();
+    List<String> boundNames =
+        bounds.stream()
+            .map(bound -> "'" + ProcessorUtils.simpleTypeName(shownAlone(bound)) + "'")
+            .toList();
+    String call = setter ? name + "(newValue)" : name + "()";
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaBuilder",
+        "'"
+            + step
+            + "' hands back a type bounded by "
+            + listed(boundNames)
+            + ", which have no method '"
+            + (setter ? name : name + "()")
+            + "' the generated class in '"
+            + targetPackage
+            + "' can call to "
+            + (setter ? "set through" : "finish the value it rebuilds")
+            + ".",
+        "The generated lens calls '"
+            + call
+            + "' on it, and javac looks the call up among the methods of every type its bound"
+            + " names."
+            + didYouMean(
+                (setter ? NamingConvention.BUILDER_SETTER : NamingConvention.ACCESSOR)
+                    .nearest(name, names)),
+        "Set @ViaBuilder's '"
+            + attribute
+            + "' to a method one of them declares that the generated class can call.");
+    return true;
+  }
+
+  /**
+   * Whether a clear method hands back the builder the setter is bound on, so that the setter called
+   * after it binds alike. javac reads the call among the methods of every type the builder's bound
+   * names, so the clear method it binds has to be the setter's own bound's, no other bound
+   * declaring one it does not take in; and what it returns, followed as the chain follows a step,
+   * is to be that very builder, as a self-typed {@code B} is.
+   *
+   * @param clear the clear method, one of the builder's
+   * @param builderReached what {@code toBuilder()} hands back, on the source captured
+   * @param builderType the builder the setter is bound on
+   * @param setterName the setter's name
+   * @param targetPackage the package the optics class is generated into
+   */
+  private boolean handsBackTheBuilder(
+      ExecutableElement clear,
+      TypeMirror builderReached,
+      DeclaredType builderType,
+      String setterName,
+      String targetPackage) {
+    TypeMirror readOn =
+        stepTypeFor(builderReached, clear.getSimpleName().toString(), targetPackage);
+    if (readOn == null || !builderType.asElement().equals(typeUtils.asElement(readOn))) {
+      return false;
+    }
+    DeclaredType called = (DeclaredType) typeUtils.capture(builderType);
+    return Optional.ofNullable(
+            stepTypeFor(
+                ProcessorUtils.returnTypeIn(typeUtils, called, clear), setterName, targetPackage))
+        .map(back -> typeUtils.isSameType(back, called))
+        .orElse(false);
+  }
+
+  /**
+   * The properties a source type reads through accessors other than {@code getterName}, each
+   * capitalised as a clear method spells it: {@code AllTags} for {@code getAllTags()} or {@code
+   * allTags()}. The lens's own property is never among them, however many accessors read it.
+   */
+  private Set<String> propertiesReadBesides(
+      TypeElement sourceTypeElement, String getterName, String targetPackage) {
+    String own = propertySpelt(getterName);
+    return accessorNames(sourceTypeElement, targetPackage).stream()
+        .map(CopyStrategyChecks::propertySpelt)
+        .filter(property -> !property.equals(own))
+        .collect(Collectors.toUnmodifiableSet());
+  }
+
+  /**
+   * The property an accessor reads, capitalised: what follows {@code get} or {@code is}, as a
+   * bean's getter or its beanspec spelling {@code geteMails} spells it, or the whole name of a
+   * record's.
+   */
+  private static String propertySpelt(String accessor) {
+    return ProcessorUtils.capitalise(
+        accessor.replaceFirst("^(get|is)(?=\\p{Lu}|\\p{Ll}\\p{Lu})", ""));
   }
 
   /**
@@ -551,7 +983,15 @@ final class CopyStrategyChecks {
    * than the other way about.
    */
   private TypeMirror focusRead(TypeMirror focusType) {
-    return focusType.getKind() == TypeKind.WILDCARD ? null : focusType;
+    return unlessWildcard(focusType);
+  }
+
+  /**
+   * A type, or null where it is a wildcard, which names no one type: a focus javac infers, or a
+   * builder step a message cannot name as declared.
+   */
+  private static TypeMirror unlessWildcard(TypeMirror type) {
+    return type.getKind() == TypeKind.WILDCARD ? null : type;
   }
 
   /**
@@ -565,6 +1005,7 @@ final class CopyStrategyChecks {
    * @param purpose what the generated optic calls it for, as a verb phrase
    * @param on what the call is made on, as the reason names it
    * @param fix the remedy, since only some of the strategies carry an attribute to point at
+   * @param offered the method to offer before any the name is a near miss of, or empty
    * @param targetPackage the package the optics class is generated into
    */
   private void reportMissingAccessor(
@@ -576,6 +1017,7 @@ final class CopyStrategyChecks {
       String purpose,
       String on,
       String fix,
+      Optional<String> offered,
       String targetPackage) {
     String ownerName = ProcessorUtils.simpleTypeName(owner);
     Diagnostics.error(
@@ -598,9 +1040,43 @@ final class CopyStrategyChecks {
             + targetPackage
             + "' can call."
             + didYouMean(
-                NamingConvention.ACCESSOR.nearest(
-                    name, accessorNames(ownerElement, targetPackage))),
+                offered.or(
+                    () ->
+                        NamingConvention.ACCESSOR.nearest(
+                            name, accessorNames(ownerElement, targetPackage)))),
         fix);
+  }
+
+  /**
+   * The getter a protobuf-java message reads a repeated or a map field whole with, for an accessor
+   * spelt after the field, bare or as a bean's getter, or a near miss of one: {@code getTagsList()}
+   * for {@code tags} or {@code getTags}, {@code getPointsMap()} for {@code getPoint}. It is offered
+   * before any other near miss, since a repeated field's {@code getTags(int)} reads one element and
+   * a map field's {@code getPoints()} is deprecated. Empty for any other type, or where no field is
+   * near.
+   */
+  private Optional<String> collectionGetter(
+      DeclaredType source, TypeElement element, String written, String targetPackage) {
+    if (!ProcessorUtils.isSubtypeOfNamed(
+        typeUtils, elementUtils, source, ProtobufCollection.MESSAGE)) {
+      return Optional.empty();
+    }
+    // Each such getter by the field it reads, as protobuf spells it after 'get'.
+    Map<String, String> byField = new LinkedHashMap<>();
+    for (String accessor : accessorNames(element, targetPackage)) {
+      for (ProtobufCollection kind : ProtobufCollection.values()) {
+        if (accessor.startsWith("get") && accessor.endsWith(kind.getterSuffix())) {
+          byField.put(
+              accessor.substring("get".length(), accessor.length() - kind.getterSuffix().length()),
+              accessor);
+        }
+      }
+    }
+    String field = ProcessorUtils.capitalise(written.replaceFirst("^(get|is)(?=\\p{Lu})", ""));
+    return Optional.ofNullable(byField.get(field))
+        .or(
+            () ->
+                ProcessorUtils.nearestName(field, List.copyOf(byField.keySet())).map(byField::get));
   }
 
   /**
@@ -649,14 +1125,13 @@ final class CopyStrategyChecks {
               : "Name the lens method after a zero-parameter method '"
                   + ownerName
                   + "' declares, which is the accessor this strategy reads through.",
+          collectionGetter(sourceType, sourceTypeElement, getterName, targetPackage),
           targetPackage);
       return true;
     }
     // Read on the captured source, as the call reads it: a value a wildcard types is a type of
     // its own there, and one the lens can hand back.
-    TypeMirror read =
-        ProcessorUtils.returnTypeIn(
-            typeUtils, (DeclaredType) typeUtils.capture(sourceType), getter);
+    TypeMirror read = ProcessorUtils.returnTypeCalledOn(typeUtils, sourceType, getter);
     TypeMirror focus = focusRead(focusType);
     if (focus == null) {
       // A wildcard focus is inferred from this accessor, within its upper bound: a read that
@@ -847,30 +1322,28 @@ final class CopyStrategyChecks {
    *
    * @param method the annotated lens method, for error reporting
    * @param tag the strategy annotation, which the message names
-   * @param owner the type the call is made on
+   * @param on the type the call is made on
    * @param bound the method the call binds, an instance method
    * @param focusType the lens's focus, which the call passes
    * @param call the call as the generated lens writes it, for the reason
-   * @param sourceName the source type's name, which the remedy offers another strategy for
-   * @param handedBackBy the call that hands {@code owner} back, {@code toBuilder()} for a builder's
-   *     setter; null where {@code owner} is the source type, which is never raw itself
+   * @param sourceType the source type, which the remedy offers another strategy for
    * @return true when the call is unchecked, and an error was reported
    */
   private boolean setsUnchecked(
       ExecutableElement method,
       String tag,
-      DeclaredType owner,
+      Receiver on,
       ExecutableElement bound,
       TypeMirror focusType,
       String call,
-      String sourceName,
-      String handedBackBy) {
+      DeclaredType sourceType) {
+    DeclaredType owner = on.type();
     if (ProcessorUtils.callsUnchecked(typeUtils, owner, bound)) {
       String signature = signatureAsDeclared(bound);
       String reason =
           "A raw type erases the parameters of the methods called through it, and "
               + UNCHECKED_IN_GENERATED_CODE;
-      String rebuild = rebuildWith(sourceName, tag);
+      String rebuild = rebuildAnotherWay(sourceType, tag);
       // The source type is never raw itself, so a raw owner is a builder its toBuilder handed
       // back; otherwise the method is inherited from a raw supertype.
       if (ProcessorUtils.erasesItsMembers(owner)) {
@@ -879,9 +1352,9 @@ final class CopyStrategyChecks {
             method,
             tag,
             "'"
-                + handedBackBy
+                + ((Receiver.OnBuilder) on).handedBackBy()
                 + "' hands back the raw type '"
-                + ProcessorUtils.simpleTypeName(owner)
+                + ProcessorUtils.simpleTypeName(on.shown())
                 + "', so the generated call to '"
                 + signature
                 + "' on it is unchecked.",
@@ -899,7 +1372,7 @@ final class CopyStrategyChecks {
           method,
           tag,
           "'"
-              + ProcessorUtils.simpleTypeName(owner)
+              + ProcessorUtils.simpleTypeName(on.shown())
               + "' inherits '"
               + signature
               + "' from the raw type '"
@@ -912,18 +1385,33 @@ final class CopyStrategyChecks {
       return true;
     }
     TypeMirror focus = focusRead(focusType);
-    TypeMirror parameter =
-        ProcessorUtils.memberOf(typeUtils, owner, bound).getParameterTypes().getFirst();
-    if (focus == null || !ProcessorUtils.convertsUnchecked(typeUtils, focus, parameter)) {
+    if (focus == null) {
       return false;
     }
+    // Decided as the call reads the parameter, on the owner captured: a wildcard of the owner is
+    // a type of its own there, which a raw focus reaches only unchecked, where on the owner as
+    // declared 'List<T>' reads as the reifiable 'List<?>' a raw focus reaches freely.
+    DeclaredType captured = (DeclaredType) typeUtils.capture(owner);
+    TypeMirror called =
+        ProcessorUtils.memberOf(typeUtils, captured, bound).getParameterTypes().getFirst();
+    if (!ProcessorUtils.convertsUnchecked(typeUtils, focus, called)) {
+      return false;
+    }
+    // Where a wildcard's type stands in the parameter, no type the spec writes names it.
+    Optional<StandIn> standIn = standInNamed(on, captured, List.of(called));
+    if (standIn.isPresent()) {
+      reportTakesAWildcardUnchecked(method, tag, on, bound, focus, call, sourceType, standIn.get());
+      return true;
+    }
+    TypeMirror parameter =
+        ProcessorUtils.memberOf(typeUtils, owner, bound).getParameterTypes().getFirst();
     String parameterName = ProcessorUtils.simpleTypeName(parameter);
     Diagnostics.error(
         messager,
         method,
         tag,
         "'"
-            + signatureOn(owner, bound)
+            + signatureOn(on.shown(), bound)
             + "' takes the lens's focus, "
             + described(typeUtils, focus, parameter)
             + ", only through an unchecked conversion to '"
@@ -935,9 +1423,86 @@ final class CopyStrategyChecks {
             + "', the type '"
             + bound.getSimpleName()
             + "' takes; otherwise "
-            + rebuildWith(sourceName, tag)
+            + rebuildAnotherWay(sourceType, tag)
             + ".");
     return true;
+  }
+
+  /**
+   * Reports a one-argument call whose parameter names the type a wildcard stands for, which the
+   * lens's focus reaches only through an unchecked conversion: a raw {@code List} passed to {@code
+   * items(List<T>)} on the builder a {@code Bin<?>} hands back. No type the spec writes names the
+   * parameter there, so the message names the method as it is declared. Where the wildcard is the
+   * spec's source type's, a type argument in its place, or a type parameter of the spec, names the
+   * type, and every other strategy would set the value through a method taking the same type; where
+   * it is the builder's own, the method that hands the builder back is at fault.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param on the type the call is made on
+   * @param bound the method the call binds
+   * @param focus the lens's focus, which the call passes
+   * @param call the call as the generated lens writes it, for the reason
+   * @param sourceType the source type, as the spec names it
+   * @param standIn whose wildcard the parameter names the type of
+   */
+  private void reportTakesAWildcardUnchecked(
+      ExecutableElement method,
+      String tag,
+      Receiver on,
+      ExecutableElement bound,
+      TypeMirror focus,
+      String call,
+      DeclaredType sourceType,
+      StandIn standIn) {
+    boolean sources = standIn == StandIn.SOURCE;
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + (sources ? signatureOn(on.named(), bound) : signatureAsDeclared(bound))
+            + "' takes a type that names what a wildcard of '"
+            + ProcessorUtils.simpleTypeName(sources ? sourceType : on.shown())
+            + "' stands for, which the lens's focus, "
+            + described(typeUtils, focus, bound.getParameters().getFirst().asType())
+            + ", reaches only through an unchecked conversion.",
+        "The generated lens sets through " + call + ", and " + UNCHECKED_IN_GENERATED_CODE,
+        sources
+            ? declareTheSpecOver(sourceType, bound.getSimpleName().toString()) + "."
+            : "Point "
+                + tag
+                + "'s 'toBuilder' at a method that hands back the builder with its type"
+                + " arguments; otherwise "
+                + rebuildAnotherWay(sourceType, tag)
+                + ".");
+  }
+
+  /**
+   * The remedy for a parameter that names what a wildcard of the source type stands for, as an
+   * unfinished clause: the spec names the type instead, and the focus as {@code method} then takes
+   * it. No other strategy helps, since each sets the value through a method that names the type
+   * alike.
+   */
+  private String declareTheSpecOver(DeclaredType sourceType, String method) {
+    return "Declare the spec over '"
+        + ProcessorUtils.simpleTypeName(typeUtils.erasure(sourceType))
+        + "' with a type argument in place of each wildcard, a type parameter of the spec if need"
+        + " be, and the focus as the type '"
+        + method
+        + "' then takes";
+  }
+
+  /**
+   * The remedy that rebuilds the source type with another strategy, as an unfinished clause: any of
+   * them, or where no constructor call can rebuild it, as {@link #constructorUnwritable} says, only
+   * those that name no constructor.
+   */
+  private static String rebuildAnotherWay(DeclaredType sourceType, String tag) {
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    return constructorUnwritable(sourceType)
+        ? rebuildWith(source, tag, List.of("@Wither", "@ViaBuilder"))
+        : rebuildWith(source, tag);
   }
 
   /**
@@ -961,12 +1526,12 @@ final class CopyStrategyChecks {
       String setterName,
       TypeMirror focusType,
       String targetPackage) {
+    Receiver on = new Receiver.OnSource(sourceType, sourceTypeElement);
     SetterCall setter =
         boundSetter(
             method,
             "@ViaCopyAndSet",
-            sourceType,
-            sourceTypeElement,
+            on,
             setterName,
             focusType,
             "setter",
@@ -977,12 +1542,11 @@ final class CopyStrategyChecks {
             && setsUnchecked(
                 method,
                 "@ViaCopyAndSet",
-                sourceType,
+                on,
                 bound,
                 focusType,
                 "'" + setterName + "(newValue)'",
-                ProcessorUtils.simpleTypeName(sourceType),
-                null)
+                sourceType)
         ? new SetterCall.Refused()
         : setter;
   }
@@ -1089,9 +1653,9 @@ final class CopyStrategyChecks {
             .filter(member -> !returnsSourceForAnyArgument(sourceType, member))
             .map(member -> returnPhrase(sourceType, member))
             .toList();
-    // @Wither binds the method the focus binds, and serves where that one returns an S. Where the
-    // binding is javac's to settle, under a wildcard focus or by inference, it may settle on
-    // another, so @Wither is not offered.
+    // @Wither binds the method the focus binds, and serves where that one returns an S. Under a
+    // wildcard focus, or where the binding rests on inference, javac may settle on another, so
+    // @Wither is not offered.
     boolean witherServes =
         argument.getKind() != TypeKind.WILDCARD
             && setterCall instanceof SetterCall.Binds(ExecutableElement bound)
@@ -1167,15 +1731,16 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * What a generated one-argument call on {@code owner} comes to.
+   * What a generated one-argument call comes to, made as {@code on} says.
    *
    * <p>A focus written as a wildcard leaves the choice to javac, as it does for a wither, so the
-   * call is undecided there rather than refused, and so is one javac settles by inference.
+   * call is undecided there rather than refused, and so is one javac settles by inference. Of
+   * several methods of the name, the call binds the one {@link #boundThroughTheGetter} says, where
+   * it says one.
    *
    * @param method the annotated lens method, for error reporting
    * @param tag the strategy annotation, which the message names
-   * @param owner the type the call is made on
-   * @param ownerElement that type's element, whose members are searched
+   * @param on the type the call is made on, whose members are searched
    * @param setterName the method the strategy sets through
    * @param focusType the lens's focus, which the call passes
    * @param attribute the annotation attribute that names it
@@ -1188,23 +1753,23 @@ final class CopyStrategyChecks {
   private SetterCall boundSetter(
       ExecutableElement method,
       String tag,
-      DeclaredType owner,
-      TypeElement ownerElement,
+      Receiver on,
       String setterName,
       TypeMirror focusType,
       String attribute,
       DeclaredType source,
       String getterName,
       String targetPackage) {
-    String sourceName = ProcessorUtils.simpleTypeName(source);
+    DeclaredType owner = on.type();
+    String ownerName = ProcessorUtils.simpleTypeName(on.shown());
     List<ExecutableElement> named =
-        callableMembers(ownerElement, targetPackage).stream()
+        callableMembers(on.element(), targetPackage).stream()
             .filter(member -> member.getSimpleName().contentEquals(setterName))
             .toList();
     List<ExecutableElement> oneParameter =
         named.stream().filter(member -> member.getParameters().size() == 1).toList();
     if (named.isEmpty()) {
-      reportMissingSetter(method, tag, owner, ownerElement, setterName, attribute, targetPackage);
+      reportMissingSetter(method, tag, on, setterName, attribute, targetPackage);
       return new SetterCall.Refused();
     }
     if (focusRead(focusType) == null) {
@@ -1212,19 +1777,24 @@ final class CopyStrategyChecks {
         reportSetterOfAnotherArity(
             method,
             tag,
-            owner,
+            on,
             setterName,
             named,
             attribute,
-            sourceName,
-            setterOffer(tag, named, setterName, owner, ownerElement, targetPackage));
+            source,
+            setterOffer(tag, named, setterName, on, targetPackage));
         return new SetterCall.Refused();
       }
-      // Which of several such methods the call binds is javac's to settle, and so is what it
-      // hands back; where the name carries only one, that is the one.
+      // Where the name carries only one such method, that is the one. Of several, a protobuf
+      // builder's addAllTags among them, the call binds as one passing what the getter reads,
+      // where javac infers the focus from it alone; else it is javac's to settle, and so is what
+      // it hands back.
       return oneParameter.size() == 1
           ? new SetterCall.Binds(oneParameter.getFirst())
-          : new SetterCall.Undecided();
+          : boundThroughTheGetter(
+                  (WildcardType) focusType, owner, named, source, getterName, targetPackage)
+              .<SetterCall>map(SetterCall.Binds::new)
+              .orElseGet(SetterCall.Undecided::new);
     }
     String call = "'" + setterName + "(newValue)'";
     return switch (CallBinding.resolve(typeUtils, owner, List.of(focusType), named)) {
@@ -1237,9 +1807,9 @@ final class CopyStrategyChecks {
             method,
             tag,
             "'"
-                + signatureOn(owner, bound)
+                + signatureOn(on.shown(), bound)
                 + "' is static, so the generated lens cannot set through it on a '"
-                + ProcessorUtils.simpleTypeName(owner)
+                + ownerName
                 + "'.",
             "The generated lens sets through "
                 + call
@@ -1251,41 +1821,17 @@ final class CopyStrategyChecks {
         yield new SetterCall.Refused();
       }
       case CallBinding.NoneApplies() -> {
-        Diagnostics.error(
-            messager,
+        reportInapplicableSetter(
             method,
             tag,
-            "No method '"
-                + setterName
-                + "' of '"
-                + ProcessorUtils.simpleTypeName(owner)
-                + "' takes the lens's focus type '"
-                + ProcessorUtils.simpleTypeName(focusType)
-                + "'.",
-            "The generated lens sets through "
-                + call
-                + " with the new value typed '"
-                + ProcessorUtils.simpleTypeName(focusType)
-                + "'. Found on '"
-                + ProcessorUtils.simpleTypeName(owner)
-                + "': "
-                + named.stream().map(member -> signatureOn(owner, member)).toList()
-                + "."
-                + setterOffer(tag, named, setterName, owner, ownerElement, targetPackage),
-            narrowerFocus(source, getterName, focusType, owner, named)
-                    .orElse(
-                        "Set "
-                            + tag
-                            + "'s '"
-                            + attribute
-                            + "' to a method that takes the value the getter reads"
-                            + (tag.equals("@ViaBuilder")
-                                ? ", or point @ViaBuilder's 'getter' at an accessor one of them"
-                                    + " takes and declare the focus as its type"
-                                : ""))
-                + "; otherwise "
-                + rebuildWith(sourceName, tag)
-                + ".");
+            on,
+            setterName,
+            focusType,
+            attribute,
+            source,
+            getterName,
+            named,
+            targetPackage);
         yield new SetterCall.Refused();
       }
       case CallBinding.Ambiguous(List<ExecutableElement> methods) -> {
@@ -1298,7 +1844,7 @@ final class CopyStrategyChecks {
             "The generated call to '"
                 + setterName
                 + "' on a '"
-                + ProcessorUtils.simpleTypeName(owner)
+                + ownerName
                 + "' cannot choose between "
                 + listed(signatures)
                 + ".",
@@ -1307,11 +1853,159 @@ final class CopyStrategyChecks {
                 + " with the new value typed '"
                 + ProcessorUtils.simpleTypeName(focusType)
                 + "', which each of them takes, with no parameter more specific than every other.",
-            ambiguityFix(owner, methods, sourceName, tag));
+            ambiguityFix(owner, methods, source, tag));
         yield new SetterCall.Refused();
       }
       case CallBinding.Undecided(List<ExecutableElement> ignored) -> new SetterCall.Undecided();
     };
+  }
+
+  /**
+   * The method a one-argument call binds where the lens's focus is a wildcard and the name carries
+   * several methods. The generated lens is {@code Lens.of(source -> source.getter(), (source,
+   * newValue) -> ...)}, and javac infers a focus written as {@code ?} or {@code ? extends T} from
+   * the getter alone, the leftmost lambda, since nothing else bounds it from below (JLS 18.5.2.2):
+   * as what the getter reads, boxed. The getter is the method a call with no argument binds, as
+   * javac chooses among methods of its name, and the call binds as one passing what it reads. Empty
+   * where javac weighs more than the getter, or cannot infer the focus from it: a wildcard bounded
+   * from below, a getter with type parameters of its own, whose read javac infers from the focus
+   * rather than the other way about, a read the wildcard's bound does not admit, or a call that
+   * rests on inference or binds nothing. javac settles or reports each of those at the generated
+   * call.
+   *
+   * @param focusType the lens's focus
+   * @param owner the type the call is made on
+   * @param named the methods of the name the call chooses among
+   * @param source the source type {@code S}, whose getter the lens reads its focus through
+   * @param getterName that getter
+   * @param targetPackage the package the optics class is generated into
+   * @return the method the call binds, or empty
+   */
+  private Optional<ExecutableElement> boundThroughTheGetter(
+      WildcardType focusType,
+      DeclaredType owner,
+      List<ExecutableElement> named,
+      DeclaredType source,
+      String getterName,
+      String targetPackage) {
+    if (focusType.getSuperBound() != null) {
+      return Optional.empty();
+    }
+    TypeMirror bound =
+        Objects.requireNonNullElse(
+            focusType.getExtendsBound(), elementUtils.getTypeElement("java.lang.Object").asType());
+    List<ExecutableElement> getters =
+        callableMembers((TypeElement) source.asElement(), targetPackage).stream()
+            .filter(member -> member.getSimpleName().contentEquals(getterName))
+            .toList();
+    return Optional.of(CallBinding.resolve(typeUtils, source, List.of(), getters))
+        .filter(CallBinding.Binds.class::isInstance)
+        .map(binding -> ((CallBinding.Binds) binding).candidate())
+        .filter(getter -> getter.getTypeParameters().isEmpty())
+        .map(
+            getter ->
+                asFocus(typeUtils, ProcessorUtils.returnTypeCalledOn(typeUtils, source, getter)))
+        .filter(read -> typeUtils.isAssignable(read, bound))
+        .map(read -> CallBinding.resolve(typeUtils, owner, List.of(read), named))
+        .filter(CallBinding.Binds.class::isInstance)
+        .map(binding -> ((CallBinding.Binds) binding).candidate());
+  }
+
+  /**
+   * Reports a setter none of whose methods, {@code named}, takes the lens's focus. Where a
+   * parameter names the type a wildcard stands for, no focus would do, so the message says whose
+   * wildcard it is, and names the methods as declared, which name what the wildcard stands in for:
+   * on the builder as {@code toBuilder()} declares it, for a wildcard of the source; otherwise it
+   * lists the methods and offers what would.
+   */
+  private void reportInapplicableSetter(
+      ExecutableElement method,
+      String tag,
+      Receiver on,
+      String setterName,
+      TypeMirror focusType,
+      String attribute,
+      DeclaredType source,
+      String getterName,
+      List<ExecutableElement> named,
+      String targetPackage) {
+    DeclaredType captured = (DeclaredType) typeUtils.capture(on.type());
+    Optional<StandIn> standIn =
+        standInNamed(
+            on,
+            captured,
+            named.stream()
+                .filter(member -> member.getParameters().size() == 1)
+                .map(member -> ProcessorUtils.firstParameterTypeIn(typeUtils, captured, member))
+                .toList());
+    // The source's wildcard is named where it is declared, as the call reaches it.
+    DeclaredType listed =
+        standIn.filter(StandIn.SOURCE::equals).map(ignored -> on.named()).orElse(on.shown());
+    String listedName = ProcessorUtils.simpleTypeName(listed);
+    String focusName = ProcessorUtils.simpleTypeName(focusType);
+    String found =
+        "The generated lens sets through '"
+            + setterName
+            + "(newValue)' with the new value typed '"
+            + focusName
+            + "'. Found on '"
+            + listedName
+            + "': "
+            + named.stream()
+                .map(
+                    member ->
+                        standIn.isPresent() && standIn.get() == StandIn.BUILDER
+                            ? signatureAsDeclared(member)
+                            : signatureOn(listed, member))
+                .toList()
+            + ".";
+    String reason;
+    String fix;
+    if (standIn.isPresent()) {
+      boolean sources = standIn.get() == StandIn.SOURCE;
+      reason =
+          found
+              + " A parameter that a wildcard of '"
+              + ProcessorUtils.simpleTypeName(sources ? source : on.shown())
+              + "' stands in takes no value at all, since the type it stands for is unknown.";
+      fix =
+          sources
+              ? declareTheSpecOver(source, setterName)
+              : "Point "
+                  + tag
+                  + "'s 'toBuilder' at a method that hands back the builder with its type"
+                  + " arguments, or "
+                  + rebuildAnotherWay(source, tag);
+    } else {
+      reason = found + setterOffer(tag, named, setterName, on, targetPackage);
+      fix =
+          narrowerFocus(source, getterName, focusType, on.type(), named)
+                  .orElse(
+                      "Set "
+                          + tag
+                          + "'s '"
+                          + attribute
+                          + "' to a method that takes the value the getter reads"
+                          + (tag.equals("@ViaBuilder")
+                              ? ", or point @ViaBuilder's 'getter' at an accessor one of them"
+                                  + " takes and declare the focus as its type"
+                              : ""))
+              + "; otherwise "
+              + rebuildAnotherWay(source, tag);
+    }
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "No method '"
+            + setterName
+            + "' of '"
+            + listedName
+            + "' takes the lens's focus type '"
+            + focusName
+            + "'.",
+        reason,
+        fix + ".");
   }
 
   /**
@@ -1335,19 +2029,36 @@ final class CopyStrategyChecks {
   }
 
   /**
+   * What reading a {@code @ViaBuilder} chain came to: a chain the generated lens rebuilds through,
+   * or a refusal already reported.
+   */
+  private sealed interface BuilderChain {
+
+    /**
+     * The lens rebuilds through the chain.
+     *
+     * @param clear the builder method the lens calls before the setter, or empty for none
+     */
+    record Rebuilds(String clear) implements BuilderChain {}
+
+    /** The generated lens could not walk the chain, and an error was reported. */
+    record Refused() implements BuilderChain {}
+  }
+
+  /**
    * Reports a setter no overload of which takes one argument, whatever the lens's focus is, with
    * {@code offer}, the {@link #setterOffer} for its name.
    */
   private void reportSetterOfAnotherArity(
       ExecutableElement method,
       String tag,
-      DeclaredType owner,
+      Receiver on,
       String setterName,
       List<ExecutableElement> named,
       String attribute,
-      String sourceName,
+      DeclaredType source,
       String offer) {
-    String ownerName = ProcessorUtils.simpleTypeName(owner);
+    String ownerName = ProcessorUtils.simpleTypeName(on.shown());
     Diagnostics.error(
         messager,
         method,
@@ -1358,7 +2069,7 @@ final class CopyStrategyChecks {
             + "(newValue)', passing the one value it sets. Found on '"
             + ownerName
             + "': "
-            + named.stream().map(member -> signatureOn(owner, member)).toList()
+            + named.stream().map(member -> signatureOn(on.shown(), member)).toList()
             + "."
             + offer,
         "Set "
@@ -1366,20 +2077,19 @@ final class CopyStrategyChecks {
             + "'s '"
             + attribute
             + "' to a method that takes the value the lens sets; otherwise "
-            + rebuildWith(sourceName, tag)
+            + rebuildAnotherWay(source, tag)
             + ".");
   }
 
-  /** Reports a setter the generated optic calls and the type does not have. */
+  /** Reports a setter the generated optic calls and the type it is called on does not have. */
   private void reportMissingSetter(
       ExecutableElement method,
       String tag,
-      DeclaredType owner,
-      TypeElement ownerElement,
+      Receiver on,
       String setterName,
       String attribute,
       String targetPackage) {
-    String ownerName = ProcessorUtils.simpleTypeName(owner);
+    String ownerName = ProcessorUtils.simpleTypeName(on.shown());
     Diagnostics.error(
         messager,
         method,
@@ -1398,21 +2108,28 @@ final class CopyStrategyChecks {
             + targetPackage
             + "' can call."
             + didYouMean(
-                setterConvention(tag)
-                    .nearest(setterName, setterNames(tag, owner, ownerElement, targetPackage))),
+                collectionAdder(on, setterName, setterNames(tag, on, targetPackage))
+                    .or(
+                        () ->
+                            setterConvention(tag)
+                                .nearest(setterName, setterNames(tag, on, targetPackage)))),
         "Set " + tag + "'s '" + attribute + "' to a method '" + ownerName + "' declares.");
   }
 
   /**
-   * Reports a {@code @ViaBuilder} whose chain the generated lens cannot walk, and returns whether
-   * it did.
+   * Reads the chain a {@code @ViaBuilder} lens rebuilds through, and reports one the generated lens
+   * cannot walk.
    *
    * <p>The lens rebuilds with {@code source.toBuilder().setter(newValue).build()}, so each step has
    * to exist where the one before it leads: the builder the source hands back, the setter that
-   * takes the focus, and a {@code build} that hands the source type back. None of it may be
-   * unchecked: a setter called through a raw builder that erases its parameter, or a {@code build}
-   * that reaches the source type only by an unchecked conversion, which a raw builder's erasure
-   * makes of a generic one.
+   * takes the focus, and a {@code build} that hands the source type back. Each step is read on what
+   * the one before it hands back captured, as javac reads the call, {@code toBuilder()} on the
+   * source: a self-typed builder handed back with wildcards, as Lombok's {@code @SuperBuilder}
+   * hands back a {@code SupBuilder<?, ?>}, leads on to the builder and the source type its
+   * parameters are bounded by, and a step bounded by several types is read on the one that declares
+   * the next call. None of it may be unchecked: a setter called through a raw builder that erases
+   * its parameter, or a {@code build} that reaches the source type only by an unchecked conversion,
+   * which a raw builder's erasure makes of a generic one.
    *
    * @param method the annotated lens method, for error reporting
    * @param sourceType the source type {@code S}, as the spec names it
@@ -1423,9 +2140,9 @@ final class CopyStrategyChecks {
    * @param buildName the builder method that hands the source type back
    * @param focusType the lens's focus
    * @param targetPackage the package the optics class is generated into
-   * @return true when the chain cannot be walked, and an error was reported
+   * @return the chain the lens rebuilds through, or a refusal, already reported
    */
-  private boolean rebuildsThroughUnusableBuilder(
+  private BuilderChain builderChain(
       ExecutableElement method,
       DeclaredType sourceType,
       TypeElement sourceTypeElement,
@@ -1448,38 +2165,122 @@ final class CopyStrategyChecks {
           "'source'",
           "Set @ViaBuilder's 'toBuilder' to a method '"
               + ProcessorUtils.simpleTypeName(sourceType)
-              + "' declares.",
+              + "' declares"
+              // Lombok writes no toBuilder() on an abstract class, only on each concrete one.
+              + (sourceTypeElement.getModifiers().contains(Modifier.ABSTRACT)
+                  ? ", or declare the spec over a concrete subclass that declares one."
+                  : "."),
+          Optional.empty(),
           targetPackage);
-      return true;
+      return new BuilderChain.Refused();
     }
-    TypeMirror builderType =
-        stepType(ProcessorUtils.returnTypeIn(typeUtils, sourceType, toBuilder));
+    // Read as the generated call reads it, on the source captured, so that a wildcard of the
+    // source type the spec writes is a type of its own wherever the builder names it: a Bag<?>
+    // whose toBuilder() hands back a Builder<List<T>> hands back a builder of a list of that type.
+    DeclaredType capturedSource = (DeclaredType) typeUtils.capture(sourceType);
+    TypeMirror builderReached = ProcessorUtils.returnTypeIn(typeUtils, capturedSource, toBuilder);
+    if (reportsUndeclaredOnEveryBound(
+        method, builderReached, toBuilderName + "()", setterName, "setter", targetPackage)) {
+      return new BuilderChain.Refused();
+    }
+    TypeMirror builderType = stepTypeFor(builderReached, setterName, targetPackage);
     // A source type read from a class file can name a type missing from the classpath; one
-    // declared in source is waited for until it resolves.
+    // declared in source is waited for until it resolves. Which of several bounds' setters the
+    // call binds is javac's to settle.
     if (builderType == null || builderType.getKind() == TypeKind.ERROR) {
-      return false;
+      return new BuilderChain.Rebuilds("");
     }
     TypeElement builderElement = elementOf(builderType);
     if (builderElement == null) {
-      reportBuilderStep(method, toBuilderName + "()", builderType, "a builder to set through");
-      return true;
+      reportBuilderStep(
+          method,
+          toBuilderName + "()",
+          shownAlone(builderType),
+          "a builder to set through",
+          sourceType);
+      return new BuilderChain.Refused();
     }
+    // A message names the builder as the source type the spec writes reads it, else as
+    // toBuilder() declares it, either naming this very class, whose methods are read on it alike;
+    // else as the type reached, where that can be written.
+    DeclaredType builderDeclared = declaredAs(toBuilder.getReturnType(), builderElement);
+    DeclaredType builderShown =
+        Optional.ofNullable(
+                declaredAs(
+                    ProcessorUtils.returnTypeIn(typeUtils, sourceType, toBuilder), builderElement))
+            .or(() -> Optional.ofNullable(builderDeclared))
+            .orElseGet(() -> (DeclaredType) shownAlone(builderType));
     if (reportsUnnameableStep(
         method, builderElement, toBuilderName + "()", sourceType, targetPackage)) {
-      return true;
+      return new BuilderChain.Refused();
     }
-    // A builder extending a type another processor writes, as a hand-written builder over a
-    // generated one does, inherits members this round cannot read; the chain is written out as it
-    // stands, and javac checks it once the type exists.
+    // A builder read from a class file can extend a type missing from the classpath, which no
+    // round brings; one declared in source is waited for until it resolves (WaitingImporters).
+    // The chain is written out as it stands, for javac to report.
     if (hierarchyUnresolved(builderType)) {
-      return false;
+      return new BuilderChain.Rebuilds("");
     }
+    // A toBuilder() the source type inherits hands back its declaring class's builder, which sets
+    // only what that class holds, as a Lombok @SuperBuilder subclass without toBuilder = true of
+    // its own meets for a property it adds.
+    Element declaring = toBuilder.getEnclosingElement();
+    boolean inherited = !declaring.equals(sourceTypeElement);
+    String sourceClass = ProcessorUtils.simpleTypeName(typeUtils.erasure(sourceType));
+    String parentClass = ProcessorUtils.simpleTypeName(typeUtils.erasure(declaring.asType()));
+    List<ExecutableElement> builderMembers = callableMembers(builderElement, targetPackage);
+    // A builder that builds the source type, as a self-typed Builder<Dog> does, is no reason to
+    // blame the inheritance, and a misspelt setter on it draws the plain message and its offer.
+    boolean buildsTheSource =
+        Optional.ofNullable(accessorNamed(builderMembers, buildName))
+            .map(
+                build ->
+                    typeUtils.isAssignable(
+                        ProcessorUtils.returnTypeCalledOn(
+                            typeUtils, (DeclaredType) builderType, build),
+                        sourceType))
+            .orElse(false);
+    if (inherited
+        && !buildsTheSource
+        && builderMembers.stream()
+            .noneMatch(member -> member.getSimpleName().contentEquals(setterName))) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ViaBuilder",
+          inheritsToBuilder(sourceClass, toBuilderName, parentClass)
+              + ", whose builder '"
+              + ProcessorUtils.simpleTypeName(builderShown)
+              + "' has no method '"
+              + setterName
+              + "' for the generated lens to set through.",
+          "The generated lens rebuilds with 'source."
+              + toBuilderName
+              + "().setter(newValue).build()', and the builder that '"
+              + parentClass
+              + "' hands back neither sets '"
+              + setterName
+              + "' nor builds '"
+              + sourceClass
+              + "'.",
+          ownToBuilder(toBuilderName, sourceClass)
+              + ", or "
+              + rebuildAnotherWay(sourceType, "@ViaBuilder")
+              + ".");
+      return new BuilderChain.Refused();
+    }
+    Receiver on =
+        new Receiver.OnBuilder(
+            (DeclaredType) builderType,
+            builderElement,
+            toBuilderName + "()",
+            builderShown,
+            builderDeclared,
+            standIns(sourceType, capturedSource));
     SetterCall setter =
         boundSetter(
             method,
             "@ViaBuilder",
-            (DeclaredType) builderType,
-            builderElement,
+            on,
             setterName,
             focusType,
             "setter",
@@ -1488,73 +2289,119 @@ final class CopyStrategyChecks {
             targetPackage);
     // Which method an undecided call binds is javac's to settle, so what it hands back is too.
     if (!(setter instanceof SetterCall.Binds(ExecutableElement bound))) {
-      return setter instanceof SetterCall.Refused;
+      return setter instanceof SetterCall.Refused
+          ? new BuilderChain.Refused()
+          : new BuilderChain.Rebuilds("");
     }
     if (setsUnchecked(
         method,
         "@ViaBuilder",
-        (DeclaredType) builderType,
+        on,
         bound,
         focusType,
         "'" + setterName + "(newValue)'",
-        ProcessorUtils.simpleTypeName(sourceType),
-        toBuilderName + "()")) {
-      return true;
+        sourceType)) {
+      return new BuilderChain.Refused();
     }
-    TypeMirror setType =
-        stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
-    // A builder the processor does not wait on, one nested in the source type or read from a class
-    // file, can hand back a type that does not resolve.
+    String clear =
+        CollectionClear.of(
+                typeUtils,
+                elementUtils,
+                (DeclaredType) builderType,
+                builderMembers,
+                setterName,
+                bound,
+                propertiesReadBesides(sourceTypeElement, getterName, targetPackage))
+            .filter(
+                candidate ->
+                    handsBackTheBuilder(
+                        candidate,
+                        builderReached,
+                        (DeclaredType) builderType,
+                        setterName,
+                        targetPackage))
+            .map(candidate -> candidate.getSimpleName().toString())
+            .orElse("");
+    // The chain carries on from what the setter returns on the builder captured, as the generated
+    // call reads it; a message names the step as the builder the spec reaches declares it.
+    TypeMirror setReached =
+        ProcessorUtils.returnTypeCalledOn(typeUtils, (DeclaredType) builderType, bound);
+    String setterShown = signatureOn(builderShown, bound);
+    if (reportsUndeclaredOnEveryBound(
+        method, setReached, setterShown, buildName, "build", targetPackage)) {
+      return new BuilderChain.Refused();
+    }
+    TypeMirror setType = stepTypeFor(setReached, buildName, targetPackage);
+    // A builder read from a class file can hand back a type missing from the classpath; one
+    // declared in source is waited for until it resolves. Which of several bounds' build methods
+    // the call binds is javac's to settle.
     if (setType == null || setType.getKind() == TypeKind.ERROR) {
-      return false;
+      return new BuilderChain.Rebuilds(clear);
     }
     TypeElement setElement = elementOf(setType);
+    // Named where it can be as the builder the spec reaches declares it, naming the class build()
+    // is read on, so build() is read on it alike.
+    DeclaredType setDeclared =
+        setElement == null
+            ? null
+            : declaredAs(ProcessorUtils.returnTypeIn(typeUtils, builderShown, bound), setElement);
+    TypeMirror setShown = setDeclared != null ? setDeclared : reachedName(setType, builderShown);
     if (setElement == null) {
-      reportBuilderStep(
-          method,
-          signatureOn((DeclaredType) builderType, bound),
-          setType,
-          "a builder to build from");
-      return true;
+      reportBuilderStep(method, setterShown, setShown, "a builder to build from", sourceType);
+      return new BuilderChain.Refused();
     }
-    if (reportsUnnameableStep(
-        method,
-        setElement,
-        signatureOn((DeclaredType) builderType, bound),
-        sourceType,
-        targetPackage)) {
-      return true;
+    if (reportsUnnameableStep(method, setElement, setterShown, sourceType, targetPackage)) {
+      return new BuilderChain.Refused();
     }
     ExecutableElement build = accessorNamed(callableMembers(setElement, targetPackage), buildName);
     if (build == null) {
       reportMissingAccessor(
           method,
           "@ViaBuilder",
-          setType,
+          setShown,
           setElement,
           buildName,
           "finish the value it rebuilds",
-          "the '" + ProcessorUtils.simpleTypeName(setType) + "' the setter hands back",
+          "the '" + ProcessorUtils.simpleTypeName(setShown) + "' the setter hands back",
           "Set @ViaBuilder's 'build' to a method '"
-              + ProcessorUtils.simpleTypeName(setType)
+              + ProcessorUtils.simpleTypeName(setShown)
               + "' declares.",
+          Optional.empty(),
           targetPackage);
-      return true;
+      return new BuilderChain.Refused();
     }
-    TypeMirror built = ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) setType, build);
-    if (typeUtils.isAssignable(built, sourceType)) {
+    TypeMirror built = ProcessorUtils.returnTypeCalledOn(typeUtils, (DeclaredType) setType, build);
+    boolean buildsSource = typeUtils.isAssignable(built, sourceType);
+    TypeMirror builtShown =
+        builtShown(build, built, buildsSource, setDeclared, setShown, sourceType);
+    if (buildsSource) {
       return buildsUnchecked(
-          method,
-          sourceType,
-          toBuilderName,
-          (DeclaredType) builderType,
-          bound,
-          buildName,
-          (DeclaredType) setType,
-          built);
+              method,
+              sourceType,
+              toBuilderName,
+              (DeclaredType) builderType,
+              setterShown,
+              buildName,
+              (DeclaredType) setType,
+              built,
+              builtShown)
+          ? new BuilderChain.Refused()
+          : new BuilderChain.Rebuilds(clear);
     }
     String source = ProcessorUtils.simpleTypeName(sourceType);
-    String builtName = ProcessorUtils.simpleTypeName(built);
+    String builtName = ProcessorUtils.simpleTypeName(builtShown);
+    String inheritance =
+        inherited
+            ? " "
+                + inheritsToBuilder(sourceClass, toBuilderName, parentClass)
+                + ", so the chain builds with the builder that '"
+                + parentClass
+                + "' hands back."
+            : "";
+    String fix =
+        inherited
+            ? ownToBuilder(toBuilderName, sourceClass)
+            : "Set @ViaBuilder's 'build' to the method that finishes a '" + source + "'";
     Diagnostics.error(
         messager,
         method,
@@ -1566,13 +2413,10 @@ final class CopyStrategyChecks {
             + source
             + "', which '"
             + builtName
-            + "' is not.",
-        "Set @ViaBuilder's 'build' to the method that finishes a '"
-            + source
-            + "', or "
-            + rebuildWith(source, "@ViaBuilder")
-            + ".");
-    return true;
+            + "' is not."
+            + inheritance,
+        fix + ", or " + rebuildAnotherWay(sourceType, "@ViaBuilder") + ".");
+    return new BuilderChain.Refused();
   }
 
   /**
@@ -1586,10 +2430,11 @@ final class CopyStrategyChecks {
    * @param sourceType the source type {@code S}, which the generated lens hands the result back as
    * @param toBuilderName the method that hands back the builder
    * @param builder the builder it hands back, which the setter is called on
-   * @param setter the setter the call binds
+   * @param setterShown the setter the call binds, as a message names it
    * @param buildName the builder method that hands the source type back
    * @param set the builder the setter hands back, which {@code build()} is called on
    * @param built what {@code build()} returns there
+   * @param builtShown the same, as the message names it
    * @return true when the result is unchecked, and an error was reported
    */
   private boolean buildsUnchecked(
@@ -1597,10 +2442,11 @@ final class CopyStrategyChecks {
       DeclaredType sourceType,
       String toBuilderName,
       DeclaredType builder,
-      ExecutableElement setter,
+      String setterShown,
       String buildName,
       DeclaredType set,
-      TypeMirror built) {
+      TypeMirror built,
+      TypeMirror builtShown) {
     if (!ProcessorUtils.convertsUnchecked(typeUtils, built, sourceType)) {
       return false;
     }
@@ -1615,7 +2461,7 @@ final class CopyStrategyChecks {
       rawStep = toBuilderName + "()";
       attribute = "toBuilder";
     } else {
-      rawStep = signatureOn(builder, setter);
+      rawStep = setterShown;
       attribute = "setter";
     }
     Diagnostics.error(
@@ -1625,7 +2471,7 @@ final class CopyStrategyChecks {
         "'"
             + buildName
             + "()' returns "
-            + described(typeUtils, built, sourceType)
+            + described(typeUtils, builtShown, sourceType)
             + ", which reaches the source type '"
             + source
             + "' only through an unchecked conversion.",
@@ -1648,7 +2494,7 @@ final class CopyStrategyChecks {
                 ? "a method that returns '" + source + "'"
                 : "a method that hands back the builder with its type arguments")
             + ", or "
-            + rebuildWith(source, "@ViaBuilder")
+            + rebuildAnotherWay(sourceType, "@ViaBuilder")
             + ".");
     return true;
   }
@@ -1683,14 +2529,18 @@ final class CopyStrategyChecks {
         "Make '"
             + step.getSimpleName()
             + "' public, or "
-            + rebuildWith(ProcessorUtils.simpleTypeName(sourceType), "@ViaBuilder")
+            + rebuildAnotherWay(sourceType, "@ViaBuilder")
             + ".");
     return true;
   }
 
   /** Reports a builder step that hands back something no further call can be made on. */
   private void reportBuilderStep(
-      ExecutableElement method, String step, TypeMirror handedBack, String wanted) {
+      ExecutableElement method,
+      String step,
+      TypeMirror handedBack,
+      String wanted,
+      DeclaredType sourceType) {
     String handedBackName = ProcessorUtils.simpleTypeName(handedBack);
     Diagnostics.error(
         messager,
@@ -1700,8 +2550,62 @@ final class CopyStrategyChecks {
         "The generated lens rebuilds with"
             + " 'source.toBuilder().setter(newValue).build()', and each step is called on what the"
             + " step before it hands back.",
-        "Name the builder methods this type's chain declares, or rebuild it with @Wither,"
-            + " @ViaConstructor or @ViaCopyAndSet.");
+        "Name the builder methods this type's chain declares, or "
+            + rebuildAnotherWay(sourceType, "@ViaBuilder")
+            + ".");
+  }
+
+  /**
+   * A builder step's type as a message names it where its declared reading is a wildcard, from what
+   * it returns read on the type before it captured. The type capture makes of a wildcard has no
+   * name a reader can write, so the step is named by what holds it: the builder it was called on,
+   * as declared, where it hands that builder back, as a self-typed builder's setter does; else the
+   * bound it reaches, where that names no type variable; else that bound's class alone.
+   *
+   * @param reached what the step returns on the type before it captured
+   * @param receiver the type before it, as a message names it
+   */
+  private TypeMirror reachedName(TypeMirror reached, TypeMirror receiver) {
+    if (typeUtils.isSameType(typeUtils.erasure(reached), typeUtils.erasure(receiver))) {
+      return receiver;
+    }
+    // A bound naming more than one type is named by the first.
+    return shownAlone(ProcessorUtils.typesReached(reached).getFirst());
+  }
+
+  /**
+   * What {@code build()} returns, as a message names it: as it returns it on the setter's step as
+   * declared, where that step has a declared name and the reading agrees with the call's on whether
+   * the source type takes it. A declared reading the source type takes where the call's does not, a
+   * {@code Box<List<?>>} for a {@code Box<List<CAP>>}, names a type the check did not find, and the
+   * method's own declaration names it instead. A step with no declared name leaves nothing declared
+   * to read {@code build()} on, and the call's reading is named as it can be.
+   *
+   * @param build the builder method that finishes the source type
+   * @param built what it returns on the setter's step captured, as the call reads it
+   * @param buildsSource whether the source type takes {@code built}
+   * @param setDeclared the setter's step as declared, or null where it names nothing
+   * @param setShown the setter's step as a message names it
+   * @param sourceType the source type the lens hands the result back as
+   */
+  private TypeMirror builtShown(
+      ExecutableElement build,
+      TypeMirror built,
+      boolean buildsSource,
+      TypeMirror setDeclared,
+      TypeMirror setShown,
+      DeclaredType sourceType) {
+    if (setDeclared == null) {
+      return reachedName(built, setShown);
+    }
+    TypeMirror declared =
+        unlessWildcard(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) setDeclared, build));
+    if (declared == null) {
+      return reachedName(built, setShown);
+    }
+    return typeUtils.isAssignable(declared, sourceType) == buildsSource
+        ? declared
+        : build.getReturnType();
   }
 
   /**
@@ -1736,6 +2640,7 @@ final class CopyStrategyChecks {
           "Name in @ViaConstructor's 'parameterOrder' the accessors '"
               + rebuild.sourceName()
               + "' declares, in the order its constructor takes them.",
+          Optional.empty(),
           rebuild.targetPackage());
       return true;
     }
@@ -1773,8 +2678,9 @@ final class CopyStrategyChecks {
    *
    * <p>Where the choice rests on inference that is not repeated, the candidates are read leniently:
    * the name passes when one of them is an instance method that hands back the source type, and
-   * javac settles the rest at the generated call. A wildcard focus is read that way too, since the
-   * type such a lens infers is drawn from the getter as much as from the wildcard.
+   * javac settles the rest at the generated call. A wildcard focus is read that way too, as far as
+   * javac's choice rests on it: the one method of the name that takes one argument, or of several,
+   * the one {@link #boundThroughTheGetter} says, is checked only for an unchecked call.
    *
    * @param method the annotated lens method, for error reporting
    * @param sourceType the source type {@code S}, as the spec names it
@@ -1808,24 +2714,37 @@ final class CopyStrategyChecks {
       return true;
     }
     // A wildcard focus is inferred from the getter's type as much as from the wildcard itself, so
-    // the type the call passes is not the one the spec writes, and which method it binds is
-    // javac's to settle.
+    // the type the call passes is not the one the spec writes, and the checks below that rest on
+    // it are left to javac.
     if (focusType.getKind() == TypeKind.WILDCARD) {
       List<ExecutableElement> oneParameter =
           named.stream().filter(candidate -> candidate.getParameters().size() == 1).toList();
-      // Where the name carries only one such method, that is the one called, and whether a call
-      // to it is unchecked rests on the call alone.
-      return noCandidateRebuilds(method, sourceType, oneParameter, null)
-          || (oneParameter.size() == 1
-              && setsUnchecked(
-                  method,
-                  "@Wither",
+      // Where the name carries only one such method, that is the one called; of several, the
+      // one boundThroughTheGetter says, where it says one. Whether a call to it is unchecked rests
+      // on the call alone.
+      Optional<ExecutableElement> called =
+          oneParameter.size() == 1
+              ? Optional.of(oneParameter.getFirst())
+              : boundThroughTheGetter(
+                  (WildcardType) focusType,
                   sourceType,
-                  oneParameter.getFirst(),
-                  focusType,
-                  "'source." + witherName + "(newValue)'",
-                  ProcessorUtils.simpleTypeName(sourceType),
-                  null));
+                  named,
+                  sourceType,
+                  getterName,
+                  targetPackage);
+      return noCandidateRebuilds(method, sourceType, oneParameter, null)
+          || called
+              .map(
+                  bound ->
+                      setsUnchecked(
+                          method,
+                          "@Wither",
+                          Receiver.OnSource.of(sourceType),
+                          bound,
+                          focusType,
+                          "'source." + witherName + "(newValue)'",
+                          sourceType))
+              .orElse(false);
     }
     return switch (CallBinding.resolve(typeUtils, sourceType, List.of(focusType), named)) {
       case CallBinding.Binds(ExecutableElement bound) -> {
@@ -1837,12 +2756,11 @@ final class CopyStrategyChecks {
           yield setsUnchecked(
               method,
               "@Wither",
-              sourceType,
+              Receiver.OnSource.of(sourceType),
               bound,
               focusType,
               "'source." + witherName + "(newValue)'",
-              ProcessorUtils.simpleTypeName(sourceType),
-              null);
+              sourceType);
         }
         // Only an overloaded name needs the focus to say which method it binds.
         reportWitherOfAnotherType(method, sourceType, bound, named.size() > 1 ? focusType : null);
@@ -1931,7 +2849,11 @@ final class CopyStrategyChecks {
       String targetPackage,
       boolean declared) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
-    List<ExecutableElement> withers = withersAmong(sourceType, callable);
+    // A deprecated wither is no remedy, since the generated file's call to one warns.
+    TypeElement sourceElement = (TypeElement) sourceType.asElement();
+    List<ExecutableElement> anyWithers = withersAmong(sourceType, callable);
+    List<ExecutableElement> withers =
+        anyWithers.stream().filter(wither -> offerable(wither, sourceElement)).toList();
     String sets =
         "The generated lens sets through 'source."
             + witherName
@@ -1949,8 +2871,14 @@ final class CopyStrategyChecks {
           method,
           "@Wither",
           "'" + source + "' has no method '" + witherName + "' for the generated lens to call.",
-          sets + " No one-parameter instance method of '" + source + "' hands it back.",
-          ProcessorUtils.capitalise(rebuildWith(source, "@Wither")) + ".");
+          sets
+              + (anyWithers.isEmpty()
+                  ? " No one-parameter instance method of '" + source + "' hands it back."
+                  : " Each one-parameter instance method of '"
+                      + source
+                      + "' that hands it back is deprecated, and the generated file's call to one"
+                      + " would warn."),
+          ProcessorUtils.capitalise(rebuildAnotherWay(sourceType, "@Wither")) + ".");
       return;
     }
     List<String> signatures =
@@ -1977,7 +2905,7 @@ final class CopyStrategyChecks {
             + "' that takes the value '"
             + ProcessorUtils.simpleTypeName(focusType)
             + "' the getter reads, or "
-            + rebuildWith(source, "@Wither")
+            + rebuildAnotherWay(sourceType, "@Wither")
             + ".");
   }
 
@@ -1994,18 +2922,29 @@ final class CopyStrategyChecks {
       List<ExecutableElement> callable) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
     String witherName = named.getFirst().getSimpleName().toString();
+    // A parameter typed by one of the source's wildcards takes no value whatever the focus, so the
+    // remedy there is the source type, not the focus, nor another strategy, whose methods name the
+    // type alike; such a parameter is listed as declared, naming what the wildcard stands for.
+    DeclaredType captured = (DeclaredType) typeUtils.capture(sourceType);
+    Receiver on = Receiver.OnSource.of(sourceType);
+    boolean wildcardStandsIn =
+        standInNamed(
+                on,
+                captured,
+                named.stream()
+                    .filter(member -> member.getParameters().size() == 1)
+                    .map(member -> ProcessorUtils.firstParameterTypeIn(typeUtils, captured, member))
+                    .toList())
+            .isPresent();
+    DeclaredType listed = wildcardStandsIn ? on.named() : sourceType;
+    String listedName = ProcessorUtils.simpleTypeName(listed);
     String found =
         settingThrough(witherName, focusType)
             + ". Found on '"
-            + source
+            + listedName
             + "': "
-            + named.stream().map(member -> signatureOn(sourceType, member)).toList()
+            + named.stream().map(member -> signatureOn(listed, member)).toList()
             + ".";
-    // A parameter typed by one of the source's wildcards takes no value whatever the focus, so the
-    // remedy there is the source type, not the focus, nor another wither.
-    boolean wildcardSource =
-        sourceType.getTypeArguments().stream()
-            .anyMatch(typeArgument -> typeArgument.getKind() == TypeKind.WILDCARD);
     Diagnostics.error(
         messager,
         method,
@@ -2013,26 +2952,25 @@ final class CopyStrategyChecks {
         "No method '"
             + witherName
             + "' of '"
-            + source
+            + listedName
             + "' takes the lens's focus type '"
             + ProcessorUtils.simpleTypeName(focusType)
             + "'.",
-        wildcardSource
+        wildcardStandsIn
             ? found
-                + " A parameter a wildcard of '"
+                + " A parameter that a wildcard of '"
                 + source
                 + "' stands in takes no value at all, since the type it stands for is unknown."
             : found + witherOffer(named, witherName, sourceType, callable),
-        (wildcardSource
-                ? "Declare the spec over the type each wildcard stands for, or "
-                    + rebuildWith(source, "@Wither")
+        (wildcardStandsIn
+                ? declareTheSpecOver(sourceType, witherName)
                 : narrowerFocus(sourceType, getterName, focusType, sourceType, named)
                         .orElse(
                             "Name a wither that takes the value the getter reads, or point"
                                 + " 'getter' at an accessor one of them takes and declare the"
                                 + " focus as its type")
                     + "; otherwise "
-                    + rebuildWith(source, "@Wither"))
+                    + rebuildAnotherWay(sourceType, "@Wither"))
             + ".");
   }
 
@@ -2057,7 +2995,7 @@ final class CopyStrategyChecks {
             + ".",
         settingThrough(witherName, argument)
             + ", which each of them takes, with no parameter more specific than every other.",
-        ambiguityFix(sourceType, methods, source, "@Wither"));
+        ambiguityFix(sourceType, methods, sourceType, "@Wither"));
   }
 
   /**
@@ -2067,7 +3005,7 @@ final class CopyStrategyChecks {
    * focus can tell them apart.
    */
   private String ambiguityFix(
-      DeclaredType owner, List<ExecutableElement> methods, String source, String tag) {
+      DeclaredType owner, List<ExecutableElement> methods, DeclaredType source, String tag) {
     TypeMirror first = ProcessorUtils.firstParameterTypeIn(typeUtils, owner, methods.getFirst());
     boolean oneType =
         methods.stream()
@@ -2076,9 +3014,9 @@ final class CopyStrategyChecks {
                     typeUtils.isSameType(
                         ProcessorUtils.firstParameterTypeIn(typeUtils, owner, method), first));
     return oneType
-        ? ProcessorUtils.capitalise(rebuildWith(source, tag)) + "."
+        ? ProcessorUtils.capitalise(rebuildAnotherWay(source, tag)) + "."
         : "Declare the lens's focus as the parameter type of the one you mean, or "
-            + rebuildWith(source, tag)
+            + rebuildAnotherWay(source, tag)
             + ".";
   }
 
@@ -2112,7 +3050,7 @@ final class CopyStrategyChecks {
         sets + ", and a static method never reads the '" + source + "' it is called on.",
         "Declare the lens's focus as the parameter type of an instance overload, name an instance"
             + " wither, or "
-            + rebuildWith(source, "@Wither")
+            + rebuildAnotherWay(sourceType, "@Wither")
             + ".");
   }
 
@@ -2163,10 +3101,15 @@ final class CopyStrategyChecks {
         "Name a wither that returns '"
             + source
             + "', or declare the spec over the type the wither does return when that is an"
-            + " instantiation of the same class; otherwise rebuild '"
-            + source
-            + "' with @ViaBuilder or @ViaConstructor, or with @ViaCopyAndSet through a setter that"
-            + " sets the copy it is called on.");
+            + " instantiation of the same class; otherwise "
+            // @ViaCopyAndSet drops a wither's result, so only a setter that sets the copy serves.
+            + (!constructorUnwritable(sourceType)
+                ? "rebuild '"
+                    + source
+                    + "' with @ViaBuilder or @ViaConstructor, or with @ViaCopyAndSet through a"
+                    + " setter that sets the copy it is called on"
+                : rebuildAnotherWay(sourceType, "@Wither"))
+            + ".");
   }
 
   /**
@@ -2174,16 +3117,22 @@ final class CopyStrategyChecks {
    * clause.
    */
   static String rebuildWith(String source, String tag) {
-    List<String> others =
-        List.of("@Wither", "@ViaBuilder", "@ViaConstructor", "@ViaCopyAndSet").stream()
-            .filter(strategy -> !strategy.equals(tag))
-            .toList();
+    return rebuildWith(
+        source, tag, List.of("@Wither", "@ViaBuilder", "@ViaConstructor", "@ViaCopyAndSet"));
+  }
+
+  /**
+   * The remedy that rebuilds {@code source} with another of {@code strategies} than {@code tag}, as
+   * an unfinished clause.
+   */
+  private static String rebuildWith(String source, String tag, List<String> strategies) {
+    List<String> others = strategies.stream().filter(strategy -> !strategy.equals(tag)).toList();
     return "rebuild '"
         + source
         + "' with "
-        + String.join(", ", others.subList(0, others.size() - 1))
-        + " or "
-        + others.getLast();
+        + (others.size() == 1
+            ? others.getFirst()
+            : String.join(", ", others.subList(0, others.size() - 1)) + " or " + others.getLast());
   }
 
   /** Names as a sentence lists them: {@code 'a()'}, {@code 'a()' and 'b()'}, or with commas. */
@@ -2191,6 +3140,29 @@ final class CopyStrategyChecks {
     return names.size() == 1
         ? names.getFirst()
         : String.join(", ", names.subList(0, names.size() - 1)) + " and " + names.getLast();
+  }
+
+  /**
+   * That a class inherits its {@code toBuilder()}, as the start of a sentence: {@code 'Dog'
+   * inherits ...}.
+   */
+  private static String inheritsToBuilder(
+      String sourceClass, String toBuilderName, String parentClass) {
+    return "'" + sourceClass + "' inherits '" + toBuilderName + "()' from '" + parentClass + "'";
+  }
+
+  /**
+   * The remedy for a {@code toBuilder()} a class inherits, as an unfinished clause: declaring one
+   * of its own, which Lombok's {@code @SuperBuilder} writes for a class that asks for it.
+   */
+  private static String ownToBuilder(String toBuilderName, String sourceClass) {
+    return "Declare a '"
+        + toBuilderName
+        + "()' on '"
+        + sourceClass
+        + "' that hands back its own builder (for a Lombok @SuperBuilder, set toBuilder = true on '"
+        + sourceClass
+        + "' too)";
   }
 
   /** How the generated setter calls the wither, for a diagnostic's reason: an unfinished clause. */
@@ -2246,20 +3218,13 @@ final class CopyStrategyChecks {
    */
   private boolean rebuildsThroughUnwritableConstructor(
       ExecutableElement method, DeclaredType declared, String annotation) {
-
-    boolean wildcard =
-        declared.getTypeArguments().stream()
-            .anyMatch(argument -> argument.getKind() == TypeKind.WILDCARD);
-    // A DeclaredType's element is always a TypeElement. Only a member type that is not static
-    // carries an enclosing instance; a nested interface, enum or record is implicitly static.
+    boolean wildcard = writtenWithAWildcard(declared);
     TypeElement element = (TypeElement) declared.asElement();
-    boolean innerClass =
-        element.getNestingKind() == NestingKind.MEMBER
-            && !element.getModifiers().contains(Modifier.STATIC);
-    // An interface is abstract too, as javac reads its modifiers.
-    boolean abstractType = element.getModifiers().contains(Modifier.ABSTRACT);
+    boolean innerClass = innerClass(element);
+    boolean abstractType = abstractType(element);
     String name = ProcessorUtils.simpleTypeName(declared);
-    String withWither = "use @Wither, which rebuilds through a method and needs no constructor.";
+    String withWither =
+        "use @Wither or @ViaBuilder, which rebuild through methods and need no constructor.";
     if (wildcard) {
       reportUnwritableConstructor(
           method,
@@ -2287,6 +3252,36 @@ final class CopyStrategyChecks {
           "Name a concrete class as the spec's source type, or " + withWither);
     }
     return wildcard || innerClass || abstractType;
+  }
+
+  /**
+   * Whether no constructor call can rebuild a source type: one written with a wildcard type
+   * argument, which the call would have to name; an inner class, which needs an enclosing instance;
+   * or an abstract class or an interface.
+   */
+  private static boolean constructorUnwritable(DeclaredType sourceType) {
+    TypeElement element = (TypeElement) sourceType.asElement();
+    return writtenWithAWildcard(sourceType) || innerClass(element) || abstractType(element);
+  }
+
+  /** Whether a type is written with a wildcard among its own type arguments. */
+  private static boolean writtenWithAWildcard(DeclaredType type) {
+    return type.getTypeArguments().stream()
+        .anyMatch(argument -> argument.getKind() == TypeKind.WILDCARD);
+  }
+
+  /**
+   * Whether a class carries an enclosing instance: only a member type that is not static does; a
+   * nested interface, enum or record is implicitly static.
+   */
+  private static boolean innerClass(TypeElement element) {
+    return element.getNestingKind() == NestingKind.MEMBER
+        && !element.getModifiers().contains(Modifier.STATIC);
+  }
+
+  /** Whether a type cannot be instantiated: an interface is abstract too, as javac reads it. */
+  private static boolean abstractType(TypeElement element) {
+    return element.getModifiers().contains(Modifier.ABSTRACT);
   }
 
   /** Reports a source type whose own constructor call cannot be written, for the reason given. */
@@ -2369,7 +3364,7 @@ final class CopyStrategyChecks {
     return Optional.ofNullable(primitiveRead(method, source, sourceElement, getter, focusType))
         .flatMap(
             read ->
-                builderOf(source, sourceElement, toBuilder)
+                builderOf(source, sourceElement, toBuilder, named, targetPackage)
                     .map(
                         builder ->
                             unboxedFocus(read, writtenParameters(builder, named, targetPackage))))
@@ -2377,15 +3372,25 @@ final class CopyStrategyChecks {
   }
 
   /**
-   * The builder {@code toBuilder} hands back, or empty where the source declares no such method, or
-   * one handing back something with no members to call. Either way nothing is unboxed, and javac
-   * reports the call the generator writes.
+   * The builder {@code toBuilder} hands back, the one the setter is called on, read as the chain
+   * reads it; or empty where the source declares no such method, or one handing back something with
+   * no members to call, or bounded by several types whose setters javac weighs together. Either way
+   * nothing is unboxed, and the chain's own checks report what they refuse.
    */
   private Optional<TypeElement> builderOf(
-      DeclaredType source, TypeElement sourceElement, String toBuilder) {
-    return zeroArgumentMethods(source, sourceElement, toBuilder).map(typeUtils::asElement).stream()
-        .flatMap(element -> ElementFilter.typesIn(List.of(element)).stream())
-        .findFirst();
+      DeclaredType source,
+      TypeElement sourceElement,
+      String toBuilder,
+      String setter,
+      String targetPackage) {
+    return Optional.ofNullable(
+            accessorNamed(callableMembers(sourceElement, targetPackage), toBuilder))
+        .map(
+            method ->
+                ProcessorUtils.returnTypeIn(
+                    typeUtils, (DeclaredType) typeUtils.capture(source), method))
+        .map(builder -> stepTypeFor(builder, setter, targetPackage))
+        .map(this::elementOf);
   }
 
   /**

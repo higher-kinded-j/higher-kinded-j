@@ -154,6 +154,9 @@ public record SpecAnalysis(
    * @param toBuilder the toBuilder method name (for @ViaBuilder)
    * @param setter the setter method name (for @ViaBuilder, @ViaCopyAndSet)
    * @param build the build method name (for @ViaBuilder)
+   * @param clear the builder method called before the setter (for @ViaBuilder), which empties the
+   *     collection a Lombok {@code @Singular} or protobuf-java setter adds to, {@code clearTags};
+   *     empty for none
    * @param witherMethod the wither method name (for @Wither)
    * @param parameterOrder the constructor parameter order (for @ViaConstructor)
    * @param copyConstructorParameterType the resolved type the copy constructor takes (for
@@ -169,6 +172,7 @@ public record SpecAnalysis(
       String toBuilder,
       String setter,
       String build,
+      String clear,
       String witherMethod,
       String[] parameterOrder,
       TypeMirror copyConstructorParameterType,
@@ -181,7 +185,7 @@ public record SpecAnalysis(
      * @return an empty CopyStrategyInfo
      */
     public static CopyStrategyInfo empty() {
-      return new CopyStrategyInfo("", "", "", "", "", new String[0], null, null, false);
+      return new CopyStrategyInfo("", "", "", "", "", "", new String[0], null, null, false);
     }
 
     /**
@@ -191,14 +195,31 @@ public record SpecAnalysis(
      * @param toBuilder the toBuilder method name
      * @param setter the setter method name on the builder
      * @param build the build method name
+     * @param clear the builder method called before the setter, which empties the collection a
+     *     Lombok {@code @Singular} or protobuf-java setter adds to, {@code clearTags}; empty for
+     *     none
      * @param unboxedFocusType the primitive type the builder's setter takes the focus as, or null
      *     to pass the focus unchanged
      * @return a CopyStrategyInfo for builder pattern
      */
     public static CopyStrategyInfo forBuilder(
-        String getter, String toBuilder, String setter, String build, TypeMirror unboxedFocusType) {
+        String getter,
+        String toBuilder,
+        String setter,
+        String build,
+        String clear,
+        TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          getter, toBuilder, setter, build, "", new String[0], null, unboxedFocusType, false);
+          getter,
+          toBuilder,
+          setter,
+          build,
+          clear,
+          "",
+          new String[0],
+          null,
+          unboxedFocusType,
+          false);
     }
 
     /**
@@ -213,7 +234,7 @@ public record SpecAnalysis(
     public static CopyStrategyInfo forWither(
         String getter, String witherMethod, TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          getter, "", "", "", witherMethod, new String[0], null, unboxedFocusType, false);
+          getter, "", "", "", "", witherMethod, new String[0], null, unboxedFocusType, false);
     }
 
     /**
@@ -227,7 +248,7 @@ public record SpecAnalysis(
     public static CopyStrategyInfo forConstructor(
         String[] parameterOrder, TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          "", "", "", "", "", parameterOrder, null, unboxedFocusType, false);
+          "", "", "", "", "", "", parameterOrder, null, unboxedFocusType, false);
     }
 
     /**
@@ -251,6 +272,7 @@ public record SpecAnalysis(
           "",
           "",
           setter,
+          "",
           "",
           "",
           new String[0],

@@ -64,6 +64,14 @@ import java.lang.annotation.Target;
  * hold a value of another kind; declare the focus as the wrapper for an overload that takes the
  * primitive.
  *
+ * <p>Lombok's {@code @SuperBuilder(toBuilder = true)} serves as {@code @Builder} does; a subclass
+ * needs {@code toBuilder = true} of its own, or the {@code toBuilder()} it inherits builds its
+ * parent. A Lombok {@code @Singular} collection's setter adds to what {@code toBuilder()} copied
+ * rather than replacing it, as does a protobuf-java repeated or map field's {@code addAllTags} or
+ * {@code putAllPoints}. For such a setter the lens calls the clear method written beside it first:
+ * {@code source.toBuilder().clearTags().tags(newValue).build()} for Lombok, {@code
+ * source.toBuilder().clearTags().addAllTags(newValue).build()} for protobuf.
+ *
  * @see OpticsSpec
  * @see Wither
  * @see ViaConstructor

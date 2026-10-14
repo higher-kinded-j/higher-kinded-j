@@ -502,7 +502,7 @@ A one-directional mapping follows these rules:
 
 **The processor writes a `@Singular` collection whole through its collection setter, and leaves its adder alone.** Lombok gives such a collection three builder methods: the adder `tag(String)`, the collection setter `tags(Collection<? extends String>)`, which takes any collection of the element type, and `clearTags()`. Both the adder and the setter add to what the builder holds, so writing the two would write every element twice. `build` calls the setter once, on a fresh builder.
 
-- **The processor recognises the setter by its shape.** It takes an `Iterable` or a `Map` whose type arguments are all `? extends` wildcards, and a `clear` method is named after it.
+- **The processor recognises the setter by its shape.** It takes an `Iterable`, a `Map` or a Guava `Table` whose type arguments are all `? extends` or unbounded wildcards, and a `clear` method is named after it, `clearEMails` or `cleareMails` for `eMails`.
 - **A two-way property keeps its getter's type.** The getter's `List<String>` must be a collection the setter takes; otherwise the property is read and written at different types.
 - **A build-only setter takes the domain's own collection.** With no getter, `build` hands it the domain component's `List`, `Set`, `Collection` or `Map`, converting the elements through a leaf or a spec as lifting does. A subtype such as `ArrayList` is refused, since it would be handed over uncopied.
 - **The adder takes one element, and no builder field backs it.** Lombok backs every plain property's writer with a field of the property's name and type, so `status(String)` beside the adder `status(Change)` stays a property.

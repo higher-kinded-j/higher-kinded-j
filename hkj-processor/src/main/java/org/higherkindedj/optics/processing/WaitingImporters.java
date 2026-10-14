@@ -20,6 +20,7 @@ import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
@@ -44,6 +45,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *       permitted subclasses, the bounds of every type parameter in scope, and the members neither
  *       static nor private, with the class literals the annotations on those members carry; their
  *       supertypes declared in source are read the same way;
+ *   <li>the builder each {@code @ViaBuilder} lens rebuilds through, as the source type's {@code
+ *       toBuilder} method hands it back, read the same way;
  *   <li>the importer itself: its supertypes, permitted subclasses, the bounds of every type
  *       parameter in scope, and its abstract methods with the class literals their annotations
  *       carry.
@@ -58,6 +61,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 final class WaitingImporters {
 
   private static final String CLASS_FQN = "java.lang.Class";
+  private static final String VIA_BUILDER_FQN = "org.higherkindedj.optics.annotations.ViaBuilder";
 
   private final Elements elements;
   private final Types types;
@@ -113,7 +117,8 @@ final class WaitingImporters {
         || importer instanceof TypeElement type
             && (declaresUnresolved(
                     type, member -> member.getModifiers().contains(Modifier.ABSTRACT))
-                || sourceTypeUnresolved(type));
+                || sourceTypeUnresolved(type)
+                || builderUnresolved(type));
   }
 
   /** Whether a class-list entry does not resolve, or names a class whose declaration does not. */
@@ -127,9 +132,61 @@ final class WaitingImporters {
    * does not resolve. The copy strategies read its members, and inherited ones with them.
    */
   private boolean sourceTypeUnresolved(TypeElement type) {
+    return sourceTypes(type).stream().anyMatch(this::structureUnresolved);
+  }
+
+  /** What a spec's {@code OpticsSpec} clause names its source type as, or nothing for a raw one. */
+  private static List<? extends TypeMirror> sourceTypes(TypeElement type) {
     DeclaredType clause = SpecInterfaceAnalyser.declaredOpticsSpec(type);
     // A raw clause names no source type, and so none to read.
-    return clause != null && clause.getTypeArguments().stream().anyMatch(this::structureUnresolved);
+    return clause == null ? List.of() : clause.getTypeArguments();
+  }
+
+  /**
+   * Whether a builder a spec's {@code @ViaBuilder} lens rebuilds through, as the source type's
+   * {@code toBuilder} method hands it back, has a declaration that does not resolve yet. The chain
+   * is read on the builder's members, inherited ones with them, and the clear method called before
+   * a setter that adds to a collection with them: a builder extending a base another processor
+   * writes, or the builder Lombok writes for a {@code @SuperBuilder} subclass, whose parent's
+   * builder a round can meet before it exists.
+   */
+  private boolean builderUnresolved(TypeElement importer) {
+    List<String> toBuilders =
+        ElementFilter.methodsIn(importer.getEnclosedElements()).stream()
+            .map(method -> ProcessorUtils.findAnnotation(method, VIA_BUILDER_FQN))
+            .filter(Objects::nonNull)
+            .map(
+                viaBuilder ->
+                    ProcessorUtils.getAnnotationString(viaBuilder, "toBuilder", "toBuilder"))
+            .toList();
+    // Most specs have no @ViaBuilder lens, and so no source members to read for one.
+    return !toBuilders.isEmpty()
+        && sourceTypes(importer).stream()
+            .filter(DeclaredType.class::isInstance)
+            .map(DeclaredType.class::cast)
+            .anyMatch(source -> buildsThroughUnresolved(source, toBuilders));
+  }
+
+  /**
+   * Whether a {@code toBuilder} method of {@code source} named in {@code toBuilders} hands back a
+   * builder whose structure does not resolve. The method is read as the chain reads it, called on
+   * the source type the spec names: one a generic parent declares, {@code B toBuilder()} on a
+   * {@code Parent<B>}, hands back the builder the source type fills {@code B} with, not {@code B}'s
+   * bound.
+   */
+  private boolean buildsThroughUnresolved(DeclaredType source, List<String> toBuilders) {
+    return ElementFilter.methodsIn(elements.getAllMembers((TypeElement) source.asElement()))
+        .stream()
+        .filter(method -> toBuilders.contains(method.getSimpleName().toString()))
+        .flatMap(
+            method ->
+                ProcessorUtils.typesReached(
+                    ProcessorUtils.returnTypeCalledOn(types, source, method))
+                    .stream())
+        // A return that does not resolve itself is the source type's own signature, which
+        // sourceTypeUnresolved reads where it is declared in source.
+        .filter(builder -> builder.getKind() == TypeKind.DECLARED)
+        .anyMatch(this::structureUnresolved);
   }
 
   /**

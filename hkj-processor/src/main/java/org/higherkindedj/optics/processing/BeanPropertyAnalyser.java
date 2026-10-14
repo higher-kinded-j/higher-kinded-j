@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.ProtobufCollection;
 
 /**
  * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping}. A
@@ -83,13 +85,6 @@ final class BeanPropertyAnalyser {
   private static final String LIST = "java.util.List";
 
   private static final String BOOLEAN = "java.lang.Boolean";
-
-  private static final String ITERABLE = "java.lang.Iterable";
-
-  private static final String MAP = "java.util.Map";
-
-  /** The interface every protobuf-java message implements, on the full and lite runtimes alike. */
-  private static final String PROTOBUF_MESSAGE = "com.google.protobuf.MessageLite";
 
   /** The holder openapi-generator's Java models keep a nullable property in, by default. */
   static final String JSON_NULLABLE = "org.openapitools.jackson.nullable.JsonNullable";
@@ -367,10 +362,8 @@ final class BeanPropertyAnalyser {
    * processor takes no dependency on protobuf-java, and a build without it has no messages.
    */
   static boolean isMessage(ProcessingEnvironment env, TypeElement type) {
-    Types types = env.getTypeUtils();
-    return Optional.ofNullable(env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE))
-        .filter(message -> types.isSubtype(types.erasure(type.asType()), message.asType()))
-        .isPresent();
+    return ProcessorUtils.isSubtypeOfNamed(
+        env.getTypeUtils(), env.getElementUtils(), type.asType(), ProtobufCollection.MESSAGE);
   }
 
   /**
@@ -462,19 +455,6 @@ final class BeanPropertyAnalyser {
     }
   }
 
-  /**
-   * How a repeated or a map field is read and written: the prefix of the builder method that adds a
-   * whole collection to it ({@code addAll}), the type that method takes ({@code Iterable}), the
-   * suffix of its getter ({@code List}), and the container type the getter answers.
-   */
-  private record CollectionField(
-      String adderPrefix, String adderParameter, String getterSuffix, String containerName) {}
-
-  private static final List<CollectionField> COLLECTION_FIELDS =
-      List.of(
-          new CollectionField("addAll", ITERABLE, "List", LIST),
-          new CollectionField("putAll", MAP, "Map", MAP));
-
   private static final String CLEAR = "clear";
 
   private static final String GET = "get";
@@ -501,7 +481,7 @@ final class BeanPropertyAnalyser {
                             constant.substring(0, constant.length() - FIELD_NUMBER.length()), name))
                 .orElseGet(() -> snakeCase(name)),
             number);
-    return COLLECTION_FIELDS.stream()
+    return Stream.of(ProtobufCollection.values())
         .flatMap(kind -> collectionField(kind, suffix, field, accessors).stream())
         .findFirst()
         .or(() -> singularField(suffix, field, accessors));
@@ -514,19 +494,17 @@ final class BeanPropertyAnalyser {
    * field named {@code all_foo}.
    */
   private Optional<WireShape.BeanProperty> collectionField(
-      CollectionField kind,
+      ProtobufCollection kind,
       String suffix,
       WireShape.MessageField field,
       MessageAccessors accessors) {
     Types types = env.getTypeUtils();
-    TypeMirror taken =
-        types.erasure(env.getElementUtils().getTypeElement(kind.adderParameter()).asType());
     Optional<ExecutableElement> adder =
         accessors.writers().getOrDefault(kind.adderPrefix() + suffix, List.of()).stream()
             .filter(
                 writer ->
-                    types.isSubtype(
-                        types.erasure(writer.getParameters().getFirst().asType()), taken))
+                    kind.takesWhole(
+                        types, env.getElementUtils(), writer.getParameters().getFirst().asType()))
             .findFirst();
     Optional<ExecutableElement> getter =
         Optional.ofNullable(accessors.readers().get(GET + suffix + kind.getterSuffix()));
@@ -538,7 +516,7 @@ final class BeanPropertyAnalyser {
                             ProcessorUtils.supertypeOf(
                                 types,
                                 getterType(accessors.message(), read),
-                                env.getElementUtils().getTypeElement(kind.containerName())))
+                                env.getElementUtils().getTypeElement(kind.getterType())))
                         .map(
                             type ->
                                 new WireShape.BeanProperty(
@@ -1214,8 +1192,8 @@ final class BeanPropertyAnalyser {
    * writers}. Lombok gives such a collection an adder taking one element, a collection setter
    * taking any collection of it ({@code tags(Collection<? extends String>)}, or {@code Map<?
    * extends K, ? extends V>} for a map), and {@code clearTags()}. So a writer that {@linkplain
-   * #takesAnyCollection takes any collection}, beside a no-argument {@code clear} method named
-   * after its property, is a collection setter.
+   * ProcessorUtils#takesAnyCollection takes any collection}, beside a no-argument {@code clear}
+   * method named after its property, is a collection setter.
    *
    * <p>Only a collection of one element type {@code E} has its adder among the one-argument
    * writers, since a map's takes a key and a value. The candidates are the writers taking exactly
@@ -1236,9 +1214,12 @@ final class BeanPropertyAnalyser {
     Map<String, ExecutableElement> collections = new LinkedHashMap<>();
     writers.forEach(
         (name, overloads) -> {
-          if (resets.contains("clear" + accessorSuffix(name))) {
+          if (ProcessorUtils.singularClearNames(name).stream().anyMatch(resets::contains)) {
             overloads.stream()
-                .filter(writer -> takesAnyCollection(paramType(builderType, writer)))
+                .filter(
+                    writer ->
+                        ProcessorUtils.takesAnyCollection(
+                            types, env.getElementUtils(), paramType(builderType, writer)))
                 .findFirst()
                 .ifPresent(writer -> collections.put(name, writer));
           }
@@ -1249,7 +1230,11 @@ final class BeanPropertyAnalyser {
           List<? extends TypeMirror> elements =
               ((DeclaredType) paramType(builderType, setter)).getTypeArguments();
           if (elements.size() == 1) {
-            TypeMirror element = ProcessorUtils.resolveWildcard(elements.getFirst());
+            // An unbounded wildcard resolves to nothing; Lombok's adder for it takes an Object.
+            TypeMirror element =
+                Objects.requireNonNullElse(
+                    ProcessorUtils.resolveWildcard(elements.getFirst()),
+                    env.getElementUtils().getTypeElement("java.lang.Object").asType());
             searches.add(
                 new AdderSearch(
                     collection,
@@ -1290,24 +1275,6 @@ final class BeanPropertyAnalyser {
       }
     }
     return new Singulars(collections, Set.copyOf(adderOf.values()), unresolved);
-  }
-
-  /**
-   * Whether a parameter takes any collection of its elements: an {@code Iterable} or a {@code Map}
-   * whose type arguments are all {@code ? extends} wildcards.
-   */
-  private boolean takesAnyCollection(TypeMirror parameter) {
-    Types types = env.getTypeUtils();
-    return parameter.getKind() == TypeKind.DECLARED
-        && Stream.of(ITERABLE, MAP)
-            .map(name -> types.erasure(env.getElementUtils().getTypeElement(name).asType()))
-            .anyMatch(container -> types.isSubtype(types.erasure(parameter), container))
-        && ((DeclaredType) parameter)
-            .getTypeArguments().stream()
-                .allMatch(
-                    argument ->
-                        argument.getKind() == TypeKind.WILDCARD
-                            && ((WildcardType) argument).getExtendsBound() != null);
   }
 
   /**

@@ -136,6 +136,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.external.TypeKindAnalyser*",
                 "org.higherkindedj.optics.processing.external.CallBinding*",
                 "org.higherkindedj.optics.processing.external.ConstructorOrderChecks*",
+                "org.higherkindedj.optics.processing.external.CollectionClear*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
                 "org.higherkindedj.optics.processing.util.ProcessorUtils*",
                 "org.higherkindedj.optics.processing.util.NamingConvention*",

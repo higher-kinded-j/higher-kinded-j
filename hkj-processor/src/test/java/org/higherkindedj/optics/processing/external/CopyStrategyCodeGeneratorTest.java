@@ -157,7 +157,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate record-style getter when getter is empty")
     void shouldGenerateRecordStyleGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", "", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -168,7 +168,7 @@ class CopyStrategyCodeGeneratorTest {
     @DisplayName("should generate explicit getter when specified")
     void shouldGenerateExplicitGetter() {
       CopyStrategyInfo info =
-          CopyStrategyInfo.forBuilder("getName", "toBuilder", "", "build", null);
+          CopyStrategyInfo.forBuilder("getName", "toBuilder", "", "build", "", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -183,7 +183,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate builder setter with defaults")
     void shouldGenerateBuilderSetterDefaults() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", "", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -195,12 +195,24 @@ class CopyStrategyCodeGeneratorTest {
     @DisplayName("should generate builder setter with custom methods")
     void shouldGenerateBuilderSetterCustom() {
       CopyStrategyInfo info =
-          CopyStrategyInfo.forBuilder("getName", "newBuilder", "withName", "create", null);
+          CopyStrategyInfo.forBuilder("getName", "newBuilder", "withName", "create", "", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
       assertThat(code.setter())
           .isEqualTo("(source, newValue) -> source.newBuilder().withName(newValue).create()");
+    }
+
+    @Test
+    @DisplayName("should call the builder's clear method before its setter where one is named")
+    void shouldCallTheClearMethodBeforeTheSetter() {
+      CopyStrategyInfo info =
+          CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", "clearName", null);
+
+      GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
+
+      assertThat(code.setter())
+          .isEqualTo("(source, newValue) -> source.toBuilder().clearName().name(newValue).build()");
     }
   }
 
@@ -317,7 +329,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should throw IllegalArgumentException for CopyStrategyKind.NONE")
     void shouldThrowForNoneStrategy() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", "", null);
 
       // javac wraps processor exceptions in RuntimeException
       RuntimeException thrown =

@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -386,6 +387,40 @@ public final class ProcessorUtils {
   }
 
   /**
+   * Whether a parameter takes any collection of its elements: an {@code Iterable}, a {@code Map},
+   * or where Guava is on the classpath a {@code Table}, with type arguments that are all {@code ?
+   * extends} or unbounded wildcards. A Lombok {@code @Singular} collection's setter takes one,
+   * {@code tags(Collection<? extends String>)}, and adds what it is handed to what the builder
+   * holds; beside a clear method named as {@link #singularClearNames} names it, that is how such a
+   * setter is told apart. A container with no type arguments, as a {@code ByteString} is an {@code
+   * Iterable<Byte>} of its own, takes nothing of the kind.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param elements the round's element utilities; must not be null
+   * @param parameter the parameter's type, as the call reads it; must not be null
+   * @return true when it takes any {@code Iterable}, {@code Map} or {@code Table} of its elements
+   * @since 0.5.0
+   */
+  public static boolean takesAnyCollection(Types types, Elements elements, TypeMirror parameter) {
+    if (parameter.getKind() != TypeKind.DECLARED) {
+      return false;
+    }
+    List<? extends TypeMirror> arguments = ((DeclaredType) parameter).getTypeArguments();
+    return !arguments.isEmpty()
+        && Stream.of("java.lang.Iterable", "java.util.Map", "com.google.common.collect.Table")
+            .map(elements::getTypeElement)
+            .filter(Objects::nonNull)
+            .anyMatch(
+                container ->
+                    types.isSubtype(types.erasure(parameter), types.erasure(container.asType())))
+        && arguments.stream()
+            .allMatch(
+                argument ->
+                    argument.getKind() == TypeKind.WILDCARD
+                        && ((WildcardType) argument).getSuperBound() == null);
+  }
+
+  /**
    * Whether a call to an instance member on {@code receiver} is unchecked (JLS 4.8): the receiver
    * reaches the member's declaring type as a raw type, as {@link #erasesItsMembers} reads one, and
    * erasing that type changes one of the member's parameters. {@code id(T)} called on a raw {@code
@@ -593,6 +628,24 @@ public final class ProcessorUtils {
   }
 
   /**
+   * A method's return type as a call made on {@code receiver} reads it: on the receiver captured,
+   * as javac captures the type of the expression a call is made on. Each wildcard the receiver
+   * carries is a type of its own there, bounded as the parameter it stands for is, so a self-typed
+   * {@code B name(String)} called on a {@code SupBuilder<?, ?>}, as Lombok's {@code @SuperBuilder}
+   * hands one back, returns a builder, where {@link #returnTypeIn} reads the wildcard itself.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param receiver the type the call is made on; must not be null
+   * @param method the method called; must not be null
+   * @return the return type the call has
+   * @since 0.5.0
+   */
+  public static TypeMirror returnTypeCalledOn(
+      Types types, DeclaredType receiver, ExecutableElement method) {
+    return returnTypeIn(types, (DeclaredType) types.capture(receiver), method);
+  }
+
+  /**
    * A method's first parameter type as the given owner sees it.
    *
    * @param types the round's type utilities; must not be null
@@ -611,17 +664,19 @@ public final class ProcessorUtils {
    * rebuilds through has to, since the lens returns what it returns as the owner.
    *
    * <p>Two shapes do. A return that is {@code owner} or a subtype of it, read under {@code owner}'s
-   * instantiation. And a retag, {@code <U> Draft<U> withId(String)} on a {@code Draft<T>}: the
-   * owner's class with some arguments replaced by type variables the method declares, which the
-   * call infers back to the owner's own. That inference is repeated here. Each such variable is
-   * bound to the owner's argument where the return first names it against a concrete argument; a
-   * wildcard argument binds nothing, since the call reads it as a range rather than a type. Every
-   * bound of each variable then has to admit its argument with all of them in place, as {@link
-   * #boundsRefusing} reads it, since a bound may name another ({@code <A, B extends A>}) or the
-   * variable itself ({@code <U extends Comparable<? super U>>}), and the return with them in place
-   * has to be the owner. A variable that only a wildcard stands for is left unbound, which refuses
-   * a retag javac might still infer. A raw return, one under other arguments ({@code
-   * Draft<String>}) and a supertype hand back something else.
+   * instantiation or, as the call reads it, on {@code owner} captured: a self-typed {@code S
+   * withName(String)} on a {@code Shape<?>} returns a type of its own there, bounded by {@code
+   * Shape}, where read as declared it returns the wildcard itself. And a retag, {@code <U> Draft<U>
+   * withId(String)} on a {@code Draft<T>}: the owner's class with some arguments replaced by type
+   * variables the method declares, which the call infers back to the owner's own. That inference is
+   * repeated here. Each such variable is bound to the owner's argument where the return first names
+   * it against a concrete argument; a wildcard argument binds nothing, since the call reads it as a
+   * range rather than a type. Every bound of each variable then has to admit its argument with all
+   * of them in place, as {@link #boundsRefusing} reads it, since a bound may name another ({@code
+   * <A, B extends A>}) or the variable itself ({@code <U extends Comparable<? super U>>}), and the
+   * return with them in place has to be the owner. A variable that only a wildcard stands for is
+   * left unbound, which refuses a retag javac might still infer. A raw return, one under other
+   * arguments ({@code Draft<String>}) and a supertype hand back something else.
    *
    * @param types the round's type utilities; must not be null
    * @param owner the type the method is read on, as the generated code names it; must not be null
@@ -631,6 +686,7 @@ public final class ProcessorUtils {
    */
   public static boolean returnsOwner(Types types, DeclaredType owner, ExecutableElement method) {
     return types.isSubtype(returnTypeIn(types, owner, method), owner)
+        || types.isSubtype(returnTypeCalledOn(types, owner, method), owner)
         || retagsOwner(types, owner, method);
   }
 
@@ -638,7 +694,7 @@ public final class ProcessorUtils {
     // The call reads the method on its receiver's captured type, where each of the owner's
     // wildcards is a type of its own, and binds the method's variables against the owner as
     // written, which is what the generated lens hands its result back as.
-    TypeMirror returned = returnTypeIn(types, (DeclaredType) types.capture(owner), method);
+    TypeMirror returned = returnTypeCalledOn(types, owner, method);
     // asElement answers null for a primitive or void return, which equals no element.
     if (!owner.asElement().equals(types.asElement(returned))) {
       return false;
@@ -975,6 +1031,49 @@ public final class ProcessorUtils {
     return upperBound.getKind() == TypeKind.INTERSECTION
         ? ((IntersectionType) upperBound).getBounds()
         : List.of(upperBound);
+  }
+
+  /**
+   * The types a call made on a value of {@code type} is read on: the type itself, or for a type
+   * variable the bound it carries, followed through a variable bounded by another; and each type of
+   * a bound naming several, reached the same way. javac reads a member of a type variable among the
+   * members of every type its bound names, and capture can bound a variable by another together
+   * with an interface, a bound no declaration can write.
+   *
+   * @param type the type a call is made on; must not be null
+   * @return the types reached, one where no bound names several (non-null)
+   * @since 0.5.0
+   */
+  public static List<TypeMirror> typesReached(TypeMirror type) {
+    TypeMirror step = type;
+    // A bound never leads back to the variable it bounds, so the walk ends.
+    while (step.getKind() == TypeKind.TYPEVAR) {
+      step = ((TypeVariable) step).getUpperBound();
+    }
+    return step.getKind() == TypeKind.INTERSECTION
+        ? ((IntersectionType) step)
+            .getBounds().stream().flatMap(bound -> typesReached(bound).stream()).toList()
+        : List.of(step);
+  }
+
+  /**
+   * Whether a type is a subtype of the class or interface a canonical name names, where that is on
+   * the classpath: false where it is not, as for a library the build does not use.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param elements the round's element utilities; must not be null
+   * @param type the type to test; must not be null
+   * @param canonicalName the supertype's canonical name, such as {@code
+   *     com.google.protobuf.MessageLite.Builder}; must not be null
+   * @return true when {@code type} is a subtype of it
+   * @since 0.5.0
+   */
+  public static boolean isSubtypeOfNamed(
+      Types types, Elements elements, TypeMirror type, String canonicalName) {
+    return Optional.ofNullable(elements.getTypeElement(canonicalName))
+        .filter(
+            supertype -> types.isSubtype(types.erasure(type), types.erasure(supertype.asType())))
+        .isPresent();
   }
 
   /**
@@ -1935,6 +2034,26 @@ public final class ProcessorUtils {
       }
     }
     return true;
+  }
+
+  /**
+   * The names Lombok gives a {@code @Singular} collection's clear method, whatever {@code
+   * setterPrefix} its setters carry: {@code clear} and the property capitalised, {@code clearTags}
+   * for {@code tags} and {@code clearEMails} for {@code eMails}, or under its {@code beanspec}
+   * capitalisation, which leaves a name whose second letter is a capital as it is, {@code
+   * cleareMails}.
+   *
+   * @param property the collection's property, as its field is named; must not be null
+   * @return the clear method's names, the default spelling first
+   * @since 0.5.0
+   */
+  public static List<String> singularClearNames(String property) {
+    // beanspec keeps a name whose second letter is a capital as it is, and capitalises any other.
+    String beanspec =
+        property.length() > 1 && Character.isUpperCase(property.charAt(1))
+            ? property
+            : capitalise(property);
+    return Stream.of("clear" + capitalise(property), "clear" + beanspec).distinct().toList();
   }
 
   /**
