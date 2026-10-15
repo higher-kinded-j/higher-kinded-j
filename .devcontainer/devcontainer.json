@@ -1,0 +1,22 @@
+{
+  "name": "Higher-Kinded-J book",
+  "build": {
+    "context": "../hkj-book",
+    "dockerfile": "../hkj-book/docker/Dockerfile"
+  },
+  "remoteUser": "node",
+  "containerEnv": {
+    "HKJ_BOOK_OPEN": "0",
+    "HKJ_BOOK_HOST": "0.0.0.0"
+  },
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Book preview", "onAutoForward": "openPreview" }
+  },
+  "postStartCommand": "cd hkj-book && nohup ./serve.sh >/tmp/hkj-book-serve.log 2>&1 </dev/null &",
+  "customizations": {
+    "vscode": {
+      "extensions": ["yzhang.markdown-all-in-one", "davidanson.vscode-markdownlint"]
+    }
+  }
+}

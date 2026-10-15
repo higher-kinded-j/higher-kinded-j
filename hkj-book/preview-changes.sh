@@ -19,6 +19,8 @@
 #   ./preview-changes.sh v0.4.7          # working tree vs v0.4.7
 #   ./preview-changes.sh v0.4.6 3001     # ...on port 3001
 #
+# HKJ_BOOK_TOOLS, HKJ_BOOK_OPEN and HKJ_BOOK_HOST behave as in serve.sh.
+#
 # To preview what a *released* version added (tag vs previous tag):
 #   git checkout v0.4.7
 #   ./preview-changes.sh v0.4.6
@@ -32,9 +34,10 @@ cd "$(dirname "$0")"
 # preprocessors would produce an inconsistent preview.
 # shellcheck source=toolchain-pins.sh
 source ./toolchain-pins.sh
-if [[ -d .tools/bin ]]; then
-  if tools_complete "$PWD/.tools/bin"; then
-    export PATH="$PWD/.tools/bin:$PATH"
+TOOLS_BIN="${HKJ_BOOK_TOOLS:-$PWD/.tools}/bin"
+if [[ -d "$TOOLS_BIN" ]]; then
+  if tools_complete "$TOOLS_BIN"; then
+    export PATH="$TOOLS_BIN:$PATH"
   else
     echo "warning: hkj-book/.tools is incomplete or off-pin; run ./serve.sh once to repair it." >&2
     echo "         Falling back to the tools on your PATH." >&2
@@ -96,4 +99,8 @@ echo
 
 export HKJ_CHANGES_BASE="${BASE}"
 export HKJ_CHANGES_SINCE_LABEL="${BASE}"
-exec mdbook serve --open --port "${PORT}"
+serve_args=(--port "${PORT}" --hostname "${HKJ_BOOK_HOST:-localhost}")
+if [[ "${HKJ_BOOK_OPEN:-1}" != "0" ]]; then
+  serve_args+=(--open)
+fi
+exec mdbook serve "${serve_args[@]}"
