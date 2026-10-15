@@ -1,0 +1,3 @@
+# Send only the pins file to the build; everything else in hkj-book/ is large.
+*
+!toolchain-pins.sh

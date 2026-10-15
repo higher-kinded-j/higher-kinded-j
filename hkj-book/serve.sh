@@ -10,6 +10,12 @@
 #
 # Usage:
 #   ./serve.sh [PORT]     # defaults to 3000
+#
+# Environment (set by docker.sh and the dev container; unset for a normal run):
+#   HKJ_BOOK_TOOLS   directory holding the pinned binaries under bin/ instead
+#                    of hkj-book/.tools (the container image ships them)
+#   HKJ_BOOK_OPEN    0 to skip opening a browser (default 1)
+#   HKJ_BOOK_HOST    interface to bind (default localhost; 0.0.0.0 in a container)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -17,7 +23,7 @@ cd "$(dirname "$0")"
 source ./toolchain-pins.sh
 
 PORT="${1:-3000}"
-TOOLS="$PWD/.tools"
+TOOLS="${HKJ_BOOK_TOOLS:-$PWD/.tools}"
 
 ensure_tool() { # crate version
   if ! tool_matches "$TOOLS/bin/$1" "$2"; then
@@ -53,4 +59,8 @@ if [[ ! -f mermaid.min.js ]]; then
   exit 1
 fi
 
-exec mdbook serve --open --port "$PORT"
+serve_args=(--port "$PORT" --hostname "${HKJ_BOOK_HOST:-localhost}")
+if [[ "${HKJ_BOOK_OPEN:-1}" != "0" ]]; then
+  serve_args+=(--open)
+fi
+exec mdbook serve "${serve_args[@]}"

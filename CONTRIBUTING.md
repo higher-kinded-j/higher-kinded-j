@@ -74,6 +74,22 @@ Please follow the [**Google Java Style Guide**](https://google.github.io/stylegu
 
 Changes to the book in `hkj-book/src` follow the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md). Some chapters add rules of their own, listed in its [Chapter Guides](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md#chapter-guides) table. The [Mapping Chapter Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/MAPPING-CHAPTER-GUIDE.md) is one: it says where a new mapping rule or refusal belongs, so a feature that adds one updates those pages in the same pull request. [BOOK-SNIPPETS.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/BOOK-SNIPPETS.md) explains how the build compiles the book's Java.
 
-Before opening the pull request, run `./gradlew :hkj-examples:test :hkj-examples:bookVerify` and `hkj-book/check.sh`. The checks need Node.js with npm, and their first run downloads the pinned mermaid library with `curl`. The Mapping chapter's [Compiler Messages generator](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-book/tools/compiler-messages/README.md) also needs Python 3.
+### Previewing the book
+
+The quickest route needs only [Docker](https://docs.docker.com/get-docker/), with no Rust, Node or mdbook installed:
+
+```bash
+hkj-book/docker.sh serve             # live preview at http://localhost:3000
+hkj-book/docker.sh preview v0.4.11   # the same, with changes marked against a tag or commit
+hkj-book/docker.sh check             # the book checks CI runs
+```
+
+The first run fetches (or builds) an image holding the exact mdbook, preprocessors, Node and Python that CI uses. Later runs start at once, and the page reloads as you save.
+
+Prefer a browser? Open the repository in a GitHub Codespace, or in VS Code with the Dev Containers extension: the dev container serves the book on port 3000 automatically.
+
+With a Rust toolchain you can run `hkj-book/serve.sh` instead, which installs the same pinned tools under `hkj-book/.tools`.
+
+Before opening the pull request, run `./gradlew :hkj-examples:test :hkj-examples:bookVerify` and `hkj-book/check.sh` (or `hkj-book/docker.sh check`, which needs no Node.js). The checks need Node.js with npm, and their first run downloads the pinned mermaid library with `curl`. The Mapping chapter's [Compiler Messages generator](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-book/tools/compiler-messages/README.md) also needs Python 3.
 
 Thank you for contributing!
