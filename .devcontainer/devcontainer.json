@@ -13,7 +13,7 @@
   "portsAttributes": {
     "3000": { "label": "Book preview", "onAutoForward": "openPreview" }
   },
-  "postAttachCommand": "cd hkj-book && ./serve.sh",
+  "postStartCommand": "cd hkj-book && nohup ./serve.sh >/tmp/hkj-book-serve.log 2>&1 </dev/null &",
   "customizations": {
     "vscode": {
       "extensions": ["yzhang.markdown-all-in-one", "davidanson.vscode-markdownlint"]
