@@ -83,7 +83,7 @@ says what is *not* obvious.
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 | A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
-| A **bean accessor with no partner** that is meant to stay out, on a bean both read and written (a computed getter, a setter the domain does not model, a server-assigned `getId()` on a PATCH body) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else. A bean crossed one way needs none, and refuses one |
+| A **bean accessor with no partner** that is meant to stay out, on a bean both read and written (a computed getter, a setter the domain does not model, a server-assigned `getId()` on a PATCH body) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else. A bean crossed one way needs none, and refuses one, unless it names a word such as `getaway()` that the mapping would otherwise refuse |
 | A **read-only property** on a bean both read and written (an OpenAPI `readOnly` field: a getter, no setter, set by the `@JsonCreator` constructor) that `parse` must read and `build` must not send | `@ReadOnly` on an abstract marker named after the **getter's property**, or on the component's `default` leaf when it converts. The Impl gets `parse`, `build`, `asValidatedParse()` and `asValidatedBuild()`, and **no** `asValidatedPrism()` |
 
 <!-- verify -->
@@ -580,17 +580,22 @@ matter: it maps build-only whatever its width, derived fields included.
   `UpdateSpec` refuses either as its own PATCH bean, and a bean whose getters and setters never
   share a name is refused as a likely typo.
 - **Accessors pair by name.** A property is a getter (`getX()`, or `isX()` returning `boolean` or
-  `Boolean`) and a writer with the same name. A Lombok `@Singular` collection is written whole
-  through its collection setter, and its adder is left alone, never refused. Any other unpaired
-  accessor is left out, which is fine for a computed getter, but one named after a domain component the bean
-  carries under no other name (its own, or a `@MapField` rename's) is refused on both tiers, with a
-  near accessor of the other kind named as the likely misspelling. An `UpdateSpec` also refuses any
-  `setX` setter with no getter, since the client's value would arrive and be ignored. Where the
-  accessor is meant to stay out, `@Unmapped` on an abstract marker named after its property says so,
-  and the mapping is generated exactly as it was before the marker. Where a getter with no setter
-  is meant to be read (an OpenAPI `readOnly` property), `@ReadOnly` makes it a read-only property:
-  `parse` reads it and `build` leaves it out. It is refused on an `UpdateSpec`, a one-way bean, a
-  record, and a bean still narrower than the domain; an inherited one binds where it can.
+  `Boolean`) and a writer with the same name. A name that runs on in lower case after its prefix is
+  a word, not an accessor (`geteMail()`, the JavaBeans spelling for `eMail`, is an accessor), so
+  `getaway()` and `setup(String)` are words, and a builder's `settings(String)` writes `settings`.
+  A word a component needs, with no accessor of its kind beside it, is refused: rename it as the
+  error offers, `getX()` for `getx()`, or leave it out with `@Unmapped`. A Lombok `@Singular`
+  collection is written whole through its collection setter, and its adder is left alone, never
+  refused. Any other unpaired accessor is left out, which is fine for a computed getter, but one
+  named after a domain component the bean carries under no other name (its own, or a `@MapField`
+  rename's) is refused on both tiers, with a near accessor of the other kind named as the likely
+  misspelling. An `UpdateSpec` also refuses any `setX` setter with no getter, since the client's
+  value would arrive and be ignored. Where the accessor is meant to stay out, `@Unmapped` on an
+  abstract marker named after its property says so, and the mapping is generated exactly as it was
+  before the marker. Where a getter with no setter is meant to be read (an OpenAPI `readOnly`
+  property), `@ReadOnly` makes it a read-only property: `parse` reads it and `build` leaves it out.
+  It is refused on an `UpdateSpec`, a one-way bean, a record, and a bean still narrower than the
+  domain; an inherited one binds where it can.
 - **openapi-generator's `JsonNullable` companions are left out.** In a `-g java` client model
   (Jackson libraries such as `native`, `resttemplate`) with the default `openApiNullable=true`, each
   nullable, non-required property has a `getX_JsonNullable()` / `setX_JsonNullable(JsonNullable<T>)`

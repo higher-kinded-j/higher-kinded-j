@@ -575,6 +575,50 @@ class SpecGeneratedOpticLawsTest {
           }
           """);
 
+  // Withers spelt with a digit after 'with', and as the JavaBeans convention spells one for a name
+  // whose second letter is a capital: each hands back a new value, as withTitle does.
+  private static final JavaFileObject EXTERNAL_PLATE =
+      JavaFileObjects.forSourceString(
+          "com.external.Plate",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Plate {
+              private final String plan;
+              public Plate(String plan) { this.plan = plan; }
+              public Plate(Plate other) { this(other.plan); }
+              public String plan() { return plan; }
+              public Plate with2D(String plan) { return new Plate(plan); }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Plate p && Objects.equals(plan, p.plan);
+              }
+              @Override public int hashCode() { return Objects.hashCode(plan); }
+          }
+          """);
+
+  private static final JavaFileObject EXTERNAL_MAILBOX =
+      JavaFileObjects.forSourceString(
+          "com.external.Mailbox",
+          """
+          package com.external;
+
+          import java.util.Objects;
+
+          public class Mailbox {
+              private final String eMail;
+              public Mailbox(String eMail) { this.eMail = eMail; }
+              public Mailbox(Mailbox other) { this(other.eMail); }
+              public String eMail() { return eMail; }
+              public Mailbox witheMail(String eMail) { return new Mailbox(eMail); }
+              @Override public boolean equals(Object o) {
+                  return o instanceof Mailbox m && Objects.equals(eMail, m.eMail);
+              }
+              @Override public int hashCode() { return Objects.hashCode(eMail); }
+          }
+          """);
+
   // A setter that takes a link and hands back the one it replaced, as List.set does: what it
   // returns is a Link, but not the copy.
   private static final JavaFileObject EXTERNAL_LINK =
@@ -673,6 +717,12 @@ class SpecGeneratedOpticLawsTest {
   private static final JavaFileObject MEMO_SPEC =
       copyAndSetSpec("Memo", "withTitle", "String", "title");
 
+  private static final JavaFileObject PLATE_SPEC =
+      copyAndSetSpec("Plate", "with2D", "String", "plan");
+
+  private static final JavaFileObject MAILBOX_SPEC =
+      copyAndSetSpec("Mailbox", "witheMail", "String", "eMail");
+
   private static final JavaFileObject LINK_SPEC = copyAndSetSpec("Link", "setNext", "Link", "next");
 
   private static final JavaFileObject NOTE_SPEC =
@@ -731,6 +781,8 @@ class SpecGeneratedOpticLawsTest {
                 EXTERNAL_NARROW_BASE,
                 EXTERNAL_NARROW,
                 EXTERNAL_MEMO,
+                EXTERNAL_PLATE,
+                EXTERNAL_MAILBOX,
                 EXTERNAL_LINK,
                 EXTERNAL_NOTE,
                 EXTERNAL_TREE,
@@ -744,6 +796,8 @@ class SpecGeneratedOpticLawsTest {
                 FULL_SPEC,
                 NARROW_SPEC,
                 MEMO_SPEC,
+                PLATE_SPEC,
+                MAILBOX_SPEC,
                 LINK_SPEC,
                 NOTE_SPEC,
                 TREE_SPEC,
@@ -811,6 +865,16 @@ class SpecGeneratedOpticLawsTest {
           lensGetPutTest("Memo.title", "com.test.Memo", "title", "Draft", 1),
           lensPutGetTest("Memo.title", "com.test.Memo", "title", "Final", "Draft", 1),
           lensPutPutTest("Memo.title", "com.test.Memo", "title", "Second", "Final", "Draft", 1));
+    }
+
+    @TestFactory
+    @DisplayName("a wither spelt with2D, or witheMail as JavaBeans spells one, sets through it too")
+    Stream<DynamicTest> witherWithADigitOrBeanspecSpellingSetsThroughItsCopy() {
+      return Stream.of(
+          lensPutGetTest("Plate.plan", "com.test.Plate", "plan", "Final", "Draft"),
+          lensPutPutTest("Plate.plan", "com.test.Plate", "plan", "Second", "Final", "Draft"),
+          lensPutGetTest("Mailbox.eMail", "com.test.Mailbox", "eMail", "b@x", "a@x"),
+          lensPutPutTest("Mailbox.eMail", "com.test.Mailbox", "eMail", "c@x", "b@x", "a@x"));
     }
 
     @TestFactory
@@ -1301,6 +1365,8 @@ class SpecGeneratedOpticLawsTest {
       case "com.test.Full" -> "com.external.Full";
       case "com.test.Narrow" -> "com.external.Narrow";
       case "com.test.Memo" -> "com.external.Memo";
+      case "com.test.Plate" -> "com.external.Plate";
+      case "com.test.Mailbox" -> "com.external.Mailbox";
       case "com.test.Link" -> "com.external.Link";
       case "com.test.Note" -> "com.external.Note";
       case "com.test.Tree" -> "com.external.Tree";

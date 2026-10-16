@@ -1178,6 +1178,56 @@ class MappingFixLineTest {
   }
 
   @Nested
+  @DisplayName("a word that starts like an accessor, named after a component")
+  class WordAccessor {
+
+    @Test
+    @DisplayName("each line it offers maps the pair: the accessor's name, or an @Unmapped marker")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              record Trip(String away, String up) {}
+              class TripModel {
+                private String away;
+                private String up;
+                public String getAway() { return away; }
+                public void setAway(String away) { this.away = away; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface TripMapping extends MappingSpec<Trip, TripModel> {}
+
+              class HolidayModel {
+                private String up;
+                public String getaway() { return "a holiday"; }
+                public void setaway(String plan) {}
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface HolidayMapping extends MappingSpec<Trip, HolidayModel> {
+                @Unmapped String away();
+              }
+
+              class Probe {
+                static Object trip() {
+                  TripModel model = new TripModel();
+                  model.setAway("Lisbon");
+                  model.setUp("north");
+                  return TripMappingImpl.INSTANCE.parse(model);
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "trip"))
+          .hasValueSatisfying(
+              trip -> trip.toString().equals("Trip[away=Lisbon, up=north]"),
+              "parsed through the renamed getter");
+    }
+  }
+
+  @Nested
   @DisplayName("a getter with no setter, named after a component")
   class GetterWithoutSetter {
 

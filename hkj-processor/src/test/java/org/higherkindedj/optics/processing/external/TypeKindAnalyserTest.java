@@ -385,6 +385,64 @@ class TypeKindAnalyserTest {
       assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.WITHER_CLASS);
       assertThat(analysis.hasMutableFields()).isTrue();
     }
+
+    @Test
+    @DisplayName("a word starting 'with' is no wither, nor is with2D, while witheMail is one")
+    void wordsAndUnnameableFieldsAreNotWithers() {
+      // Each word has a getter for what follows its prefix, so only its spelling keeps it out;
+      // with2D is spelt as a wither, but no lens method can be named '2D'.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.CreditLine",
+              """
+              package com.test;
+
+              public final class CreditLine {
+                  private final long limit;
+                  private final long draw;
+                  private final String eMail;
+
+                  public CreditLine(long limit, long draw, String eMail) {
+                      this.limit = limit;
+                      this.draw = draw;
+                      this.eMail = eMail;
+                  }
+
+                  public long getLimit() { return limit; }
+                  public long getDraw() { return draw; }
+                  public int in() { return 0; }
+                  public int out() { return 0; }
+                  public int get2D() { return 0; }
+                  public String eMail() { return eMail; }
+
+                  public CreditLine withLimit(long limit) {
+                      return new CreditLine(limit, draw, eMail);
+                  }
+                  public CreditLine withdraw(long amount) {
+                      return new CreditLine(limit, draw + amount, eMail);
+                  }
+                  public CreditLine within(int margin) { return this; }
+                  public CreditLine without(int margin) { return this; }
+                  public CreditLine with2D(int d) { return this; }
+                  public CreditLine witheMail(String eMail) {
+                      return new CreditLine(limit, draw, eMail);
+                  }
+                  public void settle(long amount) {}
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.CreditLine", source);
+
+      assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.WITHER_CLASS);
+      assertThat(analysis.witherMethods())
+          .extracting(WitherInfo::witherMethodName)
+          .containsExactly("withLimit", "witheMail");
+      assertThat(analysis.witherMethods())
+          .extracting(WitherInfo::fieldName)
+          .containsExactly("limit", "eMail");
+      // The mutable guard counts any void set method, so it errs towards refusing.
+      assertThat(analysis.hasMutableFields()).isTrue();
+    }
   }
 
   @Nested

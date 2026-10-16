@@ -208,6 +208,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * carrying what the message says of it ({@link MessageField}). The accessors it declares beside
    * them, such as {@code getXBytes()} or {@code getXCount()}, are none of its fields, and it
    * records none of them as unpaired.
+   *
+   * <p>A bean of either direction also records its {@code words}: methods in an accessor's shape
+   * that run on in lower case after their {@code get}, {@code is} or {@code set} prefix, such as
+   * {@code getaway()}, which are no accessors. A setter-shaped one is recorded only where setters
+   * write the bean. Each is named after the property the JavaBeans convention reads it as, so that
+   * one the mapping needs can be refused rather than passed over in silence.
    */
   record BeanShape(
       TypeElement element,
@@ -215,12 +221,14 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       Optional<ConstructionStrategy> strategy,
       Direction direction,
       List<UnpairedAccessor> unpaired,
+      List<UnpairedAccessor> words,
       Set<String> readOnlyNames)
       implements WireShape {
 
     public BeanShape {
       properties = List.copyOf(properties);
       unpaired = List.copyOf(unpaired);
+      words = List.copyOf(words);
       readOnlyNames = Set.copyOf(readOnlyNames);
     }
 
@@ -230,8 +238,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
         List<BeanProperty> properties,
         Optional<ConstructionStrategy> strategy,
         Direction direction,
-        List<UnpairedAccessor> unpaired) {
-      this(element, properties, strategy, direction, unpaired, Set.of());
+        List<UnpairedAccessor> unpaired,
+        List<UnpairedAccessor> words) {
+      this(element, properties, strategy, direction, unpaired, words, Set.of());
     }
 
     @Override
@@ -310,8 +319,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
           unpaired.stream().filter(accessor -> !getters.contains(accessor)).toList();
       // A protobuf-java message with no fields has nothing to write, and is written all the same.
       return !read.isEmpty() && read.stream().allMatch(property -> property.write().isEmpty())
-          ? new BeanShape(element, read, Optional.empty(), Direction.PARSE_ONLY, List.of())
-          : new BeanShape(element, read, strategy, direction, left, names);
+          ? new BeanShape(element, read, Optional.empty(), Direction.PARSE_ONLY, List.of(), words)
+          : new BeanShape(element, read, strategy, direction, left, words, names);
     }
 
     /** Whether the property named {@code name} is read-only: read, on a bean that is written. */
@@ -322,18 +331,20 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * An accessor a two-way bean declares with no partner in the other direction: its property name,
-   * the method as declared, the type it reads or writes, the role it plays, and the supertype it is
-   * inherited from, when it is not declared on the bean (or builder) itself.
+   * An accessor-shaped method a bean's reading leaves out: an accessor a two-way bean declares with
+   * no partner in the other direction, or a {@link BeanShape#words word} that starts like one. It
+   * carries its property name, the method as declared, the type it reads or writes, the role it
+   * would play, and the supertype it is inherited from, when it is not declared on the bean (or
+   * builder) itself.
    */
   record UnpairedAccessor(
       String name, String method, TypeMirror type, Role role, Optional<TypeElement> inheritedFrom) {
 
     /** The roles an accessor plays on a bean, each as a diagnostic names it. */
     enum Role {
-      /** A {@code getX} or {@code isX} getter on the bean. */
+      /** A {@code getX} or {@code isX} getter on the bean, or a word in a getter's shape. */
       GETTER("getter"),
-      /** A {@code setX} setter on the bean. */
+      /** A {@code setX} setter on the bean, or a word in a setter's shape. */
       SETTER("setter"),
       /** A one-argument method on the bean's builder. */
       BUILDER_SETTER("builder setter");
@@ -359,7 +370,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * {@code getName()}, {@code setName(String) (declared on 'Base')}.
      */
     String signature() {
-      return spelt(method) + BeanPropertyAnalyser.declaredOn(inheritedFrom);
+      return spelling() + BeanPropertyAnalyser.declaredOn(inheritedFrom);
+    }
+
+    /** The accessor as a diagnostic spells it, without where it is declared: {@code getName()}. */
+    String spelling() {
+      return spelt(method);
     }
 
     /**

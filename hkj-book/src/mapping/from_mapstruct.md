@@ -30,6 +30,7 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 | `ignore = true` on a target | [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on a bean accessor; a narrower wire is simply a projection | a protobuf message's field takes a [derived field](basics.md#derived-wire-fields) instead |
 | `ignore = true` on a request's target, read back from the response | [`@ReadOnly`](beans.md#read-only-properties) on a bean getter with no setter | one spec, with `parse` and `build` as two halves, which a model that nests it takes too |
 | `unmappedTargetPolicy = ERROR` | always on | an unmapped wire component is a compile error |
+| A getter spelt in lower case after its prefix, `getx()`, read as `x` | `getX()`: a name that runs on in lower case after `get`, `is` or `set` is [a word](rules.md#word-accessors) | refused where a component needs it |
 | `@InheritInverseConfiguration` | not needed | the inverse is the same declaration |
 | `componentModel = "spring"` | a `@Bean` of `ValidatedPrism<Wire, Domain>` from `asValidatedPrism()` | [Injecting and testing](testing.md#injecting-and-testing-generated-mappings) |
 | A conversion that throws | a located `FieldError` in an accumulating `parse` | nothing throws for bad data |

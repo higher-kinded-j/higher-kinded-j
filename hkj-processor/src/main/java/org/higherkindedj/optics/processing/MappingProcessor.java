@@ -1600,14 +1600,203 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The {@link WireShape.BeanShape#words words} a bean declares that would be refused were no
+   * {@code @Unmapped} marker to name them, by the property each is named after. A word is a method
+   * in an accessor's shape, such as {@code getaway()}, that runs on in lower case after its prefix,
+   * and is no accessor. One is refused where it is named after a domain component and nothing else
+   * on the bean does its part for that component: no accessor of its kind under any name the
+   * component maps under. A word is passed over where it names nothing the mapping needs, sits
+   * beside such an accessor, as {@code getaway()} beside {@code getAway()}, or cannot be the
+   * component's accessor, since one of the other kind reads or writes the name at another type, as
+   * a {@code setup(Context)} hook beside {@code String getUp()} does. On a mapping that builds, a
+   * {@code @ReadOnly} marker that binds ({@code readOnly}) says the property has no setter, so it
+   * answers a setter-shaped word; one that binds nothing, as a mix-in's may not, answers nothing.
+   */
+  private Map<String, List<WireShape.UnpairedAccessor>> refusableWords(
+      TypeElement spec, TypeElement domain, WireShape wire, Set<String> readOnly) {
+    if (!(wire instanceof WireShape.BeanShape bean)) {
+      return Map.of();
+    }
+    Map<String, List<String>> wireNames =
+        wireNamesOf(processingEnv.getElementUtils(), spec, domain);
+    Map<String, String> components = componentByWireName(wireNames);
+    return bean.words().stream()
+        .filter(word -> components.containsKey(word.name()))
+        .filter(word -> word.reads() || !readOnly.contains(word.name()))
+        .filter(
+            word ->
+                wireNames.get(components.get(word.name())).stream()
+                    .noneMatch(name -> accessorOfItsKind(bean, name, word.reads())))
+        .filter(word -> !partnerOfAnotherType(bean, word))
+        .collect(
+            Collectors.groupingBy(
+                WireShape.UnpairedAccessor::name, LinkedHashMap::new, Collectors.toList()));
+  }
+
+  /** Refuses the {@link #refusableWords refusable words} no {@code @Unmapped} marker names. */
+  private boolean checkWords(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.BeanShape bean,
+      Map<String, List<WireShape.UnpairedAccessor>> refusable,
+      Set<String> unmapped,
+      boolean sparse) {
+    Map<String, String> components =
+        componentByWireName(wireNamesOf(processingEnv.getElementUtils(), spec, domain));
+    Map<String, List<WireShape.UnpairedAccessor>> refused = new LinkedHashMap<>(refusable);
+    refused.keySet().removeAll(unmapped);
+    refused.forEach(
+        (name, words) -> reportWords(spec, domain, bean, components.get(name), words, sparse));
+    return refused.isEmpty();
+  }
+
+  /**
+   * Whether a bean has an accessor of the given kind for {@code name}, paired or not: a getter, for
+   * a word in a getter's shape, or a setter or builder setter, for one in a setter's. Filling a
+   * getter-only {@code List} through its getter is no setter, so a word beside it is the only one.
+   */
+  private static boolean accessorOfItsKind(WireShape.BeanShape bean, String name, boolean reads) {
+    return bean.properties().stream()
+            .filter(property -> property.name().equals(name))
+            .anyMatch(
+                property ->
+                    reads
+                        ? property.getter().isPresent()
+                        : property
+                            .write()
+                            .filter(site -> !(site instanceof WireShape.WriteSite.CollectionAdd))
+                            .isPresent())
+        || bean.unpaired().stream()
+            .anyMatch(other -> other.name().equals(name) && other.reads() == reads);
+  }
+
+  /**
+   * Whether every accessor the bean has for a word's name takes it at another type: a word that
+   * could not pair with them is no accessor of that property. Each is of the other kind, since a
+   * word reaching here has none of its own ({@link #accessorOfItsKind}). A name the bean has no
+   * accessor for says nothing.
+   */
+  private boolean partnerOfAnotherType(WireShape.BeanShape bean, WireShape.UnpairedAccessor word) {
+    Types types = processingEnv.getTypeUtils();
+    List<TypeMirror> partners =
+        Stream.concat(
+                bean.properties().stream()
+                    .filter(property -> property.name().equals(word.name()))
+                    .map(WireShape.BeanProperty::type),
+                bean.unpaired().stream()
+                    .filter(other -> other.name().equals(word.name()))
+                    .map(WireShape.UnpairedAccessor::type))
+            .toList();
+    return !partners.isEmpty()
+        && partners.stream().noneMatch(type -> types.isSameType(type, word.type()));
+  }
+
+  /**
+   * Reports the words that would carry {@code component}, offering each its accessor's name, and
+   * the {@code @Unmapped} marker that reads them as no accessors, where one can be followed: not
+   * beside a {@code @ReadOnly} marker of the name, which it would contradict, nor for a getter on a
+   * bean only read, whose parse must fill every component, nor for a setter beside a getter-only
+   * {@code List}, whose fill through a getter that hands back a copy would lose the value.
+   */
+  private void reportWords(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.BeanShape bean,
+      String component,
+      List<WireShape.UnpairedAccessor> words,
+      boolean sparse) {
+    WireShape.UnpairedAccessor first = words.getFirst();
+    String name = first.name();
+    String owner = "'" + bean.element().getSimpleName() + "'";
+    String target =
+        "'"
+            + domain.getSimpleName()
+            + "."
+            + component
+            + "'"
+            + (component.equals(name) ? "" : " (renamed to '" + name + "')");
+    String methods = joined(words.stream().map(WireShape.UnpairedAccessor::spelling).toList());
+    boolean one = words.size() == 1;
+    boolean reads = words.stream().anyMatch(WireShape.UnpairedAccessor::reads);
+    boolean writes = words.stream().anyMatch(word -> !word.reads());
+    Optional<String> filled =
+        bean.properties().stream()
+            .filter(property -> property.name().equals(name))
+            .filter(
+                property ->
+                    property.write().orElse(null) instanceof WireShape.WriteSite.CollectionAdd)
+            .findFirst()
+            .flatMap(WireShape.BeanProperty::getter);
+    boolean offerUnmapped =
+        sameNamedMember(spec, name)
+                .filter(member -> member.getAnnotation(ReadOnly.class) != null)
+                .isEmpty()
+            && !(reads && bean.direction() == WireShape.Direction.PARSE_ONLY)
+            && filled.isEmpty();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        owner
+            + " declares "
+            + joined(words.stream().map(WireShape.UnpairedAccessor::signature).toList())
+            + ", which "
+            + (one ? "is" : "are")
+            + " not read as the "
+            + joined(words.stream().map(word -> word.role().label()).distinct().toList())
+            + " of '"
+            + name
+            + "'.",
+        "A name that runs on in lower case after its get, is or set prefix is a word rather than"
+            + " an accessor, which would be spelt "
+            + first.renamedFor(name)
+            + ". "
+            + (sparse
+                ? "updateFrom folds in only what a PATCH bean both reads and writes, so a value the"
+                    + " client sends for '"
+                    + name
+                    + "' would never reach "
+                    + target
+                : filled.isPresent()
+                    ? "Nothing else on "
+                        + owner
+                        + " sets "
+                        + target
+                        + ", so build would fill it through "
+                        + filled.get()
+                        + "().addAll(...) instead"
+                    : "With nothing else on "
+                        + owner
+                        + (reads && writes
+                            ? " to read or write it, the mapping would leave " + target + " out"
+                            : reads
+                                ? " to read it, parse could not fill " + target
+                                : " to write it, build would leave " + target + " out"))
+            + ", and nothing would say so.",
+        "Rename "
+            + joined(
+                words.stream()
+                    .map(word -> word.spelling() + " to " + word.renamedFor(name))
+                    .toList())
+            + (offerUnmapped
+                ? ". Or, if "
+                    + methods
+                    + (one ? " is" : " are")
+                    + " not meant to carry "
+                    + target
+                    + unmappedOffer(spec, first)
+                : "."));
+  }
+
+  /**
    * Refuses the accessors a PATCH bean leaves out where leaving them out ignores what a client
    * sends. An accessor named after a domain component the bean carries under no name is refused as
    * on a mapping that builds ({@link #checkAccessorsPair}), and so is a {@code setX} setter with no
    * getter, whatever it names: a setter is how the client's value arrives, so one the fold never
    * reads is a field the client can send and the update ignores. A builder's one-argument method is
-   * no such signal, being only a candidate writer until a getter pairs it, and nor is a method that
-   * merely starts with {@code set} ({@code setup}), so neither is refused unless it names a
-   * component.
+   * no such signal, being only a candidate writer until a getter pairs it, so it is refused only
+   * where it names a component. A method that merely starts with {@code set} ({@code setup}) is no
+   * setter at all.
    */
   private boolean checkPatchAccessorsPair(
       TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
@@ -1625,7 +1814,8 @@ public class MappingProcessor extends AbstractProcessor {
         bean.unpaired().stream()
             .filter(accessor -> !unmapped.contains(accessor.name()))
             .filter(accessor -> accessor.role() == WireShape.UnpairedAccessor.Role.SETTER)
-            .filter(setter -> Character.isUpperCase(setter.method().charAt(3)))
+            // set2D(...) spells no name, so no component or marker can be named after it.
+            .filter(setter -> SourceVersion.isIdentifier(setter.name()))
             .filter(setter -> !answered.contains(setter.name()))
             .toList();
     unread.forEach(setter -> reportUnreadSetter(spec, domain, bean, setter));
@@ -1679,14 +1869,19 @@ public class MappingProcessor extends AbstractProcessor {
   /** {@link #uncarriedNames}, over the wire names each component maps under, already read. */
   private static Map<String, String> uncarriedNames(
       Map<String, List<String>> wireNames, WireShape.BeanShape bean) {
-    Map<String, String> uncarried = new LinkedHashMap<>();
+    Map<String, List<String>> uncarried = new LinkedHashMap<>(wireNames);
+    uncarried
+        .values()
+        .removeIf(names -> names.stream().anyMatch(name -> bean.componentNamed(name).isPresent()));
+    return componentByWireName(uncarried);
+  }
+
+  /** Each wire name a component maps under, with that component, the first to claim it winning. */
+  private static Map<String, String> componentByWireName(Map<String, List<String>> wireNames) {
+    Map<String, String> components = new LinkedHashMap<>();
     wireNames.forEach(
-        (name, names) -> {
-          if (names.stream().noneMatch(wireName -> bean.componentNamed(wireName).isPresent())) {
-            names.forEach(wireName -> uncarried.putIfAbsent(wireName, name));
-          }
-        });
-    return uncarried;
+        (component, names) -> names.forEach(name -> components.putIfAbsent(name, component)));
+    return components;
   }
 
   /**
@@ -1765,10 +1960,12 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The accessors an {@code @Unmapped} marker reads as deliberately left out, or null once a marker
    * is reported. A marker the spec declares itself must name an accessor the bean leaves unpaired,
-   * which is the typo guard; one inherited from a mix-in binds where it can and is otherwise inert,
-   * like every other inherited vocabulary member, so one mix-in serves wires that differ.
+   * or one of the {@code words} the mapping would otherwise refuse ({@link #refusableWords}), on a
+   * bean of either direction, which is the typo guard; one inherited from a mix-in binds where it
+   * can and is otherwise inert, like every other inherited vocabulary member, so one mix-in serves
+   * wires that differ.
    */
-  private Set<String> unmappedNames(TypeElement spec, WireShape wire) {
+  private Set<String> unmappedNames(TypeElement spec, WireShape wire, Set<String> words) {
     Set<String> unpaired =
         wire.unpaired().stream()
             .map(WireShape.UnpairedAccessor::name)
@@ -1779,7 +1976,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       String name = method.getSimpleName().toString();
-      if (unpaired.contains(name)) {
+      if (unpaired.contains(name) || words.contains(name)) {
         marked.add(name);
         continue;
       }
@@ -2256,18 +2453,34 @@ public class MappingProcessor extends AbstractProcessor {
                 ? removal + "."
                 : removal
                     + ", or rename it after the component it should update and give it a getter.")
-            + " Or declare "
-            + unmappedMarker(setter)
-            + " on the spec, to leave it out deliberately.");
+            // A keyword, as setDefault(...) gives, can name no marker.
+            + (SourceVersion.isName(name)
+                ? " Or declare "
+                    + unmappedMarker(setter)
+                    + " on the spec, to leave it out deliberately."
+                : ""));
   }
 
-  /** The marker declaration that reads an accessor's omission as deliberate. */
-  private static String unmappedMarker(WireShape.UnpairedAccessor accessor) {
-    return "'@Unmapped "
-        + ProcessorUtils.simpleTypeName(accessor.type())
-        + " "
-        + accessor.name()
-        + "();'";
+  /**
+   * The marker declaration that reads an accessor's omission as deliberate. Its return type is
+   * never read, so it is written as one the spec can declare: a type variable of the accessor's own
+   * by its erasure, and a raw type with a wildcard for each parameter.
+   */
+  private String unmappedMarker(WireShape.UnpairedAccessor accessor) {
+    TypeMirror type = accessor.type();
+    String written =
+        type.getKind() == TypeKind.TYPEVAR
+            ? ProcessorUtils.simpleTypeName(processingEnv.getTypeUtils().erasure(type))
+            : type instanceof DeclaredType declared
+                    && declared.getTypeArguments().isEmpty()
+                    && !((TypeElement) declared.asElement()).getTypeParameters().isEmpty()
+                ? ProcessorUtils.simpleTypeName(type)
+                    + Collections.nCopies(
+                            ((TypeElement) declared.asElement()).getTypeParameters().size(), "?")
+                        .stream()
+                        .collect(Collectors.joining(", ", "<", ">"))
+                : ProcessorUtils.simpleTypeName(type);
+    return "'@Unmapped " + written + " " + accessor.name() + "();'";
   }
 
   /** The what-line of an unpaired accessor's refusal: which accessor it has, and which it lacks. */
@@ -5012,8 +5225,12 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // Asked after flattening, which refuses a group spread across a bean, so a flattened component
     // is never told to take an accessor of its record's type.
-    Set<String> unmapped = unmappedNames(spec, wireShape);
-    if (unmapped == null) {
+    Map<String, List<WireShape.UnpairedAccessor>> refusable =
+        refusableWords(spec, domain, wireShape, readOnlyBound);
+    Set<String> unmapped = unmappedNames(spec, wireShape, refusable.keySet());
+    if (unmapped == null
+        || (wireShape instanceof WireShape.BeanShape bean
+            && !checkWords(spec, domain, bean, refusable, unmapped, false))) {
       return Optional.empty();
     }
     Set<String> readOnly = readOnlyNames(spec, domain, wireShape, readOnlyBound, false);
@@ -5315,8 +5532,11 @@ public class MappingProcessor extends AbstractProcessor {
             specCrossings(spec, domainArg, wireBean.asType()))) {
       return;
     }
-    Set<String> unmapped = unmappedNames(spec, wireShape);
+    Map<String, List<WireShape.UnpairedAccessor>> refusable =
+        refusableWords(spec, domain, wireShape, Set.of());
+    Set<String> unmapped = unmappedNames(spec, wireShape, refusable.keySet());
     if (unmapped == null
+        || !checkWords(spec, domain, wireShape, refusable, unmapped, true)
         || readOnlyNames(spec, domain, wireShape, Set.of(), true) == null
         || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
         || !checkCollectionsCarryAbsence(spec, wireShape)) {

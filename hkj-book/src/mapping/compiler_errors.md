@@ -100,6 +100,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 |---|---|
 | [`does not support on the domain side`](#bean-domain) | The domain is a bean, not a record |
 | [`so the mapping leaves it out`](#setter-with-no-getter) | An accessor has no partner |
+| [`not read as the`](#word-is-no-accessor) | A method only starts like an accessor |
 | [`is read and written at different types`](#read-and-written-at-different-types) | A getter and its writer disagree on type |
 | [`names no accessor`](#unmapped-names-no-accessor) | An `@Unmapped` marker names nothing left out |
 | [`names a property`](#unmapped-names-a-mapped-property) | An `@Unmapped` marker names a paired property |
@@ -1597,6 +1598,42 @@ class AuthorBean {
 
 @GenerateMapping
 interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}
+```
+~~~
+
+### `'Y' declares getx(), which is not read as the getter of 'x'` {#word-is-no-accessor}
+
+A method shaped like an accessor runs on in lower case after its prefix, as `getaway()` does, so it is a word rather than an accessor. Nothing else on the bean reads or writes the domain component in its place.
+
+**Fix.** Rename the method as the message offers, `getAway()` for `getaway()`. Where it is not meant to carry the component, name its property in an `@Unmapped` marker.
+
+```
+@GenerateMapping: 'TripBean' declares getaway(), which is not read as the getter of 'away'. A
+name that runs on in lower case after its get, is or set prefix is a word rather than an
+accessor, which would be spelt getAway(). With nothing else on 'TripBean' to read it, parse
+could not fill 'Trip.away', and nothing would say so. Rename getaway() to getAway(). Or, if
+getaway() is not meant to carry 'Trip.away', declare '@Unmapped String away();' on the spec.
+```
+
+The rule: [A method that only starts like an accessor](rules.md#word-accessors).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "not read as the" -->
+```java
+record Trip(String away, String up) {}
+
+class TripBean {
+  private String away;
+  private String up;
+
+  public String getaway() { return away; }
+  public void setAway(String away) { this.away = away; }
+  public String getUp() { return up; }
+  public void setUp(String up) { this.up = up; }
+}
+
+@GenerateMapping
+interface TripMapping extends MappingSpec<Trip, TripBean> {}
 ```
 ~~~
 

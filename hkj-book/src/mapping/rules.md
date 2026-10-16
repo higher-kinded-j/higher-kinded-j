@@ -29,7 +29,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a generic mix-in be extended raw?](#a-generic-mix-in-reached-raw) | Not if it contributes a member: raw erases what it declares. | by design |
 | [Can two mix-ins declare the same rename?](#inheriting-one-member-twice) | Yes, when the targets agree; conflicting targets are refused. | by design |
 | [Can an `@Unmapped` marker name an accessor that pairs?](#what-unmapped-withholds) | Not one the spec declares; an inherited one stays inert. | by design |
-| [Can an `@Unmapped` marker go on a bean crossed one way?](#what-unmapped-withholds) | Not one the spec declares: such a bean leaves no accessor unpaired. | by design |
+| [Can an `@Unmapped` marker go on a bean crossed one way?](#what-unmapped-withholds) | Only to name a [word that starts like an accessor](#word-accessors): such a bean leaves no accessor unpaired. | by design |
 | [Can a `@ReadOnly` marker name a getter the bean writes, or no getter?](#what-readonly-reads) | Not one the spec declares; an inherited one stays inert. | by design |
 | **Containers** | | |
 | [Is a same-typed container shared with the wire?](#same-typed-containers-cross-as-copies) | Not when declared exactly `List`, `Set`, `Collection`, `Map`, `Optional` or array. | by design |
@@ -56,6 +56,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
 | [Can the domain be a bean?](#how-a-bean-is-read-and-written) | No: `parse` builds the domain through a record constructor. | by design |
+| [Is a method such as `getaway()` or `setup(String)` an accessor?](#word-accessors) | No: it is a word, refused where a component needs it. | by design |
 | [What happens to an accessor with no partner?](#unpaired-accessors) | Left out; refused when named after a component the bean carries under no name. | by design |
 | [Is a getter-only `List` declared nullable filled through its getter?](#how-a-bean-is-read-and-written) | Only when the getter answers a list: otherwise `build` leaves it unwritten. | by design |
 | [Can a getter-only `List` be raw, or a wildcard?](#getter-only-list-element-type) | Not where `build` is emitted: `addAll` needs its element type. | not supported yet |
@@ -412,7 +413,9 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 **The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a no-args constructor the Impl can call, public or package-private beside the spec, with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it, and whose `build()`, called on what the factory returns, yields the wire. That includes a self-typed builder, such as a Lombok `@SuperBuilder` whose `build()` is declared `C build()`. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
 
 - **A property is a getter and a writer that share a name.** Getters are `getX()`, and `isX()` returning `boolean` or `Boolean`, the shape JAXB declares for an optional boolean. Where a bean declares both for one name, `getX()` reads it.
+- **A method that only starts like an accessor is none.** `getaway()` and `setup(String)` are words, and a builder's `settings(String)` writes `settings`. One that a component needs is [refused](#word-accessors).
 - **An overloaded writer pairs by the getter's type.** Beside `int getAge()`, `setAge(int)` writes the property and `setAge(String)` is passed over, whatever order the two are declared in. A builder setter pairs the same way. With no getter to match, on a bean that is only written, the first overload met decides.
+- **A builder's `name(...)` beside its `setName(...)` is no overload.** javac binds a call by its name first, so `name(...)` writes the property.
 - **An overload that cannot pair is refused.** When no overload takes the getter's type, the property is read and written at different types. When a second overload would take the value as well, and is no less specific, javac could not choose between the two.
 - **A getter-only `List` declared nullable is filled only when its getter answers a list.** openapi-generator declares every getter it does not require `@Nullable`, and a nullable array's answers `null` until Jackson sets it. `build` then leaves the property unwritten, which a law check from a domain sample reports as missing. `List<@Nullable String>` does not count.
 - **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a [`@Singular` adder](#singular-collections), which the processor never refuses. It refuses any other unpaired accessor named after a domain component: [When an unpaired accessor is refused](#unpaired-accessors).
@@ -441,10 +444,10 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 
 ### What `@Unmapped` withholds {#what-unmapped-withholds}
 
-**The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers both refusals it is named for, [an accessor named after a domain component](#unpaired-accessors) and [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter), on a `MappingSpec` and a sparse `UpdateSpec` alike. On a `MappingSpec` the component then stays out, so a bean left narrower than the domain is a projection, with no `parse`. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
+**The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers each refusal it is named for, on a `MappingSpec` and a sparse `UpdateSpec` alike. Those refusals are for [an accessor named after a domain component](#unpaired-accessors), [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter) and [a word that starts like an accessor](#word-accessors). On a `MappingSpec` the component then stays out, so a bean left narrower than the domain is a projection, with no `parse`. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
 
-- **A marker the spec declares must name an unpaired accessor.** The processor refuses one naming a property the mapping carries, or naming nothing at all, as the misspelling it usually is.
-- **A marker the spec declares on a bean crossed [one way](#how-a-beans-direction-is-read) is refused.** Each of its accessors is a property of its own, so none is left unpaired: a parse-only mapping ignores a getter no component names, and a build-only one fills every writer.
+- **A marker the spec declares must name an unpaired accessor, or a [word](#word-accessors) the mapping would otherwise refuse,** which it then reads as no accessor. The processor refuses one naming a property the mapping carries, or naming nothing at all, as the misspelling it usually is.
+- **A marker the spec declares on a bean crossed [one way](#how-a-beans-direction-is-read) is refused, unless it names such a word.** Each of its accessors is a property of its own, so none is left unpaired: a parse-only mapping ignores a getter no component names, and a build-only one fills every writer.
 - **An inherited marker binds where it can, and is otherwise inert**, like every other member inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), so one mix-in serves specs whose wires differ.
 
 ### What `@ReadOnly` reads {#what-readonly-reads}
@@ -476,6 +479,16 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 ### When an unpaired accessor is refused {#unpaired-accessors}
 
 When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out. A getter on a mapping that builds is offered the [`@ReadOnly` marker](beans.md#read-only-properties) too, for a property `parse` should read and `build` leave out.
+
+### A method that only starts like an accessor {#word-accessors}
+
+**A name that runs on in lower case after its `get`, `is` or `set` prefix is a word, not an accessor.** `getaway()`, `island()` and `setup(String)` are words. `getAway()` reads `away`, and the JavaBeans spelling `geteMail()` reads `eMail`, a property whose second letter is a capital. A builder's one-argument method that is no setter is named after its property, so a builder's `settings(String)` writes `settings`.
+
+A word named after a domain component is refused where nothing else on the bean does its part: no accessor of its kind under any name the component maps under. So `getaway()` beside `setAway(String)` alone is refused, and so is `settags(List)` beside a getter-only `getTags()`, which build would otherwise fill through `getTags().addAll(...)`. That holds on a bean crossed either way and on a PATCH bean.
+
+A word is passed over beside an accessor of its kind, as `getaway()` beside `getAway()`, and where it names nothing the mapping needs. It is passed over where it could not pair, as a `setup(Context)` hook beside `String getUp()`, and where it would be a setter on a bean its setters never write. On a mapping that builds, a `@ReadOnly` marker that binds answers a setter-shaped word, since it says the property has no setter.
+
+The diagnostic offers the accessor's name, `getAway()`, and the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out) as well, for a method not meant to carry the component. It withholds the marker beside a `@ReadOnly` one of the name, and for a getter on a bean only read, whose `parse` must fill every component. It withholds it too for a setter beside a getter-only `List`, which a getter handing back a copy would leave unfilled.
 
 ### A getter-only `List` must name its element type {#getter-only-list-element-type}
 

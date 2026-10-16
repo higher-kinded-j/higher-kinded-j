@@ -435,7 +435,7 @@ final class CopyStrategyChecks {
         }
       }
     }
-    String field = ProcessorUtils.capitalise(written.replaceFirst("^(get|is)(?=\\p{Lu})", ""));
+    String field = ProcessorUtils.capitalise(NamingConvention.ACCESSOR.withoutPrefix(written));
     return Optional.ofNullable(byField.get(field))
         .or(
             () ->

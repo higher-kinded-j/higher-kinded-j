@@ -680,8 +680,7 @@ final class BuilderChainChecks {
    * record's.
    */
   private static String propertySpelt(String accessor) {
-    return ProcessorUtils.capitalise(
-        accessor.replaceFirst("^(get|is)(?=\\p{Lu}|\\p{Ll}\\p{Lu})", ""));
+    return ProcessorUtils.capitalise(NamingConvention.ACCESSOR.withoutPrefix(accessor));
   }
 
   /**
