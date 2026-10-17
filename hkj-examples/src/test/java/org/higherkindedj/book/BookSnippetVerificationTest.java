@@ -184,14 +184,7 @@ class BookSnippetVerificationTest {
   @DisplayName("snippet compiles")
   void snippetCompiles(Case testCase) throws IOException {
     Compiled compiled = compile(testCase);
-    List<Diagnostic<? extends JavaFileObject>> errors =
-        compiled
-            // The real build is -Werror on these, so a warning here is a page defect.
-            .ofKind(
-                Diagnostic.Kind.ERROR, Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING)
-            .stream()
-            .filter(d -> !message(d).contains("preview"))
-            .toList();
+    List<Diagnostic<? extends JavaFileObject>> errors = compiled.defects();
 
     if (!errors.isEmpty()) {
       fail(
@@ -252,6 +245,52 @@ class BookSnippetVerificationTest {
               + listing(reports)
               + assembled(compiled.unit()));
     }
+  }
+
+  @Test
+  @DisplayName("an error whose text mentions preview is still a defect")
+  void anErrorMentioningPreviewIsADefect() {
+    // Prism has no preview method; the glossary once called one, and the gate let it through.
+    Compiled compiled =
+        compileUnit(
+            "preview_error",
+            """
+            import org.higherkindedj.optics.Prism;
+
+            class PreviewError {
+              Object first(Prism<Object, String> prism, Object source) {
+                return prism.preview(source);
+              }
+            }
+            """);
+    assertThat(compiled.defects())
+        .extracting(BookSnippetVerificationTest::message)
+        .anyMatch(text -> text.contains("preview"));
+  }
+
+  @Test
+  @DisplayName("a sample using a preview API raises no defect")
+  void aPreviewApiRaisesNoDefect() {
+    Compiled compiled =
+        compileUnit(
+            "preview_api",
+            """
+            import java.util.concurrent.StructuredTaskScope;
+
+            class PreviewApi {
+              void run() throws Exception {
+                try (var scope = StructuredTaskScope.open()) {
+                  scope.join();
+                }
+              }
+            }
+            """);
+    // The note shows the sample reached a preview API, so the empty defects are not vacuous.
+    assertThat(compiled.ofKind(Diagnostic.Kind.NOTE))
+        .as("StructuredTaskScope is no longer a preview API on this JDK; use one that is")
+        .extracting(Diagnostic::getCode)
+        .anyMatch(code -> code.startsWith("compiler.note.preview"));
+    assertThat(compiled.defects()).isEmpty();
   }
 
   @Test
@@ -326,13 +365,27 @@ class BookSnippetVerificationTest {
       List<Diagnostic.Kind> wanted = List.of(kinds);
       return diagnostics.stream().filter(d -> wanted.contains(d.getKind())).toList();
     }
+
+    /**
+     * What makes a page wrong: an error, or a warning, since the real build is -Werror on these.
+     * Preview features never land here: with {@code --enable-preview} javac reports their use as
+     * notes, and {@code -Xlint:-preview} keeps it so. Nothing is filtered by its text, so an error
+     * that merely mentions a method called {@code preview} counts like any other.
+     */
+    List<Diagnostic<? extends JavaFileObject>> defects() {
+      return ofKind(
+          Diagnostic.Kind.ERROR, Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING);
+    }
+  }
+
+  private static Compiled compileUnit(String slug, String unit) {
+    return new Compiled(unit, compile(slug, unit).getDiagnostics());
   }
 
   private static Compiled compile(Case testCase) throws IOException {
     SnippetExtractor.Page page = testCase.page();
     String unit = SnippetExtractor.toCompilationUnit(page, testCase.snippet(), fixtureFor(page));
-    return new Compiled(
-        unit, compile(page.slug() + "_" + testCase.snippet().index(), unit).getDiagnostics());
+    return compileUnit(page.slug() + "_" + testCase.snippet().index(), unit);
   }
 
   private static String message(Diagnostic<? extends JavaFileObject> diagnostic) {
