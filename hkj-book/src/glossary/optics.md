@@ -528,8 +528,8 @@ Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns
 **Definition:** An optic for working with sum types (sealed interfaces, Optional, Either). Provides safe access to specific variants within a discriminated union.
 
 **Core Operations:**
-- `preview(S source)` - Try to extract a variant (returns Optional)
-- `review(A value)` - Construct the sum type from a variant
+- `getOptional(S source)` - Try to extract a variant (returns Optional)
+- `build(A value)` - Construct the sum type from a variant
 - `modify(Function<A,A> f, S source)` - Update if variant matches
 
 **Example:**
@@ -543,7 +543,7 @@ public record Bank(String iban) implements Payment {}
 Prism<Payment, Card> cardPrism = PaymentPrisms.card();
 
 // Safe extraction
-Optional<String> pan = cardPrism.preview(payment).map(Card::pan);
+Optional<String> pan = cardPrism.getOptional(payment).map(Card::pan);
 
 // Conditional update: only a Card is touched
 Payment masked = cardPrism.modify(card -> new Card("****" + card.pan()), payment);
@@ -697,7 +697,7 @@ Validated<NonEmptyList<FieldError>, Profile> profile =
 
 ## ValidatedPrism
 
-**Definition:** The smart-constructor optic for *parse, don't validate* boundaries. Its `parse` returns `Validated<NonEmptyList<FieldError>, A>`, so every failure is located rather than only the first, whilst `build` is total and always succeeds. It is the accumulating counterpart to a [Prism](#prism), whose `preview` reports only presence or absence.
+**Definition:** The smart-constructor optic for *parse, don't validate* boundaries. Its `parse` returns `Validated<NonEmptyList<FieldError>, A>`, so every failure is located rather than only the first, whilst `build` is total and always succeeds. It is the accumulating counterpart to a [Prism](#prism), whose `getOptional` reports only presence or absence.
 
 **Example:**
 <!-- verify -->
