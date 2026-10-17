@@ -18,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.util.Currency;
 import java.util.List;
@@ -125,6 +126,36 @@ class StandardCodecsTest {
     }
 
     @Test
+    @DisplayName(
+        "localDate(formatter): fails at construction when the formatter cannot parse its own"
+            + " sample")
+    void localDateFormatterThatCannotParseItsSampleFailsFast() {
+      var strictYearOfEra =
+          DateTimeFormatter.ofPattern("dd/MM/yyyy").withResolverStyle(ResolverStyle.STRICT);
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.localDate(strictYearOfEra))
+          .withMessage(
+              "formatter '" + strictYearOfEra + "' formats 28/07/2026 but cannot parse it back")
+          .withCauseInstanceOf(DateTimeException.class);
+
+      var noYear = DateTimeFormatter.ofPattern("MM/dd");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.localDate(noYear))
+          .withMessage("formatter '" + noYear + "' formats 07/28 but cannot parse it back")
+          .withCauseInstanceOf(DateTimeException.class);
+    }
+
+    @Test
+    @DisplayName("localDate(formatter): a lawful strict formatter still builds a working codec")
+    void localDateStrictLawfulFormatterAccepted() {
+      var codec =
+          StandardCodecs.localDate(
+              DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT));
+      assertValidatedPrismLaws(codec, "28/07/2026", "31/02/2026");
+      assertThatValidated(codec.parse("28/07/2026")).isValid().hasValue(LocalDate.of(2026, 7, 28));
+    }
+
+    @Test
     @DisplayName("instant: UTC canonical form only; an offset form belongs to offsetDateTime")
     void instantCodec() {
       assertValidatedPrismLaws(StandardCodecs.instant(), "2026-07-28T12:34:56Z", "not-an-instant");
@@ -200,6 +231,20 @@ class StandardCodecsTest {
       assertThatNullPointerException()
           .isThrownBy(() -> StandardCodecs.offsetDateTime(null))
           .withMessage("formatter must not be null");
+    }
+
+    @Test
+    @DisplayName(
+        "offsetDateTime(formatter): fails at construction when the formatter cannot parse its own"
+            + " sample")
+    void offsetDateTimeFormatterThatCannotParseItsSampleFailsFast() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.offsetDateTime(DateTimeFormatter.ISO_INSTANT))
+          .withMessage(
+              "formatter '"
+                  + DateTimeFormatter.ISO_INSTANT
+                  + "' formats 2026-07-28T11:34:56Z but cannot parse it back")
+          .withCauseInstanceOf(DateTimeException.class);
     }
   }
 
