@@ -41,6 +41,57 @@ class NamingConventionTest {
     assertThatNullPointerException()
         .isThrownBy(() -> NamingConvention.ACCESSOR.sameValueAmong(null, List.of()));
     assertThatNullPointerException().isThrownBy(() -> NamingConvention.WITHER.spells(null));
+    assertThatNullPointerException().isThrownBy(() -> NamingConvention.hasPrefix(null, "get"));
+    assertThatNullPointerException().isThrownBy(() -> NamingConvention.hasPrefix("getName", null));
+    assertThatNullPointerException()
+        .isThrownBy(() -> NamingConvention.ACCESSOR.withoutPrefix(null));
+  }
+
+  @ParameterizedTest(name = "{0} has the prefix {1}: {2}")
+  @CsvSource(
+      delimiter = '|',
+      textBlock =
+          """
+          getAway   | get  | true
+          getURL    | get  | true
+          geteMail  | get  | true
+          get_x     | get  | true
+          get2D     | get  | true
+          get名前     | get  | true
+          isOpen    | is   | true
+          setUp     | set  | true
+          withLimit | with | true
+          getaway   | get  | false
+          getx      | get  | false
+          get       | get  | false
+          isolated  | is   | false
+          setup     | set  | false
+          settings  | set  | false
+          withdraw  | with | false
+          within    | with | false
+          without   | with | false
+          name      | ''   | false
+          name      | get  | false
+          """)
+  @DisplayName("a prefix counts unless a lower-case letter follows it, save before a capital")
+  void hasPrefix(String name, String prefix, boolean expected) {
+    assertThat(NamingConvention.hasPrefix(name, prefix)).isEqualTo(expected);
+  }
+
+  @ParameterizedTest(name = "{0} without its prefix is {1}")
+  @CsvSource(
+      delimiter = '|',
+      textBlock =
+          """
+          getAway  | Away
+          isOpen   | Open
+          geteMail | eMail
+          getaway  | getaway
+          away     | away
+          """)
+  @DisplayName("an accessor's prefix is taken off only where it is one")
+  void withoutPrefix(String name, String expected) {
+    assertThat(NamingConvention.ACCESSOR.withoutPrefix(name)).isEqualTo(expected);
   }
 
   @Test
@@ -50,6 +101,8 @@ class NamingConventionTest {
     assertThat(NamingConvention.WITHER.spells("title")).isFalse();
     assertThat(NamingConvention.WITHER.spells("setTitle")).isFalse();
     assertThat(NamingConvention.WITHER.spells("without")).isFalse();
+    assertThat(NamingConvention.WITHER.spells("with2D")).isTrue();
+    assertThat(NamingConvention.WITHER.spells("witheMail")).isTrue();
     assertThat(NamingConvention.ACCESSOR.spells("title")).isTrue();
     assertThat(NamingConvention.ACCESSOR.spells("getTitle")).isTrue();
     assertThat(NamingConvention.ACCESSOR.spells("setTitle")).isTrue();

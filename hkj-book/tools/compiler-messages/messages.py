@@ -834,6 +834,26 @@ class AuthorBean {
 
 @GenerateMapping
 interface AuthorMapping extends MappingSpec<Author, AuthorBean> {}"""),
+        dict(id="word-is-no-accessor",
+             heading="'Y' declares getx(), which is not read as the getter of 'x'",
+             fragment="not read as the",
+             meaning="A method shaped like an accessor runs on in lower case after its prefix, as `getaway()` does, so it is a word rather than an accessor. Nothing else on the bean reads or writes the domain component in its place.",
+             fix="Rename the method as the message offers, `getAway()` for `getaway()`. Where it is not meant to carry the component, name its property in an `@Unmapped` marker.",
+             rule=("A method that only starts like an accessor", "rules.md#word-accessors"),
+             code="""record Trip(String away, String up) {}
+
+class TripBean {
+  private String away;
+  private String up;
+
+  public String getaway() { return away; }
+  public void setAway(String away) { this.away = away; }
+  public String getUp() { return up; }
+  public void setUp(String up) { this.up = up; }
+}
+
+@GenerateMapping
+interface TripMapping extends MappingSpec<Trip, TripBean> {}"""),
         dict(id="read-and-written-at-different-types",
              heading="bean property 'x' on 'Y' is read and written at different types",
              fragment="is read and written at different types",

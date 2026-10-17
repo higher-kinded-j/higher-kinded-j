@@ -26,6 +26,7 @@ import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.ProtobufCollection;
 
@@ -66,7 +67,8 @@ import org.higherkindedj.optics.processing.util.ProtobufCollection;
  *
  * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
  * nothing reads, so that the processor can refuse one whose omission would lose a value: this
- * analysis knows the bean, and only the spec knows which names its mapping needs.
+ * analysis knows the bean, and only the spec knows which names its mapping needs. A bean of either
+ * direction records its words for the same reason ({@link #words}).
  *
  * <p>A protobuf-java message is a builder bean with more accessors than fields, so it is read by
  * its fields instead ({@link #message}): each is a name its builder can clear, read and written
@@ -85,6 +87,12 @@ final class BeanPropertyAnalyser {
   private static final String LIST = "java.util.List";
 
   private static final String BOOLEAN = "java.lang.Boolean";
+
+  private static final String GET = "get";
+
+  private static final String IS = "is";
+
+  private static final String SET = "set";
 
   /** The holder openapi-generator's Java models keep a nullable property in, by default. */
   static final String JSON_NULLABLE = "org.openapitools.jackson.nullable.JsonNullable";
@@ -175,6 +183,7 @@ final class BeanPropertyAnalyser {
     boolean setterWritten =
         hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && builder == null);
     Map<String, List<ExecutableElement>> setters = setterWritten ? collectSetters(bean) : Map.of();
+    List<WireShape.UnpairedAccessor> words = words(bean, setterWritten);
 
     if (setterWritten) {
       // A getter-only List is written through its own getter, the JAXB convention, but only on a
@@ -226,7 +235,8 @@ final class BeanPropertyAnalyser {
             properties,
             Optional.of(new WireShape.ConstructionStrategy.NoArgsSetters()),
             WireShape.Direction.BIDIRECTIONAL,
-            unpaired);
+            unpaired,
+            words);
       }
     }
 
@@ -312,18 +322,24 @@ final class BeanPropertyAnalyser {
             properties,
             Optional.of(builder.strategy()),
             WireShape.Direction.BIDIRECTIONAL,
-            unpaired);
+            unpaired,
+            words);
       }
     }
 
     // No property is both read and written, so the bean maps one way or not at all: one way only
     // when nothing whatever crosses in the other.
     if (!getters.isEmpty() && setters.isEmpty() && builderSetters.isEmpty()) {
-      return readOnly(bean, beanType, getters);
+      return readOnly(bean, beanType, getters, words);
     }
     if (getters.isEmpty() && !setters.isEmpty()) {
       return writeOnly(
-          bean, beanType, setters, new WireShape.ConstructionStrategy.NoArgsSetters(), Map.of());
+          bean,
+          beanType,
+          setters,
+          new WireShape.ConstructionStrategy.NoArgsSetters(),
+          Map.of(),
+          words);
     }
     if (getters.isEmpty() && !builderSetters.isEmpty()) {
       if (!singulars.unresolved().isEmpty()) {
@@ -335,7 +351,12 @@ final class BeanPropertyAnalyser {
         return null;
       }
       return writeOnly(
-          bean, builder.builderType(), builderSetters, builder.strategy(), singulars.collections());
+          bean,
+          builder.builderType(),
+          builderSetters,
+          builder.strategy(),
+          singulars.collections(),
+          words);
     }
     if (report) {
       reportUnusable(
@@ -343,7 +364,8 @@ final class BeanPropertyAnalyser {
           bean,
           tag,
           getters.keySet(),
-          setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
+          setters.isEmpty() ? builderSetters.keySet() : setters.keySet(),
+          words);
     }
     return null;
   }
@@ -430,6 +452,7 @@ final class BeanPropertyAnalyser {
         suffixes.stream().flatMap(suffix -> field(suffix, accessors).stream()).toList(),
         Optional.of(builder.strategy()),
         WireShape.Direction.BIDIRECTIONAL,
+        List.of(),
         List.of());
   }
 
@@ -456,8 +479,6 @@ final class BeanPropertyAnalyser {
   }
 
   private static final String CLEAR = "clear";
-
-  private static final String GET = "get";
 
   private static final String CASE = "Case";
 
@@ -538,7 +559,7 @@ final class BeanPropertyAnalyser {
         .flatMap(
             getter -> {
               TypeMirror type = getterType(accessors.message(), getter);
-              return accessors.writers().getOrDefault("set" + suffix, List.of()).stream()
+              return accessors.writers().getOrDefault(SET + suffix, List.of()).stream()
                   .filter(setter -> types.isSameType(paramType(accessors.builder(), setter), type))
                   .findFirst()
                   .map(
@@ -724,7 +745,8 @@ final class BeanPropertyAnalyser {
       List<WireShape.BeanProperty> properties,
       Optional<WireShape.ConstructionStrategy> strategy,
       WireShape.Direction direction,
-      List<WireShape.UnpairedAccessor> unpaired) {
+      List<WireShape.UnpairedAccessor> unpaired,
+      List<WireShape.UnpairedAccessor> words) {
     return new WireShape.BeanShape(
         bean,
         properties.stream()
@@ -732,7 +754,8 @@ final class BeanPropertyAnalyser {
             .toList(),
         strategy,
         direction,
-        unpaired);
+        unpaired,
+        words);
   }
 
   /**
@@ -805,10 +828,12 @@ final class BeanPropertyAnalyser {
 
   /**
    * Whether javac could not choose the {@code writer} a getter pairs with from among its {@code
-   * overloads}, and reports so when {@code report}. Another overload that takes the value {@code
-   * build} passes ({@link #takesValue}) leaves javac to call the more specific of the two, and the
-   * call is ambiguous when {@code writer} is not that one. A primitive value never meets this,
-   * since an overload that takes it only by widening or boxing is always the less specific.
+   * overloads}, and reports so when {@code report}. Another overload of its name that takes the
+   * value {@code build} passes ({@link #takesValue}) leaves javac to call the more specific of the
+   * two, and the call is ambiguous when {@code writer} is not that one. A writer of another name,
+   * such as a builder's {@code setName} beside its {@code name}, is no rival, since javac binds the
+   * call by name first. A primitive value never meets this, since an overload that takes it only by
+   * widening or boxing is always the less specific.
    */
   private boolean writerAmbiguous(
       TypeElement spec,
@@ -828,6 +853,7 @@ final class BeanPropertyAnalyser {
     Optional<ExecutableElement> rival =
         overloads.stream()
             .filter(other -> !other.equals(writer))
+            .filter(other -> other.getSimpleName().equals(writer.getSimpleName()))
             .filter(
                 other -> {
                   TypeMirror parameter = paramType(owner, other);
@@ -942,7 +968,10 @@ final class BeanPropertyAnalyser {
 
   /** Every getter, read and never written: a bean with no way to be written maps parse-only. */
   private WireShape.BeanShape readOnly(
-      TypeElement bean, DeclaredType beanType, Map<String, ExecutableElement> getters) {
+      TypeElement bean,
+      DeclaredType beanType,
+      Map<String, ExecutableElement> getters,
+      List<WireShape.UnpairedAccessor> words) {
     List<WireShape.BeanProperty> properties =
         getters.entrySet().stream()
             .map(
@@ -953,7 +982,8 @@ final class BeanPropertyAnalyser {
                         Optional.of(entry.getValue().getSimpleName().toString()),
                         Optional.<WireShape.WriteSite>empty()))
             .toList();
-    return shape(bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY, List.of());
+    return shape(
+        bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY, List.of(), words);
   }
 
   /**
@@ -968,7 +998,8 @@ final class BeanPropertyAnalyser {
       DeclaredType owner,
       Map<String, List<ExecutableElement>> writers,
       WireShape.ConstructionStrategy strategy,
-      Map<String, ExecutableElement> singulars) {
+      Map<String, ExecutableElement> singulars,
+      List<WireShape.UnpairedAccessor> words) {
     List<WireShape.BeanProperty> properties =
         writers.entrySet().stream()
             .map(
@@ -988,7 +1019,7 @@ final class BeanPropertyAnalyser {
                 })
             .toList();
     return shape(
-        bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of());
+        bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of(), words);
   }
 
   private boolean typesDiffer(
@@ -1041,28 +1072,31 @@ final class BeanPropertyAnalyser {
         readers.stream()
             .map(method -> method.getSimpleName().toString())
             .filter(BeanPropertyAnalyser::isGetName)
-            .map(methodName -> decapitalise(methodName.substring(3)))
+            .map(methodName -> decapitalise(methodName.substring(GET.length())))
             .collect(Collectors.toSet());
     Map<String, ExecutableElement> getters = new LinkedHashMap<>();
     for (ExecutableElement method : readers) {
       String methodName = method.getSimpleName().toString();
       if (isGetName(methodName)) {
-        getters.putIfAbsent(decapitalise(methodName.substring(3)), method);
-      } else if (methodName.length() > 2
-          && methodName.startsWith("is")
-          && !gotten.contains(decapitalise(methodName.substring(2)))
+        getters.putIfAbsent(decapitalise(methodName.substring(GET.length())), method);
+      } else if (NamingConvention.hasPrefix(methodName, IS)
+          && !gotten.contains(decapitalise(methodName.substring(IS.length())))
           && isBoolean(getterType((DeclaredType) bean.asType(), method))) {
         // JavaBeans keeps the 'is' getter for primitive boolean, but JAXB declares an optional
         // boolean as 'Boolean isX()' beside 'setX(Boolean)', and Jackson reads either as a
         // property; left out, the setter would be a writer with no getter.
-        getters.putIfAbsent(decapitalise(methodName.substring(2)), method);
+        getters.putIfAbsent(decapitalise(methodName.substring(IS.length())), method);
       }
     }
     return getters;
   }
 
+  /**
+   * Whether a method is named as a getter: {@code getAway}, or {@code geteMail} for {@code eMail},
+   * but not {@code getaway}, which is a word.
+   */
   private static boolean isGetName(String methodName) {
-    return methodName.length() > 3 && methodName.startsWith("get");
+    return NamingConvention.hasPrefix(methodName, GET);
   }
 
   /**
@@ -1077,11 +1111,71 @@ final class BeanPropertyAnalyser {
                 method ->
                     method.getParameters().size() == 1
                         && isSetName(method.getSimpleName().toString())),
-        3);
+        SET.length());
   }
 
+  /**
+   * Whether a method is named as a setter: {@code setUp}, or {@code seteMail} for {@code eMail},
+   * but not {@code setup} or {@code settings}, which are words.
+   */
   private static boolean isSetName(String methodName) {
-    return methodName.length() > 3 && methodName.startsWith("set");
+    return NamingConvention.hasPrefix(methodName, SET);
+  }
+
+  /**
+   * The methods a bean declares in an accessor's shape that start with {@code get}, {@code is} or
+   * {@code set} and run on in lower case, such as {@code getaway()} or {@code setup(String)}:
+   * words, which are never read as accessors. Each is recorded under the property the JavaBeans
+   * convention reads it as, so that one the mapping needs can be refused rather than passed over
+   * without a word. A setter-shaped one is recorded only where setters write the bean ({@code
+   * settersWrite}), since elsewhere no setter would be called in its place.
+   */
+  private List<WireShape.UnpairedAccessor> words(TypeElement bean, boolean settersWrite) {
+    DeclaredType beanType = (DeclaredType) bean.asType();
+    List<WireShape.UnpairedAccessor> words = new ArrayList<>();
+    for (ExecutableElement method : publicInstanceMethods(bean)) {
+      String methodName = method.getSimpleName().toString();
+      int arity = method.getParameters().size();
+      if (arity == 0 && method.getReturnType().getKind() != TypeKind.VOID) {
+        TypeMirror type = getterType(beanType, method);
+        if (isWord(methodName, GET)) {
+          words.add(word(bean, method, GET, type, WireShape.UnpairedAccessor.Role.GETTER));
+        } else if (isWord(methodName, IS) && isBoolean(type)) {
+          words.add(word(bean, method, IS, type, WireShape.UnpairedAccessor.Role.GETTER));
+        }
+      } else if (settersWrite && arity == 1 && isWord(methodName, SET)) {
+        words.add(
+            word(
+                bean,
+                method,
+                SET,
+                paramType(beanType, method),
+                WireShape.UnpairedAccessor.Role.SETTER));
+      }
+    }
+    return List.copyOf(words);
+  }
+
+  /** Whether a name starts with {@code prefix} and runs on as a word rather than an accessor. */
+  private static boolean isWord(String methodName, String prefix) {
+    return methodName.length() > prefix.length()
+        && methodName.startsWith(prefix)
+        && !NamingConvention.hasPrefix(methodName, prefix);
+  }
+
+  private static WireShape.UnpairedAccessor word(
+      TypeElement bean,
+      ExecutableElement method,
+      String prefix,
+      TypeMirror type,
+      WireShape.UnpairedAccessor.Role role) {
+    String methodName = method.getSimpleName().toString();
+    return new WireShape.UnpairedAccessor(
+        decapitalise(methodName.substring(prefix.length())),
+        methodName,
+        type,
+        role,
+        inheritedFrom(bean, method));
   }
 
   /**
@@ -1102,8 +1196,9 @@ final class BeanPropertyAnalyser {
    * Both the property-named convention ({@code name(T)}, as Lombok/Immutables/AutoValue emit) and
    * the {@code setX} convention (as protobuf emits) are accepted; when a property has both, its
    * property-named overloads come first, so one of them wins whenever it fits the getter as well. A
-   * method taking the bean or the builder itself copies a whole value in ({@code from(Bean)},
-   * {@code mergeFrom(Builder)}), so it is no property's setter.
+   * method that merely starts with {@code set} is property-named: {@code settings(T)} sets {@code
+   * settings}, not {@code tings}. A method taking the bean or the builder itself copies a whole
+   * value in ({@code from(Bean)}, {@code mergeFrom(Builder)}), so it is no property's setter.
    */
   private Map<String, List<ExecutableElement>> collectBuilderSetters(
       TypeElement bean, BuilderModel builder) {
@@ -1116,7 +1211,7 @@ final class BeanPropertyAnalyser {
         new LinkedHashMap<>(
             byProperty(
                 writers.stream().filter(method -> isSetName(method.getSimpleName().toString())),
-                3));
+                SET.length()));
     byProperty(writers.stream().filter(method -> !isSetName(method.getSimpleName().toString())), 0)
         .forEach(
             (name, propertyNamed) ->
@@ -1460,7 +1555,12 @@ final class BeanPropertyAnalyser {
    * bean whose getters and writers never share a name.
    */
   private void reportUnusable(
-      TypeElement spec, TypeElement bean, String tag, Set<String> reads, Set<String> writes) {
+      TypeElement spec,
+      TypeElement bean,
+      String tag,
+      Set<String> reads,
+      Set<String> writes,
+      List<WireShape.UnpairedAccessor> words) {
     if (reads.isEmpty() && declaresSetters(bean)) {
       Diagnostics.error(
           env.getMessager(),
@@ -1481,6 +1581,7 @@ final class BeanPropertyAnalyser {
       return;
     }
     if (reads.isEmpty()) {
+      // A bean of words alone, such as getaway() and setaway(String), says what passed them over.
       Diagnostics.error(
           env.getMessager(),
           spec,
@@ -1493,7 +1594,13 @@ final class BeanPropertyAnalyser {
               + " getX().addAll(...)), or through a static builder()/newBuilder() whose setters fill"
               + " it and whose build() yields the wire; '"
               + bean.getSimpleName()
-              + "' offers none of them.",
+              + "' offers none of them."
+              + (words.isEmpty()
+                  ? ""
+                  : " It declares "
+                      + words.stream().map(WireShape.UnpairedAccessor::signature).toList()
+                      + ", each running on in lower case after its get, is or set prefix, so none"
+                      + " is an accessor."),
           "Give it getters, setters or a builder for the properties it carries, or use a record.");
       return;
     }

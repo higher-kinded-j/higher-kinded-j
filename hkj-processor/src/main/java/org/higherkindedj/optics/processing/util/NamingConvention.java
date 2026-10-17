@@ -20,8 +20,10 @@ import java.util.stream.Stream;
  * the call and quietly do something else.
  *
  * <p>{@link #ACCESSOR} is also the order a field's accessor is paired by, and {@link #WITHER} what
- * decides which {@code @ViaCopyAndSet} setter has its result handed back; the others serve only
- * what a diagnostic offers.
+ * decides which {@code @ViaCopyAndSet} setter has its result handed back and which method
+ * {@code @ImportOptics} reads as a wither; the others serve only what a diagnostic offers. {@link
+ * #hasPrefix} tells a getter, setter or wither from a word that starts like one, such as {@code
+ * withdraw}.
  *
  * @since 0.5.0
  */
@@ -119,6 +121,42 @@ public enum NamingConvention {
   }
 
   /**
+   * {@code name} without the prefix this convention spells it with, as {@link #hasPrefix} reads
+   * one: {@code Away} for {@code getAway} as an accessor, and the name itself where it is bare or a
+   * word, such as {@code getaway}.
+   *
+   * @param name the name as written; must not be null
+   * @return what follows the prefix, or {@code name} where it has none
+   */
+  public String withoutPrefix(String name) {
+    Objects.requireNonNull(name, "name");
+    return prefixOf(name, prefixes).map(prefix -> name.substring(prefix.length())).orElse(name);
+  }
+
+  /**
+   * Whether {@code name} is {@code prefix} followed by a value's name as an accessor spells it: a
+   * name capitalising leaves as it is, as {@code getAway} spells {@code away} and {@code get_x}
+   * spells {@code _x}, or one whose second letter is a capital, as the JavaBeans convention spells
+   * {@code eMail}'s getter {@code geteMail}. A name that runs on in lower case after the prefix is
+   * a word instead, such as {@code getaway}, {@code settings} or {@code withdraw}.
+   *
+   * @param name the name as written; must not be null
+   * @param prefix the prefix, such as {@code get} or {@code with}; must not be null, and an empty
+   *     one is no prefix
+   * @return true when {@code name} is {@code prefix} before a value's name
+   */
+  public static boolean hasPrefix(String name, String prefix) {
+    Objects.requireNonNull(name, "name");
+    Objects.requireNonNull(prefix, "prefix");
+    if (prefix.isEmpty() || !name.startsWith(prefix) || name.length() == prefix.length()) {
+      return false;
+    }
+    String rest = name.substring(prefix.length());
+    return rest.equals(ProcessorUtils.capitalise(rest))
+        || (rest.length() > 1 && Character.isUpperCase(rest.charAt(1)));
+  }
+
+  /**
    * Whether some name has {@code written} among its spellings in any convention and {@code
    * candidate} among this one's. That name is one of the two, or what follows the prefix {@code
    * written} carries; an empty name spells nothing, or it would be every bare prefix.
@@ -149,18 +187,8 @@ public enum NamingConvention {
         .toList();
   }
 
-  /**
-   * The non-empty one of {@code prefixes} a name starts with, where {@link #spellings} could have
-   * put it there: {@code getaway} is not {@code get} before anything.
-   */
+  /** The non-empty one of {@code prefixes} a name {@link #hasPrefix has as its prefix}. */
   private static Optional<String> prefixOf(String name, List<String> prefixes) {
-    return prefixes.stream()
-        .filter(prefix -> !prefix.isEmpty() && name.startsWith(prefix))
-        .filter(
-            prefix -> {
-              String rest = name.substring(prefix.length());
-              return !rest.isEmpty() && rest.equals(ProcessorUtils.capitalise(rest));
-            })
-        .findFirst();
+    return prefixes.stream().filter(prefix -> hasPrefix(name, prefix)).findFirst();
   }
 }

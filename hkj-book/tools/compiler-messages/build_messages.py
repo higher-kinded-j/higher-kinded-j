@@ -97,6 +97,7 @@ SHORT = {
     "flattens-a-group-member": "`@Flatten` inside a flattened group",
     "bean-domain": "The domain is a bean, not a record",
     "setter-with-no-getter": "An accessor has no partner",
+    "word-is-no-accessor": "A method only starts like an accessor",
     "read-and-written-at-different-types": "A getter and its writer disagree on type",
     "unmapped-names-no-accessor": "An `@Unmapped` marker names nothing left out",
     "read-only-names-no-getter": "A `@ReadOnly` marker names no unpaired getter",

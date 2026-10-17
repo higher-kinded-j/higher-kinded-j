@@ -1294,6 +1294,57 @@ class ImportOpticsProcessorTest {
           compiled.invokeLensSet(lens, compiled.invokeLensGet(lens, source), source);
       Assertions.assertThat(RuntimeCompilationHelper.invoke(unchanged, "label")).isEqualTo("keep");
     }
+
+    @Test
+    @DisplayName(
+        "a word starting 'with', and a wither no lens can be named after, generate no lens")
+    void wordStartingWithWithGeneratesNoLens() {
+      // withdraw adds to the draw, so a 'draw' lens setting through it would add to the draw
+      // rather than replace it.
+      final var creditLine =
+          JavaFileObjects.forSourceString(
+              "com.external.CreditLine",
+              """
+              package com.external;
+
+              public final class CreditLine {
+                  private final long limit;
+                  private final long draw;
+
+                  public CreditLine(long limit, long draw) {
+                      this.limit = limit;
+                      this.draw = draw;
+                  }
+
+                  public long getLimit() { return limit; }
+                  public long getDraw() { return draw; }
+                  public int get2D() { return 0; }
+
+                  public CreditLine withLimit(long limit) { return new CreditLine(limit, draw); }
+                  public CreditLine withdraw(long amount) {
+                      return new CreditLine(limit, draw + amount);
+                  }
+                  public CreditLine with2D(int d) { return this; }
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  creditLine,
+                  RuntimeCompilationHelper.packageInfo(
+                      "com.myapp.optics", "com.external.CreditLine"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.CreditLineLenses",
+          "Lens.of(CreditLine::getLimit, (source, newValue) -> source.withLimit(newValue))");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.myapp.optics.CreditLineLenses", "withdraw");
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.optics.CreditLineLenses", "2D");
+    }
   }
 
   @Nested

@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
@@ -204,7 +205,9 @@ public class TypeKindAnalyser {
    * <p>A wither method must:
    *
    * <ul>
-   *   <li>Be named {@code withXxx} where {@code xxx} is the field name
+   *   <li>Be named {@code withXxx} where {@code xxx} is the field name, spelt as {@link
+   *       NamingConvention#WITHER} spells it: {@code withdraw} is a word, not a wither for {@code
+   *       draw}, and {@code with2D} names no field a lens method can be named after
    *   <li>Take exactly one parameter
    *   <li>Hand back the declaring class under its own type arguments, as {@link
    *       ProcessorUtils#returnsOwner} reads it
@@ -227,8 +230,7 @@ public class TypeKindAnalyser {
       ExecutableElement method = (ExecutableElement) enclosed;
       String methodName = method.getSimpleName().toString();
 
-      // Must start with "with" and have more characters
-      if (!methodName.startsWith("with") || methodName.length() <= 4) {
+      if (!NamingConvention.WITHER.spells(methodName)) {
         continue;
       }
 
@@ -252,6 +254,11 @@ public class TypeKindAnalyser {
 
       // Extract field name from withXxx -> xxx
       String fieldName = extractFieldName(methodName);
+      // The lens is a method named after the field, so a name no method can have, as with2D gives,
+      // pairs nothing.
+      if (!SourceVersion.isIdentifier(fieldName)) {
+        continue;
+      }
 
       // Find corresponding getter method
       String getterName = findGetterMethod(classElement, fieldName, method.getParameters().get(0));
@@ -358,7 +365,10 @@ public class TypeKindAnalyser {
   }
 
   /**
-   * Detects whether a class has mutable fields (setters).
+   * Detects whether a class has mutable fields (setters): a public, non-static, void method taking
+   * one argument whose name starts with {@code set}. The test is looser than a setter's spelling
+   * ({@link NamingConvention#SETTER}), so a {@code settle(long)} counts too: a mutator it passed
+   * over would go unreported, while one it counts by mistake is answered by {@code allowMutable}.
    *
    * @param classElement the class to analyse
    * @return true if the class has setter methods

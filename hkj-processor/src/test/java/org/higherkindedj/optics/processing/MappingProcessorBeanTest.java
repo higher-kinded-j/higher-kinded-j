@@ -414,6 +414,78 @@ class MappingProcessorBeanTest {
           .contains("hkj$ifPresent(wire.getName(), Validated::validNel)")
           .contains("hkj$ifPresent(wire.getRole(), Validated::validNel)");
     }
+
+    @Test
+    @DisplayName(
+        "a word starting 'get', 'is' or 'set' is no accessor, whatever order it is declared in,"
+            + " while geteMail() is one")
+    void wordsThatStartWithAPrefixAreNotAccessors() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Trip",
+              """
+              package com.example;
+
+              public record Trip(String away, String up, boolean land, String eMail) {}
+              """);
+      // Read as accessors, getaway() and island() would read 'away' and 'land' for being declared
+      // first, and setup(...) would make setUp(...) ambiguous. geteMail() is how the JavaBeans
+      // convention spells the getter of 'eMail', whose second letter is a capital.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.TripDto",
+              """
+              package com.example;
+
+              public class TripDto {
+                private String away;
+                private String up;
+                private boolean land;
+                private String eMail;
+
+                public String getaway() { return "a holiday"; }
+                public String getAway() { return away; }
+                public void setAway(String away) { this.away = away; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+                public void setup(String mode) {}
+                public boolean island() { return false; }
+                public boolean isLand() { return land; }
+                public void setLand(boolean land) { this.land = land; }
+                public String geteMail() { return eMail; }
+                public void seteMail(String eMail) { this.eMail = eMail; }
+                public String isolate() { return "not a boolean"; }
+                public Object get() { return this; }
+                public void reset() {}
+                public void move(int from, int to) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TripMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TripMapping extends MappingSpec<Trip, TripDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.TripMappingImpl"))
+          .contains("wire.setAway(domain.away());")
+          .contains("wire.setUp(domain.up());")
+          .contains("wire.seteMail(domain.eMail());")
+          .contains("hkj$ifPresent(wire.getAway(), Validated::validNel)")
+          .contains("hkj$ifPresent(wire.geteMail(), Validated::validNel)")
+          .contains("Validated.validNel(wire.isLand())")
+          .doesNotContain("getaway")
+          .doesNotContain("setup")
+          .doesNotContain("island");
+    }
   }
 
   @Nested
@@ -771,6 +843,66 @@ class MappingProcessorBeanTest {
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
+    }
+
+    @Test
+    @DisplayName(
+        "a builder's settings(...) sets 'settings', not a property 'tings', beside a"
+            + " setSettings(...) too")
+    void builderSetterThatStartsWithSetIsPropertyNamed() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Config",
+              """
+              package com.example;
+
+              public record Config(String settings, String setup) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ConfigDto",
+              """
+              package com.example;
+
+              public final class ConfigDto {
+                private final String settings;
+                private final String setup;
+                private ConfigDto(String settings, String setup) {
+                  this.settings = settings;
+                  this.setup = setup;
+                }
+                public String getSettings() { return settings; }
+                public String getSetup() { return setup; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String settings;
+                  private String setup;
+                  public Builder settings(String settings) { this.settings = settings; return this; }
+                  public Builder setSettings(String settings) { return settings(settings); }
+                  public Builder setup(String setup) { this.setup = setup; return this; }
+                  public ConfigDto build() { return new ConfigDto(settings, setup); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ConfigMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ConfigMapping extends MappingSpec<Config, ConfigDto> {}
+              """);
+
+      // javac binds a call by its name first, so settings(...) has no rival in setSettings(...).
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ConfigMappingImpl"))
+          .contains("b.settings(domain.settings());")
+          .contains("b.setup(domain.setup());");
     }
 
     @Test
