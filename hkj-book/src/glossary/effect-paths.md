@@ -345,7 +345,7 @@ String value = name.get();
 
 **Factories:** `Path.id(value)` and `Path.idPath(id)`.
 
-**Related:** [IdPath documentation](../effect/path_id.md), [Path](#path), [Free Monad](#free-monad)
+**Related:** [IdPath documentation](../effect/path_id.md), [Path](#path), [Monad](type-classes.md#monad)
 
 ---
 
@@ -402,7 +402,7 @@ int value = answer.get();
 
 **Factories:** `Path.lazyDefer(supplier)` and `Path.lazyNow(value)`.
 
-**Related:** [Advanced Topics](../effect/advanced_topics.md), [Path](#path), [Interpreter (Effect Handler)](#interpreter-effect-handler)
+**Related:** [Advanced Topics](../effect/advanced_topics.md), [Path](#path), [IO](data-effects.md#io)
 
 ---
 
@@ -446,7 +446,7 @@ Optional<String> value = name.run();
 
 **Factories:** `Path.optional(optional)` and `Path.present(value)`.
 
-**Related:** [OptionalPath documentation](../effect/path_optional.md), [Path](#path), [mapK](#mapk)
+**Related:** [OptionalPath documentation](../effect/path_optional.md), [Path](#path), [Maybe](data-effects.md#maybe)
 
 ---
 
