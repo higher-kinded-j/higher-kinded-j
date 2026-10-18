@@ -58,6 +58,42 @@ class TrampolinePathTest {
     }
 
     @Test
+    @DisplayName("defer() names a null result only when run")
+    void deferRejectsNullResultLazily() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+      TrampolinePath<Integer> path =
+          TrampolinePath.defer(
+              () -> {
+                executed.set(true);
+                return null;
+              });
+
+      assertThat(executed).isFalse();
+      assertThatNullPointerException()
+          .isThrownBy(path::run)
+          .withMessage("supplier must not return null");
+      assertThat(executed).isTrue();
+    }
+
+    @Test
+    @DisplayName("Path.trampolineDefer() names a null result only when run")
+    void pathTrampolineDeferRejectsNullResultLazily() {
+      AtomicBoolean executed = new AtomicBoolean(false);
+      TrampolinePath<Integer> path =
+          Path.trampolineDefer(
+              () -> {
+                executed.set(true);
+                return null;
+              });
+
+      assertThat(executed).isFalse();
+      assertThatNullPointerException()
+          .isThrownBy(path::run)
+          .withMessage("supplier must not return null");
+      assertThat(executed).isTrue();
+    }
+
+    @Test
     @DisplayName("Path.trampolineDone() creates immediate value")
     void pathTrampolineDoneCreatesImmediateValue() {
       TrampolinePath<Integer> path = Path.trampolineDone(42);
@@ -68,9 +104,17 @@ class TrampolinePathTest {
     @Test
     @DisplayName("Path.trampolineDefer() creates deferred computation")
     void pathTrampolineDeferCreatesDeferredComputation() {
-      TrampolinePath<Integer> path = Path.trampolineDefer(() -> TrampolinePath.done(42));
+      AtomicBoolean executed = new AtomicBoolean(false);
+      TrampolinePath<Integer> path =
+          Path.trampolineDefer(
+              () -> {
+                executed.set(true);
+                return TrampolinePath.done(42);
+              });
 
+      assertThat(executed).isFalse();
       assertThat(path.run()).isEqualTo(42);
+      assertThat(executed).isTrue();
     }
   }
 

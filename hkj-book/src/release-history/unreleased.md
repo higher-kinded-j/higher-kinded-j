@@ -78,6 +78,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Effect Paths {#effect-paths}
 
+- **A deferred `TrampolinePath` names a supplier that returns null** ([#1153](https://github.com/higher-kinded-j/higher-kinded-j/issues/1153)): `TrampolinePath.defer` and `Path.trampolineDefer` now report `supplier must not return null` when the deferred step runs. The supplier remains lazy.
+
 - **`StateT` is built from its state function alone** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): its constructor, `create` and `StateTKindHelper.stateT` take no `Monad`, and `mapT` takes only the transformation, as on every other transformer. The record holds only that function, so `equals`, `hashCode` and `toString` leave the `Monad` out. See [Running StateT Computations](../transformers/statet_transformer.md#running-statet-computations).
 - **`@PathSource` points an effect algebra to `FreePath`** ([#1008](https://github.com/higher-kinded-j/higher-kinded-j/issues/1008)): a Path over a witness that `@EffectAlgebra` generates now draws a note at the witness. The algebra has a `Functor` and no `Monad` to pass to the Path's `of` and `pure`, so the note shows how to wrap its programs in a `FreePath`. See [A witness another processor writes](../effect/path_source.md#a-witness-another-processor-writes).
 - **`TrampolineUtils.traverseListStackSafe` is stack-safe under every applicative** ([#1018](https://github.com/higher-kinded-j/higher-kinded-j/issues/1018)): it combines the effects as a balanced tree, so a million-element traversal under `IO` no longer overflows the stack. It builds the result in linear time instead of copying the list at every element, and a `Validated` collecting its errors in a list is no longer quadratic in the failures. See [Core Components](../monads/trampoline_monad.md#core-components).
@@ -205,6 +207,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A `@ViaBuilder` lens over a Lombok `@Singular` collection, or through a protobuf-java message's `addAllTags` or `putAllPoints`, replaces the collection** ([#1110](https://github.com/higher-kinded-j/higher-kinded-j/issues/1110)): `set` used to add the new elements to the ones `toBuilder()` copied. Code that set a one-element list to add an element now keeps only that element; append with `modify` instead.
 
 #### Effect Paths {#runtime-effect-paths}
+
+- **A null-returning `TrampolinePath.defer` supplier has a clearer error message** ([#1153](https://github.com/higher-kinded-j/higher-kinded-j/issues/1153)). `Path.trampolineDefer` reports the same message. No code changes are needed; the exception is still a `NullPointerException`, raised when the deferred step runs.
 
 - **`StateT` equality leaves out the `Monad`** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): two `StateT` values wrapping the same function instance are equal, with equal hash codes, whichever `Monad` built them. `toString` prints only `runStateTFn`, so a test comparing the old text fails.
 - **A list from `PathOps` or `Par` cannot be changed** ([#1017](https://github.com/higher-kinded-j/higher-kinded-j/issues/1017)): the `sequence` and `traverse` methods, `Par.all` and `Par.traverse` handed back their working `ArrayList`. So changing the list inside an `EitherPath` changed what every later `run()` saw. Changing one now throws `UnsupportedOperationException`, so copy it into a new `ArrayList` first.
