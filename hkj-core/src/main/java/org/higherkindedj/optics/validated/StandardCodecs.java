@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.Currency;
@@ -268,25 +269,23 @@ public final class StandardCodecs {
    * {@code build} renders {@code 1926-07-28} as {@code 26/07/28}, which silently re-parses to
    * {@code 2026-07-28}. The eager sample format below catches a formatter that can render nothing,
    * and parsing that sample back catches one that renders but cannot parse its own output (a
-   * pattern without a year, or {@code yyyy} under {@link java.time.format.ResolverStyle#STRICT
-   * STRICT}); one that fails only on particular values yields located rejections for those values.
+   * pattern without a year, or {@code yyyy} under {@link ResolverStyle#STRICT}); one that fails
+   * only on particular values yields located rejections for those values.
    *
    * @param formatter the wire format; must not be null, must be able to format a {@link LocalDate}
    *     and must parse the sample it formats
    * @return the codec (non-null)
    * @throws NullPointerException if {@code formatter} is null
-   * @throws java.time.DateTimeException if {@code formatter} cannot format a date
+   * @throws DateTimeException if {@code formatter} cannot format a date
    * @throws IllegalArgumentException if {@code formatter} cannot parse back the sample date it
    *     formats
    */
   public static ValidatedPrism<String, LocalDate> localDate(DateTimeFormatter formatter) {
     Objects.requireNonNull(formatter, "formatter must not be null");
     String example = formatter.format(SAMPLE_DATE);
-    requireParsesOwnSample(formatter, example, source -> LocalDate.parse(source, formatter));
-    return codec(
-        "not a date (expected e.g. " + example + ")",
-        source -> LocalDate.parse(source, formatter),
-        formatter::format);
+    Function<String, LocalDate> parse = source -> LocalDate.parse(source, formatter);
+    requireParsesOwnSample(formatter, example, parse);
+    return codec("not a date (expected e.g. " + example + ")", parse, formatter::format);
   }
 
   /**
@@ -332,18 +331,16 @@ public final class StandardCodecs {
    *     OffsetDateTime} and must parse the sample it formats
    * @return the codec (non-null)
    * @throws NullPointerException if {@code formatter} is null
-   * @throws java.time.DateTimeException if {@code formatter} cannot format an offset date-time
+   * @throws DateTimeException if {@code formatter} cannot format an offset date-time
    * @throws IllegalArgumentException if {@code formatter} cannot parse back the sample date-time it
    *     formats
    */
   public static ValidatedPrism<String, OffsetDateTime> offsetDateTime(DateTimeFormatter formatter) {
     Objects.requireNonNull(formatter, "formatter must not be null");
     String example = formatter.format(SAMPLE_DATE_TIME);
-    requireParsesOwnSample(formatter, example, source -> OffsetDateTime.parse(source, formatter));
-    return codec(
-        "not a date-time (expected e.g. " + example + ")",
-        source -> OffsetDateTime.parse(source, formatter),
-        formatter::format);
+    Function<String, OffsetDateTime> parse = source -> OffsetDateTime.parse(source, formatter);
+    requireParsesOwnSample(formatter, example, parse);
+    return codec("not a date-time (expected e.g. " + example + ")", parse, formatter::format);
   }
 
   /**
