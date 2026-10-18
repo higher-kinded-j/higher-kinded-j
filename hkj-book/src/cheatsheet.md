@@ -33,6 +33,7 @@
 | `IdPath<A>` | Pure values | `Path.id(v)` | `.run()` → `Id<A>` |
 | `OptionalPath<A>` | java.util.Optional bridge | `Path.optional(opt)`, `Path.present(v)` | `.run()` → `Optional<A>` |
 | `FreePath<F, A>` | DSL building | `Path.freePure(v, f)`, `Path.freeLift(fa, f)` | `.foldMap(nat, m)` |
+| `FreeApPath<F, A>` | Independent-step DSLs, static analysis | `Path.freeApPure(v, f)`, `Path.freeApLift(fa, f)` | `.foldMapKind(nat, applicative)` |
 | `GenericPath<F, A>` | Custom monads | `Path.generic(kind, monad)` | `.run()` → `Kind<F, A>` |
 
 ---
