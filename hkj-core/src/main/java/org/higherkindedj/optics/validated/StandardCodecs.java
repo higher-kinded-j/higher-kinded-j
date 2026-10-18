@@ -4,12 +4,14 @@ package org.higherkindedj.optics.validated;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.ResolverStyle;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.Currency;
@@ -265,22 +267,25 @@ public final class StandardCodecs {
    * rejected — use {@code dd/MM/yyyy} for zero-padded wires). It must also be injective on the
    * values it parses: with a two-digit-year pattern ({@code yy/MM/dd}) the guard cannot object —
    * {@code build} renders {@code 1926-07-28} as {@code 26/07/28}, which silently re-parses to
-   * {@code 2026-07-28}. The eager sample format below catches a formatter that can render nothing;
-   * one that fails only on particular values yields located rejections for those values.
+   * {@code 2026-07-28}. The eager sample format below catches a formatter that can render nothing,
+   * and parsing that sample back catches one that renders but cannot parse its own output (a
+   * pattern without a year, or {@code yyyy} under {@link ResolverStyle#STRICT}); one that fails
+   * only on particular values yields located rejections for those values.
    *
-   * @param formatter the wire format; must not be null and must be able to format a {@link
-   *     LocalDate}
+   * @param formatter the wire format; must not be null, must be able to format a {@link LocalDate}
+   *     and must parse the sample it formats
    * @return the codec (non-null)
    * @throws NullPointerException if {@code formatter} is null
-   * @throws java.time.DateTimeException if {@code formatter} cannot format a date
+   * @throws DateTimeException if {@code formatter} cannot format a date
+   * @throws IllegalArgumentException if {@code formatter} cannot parse back the sample date it
+   *     formats
    */
   public static ValidatedPrism<String, LocalDate> localDate(DateTimeFormatter formatter) {
     Objects.requireNonNull(formatter, "formatter must not be null");
     String example = formatter.format(SAMPLE_DATE);
-    return codec(
-        "not a date (expected e.g. " + example + ")",
-        source -> LocalDate.parse(source, formatter),
-        formatter::format);
+    Function<String, LocalDate> parse = source -> LocalDate.parse(source, formatter);
+    requireParsesOwnSample(formatter, example, parse);
+    return codec("not a date (expected e.g. " + example + ")", parse, formatter::format);
   }
 
   /**
@@ -319,21 +324,37 @@ public final class StandardCodecs {
   /**
    * Date-times in the given format; the error message shows a sample rendered with it. The
    * formatter must render what it parses and be injective on the values it parses, exactly as for
-   * {@link #localDate(DateTimeFormatter)}.
+   * {@link #localDate(DateTimeFormatter)}, and it must parse back the sample it formats ({@link
+   * DateTimeFormatter#ISO_INSTANT} renders an offset date-time but cannot parse one).
    *
-   * @param formatter the wire format; must not be null and must be able to format an {@link
-   *     OffsetDateTime}
+   * @param formatter the wire format; must not be null, must be able to format an {@link
+   *     OffsetDateTime} and must parse the sample it formats
    * @return the codec (non-null)
    * @throws NullPointerException if {@code formatter} is null
-   * @throws java.time.DateTimeException if {@code formatter} cannot format an offset date-time
+   * @throws DateTimeException if {@code formatter} cannot format an offset date-time
+   * @throws IllegalArgumentException if {@code formatter} cannot parse back the sample date-time it
+   *     formats
    */
   public static ValidatedPrism<String, OffsetDateTime> offsetDateTime(DateTimeFormatter formatter) {
     Objects.requireNonNull(formatter, "formatter must not be null");
     String example = formatter.format(SAMPLE_DATE_TIME);
-    return codec(
-        "not a date-time (expected e.g. " + example + ")",
-        source -> OffsetDateTime.parse(source, formatter),
-        formatter::format);
+    Function<String, OffsetDateTime> parse = source -> OffsetDateTime.parse(source, formatter);
+    requireParsesOwnSample(formatter, example, parse);
+    return codec("not a date-time (expected e.g. " + example + ")", parse, formatter::format);
+  }
+
+  /**
+   * Refuses a formatter that formats a sample but cannot parse it back: a codec built over it would
+   * reject every input, and its message would quote a sample it rejects itself.
+   */
+  private static void requireParsesOwnSample(
+      DateTimeFormatter formatter, String example, Function<String, ?> parse) {
+    try {
+      parse.apply(example);
+    } catch (DateTimeException e) {
+      throw new IllegalArgumentException(
+          "formatter '" + formatter + "' formats " + example + " but cannot parse it back", e);
+    }
   }
 
   /**
