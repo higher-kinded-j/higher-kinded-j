@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trampoline;
 import static org.assertj.core.api.Assertions.*;
 
 import java.math.BigInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
@@ -71,6 +72,41 @@ class TrampolineTest extends TrampolineTestBase {
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void deferWithNullThrows() {
       assertThatThrownBy(() -> Trampoline.defer(null)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("defer() does not call its supplier until run()")
+    void deferDoesNotCallSupplierUntilRun() {
+      AtomicBoolean called = new AtomicBoolean(false);
+      Trampoline<Integer> trampoline =
+          Trampoline.defer(
+              () -> {
+                called.set(true);
+                return Trampoline.done(42);
+              });
+
+      assertThat(called).isFalse();
+      assertThat(trampoline.run()).isEqualTo(42);
+      assertThat(called).isTrue();
+    }
+
+    @Test
+    @DisplayName("defer() names a null result when run()")
+    @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify rejection
+    void deferNamesNullResultWhenRun() {
+      AtomicBoolean called = new AtomicBoolean(false);
+      Trampoline<Integer> trampoline =
+          Trampoline.defer(
+              () -> {
+                called.set(true);
+                return null;
+              });
+
+      assertThat(called).isFalse();
+      assertThatNullPointerException()
+          .isThrownBy(trampoline::run)
+          .withMessage("supplier must not return null");
+      assertThat(called).isTrue();
     }
   }
 
@@ -237,6 +273,15 @@ class TrampolineTest extends TrampolineTestBase {
       Trampoline<Integer> trampoline = buildDeeplyNestedDefer(100_000, 0);
 
       assertThat(trampoline.run()).isEqualTo(100_000);
+    }
+
+    @Test
+    @DisplayName("A deep defer() chain runs without overflowing the stack")
+    void deepDeferChainRunsWithoutStackOverflow() {
+      // Forcing each supplier inside defer() would overflow while this chain is built.
+      Trampoline<Integer> trampoline = buildDeeplyNestedDefer(10_000, 0);
+
+      assertThat(trampoline.run()).isEqualTo(10_000);
     }
 
     @Test
