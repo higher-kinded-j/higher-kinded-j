@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -468,7 +469,7 @@ class StreamMonadTest extends StreamTestBase {
       var stream2 = STREAM.widen(Stream.of("a", "b"));
       var stream3 = STREAM.widen(Stream.of(1.0, 2.0));
       Function3<Integer, String, Double, String> f3 =
-          (i, s, d) -> String.format("%d-%s-%.1f", i, s, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%d-%s-%.1f", i, s, d);
 
       var result = streamMonad.map3(stream1, stream2, stream3, f3);
 
@@ -499,7 +500,7 @@ class StreamMonadTest extends StreamTestBase {
       var stream3 = STREAM.widen(Stream.of(1.0, 2.0));
       var stream4 = STREAM.widen(Stream.of(true, false));
       Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> String.format("%d-%s-%.1f-%b", i, s, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%d-%s-%.1f-%b", i, s, d, b);
 
       var result = streamMonad.map4(stream1, stream2, stream3, stream4, f4);
 

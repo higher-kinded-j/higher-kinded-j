@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOpti
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -128,7 +129,7 @@ class OptionalApplicativeTest extends OptionalTestBase {
       var r2 = applicative.of("test");
       var r3 = applicative.of(3.14);
       Function3<Integer, String, Double, String> combiner =
-          (i, s, d) -> String.format("%s:%d:%.2f", s, i, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%s:%d:%.2f", s, i, d);
       assertThatOptionalKind(applicative.map3(r1, r2, r3, combiner))
           .isPresent()
           .contains("test:1:3.14");
@@ -142,7 +143,7 @@ class OptionalApplicativeTest extends OptionalTestBase {
       var r3 = applicative.of(3.14);
       var r4 = applicative.of(true);
       Function4<Integer, String, Double, Boolean, String> combiner =
-          (i, s, d, b) -> String.format("%s:%d:%.2f:%b", s, i, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%s:%d:%.2f:%b", s, i, d, b);
       assertThatOptionalKind(applicative.map4(r1, r2, r3, r4, combiner))
           .isPresent()
           .contains("test:1:3.14:true");

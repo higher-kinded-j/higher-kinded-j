@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.assertions.ReaderAssert.assertThatReader;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
 
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -285,26 +286,33 @@ class ReaderMonadTest extends ReaderTestBase {
     @DisplayName("map3() combines results")
     void map3CombinesResults() {
       Function3<Integer, String, Double, String> f3 =
-          (i, s, d) -> String.format("I:%d S:%s D:%.1f", i, s, d);
+          (i, s, d) -> String.format(Locale.ROOT, "I:%d S:%s D:%.1f", i, s, d);
       Kind<ReaderKind.Witness<TestConfig>, String> result = monad.map3(r1, r2, r3, f3);
       assertThat(runReader(result, TEST_CONFIG))
           .isEqualTo(
               String.format(
+                  Locale.ROOT,
                   "I:%d S:%s D:%.1f",
-                  DEFAULT_MAX_CONNECTIONS, DEFAULT_URL, DEFAULT_MAX_CONNECTIONS * 1.5));
+                  DEFAULT_MAX_CONNECTIONS,
+                  DEFAULT_URL,
+                  DEFAULT_MAX_CONNECTIONS * 1.5));
     }
 
     @Test
     @DisplayName("map4() combines results")
     void map4CombinesResults() {
       Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> String.format("I:%d S:%s D:%.1f B:%b", i, s, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "I:%d S:%s D:%.1f B:%b", i, s, d, b);
       Kind<ReaderKind.Witness<TestConfig>, String> result = monad.map4(r1, r2, r3, r4, f4);
       assertThat(runReader(result, TEST_CONFIG))
           .isEqualTo(
               String.format(
+                  Locale.ROOT,
                   "I:%d S:%s D:%.1f B:%b",
-                  DEFAULT_MAX_CONNECTIONS, DEFAULT_URL, DEFAULT_MAX_CONNECTIONS * 1.5, true));
+                  DEFAULT_MAX_CONNECTIONS,
+                  DEFAULT_URL,
+                  DEFAULT_MAX_CONNECTIONS * 1.5,
+                  true));
     }
   }
 

@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 
+import java.util.Locale;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -116,7 +117,7 @@ class EitherApplicativeTest extends EitherTestBase {
       var r3 = applicative.of(3.14);
 
       Function3<Integer, String, Double, String> combiner =
-          (i, s, d) -> String.format("%s:%d:%.2f", s, i, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%s:%d:%.2f", s, i, d);
 
       var result = applicative.map3(r1, r2, r3, combiner);
 
@@ -132,7 +133,7 @@ class EitherApplicativeTest extends EitherTestBase {
       var r4 = applicative.of(true);
 
       Function4<Integer, String, Double, Boolean, String> combiner =
-          (i, s, d, b) -> String.format("%s:%d:%.2f:%b", s, i, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%s:%d:%.2f:%b", s, i, d, b);
 
       var result = applicative.map4(r1, r2, r3, r4, combiner);
 

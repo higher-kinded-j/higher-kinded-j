@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -175,7 +176,7 @@ class IOMonadTest extends IOTestBase {
       Kind<IOKind.Witness, Double> io3 = monad.of(3.14);
 
       Function3<Integer, String, Double, String> combiner =
-          (i, s, d) -> String.format("%s:%d:%.2f", s, i, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%s:%d:%.2f", s, i, d);
 
       Kind<IOKind.Witness, String> result = monad.map3(io1, io2, io3, combiner);
 
@@ -191,7 +192,7 @@ class IOMonadTest extends IOTestBase {
       Kind<IOKind.Witness, Boolean> io4 = monad.of(true);
 
       Function4<Integer, String, Double, Boolean, String> combiner =
-          (i, s, d, b) -> String.format("%s:%d:%.2f:%b", s, i, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%s:%d:%.2f:%b", s, i, d, b);
 
       Kind<IOKind.Witness, String> result = monad.map4(io1, io2, io3, io4, combiner);
 

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.*;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -1002,7 +1003,7 @@ class CompletableFutureMonadTest {
     @Test
     void map3_allSuccess() {
       Function3<Integer, String, Double, String> f3_func = // Renamed
-          (i, s, d) -> String.format("I:%d S:%s D:%.1f", i, s, d);
+          (i, s, d) -> String.format(Locale.ROOT, "I:%d S:%s D:%.1f", i, s, d);
       Kind<CompletableFutureKind.Witness, String> result =
           futureMonad.map3(fut1, fut2, fut3, f3_func);
       assertThat(joinFuture(result)).isEqualTo("I:10 S:hello D:1.5");
@@ -1034,7 +1035,7 @@ class CompletableFutureMonadTest {
     @Test
     void map4_allSuccess() {
       Function4<Integer, String, Double, Boolean, String> f4_func = // Renamed
-          (i, s, d, b) -> String.format("I:%d S:%s D:%.1f B:%b", i, s, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "I:%d S:%s D:%.1f B:%b", i, s, d, b);
       Kind<CompletableFutureKind.Witness, String> result =
           futureMonad.map4(fut1, fut2, fut3, fut4, f4_func);
       assertThat(joinFuture(result)).isEqualTo("I:10 S:hello D:1.5 B:true");

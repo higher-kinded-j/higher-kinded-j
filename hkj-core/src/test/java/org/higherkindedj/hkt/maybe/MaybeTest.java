@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -578,7 +579,7 @@ class MaybeTest extends MaybeTestBase {
           i -> i < 0 ? Maybe.nothing() : Maybe.just(Math.sqrt(i));
 
       Function<Double, Maybe<String>> formatResult =
-          d -> d > 100 ? Maybe.nothing() : Maybe.just(String.format("%.2f", d));
+          d -> d > 100 ? Maybe.nothing() : Maybe.just(String.format(Locale.ROOT, "%.2f", d));
 
       Maybe<String> success =
           Maybe.just("16").flatMap(parseInteger).flatMap(squareRoot).flatMap(formatResult);
