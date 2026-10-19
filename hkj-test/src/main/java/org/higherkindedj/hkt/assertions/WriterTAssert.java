@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
 import org.higherkindedj.hkt.writer_t.WriterTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for WriterT transformer types. */
 public final class WriterTAssert {
@@ -24,7 +25,7 @@ public final class WriterTAssert {
   /** Entry point for WriterT assertions when the outer monad unwraps to Optional. */
   public static <F extends WitnessArity<TypeArity.Unary>, W, A>
       WriterTOptionalAssert<F, W, A> assertThatWriterT(
-          Kind<WriterTKind.Witness<F, W>, A> actual,
+          @Nullable Kind<WriterTKind.Witness<F, W>, A> actual,
           Function<Kind<F, Pair<A, W>>, Optional<Pair<A, W>>> outerUnwrapper) {
     return new WriterTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -36,7 +37,7 @@ public final class WriterTAssert {
     private final Function<Kind<F, Pair<A, W>>, Optional<Pair<A, W>>> outerUnwrapper;
 
     protected WriterTOptionalAssert(
-        Kind<WriterTKind.Witness<F, W>, A> actual,
+        @Nullable Kind<WriterTKind.Witness<F, W>, A> actual,
         Function<Kind<F, Pair<A, W>>, Optional<Pair<A, W>>> outerUnwrapper) {
       super(actual, WriterTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

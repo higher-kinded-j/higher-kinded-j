@@ -11,6 +11,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBothKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link EitherOrBoth} instances (the inclusive-or), accepting either
@@ -39,16 +40,17 @@ public class EitherOrBothAssert<L, R>
 
   /** Entry point accepting a {@code Kind<EitherOrBothKind.Witness<L>, R>}. */
   public static <L, R> EitherOrBothAssert<L, R> assertThatEitherOrBoth(
-      Kind<EitherOrBothKind.Witness<L>, R> actual) {
+      @Nullable Kind<EitherOrBothKind.Witness<L>, R> actual) {
     return new EitherOrBothAssert<>(actual);
   }
 
   /** Entry point accepting a bare {@code EitherOrBoth<L, R>}. */
-  public static <L, R> EitherOrBothAssert<L, R> assertThatEitherOrBoth(EitherOrBoth<L, R> actual) {
-    return new EitherOrBothAssert<>(EITHER_OR_BOTH.widen(actual));
+  public static <L, R> EitherOrBothAssert<L, R> assertThatEitherOrBoth(
+      @Nullable EitherOrBoth<L, R> actual) {
+    return new EitherOrBothAssert<>(actual == null ? null : EITHER_OR_BOTH.widen(actual));
   }
 
-  protected EitherOrBothAssert(Kind<EitherOrBothKind.Witness<L>, R> actual) {
+  protected EitherOrBothAssert(@Nullable Kind<EitherOrBothKind.Witness<L>, R> actual) {
     super(actual, EitherOrBothAssert.class);
   }
 

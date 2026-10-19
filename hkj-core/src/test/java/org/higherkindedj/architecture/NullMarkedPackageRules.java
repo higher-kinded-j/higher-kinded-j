@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
  * <p>In higher-kinded-j, every package uses the @NullMarked annotation from JSpecify in its
  * package-info.java. The module-info carries it too, but a nullness checker reading the jar from
  * the classpath, such as NullAway, ignores the module's annotation and reads only the package's.
- * This rule verifies that every package of hkj-core and hkj-api that holds a source file has a
- * package-info.java, and that it carries @NullMarked.
+ * This rule verifies that every package of hkj-core, hkj-api and hkj-test that holds a source file
+ * has a package-info.java, and that it carries @NullMarked.
  *
  * <p>Note: This test uses file system checks rather than ArchUnit because ArchUnit's
  * ClassFileImporter does not load package-info.class files by default.
@@ -32,7 +32,7 @@ class NullMarkedPackageRules {
 
   /** The main source roots whose every package must be {@code @NullMarked}. */
   private static final List<String> SOURCE_ROOTS =
-      List.of("hkj-core/src/main/java", "hkj-api/src/main/java");
+      List.of("hkj-core/src/main/java", "hkj-api/src/main/java", "hkj-test/src/main/java");
 
   /**
    * Verify that every package has a package-info.java with {@code @NullMarked}.
@@ -41,7 +41,8 @@ class NullMarkedPackageRules {
    * package-info.java or module-info.java.
    */
   @Test
-  @DisplayName("Every hkj-core and hkj-api package should have package-info.java with @NullMarked")
+  @DisplayName(
+      "Every hkj-core, hkj-api and hkj-test package should have package-info.java with @NullMarked")
   void every_package_should_have_nullmarked() throws IOException {
     Path projectRoot = findProjectRoot();
     List<String> scanned = new ArrayList<>();
@@ -65,8 +66,9 @@ class NullMarkedPackageRules {
     // A scan that finds nothing would pass while checking nothing.
     assertTrue(
         scanned.contains("org.higherkindedj.hkt.either")
-            && scanned.contains("org.higherkindedj.hkt"),
-        "The scan did not find the hkj-core and hkj-api packages under " + SOURCE_ROOTS);
+            && scanned.contains("org.higherkindedj.hkt")
+            && scanned.contains("org.higherkindedj.hkt.assertions"),
+        "The scan did not find the hkj-core, hkj-api and hkj-test packages under " + SOURCE_ROOTS);
 
     StringBuilder errors = new StringBuilder();
 

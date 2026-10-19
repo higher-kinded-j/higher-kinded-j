@@ -9,6 +9,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.eitherf.EitherF;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertions for {@link EitherF} instances. */
 public class EitherFAssert<F extends WitnessArity<?>, G extends WitnessArity<?>, A>
@@ -16,11 +17,11 @@ public class EitherFAssert<F extends WitnessArity<?>, G extends WitnessArity<?>,
 
   /** Entry point for EitherF assertions. */
   public static <F extends WitnessArity<?>, G extends WitnessArity<?>, A>
-      EitherFAssert<F, G, A> assertThatEitherF(EitherF<F, G, A> actual) {
+      EitherFAssert<F, G, A> assertThatEitherF(@Nullable EitherF<F, G, A> actual) {
     return new EitherFAssert<>(actual);
   }
 
-  protected EitherFAssert(EitherF<F, G, A> actual) {
+  protected EitherFAssert(@Nullable EitherF<F, G, A> actual) {
     super(actual, EitherFAssert.class);
   }
 

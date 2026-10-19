@@ -6,6 +6,7 @@ import java.util.Arrays;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.validated.FieldError;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link FieldError}, the located error type of the {@code fields()}
@@ -29,11 +30,11 @@ import org.higherkindedj.hkt.validated.FieldError;
 public class FieldErrorAssert extends AbstractAssert<FieldErrorAssert, FieldError> {
 
   /** Entry point for a {@link FieldError}. */
-  public static FieldErrorAssert assertThatFieldError(FieldError actual) {
+  public static FieldErrorAssert assertThatFieldError(@Nullable FieldError actual) {
     return new FieldErrorAssert(actual);
   }
 
-  protected FieldErrorAssert(FieldError actual) {
+  protected FieldErrorAssert(@Nullable FieldError actual) {
     super(actual, FieldErrorAssert.class);
   }
 

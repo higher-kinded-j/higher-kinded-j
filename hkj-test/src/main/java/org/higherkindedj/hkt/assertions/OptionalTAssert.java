@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.optional_t.OptionalTKind;
 import org.higherkindedj.hkt.optional_t.OptionalTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for OptionalT transformer types. */
 public final class OptionalTAssert {
@@ -22,7 +23,7 @@ public final class OptionalTAssert {
   /** Entry point for OptionalT assertions when the outer monad unwraps to Optional. */
   public static <F extends WitnessArity<TypeArity.Unary>, A>
       OptionalTOptionalAssert<F, A> assertThatOptionalT(
-          Kind<OptionalTKind.Witness<F>, A> actual,
+          @Nullable Kind<OptionalTKind.Witness<F>, A> actual,
           Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper) {
     return new OptionalTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -34,7 +35,7 @@ public final class OptionalTAssert {
     private final Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper;
 
     protected OptionalTOptionalAssert(
-        Kind<OptionalTKind.Witness<F>, A> actual,
+        @Nullable Kind<OptionalTKind.Witness<F>, A> actual,
         Function<Kind<F, Optional<A>>, Optional<Optional<A>>> outerUnwrapper) {
       super(actual, OptionalTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

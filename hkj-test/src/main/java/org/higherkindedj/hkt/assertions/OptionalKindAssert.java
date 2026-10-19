@@ -11,6 +11,7 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.optional.OptionalKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Optional} instances wrapped in {@link Kind}.
@@ -58,11 +59,11 @@ public class OptionalKindAssert<T>
    * @return A new OptionalKindAssert instance
    */
   public static <T> OptionalKindAssert<T> assertThatOptionalKind(
-      Kind<OptionalKind.Witness, T> actual) {
+      @Nullable Kind<OptionalKind.Witness, T> actual) {
     return new OptionalKindAssert<>(actual);
   }
 
-  protected OptionalKindAssert(Kind<OptionalKind.Witness, T> actual) {
+  protected OptionalKindAssert(@Nullable Kind<OptionalKind.Witness, T> actual) {
     super(actual, OptionalKindAssert.class);
   }
 
