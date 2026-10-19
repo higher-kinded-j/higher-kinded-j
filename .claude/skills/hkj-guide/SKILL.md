@@ -141,7 +141,8 @@ Additional considerations:
 | `.run()` | Extract the underlying value | All paths |
 | `.unsafeRun()` | Execute deferred effect (may throw) | IOPath, VTaskPath |
 | `.runSafe()` | Execute safely, returning `Try` | IOPath, VTaskPath |
-| `.fold(onErr, onOk)` | Handle both tracks | EitherPath, TryPath, ValidationPath |
+| `.fold(onErr, onOk)` | Handle both tracks | EitherPath, ValidationPath |
+| `.foldFailureFirst(onErr, onOk)` | Handle both tracks | TryPath |
 | `.getOrElse(default)` | Extract or use default | MaybePath, EitherPath, TryPath, ValidationPath |
 
 **Rule of thumb**: Use `map` when your function returns a plain value (`A -> B`). Use `via` when your function returns a Path (`A -> Path<B>`).

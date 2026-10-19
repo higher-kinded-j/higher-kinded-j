@@ -265,11 +265,10 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * org.higherkindedj.hkt.validated.Validated#fold(Function, Function)}, and {@link
    * org.higherkindedj.hkt.eitherf.EitherF#fold(Function, Function)}.
    *
-   * <p>This method is named {@code foldFailureFirst} rather than overloading {@code fold} (which
-   * would silently invert behaviour for swapped call sites) or {@code match} (which would create a
-   * lambda-inference ambiguity with {@link #match(Consumer, Consumer)}). In 0.6.0 the canonical
-   * name {@code fold} is planned to be reintroduced with this argument order once every existing
-   * {@link #fold(Function, Function)} call site has migrated through this distinct name.
+   * <p>Releases before 0.5.0 had a success-first {@code fold(successMapper, failureMapper)}. This
+   * method has a name of its own, so a call written for that {@code fold} fails to compile rather
+   * than running its two functions the wrong way round. It is not called {@code match}, which would
+   * make a lambda ambiguous against {@link #match(Consumer, Consumer)}.
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
@@ -282,42 +281,13 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
 
-    Validation.function().require(failureMapper, "failureMapper", FOLD);
-    Validation.function().require(successMapper, "successMapper", FOLD);
+    Validation.function().require(failureMapper, "failureMapper", FOLD_FAILURE_FIRST);
+    Validation.function().require(successMapper, "successMapper", FOLD_FAILURE_FIRST);
 
     return switch (this) {
       case Success<T>(var value) -> successMapper.apply(value);
       case Failure<T>(var cause) -> failureMapper.apply(cause);
     };
-  }
-
-  /**
-   * Applies one of two functions depending on whether this is a {@link Success} or a {@link
-   * Failure}.
-   *
-   * @param successMapper The non-null function to apply if this is a {@link Success}.
-   * @param failureMapper The non-null function to apply if this is a {@link Failure}.
-   * @param <U> The target type to which both outcomes are mapped.
-   * @return The result of applying the appropriate mapping function.
-   * @throws NullPointerException if either {@code successMapper} or {@code failureMapper} is null.
-   * @deprecated since 0.4.6, for removal in 0.5.0. Use {@link #foldFailureFirst(Function,
-   *     Function)} instead, which matches the error-first ordering of {@code Either.fold}, {@code
-   *     Validated.fold}, and {@code EitherF.fold}. A naked argument swap on this method would
-   *     silently invert behaviour for parameter-ignoring lambdas and {@code Object}-typed method
-   *     references, so the replacement is published under a new name to force every call site
-   *     through a compile error. The canonical name {@code fold} is planned to be reintroduced with
-   *     the error-first argument order in 0.6.0. See <a
-   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/452">#452</a>.
-   */
-  @Deprecated(forRemoval = true, since = "0.4.6")
-  default <U> U fold(
-      Function<? super T, ? extends U> successMapper,
-      Function<? super Throwable, ? extends U> failureMapper) {
-
-    Validation.function().require(successMapper, "successMapper", FOLD);
-    Validation.function().require(failureMapper, "failureMapper", FOLD);
-
-    return foldFailureFirst(failureMapper, successMapper);
   }
 
   /**

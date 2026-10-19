@@ -14,16 +14,16 @@ import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
 
 /**
- * Rewrites call sites of the deprecated success-first {@code Try.fold(successMapper,
- * failureMapper)} and {@code TryPath.fold(successMapper, failureMapper)} methods to the error-first
- * {@code foldFailureFirst(failureMapper, successMapper)}.
+ * Rewrites call sites of the success-first {@code Try.fold(successMapper, failureMapper)} and
+ * {@code TryPath.fold(successMapper, failureMapper)} methods to the error-first {@code
+ * foldFailureFirst(failureMapper, successMapper)}.
  *
  * <p>This is not a pure rename: the argument order is also swapped to match the error-first
  * convention used by {@code Either.fold}, {@code Validated.fold}, {@code EitherF.fold}, {@code
- * EitherPath.fold}, and {@code ValidationPath.fold}. The legacy method is
- * {@code @Deprecated(forRemoval = true, since = "0.4.6")} and is removed in 0.5.0; the canonical
- * name {@code fold} is planned to be reintroduced with the error-first argument order in 0.6.0. See
- * <a href="https://github.com/higher-kinded-j/higher-kinded-j/issues/452">#452</a>.
+ * EitherPath.fold}, and {@code ValidationPath.fold}. Both methods were deprecated in 0.4.6 and are
+ * removed in 0.5.0, so the recipe matches them only while the project compiles against 0.4.x: run
+ * it before the project moves to 0.5.0. The rewritten {@code foldFailureFirst} calls compile
+ * against both.
  *
  * <h2>Why a custom recipe (rather than {@code ChangeMethodName})</h2>
  *
@@ -45,7 +45,7 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
   /** Creates a new instance of this recipe. */
   public SwapTryFoldToFoldFailureFirstRecipe() {}
 
-  // Two arguments only: matches the deprecated Function/Function overload, not the
+  // Two arguments only: matches the success-first Function/Function method, not the
   // unrelated `match(Consumer, Consumer)` variant on Try.
   private static final MethodMatcher TRY_FOLD =
       new MethodMatcher(
@@ -63,12 +63,11 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
 
   @Override
   public String getDescription() {
-    return "Rewrites deprecated success-first `Try.fold(successMapper, failureMapper)` and "
+    return "Rewrites success-first `Try.fold(successMapper, failureMapper)` and "
         + "`TryPath.fold(successMapper, failureMapper)` call sites to the error-first "
-        + "`foldFailureFirst(failureMapper, successMapper)`. Both methods are deprecated for "
-        + "removal in 0.5.0; the recipe renames the method and swaps the two arguments "
-        + "atomically so behaviour is preserved. See "
-        + "https://github.com/higher-kinded-j/higher-kinded-j/issues/452.";
+        + "`foldFailureFirst(failureMapper, successMapper)`, renaming the method and swapping "
+        + "the two arguments together so behaviour is preserved. Both methods are removed in "
+        + "0.5.0, so run it while the project is on 0.4.x.";
   }
 
   @Override

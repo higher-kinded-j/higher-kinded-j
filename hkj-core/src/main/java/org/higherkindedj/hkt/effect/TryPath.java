@@ -106,10 +106,9 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * the error-first ordering of {@code EitherPath.fold}, {@code ValidationPath.fold}, {@code
    * Either.fold}, and {@code Validated.fold}.
    *
-   * <p>This method is named {@code foldFailureFirst} rather than overloading {@code fold} so the
-   * argument-order swap surfaces as a compile error rather than a silent runtime inversion for
-   * parameter-ignoring lambdas and {@code Object}-typed method references. The canonical name
-   * {@code fold} is planned to be reintroduced with the error-first argument order in 0.6.0.
+   * <p>Releases before 0.5.0 had a success-first {@code fold(successMapper, failureMapper)}. This
+   * method has a name of its own, so a call written for that {@code fold} fails to compile rather
+   * than running its two functions the wrong way round.
    *
    * @param failureMapper the function to apply if this path contains an exception; must not be null
    * @param successMapper the function to apply if this path contains a value; must not be null
@@ -123,32 +122,6 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
       Function<? super A, ? extends B> successMapper) {
     Objects.requireNonNull(failureMapper, "failureMapper must not be null");
     Objects.requireNonNull(successMapper, "successMapper must not be null");
-    return value.foldFailureFirst(failureMapper, successMapper);
-  }
-
-  /**
-   * Folds both cases of this path into a single value.
-   *
-   * @param successMapper the function to apply if this path contains a value; must not be null
-   * @param failureMapper the function to apply if this path contains an exception; must not be null
-   * @param <B> the result type
-   * @return the result of applying the appropriate function
-   * @throws NullPointerException if either mapper is null
-   * @deprecated since 0.4.6, for removal in 0.5.0. Use {@link #foldFailureFirst(Function,
-   *     Function)} instead, which matches the error-first ordering of {@code EitherPath.fold},
-   *     {@code ValidationPath.fold}, {@code Either.fold}, and {@code Validated.fold}. A naked
-   *     argument swap on this method would silently invert behaviour for parameter-ignoring lambdas
-   *     and {@code Object}-typed method references, so the replacement is published under a new
-   *     name to force every call site through a compile error. The canonical name {@code fold} is
-   *     planned to be reintroduced with the error-first argument order in 0.6.0. See <a
-   *     href="https://github.com/higher-kinded-j/higher-kinded-j/issues/452">#452</a>.
-   */
-  @Deprecated(forRemoval = true, since = "0.4.6")
-  public <B> B fold(
-      Function<? super A, ? extends B> successMapper,
-      Function<? super Throwable, ? extends B> failureMapper) {
-    Objects.requireNonNull(successMapper, "successMapper must not be null");
-    Objects.requireNonNull(failureMapper, "failureMapper must not be null");
     return value.foldFailureFirst(failureMapper, successMapper);
   }
 
