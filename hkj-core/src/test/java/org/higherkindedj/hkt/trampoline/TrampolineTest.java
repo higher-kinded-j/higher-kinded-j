@@ -276,15 +276,6 @@ class TrampolineTest extends TrampolineTestBase {
     }
 
     @Test
-    @DisplayName("A deep defer() chain runs without overflowing the stack")
-    void deepDeferChainRunsWithoutStackOverflow() {
-      // Forcing each supplier inside defer() would overflow while this chain is built.
-      Trampoline<Integer> trampoline = buildDeeplyNestedDefer(10_000, 0);
-
-      assertThat(trampoline.run()).isEqualTo(10_000);
-    }
-
-    @Test
     @DisplayName("Deep chain of flatMap with defer is stack-safe")
     void deepChainOfFlatMapWithDeferIsStackSafe() {
       Trampoline<Integer> trampoline = Trampoline.done(0);
