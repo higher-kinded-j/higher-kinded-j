@@ -81,10 +81,9 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * Try<String> result = Path.io(() -> Files.readString(path))
    *     .runSafe();
    *
-   * result.fold(
-   *     content -> process(content),
-   *     error -> log.error("Failed to read file", error)
-   * );
+   * String summary = result.foldFailureFirst(
+   *     error -> "Failed to read file: " + error.getMessage(),
+   *     content -> "Read " + content.length() + " characters");
    * }</pre>
    *
    * <p>A {@code Success} always holds a value, so a hand-written computation that returns {@code

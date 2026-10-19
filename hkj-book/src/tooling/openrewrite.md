@@ -137,7 +137,7 @@ Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the r
 
 | Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all seven recipes below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all eight recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` overload bypassed witness type safety |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method |

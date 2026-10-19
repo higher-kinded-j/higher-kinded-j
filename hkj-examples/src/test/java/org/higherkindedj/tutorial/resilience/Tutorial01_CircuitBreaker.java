@@ -159,9 +159,10 @@ public class Tutorial01_CircuitBreaker {
      *
      * <pre>
      *   // Nudge:    Wrap the call in protect, then runSafe to get a Try.
-     *   //           Extract the exception with fold.
+     *   //           Extract the exception with foldFailureFirst.
      *   // Strategy: Try&lt;String&gt; result = breaker.protect(task).runSafe();
-     *   //           Throwable error = result.fold(value -&gt; null, ex -&gt; ex);
+     *   //           Throwable error = result.foldFailureFirst(
+     *   //               ex -&gt; ex, value -&gt; new AssertionError("not open"));
      *   // Spoiler:  exactly that.
      * </pre>
      */
@@ -179,7 +180,8 @@ public class Tutorial01_CircuitBreaker {
 
       assertThatTry(result).isFailure();
 
-      // TODO: Extract the exception from the Try (hint: result.fold(value -> null, ex -> ex))
+      // TODO: Extract the exception
+      //       (hint: result.foldFailureFirst(ex -> ex, value -> new AssertionError("not open")))
       Throwable error = answerRequired();
 
       assertThat(error).isInstanceOf(CircuitOpenException.class);

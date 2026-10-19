@@ -12,7 +12,7 @@ import org.openrewrite.test.RewriteTest;
 /** Tests for {@link SwapTryFoldToFoldFailureFirstRecipe}. */
 class SwapTryFoldToFoldFailureFirstRecipeTest implements RewriteTest {
 
-  // Minimal stubs that present the deprecated success-first `fold` plus the
+  // Minimal stubs that present the 0.4.x success-first `fold` plus the
   // error-first `foldFailureFirst` replacement on both Try and TryPath. This
   // mirrors the real API surface enough for the MethodMatcher to bind without
   // pulling in the full hkj-core jar.

@@ -101,7 +101,7 @@ You can create `Try` instances in several ways:
 
 ### Getting the Value (Use with Caution)
 
-* `get()`: Returns the value if `Success`, otherwise throws the contained `Throwable`. **Avoid using this directly; prefer `fold`, `map`, `flatMap`, or recovery methods.**
+* `get()`: Returns the value if `Success`, otherwise throws the contained `Throwable`. **Avoid using this directly; prefer `foldFailureFirst`, `map`, `flatMap`, or recovery methods.**
 ~~~
 
 
@@ -146,7 +146,7 @@ Try<Double> result3 = inputFailure.flatMap(safeDivide); // Failure(RuntimeExcept
 ~~~
 
 ----
-### Handling Failures (`foldFailureFirst`, `recover`, `recoverWith`)
+### Handling Failures (`foldFailureFirst`, `recover`, `recoverWith`) {#handling-failures-foldfailurefirst-recover-recoverwith}
 
 ~~~admonish title="_foldFailureFirst(failureFunc, successFunc)_"
 
@@ -164,9 +164,9 @@ String message = result2.foldFailureFirst(
 ```
 ~~~
 
-~~~admonish warning title="`fold` is deprecated for removal in 0.5.0"
+~~~admonish note title="Why not `fold`?"
 
-The legacy `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` are success-first, which is inconsistent with the error-first ordering used by `Either`, `Validated`, `EitherF`, `EitherPath`, and `ValidationPath`. Both are `@Deprecated(forRemoval = true)` since 0.4.6 and are removed in 0.5.0. Use `foldFailureFirst(failureMapper, successMapper)` instead; the rename is intentional so that no call site can silently flip behaviour after an argument swap. The canonical name `fold` is planned to be reintroduced with the error-first argument order in 0.6.0.
+Releases before 0.5.0 had a success-first `Try.fold(successMapper, failureMapper)`, and `TryPath.fold` to match. Because `foldFailureFirst` has a name of its own, a call written for that `fold` fails to compile rather than running its two functions the wrong way round. Rename such a call and swap its two functions, or run `SwapTryFoldToFoldFailureFirstRecipe` before the project moves to 0.5.0, as [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration) shows.
 ~~~
 
 ~~~admonish title="_recover(recoveryFunc)_"
