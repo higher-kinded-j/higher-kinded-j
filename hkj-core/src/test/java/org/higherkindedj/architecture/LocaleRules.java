@@ -6,10 +6,12 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.higherkindedj.architecture.ArchitectureTestBase.getProductionClasses;
 
 import java.io.PrintStream;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class LocaleRules {
   @Test
+  @DisplayName("production code must use an explicit locale")
   void productionCodeMustUseAnExplicitLocale() {
     noClasses()
         .should()
