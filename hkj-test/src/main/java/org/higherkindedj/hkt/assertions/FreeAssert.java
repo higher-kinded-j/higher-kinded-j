@@ -10,17 +10,18 @@ import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.free.Free;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertions for {@link Free} instances. */
 public class FreeAssert<F extends WitnessArity<TypeArity.Unary>, A>
     extends AbstractAssert<FreeAssert<F, A>, Free<F, A>> {
 
   public static <F extends WitnessArity<TypeArity.Unary>, A> FreeAssert<F, A> assertThatFree(
-      Free<F, A> actual) {
+      @Nullable Free<F, A> actual) {
     return new FreeAssert<>(actual);
   }
 
-  protected FreeAssert(Free<F, A> actual) {
+  protected FreeAssert(@Nullable Free<F, A> actual) {
     super(actual, FreeAssert.class);
   }
 

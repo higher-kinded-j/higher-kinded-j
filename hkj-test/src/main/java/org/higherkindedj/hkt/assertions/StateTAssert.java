@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.state_t.StateTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for StateT transformer types. */
 public final class StateTAssert {
@@ -24,7 +25,7 @@ public final class StateTAssert {
   /** Entry point for StateT assertions when the outer monad unwraps to Optional. */
   public static <S, F extends WitnessArity<TypeArity.Unary>, A>
       StateTOptionalAssert<S, F, A> assertThatStateT(
-          Kind<StateTKind.Witness<S, F>, A> actual,
+          @Nullable Kind<StateTKind.Witness<S, F>, A> actual,
           Function<Kind<F, StateTuple<S, A>>, Optional<StateTuple<S, A>>> outerUnwrapper) {
     return new StateTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -36,7 +37,7 @@ public final class StateTAssert {
     private final Function<Kind<F, StateTuple<S, A>>, Optional<StateTuple<S, A>>> outerUnwrapper;
 
     protected StateTOptionalAssert(
-        Kind<StateTKind.Witness<S, F>, A> actual,
+        @Nullable Kind<StateTKind.Witness<S, F>, A> actual,
         Function<Kind<F, StateTuple<S, A>>, Optional<StateTuple<S, A>>> outerUnwrapper) {
       super(actual, StateTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

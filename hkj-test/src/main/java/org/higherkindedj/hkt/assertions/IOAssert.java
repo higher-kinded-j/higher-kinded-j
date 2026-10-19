@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link IO} instances.
@@ -19,21 +20,25 @@ import org.higherkindedj.hkt.io.IOKindHelper;
 public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
 
   /** Entry point accepting a {@code Kind<IOKind.Witness, T>}. */
-  public static <T> IOAssert<T> assertThatIO(Kind<IOKind.Witness, T> actual) {
-    return new IOAssert<>(IOKindHelper.IO_OP.narrow(actual));
+  public static <T> IOAssert<T> assertThatIO(@Nullable Kind<IOKind.Witness, T> actual) {
+    return new IOAssert<>(actual == null ? null : IOKindHelper.IO_OP.narrow(actual));
   }
 
   /** Entry point. */
-  public static <T> IOAssert<T> assertThatIO(IO<T> actual) {
+  public static <T> IOAssert<T> assertThatIO(@Nullable IO<T> actual) {
     return new IOAssert<>(actual);
   }
 
-  private T executedValue;
-  private Throwable executedException;
+  private @Nullable T executedValue;
+  private @Nullable Throwable executedException;
   private boolean hasBeenExecuted = false;
 
-  protected IOAssert(IO<T> actual) {
+  protected IOAssert(@Nullable IO<T> actual) {
     super(actual, IOAssert.class);
+  }
+
+  private Throwable thrown() {
+    return Objects.requireNonNull(executedException);
   }
 
   /** Executes the IO computation and prepares for assertions on the result. */
@@ -102,22 +107,22 @@ public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
     Assertions.assertThat(executedException)
         .withFailMessage(
             "Expected IO to throw exception of type <%s> but it threw <%s>",
-            expectedType.getName(), executedException.getClass().getName())
+            expectedType.getName(), thrown().getClass().getName())
         .isInstanceOf(expectedType);
     return this;
   }
 
   /** Verifies that the thrown exception has the expected message. */
-  public IOAssert<T> withMessage(String expectedMessage) {
+  public IOAssert<T> withMessage(@Nullable String expectedMessage) {
     Assertions.assertThat(executedException)
         .withFailMessage(
             "Expected IO to have thrown an exception with message <%s> but no exception was thrown",
             expectedMessage)
         .isNotNull();
-    Assertions.assertThat(executedException.getMessage())
+    Assertions.assertThat(thrown().getMessage())
         .withFailMessage(
             "Expected exception message to be <%s> but was <%s>",
-            expectedMessage, executedException.getMessage())
+            expectedMessage, thrown().getMessage())
         .isEqualTo(expectedMessage);
     return this;
   }
@@ -130,10 +135,10 @@ public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
                 + " was thrown",
             substring)
         .isNotNull();
-    Assertions.assertThat(executedException.getMessage())
+    Assertions.assertThat(thrown().getMessage())
         .withFailMessage(
             "Expected exception message to contain <%s> but was <%s>",
-            substring, executedException.getMessage())
+            substring, thrown().getMessage())
         .contains(substring);
     return this;
   }
@@ -208,14 +213,14 @@ public class IOAssert<T> extends AbstractAssert<IOAssert<T>, IO<T>> {
     return this;
   }
 
-  /** Returns the exception thrown during execution, if any. */
-  public Throwable getException() {
+  /** Returns the exception thrown during execution, or null when the computation succeeded. */
+  public @Nullable Throwable getException() {
     whenExecuted();
     return executedException;
   }
 
-  /** Returns the value produced during execution, if any. */
-  public T getValue() {
+  /** Returns the value produced during execution, or null when the computation threw. */
+  public @Nullable T getValue() {
     whenExecuted();
     return executedValue;
   }

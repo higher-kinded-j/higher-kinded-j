@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.either_t.EitherTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for EitherT transformer types. */
 public final class EitherTAssert {
@@ -23,7 +24,7 @@ public final class EitherTAssert {
   /** Entry point for EitherT assertions where the outer monad unwraps to Optional. */
   public static <F extends WitnessArity<TypeArity.Unary>, E, A>
       EitherTOptionalAssert<F, E, A> assertThatEitherT(
-          Kind<EitherTKind.Witness<F, E>, A> actual,
+          @Nullable Kind<EitherTKind.Witness<F, E>, A> actual,
           Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper) {
     return new EitherTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -35,7 +36,7 @@ public final class EitherTAssert {
     private final Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper;
 
     protected EitherTOptionalAssert(
-        Kind<EitherTKind.Witness<F, E>, A> actual,
+        @Nullable Kind<EitherTKind.Witness<F, E>, A> actual,
         Function<Kind<F, Either<E, A>>, Optional<Either<E, A>>> outerUnwrapper) {
       super(actual, EitherTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

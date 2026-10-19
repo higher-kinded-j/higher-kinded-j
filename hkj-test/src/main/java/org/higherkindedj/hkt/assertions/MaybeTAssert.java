@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe_t.MaybeTKind;
 import org.higherkindedj.hkt.maybe_t.MaybeTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for MaybeT transformer types. */
 public final class MaybeTAssert {
@@ -23,7 +24,7 @@ public final class MaybeTAssert {
   /** Entry point for MaybeT assertions when the outer monad unwraps to Optional. */
   public static <F extends WitnessArity<TypeArity.Unary>, A>
       MaybeTOptionalAssert<F, A> assertThatMaybeT(
-          Kind<MaybeTKind.Witness<F>, A> actual,
+          @Nullable Kind<MaybeTKind.Witness<F>, A> actual,
           Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper) {
     return new MaybeTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -35,7 +36,7 @@ public final class MaybeTAssert {
     private final Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper;
 
     protected MaybeTOptionalAssert(
-        Kind<MaybeTKind.Witness<F>, A> actual,
+        @Nullable Kind<MaybeTKind.Witness<F>, A> actual,
         Function<Kind<F, Maybe<A>>, Optional<Maybe<A>>> outerUnwrapper) {
       super(actual, MaybeTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Try} instances wrapped in {@link Kind}.
@@ -35,7 +36,7 @@ import org.higherkindedj.hkt.trymonad.TryKind;
 public class TryAssert<T> extends AbstractAssert<TryAssert<T>, Kind<TryKind.Witness, T>> {
 
   /** Entry point accepting a {@code Kind<TryKind.Witness, T>}. */
-  public static <T> TryAssert<T> assertThatTry(Kind<TryKind.Witness, T> actual) {
+  public static <T> TryAssert<T> assertThatTry(@Nullable Kind<TryKind.Witness, T> actual) {
     return new TryAssert<>(actual);
   }
 
@@ -43,11 +44,11 @@ public class TryAssert<T> extends AbstractAssert<TryAssert<T>, Kind<TryKind.Witn
    * Entry point accepting a bare {@code Try<T>}. Most-specific overload — preserves source
    * compatibility for callers passing an unwrapped {@code Try}.
    */
-  public static <T> TryAssert<T> assertThatTry(Try<T> actual) {
-    return new TryAssert<>(TRY.widen(actual));
+  public static <T> TryAssert<T> assertThatTry(@Nullable Try<T> actual) {
+    return new TryAssert<>(actual == null ? null : TRY.widen(actual));
   }
 
-  protected TryAssert(Kind<TryKind.Witness, T> actual) {
+  protected TryAssert(@Nullable Kind<TryKind.Witness, T> actual) {
     super(actual, TryAssert.class);
   }
 

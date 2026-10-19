@@ -33,7 +33,8 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
    * @param <A> the value type
    * @return a new ValidatedAssert instance
    */
-  public static <E, A> ValidatedAssert<E, A> assertThatValidated(Validated<E, A> validated) {
+  public static <E, A> ValidatedAssert<E, A> assertThatValidated(
+      @Nullable Validated<E, A> validated) {
     return new ValidatedAssert<>(validated);
   }
 
@@ -47,8 +48,9 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
    * @return a new ValidatedAssert instance
    */
   public static <E, A> ValidatedAssert<E, A> assertThatValidated(
-      Kind<ValidatedKind.Witness<E>, A> actual) {
-    return new ValidatedAssert<>(ValidatedKindHelper.VALIDATED.narrow(actual));
+      @Nullable Kind<ValidatedKind.Witness<E>, A> actual) {
+    return new ValidatedAssert<>(
+        actual == null ? null : ValidatedKindHelper.VALIDATED.narrow(actual));
   }
 
   /**
@@ -64,11 +66,11 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
    * @return a new ValidatedAssert instance
    */
   public static <E, A> ValidatedAssert<E, A> assertThatValidated(
-      Validated<E, A> validated, String description) {
+      @Nullable Validated<E, A> validated, String description) {
     return new ValidatedAssert<E, A>(validated).as(description);
   }
 
-  protected ValidatedAssert(Validated<E, A> validated) {
+  protected ValidatedAssert(@Nullable Validated<E, A> validated) {
     super(validated, ValidatedAssert.class);
   }
 
@@ -189,7 +191,7 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
   }
 
   /** Asserts that the Validated equals the expected Validated. */
-  public ValidatedAssert<E, A> isEqualTo(Validated<E, A> expected) {
+  public ValidatedAssert<E, A> isEqualTo(@Nullable Validated<E, A> expected) {
     Assertions.assertThat(actual)
         .withFailMessage("Expected Validated to equal %s but was %s", expected, actual)
         .isEqualTo(expected);
@@ -197,7 +199,7 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
   }
 
   /** Asserts that the Validated does not equal the given Validated. */
-  public ValidatedAssert<E, A> isNotEqualTo(Validated<E, A> other) {
+  public ValidatedAssert<E, A> isNotEqualTo(@Nullable Validated<E, A> other) {
     Assertions.assertThat(actual)
         .withFailMessage("Expected Validated to not equal %s but was %s", other, actual)
         .isNotEqualTo(other);

@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.lazy.LazyKind;
 import org.higherkindedj.hkt.lazy.LazyKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Lazy} instances.
@@ -21,16 +22,16 @@ import org.higherkindedj.hkt.lazy.LazyKindHelper;
 public class LazyAssert<T> extends AbstractAssert<LazyAssert<T>, Lazy<T>> {
 
   /** Entry point accepting a {@code Kind<LazyKind.Witness, T>}. */
-  public static <T> LazyAssert<T> assertThatLazy(Kind<LazyKind.Witness, T> actual) {
-    return new LazyAssert<>(LazyKindHelper.LAZY.narrow(actual));
+  public static <T> LazyAssert<T> assertThatLazy(@Nullable Kind<LazyKind.Witness, T> actual) {
+    return new LazyAssert<>(actual == null ? null : LazyKindHelper.LAZY.narrow(actual));
   }
 
   /** Entry point. */
-  public static <T> LazyAssert<T> assertThatLazy(Lazy<T> actual) {
+  public static <T> LazyAssert<T> assertThatLazy(@Nullable Lazy<T> actual) {
     return new LazyAssert<>(actual);
   }
 
-  protected LazyAssert(Lazy<T> actual) {
+  protected LazyAssert(@Nullable Lazy<T> actual) {
     super(actual, LazyAssert.class);
   }
 
@@ -97,7 +98,7 @@ public class LazyAssert<T> extends AbstractAssert<LazyAssert<T>, Lazy<T>> {
   }
 
   /** Verifies that forcing throws an exception with the expected message. */
-  public LazyAssert<T> whenForcedThrowsWithMessage(String expectedMessage) {
+  public LazyAssert<T> whenForcedThrowsWithMessage(@Nullable String expectedMessage) {
     isNotNull();
     Assertions.assertThatThrownBy(actual::force)
         .as("Lazy.force() exception message")

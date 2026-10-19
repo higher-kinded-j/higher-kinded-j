@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.reader.Reader;
 import org.higherkindedj.hkt.reader.ReaderKind;
 import org.higherkindedj.hkt.reader.ReaderKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Reader} instances.
@@ -20,16 +21,17 @@ import org.higherkindedj.hkt.reader.ReaderKindHelper;
 public class ReaderAssert<R, A> extends AbstractAssert<ReaderAssert<R, A>, Reader<R, A>> {
 
   /** Entry point accepting a {@code Kind<ReaderKind.Witness<R>, A>}. */
-  public static <R, A> ReaderAssert<R, A> assertThatReader(Kind<ReaderKind.Witness<R>, A> actual) {
-    return new ReaderAssert<>(ReaderKindHelper.READER.narrow(actual));
+  public static <R, A> ReaderAssert<R, A> assertThatReader(
+      @Nullable Kind<ReaderKind.Witness<R>, A> actual) {
+    return new ReaderAssert<>(actual == null ? null : ReaderKindHelper.READER.narrow(actual));
   }
 
   /** Entry point. */
-  public static <R, A> ReaderAssert<R, A> assertThatReader(Reader<R, A> actual) {
+  public static <R, A> ReaderAssert<R, A> assertThatReader(@Nullable Reader<R, A> actual) {
     return new ReaderAssert<>(actual);
   }
 
-  protected ReaderAssert(Reader<R, A> actual) {
+  protected ReaderAssert(@Nullable Reader<R, A> actual) {
     super(actual, ReaderAssert.class);
   }
 

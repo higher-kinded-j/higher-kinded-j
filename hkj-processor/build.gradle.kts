@@ -188,6 +188,7 @@ testing {
             dependencies {
                 implementation(project())
                 implementation(project(":hkj-core"))
+                implementation(project(":hkj-test"))
                 implementation(project(":hkj-processor-plugins"))
                 implementation(platform(libs.junit.bom))
                 implementation(libs.junit.jupiter)

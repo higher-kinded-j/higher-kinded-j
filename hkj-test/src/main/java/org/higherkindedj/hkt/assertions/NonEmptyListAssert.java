@@ -13,6 +13,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link NonEmptyList}.
@@ -39,17 +40,17 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
 public class NonEmptyListAssert<T> extends AbstractAssert<NonEmptyListAssert<T>, NonEmptyList<T>> {
 
   /** Entry point for a concrete {@link NonEmptyList}. */
-  public static <T> NonEmptyListAssert<T> assertThatNonEmptyList(NonEmptyList<T> actual) {
+  public static <T> NonEmptyListAssert<T> assertThatNonEmptyList(@Nullable NonEmptyList<T> actual) {
     return new NonEmptyListAssert<>(actual);
   }
 
   /** Entry point for the {@link Kind} representation; narrows before asserting. */
   public static <T> NonEmptyListAssert<T> assertThatNonEmptyList(
-      Kind<NonEmptyListKind.Witness, T> actual) {
-    return new NonEmptyListAssert<>(NON_EMPTY_LIST.narrow(actual));
+      @Nullable Kind<NonEmptyListKind.Witness, T> actual) {
+    return new NonEmptyListAssert<>(actual == null ? null : NON_EMPTY_LIST.narrow(actual));
   }
 
-  protected NonEmptyListAssert(NonEmptyList<T> actual) {
+  protected NonEmptyListAssert(@Nullable NonEmptyList<T> actual) {
     super(actual, NonEmptyListAssert.class);
   }
 

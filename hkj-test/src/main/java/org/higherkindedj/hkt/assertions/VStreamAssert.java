@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
@@ -10,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.higherkindedj.hkt.vstream.VStreamKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link VStream} instances.
@@ -19,21 +21,30 @@ import org.higherkindedj.hkt.vstream.VStreamKindHelper;
 public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A>> {
 
   /** Entry point accepting a {@code Kind<VStreamKind.Witness, A>}. */
-  public static <A> VStreamAssert<A> assertThatVStream(Kind<VStreamKind.Witness, A> actual) {
-    return new VStreamAssert<>(VStreamKindHelper.VSTREAM.narrow(actual));
+  public static <A> VStreamAssert<A> assertThatVStream(
+      @Nullable Kind<VStreamKind.Witness, A> actual) {
+    return new VStreamAssert<>(actual == null ? null : VStreamKindHelper.VSTREAM.narrow(actual));
   }
 
   /** Entry point. */
-  public static <A> VStreamAssert<A> assertThatVStream(VStream<A> actual) {
+  public static <A> VStreamAssert<A> assertThatVStream(@Nullable VStream<A> actual) {
     return new VStreamAssert<>(actual);
   }
 
-  private List<A> materialisedElements;
-  private Throwable materialisedException;
+  private @Nullable List<A> materialisedElements;
+  private @Nullable Throwable materialisedException;
   private boolean hasMaterialised = false;
 
-  protected VStreamAssert(VStream<A> actual) {
+  protected VStreamAssert(@Nullable VStream<A> actual) {
     super(actual, VStreamAssert.class);
+  }
+
+  private List<A> elements() {
+    return Objects.requireNonNull(materialisedElements);
+  }
+
+  private Throwable thrown() {
+    return Objects.requireNonNull(materialisedException);
   }
 
   private void materialise() {
@@ -81,7 +92,7 @@ public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A
   public VStreamAssert<A> hasCount(long expected) {
     materialise();
     Assertions.assertThat(materialisedException).as("VStream materialisation exception").isNull();
-    long actual = materialisedElements.size();
+    long actual = elements().size();
     Assertions.assertThat(actual)
         .withFailMessage("Expected VStream to have %d elements but had %d", expected, actual)
         .isEqualTo(expected);
@@ -93,10 +104,10 @@ public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A
     materialise();
     Assertions.assertThat(materialisedException).as("VStream materialisation exception").isNull();
     Assertions.assertThat(materialisedElements).as("VStream materialised elements").isNotEmpty();
-    Assertions.assertThat(materialisedElements.getFirst())
+    Assertions.assertThat(elements().getFirst())
         .withFailMessage(
             "Expected VStream first element to be <%s> but was <%s>",
-            expected, materialisedElements.getFirst())
+            expected, elements().getFirst())
         .isEqualTo(expected);
     return this;
   }
@@ -116,7 +127,7 @@ public class VStreamAssert<A> extends AbstractAssert<VStreamAssert<A>, VStream<A
     Assertions.assertThat(materialisedException)
         .withFailMessage(
             "Expected VStream to fail with <%s> but threw <%s>",
-            type.getName(), materialisedException.getClass().getName())
+            type.getName(), thrown().getClass().getName())
         .isInstanceOf(type);
     return this;
   }

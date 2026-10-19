@@ -4,6 +4,7 @@ package org.higherkindedj.optics.laws;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
@@ -29,7 +30,8 @@ public final class TraversalLaws {
   /** Fusion: {@code modify(g, modify(f, s)) == modify(g compose f, s)}. */
   public static <S, A> void assertFusion(
       Traversal<S, A> traversal, S s, Function<A, A> f, Function<A, A> g) {
-    S sequential = Traversals.modify(traversal, g, Traversals.modify(traversal, f, s));
+    S once = Objects.requireNonNull(Traversals.modify(traversal, f, s), "modify(f) returned null");
+    S sequential = Traversals.modify(traversal, g, once);
     S fused = Traversals.modify(traversal, f.andThen(g), s);
     assertThat(sequential)
         .as(

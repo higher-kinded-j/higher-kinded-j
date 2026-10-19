@@ -12,6 +12,7 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.list.ListKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link List} instances wrapped in {@link Kind}.
@@ -39,11 +40,11 @@ import org.higherkindedj.hkt.list.ListKind;
 public class ListAssert<T> extends AbstractAssert<ListAssert<T>, Kind<ListKind.Witness, T>> {
 
   /** Entry point. */
-  public static <T> ListAssert<T> assertThatList(Kind<ListKind.Witness, T> actual) {
+  public static <T> ListAssert<T> assertThatList(@Nullable Kind<ListKind.Witness, T> actual) {
     return new ListAssert<>(actual);
   }
 
-  protected ListAssert(Kind<ListKind.Witness, T> actual) {
+  protected ListAssert(@Nullable Kind<ListKind.Witness, T> actual) {
     super(actual, ListAssert.class);
   }
 
