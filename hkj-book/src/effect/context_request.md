@@ -619,7 +619,7 @@ For log aggregation systems (ELK, Splunk, CloudWatch):
 public class StructuredLogger {
     private final Logger delegate = LoggerFactory.getLogger(StructuredLogger.class);
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final JsonMapper mapper = JsonMapper.shared();
 
     public void info(String message, Object... args) {
         LogEntry entry = buildEntry("INFO", message, args);
@@ -659,7 +659,7 @@ public class StructuredLogger {
     private String toJson(LogEntry entry) {
         try {
             return mapper.writeValueAsString(entry);
-        } catch (Exception e) {
+        } catch (JacksonException e) {
             return entry.message();
         }
     }

@@ -15,8 +15,8 @@ import com.tngtech.archunit.core.importer.Location;
  * annotation may not find all classes.
  *
  * <p>Note: package-info classes are excluded from imports as they don't represent actual code and
- * can cause false positives in architecture tests. This exclusion is required for compatibility
- * with ArchUnit 1.4.x which includes package-info classes in its class resolution.
+ * can cause false positives in architecture tests. ArchUnit includes package-info classes in its
+ * class resolution, so the exclusion is required.
  */
 public final class ArchitectureTestBase {
 
@@ -26,8 +26,8 @@ public final class ArchitectureTestBase {
   /**
    * ImportOption that excludes package-info classes from import.
    *
-   * <p>ArchUnit 1.4.x includes package-info classes in class resolution, which can cause false
-   * positives in architecture tests since these classes don't have typical class characteristics.
+   * <p>ArchUnit includes package-info classes in class resolution, which can cause false positives
+   * in architecture tests since these classes don't have typical class characteristics.
    */
   private static final ImportOption DO_NOT_INCLUDE_PACKAGE_INFO =
       (Location location) -> !location.contains("package-info");
