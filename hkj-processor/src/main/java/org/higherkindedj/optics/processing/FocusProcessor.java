@@ -111,8 +111,10 @@ public class FocusProcessor extends AbstractProcessor {
     // First pass: collect all @GenerateFocus annotated types for navigator resolution
     Set<String> navigableTypes = new HashSet<>();
     Set<? extends Element> allAnnotated = roundEnv.getElementsAnnotatedWith(GenerateFocus.class);
+    // A record whose settings cannot be read writes no companion, so nothing navigates into it.
     for (Element element : allAnnotated) {
-      if (element.getKind() == ElementKind.RECORD) {
+      if (element.getKind() == ElementKind.RECORD
+          && !NavigatorClassGenerator.unreadable(element.getAnnotation(GenerateFocus.class))) {
         TypeElement typeElement = (TypeElement) element;
         navigableTypes.add(typeElement.getQualifiedName().toString());
       }
@@ -166,6 +168,9 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Check for annotation attributes
     GenerateFocus annotation = recordElement.getAnnotation(GenerateFocus.class);
+    if (NavigatorClassGenerator.unreadable(annotation)) {
+      return;
+    }
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
     if (!Reachability.check(
@@ -211,6 +216,11 @@ public class FocusProcessor extends AbstractProcessor {
     // navigator methods that compose them.
     WideningAnalysis analysis =
         new WideningAnalysis(processingEnv, traversableGenerators, packageName);
+
+    // A name in a field list that matches no component is an error, but the companion is still
+    // written, as it is for a container refused at a component, so that code using its paths does
+    // not fail on a missing class as well.
+    new FocusFieldListChecks(processingEnv.getMessager(), analysis).check(recordElement);
 
     // Create navigator generator if enabled
     NavigatorClassGenerator navigatorGenerator = null;

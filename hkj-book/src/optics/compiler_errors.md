@@ -34,6 +34,9 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
+| [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
+| [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
+| [`is widened without it`, `holds no container widenFields widens`](#generatefocus-widenfields-cannot-widen) | **Warning.** A `widenFields` name whose path widening cannot change |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
 | [`Multiple TraversableGenerator SPI providers with equal priority`](#multiple-traversablegenerator-spi-providers-with-equal-priority-n-support-type-x-a-warning) | **Warning.** Two generators claim one type and neither outranks the other |
 | [`the annotation on record component 'X.y' is not applied`](#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note) | **Note.** `@TraverseField` is on something that is not a `Kind` with a declared witness |
@@ -409,7 +412,7 @@ record Bag<T>(Set<? extends T> items) {}
 
 `X` writes `generateNavigators = true`, its field `y` holds another `@GenerateFocus` record, `T`, and `T` has a field named like one of the path's own methods that take no arguments. On a `FocusPath` those are `last`, `head`, `tail`, `init`, `each`, `some`, `nullable`, `cons`, `snoc`, `headTail`, `initLast`, `segments`, `pathString`, `toLens`, `asAffine`, `asTraversal`, `asFold` and `toPath`. An `AffinePath` and a `TraversalPath` differ a little, and the processor reads each list from the class the navigator extends.
 
-**Fix.** Rename the field, or keep `y` a plain path, as the message says. It names the change that does that on `X`: add `y` to `excludeFields`, remove it from `includeFields`, or, where `includeFields` names only `y`, set `generateNavigators = false`. A plain path still reaches the clashing field through `.via(TFocus.z())`.
+**Fix.** Rename the field, or keep `y` a plain path, as the message says. It names the change that does that on `X`: add `y` to `excludeFields`, remove it from `includeFields`, or, where `includeFields` names only `y`, remove `includeFields` and set `generateNavigators = false`. A plain path still reaches the clashing field through `.via(TFocus.z())`.
 
 ~~~admonish note title="Why" collapsible=true
 A navigator is a path, so it already has each of those methods. A navigation method of the same name would clash with it, and leaving the field out would let `name().last()` compile against the path's own `last()`. That method reads the last element of a list, so on a record it throws `ClassCastException` when the path runs. A record that asks for navigators in so many words is refused; one that leaves the default draws [a note](#generatefocus-no-navigator-into) instead. A name that takes arguments, such as `get` or `count`, does not clash, because `get()` and `get(source)` are two methods.
@@ -477,6 +480,78 @@ record Hamper(Bottle[] bottles) {}
 
 ```
 Note: @GenerateFocus: record component 'Hamper.bottles' has no navigator over its Bottle elements. A navigator steps into a container only where the record widens it, and Hamper does not widen 'bottles'. Add widenFields = "bottles" to @GenerateFocus on Hamper to navigate into its elements.
+```
+~~~
+
+### "@GenerateFocus: includeFields on X names "y", which is not a component of X" {#generatefocus-field-list-unknown-name}
+
+`includeFields`, `excludeFields` or `widenFields` names a field the record does not have: a typo, or a name a rename left behind. In `includeFields` it costs the most, since a non-empty list gives navigators only to the fields it names, so a list whose only name is a typo leaves every field without one.
+
+**Fix.** Write the component's name. Where one is close, the message offers it: a near misspelling, a different case such as `"Positions"`, or an accessor spelling such as `"getAddress"`. Take out a name that is no longer wanted.
+
+~~~admonish note title="Why" collapsible=true
+The lists hold strings, which javac cannot check against the record, so the processor does. A name that matched nothing would otherwise change nothing, and say nothing about it. The message lists the components it found, so a name with no near miss can be put right from the message alone.
+~~~
+
+~~~admonish example title="A declaration that produces it"
+<!-- verify:rejects "Did you mean 'kiosk'? Found on Hawker: [name, kiosk]" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "kisok")
+record Hawker(String name, Kiosk kiosk) {}
+```
+
+```
+error: @GenerateFocus: includeFields on Hawker names "kisok", which is not a component of Hawker. includeFields gives navigators only to the components it names, so a name that matches none gives no component a navigator. Did you mean 'kiosk'? Found on Hawker: [name, kiosk]. Replace "kisok" with "kiosk" in includeFields on Hawker.
+```
+~~~
+
+### "@GenerateFocus: ... on X changes nothing, because ..." (a warning) {#generatefocus-field-list-unread}
+
+A field list is set where the record's other settings never read it, so the generated class is the one you would get without it. There are three such pairs:
+
+- `excludeFields` beside a non-empty `includeFields`, which alone decides which fields get navigators.
+- `includeFields` or `excludeFields` with `generateNavigators = false`, where no field gets a navigator.
+- `widenFields` beside `widenCollections = true`, which widens every field `widenFields` could name.
+
+**Fix.** Remove the list, or the setting that leaves it unread, as the warning says. Either remedy compiles without the warning.
+
+~~~admonish example title="A declaration that produces it"
+<!-- verify:reports "excludeFields on Trader changes nothing, because includeFields is set beside it" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "home", excludeFields = "relief")
+record Trader(String name, Kiosk home, Kiosk relief) {}
+```
+
+```
+warning: @GenerateFocus: excludeFields on Trader changes nothing, because includeFields is set beside it. A non-empty includeFields gives navigators to the components it names and to no others, so excludeFields is never read. Remove excludeFields from @GenerateFocus on Trader, or remove includeFields to give navigators to every component but those excludeFields names.
+```
+~~~
+
+### "@GenerateFocus: widenFields on X names "y", whose T is widened without it" (a warning) {#generatefocus-widenfields-cannot-widen}
+
+`widenFields` names a field whose path it cannot change. Either the field's method widens its container anyway, as it does a `List`, an `Optional` or an `Either`, or the field holds no container `widenFields` widens, such as a `String` or an `int[]`. The second reads *"which holds no container widenFields widens"*.
+
+**Fix.** Take the name out of `widenFields`, as the warning says. `widenFields` is for a `Map`, an array of objects or a third-party collection, which a method otherwise leaves whole. A third-party collection needs a `TraversableGenerator` on the annotation processor path, such as those `hkj-processor-plugins` provides, and without one it holds no container `widenFields` widens; the warning offers that remedy too.
+
+~~~admonish note title="Why" collapsible=true
+`widenFields` widens what `widenCollections = true` widens, one field at a time: a zero-or-more container that a `TraversableGenerator` on the processor path supports. `List`, `Set`, `Collection`, `Optional` and `Maybe` are always widened, since the processor recognises those types, and a zero-or-one container such as `Either` always is too, so naming one changes nothing. An array of a primitive type is never widened, since `EachInstances.arrayEach()` is `Each<A[], A>` and no primitive is an `A`.
+~~~
+
+~~~admonish example title="A declaration that produces it"
+<!-- verify:reports "whose List<String> is widened without it" -->
+```java
+@GenerateFocus(widenFields = "tags")
+record Stall(String name, List<String> tags) {}
+```
+
+```
+warning: @GenerateFocus: widenFields on Stall names "tags", whose List<String> is widened without it. StallFocus.tags() returns a TraversalPath whether widenFields names it or not. Remove widenFields from @GenerateFocus on Stall.
 ```
 ~~~
 
