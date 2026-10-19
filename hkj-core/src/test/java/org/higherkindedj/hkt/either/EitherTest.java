@@ -654,7 +654,7 @@ class EitherTest extends EitherTestBase {
             if (d > 100) {
               return Either.left("Result too large: " + d);
             }
-            return Either.right(String.format("%.2f", d));
+            return Either.right(String.format(Locale.ROOT, "%.2f", d));
           };
 
       Either<String, String> success =

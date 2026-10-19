@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.optional;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
+import java.util.Locale;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -204,7 +205,7 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("flatMap3() combines three present Optionals")
     void flatMap3CombinesThreePresentOptionals() {
       Function3<Integer, String, Double, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d) -> presentOf(String.format("%d-%s-%.1f", i, s, d));
+          (i, s, d) -> presentOf(String.format(Locale.ROOT, "%d-%s-%.1f", i, s, d));
       var result = optionalMonad.flatMap3(presentOf(1), presentOf("a"), presentOf(2.5), f);
       assertThatOptionalKind(result).isPresent().contains("1-a-2.5");
     }
@@ -223,7 +224,7 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("flatMap4() combines four present Optionals")
     void flatMap4CombinesFourPresentOptionals() {
       Function4<Integer, String, Double, Boolean, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d, b) -> presentOf(String.format("%d-%s-%.0f-%b", i, s, d, b));
+          (i, s, d, b) -> presentOf(String.format(Locale.ROOT, "%d-%s-%.0f-%b", i, s, d, b));
       var result =
           optionalMonad.flatMap4(presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), f);
       assertThatOptionalKind(result).isPresent().contains("1-a-2-true");
@@ -243,7 +244,8 @@ class OptionalMonadTest extends OptionalTestBase {
     @DisplayName("flatMap5() combines five present Optionals")
     void flatMap5CombinesFivePresentOptionals() {
       Function5<Integer, String, Double, Boolean, Character, Kind<OptionalKind.Witness, String>> f =
-          (i, s, d, b, c) -> presentOf(String.format("%d-%s-%.0f-%b-%c", i, s, d, b, c));
+          (i, s, d, b, c) ->
+              presentOf(String.format(Locale.ROOT, "%d-%s-%.0f-%b-%c", i, s, d, b, c));
       var result =
           optionalMonad.flatMap5(
               presentOf(1), presentOf("a"), presentOf(2.0), presentOf(true), presentOf('X'), f);

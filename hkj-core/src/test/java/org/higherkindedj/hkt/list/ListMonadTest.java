@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.list;
 import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.util.Locale;
 import java.util.function.Function;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
@@ -253,7 +254,7 @@ class ListMonadTest extends ListTestBase {
       var list2 = listOf("a", "b");
       var list3 = listOf(1.0, 2.0);
       Function3<Integer, String, Double, String> f3 =
-          (i, s, d) -> String.format("%d-%s-%.1f", i, s, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%d-%s-%.1f", i, s, d);
 
       var result = listMonad.map3(list1, list2, list3, f3);
 
@@ -284,7 +285,7 @@ class ListMonadTest extends ListTestBase {
       var list3 = listOf(1.0, 2.0);
       var list4 = listOf(true, false);
       Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> String.format("%d-%s-%.1f-%b", i, s, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%d-%s-%.1f-%b", i, s, d, b);
 
       var result = listMonad.map4(list1, list2, list3, list4, f4);
 
@@ -362,7 +363,7 @@ class ListMonadTest extends ListTestBase {
       var list2 = listOf("x");
       var list3 = listOf(10.0);
       Function3<Integer, String, Double, Kind<ListKind.Witness, String>> f3 =
-          (i, s, d) -> listOf(String.format("%d-%s-%.0f", i, s, d));
+          (i, s, d) -> listOf(String.format(Locale.ROOT, "%d-%s-%.0f", i, s, d));
 
       var result = listMonad.flatMap3(list1, list2, list3, f3);
 
@@ -405,7 +406,7 @@ class ListMonadTest extends ListTestBase {
       var list3 = listOf(2.0);
       var list4 = listOf(true);
       Function4<Integer, String, Double, Boolean, Kind<ListKind.Witness, String>> f4 =
-          (i, s, d, b) -> listOf(String.format("%d-%s-%.0f-%b", i, s, d, b));
+          (i, s, d, b) -> listOf(String.format(Locale.ROOT, "%d-%s-%.0f-%b", i, s, d, b));
 
       var result = listMonad.flatMap4(list1, list2, list3, list4, f4);
 
@@ -436,7 +437,7 @@ class ListMonadTest extends ListTestBase {
       var list4 = listOf(true);
       var list5 = listOf('X');
       Function5<Integer, String, Double, Boolean, Character, Kind<ListKind.Witness, String>> f5 =
-          (i, s, d, b, c) -> listOf(String.format("%d-%s-%.0f-%b-%c", i, s, d, b, c));
+          (i, s, d, b, c) -> listOf(String.format(Locale.ROOT, "%d-%s-%.0f-%b-%c", i, s, d, b, c));
 
       var result = listMonad.flatMap5(list1, list2, list3, list4, list5, f5);
 

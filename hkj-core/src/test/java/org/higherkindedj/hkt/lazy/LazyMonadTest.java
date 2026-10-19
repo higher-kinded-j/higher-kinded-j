@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.LazyAssert.assertThatLazy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.*;
 
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -444,7 +445,7 @@ class LazyMonadTest extends LazyTestBase {
     @DisplayName("map3() combines lazily")
     void map3CombinesLazily() throws Throwable {
       Function3<Integer, String, Double, String> f3 =
-          (i, s, d) -> String.format("%s%d-%.1f", s, i, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%s%d-%.1f", s, i, d);
       Kind<LazyKind.Witness, String> result = lazyMonad.map3(lz1, lz2, lz3, f3);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
@@ -465,7 +466,7 @@ class LazyMonadTest extends LazyTestBase {
     @DisplayName("map4() combines lazily")
     void map4CombinesLazily() throws Throwable {
       Function4<Integer, String, Double, Boolean, String> f4 =
-          (i, s, d, b) -> String.format("%s%d-%.1f-%b", s, i, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%s%d-%.1f-%b", s, i, d, b);
       Kind<LazyKind.Witness, String> result = lazyMonad.map4(lz1, lz2, lz3, lz4, f4);
       assertThat(counterA.get()).isZero();
       assertThat(counterB.get()).isZero();
