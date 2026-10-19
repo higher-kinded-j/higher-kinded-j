@@ -18,6 +18,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Mapping {#mapping}
 
+- **A misspelt `@MapKey` value suggests the component's bare name** ([#1112](https://github.com/higher-kinded-j/higher-kinded-j/issues/1112)). The hint now offers `byOwner` rather than `byOwner()`, so it can be used as the annotation's value. Hints that name methods keep their parentheses.
 - **A generic spec over an array of its parameter no longer breaks on a primitive array** ([#1091](https://github.com/higher-kinded-j/higher-kinded-j/issues/1091)). No type argument is a primitive, so a spec over `Page<T[]>` no longer covers a `Page<int[]>` field, which crashed the processor or failed in generated code. The field reports no usable source instead. See [The boundaries of a generic spec](../mapping/rules.md#generic-boundaries).
 - **A bounded generic spec no longer covers an argument outside its bound** ([#1118](https://github.com/higher-kinded-j/higher-kinded-j/issues/1118)). A spec over `Page<T>` with `T extends Number` covered a `Page<String>` field and broke the generated code. That field now reports no usable source, naming the bound, or nests through a spec for `Page<String>` declared beside it. See [A bounded spec covers only what its bounds admit](../mapping/rules.md#generic-spec-bounds).
 - **An element-mapped spec nests where a type argument passes through unconverted** ([#1122](https://github.com/higher-kinded-j/higher-kinded-j/issues/1122)). A spec over `TaggedPage<T, X>` whose leaf converts only the elements broke the generated code wherever it nested, since no leaf names `X`. The generated call now spells out its type arguments, keeping a `@Nullable` the domain or wire record declares. See [How an element-mapped spec nests](../mapping/rules.md#element-mapped-nesting).
@@ -163,6 +164,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ### Before you upgrade {#before-you-upgrade}
 
+- **The `@MapKey` hint correction needs no migration** ([#1112](https://github.com/higher-kinded-j/higher-kinded-j/issues/1112)): valid mapping specs and generated code are unchanged.
 - **Run `MigrateDeprecationsTo0_5_0` before you move to 0.5.0** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): take `hkj-openrewrite` 0.5.0 for the run, and keep the project on 0.4.11 until it finishes. Its `StateT` recipe matches the 0.4.x signatures, so it rewrites nothing once the build resolves 0.5.0. See [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration).
 - **Replace `Void` with `Unit` where a success has nothing to return** ([#1065](https://github.com/higher-kinded-j/higher-kinded-j/issues/1065), [#1078](https://github.com/higher-kinded-j/higher-kinded-j/issues/1078)): `Either<E, Void>` and `Try<Void>` can no longer hold their null. A `VTask<Void>`, `IOPath<Void>` or other lazy computation fails when its step returns null. `VTask.exec`, `Path.vtaskExec` and `Path.ioRunnable` give `Unit`. The `MigrateDeprecationsTo0_5_0` run marks each site.
 

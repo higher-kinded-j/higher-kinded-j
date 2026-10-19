@@ -3850,7 +3850,7 @@ public class MappingProcessor extends AbstractProcessor {
             "@MapKey(\"" + name + "\") names no component of " + domain.getSimpleName(),
             "A key leaf names the DOMAIN Map component whose keys it converts; an unmatched one"
                 + " converts nothing."
-                + didYouMean(name, components)
+                + didYouMean(name, components, "")
                 + " Found on "
                 + domain.getSimpleName()
                 + ": "
@@ -4209,9 +4209,13 @@ public class MappingProcessor extends AbstractProcessor {
    * the same name spelt as another accessor would spell it, or a near miss.
    */
   private static String didYouMean(String name, List<String> candidates) {
+    return didYouMean(name, candidates, "()");
+  }
+
+  private static String didYouMean(String name, List<String> candidates, String suffix) {
     return NamingConvention.ACCESSOR
         .nearest(name, candidates)
-        .map(best -> " Did you mean '" + best + "()'?")
+        .map(best -> " Did you mean '" + best + suffix + "'?")
         .orElse("");
   }
 
