@@ -3850,7 +3850,7 @@ public class MappingProcessor extends AbstractProcessor {
             "@MapKey(\"" + name + "\") names no component of " + domain.getSimpleName(),
             "A key leaf names the DOMAIN Map component whose keys it converts; an unmatched one"
                 + " converts nothing."
-                + didYouMean(name, components, "")
+                + didYouMeanComponent(name, components)
                 + " Found on "
                 + domain.getSimpleName()
                 + ": "
@@ -4210,6 +4210,14 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static String didYouMean(String name, List<String> candidates) {
     return didYouMean(name, candidates, "()");
+  }
+
+  /**
+   * Offers a component's bare name for an annotation value, where {@link #didYouMean(String, List)}
+   * offers a method call such as {@code name()}.
+   */
+  private static String didYouMeanComponent(String name, List<String> candidates) {
+    return didYouMean(name, candidates, "");
   }
 
   private static String didYouMean(String name, List<String> candidates, String suffix) {

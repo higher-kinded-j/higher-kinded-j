@@ -164,7 +164,6 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ### Before you upgrade {#before-you-upgrade}
 
-- **The `@MapKey` hint correction needs no migration** ([#1112](https://github.com/higher-kinded-j/higher-kinded-j/issues/1112)): valid mapping specs and generated code are unchanged.
 - **Run `MigrateDeprecationsTo0_5_0` before you move to 0.5.0** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): take `hkj-openrewrite` 0.5.0 for the run, and keep the project on 0.4.11 until it finishes. Its `StateT` recipe matches the 0.4.x signatures, so it rewrites nothing once the build resolves 0.5.0. See [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration).
 - **Replace `Void` with `Unit` where a success has nothing to return** ([#1065](https://github.com/higher-kinded-j/higher-kinded-j/issues/1065), [#1078](https://github.com/higher-kinded-j/higher-kinded-j/issues/1078)): `Either<E, Void>` and `Try<Void>` can no longer hold their null. A `VTask<Void>`, `IOPath<Void>` or other lazy computation fails when its step returns null. `VTask.exec`, `Path.vtaskExec` and `Path.ioRunnable` give `Unit`. The `MigrateDeprecationsTo0_5_0` run marks each site.
 
