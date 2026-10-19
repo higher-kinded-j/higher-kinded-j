@@ -84,7 +84,7 @@ VTask<Result> result = connResource.use(conn ->
 
 **Railway-aware:** on the typed-error carriers a business `Left` is a value, never retried and never counted as a circuit-breaker failure. Typed overloads opt selected transient errors into retry and land timeouts or rejections as `Left`s rather than thrown exceptions, so resilience never swallows a domain outcome.
 
-**Related:** [Resilience Patterns](../resilience/ch_intro.md), [Retry](../resilience/retry.md), [Circuit Breaker](#circuit-breaker), [Bulkhead](#bulkhead), [Path](effect-paths.md#path), [VResultPath](effect-paths.md#vresultpath)
+**Related:** [Resilience Patterns](../resilience/ch_intro.md), [Retry](#retry), [Circuit Breaker](#circuit-breaker), [Bulkhead](#bulkhead), [Path](effect-paths.md#path), [VResultPath](effect-paths.md#vresultpath)
 
 ---
 
@@ -143,6 +143,22 @@ Resource<Lock> lock = Resource.make(
 ```
 
 **Related:** [Bracket Pattern](#bracket-pattern), [Scope](#scope), [Resource Documentation](../monads/vtask_resource.md)
+
+---
+
+## Retry
+
+**Definition:** A resilience pattern that runs a failed operation again after a short wait, on the belief that transient failures (a network blip, a database failover) will clear if given time. A `RetryPolicy` sets how many attempts to make, how long to wait between them (fixed, linear, or exponential backoff, optionally with jitter), and which failures are worth retrying. Applied as `withRetry` in the resilience vocabulary. On the typed-error carriers a business `Left` is a value, not a failure, so it is never retried.
+
+**Related:** [Retry](../resilience/retry.md), [Resilience Combinators](#resilience-combinators), [Circuit Breaker](#circuit-breaker)
+
+---
+
+## Saga
+
+**Definition:** A resilience pattern for a business operation that spans several steps or services, where each step succeeds on its own but the whole only counts if every step completes. Each forward step is paired with a compensating action that undoes it (refund the payment, release the stock). If a later step fails, the compensations of the steps already completed run in reverse order, newest first, to restore a consistent state. Built with `Saga.of` or `SagaBuilder`. Unlike [Resource (VTask)](#resource-vtask), whose cleanup is a fixed infrastructure action, a saga's compensation is business logic that depends on what its step produced.
+
+**Related:** [Saga](../resilience/saga.md), [Resilience Combinators](#resilience-combinators), [Resource (VTask)](#resource-vtask)
 
 ---
 
