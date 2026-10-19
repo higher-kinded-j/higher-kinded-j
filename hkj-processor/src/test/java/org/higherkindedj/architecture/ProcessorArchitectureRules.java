@@ -95,6 +95,7 @@ class ProcessorArchitectureRules {
   }
 
   @Test
+  @DisplayName("production code must use an explicit locale")
   void productionCodeMustUseAnExplicitLocale() {
     noClasses()
         .should()
