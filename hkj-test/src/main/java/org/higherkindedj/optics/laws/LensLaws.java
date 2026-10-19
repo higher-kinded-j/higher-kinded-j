@@ -46,8 +46,9 @@ public final class LensLaws {
   /**
    * All lens laws for one fixture, with two focus values that differ from each other.
    *
-   * <p>Distinct values avoid a vacuous set-set check. At most one can equal the current focus, so
-   * the other's set-get check still catches a setter that does nothing.
+   * <p>The values may be given in either order. Set-set runs both ways, so each value is written
+   * first. At most one can equal the current focus, so the other's set-get check still catches a
+   * setter that does nothing.
    */
   public static <S, A> void assertLensLaws(Lens<S, A> lens, S s, A a1, A a2) {
     assertThat(a1)
@@ -57,5 +58,6 @@ public final class LensLaws {
     assertSetGet(lens, s, a1);
     assertSetGet(lens, s, a2);
     assertSetSet(lens, s, a1, a2);
+    assertSetSet(lens, s, a2, a1);
   }
 }

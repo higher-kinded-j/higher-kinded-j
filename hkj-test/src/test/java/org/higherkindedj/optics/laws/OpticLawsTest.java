@@ -77,11 +77,12 @@ class OpticLawsTest {
     }
 
     @Test
-    @DisplayName("a boolean lens passes with false and true")
-    void booleanLensPassesWithBothValues() {
+    @DisplayName("a boolean lens passes with its values in either order")
+    void booleanLensPassesInEitherOrder() {
       Lens<Flag, Boolean> on = Lens.of(Flag::on, (flag, value) -> new Flag(value));
 
       LensLaws.assertLensLaws(on, new Flag(true), false, true);
+      LensLaws.assertLensLaws(on, new Flag(true), true, false);
     }
 
     @Test
@@ -188,6 +189,26 @@ class OpticLawsTest {
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("set-get")
           .hasMessageContaining("Grace");
+    }
+
+    @Test
+    @DisplayName("a counting lens fails set-set in either argument order")
+    void countingLensFailsSetSetInEitherOrder() {
+      record CountedFlag(boolean on, int writes) {}
+
+      Lens<CountedFlag, Boolean> counting =
+          Lens.of(
+              CountedFlag::on,
+              (flag, value) ->
+                  value == flag.on() ? flag : new CountedFlag(value, flag.writes() + 1));
+      CountedFlag start = new CountedFlag(true, 0);
+
+      assertThatThrownBy(() -> LensLaws.assertLensLaws(counting, start, true, false))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-set");
+      assertThatThrownBy(() -> LensLaws.assertLensLaws(counting, start, false, true))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-set");
     }
 
     @Test
