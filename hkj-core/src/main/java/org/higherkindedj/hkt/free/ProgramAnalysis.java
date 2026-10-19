@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.free;
 
 import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
 
+import java.util.Locale;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
@@ -64,6 +65,7 @@ public record ProgramAnalysis(
   @Override
   public String toString() {
     return String.format(
+        Locale.ROOT,
         "ProgramAnalysis[%d suspend, %d recovery, %d parallel, %d flatMap%s]",
         suspendCount,
         recoveryPoints,

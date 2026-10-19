@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.util.validation;
 
+import java.util.Locale;
 import java.util.Objects;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
@@ -134,7 +135,8 @@ public enum TransformerValidator {
     var context = DomainContext.transformer(fullContext);
 
     return Objects.requireNonNull(
-        component, "%s cannot be null for %s".formatted(componentName, fullContext));
+        component,
+        String.format(Locale.ROOT, "%s cannot be null for %s", componentName, fullContext));
   }
 
   /** Context for domain-specific validations (transformers, etc.) */
@@ -154,7 +156,7 @@ public enum TransformerValidator {
     }
 
     public String nullParameterMessage() {
-      return "%s cannot be null for %s".formatted(domainType, objectName);
+      return String.format(Locale.ROOT, "%s cannot be null for %s", domainType, objectName);
     }
   }
 }

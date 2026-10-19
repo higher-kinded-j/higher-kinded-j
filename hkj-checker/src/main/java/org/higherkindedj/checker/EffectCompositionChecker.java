@@ -9,6 +9,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.Trees;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import javax.tools.Diagnostic;
 
@@ -82,6 +83,7 @@ public class EffectCompositionChecker implements CheckVisitor {
           node,
           unit,
           String.format(
+              Locale.ROOT,
               "Interpreters.combine() accepts 2-4 interpreters, got %d. "
                   + "Each interpreter handles one effect algebra in the EitherF composition.",
               argCount));

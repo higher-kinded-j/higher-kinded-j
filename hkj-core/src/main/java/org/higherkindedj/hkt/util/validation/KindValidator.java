@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.AP;
 import static org.higherkindedj.hkt.util.validation.Operation.NARROW;
 import static org.higherkindedj.hkt.util.validation.Operation.WIDEN;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -258,17 +259,22 @@ public enum KindValidator {
     }
 
     public String nullParameterMessage() {
-      return "Cannot %s null Kind for %s".formatted(operation, targetType.getSimpleName());
+      return String.format(
+          Locale.ROOT, "Cannot %s null Kind for %s", operation, targetType.getSimpleName());
     }
 
     public String nullInputMessage() {
-      return "Input %s cannot be null for %s".formatted(targetType.getSimpleName(), operation);
+      return String.format(
+          Locale.ROOT, "Input %s cannot be null for %s", targetType.getSimpleName(), operation);
     }
 
     /** Enhanced error message that includes the actual type received. */
     public String invalidTypeMessage(Kind<?, ?> actualKind) {
-      return "Kind instance cannot be narrowed to %s (received: %s)"
-          .formatted(targetType.getSimpleName(), actualKind.getClass().getSimpleName());
+      return String.format(
+          Locale.ROOT,
+          "Kind instance cannot be narrowed to %s (received: %s)",
+          targetType.getSimpleName(),
+          actualKind.getClass().getSimpleName());
     }
   }
 }

@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
 import java.util.Set;
 import javax.annotation.processing.*;
@@ -341,8 +342,11 @@ public class FocusProcessor extends AbstractProcessor {
     // field-name segment, so generated paths self-locate.
     String baseLens =
         String.format(
+            Locale.ROOT,
             "$T.of($T.of($T::%s, (source, newValue) -> new $T(%s)), \"%s\")",
-            componentName, constructorArgs, componentName);
+            componentName,
+            constructorArgs,
+            componentName);
 
     // One expression per widening, built by the same analysis the return type came from, so the
     // method's shape and its body cannot disagree.

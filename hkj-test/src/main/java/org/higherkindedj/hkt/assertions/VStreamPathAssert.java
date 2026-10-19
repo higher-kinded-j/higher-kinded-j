@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
@@ -100,7 +101,7 @@ public class VStreamPathAssert<A> extends AbstractAssert<VStreamPathAssert<A>, V
   public VStreamPathAssert<A> hasCount(long expected) {
     materialise();
     requireSuccessfulMaterialise(
-        String.format("Expected VStreamPath to have %d elements", expected));
+        String.format(Locale.ROOT, "Expected VStreamPath to have %d elements", expected));
     long actualCount = materialisedElements.size();
     Assertions.assertThat(actualCount)
         .withFailMessage(

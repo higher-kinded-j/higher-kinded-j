@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.HANDLE_ERROR_WITH;
 import static org.higherkindedj.hkt.util.validation.Operation.MAP;
 import static org.higherkindedj.hkt.util.validation.Operation.TRAVERSE;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -78,8 +79,11 @@ public enum FunctionValidator {
 
     if (isNull(result)) {
       String msg =
-          "Function %s in %s returned null, which is not allowed"
-              .formatted(functionName, operation);
+          String.format(
+              Locale.ROOT,
+              "Function %s in %s returned null, which is not allowed",
+              functionName,
+              operation);
 
       throw new KindUnwrapException(msg);
     }
@@ -205,7 +209,7 @@ public enum FunctionValidator {
     }
 
     public String nullParameterMessage() {
-      return String.format("%s for %s cannot be null", functionName, operation);
+      return String.format(Locale.ROOT, "%s for %s cannot be null", functionName, operation);
     }
   }
 }

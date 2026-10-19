@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Locale;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 
@@ -115,11 +116,13 @@ final class ForStepGenerator {
       sb.append(">> newComputation =\n");
       sb.append("        monad.flatMap(\n");
       sb.append("            t -> monad.map(\n");
-      sb.append("                ").append(nextType.toLowerCase()).append(" -> Tuple.of(");
+      sb.append("                ")
+          .append(nextType.toLowerCase(Locale.ROOT))
+          .append(" -> Tuple.of(");
       for (int i = 0; i < n; i++) {
         sb.append("t._").append(i + 1).append("(), ");
       }
-      sb.append(nextType.toLowerCase()).append("),\n");
+      sb.append(nextType.toLowerCase(Locale.ROOT)).append("),\n");
       sb.append("                next.apply(t)),\n");
       sb.append("            this.computation);\n");
       sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
@@ -286,11 +289,13 @@ final class ForStepGenerator {
       sb.append(">> newComputation =\n");
       sb.append("        monad.flatMap(\n");
       sb.append("            t -> monad.map(\n");
-      sb.append("                ").append(nextType.toLowerCase()).append(" -> Tuple.of(");
+      sb.append("                ")
+          .append(nextType.toLowerCase(Locale.ROOT))
+          .append(" -> Tuple.of(");
       for (int i = 0; i < n; i++) {
         sb.append("t._").append(i + 1).append("(), ");
       }
-      sb.append(nextType.toLowerCase()).append("),\n");
+      sb.append(nextType.toLowerCase(Locale.ROOT)).append("),\n");
       sb.append("                next.apply(t)),\n");
       sb.append("            this.computation);\n");
       sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
@@ -359,12 +364,12 @@ final class ForStepGenerator {
       sb.append("                matcher\n");
       sb.append("                    .apply(t)\n");
       sb.append("                    .map(")
-          .append(nextType.toLowerCase())
+          .append(nextType.toLowerCase(Locale.ROOT))
           .append(" -> monad.of(Tuple.of(");
       for (int i = 0; i < n; i++) {
         sb.append("t._").append(i + 1).append("(), ");
       }
-      sb.append(nextType.toLowerCase()).append(")))\n");
+      sb.append(nextType.toLowerCase(Locale.ROOT)).append(")))\n");
       sb.append("                    .orElseGet(monad::zero),\n");
       sb.append("            this.computation);\n");
       sb.append("    return new ").append(nextClassName).append("<>(monad, newComputation);\n");
