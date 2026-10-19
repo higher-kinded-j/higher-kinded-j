@@ -108,6 +108,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Testing {#testing}
 
+- **Lens and affine law fixtures may include the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). `assertLensLaws` and `assertAffineLaws` require only that their two focus values differ from each other. A boolean lens can use `false, true`. See [Optic Laws](../tooling/test_assertions.md#optic-laws).
 - **`assertAffineLaws` law-checks an affine that writes to an absent focus** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): `Affines.some()` and a `Lens.andThen(Prism)` affine now pass. On the absent target it checks that `modify` changes nothing, that `set` either changes nothing or writes a value that reads back, and set-set. Add `assertSetNoOpWhenAbsent` for an affine that must leave it alone. See [When the focus is absent](../optics/affine.md#when-the-focus-is-absent).
 
 ---
@@ -271,6 +272,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Testing {#runtime-testing}
 
+- **Lens and affine law harnesses accept one value equal to the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). Existing lawful fixtures still pass; equal supplied values remain rejected. A setter that ignores updates still fails set-get on the other value.
 - **`assertAffineLaws` no longer requires `set` to leave an absent target alone** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): a test that relied on it to catch an affine writing there now passes. Add `AffineLaws.assertSetNoOpWhenAbsent(affine, absentSource, value)` to keep that check.
 
 ### What stops a build that compiled {#build-changes}

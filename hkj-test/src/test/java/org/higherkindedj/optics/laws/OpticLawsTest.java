@@ -21,6 +21,8 @@ class OpticLawsTest {
 
   record Person(String name, Optional<String> nickname) {}
 
+  record Flag(boolean on) {}
+
   private static final Lens<Person, String> NAME =
       Lens.of(Person::name, (p, n) -> new Person(n, p.nickname()));
   private static final Person ADA = new Person("Ada", Optional.of("Countess"));
@@ -72,6 +74,26 @@ class OpticLawsTest {
       TraversalLaws.assertTraversalLaws(
           Traversals.forList(), List.of("a", "bb"), s -> s + "!", String::toUpperCase);
       ValidatedPrismLaws.assertValidatedPrismLaws(INT_PRISM, "42", "not-a-number");
+    }
+
+    @Test
+    @DisplayName("a boolean lens passes with false and true")
+    void booleanLensPassesWithBothValues() {
+      Lens<Flag, Boolean> on = Lens.of(Flag::on, (flag, value) -> new Flag(value));
+
+      LensLaws.assertLensLaws(on, new Flag(true), false, true);
+    }
+
+    @Test
+    @DisplayName("a lens passes when one supplied value equals the current focus")
+    void lensPassesWithCurrentFocus() {
+      LensLaws.assertLensLaws(NAME, ADA, "Ada", "Grace");
+    }
+
+    @Test
+    @DisplayName("an affine passes when one supplied value equals the present focus")
+    void affinePassesWithCurrentFocus() {
+      AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Countess", "Lady");
     }
   }
 
@@ -158,6 +180,30 @@ class OpticLawsTest {
     }
 
     @Test
+    @DisplayName("a set-ignoring lens still fails set-get when one value equals the current focus")
+    void brokenLensFailsAggregateWithCurrentFocus() {
+      Lens<Person, String> ignoresSet = Lens.of(Person::name, (p, n) -> p);
+
+      assertThatThrownBy(() -> LensLaws.assertLensLaws(ignoresSet, ADA, "Ada", "Grace"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-get")
+          .hasMessageContaining("Grace");
+    }
+
+    @Test
+    @DisplayName(
+        "a set-ignoring affine still fails set-get when one value equals the present focus")
+    void brokenAffineFailsAggregateWithCurrentFocus() {
+      Affine<Person, String> ignoresSet = Affine.of(Person::nickname, (p, n) -> p);
+
+      assertThatThrownBy(
+              () -> AffineLaws.assertAffineLaws(ignoresSet, ADA, ANON, "Countess", "Lady"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-get")
+          .hasMessageContaining("Lady");
+    }
+
+    @Test
     @DisplayName("a normalising iso fails the source round trip")
     void normalisingIsoFailsRoundTrip() {
       Iso<String, String> trimming = Iso.of(String::trim, s -> s);
@@ -222,6 +268,9 @@ class OpticLawsTest {
     @DisplayName("guard rails reject vacuous fixtures")
     void guardRailsRejectVacuousFixtures() {
       assertThatThrownBy(() -> LensLaws.assertLensLaws(NAME, ADA, "Same", "Same"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("DISTINCT");
+      assertThatThrownBy(() -> AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Same", "Same"))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("DISTINCT");
       assertThatThrownBy(() -> PrismLaws.assertMatchBuild(PARSE_INT, "nope"))

@@ -43,15 +43,13 @@ public final class LensLaws {
         .isEqualTo(once);
   }
 
-  /** All lens laws for one fixture. Guards against vacuous set-set by requiring distinct values. */
+  /**
+   * All lens laws for one fixture, with two focus values that differ from each other.
+   *
+   * <p>Distinct values avoid a vacuous set-set check. At most one can equal the current focus, so
+   * the other's set-get check still catches a setter that does nothing.
+   */
   public static <S, A> void assertLensLaws(Lens<S, A> lens, S s, A a1, A a2) {
-    A current = lens.get(s);
-    assertThat(a1)
-        .as("assertLensLaws needs focus values distinct from the current focus %s", current)
-        .isNotEqualTo(current);
-    assertThat(a2)
-        .as("assertLensLaws needs focus values distinct from the current focus %s", current)
-        .isNotEqualTo(current);
     assertThat(a1)
         .as("assertLensLaws needs two DISTINCT focus values; both were %s", a1)
         .isNotEqualTo(a2);
