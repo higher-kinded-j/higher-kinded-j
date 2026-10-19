@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Locale;
 import org.higherkindedj.optics.util.Traversals;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.parallel.Resources;
 @ResourceLock(Resources.LOCALE)
 class LoggingOpticInterpreterLocaleTest {
   @Test
+  @DisplayName("numeric log counts use root-locale digits")
   void countsUseRootLocaleDigits() {
     Locale previous = Locale.getDefault();
     Locale display = Locale.getDefault(Locale.Category.DISPLAY);
