@@ -33,7 +33,6 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Optics {#optics}
 
-- **Lens and affine law fixtures may include the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). `assertLensLaws` and `assertAffineLaws` require only that their two focus values differ from each other. A boolean lens can use `false, true`. See [Optic Laws](../tooling/test_assertions.md#optic-laws).
 - **`@GenerateFocus` generates navigators by default, and a navigator is a path** ([#1033](https://github.com/higher-kinded-j/higher-kinded-j/issues/1033)). `UserFocus.address().street()` works on a bare annotation, and `generateNavigators = false` turns navigators off. A navigator can be held as a `FocusPath` or passed to an Effect Path's `focus`, and every path method works on it. See [Fluent navigation with generated navigators](../optics/focus_navigation.md#fluent-navigation-with-generated-navigators).
 - **A navigator steps into a container only where the record widens it** ([#1033](https://github.com/higher-kinded-j/higher-kinded-j/issues/1033)). A `Map`, an array or a third-party collection of `@GenerateFocus` records gets a navigator under `widenCollections = true`, or when the new `widenFields` names the field. So turning navigators on never changes what a field's method focuses on. See [The `ZERO_OR_MORE` Asymmetry](../optics/focus_containers.md#the-zero_or_more-asymmetry-and-widencollections).
 - **A navigator never reaches a field named like a path method** ([#1033](https://github.com/higher-kinded-j/higher-kinded-j/issues/1033)). A record that writes `generateNavigators = true` is refused when its field reaches a record with a field such as `last`, since `name().last()` would call `FocusPath.last()`. A record on the default keeps that field's plain path, with a note. See [A field named like a path method](../optics/focus_navigation.md#a-field-named-like-a-path-method).
@@ -108,6 +107,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Testing {#testing}
 
+- **Lens and affine law fixtures may include the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). `assertLensLaws` and `assertAffineLaws` require only that their two focus values differ from each other. A boolean lens can use `false, true`. See [Optic Laws](../tooling/test_assertions.md#optic-laws).
 - **`assertAffineLaws` law-checks an affine that writes to an absent focus** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): `Affines.some()` and a `Lens.andThen(Prism)` affine now pass. On the absent target it checks that `modify` changes nothing, that `set` either changes nothing or writes a value that reads back, and set-set. Add `assertSetNoOpWhenAbsent` for an affine that must leave it alone. See [When the focus is absent](../optics/affine.md#when-the-focus-is-absent).
 
 ---
@@ -178,7 +178,6 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Optics {#runtime-optics}
 
-- **Lens and affine law harnesses accept one value equal to the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). Existing lawful fixtures still pass; equal supplied values remain rejected. A setter that ignores updates still fails set-get on the other value.
 - **A field holding another `@GenerateFocus` record returns a navigator** ([#1033](https://github.com/higher-kinded-j/higher-kinded-j/issues/1033)): a `getClass()` check sees the navigator class. A navigator equals only a navigator over an equal path, never the plain path it wraps.
 - **A navigator is a path** ([#1033](https://github.com/higher-kinded-j/higher-kinded-j/issues/1033)): one from a record that wrote `generateNavigators = true` passes `instanceof FocusPath`, and an overload taking a `FocusPath` is chosen over one taking `Object`.
 - **A map an optic writes iterates in the source's order** ([#1022](https://github.com/higher-kinded-j/higher-kinded-j/pull/1022)): it came back in hash order, so printed output or a test of a map's iteration order can change. `FocusPaths.mapValues` over an empty map returns a new map.
@@ -271,6 +270,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Testing {#runtime-testing}
 
+- **Lens and affine law harnesses accept one value equal to the current focus** ([#812](https://github.com/higher-kinded-j/higher-kinded-j/issues/812)). Existing lawful fixtures still pass; equal supplied values remain rejected. A setter that ignores updates still fails set-get on the other value.
 - **`assertAffineLaws` no longer requires `set` to leave an absent target alone** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): a test that relied on it to catch an affine writing there now passes. Add `AffineLaws.assertSetNoOpWhenAbsent(affine, absentSource, value)` to keep that check.
 
 ### What stops a build that compiled {#build-changes}
