@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.Locale;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -126,7 +127,7 @@ class MaybeApplicativeTest extends MaybeTestBase {
       var r2 = applicative.of("test");
       var r3 = applicative.of(3.14);
       Function3<Integer, String, Double, String> combiner =
-          (i, s, d) -> String.format("%s:%d:%.2f", s, i, d);
+          (i, s, d) -> String.format(Locale.ROOT, "%s:%d:%.2f", s, i, d);
       assertThatMaybe(applicative.map3(r1, r2, r3, combiner)).isJust().hasValue("test:1:3.14");
     }
 
@@ -138,7 +139,7 @@ class MaybeApplicativeTest extends MaybeTestBase {
       var r3 = applicative.of(3.14);
       var r4 = applicative.of(true);
       Function4<Integer, String, Double, Boolean, String> combiner =
-          (i, s, d, b) -> String.format("%s:%d:%.2f:%b", s, i, d, b);
+          (i, s, d, b) -> String.format(Locale.ROOT, "%s:%d:%.2f:%b", s, i, d, b);
       assertThatMaybe(applicative.map4(r1, r2, r3, r4, combiner))
           .isJust()
           .hasValue("test:1:3.14:true");

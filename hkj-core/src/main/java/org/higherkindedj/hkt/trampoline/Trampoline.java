@@ -188,7 +188,8 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
    * @param next A supplier that produces the next {@code Trampoline} step. Must not be {@code null}
    *     and must not return {@code null}.
    * @return A {@code Trampoline} representing the deferred computation. Never {@code null}.
-   * @throws NullPointerException if {@code next} is {@code null}.
+   * @throws NullPointerException if {@code next} is {@code null}, or if {@code next} returns {@code
+   *     null} when the step is run.
    */
   static <A> Trampoline<A> defer(Supplier<Trampoline<A>> next) {
     Validation.function().require(next, "next", DEFER);
@@ -339,7 +340,8 @@ public sealed interface Trampoline<A> extends TrampolineKind<A>
           current = stack.removeLast().apply(done.value());
         }
         case More<?> more -> {
-          current = more.next().get();
+          // Read when the step runs, so defer stays lazy and a deep chain stays stack-safe.
+          current = Objects.requireNonNull(more.next().get(), "supplier must not return null");
         }
         case FlatMap<?, ?> flatMap -> {
           // Wrap the function in a continuation and push it onto the stack

@@ -1556,7 +1556,11 @@ public final class Path {
    * <p>This is the key method for achieving stack safety. Instead of making a recursive call
    * directly, wrap the call in {@code trampolineDefer}.
    *
-   * @param supplier supplies the next TrampolinePath step; must not be null
+   * <p>A supplier that returns null fails the path with a {@link NullPointerException} when the
+   * deferred step is run.
+   *
+   * @param supplier supplies the next TrampolinePath step; must not be null, and must not return
+   *     null
    * @param <A> the value type
    * @return a TrampolinePath representing the deferred computation
    * @throws NullPointerException if supplier is null

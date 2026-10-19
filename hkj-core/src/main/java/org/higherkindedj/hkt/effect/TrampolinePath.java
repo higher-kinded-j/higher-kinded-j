@@ -75,14 +75,22 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
    * <p>This is the key method for achieving stack safety. Instead of making a recursive call
    * directly, wrap the call in {@code defer}.
    *
-   * @param supplier supplies the next TrampolinePath step; must not be null
+   * <p>A supplier that returns null fails the path with a {@link NullPointerException} when the
+   * deferred step is run.
+   *
+   * @param supplier supplies the next TrampolinePath step; must not be null, and must not return
+   *     null
    * @param <A> the value type
    * @return a TrampolinePath representing the deferred computation
    * @throws NullPointerException if supplier is null
    */
   public static <A> TrampolinePath<A> defer(Supplier<TrampolinePath<A>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return new TrampolinePath<>(Trampoline.defer(() -> supplier.get().trampoline));
+    return new TrampolinePath<>(
+        Trampoline.defer(
+            () ->
+                Objects.requireNonNull(supplier.get(), "supplier must not return null")
+                    .trampoline));
   }
 
   /**
