@@ -78,6 +78,32 @@ class MappingFixLineTest {
         result.invokeStatic("com.example.Probe", method);
   }
 
+  @Test
+  @DisplayName("a misspelt @MapKey value suggests a component name that compiles")
+  void misspeltMapKeySuggestsComponentName() {
+    String body =
+        """
+        record Basket(Map<String, Integer> byOwner) {}
+        record BasketDto(Map<String, Integer> byOwner) {}
+        @GenerateMapping
+        interface BasketMapping extends MappingSpec<Basket, BasketDto> {
+          @MapKey("%s")
+          default ValidatedPrism<String, String> byOwnerKey() {
+            return ValidatedPrism.of(Validated::validNel, s -> s);
+          }
+        }
+        """;
+    Compilation refused = compile(body.formatted("byOwnr"));
+    assertThat(refused).failed();
+    assertThat(refused).hadErrorCount(1);
+    assertThat(refused).hadErrorContaining("@MapKey(\"byOwnr\") names no component of Basket");
+    Assertions.assertThat(refused.errors().getFirst().getMessage(null))
+        .contains("Did you mean 'byOwner'?")
+        .doesNotContain("byOwner()");
+
+    compileFollowed(body.formatted("byOwner"));
+  }
+
   @Nested
   @DisplayName("a whole-component leaf beside a @MapKey leaf")
   class ShadowedKeyLeaf {
