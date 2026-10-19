@@ -15,8 +15,8 @@ import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.util.Traversals;
 
 /// Base of Traversable Generators for Eclipse Collections that are both:
-///  * A collection of 0...n, not 1
-///  * Of a single type/column
+/// * A collection of 0...n, not 1
+/// * Of a single type/column
 public abstract class EclipseBaseSingleIterableTraversableGenerator
     extends BaseTraversableGenerator {
   /** Base API package name for Eclipse Collections. */

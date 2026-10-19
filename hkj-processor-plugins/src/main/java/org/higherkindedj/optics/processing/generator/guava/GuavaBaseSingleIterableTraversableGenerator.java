@@ -15,8 +15,8 @@ import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.util.Traversals;
 
 /// Base of Traversable Generators for Google Guava Collections that are both:
-///  * A collection of 0...n, not 1
-///  * Of a single type/column
+/// * A collection of 0...n, not 1
+/// * Of a single type/column
 public abstract class GuavaBaseSingleIterableTraversableGenerator extends BaseTraversableGenerator {
   private static final String COLLECTIONS_PACKAGE = "com.google.common.collect";
 

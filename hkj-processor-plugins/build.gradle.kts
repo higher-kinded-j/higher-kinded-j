@@ -10,7 +10,6 @@ dependencies {
     // Depends on the core library for the types the generators support
     implementation(project(":hkj-core"))
     implementation(libs.javapoet)
-    implementation(libs.palantir.java.format)
     /*
      * The Avaje SPI (https://avaje.io/spi/) annotation processor help manage
      *   SPI implementations. It does this by:
