@@ -18,7 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("ListApplicative")
-public class ListApplicativeTest extends ListTestBase {
+class ListApplicativeTest extends ListTestBase {
 
   private Applicative<ListKind.Witness> applicative;
 
@@ -53,8 +53,10 @@ public class ListApplicativeTest extends ListTestBase {
     @ParameterizedTest(name = "composition holds on {0}")
     @MethodSource("org.higherkindedj.hkt.list.ListLawFixtures#kinds")
     void composition(String label, Kind<ListKind.Witness, Integer> w) {
-      Kind<ListKind.Witness, Function<String, String>> u = LIST.widen(List.of(s -> "u(" + s + ")"));
-      Kind<ListKind.Witness, Function<Integer, String>> v = LIST.widen(List.of(i -> "v" + i));
+      Kind<ListKind.Witness, Function<String, String>> u =
+          LIST.widen(List.of(s -> "u(" + s + ")", s -> s + "!"));
+      Kind<ListKind.Witness, Function<Integer, String>> v =
+          LIST.widen(List.of(i -> "v" + i, i -> "w" + i));
       ApplicativeLaws.assertComposition(applicative, u, v, w, equalityChecker);
     }
   }
