@@ -377,8 +377,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * Performs one of two actions depending on whether this is a {@link Success} or a {@link
    * Failure}, using pattern matching. This is primarily for side effects.
    *
-   * <p>Note: Any exceptions thrown by the consumer actions are caught and logged to avoid
-   * propagating errors from side-effect operations.
+   * <p>An exception thrown by either action is not caught: it propagates to the caller.
    *
    * @param successAction The non-null action to perform if this is a {@link Success}.
    * @param failureAction The non-null action to perform if this is a {@link Failure}.
