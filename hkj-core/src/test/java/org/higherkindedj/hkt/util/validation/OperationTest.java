@@ -64,6 +64,7 @@ class OperationTest {
         Arguments.of(READER, "reader"),
         Arguments.of(RUN_READER, "runReader"),
         Arguments.of(FOLD, "fold"),
+        Arguments.of(FOLD_FAILURE_FIRST, "foldFailureFirst"),
         Arguments.of(TO_EITHER, "toEither"),
         Arguments.of(MATCH, "match"),
         Arguments.of(OR_ELSE, "orElse"),

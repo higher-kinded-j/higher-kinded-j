@@ -23,7 +23,7 @@ import org.openrewrite.java.tree.JavaType;
  * EitherPath.fold}, and {@code ValidationPath.fold}. Both methods were deprecated in 0.4.6 and are
  * removed in 0.5.0, so the recipe matches them only while the project compiles against 0.4.x: run
  * it before the project moves to 0.5.0. The rewritten {@code foldFailureFirst} calls compile
- * against both.
+ * against 0.4.6 and later.
  *
  * <h2>Why a custom recipe (rather than {@code ChangeMethodName})</h2>
  *

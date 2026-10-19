@@ -171,8 +171,10 @@ public class TutorialVTask {
      * Exercise 5: Execute safely with {@code runSafe}.
      *
      * <pre>
-     *   // Nudge:    runSafe returns Try; isFailure / fold are the standard interrogators.
-     *   // Strategy: result.isFailure() and result.fold(v -&gt; "no error", err -&gt; err.getMessage())
+     *   // Nudge:    runSafe returns Try; isFailure / foldFailureFirst are the standard
+     *   //           interrogators.
+     *   // Strategy: result.isFailure() and
+     *   //           result.foldFailureFirst(err -&gt; err.getMessage(), v -&gt; "no error")
      *   // Spoiler:  see hint above.
      * </pre>
      */

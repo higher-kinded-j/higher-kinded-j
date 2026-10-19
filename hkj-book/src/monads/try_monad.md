@@ -101,7 +101,7 @@ You can create `Try` instances in several ways:
 
 ### Getting the Value (Use with Caution)
 
-* `get()`: Returns the value if `Success`, otherwise throws the contained `Throwable`. **Avoid using this directly; prefer `fold`, `map`, `flatMap`, or recovery methods.**
+* `get()`: Returns the value if `Success`, otherwise throws the contained `Throwable`. **Avoid using this directly; prefer `foldFailureFirst`, `map`, `flatMap`, or recovery methods.**
 ~~~
 
 
@@ -166,7 +166,7 @@ String message = result2.foldFailureFirst(
 
 ~~~admonish note title="Why not `fold`?"
 
-Releases before 0.5.0 had a success-first `Try.fold(successMapper, failureMapper)`, and `TryPath.fold` to match. Because `foldFailureFirst` has a name of its own, a call written for that `fold` fails to compile rather than running its two functions the wrong way round. The `SwapTryFoldToFoldFailureFirstRecipe` rewrites such calls, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
+Releases before 0.5.0 had a success-first `Try.fold(successMapper, failureMapper)`, and `TryPath.fold` to match. Because `foldFailureFirst` has a name of its own, a call written for that `fold` fails to compile rather than running its two functions the wrong way round. Rename such a call and swap its two functions, or run `SwapTryFoldToFoldFailureFirstRecipe` before the project moves to 0.5.0, as [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration) shows.
 ~~~
 
 ~~~admonish title="_recover(recoveryFunc)_"

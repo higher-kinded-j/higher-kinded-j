@@ -465,7 +465,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
 
     @Override
     public Try<T> recover(Function<? super Throwable, ? extends T> recoveryFunction) {
-      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER_FUNCTION);
+      Validation.function().require(recoveryFunction, "recoveryFunction", RECOVER);
       return this;
     }
 

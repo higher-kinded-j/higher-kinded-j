@@ -131,6 +131,7 @@ Getting back to standard Java from any Path:
 | `EitherPath<E, A>` | `B` | `.run().fold(onErr, onOk)` |
 | `TryPath<A>` | `Try<A>` | `.run()` |
 | `TryPath<A>` | `A` (or default) | `.getOrElse(defaultValue)` |
+| `TryPath<A>` | `B` | `.foldFailureFirst(onErr, onOk)` |
 | `ValidationPath<E, A>` | `Validated<E, A>` | `.run()` |
 | `ValidationPath<E, A>` | `B` | `.fold(onInvalid, onValid)` |
 | `IOPath<A>` | `A` | `.unsafeRun()` |

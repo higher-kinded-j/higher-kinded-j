@@ -12,7 +12,7 @@ interface "Try<T>" as Try {
   + {abstract} Try<U> flatMap(Function<T, Try<U>> mapper)
   + {abstract} Try<T> recover(Function<Throwable, T> recoveryFunc)
   + {abstract} Try<T> recoverWith(Function<Throwable, Try<T>> recoveryFunc)
-  + {abstract} U fold(Function<T, U> successMapper, Function<Throwable, U> failureMapper)
+  + U foldFailureFirst(Function<Throwable, U> failureMapper, Function<T, U> successMapper)
   + {abstract} void match(Consumer<T> successAction, Consumer<Throwable> failureAction)
   + {static} Try<T> of(Supplier<T> supplier)
   + {static} Try<T> success(T value)

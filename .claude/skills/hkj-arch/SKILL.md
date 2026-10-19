@@ -97,7 +97,7 @@ You are helping a developer structure their Java 25 application using the "funct
 | REST controller | `.run()` on EitherPath | `return orderService.process(req).run();` |
 | REST controller | `.fold()` on result | `return result.fold(this::errorResponse, this::successResponse);` |
 | CLI entry point | `.unsafeRun()` on IOPath | `pipeline.unsafeRun();` |
-| Scheduled job | `.runSafe()` on VTaskPath | `task.runSafe().fold(this::logError, this::logSuccess);` |
+| Scheduled job | `.runSafe()` on VTaskPath | `task.runSafe().foldFailureFirst(this::logError, this::logSuccess);` |
 | Test | `.run()` then assert | `assertEquals(Either.right(expected), service.process(input).run());` |
 
 **Rule**: `.unsafeRun()` and `.run()` belong in the shell. The core should only build and compose paths, never execute them.

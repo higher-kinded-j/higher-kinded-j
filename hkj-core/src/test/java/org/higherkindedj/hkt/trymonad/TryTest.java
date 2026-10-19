@@ -780,7 +780,7 @@ class TryTest extends TryTestBase {
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.recover(null))
-          .withMessageContaining("recoveryFunction for recoverFunction cannot be null");
+          .withMessageContaining("recoveryFunction for recover cannot be null");
     }
   }
 

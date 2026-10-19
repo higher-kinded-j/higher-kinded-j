@@ -79,7 +79,7 @@ Six ways to model "this computation might not produce a value."
 
 **[`Either<L, R>`](./either_monad.md)**: `Right(value)` or `Left(error)`. Right-biased. Unlike Maybe/Optional which only say "absent", Either carries a typed error `L` that explains *why* the computation failed. Also provides Bifunctor for mapping both sides.
 
-**[`Try<A>`](./try_monad.md)**: `Success(value)` or `Failure(throwable)`. Either specialised for exceptions. Wrap risky code with `Try.tryOf(() -> ...)` and it catches the exception for you. Reach for this when your error is always a `Throwable`.
+**[`Try<A>`](./try_monad.md)**: `Success(value)` or `Failure(throwable)`. Either specialised for exceptions. Wrap risky code with `Try.of(() -> ...)` and it catches the exception for you. Reach for this when your error is always a `Throwable`.
 
 **[`Validated<E, A>`](./validated_monad.md)**: `Valid(value)` or `Invalid(error)`. Looks like Either, but its killer feature is error *accumulation*: use applicative `ap` with a `Semigroup<E>` to collect ALL errors from independent validations, not just the first one. The go-to for form validation and input checking.
 
