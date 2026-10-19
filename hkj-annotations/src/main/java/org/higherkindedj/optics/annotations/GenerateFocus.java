@@ -151,7 +151,8 @@ public @interface GenerateFocus {
    * generator with {@code Cardinality.ZERO_OR_MORE} cardinality.
    *
    * <p>To widen some containers and leave others, name the fields in {@link #widenFields()}
-   * instead. A navigator steps into a zero-or-more container only where it is widened.
+   * instead. Beside {@code widenCollections = true}, {@code widenFields} widens nothing more, and
+   * draws a warning. A navigator steps into a zero-or-more container only where it is widened.
    *
    * @return true to auto-widen ZERO_OR_MORE SPI types to TraversalPath (default: false)
    * @since 0.4.0
@@ -164,9 +165,13 @@ public @interface GenerateFocus {
    * such as a {@code Map}, whole.
    *
    * <p>A navigator steps into a container only where the field is widened, so this is also how a
-   * container of {@code @GenerateFocus} records gets a navigator over its elements. A name that
-   * matches no component, or a component that is not such a container, changes nothing; the names
-   * are not checked.
+   * container of {@code @GenerateFocus} records gets a navigator over its elements.
+   *
+   * <p>Each name is checked against the record's components. A name that matches none is an error,
+   * offering the component it most likely meant. A name whose field this cannot widen draws a
+   * warning: a {@code List}, an {@code Optional} or another container the field's method widens
+   * whether named or not, or a field that holds no such container, such as a {@code String} or an
+   * {@code int[]}.
    *
    * @return names of the fields to widen, or empty for none beyond {@link #widenCollections()}
    * @since 0.5.0
@@ -179,8 +184,11 @@ public @interface GenerateFocus {
    * <p>If empty (the default), all fields with navigable types are included. When specified, only
    * the listed fields will have navigator methods generated.
    *
-   * <p>This is mutually exclusive with {@link #excludeFields()}. If both are specified, {@code
-   * includeFields} takes precedence.
+   * <p>Each name is checked against the record's components, and a name that matches none is an
+   * error, offering the component it most likely meant: such a name would turn a navigator off
+   * rather than on. Set this or {@link #excludeFields()}, not both: beside a non-empty {@code
+   * includeFields}, {@code excludeFields} is never read, and draws a warning. With {@code
+   * generateNavigators = false}, neither is read, and each draws a warning.
    *
    * @return array of field names to include, or empty for all fields
    */
@@ -192,8 +200,10 @@ public @interface GenerateFocus {
    * <p>When specified, the listed fields will not have navigator methods generated, even if their
    * types are navigable.
    *
-   * <p>This is mutually exclusive with {@link #includeFields()}. If both are specified, {@code
-   * includeFields} takes precedence.
+   * <p>Each name is checked against the record's components, and a name that matches none is an
+   * error, offering the component it most likely meant. Set this or {@link #includeFields()}, not
+   * both: beside a non-empty {@code includeFields}, this is never read, and draws a warning. With
+   * {@code generateNavigators = false}, it is not read either, and draws a warning.
    *
    * @return array of field names to exclude
    */

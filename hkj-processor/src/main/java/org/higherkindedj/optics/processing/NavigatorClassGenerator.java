@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing;
 
 import com.palantir.javapoet.*;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -160,6 +161,27 @@ public class NavigatorClassGenerator {
     GenerateFocus settings = focusSettings(record);
     return settings.widenCollections()
         || Arrays.asList(settings.widenFields()).contains(component.getSimpleName().toString());
+  }
+
+  /**
+   * Whether a record's {@code @GenerateFocus} names a constant javac has not resolved, which reads
+   * as a value of the wrong type. javac reports the constant itself, and neither the record's own
+   * companion nor a navigator into it can be generated from settings that cannot be read, so the
+   * processor writes no companion for the record and treats it as not navigable. Every attribute is
+   * read, so one added later is covered too.
+   *
+   * @param settings the annotation as javac reads it
+   * @return true when an attribute cannot be read
+   */
+  static boolean unreadable(GenerateFocus settings) {
+    try {
+      for (Method attribute : GenerateFocus.class.getDeclaredMethods()) {
+        attribute.invoke(settings);
+      }
+      return false;
+    } catch (ReflectiveOperationException e) {
+      return true;
+    }
   }
 
   /**
@@ -867,7 +889,7 @@ public class NavigatorClassGenerator {
             + fieldName
             + "'.",
         "A navigator is "
-            + withArticle(tier)
+            + tier.withArticle()
             + ", which has its own "
             + fieldName
             + "(), so "
@@ -888,26 +910,28 @@ public class NavigatorClassGenerator {
             + "' a plain path.");
   }
 
-  /** A path type's name with its article: "a FocusPath", "an AffinePath". */
-  private static String withArticle(Tier tier) {
-    return (tier == Tier.AFFINE ? "an " : "a ") + tier.description();
-  }
-
   /**
-   * The words a fix line uses to leave one of a record's fields without a navigator, on a record
-   * that writes {@code generateNavigators = true}: listed in {@code excludeFields}, taken out of
-   * {@code includeFields}, or, where it is the only field {@code includeFields} names, navigators
-   * turned off, since an empty {@code includeFields} filters nothing.
+   * The words a fix line uses to leave one of a record's fields without a navigator: listed in
+   * {@code excludeFields}, taken out of {@code includeFields}, or, where it is the only field
+   * {@code includeFields} names, navigators turned off, since an empty {@code includeFields}
+   * filters nothing. The list goes with them, since no list is read once navigators are off, and
+   * one left behind draws a warning. A field {@code includeFields} leaves out has no navigator to
+   * keep from it, so where the list is written it names the field.
    */
   private static String keepPlainPath(TypeElement record, String component) {
     List<String> included = Arrays.asList(focusSettings(record).includeFields());
-    if (!included.contains(component)) {
+    if (included.isEmpty()) {
       return addToFieldList(record, "excludeFields", component);
     }
-    return included.size() == 1
-        ? "replace generateNavigators = true with generateNavigators = false on "
+    if (included.size() > 1) {
+      return FocusFieldListChecks.removeName(record, "includeFields", component);
+    }
+    return writesAttribute(record, "generateNavigators")
+        ? "remove includeFields and replace generateNavigators = true with generateNavigators ="
+            + " false on "
             + record.getSimpleName()
-        : "remove \"" + component + "\" from includeFields on " + record.getSimpleName();
+        : "remove includeFields and add generateNavigators = false to @GenerateFocus on "
+            + record.getSimpleName();
   }
 
   /**
@@ -1453,7 +1477,8 @@ public class NavigatorClassGenerator {
       return new Reach.Navigable(typeElement);
     }
     if (typeElement.getKind() != ElementKind.RECORD
-        || !(typeElement.getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings)) {
+        || !(typeElement.getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings)
+        || unreadable(settings)) {
       return new Reach.None();
     }
     TypeElement companion =
@@ -1547,7 +1572,7 @@ public class NavigatorClassGenerator {
             + targetName
             + ".",
         "A navigator is "
-            + withArticle(methodPath(record, component).tier())
+            + methodPath(record, component).tier().withArticle()
             + ", which has its own "
             + declined.stream().map(field -> field + "()").collect(Collectors.joining(" and "))
             + ", so it cannot navigate to "
@@ -1562,7 +1587,7 @@ public class NavigatorClassGenerator {
             + " to navigate into "
             + targetName
             + ", or "
-            + addToFieldList(record, "excludeFields", name)
+            + keepPlainPath(record, name)
             + " to keep the path without this note.");
   }
 

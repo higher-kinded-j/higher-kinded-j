@@ -164,6 +164,11 @@ public final class WideningAnalysis {
       return pathClass().simpleName();
     }
 
+    /** The path class's simple name with its article, for a message: "an AffinePath". */
+    String withArticle() {
+      return (this == AFFINE ? "an " : "a ") + description();
+    }
+
     /** The reader this tier's path offers, for the Javadoc example. */
     String getMethod() {
       return switch (this) {

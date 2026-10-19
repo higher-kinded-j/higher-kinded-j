@@ -70,7 +70,7 @@ class NavigatorRulesTest {
             @GenerateFocus(generateNavigators = true) | add excludeFields = "name" to @GenerateFocus on Person | @GenerateFocus(generateNavigators = true, excludeFields = "name")
             @GenerateFocus(generateNavigators = true, excludeFields = "other") | add "name" to excludeFields on Person | @GenerateFocus(generateNavigators = true, excludeFields = {"other", "name"})
             @GenerateFocus(generateNavigators = true, includeFields = {"name", "other"}) | remove "name" from includeFields on Person | @GenerateFocus(generateNavigators = true, includeFields = "other")
-            @GenerateFocus(generateNavigators = true, includeFields = "name") | replace generateNavigators = true with generateNavigators = false on Person | @GenerateFocus(generateNavigators = false, includeFields = "name")
+            @GenerateFocus(generateNavigators = true, includeFields = "name") | remove includeFields and replace generateNavigators = true with generateNavigators = false on Person | @GenerateFocus(generateNavigators = false)
             """)
     @DisplayName("is refused, where the record asks for navigators, with a fix line that compiles")
     void isRefusedWithAFollowableFixLine(String annotation, String fix, String followed) {
@@ -121,6 +121,38 @@ class NavigatorRulesTest {
               .compile(NAME, person("@GenerateFocus(excludeFields = \"name\")"), NAME_OTHER);
       assertThat(followed).succeededWithoutWarnings();
       Assertions.assertThat(followed.notes())
+          .noneMatch(note -> note.getMessage(null).contains("has no navigator into"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " | ",
+        textBlock =
+            """
+            @GenerateFocus(excludeFields = "other") | add "name" to excludeFields on Person | @GenerateFocus(excludeFields = {"other", "name"})
+            @GenerateFocus(includeFields = {"name", "other"}) | remove "name" from includeFields on Person | @GenerateFocus(includeFields = "other")
+            @GenerateFocus(includeFields = "name") | remove includeFields and add generateNavigators = false to @GenerateFocus on Person | @GenerateFocus(generateNavigators = false)
+            """)
+    @DisplayName("draws a note on the default whose fix line compiles with nothing more to say")
+    void isNotedWithAFollowableFixLine(String annotation, String fix, String followed) {
+      Compilation noted =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(NAME, person(annotation), NAME_OTHER);
+
+      assertThat(noted).succeededWithoutWarnings();
+      assertThat(noted)
+          .hadNoteContaining(
+              "Rename 'Name.last' to navigate into Name, or "
+                  + fix
+                  + " to keep the path without this note.")
+          .inFile(person(annotation))
+          .onLineContaining("Name name");
+
+      Compilation fixed =
+          javac().withProcessors(new FocusProcessor()).compile(NAME, person(followed), NAME_OTHER);
+      assertThat(fixed).succeededWithoutWarnings();
+      Assertions.assertThat(fixed.notes())
           .noneMatch(note -> note.getMessage(null).contains("has no navigator into"));
     }
 
