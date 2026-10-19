@@ -150,6 +150,10 @@ public final class AffineLaws {
    * modify} changes nothing, set-set holds, and {@code set} either changes nothing or writes a
    * value that reads back. Add {@link #assertSetNoOpWhenAbsent} for an affine that must leave an
    * absent target alone.
+   *
+   * <p>The two focus values must differ from each other to avoid a vacuous set-set check. At most
+   * one can equal the present focus, so the other's set-get check still catches a setter that does
+   * nothing.
    */
   public static <S, A> void assertAffineLaws(
       Affine<S, A> affine, S presentSource, S absentSource, A a1, A a2) {
@@ -157,16 +161,6 @@ public final class AffineLaws {
     assertThat(current)
         .as("assertAffineLaws needs a PRESENT target; getOptional(%s) was empty", presentSource)
         .isPresent();
-    assertThat(a1)
-        .as(
-            "assertAffineLaws needs focus values distinct from the current focus %s",
-            current.orElseThrow())
-        .isNotEqualTo(current.orElseThrow());
-    assertThat(a2)
-        .as(
-            "assertAffineLaws needs focus values distinct from the current focus %s",
-            current.orElseThrow())
-        .isNotEqualTo(current.orElseThrow());
     assertThat(a1)
         .as("assertAffineLaws needs two DISTINCT focus values; both were %s", a1)
         .isNotEqualTo(a2);
