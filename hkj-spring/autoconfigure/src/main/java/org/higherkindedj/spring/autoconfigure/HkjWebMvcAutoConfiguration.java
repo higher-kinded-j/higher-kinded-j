@@ -66,8 +66,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>Uses {@link WebMvcRegistrations} to customise the {@link RequestMappingHandlerAdapter} and
  * inject our handlers BEFORE Spring's default handlers, ensuring they take precedence.
  *
- * <p><b>Note:</b> This version requires Spring Boot 4.0.1+ and uses Jackson 3.x. For Spring Boot
- * 3.5.7, use hkj-spring version 0.2.7.
+ * <p>Uses Jackson 3 ({@code tools.jackson}).
  */
 @AutoConfiguration(after = HkjAutoConfiguration.class)
 @ConditionalOnClass({DispatcherServlet.class, Kind.class})

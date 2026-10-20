@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot 4.0.3+ integration.
+This document provides a complete reference for all configuration properties available in the higher-kinded-j Spring Boot integration.
 
 ## Table of Contents
 

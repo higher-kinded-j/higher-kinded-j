@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Return value handler that converts {@link CompletableFuturePath} return values from controller
  * methods into asynchronous HTTP responses.
  *
- * <p>This handler is part of the Effect Path API integration for Spring Boot 4.0.1+. It provides
+ * <p>This handler is part of the Effect Path API integration for Spring Boot. It provides
  * non-blocking async support using Spring's {@link DeferredResult} mechanism.
  *
  * <p>Key characteristics:

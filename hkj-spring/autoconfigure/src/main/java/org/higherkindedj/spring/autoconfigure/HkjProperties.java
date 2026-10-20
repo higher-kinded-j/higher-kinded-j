@@ -7,10 +7,7 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration properties for higher-kinded-j Spring Boot 4.0.3+ integration.
- *
- * <p>This version uses the Effect Path API exclusively. For Spring Boot 3.5.7, use hkj-spring
- * version 0.2.7.
+ * Configuration properties for the higher-kinded-j Spring Boot integration.
  *
  * <p>Configure via application.yml/properties with the prefix "hkj":
  *
@@ -171,12 +168,7 @@ public class HkjProperties {
     this.effectBoundary = effectBoundary;
   }
 
-  /**
-   * Web/MVC configuration properties for Effect Path API handlers.
-   *
-   * <p>Spring Boot 4.0.1+ uses Effect Path API handlers exclusively. For Spring Boot 3.5.7, use
-   * hkj-spring version 0.2.7.
-   */
+  /** Web/MVC configuration properties for Effect Path API handlers. */
   public static class Web {
     /** Enable EitherPath return value handler. Default: true */
     private boolean eitherPathEnabled = true;
