@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -240,7 +242,7 @@ public class NavigatorClassGenerator {
           case Reach.Unpublished(TypeElement unpublished) ->
               reportUnpublishedTargetSkipped(recordElement, component, unpublished);
           case Reach.Hidden hidden -> reportHiddenTargetSkipped(recordElement, component, hidden);
-          default -> {}
+          default -> warnIncludedWithoutNavigator(recordElement, component);
         }
         continue;
       }
@@ -506,12 +508,7 @@ public class NavigatorClassGenerator {
     if (!shouldGenerateNavigator(record, component)) {
       return new Reach.None();
     }
-    TypeMirror fieldType = component.asType();
-    TypeMirror reached =
-        WideningAnalysis.spiCandidate(fieldType)
-                && analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
-            ? WideningAnalysis.spiElement(fieldType, admitted.generator())
-            : fieldType;
+    TypeMirror reached = candidateType(component);
     // A navigator steps into a container only where the record widens it, so a container the
     // record leaves whole has no navigator to miss.
     if (reached == null || !focusedByMethod(reached, record, component)) {
@@ -530,6 +527,15 @@ public class NavigatorClassGenerator {
           new Reach.Uninstantiable(new Target(hidden, (DeclaredType) reached), reach);
       default -> reach;
     };
+  }
+
+  /** The direct or SPI element type to ask about, before checking whether the method focuses it. */
+  private TypeMirror candidateType(RecordComponentElement component) {
+    TypeMirror fieldType = component.asType();
+    return WideningAnalysis.spiCandidate(fieldType)
+            && analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
+        ? WideningAnalysis.spiElement(fieldType, admitted.generator())
+        : fieldType;
   }
 
   /**
@@ -605,6 +611,11 @@ public class NavigatorClassGenerator {
         || !shouldGenerateNavigator(record, component)) {
       return null;
     }
+    return unfilteredTarget(record, component);
+  }
+
+  /** The same target question before include/exclude filters, for followable field suggestions. */
+  private Target unfilteredTarget(TypeElement record, RecordComponentElement component) {
     Target target = navigableTarget(component, companionPackage(record));
     return target == null
             || !target.instantiable()
@@ -625,7 +636,12 @@ public class NavigatorClassGenerator {
     if (writesAttribute(record, "generateNavigators")) {
       return List.of();
     }
-    Set<String> inherited = inheritedNoArgumentMethods(methodPath(record, component).tier());
+    return inheritedNames(methodPath(record, component).tier(), target);
+  }
+
+  /** The target fields that would clash, whether navigators were requested explicitly or not. */
+  private List<String> inheritedNames(Tier tier, Target target) {
+    Set<String> inherited = inheritedNoArgumentMethods(tier);
     return target.record().getRecordComponents().stream()
         .map(field -> field.getSimpleName().toString())
         .filter(inherited::contains)
@@ -1514,6 +1530,8 @@ public class NavigatorClassGenerator {
     // A container the processor recognises by name is widened however the record is annotated,
     // and gets no navigator, so widening it again would change nothing.
     if (!writesAttribute(record, "generateNavigators")
+        || Arrays.asList(focusSettings(record).includeFields())
+            .contains(component.getSimpleName().toString())
         || !shouldGenerateNavigator(record, component)
         || !WideningAnalysis.spiCandidate(fieldType)
         || widensCollections(record, component)
@@ -1545,6 +1563,127 @@ public class NavigatorClassGenerator {
             + "'.",
         ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name))
             + " to navigate into its elements.");
+  }
+
+  /**
+   * Warns at an includeFields entry that asks for a navigator the field cannot have. Existing
+   * target diagnostics take precedence, and the widening declaration reports refused containers.
+   * The target and candidate fixes read the same analysis as navigator generation.
+   */
+  private void warnIncludedWithoutNavigator(TypeElement record, RecordComponentElement component) {
+    String name = component.getSimpleName().toString();
+    if (!Arrays.asList(focusSettings(record).includeFields()).contains(name)
+        || reachableTarget(record, component) != null
+        || unresolvedPart(component.asType()).isPresent()
+        || widening(record, component).declined() != null) {
+      return;
+    }
+    // An unreadable target has javac's own error at its annotation, whether reached directly or
+    // through a container. Ask about the same candidate type the existing target pass resolves.
+    TypeMirror reached = candidateType(component);
+    if (reached instanceof DeclaredType declared
+        && declared.asElement().getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings
+        && unreadable(settings)) {
+      return;
+    }
+    Target unwidened = navigableTarget(component, companionPackage(record));
+    if (unwidened != null && !unwidened.instantiable()) {
+      return;
+    }
+
+    String recordName = record.getSimpleName().toString();
+    String reason;
+    String fix;
+    if (unwidened != null) {
+      reason =
+          "A navigator steps into a container only where the record widens it, and "
+              + recordName
+              + " does not widen \""
+              + name
+              + "\".";
+      // Widening may expose a path-method clash too. In that case offering widening alone would
+      // lead straight to a note or error, so offer the existing way to keep the plain path.
+      List<String> clashes = inheritedNames(analysis.analyse(component, true).tier(), unwidened);
+      if (clashes.isEmpty()) {
+        fix = ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name)) + ".";
+      } else {
+        reason += " Its widened navigator would also clash with target fields " + clashes + ".";
+        fix = ProcessorUtils.capitalise(keepPlainPath(record, name)) + " to keep its plain path.";
+      }
+    } else {
+      TypeElement plain =
+          component.asType() instanceof DeclaredType declared
+                  && declared.asElement().getKind() == ElementKind.RECORD
+              ? (TypeElement) declared.asElement()
+              : null;
+      reason =
+          "Navigator generation cannot reach a @GenerateFocus record through "
+              + ProcessorUtils.simpleTypeName(component.asType())
+              + ". It needs a @GenerateFocus record or a supported container of one; built-in"
+              + " Optional, Maybe, List, Set and Collection paths do not get navigators.";
+      List<String> candidates =
+          record.getRecordComponents().stream()
+              .filter(
+                  candidate -> {
+                    Target target = unfilteredTarget(record, candidate);
+                    return target != null
+                        && inheritedNames(methodPath(record, candidate).tier(), target).isEmpty();
+                  })
+              .map(candidate -> candidate.getSimpleName().toString())
+              .toList();
+      fix =
+          candidates.isEmpty()
+              ? "Remove includeFields and set generateNavigators = false in @GenerateFocus on "
+                  + recordName
+                  + "."
+              : "Replace \""
+                  + name
+                  + "\" in includeFields on "
+                  + recordName
+                  + " with a navigator field from "
+                  + candidates
+                  + ".";
+      if (plain != null) {
+        reason = plain.getSimpleName() + " is a record without @GenerateFocus. " + reason;
+        // Offer annotation only where it would actually give this field a usable navigator.
+        Target annotated = new Target(plain, (DeclaredType) component.asType());
+        if (annotated.instantiable()
+            && inheritedNames(methodPath(record, component).tier(), annotated).isEmpty()
+            && Reachability.firstHidden(
+                    processingEnv.getElementUtils(),
+                    companionPackage(record),
+                    Reachability.record(plain, plain.getRecordComponents()))
+                .isEmpty()) {
+          fix +=
+              " Alternatively, annotate record " + plain.getSimpleName() + " with @GenerateFocus.";
+        }
+      }
+    }
+    AnnotationMirror annotation =
+        ProcessorUtils.findAnnotation(record, GenerateFocus.class.getCanonicalName());
+    AnnotationValue included = ProcessorUtils.getAnnotationValue(annotation, "includeFields");
+    String explanation = reason;
+    String correction = fix;
+    ((List<?>) included.getValue())
+        .stream()
+            .map(AnnotationValue.class::cast)
+            .filter(entry -> name.equals(entry.getValue()))
+            .forEach(
+                entry ->
+                    Diagnostics.reportAt(
+                        processingEnv.getMessager(),
+                        Diagnostic.Kind.WARNING,
+                        record,
+                        annotation,
+                        entry,
+                        "@GenerateFocus",
+                        "includeFields on "
+                            + recordName
+                            + " names \""
+                            + name
+                            + "\", whose field cannot have a navigator.",
+                        explanation,
+                        correction));
   }
 
   /**
