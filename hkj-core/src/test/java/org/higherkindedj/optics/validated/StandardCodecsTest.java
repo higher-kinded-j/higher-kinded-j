@@ -379,6 +379,15 @@ class StandardCodecsTest {
           .hasFieldErrors("not a BCP 47 language tag (expected e.g. en-GB)");
       assertThat(StandardCodecs.locale().build(Locale.forLanguageTag("en-GB"))).isEqualTo("en-GB");
     }
+
+    @Test
+    @DisplayName("locale: a variant keeps its case, so each spelling is its own locale")
+    void localeVariantKeepsItsCase() {
+      assertValidatedPrismLaws(StandardCodecs.locale(), "sl-rozaj", "not a tag!");
+      assertValidatedPrismLaws(StandardCodecs.locale(), "sl-ROZAJ", "not a tag!");
+      assertThat(StandardCodecs.locale().parse("sl-rozaj").get())
+          .isNotEqualTo(StandardCodecs.locale().parse("sl-ROZAJ").get());
+    }
   }
 
   @Nested
