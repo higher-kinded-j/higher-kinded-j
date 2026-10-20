@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.assertions;
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
@@ -97,7 +98,8 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<IdKind.Witness
             type.getName(),
             value == null
                 ? "null"
-                : String.format("<%s> of type <%s>", value, value.getClass().getName()))
+                : String.format(
+                    Locale.ROOT, "<%s> of type <%s>", value, value.getClass().getName()))
         .isInstanceOf(type);
     return this;
   }

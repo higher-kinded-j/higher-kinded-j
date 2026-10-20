@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Locale;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 
@@ -616,11 +617,11 @@ final class ForPathStepGenerator {
     sb.append(">> newComp =\n");
     sb.append("        ").append(monadVar).append(".flatMap(\n");
     sb.append("            t -> ").append(monadVar).append(".map(\n");
-    sb.append("                ").append(nextType.toLowerCase()).append(" -> Tuple.of(");
+    sb.append("                ").append(nextType.toLowerCase(Locale.ROOT)).append(" -> Tuple.of(");
     for (int i = 0; i < n; i++) {
       sb.append("t._").append(i + 1).append("(), ");
     }
-    sb.append(nextType.toLowerCase()).append("),\n");
+    sb.append(nextType.toLowerCase(Locale.ROOT)).append("),\n");
 
     // The widen/runKind expression
     sb.append("                ");
@@ -750,14 +751,14 @@ final class ForPathStepGenerator {
     sb.append("                matcher\n");
     sb.append("                    .apply(t)\n");
     sb.append("                    .map(")
-        .append(nextType.toLowerCase())
+        .append(nextType.toLowerCase(Locale.ROOT))
         .append(" -> ")
         .append(m)
         .append(".of(Tuple.of(");
     for (int i = 0; i < n; i++) {
       sb.append("t._").append(i + 1).append("(), ");
     }
-    sb.append(nextType.toLowerCase()).append(")))\n");
+    sb.append(nextType.toLowerCase(Locale.ROOT)).append(")))\n");
     sb.append("                    .orElseGet(").append(m).append("::zero),\n");
     sb.append("            this.computation);\n");
 

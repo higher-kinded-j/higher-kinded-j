@@ -19,6 +19,7 @@ import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
@@ -91,6 +92,26 @@ class ProcessorArchitectureRules {
         new ClassFileImporter()
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages(BASE_PACKAGE);
+  }
+
+  @Test
+  @DisplayName("production code must use an explicit locale")
+  void productionCodeMustUseAnExplicitLocale() {
+    noClasses()
+        .should()
+        .callMethod(String.class, "format", String.class, Object[].class)
+        .orShould()
+        .callMethod(String.class, "formatted", Object[].class)
+        .orShould()
+        .callMethod(String.class, "toLowerCase")
+        .orShould()
+        .callMethod(String.class, "toUpperCase")
+        .orShould()
+        .callMethod(PrintStream.class, "printf", String.class, Object[].class)
+        .orShould()
+        .callMethod(PrintStream.class, "format", String.class, Object[].class)
+        .because("library code must pass Locale.ROOT rather than use the default locale")
+        .check(classes);
   }
 
   /**

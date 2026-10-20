@@ -5,6 +5,7 @@ package org.higherkindedj.optics.free;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
@@ -91,7 +92,7 @@ public final class LoggingOpticInterpreter {
 
   private <S, A> A executeGet(OpticOp.Get<S, A> op) {
     A value = Objects.requireNonNull(op.optic().get(op.source()), OpticPrograms.NULL_GET_FOCUS);
-    log.add(String.format("GET: %s -> %s", opticName(op.optic()), value));
+    log.add(String.format(Locale.ROOT, "GET: %s -> %s", opticName(op.optic()), value));
     return value;
   }
 
@@ -99,54 +100,60 @@ public final class LoggingOpticInterpreter {
     Optional<A> value = op.optic().preview(op.source());
     log.add(
         String.format(
+            Locale.ROOT,
             "PREVIEW: %s -> %s",
-            opticName(op.optic()), value.map(Object::toString).orElse("empty")));
+            opticName(op.optic()),
+            value.map(Object::toString).orElse("empty")));
     return value;
   }
 
   private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
     List<A> values = op.optic().getAll(op.source());
-    log.add(String.format("GET_ALL: %s -> %d items", opticName(op.optic()), values.size()));
+    log.add(
+        String.format(
+            Locale.ROOT, "GET_ALL: %s -> %d items", opticName(op.optic()), values.size()));
     return values;
   }
 
   private <S, A> S executeSet(OpticOp.Set<S, A> op) {
-    log.add(String.format("SET: %s <- %s", opticName(op.optic()), op.newValue()));
+    log.add(String.format(Locale.ROOT, "SET: %s <- %s", opticName(op.optic()), op.newValue()));
     return op.optic().set(op.newValue(), op.source());
   }
 
   private <S, A> S executeSetAll(OpticOp.SetAll<S, A> op) {
-    log.add(String.format("SET_ALL: %s <- %s", opticName(op.optic()), op.newValue()));
+    log.add(String.format(Locale.ROOT, "SET_ALL: %s <- %s", opticName(op.optic()), op.newValue()));
     return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
   }
 
   private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
     A oldValue = op.optic().get(op.source());
     A newValue = op.modifier().apply(oldValue);
-    log.add(String.format("MODIFY: %s from %s to %s", opticName(op.optic()), oldValue, newValue));
+    log.add(
+        String.format(
+            Locale.ROOT, "MODIFY: %s from %s to %s", opticName(op.optic()), oldValue, newValue));
     return op.optic().set(newValue, op.source());
   }
 
   private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
-    log.add(String.format("MODIFY_ALL: %s", opticName(op.optic())));
+    log.add(String.format(Locale.ROOT, "MODIFY_ALL: %s", opticName(op.optic())));
     return Traversals.modify(op.optic(), op.modifier(), op.source());
   }
 
   private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
     Boolean exists = op.optic().exists(op.predicate(), op.source());
-    log.add(String.format("EXISTS: %s -> %s", opticName(op.optic()), exists));
+    log.add(String.format(Locale.ROOT, "EXISTS: %s -> %s", opticName(op.optic()), exists));
     return exists;
   }
 
   private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
     Boolean all = op.optic().all(op.predicate(), op.source());
-    log.add(String.format("ALL: %s -> %s", opticName(op.optic()), all));
+    log.add(String.format(Locale.ROOT, "ALL: %s -> %s", opticName(op.optic()), all));
     return all;
   }
 
   private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
     Integer count = op.optic().length(op.source());
-    log.add(String.format("COUNT: %s -> %d", opticName(op.optic()), count));
+    log.add(String.format(Locale.ROOT, "COUNT: %s -> %d", opticName(op.optic()), count));
     return count;
   }
 

@@ -7,6 +7,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -691,8 +692,11 @@ public final class WideningAnalysis {
       witnessType = witnessType + "<" + kindInfo.witnessTypeArgs() + ">";
     }
     return String.format(
+        Locale.ROOT,
         ".<%s, %s>traverseOver(%s)",
-        witnessType, kindInfo.elementType(), kindInfo.traverseExpression());
+        witnessType,
+        kindInfo.elementType(),
+        kindInfo.traverseExpression());
   }
 
   /**

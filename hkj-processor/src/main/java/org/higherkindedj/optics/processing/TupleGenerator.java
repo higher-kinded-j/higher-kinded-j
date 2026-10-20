@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.Locale;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 
@@ -64,7 +65,7 @@ final class TupleGenerator {
       int n, ProcessingEnvironment processingEnv, Element originatingElement) throws IOException {
     String className = "Tuple" + n;
     String qualifiedName = PACKAGE + "." + className;
-    String constName = className.toUpperCase() + "_CLASS";
+    String constName = className.toUpperCase(Locale.ROOT) + "_CLASS";
 
     StringBuilder sb = new StringBuilder();
 

@@ -4,6 +4,7 @@ package org.higherkindedj.checker;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.tools.Diagnostic;
@@ -163,7 +164,7 @@ public final class CheckerConfig {
   }
 
   private static Diagnostic.Kind parseSeverity(String value) {
-    return switch (value.toLowerCase()) {
+    return switch (value.toLowerCase(Locale.ROOT)) {
       case "error" -> Diagnostic.Kind.ERROR;
       case "warn", "warning" -> Diagnostic.Kind.WARNING;
       default -> null; // invalid: keep the existing/default severity

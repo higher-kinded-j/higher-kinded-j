@@ -16,6 +16,7 @@ dependencies {
   // tests for the assertion API.
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
+  testImplementation(libs.archunit.junit5)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

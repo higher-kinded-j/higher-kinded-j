@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.util.validation;
 
+import java.util.Locale;
 import java.util.Objects;
 
 public enum CoreTypeValidator {
@@ -15,7 +16,8 @@ public enum CoreTypeValidator {
 
   public <T> T requireValue(T value, String valueName, Class<?> typeClass, Operation operation) {
     String context = typeClass.getSimpleName() + "." + operation;
-    return Objects.requireNonNull(value, "%s %s cannot be null".formatted(context, valueName));
+    return Objects.requireNonNull(
+        value, String.format(Locale.ROOT, "%s %s cannot be null", context, valueName));
   }
 
   /** Validates an error value for error types */

@@ -122,7 +122,7 @@ public final class RequestContext {
   public static String generateTimestampedTraceId() {
     long timestamp = System.currentTimeMillis();
     long random = ThreadLocalRandom.current().nextLong();
-    return String.format("%012x-%08x", timestamp, random & 0xFFFFFFFFL);
+    return String.format(Locale.ROOT, "%012x-%08x", timestamp, random & 0xFFFFFFFFL);
   }
 
   /**
