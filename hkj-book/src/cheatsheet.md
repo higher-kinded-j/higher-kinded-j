@@ -20,6 +20,7 @@
 | `EitherOrBothPath<L, A>` | Success with warnings | `Path.rightNel(v)`, `Path.bothNel(w, v)`, `Path.leftNel(e)` | `.run()` → `EitherOrBoth<L, A>` |
 | `IOPath<A>` | Deferred side effects | `Path.io(() -> ...)`, `Path.ioPure(v)` | `.unsafeRun()` → `A` |
 | `VTaskPath<A>` | Virtual threads | `Path.vtask(() -> ...)`, `Path.vtaskPure(v)` | `.unsafeRun()` → `A` |
+| `VStreamPath<A>` | Lazy, pull-based streams on virtual threads | `Path.vstreamOf(a, b, c)`, `Path.vstream(stream)` | `.run()` → `VStream<A>` |
 | `VResultPath<E, A>` | Virtual threads + typed error | `Path.vresultRight(v)`, `Path.vresultLeft(e)`, `Path.vresultDefer(() -> either)` | `.toEitherPath()` → `EitherPath<E, A>` |
 | `ReaderPath<R, A>` | Dependency injection | `Path.reader(r)`, `Path.ask()`, `Path.asks(fn)` | `.run(env)` → `A` |
 | `WriterPath<W, A>` | Logging, audit | `Path.writer(w, m)`, `Path.tell(log, m)` | `.run()` → `Writer<W, A>` |
