@@ -28,7 +28,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 ### Pull Requests
 
 1.  **Fork the repository** on GitHub.
-2.  **Clone your fork** locally: `git clone git@github.com:higher-kinded-j/higher-kinded-j.git`
+2.  **Clone your fork** locally: `git clone git@github.com:<your-username>/higher-kinded-j.git`
 3.  **Create a new branch** for your changes: `git checkout -b name-of-your-feature-or-fix`
 4.  **Make your changes.** Ensure you adhere to standard Java coding conventions.
 5.  **Add tests** for your changes. This is important!
@@ -58,6 +58,8 @@ The project is organised into several modules:
 * **hkj-annotations** -- Annotations for code generation
 * **hkj-processor / hkj-processor-plugins** -- Annotation processor and extensible plugins
 * **hkj-checker** -- Javac compiler plugin for compile-time Path type mismatch detection
+* **hkj-bom** -- Bill of Materials that aligns the versions of the core library, `hkj-test` and the Spring starter
+* **hkj-test** -- AssertJ assertion helpers for HKJ types (test-scope dependency)
 * **plugins/hkj-gradle-plugin** -- Gradle plugin for one-line project setup
 * **plugins/hkj-maven-plugin** -- Maven plugin for automated build configuration
 * **hkj-spring** -- Spring Boot integration (autoconfigure, starter, example)
