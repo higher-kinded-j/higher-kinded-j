@@ -790,7 +790,7 @@ public EitherPath<HttpError, UserDto> getUser(String id) {
 | EitherPath | MaybePath | `toMaybePath()` | Left → Nothing |
 | TryPath | EitherPath | `toEitherPath(mapper)` | Exception → Left |
 | TryPath | MaybePath | `toMaybePath()` | Failure → Nothing |
-| EitherPath | TryPath | `toTryPath()` | Left → RuntimeException |
+| EitherPath | TryPath | `toTryPath(errorToException)` | Left → the exception the function builds |
 | IOPath | TryPath | `toTryPath()` | Executes the IO |
 
 ### Validation Path Conversions
@@ -808,7 +808,7 @@ public EitherPath<HttpError, UserDto> getUser(String id) {
 | From | To | Method | Notes |
 |------|-----|--------|-------|
 | IdPath | MaybePath | `toMaybePath()` | Always Just |
-| MaybePath | IdPath | `toIdPath(default)` | Nothing → default value |
+| MaybePath | IdPath | `toIdPath(exceptionSupplier)` | Nothing → throws the supplied exception |
 | OptionalPath | MaybePath | `toMaybePath()` | Empty → Nothing |
 | MaybePath | OptionalPath | `toOptionalPath()` | Nothing → Empty |
 | OptionalPath | EitherPath | `toEitherPath(error)`, `toEitherPath(errorSupplier)` | Empty → Left |
