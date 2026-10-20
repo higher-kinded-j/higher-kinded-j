@@ -84,7 +84,7 @@ VTask<Result> result = connResource.use(conn ->
 
 **Railway-aware:** on the typed-error carriers a business `Left` is a value, never retried and never counted as a circuit-breaker failure. Typed overloads opt selected transient errors into retry and land timeouts or rejections as `Left`s rather than thrown exceptions, so resilience never swallows a domain outcome.
 
-**Related:** [Resilience Patterns](../resilience/ch_intro.md), [Retry](../resilience/retry.md), [Circuit Breaker](#circuit-breaker), [Bulkhead](#bulkhead), [Path](effect-paths.md#path), [VResultPath](effect-paths.md#vresultpath)
+**Related:** [Resilience Patterns](../resilience/ch_intro.md), [Retry](#retry), [Circuit Breaker](#circuit-breaker), [Bulkhead](#bulkhead), [Path](effect-paths.md#path), [VResultPath](effect-paths.md#vresultpath)
 
 ---
 
@@ -143,6 +143,22 @@ Resource<Lock> lock = Resource.make(
 ```
 
 **Related:** [Bracket Pattern](#bracket-pattern), [Scope](#scope), [Resource Documentation](../monads/vtask_resource.md)
+
+---
+
+## Retry
+
+**Definition:** A resilience pattern that re-executes a failed operation in the belief that transient faults will resolve themselves, setting limits on attempts and delays so doomed calls do not consume resources indefinitely. Configured via `RetryPolicy` with strategies such as fixed, linear, exponential backoff, or jitter, and applied as `withRetry` in the resilience vocabulary.
+
+**Related:** [Retry](../resilience/retry.md), [Resilience Combinators](#resilience-combinators), [Circuit Breaker](#circuit-breaker)
+
+---
+
+## Saga
+
+**Definition:** A resilience pattern for coordinating multi-step workflows across distributed boundaries without two-phase commit. Each forward step pairs with a compensating action; if a subsequent step fails, completed steps are undone by executing their compensations in reverse order to return the system to a consistent state. Built with `Saga.of()` or `SagaBuilder`.
+
+**Related:** [Saga](../resilience/saga.md), [Resilience Combinators](#resilience-combinators), [Resource (VTask)](#resource-vtask)
 
 ---
 
