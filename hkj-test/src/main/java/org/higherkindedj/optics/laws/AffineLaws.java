@@ -151,9 +151,9 @@ public final class AffineLaws {
    * value that reads back. Add {@link #assertSetNoOpWhenAbsent} for an affine that must leave an
    * absent target alone.
    *
-   * <p>The two focus values must differ from each other to avoid a vacuous set-set check. At most
-   * one can equal the present focus, so the other's set-get check still catches a setter that does
-   * nothing.
+   * <p>The two focus values must differ from each other and may be given in either order. Set-set
+   * on the present target runs both ways, so each value is written first. At most one can equal the
+   * present focus, so the other's set-get check still catches a setter that does nothing.
    */
   public static <S, A> void assertAffineLaws(
       Affine<S, A> affine, S presentSource, S absentSource, A a1, A a2) {
@@ -168,6 +168,7 @@ public final class AffineLaws {
     assertSetGetWhenPresent(affine, presentSource, a1);
     assertSetGetWhenPresent(affine, presentSource, a2);
     assertSetSetWhenPresent(affine, presentSource, a1, a2);
+    assertSetSetWhenPresent(affine, presentSource, a2, a1);
     assertModifyNoOpWhenAbsent(affine, absentSource, a1);
     assertSetWhenAbsentLeavesOrWrites(affine, absentSource, a1);
     assertSetSetWhenAbsent(affine, absentSource, a1, a2);
