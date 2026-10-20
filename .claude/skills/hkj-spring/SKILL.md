@@ -776,6 +776,6 @@ section above).
 
 ## Requirements
 
-- Spring Boot 4.0.1+ for the server side (Jackson 3.x / `tools.jackson` namespace)
-- Spring Boot 4.1+ / Spring Framework 7 for the `@HkjHttpClient` client side (it uses `@ImportHttpServices` and the `spring.http.serviceclient.*` binding from `spring-boot-restclient`)
+- Spring Boot 4.1.0+, which manages Jackson 3 (the `tools.jackson` namespace).
+- `@HkjHttpClient` needs no extra dependency: the starter brings `spring-boot-restclient`, which binds the `spring.http.serviceclient.*` properties and applies them to the client groups.
 - Java 25 with `--enable-preview`

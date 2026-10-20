@@ -14,7 +14,8 @@
 This page builds on the Effect Path API. If `Either`, `EitherPath`, `.run()` / `.fold(...)`, or the
 "railway" model are new, read [The Effect Path API](../effect/effect_path_overview.md) first: the
 rest assumes your code already returns typed-error results. It also uses Spring's declarative HTTP
-client (`@HttpExchange`, `@ImportHttpServices`), which needs **Spring Boot 4.1+ / Spring Framework 7**.
+client: `@HttpExchange`, and `@ImportHttpServices` from Spring Framework 7. hkj-spring needs
+**Spring Boot 4.1.0 or later**.
 ~~~
 
 ~~~admonish example title="See Example Code"

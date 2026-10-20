@@ -20,7 +20,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Return value handler that converts {@link TryPath} return values from controller methods into
  * appropriate HTTP responses.
  *
- * <p>This handler is part of the Effect Path API integration for Spring Boot 4.0.1+. It handles
+ * <p>This handler is part of the Effect Path API integration for Spring Boot. It handles
  * exception-safe computations, automatically converting success and failure to HTTP responses.
  *
  * <p>Conversion rules:

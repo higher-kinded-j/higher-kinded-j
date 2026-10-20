@@ -19,7 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
  * Return value handler that converts {@link EitherPath} and {@link Either} return values from
  * controller methods into appropriate HTTP responses.
  *
- * <p>This handler is part of the Effect Path API integration for Spring Boot 4.0.1+. It provides
+ * <p>This handler is part of the Effect Path API integration for Spring Boot. It provides
  * railway-oriented programming semantics at the controller layer, automatically converting success
  * and failure paths to HTTP responses.
  *

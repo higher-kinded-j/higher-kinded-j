@@ -34,7 +34,7 @@ The **hkj-spring-boot-starter** solves these problems by bringing functional pro
 
 ### Step 1: Add the Dependency
 
-Add the starter to your Spring Boot project:
+Add the starter to your Spring Boot project. It needs Spring Boot 4.1.0 or later.
 
 ```gradle
 // build.gradle.kts
