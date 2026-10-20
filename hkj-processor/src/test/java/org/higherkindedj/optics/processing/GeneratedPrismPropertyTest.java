@@ -7,6 +7,7 @@ import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.compi
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.packageInfo;
 
 import com.google.testing.compile.JavaFileObjects;
+import java.util.Locale;
 import java.util.Optional;
 import javax.tools.JavaFileObject;
 import net.jqwik.api.*;
@@ -216,7 +217,7 @@ class GeneratedPrismPropertyTest {
   void enumPrismBuildGetOptionalLaw(@ForAll("enumValues") String enumName)
       throws ReflectiveOperationException {
 
-    String methodName = enumName.toLowerCase();
+    String methodName = enumName.toLowerCase(Locale.ROOT);
     Object prism = compiled.invokeStatic(TEST_PACKAGE + ".OrderStatusPrisms", methodName);
     Object enumValue =
         compiled.invokeStatic(
@@ -243,7 +244,7 @@ class GeneratedPrismPropertyTest {
 
     Assume.that(!targetEnum.equals(otherEnum));
 
-    String methodName = targetEnum.toLowerCase();
+    String methodName = targetEnum.toLowerCase(Locale.ROOT);
     Object prism = compiled.invokeStatic(TEST_PACKAGE + ".OrderStatusPrisms", methodName);
     Object otherValue =
         compiled.invokeStatic(
