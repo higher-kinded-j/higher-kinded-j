@@ -446,8 +446,10 @@ public final class StandardCodecs {
   }
 
   /**
-   * BCP 47 language tags in canonical case ({@code en-GB}); an ill-formed or case-folded tag is a
-   * rejection, not a normalisation.
+   * BCP 47 language tags in canonical case ({@code en-GB}); an ill-formed tag, or a language,
+   * region or private-use subtag in another case ({@code en-gb}), is a rejection, not a
+   * normalisation. A variant keeps the case it is written in, as the JDK keeps it, so {@code
+   * sl-rozaj} and {@code sl-ROZAJ} both round-trip, as two different locales.
    *
    * @return the cached codec (non-null)
    */
