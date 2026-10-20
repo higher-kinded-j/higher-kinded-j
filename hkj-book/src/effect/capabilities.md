@@ -48,7 +48,7 @@ The **Reference** sub-chapter is lookup material rather than narrative: the type
 │                          └───────┬────────┘                                  │
 │                                  │                                           │
 │                          ┌───────┴────────┐                                  │
-│                          │   Combinable   │  zipWith(), map2()               │
+│                          │   Combinable   │  zipWith()                       │
 │                          │ (Applicative)  │  "I can merge independent work"  │
 │                          └───────┬────────┘                                  │
 │                                  │                                           │
@@ -412,14 +412,16 @@ once is kinder than making users fix them one by one.
 | IOPath | ✓ | ✓ | ✓ | · | ✓ | · |
 | ValidationPath | ✓ | ✓ | ✓ | ✓ | · | ✓ |
 | IdPath | ✓ | ✓ | ✓ | · | · | · |
-| OptionalPath | ✓ | ✓ | ✓ | ✓ | · | · |
+| OptionalPath | ✓ | ✓ | ✓ | · | · | · |
 | GenericPath | ✓ | ✓ | ✓ | * | · | · |
 
 \* `GenericPath` recovery depends on the underlying monad.
 
 Note that `IdPath` lacks `Recoverable`; it cannot fail, so recovery is
 meaningless. `IOPath` lacks `Recoverable` but has `Effectful`, which includes
-its own error handling via `handleError`. These aren't omissions; they're
+its own error handling via `handleError`. `OptionalPath` lacks `Recoverable`
+too; an empty value is not an error, so it falls back with `orElsePath`
+rather than recovering. These aren't omissions; they're
 the type system being honest about what makes sense.
 
 ---
@@ -432,7 +434,7 @@ the type system being honest about what makes sense.
 | **Combinable** | Merge independent work | `zipWith`, `zipWith3` |
 | **Chainable** | Sequence dependent work | `via`, `flatMap`, `then` |
 | **Recoverable** | Handle failure | `recover`, `recoverWith`, `mapError`, `orElse` |
-| **Effectful** | Defer execution | `unsafeRun`, `runSafe`, `handleError`, `ensuring` |
+| **Effectful** | Defer execution | `unsafeRun`, `runSafe`, `handleError`, `guarantee` |
 | **Accumulating** | Collect all errors | `zipWithAccum`, `andAlso` |
 
 The hierarchy is designed so you can write code at the appropriate level of
