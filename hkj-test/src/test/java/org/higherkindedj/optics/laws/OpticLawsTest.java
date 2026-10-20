@@ -92,9 +92,10 @@ class OpticLawsTest {
     }
 
     @Test
-    @DisplayName("an affine passes when one supplied value equals the present focus")
-    void affinePassesWithCurrentFocus() {
+    @DisplayName("an affine passes with its values in either order, including the present focus")
+    void affinePassesInEitherOrderWithCurrentFocus() {
       AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Countess", "Lady");
+      AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Lady", "Countess");
     }
   }
 
@@ -207,6 +208,31 @@ class OpticLawsTest {
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("set-set");
       assertThatThrownBy(() -> LensLaws.assertLensLaws(counting, start, false, true))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-set");
+    }
+
+    @Test
+    @DisplayName("a counting affine fails set-set in either argument order")
+    void countingAffineFailsSetSetInEitherOrder() {
+      record Holder(Optional<String> nickname, int writes) {}
+
+      Affine<Holder, String> counting =
+          Affine.of(
+              Holder::nickname,
+              (h, n) ->
+                  h.nickname().isEmpty() || h.nickname().get().equals(n)
+                      ? h
+                      : new Holder(Optional.of(n), h.writes() + 1));
+      Holder present = new Holder(Optional.of("Countess"), 0);
+      Holder absent = new Holder(Optional.empty(), 0);
+
+      assertThatThrownBy(
+              () -> AffineLaws.assertAffineLaws(counting, present, absent, "Countess", "Lady"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-set");
+      assertThatThrownBy(
+              () -> AffineLaws.assertAffineLaws(counting, present, absent, "Lady", "Countess"))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("set-set");
     }
