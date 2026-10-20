@@ -58,6 +58,7 @@ public enum Operation {
   READER("reader"),
   RUN_READER("runReader"),
   FOLD("fold"),
+  FOLD_FAILURE_FIRST("foldFailureFirst"),
   TO_EITHER("toEither"),
   MATCH("match"),
   OR_ELSE("orElse"),

@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.hkt.vtask.VTaskKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link VTask} instances.
@@ -22,25 +23,29 @@ import org.higherkindedj.hkt.vtask.VTaskKindHelper;
 public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
 
   /** Entry point accepting a {@code Kind<VTaskKind.Witness, T>}. */
-  public static <T> VTaskAssert<T> assertThatVTask(Kind<VTaskKind.Witness, T> actual) {
-    return new VTaskAssert<>(VTaskKindHelper.VTASK.narrow(actual));
+  public static <T> VTaskAssert<T> assertThatVTask(@Nullable Kind<VTaskKind.Witness, T> actual) {
+    return new VTaskAssert<>(actual == null ? null : VTaskKindHelper.VTASK.narrow(actual));
   }
 
   /** Entry point. */
-  public static <T> VTaskAssert<T> assertThatVTask(VTask<T> actual) {
+  public static <T> VTaskAssert<T> assertThatVTask(@Nullable VTask<T> actual) {
     return new VTaskAssert<>(actual);
   }
 
-  private T executedValue;
-  private Throwable executedException;
+  private @Nullable T executedValue;
+  private @Nullable Throwable executedException;
   private boolean hasBeenExecuted = false;
   private long executionTimeMillis = -1;
-  private Try<T> runSafeResult;
+  private @Nullable Try<T> runSafeResult;
   private boolean hasRunSafe = false;
   private boolean wasExecutedOnVirtualThread = false;
 
-  protected VTaskAssert(VTask<T> actual) {
+  protected VTaskAssert(@Nullable VTask<T> actual) {
     super(actual, VTaskAssert.class);
+  }
+
+  private Throwable thrown() {
+    return Objects.requireNonNull(executedException);
   }
 
   /**
@@ -80,9 +85,9 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
         .withFailMessage(
             () ->
                 "Expected VTask to succeed but it threw: "
-                    + executedException.getClass().getName()
+                    + thrown().getClass().getName()
                     + ": "
-                    + executedException.getMessage())
+                    + thrown().getMessage())
         .isNull();
     return this;
   }
@@ -120,23 +125,23 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
     Assertions.assertThat(executedException)
         .withFailMessage(
             "Expected VTask to throw <%s> but threw <%s>",
-            expectedType.getName(), executedException.getClass().getName())
+            expectedType.getName(), thrown().getClass().getName())
         .isInstanceOf(expectedType);
     return this;
   }
 
   /** Verifies that the thrown exception has the expected message. */
-  public VTaskAssert<T> withMessage(String expectedMessage) {
+  public VTaskAssert<T> withMessage(@Nullable String expectedMessage) {
     Assertions.assertThat(executedException)
         .withFailMessage(
             "Expected VTask to have thrown an exception with message <%s> but no exception was"
                 + " thrown",
             expectedMessage)
         .isNotNull();
-    Assertions.assertThat(executedException.getMessage())
+    Assertions.assertThat(thrown().getMessage())
         .withFailMessage(
             "Expected exception message to be <%s> but was <%s>",
-            expectedMessage, executedException.getMessage())
+            expectedMessage, thrown().getMessage())
         .isEqualTo(expectedMessage);
     return this;
   }
@@ -149,10 +154,10 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
                 + " exception was thrown",
             substring)
         .isNotNull();
-    Assertions.assertThat(executedException.getMessage())
+    Assertions.assertThat(thrown().getMessage())
         .withFailMessage(
             "Expected exception message to contain <%s> but was <%s>",
-            substring, executedException.getMessage())
+            substring, thrown().getMessage())
         .contains(substring);
     return this;
   }
@@ -211,14 +216,14 @@ public class VTaskAssert<T> extends AbstractAssert<VTaskAssert<T>, VTask<T>> {
     }
   }
 
-  /** Returns the exception thrown during execution, if any. */
-  public Throwable getException() {
+  /** Returns the exception thrown during execution, or null when the computation succeeded. */
+  public @Nullable Throwable getException() {
     whenRun();
     return executedException;
   }
 
-  /** Returns the value produced during execution, if any. */
-  public T getValue() {
+  /** Returns the value produced during execution, or null when the computation threw. */
+  public @Nullable T getValue() {
     whenRun();
     return executedValue;
   }

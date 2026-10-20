@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.state.StateTuple;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link StateTuple} instances.
@@ -16,11 +17,11 @@ import org.higherkindedj.hkt.state.StateTuple;
 public class StateAssert<S, A> extends AbstractAssert<StateAssert<S, A>, StateTuple<S, A>> {
 
   /** Entry point. */
-  public static <S, A> StateAssert<S, A> assertThatStateTuple(StateTuple<S, A> actual) {
+  public static <S, A> StateAssert<S, A> assertThatStateTuple(@Nullable StateTuple<S, A> actual) {
     return new StateAssert<>(actual);
   }
 
-  protected StateAssert(StateTuple<S, A> actual) {
+  protected StateAssert(@Nullable StateTuple<S, A> actual) {
     super(actual, StateAssert.class);
   }
 

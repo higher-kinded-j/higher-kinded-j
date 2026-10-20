@@ -108,7 +108,8 @@ public class TutorialVTask_Solution {
 
     /**
      * Why this is idiomatic: {@code runSafe} is the production form — exceptions become {@link
-     * Try}, no checked-exception ladder. {@code fold} extracts both branches in a single call.
+     * Try}, no checked-exception ladder. {@code foldFailureFirst} extracts both branches in a
+     * single call, failure first.
      *
      * <p>Alternative: {@code result.toEither().getLeft()} after asserting failure. Same
      * information; more steps.

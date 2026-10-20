@@ -179,23 +179,6 @@ class TryPathTest {
       assertThat(successResult).isEqualTo("value: 42");
       assertThat(failureResult).isEqualTo("error: test error");
     }
-
-    @Test
-    @DisplayName("fold() [deprecated] still applies appropriate function")
-    @SuppressWarnings("removal")
-    void deprecatedFoldStillAppliesAppropriateFunction() {
-      TryPath<Integer> successPath = Path.success(TEST_INT);
-      TryPath<Integer> failurePath = Path.failure(TEST_EXCEPTION);
-
-      String successResult =
-          successPath.fold(value -> "value: " + value, ex -> "error: " + ex.getMessage());
-
-      String failureResult =
-          failurePath.fold(value -> "value: " + value, ex -> "error: " + ex.getMessage());
-
-      assertThat(successResult).isEqualTo("value: 42");
-      assertThat(failureResult).isEqualTo("error: test error");
-    }
   }
 
   @Nested

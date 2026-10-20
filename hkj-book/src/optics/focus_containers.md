@@ -97,7 +97,7 @@ TraversalPath<WidenedCandidate, Integer> widened = WidenedCandidateFocus.scores(
 `widenCollections = true` is usually what you want on a new record: it makes `Map` fields behave exactly like `List` fields, and the same flag applies one level down inside a nested container. It is opt-in only because turning it on changes a method's return type, and that is a source-breaking change for anyone already calling it. New code has nothing to break.
 ~~~
 
-To widen some containers and keep others whole, name the fields instead: `@GenerateFocus(widenFields = "scores")` steps into `scores` and leaves every other container as it is.
+To widen some containers and keep others whole, name the fields instead: `@GenerateFocus(widenFields = "scores")` steps into `scores` and leaves every other container as it is. A name that matches no component is an error. A name `widenFields` cannot change draws a warning: a `List`, which its method widens anyway, or a `String`, which holds no container. See [Compiler Messages](compiler_errors.md#generatefocus-widenfields-cannot-widen).
 
 Navigators follow the same rule rather than adding to it. A container whose *element* is itself a `@GenerateFocus` record gets a navigator over its elements only where the record widens it. So `Map<String, Address>` stays a path to the whole map until `widenCollections` or `widenFields` says otherwise, and then its method returns a navigator over the values. Turning navigators on therefore never changes what a field's method focuses on.
 

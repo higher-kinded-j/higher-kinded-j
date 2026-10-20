@@ -398,79 +398,7 @@ class TryTest extends TryTestBase {
   }
 
   // ============================================================================
-  // fold(): deprecated for removal in 0.5.0; tests retained as regression coverage
-  // ============================================================================
-
-  @Nested
-  @DisplayName("fold() [deprecated]")
-  @SuppressWarnings({"removal", "DataFlowIssue"}) // null mappers exercised; fold() is deprecated
-  class FoldTests {
-    final Function<String, String> successMapper = s -> "Success mapped: " + s;
-    final Function<Throwable, String> failureMapper = t -> "Failure mapped: " + t.getMessage();
-    final Function<Throwable, String> throwingFailureMapper =
-        _ -> {
-          throw new IllegalStateException("Failure mapper failed");
-        };
-    final Function<String, String> throwingSuccessMapper =
-        _ -> {
-          throw new IllegalStateException("Success mapper failed");
-        };
-
-    @Test
-    @DisplayName("fold() on Success should apply success mapper")
-    void fold_onSuccess_shouldApplySuccessMapper() {
-      String result = successInstance.fold(successMapper, failureMapper);
-      assertThat(result).isEqualTo("Success mapped: " + successValue);
-    }
-
-    @Test
-    @DisplayName("fold() on Failure should apply failure mapper")
-    void fold_onFailure_shouldApplyFailureMapper() {
-      String result = failureInstance.fold(successMapper, failureMapper);
-      assertThat(result).isEqualTo("Failure mapped: " + failureException.getMessage());
-
-      String resultChecked = failureCheckedInstance.fold(successMapper, failureMapper);
-      assertThat(resultChecked).isEqualTo("Failure mapped: " + checkedException.getMessage());
-
-      String resultError = failureErrorInstance.fold(successMapper, failureMapper);
-      assertThat(resultError).isEqualTo("Failure mapped: " + error.getMessage());
-    }
-
-    @Test
-    @DisplayName("fold() should throw NPE if success mapper is null")
-    void fold_shouldThrowIfSuccessMapperIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> successInstance.fold(null, failureMapper))
-          .withMessageContaining("successMapper for fold cannot be null");
-    }
-
-    @Test
-    @DisplayName("fold() should throw NPE if failure mapper is null")
-    void fold_shouldThrowIfFailureMapperIsNull() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> failureInstance.fold(successMapper, null))
-          .withMessageContaining("failureMapper for fold cannot be null");
-    }
-
-    @Test
-    @DisplayName("fold() on Success should propagate exception from success mapper")
-    void fold_onSuccess_shouldPropagateExceptionFromSuccessMapper() {
-      assertThatThrownBy(() -> successInstance.fold(throwingSuccessMapper, failureMapper))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Success mapper failed");
-    }
-
-    @Test
-    @DisplayName("fold() on Failure should propagate exception from failure mapper")
-    void fold_onFailure_shouldPropagateExceptionFromFailureMapper() {
-      assertThatThrownBy(() -> failureInstance.fold(successMapper, throwingFailureMapper))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Failure mapper failed");
-    }
-  }
-
-  // ============================================================================
-  // foldFailureFirst(): error-first replacement for fold(), matching Either/Validated/EitherF
+  // foldFailureFirst(): error-first, matching Either/Validated/EitherF
   // ============================================================================
 
   @Nested
@@ -513,7 +441,7 @@ class TryTest extends TryTestBase {
     void foldFailureFirst_shouldThrowIfFailureMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> failureInstance.foldFailureFirst(null, successMapper))
-          .withMessageContaining("failureMapper for fold cannot be null");
+          .withMessageContaining("failureMapper for foldFailureFirst cannot be null");
     }
 
     @Test
@@ -521,7 +449,7 @@ class TryTest extends TryTestBase {
     void foldFailureFirst_shouldThrowIfSuccessMapperIsNull() {
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.foldFailureFirst(failureMapper, null))
-          .withMessageContaining("successMapper for fold cannot be null");
+          .withMessageContaining("successMapper for foldFailureFirst cannot be null");
     }
 
     @Test
@@ -852,7 +780,7 @@ class TryTest extends TryTestBase {
 
       assertThatNullPointerException()
           .isThrownBy(() -> successInstance.recover(null))
-          .withMessageContaining("recoveryFunction for recoverFunction cannot be null");
+          .withMessageContaining("recoveryFunction for recover cannot be null");
     }
   }
 

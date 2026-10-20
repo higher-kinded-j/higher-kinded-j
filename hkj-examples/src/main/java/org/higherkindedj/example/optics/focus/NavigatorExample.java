@@ -456,7 +456,8 @@ public class NavigatorExample {
    *   <li>{@code excludeFields = {"field3"}} - These fields use standard {@code FocusPath}
    * </ul>
    *
-   * <p>If both are specified, {@code includeFields} takes precedence.
+   * <p>Set one or the other: beside a non-empty {@code includeFields}, {@code excludeFields} is
+   * never read, and the processor warns. A name that matches no component is an error.
    *
    * <pre>{@code
    * @GenerateFocus(includeFields = {"homeAddress"})

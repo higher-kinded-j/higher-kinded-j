@@ -318,6 +318,8 @@ record Contacts(Address billing, Address delivery, Address returns) {}
 record CustomerReferral(Customer referrer, Customer referred) {}
 ```
 
+Set one list or the other. Beside a non-empty `includeFields`, `excludeFields` is never read, and the processor [warns](compiler_errors.md#generatefocus-field-list-unread). Each name is checked against the record's components, so a typo is [an error](compiler_errors.md#generatefocus-field-list-unknown-name) that offers the name you meant, rather than a navigator quietly missing.
+
 ### A field named like a path method {#a-field-named-like-a-path-method}
 
 A navigator already has its path's methods, so it cannot navigate to a field named like one that takes no arguments, such as `last`, `head` or `segments`. On a record that leaves navigators to the default, the field that reaches such a record keeps its plain path, with a note; on one that writes `generateNavigators = true`, the processor refuses it. [Compiler Messages](compiler_errors.md#generatefocus-navigator-cannot-navigate) gives both and their fixes. A field named like a method that takes arguments, such as `get` or `count`, navigates as usual.

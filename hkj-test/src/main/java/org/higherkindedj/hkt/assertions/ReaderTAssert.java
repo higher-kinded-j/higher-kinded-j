@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.higherkindedj.hkt.reader_t.ReaderTKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /** Custom AssertJ assertion for ReaderT transformer types. */
 public final class ReaderTAssert {
@@ -22,7 +23,7 @@ public final class ReaderTAssert {
   /** Entry point for ReaderT assertions when the outer monad unwraps to Optional. */
   public static <F extends WitnessArity<TypeArity.Unary>, R_ENV, A>
       ReaderTOptionalAssert<F, R_ENV, A> assertThatReaderT(
-          Kind<ReaderTKind.Witness<F, R_ENV>, A> actual,
+          @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> actual,
           Function<Kind<F, A>, Optional<A>> outerUnwrapper) {
     return new ReaderTOptionalAssert<>(actual, outerUnwrapper);
   }
@@ -35,7 +36,7 @@ public final class ReaderTAssert {
     private final Function<Kind<F, A>, Optional<A>> outerUnwrapper;
 
     protected ReaderTOptionalAssert(
-        Kind<ReaderTKind.Witness<F, R_ENV>, A> actual,
+        @Nullable Kind<ReaderTKind.Witness<F, R_ENV>, A> actual,
         Function<Kind<F, A>, Optional<A>> outerUnwrapper) {
       super(actual, ReaderTOptionalAssert.class);
       this.outerUnwrapper = outerUnwrapper;

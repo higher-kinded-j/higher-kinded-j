@@ -193,7 +193,7 @@ compile only against 0.5.0, so bump the library straight after.
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | **Composite** — runs the sub-recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` → `StateTKind.narrow(..)` (the wildcard `Kind` overload bypassed witness type safety) |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` → `KindValidator.narrowHolder(..)` |
-| `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments; tracked under [#452](https://github.com/higher-kinded-j/higher-kinded-j/issues/452)) |
+| `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments) |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` → `CHAINABLE` and `ACCUMULATING` → `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` → the function alone; `stateT.mapT(monad, f)` → `stateT.mapT(f)` |

@@ -547,7 +547,7 @@ EitherPath<AppError, String> shouted = name.map(value -> value.toUpperCase());
 
 ## Getting Back to Standard Java
 
-You are never locked in. Every Path type unwraps to a standard Java value with `.run()`, and `.fold()` gives you full control over both tracks:
+You are never locked in. Every Path type unwraps to a standard Java value with `.run()`, and `.fold()` gives you full control over both tracks, as `foldFailureFirst` does on a `TryPath`:
 
 <!-- verify -->
 ```java

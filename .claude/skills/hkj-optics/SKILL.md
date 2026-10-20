@@ -130,6 +130,12 @@ a record that leaves navigators to the default, the field that reaches it keeps 
 with a note; on one that writes `generateNavigators = true`, the processor refuses it. Rename the
 field, or keep the navigating field a plain path with `excludeFields`.
 
+The names in `includeFields`, `excludeFields` and `widenFields` are checked against the record's
+components: one that matches none is an error offering the component it meant. A list that changes
+nothing warns: `excludeFields` beside a non-empty `includeFields`, `includeFields` or
+`excludeFields` with `generateNavigators = false`, `widenFields` beside `widenCollections = true`, or a `widenFields`
+name whose field is already widened (a `List`, an `Optional`) or holds no container (a `String`).
+
 The nested record may live in a dependency, provided that module ran hkj-processor: the navigator
 composes the `Focus` class the dependency published, whichever processor version built it. A
 dependency without the processor gives no navigator, and a field whose type is not on this

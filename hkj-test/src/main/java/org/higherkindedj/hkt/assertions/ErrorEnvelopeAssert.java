@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.error.ErrorEnvelope;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link ErrorEnvelope} instances.
@@ -32,11 +33,12 @@ public class ErrorEnvelopeAssert<C>
     extends AbstractAssert<ErrorEnvelopeAssert<C>, ErrorEnvelope<C>> {
 
   /** Entry point. */
-  public static <C> ErrorEnvelopeAssert<C> assertThatErrorEnvelope(ErrorEnvelope<C> actual) {
+  public static <C> ErrorEnvelopeAssert<C> assertThatErrorEnvelope(
+      @Nullable ErrorEnvelope<C> actual) {
     return new ErrorEnvelopeAssert<>(actual);
   }
 
-  protected ErrorEnvelopeAssert(ErrorEnvelope<C> actual) {
+  protected ErrorEnvelopeAssert(@Nullable ErrorEnvelope<C> actual) {
     super(actual, ErrorEnvelopeAssert.class);
   }
 

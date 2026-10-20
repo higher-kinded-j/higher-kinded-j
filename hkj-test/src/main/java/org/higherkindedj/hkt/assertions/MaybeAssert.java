@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Maybe} instances wrapped in {@link Kind}.
@@ -35,7 +36,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 public class MaybeAssert<T> extends AbstractAssert<MaybeAssert<T>, Kind<MaybeKind.Witness, T>> {
 
   /** Entry point accepting a {@code Kind<MaybeKind.Witness, T>}. */
-  public static <T> MaybeAssert<T> assertThatMaybe(Kind<MaybeKind.Witness, T> actual) {
+  public static <T> MaybeAssert<T> assertThatMaybe(@Nullable Kind<MaybeKind.Witness, T> actual) {
     return new MaybeAssert<>(actual);
   }
 
@@ -43,11 +44,11 @@ public class MaybeAssert<T> extends AbstractAssert<MaybeAssert<T>, Kind<MaybeKin
    * Entry point accepting a bare {@code Maybe<T>}. Most-specific overload — preserves source
    * compatibility for callers passing an unwrapped {@code Maybe}.
    */
-  public static <T> MaybeAssert<T> assertThatMaybe(Maybe<T> actual) {
-    return new MaybeAssert<>(MAYBE.widen(actual));
+  public static <T> MaybeAssert<T> assertThatMaybe(@Nullable Maybe<T> actual) {
+    return new MaybeAssert<>(actual == null ? null : MAYBE.widen(actual));
   }
 
-  protected MaybeAssert(Kind<MaybeKind.Witness, T> actual) {
+  protected MaybeAssert(@Nullable Kind<MaybeKind.Witness, T> actual) {
     super(actual, MaybeAssert.class);
   }
 

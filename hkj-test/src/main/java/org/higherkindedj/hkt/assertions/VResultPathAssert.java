@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.assertions;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
@@ -10,6 +11,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.effect.VResultPath;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link VResultPath} instances.
@@ -37,17 +39,26 @@ public class VResultPathAssert<E, A>
     extends AbstractAssert<VResultPathAssert<E, A>, VResultPath<E, A>> {
 
   /** Entry point. */
-  public static <E, A> VResultPathAssert<E, A> assertThatVResultPath(VResultPath<E, A> actual) {
+  public static <E, A> VResultPathAssert<E, A> assertThatVResultPath(
+      @Nullable VResultPath<E, A> actual) {
     return new VResultPathAssert<>(actual);
   }
 
-  private Either<E, A> executedResult;
-  private Throwable executedDefect;
+  private @Nullable Either<E, A> executedResult;
+  private @Nullable Throwable executedDefect;
   private boolean hasBeenExecuted = false;
   private long executionTimeMillis = -1;
 
-  protected VResultPathAssert(VResultPath<E, A> actual) {
+  protected VResultPathAssert(@Nullable VResultPath<E, A> actual) {
     super(actual, VResultPathAssert.class);
+  }
+
+  private Throwable defect() {
+    return Objects.requireNonNull(executedDefect);
+  }
+
+  private Either<E, A> executed() {
+    return Objects.requireNonNull(executedResult);
   }
 
   private VResultPathAssert<E, A> ensureExecuted() {
@@ -59,8 +70,9 @@ public class VResultPathAssert<E, A>
         Interrupts.clearAfterCancellation(interruptedBefore, defect);
       }
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-      executedResult = outcome.foldFailureFirst(e -> null, r -> r);
-      executedDefect = outcome.foldFailureFirst(e -> e, r -> null);
+      executedResult = outcome.orElse(null);
+      executedDefect =
+          outcome instanceof Try.Failure<Either<E, A>>(Throwable defect) ? defect : null;
       hasBeenExecuted = true;
     }
     return this;
@@ -70,17 +82,17 @@ public class VResultPathAssert<E, A>
     if (executedDefect != null) {
       return "a defect: " + executedDefect;
     }
-    if (executedResult.isLeft()) {
-      return "Left(" + executedResult.getLeft() + ")";
+    if (executed().isLeft()) {
+      return "Left(" + executed().getLeft() + ")";
     }
-    return "Right(" + executedResult.getRight() + ")";
+    return "Right(" + executed().getRight() + ")";
   }
 
   /** Asserts that the path produces a typed success ({@code Right}). */
   public VResultPathAssert<E, A> isRight() {
     isNotNull();
     ensureExecuted();
-    Assertions.assertThat(executedDefect == null && executedResult.isRight())
+    Assertions.assertThat(executedDefect == null && executed().isRight())
         .withFailMessage(
             "Expected VResultPath to produce a Right but it produced %s", describeOutcome())
         .isTrue();
@@ -91,7 +103,7 @@ public class VResultPathAssert<E, A>
   public VResultPathAssert<E, A> isLeft() {
     isNotNull();
     ensureExecuted();
-    Assertions.assertThat(executedDefect == null && executedResult.isLeft())
+    Assertions.assertThat(executedDefect == null && executed().isLeft())
         .withFailMessage(
             "Expected VResultPath to produce a Left but it produced %s", describeOutcome())
         .isTrue();
@@ -101,7 +113,7 @@ public class VResultPathAssert<E, A>
   /** Asserts that the path produces a {@code Right} equal to the expected value. */
   public VResultPathAssert<E, A> hasRight(A expected) {
     isRight();
-    A actualValue = executedResult.getRight();
+    A actualValue = executed().getRight();
     Assertions.assertThat(actualValue)
         .withFailMessage("Expected Right value <%s> but was <%s>", expected, actualValue)
         .isEqualTo(expected);
@@ -111,7 +123,7 @@ public class VResultPathAssert<E, A>
   /** Asserts that the path produces a {@code Left} equal to the expected error. */
   public VResultPathAssert<E, A> hasLeft(E expected) {
     isLeft();
-    E actualError = executedResult.getLeft();
+    E actualError = executed().getLeft();
     Assertions.assertThat(actualError)
         .withFailMessage("Expected Left error <%s> but was <%s>", expected, actualError)
         .isEqualTo(expected);
@@ -121,14 +133,14 @@ public class VResultPathAssert<E, A>
   /** Asserts that the {@code Right} value satisfies the given requirements. */
   public VResultPathAssert<E, A> hasRightSatisfying(Consumer<? super A> requirements) {
     isRight();
-    requirements.accept(executedResult.getRight());
+    requirements.accept(executed().getRight());
     return this;
   }
 
   /** Asserts that the {@code Left} error satisfies the given requirements. */
   public VResultPathAssert<E, A> hasLeftSatisfying(Consumer<? super E> requirements) {
     isLeft();
-    requirements.accept(executedResult.getLeft());
+    requirements.accept(executed().getLeft());
     return this;
   }
 
@@ -149,7 +161,7 @@ public class VResultPathAssert<E, A>
     Assertions.assertThat(executedDefect)
         .withFailMessage(
             "Expected defect of type <%s> but was <%s>",
-            expectedType.getName(), executedDefect.getClass().getName())
+            expectedType.getName(), defect().getClass().getName())
         .isInstanceOf(expectedType);
     return this;
   }
@@ -157,7 +169,7 @@ public class VResultPathAssert<E, A>
   /** Asserts that the defect's message contains the expected substring. */
   public VResultPathAssert<E, A> withDefectMessageContaining(String expectedSubstring) {
     hasDefect();
-    String message = executedDefect.getMessage();
+    String message = defect().getMessage();
     Assertions.assertThat(message)
         .withFailMessage(
             "Expected defect message to contain <%s> but was <%s>", expectedSubstring, message)

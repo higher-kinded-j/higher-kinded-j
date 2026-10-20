@@ -4,10 +4,12 @@ package org.higherkindedj.hkt.assertions;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link VStreamPath} instances.
@@ -20,16 +22,20 @@ import org.higherkindedj.hkt.effect.VStreamPath;
 public class VStreamPathAssert<A> extends AbstractAssert<VStreamPathAssert<A>, VStreamPath<A>> {
 
   /** Entry point. */
-  public static <A> VStreamPathAssert<A> assertThatVStreamPath(VStreamPath<A> actual) {
+  public static <A> VStreamPathAssert<A> assertThatVStreamPath(@Nullable VStreamPath<A> actual) {
     return new VStreamPathAssert<>(actual);
   }
 
-  private List<A> materialisedElements;
-  private Throwable materialisedException;
+  private @Nullable List<A> materialisedElements;
+  private @Nullable Throwable materialisedException;
   private boolean hasMaterialised = false;
 
-  protected VStreamPathAssert(VStreamPath<A> actual) {
+  protected VStreamPathAssert(@Nullable VStreamPath<A> actual) {
     super(actual, VStreamPathAssert.class);
+  }
+
+  private List<A> elements() {
+    return Objects.requireNonNull(materialisedElements);
   }
 
   private void materialise() {
@@ -92,7 +98,7 @@ public class VStreamPathAssert<A> extends AbstractAssert<VStreamPathAssert<A>, V
     Assertions.assertThat(materialisedElements)
         .withFailMessage(
             "Expected VStreamPath to be empty but it produced %d elements: %s",
-            materialisedElements.size(), materialisedElements)
+            elements().size(), materialisedElements)
         .isEmpty();
     return this;
   }
@@ -102,7 +108,7 @@ public class VStreamPathAssert<A> extends AbstractAssert<VStreamPathAssert<A>, V
     materialise();
     requireSuccessfulMaterialise(
         String.format(Locale.ROOT, "Expected VStreamPath to have %d elements", expected));
-    long actualCount = materialisedElements.size();
+    long actualCount = elements().size();
     Assertions.assertThat(actualCount)
         .withFailMessage(
             "Expected VStreamPath to have %d elements but had %d", expected, actualCount)

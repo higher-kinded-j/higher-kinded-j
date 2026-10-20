@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Either} instances wrapped in {@link Kind}.
@@ -37,7 +38,8 @@ public class EitherAssert<L, R>
     extends AbstractAssert<EitherAssert<L, R>, Kind<EitherKind.Witness<L>, R>> {
 
   /** Entry point accepting a {@code Kind<EitherKind.Witness<L>, R>}. */
-  public static <L, R> EitherAssert<L, R> assertThatEither(Kind<EitherKind.Witness<L>, R> actual) {
+  public static <L, R> EitherAssert<L, R> assertThatEither(
+      @Nullable Kind<EitherKind.Witness<L>, R> actual) {
     return new EitherAssert<>(actual);
   }
 
@@ -45,11 +47,11 @@ public class EitherAssert<L, R>
    * Entry point accepting a bare {@code Either<L, R>}. Most-specific overload — preserves source
    * compatibility for callers passing an unwrapped {@code Either}.
    */
-  public static <L, R> EitherAssert<L, R> assertThatEither(Either<L, R> actual) {
-    return new EitherAssert<>(EITHER.widen(actual));
+  public static <L, R> EitherAssert<L, R> assertThatEither(@Nullable Either<L, R> actual) {
+    return new EitherAssert<>(actual == null ? null : EITHER.widen(actual));
   }
 
-  protected EitherAssert(Kind<EitherKind.Witness<L>, R> actual) {
+  protected EitherAssert(@Nullable Kind<EitherKind.Witness<L>, R> actual) {
     super(actual, EitherAssert.class);
   }
 

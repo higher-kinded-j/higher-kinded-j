@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.writer.Writer;
 import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer.WriterKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Writer} instances.
@@ -21,16 +22,17 @@ import org.higherkindedj.hkt.writer.WriterKindHelper;
 public class WriterAssert<W, A> extends AbstractAssert<WriterAssert<W, A>, Writer<W, A>> {
 
   /** Entry point accepting a {@code Kind<WriterKind.Witness<W>, A>}. */
-  public static <W, A> WriterAssert<W, A> assertThatWriter(Kind<WriterKind.Witness<W>, A> actual) {
-    return new WriterAssert<>(WriterKindHelper.WRITER.narrow(actual));
+  public static <W, A> WriterAssert<W, A> assertThatWriter(
+      @Nullable Kind<WriterKind.Witness<W>, A> actual) {
+    return new WriterAssert<>(actual == null ? null : WriterKindHelper.WRITER.narrow(actual));
   }
 
   /** Entry point. */
-  public static <W, A> WriterAssert<W, A> assertThatWriter(Writer<W, A> actual) {
+  public static <W, A> WriterAssert<W, A> assertThatWriter(@Nullable Writer<W, A> actual) {
     return new WriterAssert<>(actual);
   }
 
-  protected WriterAssert(Writer<W, A> actual) {
+  protected WriterAssert(@Nullable Writer<W, A> actual) {
     super(actual, WriterAssert.class);
   }
 

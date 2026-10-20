@@ -13,6 +13,7 @@ import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.stream.StreamKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link java.util.stream.Stream} instances wrapped in {@link Kind}.
@@ -40,23 +41,25 @@ import org.higherkindedj.hkt.stream.StreamKind;
 public class StreamAssert<T> extends AbstractAssert<StreamAssert<T>, Kind<StreamKind.Witness, T>> {
 
   // Cached list to avoid multiple stream evaluations.
-  private List<T> evaluatedList;
+  private @Nullable List<T> evaluatedList;
 
   /** Entry point. */
-  public static <T> StreamAssert<T> assertThatStream(Kind<StreamKind.Witness, T> actual) {
+  public static <T> StreamAssert<T> assertThatStream(@Nullable Kind<StreamKind.Witness, T> actual) {
     return new StreamAssert<>(actual);
   }
 
-  protected StreamAssert(Kind<StreamKind.Witness, T> actual) {
+  protected StreamAssert(@Nullable Kind<StreamKind.Witness, T> actual) {
     super(actual, StreamAssert.class);
   }
 
   private List<T> getEvaluatedList() {
-    if (evaluatedList == null) {
+    List<T> list = evaluatedList;
+    if (list == null) {
       isNotNull();
-      evaluatedList = STREAM.narrow(actual).collect(Collectors.toList());
+      list = STREAM.narrow(actual).collect(Collectors.toList());
+      evaluatedList = list;
     }
-    return evaluatedList;
+    return list;
   }
 
   /** Verifies that the actual Stream is empty. Forces evaluation of the stream. */

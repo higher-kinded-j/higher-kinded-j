@@ -185,7 +185,7 @@ List<Order> found = ids.stream()
     .toList();
 ```
 
-`Maybe` carries `stream()` deliberately alone among the optional-shaped types: an empty stream renders absence faithfully, while the same conversion on `Either` or `Try` would silently discard the error the value carries. Those types convert through `toEither` and `fold` instead.
+`Maybe` carries `stream()` deliberately alone among the optional-shaped types: an empty stream renders absence faithfully, while the same conversion on `Either` or `Try` would silently discard the error the value carries. Those types convert through `toEither` and `fold` instead, which `Try` spells `foldFailureFirst`.
 ~~~
 
 ### Key Operations (via `MaybeMonad`)

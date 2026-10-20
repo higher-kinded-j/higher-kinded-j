@@ -12,6 +12,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link Id} instances wrapped in {@link Kind}.
@@ -33,16 +34,16 @@ import org.higherkindedj.hkt.id.IdKind;
 public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<IdKind.Witness, T>> {
 
   /** Entry point. */
-  public static <T> IdAssert<T> assertThatId(Kind<IdKind.Witness, T> actual) {
+  public static <T> IdAssert<T> assertThatId(@Nullable Kind<IdKind.Witness, T> actual) {
     return new IdAssert<>(actual);
   }
 
-  protected IdAssert(Kind<IdKind.Witness, T> actual) {
+  protected IdAssert(@Nullable Kind<IdKind.Witness, T> actual) {
     super(actual, IdAssert.class);
   }
 
   /** Verifies that the actual Id contains the expected value. */
-  public IdAssert<T> hasValue(T expected) {
+  public IdAssert<T> hasValue(@Nullable T expected) {
     isNotNull();
     T actualValue = ID.narrow(actual).value();
     Assertions.assertThat(actualValue)
@@ -104,7 +105,7 @@ public class IdAssert<T> extends AbstractAssert<IdAssert<T>, Kind<IdKind.Witness
   }
 
   /** Verifies that the actual Id is equal to another Id Kind based on value equality. */
-  public IdAssert<T> isEqualToId(Kind<IdKind.Witness, T> other) {
+  public IdAssert<T> isEqualToId(@Nullable Kind<IdKind.Witness, T> other) {
     isNotNull();
     Assertions.assertThat(other)
         .withFailMessage("Expected Id to be equal to another Id but the other was null")

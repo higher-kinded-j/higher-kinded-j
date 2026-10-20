@@ -11,6 +11,7 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Custom AssertJ assertions for {@link VTaskPath} instances.
@@ -31,17 +32,21 @@ import org.higherkindedj.hkt.vtask.VTask;
 public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTaskPath<T>> {
 
   /** Entry point. */
-  public static <T> VTaskPathAssert<T> assertThatVTaskPath(VTaskPath<T> actual) {
+  public static <T> VTaskPathAssert<T> assertThatVTaskPath(@Nullable VTaskPath<T> actual) {
     return new VTaskPathAssert<>(actual);
   }
 
-  private T executedValue;
-  private Throwable executedException;
+  private @Nullable T executedValue;
+  private @Nullable Throwable executedException;
   private boolean hasBeenExecuted = false;
   private long executionTimeMillis = -1;
 
-  protected VTaskPathAssert(VTaskPath<T> actual) {
+  protected VTaskPathAssert(@Nullable VTaskPath<T> actual) {
     super(actual, VTaskPathAssert.class);
+  }
+
+  private Throwable thrown() {
+    return Objects.requireNonNull(executedException);
   }
 
   private VTaskPathAssert<T> ensureExecuted() {
@@ -53,8 +58,8 @@ public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTask
         Interrupts.clearAfterCancellation(interruptedBefore, failure);
       }
       executionTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-      executedValue = result.foldFailureFirst(e -> null, v -> v);
-      executedException = result.foldFailureFirst(e -> e, v -> null);
+      executedValue = result.orElse(null);
+      executedException = result instanceof Try.Failure<T>(Throwable failure) ? failure : null;
       hasBeenExecuted = true;
     }
     return this;
@@ -105,18 +110,17 @@ public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTask
     Assertions.assertThat(executedException)
         .withFailMessage(
             "Expected exception of type <%s> but was <%s>",
-            expectedType.getName(), executedException.getClass().getName())
+            expectedType.getName(), thrown().getClass().getName())
         .isInstanceOf(expectedType);
     return this;
   }
 
   /** Asserts that the failure exception has the expected message. */
-  public VTaskPathAssert<T> withExceptionMessage(String expectedMessage) {
+  public VTaskPathAssert<T> withExceptionMessage(@Nullable String expectedMessage) {
     fails();
-    Assertions.assertThat(executedException.getMessage())
+    Assertions.assertThat(thrown().getMessage())
         .withFailMessage(
-            "Expected exception message <%s> but was <%s>",
-            expectedMessage, executedException.getMessage())
+            "Expected exception message <%s> but was <%s>", expectedMessage, thrown().getMessage())
         .isEqualTo(expectedMessage);
     return this;
   }
@@ -124,7 +128,7 @@ public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTask
   /** Asserts that the failure exception message contains the expected substring. */
   public VTaskPathAssert<T> withExceptionMessageContaining(String expectedSubstring) {
     fails();
-    String message = executedException.getMessage();
+    String message = thrown().getMessage();
     Assertions.assertThat(message)
         .withFailMessage(
             "Expected exception message to contain <%s> but was <%s>", expectedSubstring, message)
@@ -164,13 +168,14 @@ public class VTaskPathAssert<T> extends AbstractAssert<VTaskPathAssert<T>, VTask
     boolean otherSucceeded = otherResult.isSuccess();
 
     if (executedException != null) {
-      T otherValue = otherResult.foldFailureFirst(e -> null, v -> v);
+      @Nullable T otherValue = otherResult.orElse(null);
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskPaths to fail, but other succeeded with: %s", otherValue)
           .isFalse();
     } else {
-      String otherFailureMessage = otherResult.foldFailureFirst(Throwable::getMessage, v -> null);
+      @Nullable String otherFailureMessage =
+          otherResult instanceof Try.Failure<T>(Throwable failure) ? failure.getMessage() : null;
       Assertions.assertThat(otherSucceeded)
           .withFailMessage(
               "Expected both VTaskPaths to succeed, but other failed with: %s", otherFailureMessage)

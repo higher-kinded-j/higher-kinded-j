@@ -1512,4 +1512,98 @@ class NullableFocusNullnessTest {
       assertThat(compilation).succeeded();
     }
   }
+
+  @Nested
+  @DisplayName("hkj-test assertions")
+  class TestAssertions {
+
+    @Test
+    @DisplayName("take a nullable actual, as AssertJ's assertThat does")
+    void takeANullableActual() {
+      // hkj-test marks its packages @NullMarked, so a checker reading the jar from the classpath
+      // holds each call to what the signature says.
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.Checks",
+                  """
+                  package com.example;
+
+                  import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+                  import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+                  import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
+                  import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+                  import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
+
+                  import org.higherkindedj.hkt.id.Id;
+                  import org.higherkindedj.hkt.io.IO;
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.hkt.maybe.Maybe;
+                  import org.higherkindedj.hkt.vtask.VTask;
+                  import org.jspecify.annotations.Nullable;
+
+                  class Checks {
+                    static void check(
+                        @Nullable Either<String, Integer> either,
+                        @Nullable Maybe<Integer> maybe,
+                        @Nullable IO<Integer> io,
+                        @Nullable VTask<Integer> task) {
+                      assertThatEither(either).isNull();
+                      assertThatMaybe(maybe).isNull();
+                      assertThatIO(io).isNull();
+                      assertThatVTask(task).isNull();
+                      assertThatEither(Either.<String, Integer>right(1)).isRight().hasRight(1);
+                      assertThatId(Id.of((String) null)).hasValue(null);
+                    }
+
+                    static @Nullable Throwable thrown(org.higherkindedj.hkt.assertions.IOAssert<Integer> assertion) {
+                      assertion.withMessage(null);
+                      return assertion.getException();
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("still refuse a null expected value, and a thrown exception may be absent")
+    void refuseANullExpectedValue() {
+      JavaFileObject checks =
+          source(
+              "com.example.Refuses",
+              """
+              package com.example;
+
+              import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+
+              import org.higherkindedj.hkt.assertions.IOAssert;
+              import org.higherkindedj.hkt.either.Either;
+              import org.jspecify.annotations.Nullable;
+
+              class Refuses {
+                static void check(Either<String, Integer> either) {
+                  assertThatEither(either).hasRight(null);
+                }
+
+                static Throwable thrown(IOAssert<Integer> io) {
+                  return io.getException();
+                }
+              }
+              """);
+
+      Compilation compilation = compileChecked(checks);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(2);
+      assertThat(compilation)
+          .hadErrorContaining("passing @Nullable parameter 'null' where @NonNull is required")
+          .inFile(checks)
+          .onLine(11);
+      assertThat(compilation)
+          .hadErrorContaining("returning @Nullable expression")
+          .inFile(checks)
+          .onLine(15);
+    }
+  }
 }
