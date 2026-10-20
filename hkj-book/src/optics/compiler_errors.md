@@ -35,6 +35,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
+| [`whose field cannot have a navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that cannot return a navigator |
 | [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
 | [`is widened without it`, `holds no container widenFields widens`](#generatefocus-widenfields-cannot-widen) | **Warning.** A `widenFields` name whose path widening cannot change |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
@@ -460,7 +461,7 @@ Note: @GenerateFocus: record component 'Signatory.name' has no navigator into Fu
 
 ### "@GenerateFocus: record component 'X.y' has no navigator over its T elements" (a note) {#generatefocus-no-navigator-over-elements}
 
-`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container.
+`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead.
 
 **Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. `widenCollections = true` widens every such container instead. To keep the container whole, drop `generateNavigators = true`, which is the default, and the note goes with it.
 
@@ -505,6 +506,55 @@ record Hawker(String name, Kiosk kiosk) {}
 
 ```
 error: @GenerateFocus: includeFields on Hawker names "kisok", which is not a component of Hawker. includeFields gives navigators only to the components it names, so a name that matches none gives no component a navigator. Did you mean 'kiosk'? Found on Hawker: [name, kiosk]. Replace "kisok" with "kiosk" in includeFields on Hawker.
+```
+~~~
+
+### "@GenerateFocus: includeFields on X names \"y\", whose field cannot have a navigator" (a warning) {#generatefocus-includefields-no-navigator}
+
+The name matches a component, but that component cannot return a navigator. A `String`, a `List<String>` and a record without `@GenerateFocus` have no navigator target. Built-in `Optional`, `Maybe`, `List`, `Set` and `Collection` paths do not get navigators, even when their elements are annotated records. A `Map`, an array of records or another supported container can return one only where the declaring record widens it.
+
+**Fix.** Name a field that can return a navigator, from those the warning lists. For an unannotated record, annotate its type with `@GenerateFocus`. For an unwidened container, add the field to `widenFields`. Where no field can navigate, remove `includeFields` and set `generateNavigators = false`. Follow the warning's fix line: leaving `includeFields` in place with navigators off draws a different warning.
+
+A non-empty `includeFields` gives navigators only to the fields it names, so naming an ineligible field also takes navigators away from every eligible field it leaves out. The warning points at the offending name and stops a `-Werror` build. A field already explained by a target note or error gets no additional warning. The [unwidened-container note](#generatefocus-no-navigator-over-elements) becomes this warning when `includeFields` names the field.
+
+~~~admonish example title="A valid name that cannot return a navigator"
+<!-- verify:reports "includeFields on Hawker names" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "id")
+record Hawker(String id, Kiosk kiosk) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Hawker names "id", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through String. It needs a @GenerateFocus record or a supported container of one; built-in Optional, Maybe, List, Set and Collection paths do not get navigators. Replace "id" in includeFields on Hawker with a navigator field from [kiosk].
+```
+
+The offered field gives a navigator:
+
+<!-- verify -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "kiosk")
+record Hawker(String id, Kiosk kiosk) {}
+```
+~~~
+
+~~~admonish example title="A container that needs widening"
+<!-- verify:reports "Hawker does not widen" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "sites")
+record Hawker(java.util.Map<String, Kiosk> sites) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. A navigator steps into a container only where the record widens it, and Hawker does not widen "sites". Add widenFields = "sites" to @GenerateFocus on Hawker.
 ```
 ~~~
 
