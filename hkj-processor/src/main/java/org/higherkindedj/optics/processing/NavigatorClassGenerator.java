@@ -1621,39 +1621,38 @@ public class NavigatorClassGenerator {
               + ProcessorUtils.simpleTypeName(component.asType())
               + ". It needs a @GenerateFocus record or a supported container of one; built-in"
               + " Optional, Maybe, List, Set and Collection paths do not get navigators.";
-      List<String> candidates =
-          record.getRecordComponents().stream()
-              .filter(
-                  candidate -> {
-                    Target target = unfilteredTarget(record, candidate);
-                    return target != null
-                        && inheritedNames(methodPath(record, candidate).tier(), target).isEmpty();
-                  })
-              .map(candidate -> candidate.getSimpleName().toString())
-              .toList();
-      fix =
-          candidates.isEmpty()
-              ? "Remove includeFields and set generateNavigators = false in @GenerateFocus on "
-                  + recordName
-                  + "."
-              : "Replace \""
-                  + name
-                  + "\" in includeFields on "
-                  + recordName
-                  + " with a navigator field from "
-                  + candidates
-                  + ".";
+      if (hasOtherIncludedNavigator(record, component)) {
+        fix =
+            ProcessorUtils.capitalise(
+                    FocusFieldListChecks.removeName(record, "includeFields", name))
+                + ".";
+      } else {
+        List<String> candidates =
+            record.getRecordComponents().stream()
+                .filter(
+                    candidate -> {
+                      Target target = unfilteredTarget(record, candidate);
+                      return target != null
+                          && inheritedNames(methodPath(record, candidate).tier(), target).isEmpty();
+                    })
+                .map(candidate -> candidate.getSimpleName().toString())
+                .toList();
+        fix =
+            candidates.isEmpty()
+                ? "Remove includeFields and set generateNavigators = false in @GenerateFocus on "
+                    + recordName
+                    + "."
+                : "Replace \""
+                    + name
+                    + "\" in includeFields on "
+                    + recordName
+                    + " with a navigator field from "
+                    + candidates
+                    + ".";
+      }
       if (plain != null) {
         reason = plain.getSimpleName() + " is a record without @GenerateFocus. " + reason;
-        // Offer annotation only where it would actually give this field a usable navigator.
-        Target annotated = new Target(plain, (DeclaredType) component.asType());
-        if (annotated.instantiable()
-            && inheritedNames(methodPath(record, component).tier(), annotated).isEmpty()
-            && Reachability.firstHidden(
-                    processingEnv.getElementUtils(),
-                    companionPackage(record),
-                    Reachability.record(plain, plain.getRecordComponents()))
-                .isEmpty()) {
+        if (annotationEnablesNavigator(record, component)) {
           fix +=
               " Alternatively, annotate record " + plain.getSimpleName() + " with @GenerateFocus.";
         }
@@ -1684,6 +1683,47 @@ public class NavigatorClassGenerator {
                             + "\", whose field cannot have a navigator.",
                         explanation,
                         correction));
+  }
+
+  /**
+   * Another included field keeps its navigator, or its own diagnostic explains how to obtain one.
+   * In either case, removing this name must not disable or duplicate the other field's request.
+   */
+  private boolean hasOtherIncludedNavigator(TypeElement record, RecordComponentElement component) {
+    return record.getRecordComponents().stream()
+        .filter(candidate -> !candidate.equals(component))
+        .filter(candidate -> shouldGenerateNavigator(record, candidate))
+        .anyMatch(
+            candidate -> {
+              if (reachableTarget(record, candidate) != null
+                  || !(skippedTarget(record, candidate) instanceof Reach.None)) {
+                return true;
+              }
+              Target unwidened = navigableTarget(candidate, companionPackage(record));
+              return unwidened != null
+                  ? unwidened.instantiable()
+                      && inheritedNames(analysis.analyse(candidate, true).tier(), unwidened)
+                          .isEmpty()
+                  : annotationEnablesNavigator(record, candidate);
+            });
+  }
+
+  /** Whether annotating this compilation's record would give the field a usable navigator. */
+  private boolean annotationEnablesNavigator(TypeElement record, RecordComponentElement component) {
+    if (!(component.asType() instanceof DeclaredType declared)
+        || declared.asElement().getKind() != ElementKind.RECORD) {
+      return false;
+    }
+    TypeElement plain = (TypeElement) declared.asElement();
+    Target annotated = new Target(plain, declared);
+    return ProcessorUtils.compiledFromSource(processingEnv.getElementUtils(), plain)
+        && annotated.instantiable()
+        && inheritedNames(methodPath(record, component).tier(), annotated).isEmpty()
+        && Reachability.firstHidden(
+                processingEnv.getElementUtils(),
+                companionPackage(record),
+                Reachability.record(plain, plain.getRecordComponents()))
+            .isEmpty();
   }
 
   /**
