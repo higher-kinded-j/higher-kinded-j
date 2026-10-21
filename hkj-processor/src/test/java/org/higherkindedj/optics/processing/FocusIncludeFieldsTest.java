@@ -138,6 +138,179 @@ class FocusIncludeFieldsTest {
             "-Werror"));
   }
 
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(
+      delimiter = '|',
+      textBlock =
+          """
+      C05 | Address address | address | @GenerateFocus(includeFields = "address") | Address address | AddressNavigator<C05> address() | address().street()
+      C10 | Map<String, Address> sites | sites | @GenerateFocus(includeFields = "sites", widenFields = "sites") | Map<String, Address> sites | SitesNavigator<C10> sites() | sites().street()
+      C11 | Box<?> boxed | boxed | @GenerateFocus(includeFields = "boxed") | Box<Object> boxed | BoxedNavigator<C11, Object> boxed() | boxed().value()
+      """)
+  @DisplayName("another included navigator or its correction makes removal the followable fix")
+  void removesNameBesideNavigator(
+      String record,
+      String component,
+      String field,
+      String correction,
+      String correctedComponent,
+      String method,
+      String navigation) {
+    String annotation = "@GenerateFocus(includeFields = {\"id\", \"" + field + "\"})";
+    JavaFileObject subject = source(record, annotation, "String id, " + component);
+    Compilation written = compile(subject, "-Werror");
+    assertThat(written).failed();
+    assertThat(written).hadErrorContaining("warnings found and -Werror specified");
+    assertThat(written).hadWarningCount(record.equals("C10") ? 2 : 1);
+    assertThat(written)
+        .hadWarningContaining("Remove \"id\" from includeFields on " + record + ".")
+        .inFile(subject)
+        .onLine(7)
+        .atColumn(annotation.indexOf('"') + 1);
+    org.assertj.core.api.Assertions.assertThat(written.warnings())
+        .allSatisfy(
+            warning ->
+                org.assertj.core.api.Assertions.assertThat(warning.getMessage(null))
+                    .doesNotContain("Replace \"id\"", "generateNavigators = false"));
+    if (record.equals("C10")) {
+      assertThat(written)
+          .hadWarningContaining("Add widenFields = \"sites\" to @GenerateFocus on C10.")
+          .inFile(subject)
+          .onLine(7)
+          .atColumn(annotation.indexOf("\"sites\"") + 1);
+    }
+    if (record.equals("C11")) {
+      assertThat(written).hadNoteCount(1);
+      assertThat(written)
+          .hadNoteContaining(
+              "Write Box<Object>, or another concrete instantiation, in place of Box<?>");
+    }
+
+    Compilation followed =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+            .compile(
+                ADDRESS,
+                GENERIC,
+                source(record, correction, "String id, " + correctedComponent),
+                JavaFileObjects.forSourceString(
+                    "com.example.UseFixed",
+                    """
+                    package com.example;
+                    class UseFixed {
+                      Object path() { return %sFocus.%s; }
+                    }
+                    """
+                        .formatted(record, navigation)));
+    clean(followed);
+    assertGeneratedCodeContains(followed, "com.example." + record + "Focus", method);
+  }
+
+  @Test
+  @DisplayName("another included source record can keep navigation through its annotation fix")
+  void removesNameBesideAnnotationSuggestion() {
+    String annotation = "@GenerateFocus(includeFields = {\"id\", \"plain\"})";
+    JavaFileObject subject = source("Subject", annotation, "String id, Plain plain");
+    Compilation written = compile(subject);
+    assertThat(written).succeeded();
+    assertThat(written).hadWarningCount(2);
+    assertThat(written)
+        .hadWarningContaining("Remove \"id\" from includeFields on Subject.")
+        .inFile(subject)
+        .onLine(7)
+        .atColumn(annotation.indexOf('"') + 1);
+    assertThat(written)
+        .hadWarningContaining("Alternatively, annotate record Plain with @GenerateFocus.")
+        .inFile(subject)
+        .onLine(7)
+        .atColumn(annotation.indexOf("\"plain\"") + 1);
+    Compilation followed =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+            .compile(
+                source("Plain", "@GenerateFocus", "String street"),
+                source(
+                    "Subject",
+                    "@GenerateFocus(includeFields = \"plain\")",
+                    "String id, Plain plain"));
+    clean(followed);
+    assertGeneratedCodeContains(
+        followed, "com.example.SubjectFocus", "PlainNavigator<Subject> plain()");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(
+      delimiter = '|',
+      textBlock =
+          """
+      int other | 2
+      Map<String, Box<?>> other | 1
+      Map<String, Clash> other | 2
+      """)
+  @DisplayName("an included field without a usable correction does not keep navigation enabled")
+  void noOtherNavigatorCorrection(String component, int warnings) {
+    String annotation = "@GenerateFocus(includeFields = {\"id\", \"other\"})";
+    JavaFileObject subject = source("Subject", annotation, "String id, " + component);
+    Compilation written = compile(subject);
+    assertThat(written).succeeded();
+    assertThat(written).hadWarningCount(warnings);
+    assertThat(written)
+        .hadWarningContaining(
+            "Remove includeFields and set generateNavigators = false in @GenerateFocus on Subject.")
+        .inFile(subject)
+        .onLine(7)
+        .atColumn(annotation.indexOf('"') + 1);
+    clean(
+        compile(
+            source(
+                "Subject", "@GenerateFocus(generateNavigators = false)", "String id, " + component),
+            "-Xlint:all,-processing,-auxiliaryclass",
+            "-Werror"));
+  }
+
+  @Test
+  @DisplayName("a classpath record cannot be annotated by the consumer")
+  void externalRecordHasNoAnnotationSuggestion(@TempDir Path temp) throws IOException {
+    Compilation upstream = javac().withOptions("-proc:none").compile(PLAIN);
+    clean(upstream);
+    Path dependency = classDirectory(upstream, temp.resolve("dependency"));
+    String annotation = "@GenerateFocus(includeFields = \"plain\")";
+    JavaFileObject subject = source("Subject", annotation, "Plain plain, Address address");
+    Compilation written =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withClasspath(classpathWith(dependency))
+            .compile(ADDRESS, subject);
+    assertThat(written).succeeded();
+    assertThat(written).hadWarningCount(1);
+    assertThat(written)
+        .hadWarningContaining("Plain is a record without @GenerateFocus.")
+        .inFile(subject)
+        .onLine(7)
+        .atColumn(annotation.indexOf('"') + 1);
+    assertThat(written)
+        .hadWarningContaining(
+            "Replace \"plain\" in includeFields on Subject with a navigator field from [address].");
+    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
+        .doesNotContain("Alternatively", "annotate record Plain");
+    Compilation followed =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withClasspath(classpathWith(dependency))
+            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+            .compile(
+                ADDRESS,
+                source(
+                    "Subject",
+                    "@GenerateFocus(includeFields = \"address\")",
+                    "Plain plain, Address address"));
+    clean(followed);
+    assertGeneratedCodeContains(
+        followed, "com.example.SubjectFocus", "AddressNavigator<Subject> address()");
+  }
+
   @Test
   @DisplayName("annotating an unannotated record is a followable alternative")
   void annotatingTheRecord() {
@@ -424,9 +597,10 @@ class FocusIncludeFieldsTest {
     assertThat(downstream).hadNoteContaining("cannot be reached from");
   }
 
-  @Test
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
   @DisplayName("annotation is not offered when the navigator would name a hidden type")
-  void unannotatedHiddenTarget(@TempDir Path temp) throws IOException {
+  void unannotatedHiddenTarget(boolean fromClasspath, @TempDir Path temp) throws IOException {
     JavaFileObject upstreamSource =
         JavaFileObjects.forSourceString(
             "com.model.Plain",
@@ -435,17 +609,21 @@ class FocusIncludeFieldsTest {
         record Secret(String value) {}
         public record Plain(Secret secret) {}
         """);
-    Compilation upstream = javac().withOptions("-proc:none").compile(upstreamSource);
-    Path dependency = classDirectory(upstream, temp.resolve("dependency"));
-    Compilation downstream =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withClasspath(classpathWith(dependency))
-            .compile(
-                source(
-                    "Subject",
-                    "@GenerateFocus(includeFields = \"plain\")",
-                    "com.model.Plain plain"));
+    JavaFileObject subject =
+        source("Subject", "@GenerateFocus(includeFields = \"plain\")", "com.model.Plain plain");
+    Compilation downstream;
+    if (fromClasspath) {
+      Compilation upstream = javac().withOptions("-proc:none").compile(upstreamSource);
+      clean(upstream);
+      Path dependency = classDirectory(upstream, temp.resolve("dependency"));
+      downstream =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withClasspath(classpathWith(dependency))
+              .compile(subject);
+    } else {
+      downstream = javac().withProcessors(new FocusProcessor()).compile(upstreamSource, subject);
+    }
     assertThat(downstream).succeeded();
     assertThat(downstream).hadWarningCount(1);
     org.assertj.core.api.Assertions.assertThat(downstream.warnings())
