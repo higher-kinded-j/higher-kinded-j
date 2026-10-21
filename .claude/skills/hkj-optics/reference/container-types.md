@@ -26,7 +26,7 @@ Every container type has a **cardinality** that determines the generated Focus p
 
 ^1 SPI `ZERO_OR_MORE` types return `FocusPath` from static Focus methods for backwards compatibility. Set `@GenerateFocus(widenCollections = true)` to widen them all, name one in `widenFields` to widen just that field, or call `.each(eachInstance)` to widen manually.
 
-A navigator's method returns the same path type as the static method for the same component: a navigator only adds navigation methods to that path. So a container of `@GenerateFocus` records gets a navigator over its elements only where the record widens it. `Optional`, `Maybe`, `List`, `Set` and `Collection` never get one.
+A navigator's method returns the same path type as the static method for the same component: a navigator only adds navigation methods to that path. So a container of `@GenerateFocus` records gets a navigator over its elements wherever the method steps into them. An `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of one always does, nested or not, and so does a `Kind` the processor traverses; a `Map`, an array or a third-party collection does where the record widens it.
 
 ^2 An array of a reference type. A primitive array such as `int[]` stays a `FocusPath` under every setting: `arrayEach()` is `Each<A[], A>`, and no primitive is an `A`.
 

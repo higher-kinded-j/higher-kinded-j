@@ -73,9 +73,7 @@ Collection fields and sealed interfaces use the same annotation-driven pattern. 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:round}}
 ```
 
-`OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. `.via(LineItemFocus.price())` zooms each element down to the price field, and `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
-
-A hop from a `List` field is always `.via(...)`: a navigator shortens a hop into a single record field, as `.email()` does in section 1.
+`OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. It is a navigator, as `customer()` is in section 1, so `.price()` zooms each element down to the price field. `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
 
 ~~~admonish warning title="Do not add your own `.each()`"
 `OrderFocus.lines().each()` compiles and then fails at run time. The extra `each()` tries to read a `LineItem` as a `List`; its type parameter is inferred from whatever you assign it to, which is why the compiler lets it through. `TraversalPath.each()` is for a focus that is *itself* a list, and its javadoc documents the `ClassCastException`.

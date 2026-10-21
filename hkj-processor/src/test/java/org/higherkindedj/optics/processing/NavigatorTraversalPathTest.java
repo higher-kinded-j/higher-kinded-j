@@ -53,9 +53,11 @@ class NavigatorTraversalPathTest {
 
     assertThat(compilation).succeeded();
 
-    // Should generate TraversalPath for List<Member> field
+    // Should generate a TraversalPath navigator for the List<Member> field
     assertGeneratedCodeContains(
-        compilation, "com.example.TeamFocus", "TraversalPath<Team, Member> members()");
+        compilation, "com.example.TeamFocus", "MembersNavigator<Team> members()");
+    assertGeneratedCodeContains(
+        compilation, "com.example.TeamFocus", "TraversalPath<S, String> firstName()");
   }
 
   @Test
@@ -133,9 +135,13 @@ class NavigatorTraversalPathTest {
 
     assertThat(compilation).succeeded();
 
-    // Optional<Address> should widen to AffinePath
+    // Optional<Address> should get a navigator over the AffinePath it widens to
     assertGeneratedCodeContains(
-        compilation, "com.example.PersonFocus", "AffinePath<Person, Address> address()");
+        compilation, "com.example.PersonFocus", "AddressNavigator<Person> address()");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.PersonFocus",
+        "AddressNavigator<S> extends NavigatorAffinePath<S, Address>");
   }
 
   @Test

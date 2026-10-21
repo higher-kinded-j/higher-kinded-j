@@ -117,6 +117,7 @@ class NavigatorsAreAdditiveTest {
         import org.higherkindedj.hkt.Kind;
         import org.higherkindedj.hkt.either.Either;
         import org.higherkindedj.hkt.list.ListKind;
+        import org.higherkindedj.hkt.maybe.Maybe;
         import org.higherkindedj.optics.focus.AffinePath;
         import org.higherkindedj.optics.focus.FocusPath;
         import org.higherkindedj.optics.focus.TraversalPath;

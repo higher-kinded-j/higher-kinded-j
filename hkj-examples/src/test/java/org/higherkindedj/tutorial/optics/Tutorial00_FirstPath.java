@@ -38,8 +38,8 @@ import org.junit.jupiter.api.Test;
  *   <li>{@code @GenerateFocus} on a record generates {@code XFocus}, one method per component;
  *   <li>a field whose type is another {@code @GenerateFocus} record gets a navigator, so the next
  *       hop chains on as a method call;
- *   <li>a {@code List} field's path is already on the elements, so the next hop is {@code
- *       .via(...)}.
+ *   <li>a {@code List} field's path is already on the elements, and is a navigator too, so the next
+ *       hop chains on from every element.
  * </ul>
  *
  * <p>The records are the Optics chapter's cast, in {@code
@@ -117,15 +117,15 @@ public class Tutorial00_FirstPath {
    * Exercise 3: update every element of a list.
    *
    * <p>A {@code List} field's path is already on its elements: {@code OrderFocus.lines()} reaches
-   * every line, and {@code .via(...)} takes the next hop from each one.
+   * every line, and, as a navigator over them, takes the next hop from each one.
    *
    * <p>Task: double the quantity of every line of {@code ORDER}, with one path.
    *
    * <pre>
    *   // Nudge:    reach every line, then one field of each, then change them all at once.
-   *   // Strategy: OrderFocus.lines().via(LineItemFocus.quantity()) reaches every quantity, and
+   *   // Strategy: OrderFocus.lines().quantity() reaches every quantity, and
    *   //           modifyAll(f, source) changes each one.
-   *   // Spoiler:  OrderFocus.lines().via(LineItemFocus.quantity()).modifyAll(q -> q * 2, ORDER)
+   *   // Spoiler:  OrderFocus.lines().quantity().modifyAll(q -> q * 2, ORDER)
    * </pre>
    */
   @Test
@@ -145,7 +145,7 @@ public class Tutorial00_FirstPath {
    * <ul>
    *   <li>✓ How a generated Focus path names a field several records down
    *   <li>✓ That a write returns a new order and reuses everything off the path
-   *   <li>✓ Why the hop after a {@code List} field goes through {@code .via(...)}
+   *   <li>✓ That a {@code List} field's path is already on its elements, and navigates on
    * </ul>
    *
    * <p>Next: Tutorial 01 - Lens Basics, which opens up the lens each step of a path is made of.

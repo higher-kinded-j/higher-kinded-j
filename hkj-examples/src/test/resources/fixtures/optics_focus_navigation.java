@@ -4,8 +4,8 @@
 // annotation declarations for controlling navigator generation. They name the
 // chapter cast's records, declared here with the cast's components, and the
 // annotation processor generates their *Focus companions during snippet
-// compilation. The depth fence declares Order itself, so it is not declared here, and the
-// refused-hop fence uses the cast's own OrderFocus through the on-demand import. The
+// compilation. The depth fence declares Order itself, so it is not declared here. The
+// refused-hop fence uses Backorders, a map of the fixture's LineItem declared here. The
 // generic-target fences declare their own Revision and ContactHistory, and type a chain
 // through the generated navigator with FocusPath.
 //
@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.optics.annotations.GenerateFocus;
@@ -31,6 +32,9 @@ record Customer(String name, EmailAddress email) {}
 
 @GenerateFocus
 record LineItem(String sku, Integer quantity, BigDecimal price) {}
+
+@GenerateFocus
+record Backorders(Map<String, LineItem> bySku) {}
 
 enum OrderStatus {
   NEW,

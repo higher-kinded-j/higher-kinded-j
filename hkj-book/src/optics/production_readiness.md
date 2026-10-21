@@ -111,7 +111,7 @@ private static final Lens<Company, String> COMPANY_NAME =
     CompanyLenses.name();
 
 private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
-    OrderFocus.lines().via(LineItemFocus.price());
+    OrderFocus.lines().price();
 ```
 
 This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.

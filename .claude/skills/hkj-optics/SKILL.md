@@ -24,7 +24,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | Annotation | Place On | Generates |
 |------------|----------|-----------|
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
-| `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders; a field holding another annotated record gets a navigator for cross-type chaining |
+| `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders; a field holding another annotated record, or a `List`, `Optional` or other container of one, gets a navigator for cross-type chaining |
 | `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws a processor note (a note, not a warning: there is no per-component opt-out) |
 | `@GeneratePrisms` | `sealed interface` or `enum` | `{Type}Prisms` class with a `Prism<S, A>` for each permitted subtype or constant |
 | `@GenerateIsos` | a `static`, no-argument method returning an `Iso` with concrete type arguments | a companion class holding that `Iso<S, A>` as a static field |
@@ -92,20 +92,26 @@ Optional<String> nickname = nicknamePath.getOptional(shopper);
 
 <!-- verify -->
 ```java
-// A List field widens to a TraversalPath, which you chain with .via()
+// A List of annotated records gets a navigator over its elements, so each hop chains
 TraversalPath<OrgChart, String> allNames =
-    OrgChartFocus.units()                // TraversalPath<OrgChart, OrgUnit>
-        .via(OrgUnitFocus.members())     // TraversalPath<OrgChart, OrgMember>
-        .via(OrgMemberFocus.name());     // TraversalPath<OrgChart, String>
+    OrgChartFocus.units()   // a navigator, and a TraversalPath<OrgChart, OrgUnit>
+        .members()          // a navigator, and a TraversalPath<OrgChart, OrgMember>
+        .name();            // TraversalPath<OrgChart, String>
 
 List<String> names = allNames.getAll(company);
 OrgChart updated = allNames.modifyAll(String::toUpperCase, company);
 ```
 
 Navigators are generated for **nested record** fields (`ShopperFocus.address().city()` above) and for
-SPI containers of one that the record widens: an `Either` always, and a `Map`, an array or a
-third-party collection under `widenCollections = true` or when `widenFields` names the field.
-`List`, `Set`, `Optional` and `Maybe` fields are widened instead, so you chain them with `.via(...)`. A generic nested record gets one too, instantiated with the
+containers of one that the record widens: an `Optional`, `Maybe`, `List`, `Set`, `Collection` or
+`Either` always, and a `Map`, an array or a third-party collection under `widenCollections = true`
+or when `widenFields` names the field. Containers nested in one another compose to the record they
+hold, so `List<Optional<OrgMember>>` navigates too, and so does a `Kind<F, A>` of records the processor traverses. A navigation
+method hands on the next field's navigator only where the composed path has the type of that
+field's own path: from a `List` navigator, a hop into another list chains (`units().members()`),
+but a hop into a plain record field returns a plain `TraversalPath`, so chain the hop after it with
+`.via(...)`. A path method such as `filter` returns a plain path too.
+A generic nested record gets a navigator too, instantiated with the
 field's type arguments: `Revision<EmailAddress> email` chains as `.email().current()`. A field that
 names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, gets no
 navigator, and the processor says so in a note naming the path its method returns. No

@@ -226,12 +226,12 @@ TraversalPath<OrgChart, Integer> allSalaries =
 
 OrgChart updated = allSalaries.modifyAll(s -> (int)(s * 1.05), company);
 
-// Or use generated Focus classes (@GenerateFocus): a List field widens to a TraversalPath,
-// so each hop is a .via()
+// Or use generated Focus classes (@GenerateFocus): a List of records gets a navigator over its
+// elements, so each hop chains
 OrgChart updatedViaFocus =
     OrgChartFocus.units()
-        .via(OrgUnitFocus.members())
-        .via(OrgMemberFocus.salary())
+        .members()
+        .salary()
         .modifyAll(s -> (int)(s * 1.05), company);
 ```
 

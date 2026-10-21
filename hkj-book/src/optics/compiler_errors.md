@@ -461,7 +461,7 @@ Note: @GenerateFocus: record component 'Signatory.name' has no navigator into Fu
 
 ### "@GenerateFocus: record component 'X.y' has no navigator over its T elements" (a note) {#generatefocus-no-navigator-over-elements}
 
-`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead.
+`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen, or a container holding one, such as `List<Map<String, Item>>`. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead.
 
 **Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. `widenCollections = true` widens every such container instead. To keep the container whole, drop `generateNavigators = true`, which is the default, and the note goes with it.
 
@@ -511,7 +511,7 @@ error: @GenerateFocus: includeFields on Hawker names "kisok", which is not a com
 
 ### "@GenerateFocus: includeFields on X names \"y\", whose field cannot have a navigator" (a warning) {#generatefocus-includefields-no-navigator}
 
-The name matches a component, but that component cannot return a navigator. A `String`, a `List<String>` and a record without `@GenerateFocus` have no navigator target. Built-in `Optional`, `Maybe`, `List`, `Set` and `Collection` paths do not get navigators, even when their elements are annotated records. A `Map`, an array of records or another supported container can return one only where the declaring record widens it.
+The name matches a component, but that component cannot return a navigator. A `String`, a `List<String>` and a record without `@GenerateFocus` have no navigator target. A `List`, `Set`, `Collection`, `Optional` or `Maybe` of `@GenerateFocus` records has one, as do such containers nested in one another and a `Kind` the processor traverses. A `Map`, an array of records or another supported container has one only where the declaring record widens it.
 
 **Fix.** Name a field that can return a navigator, from those the warning lists. For an unannotated record, annotate its type with `@GenerateFocus`. For an unwidened container, add the field to `widenFields`. Where no field can navigate, remove `includeFields` and set `generateNavigators = false`. Follow the warning's fix line: leaving `includeFields` in place with navigators off draws a different warning.
 
@@ -519,7 +519,7 @@ A non-empty `includeFields` gives navigators only to the fields it names, so nam
 
 - An unwidened `Map<String, Box<?>>`, with `Box<T>` annotated, is offered `widenFields` to step into its `Box` elements. That alone gives no navigator: the existing wildcard-target note then offers a concrete `Box<Object>`.
 - A `Map<String, ? extends Kiosk>` holds `Kiosk` records, but its wildcard prevents widening. Write `Map<String, Kiosk>` and add the field to `widenFields`, as the warning says.
-- A `List`, `Optional` or `Kind` path that focuses on an annotated record composes with its published Focus companion through `.via()`. For nullable elements, first rule out null with `.some(Affines.nullable()).via()`. No companion hint is offered for raw or wildcard elements, or a dependency that published no companion.
+- A `List`, `Optional` or other container the method steps into, holding a record without `@GenerateFocus`, is offered the annotation, as a field of that record is.
 - When several entries need a replacement, the first in list order receives it and the rest are offered removal. If another entry has a navigator or a correction of its own, remove the invalid name instead. Following all fix lines leaves one list without duplicate names.
 
 ~~~admonish example title="A valid name that cannot return a navigator"
@@ -533,7 +533,7 @@ record Hawker(String id, Kiosk kiosk) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "id", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through String. It needs a @GenerateFocus record or a supported container of one; built-in Optional, Maybe, List, Set and Collection paths do not get navigators. Replace "id" in includeFields on Hawker with a navigator field from [kiosk].
+warning: @GenerateFocus: includeFields on Hawker names "id", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through String. It needs a @GenerateFocus record or a supported container of one. Replace "id" in includeFields on Hawker with a navigator field from [kiosk].
 ```
 
 The offered field gives a navigator:
@@ -591,33 +591,30 @@ var towns = HawkerFocus.sites().town();
 ```
 ~~~
 
-~~~admonish example title="Compose a path over nullable records"
-<!-- verify:reports "which composes with" -->
+~~~admonish example title="A list of a record without the annotation"
+<!-- verify:reports "Alternatively, annotate record Kiosk with @GenerateFocus" -->
 ```java
-@GenerateFocus
 record Kiosk(String town) {}
 
 @GenerateFocus(includeFields = "sites")
-record Hawker(java.util.List<@org.jspecify.annotations.Nullable Kiosk> sites, Kiosk kiosk) {}
+record Hawker(java.util.List<Kiosk> sites) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through List<Kiosk>. It needs a @GenerateFocus record or a supported container of one; built-in Optional, Maybe, List, Set and Collection paths do not get navigators. HawkerFocus.sites() returns TraversalPath<Hawker, @Nullable Kiosk>, which composes with com.example.KioskFocus's paths through .some(Affines.nullable()).via(). Replace "sites" in includeFields on Hawker with a navigator field from [kiosk].
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Kiosk is a record without @GenerateFocus. Navigator generation cannot reach a @GenerateFocus record through List<Kiosk>. It needs a @GenerateFocus record or a supported container of one. Remove includeFields and set generateNavigators = false in @GenerateFocus on Hawker. Alternatively, annotate record Kiosk with @GenerateFocus.
 ```
 
-Keep `sites` as a path, choose `kiosk` for the navigator, and compose safely:
+Annotate the record, and the list navigates into it:
 
 <!-- verify -->
 ```java
 @GenerateFocus
 record Kiosk(String town) {}
 
-@GenerateFocus(includeFields = "kiosk")
-record Hawker(java.util.List<@org.jspecify.annotations.Nullable Kiosk> sites, Kiosk kiosk) {}
+@GenerateFocus(includeFields = "sites")
+record Hawker(java.util.List<Kiosk> sites) {}
 
-var towns = HawkerFocus.sites()
-    .some(org.higherkindedj.optics.util.Affines.nullable())
-    .via(KioskFocus.town());
+var towns = HawkerFocus.sites().town();
 ```
 ~~~
 

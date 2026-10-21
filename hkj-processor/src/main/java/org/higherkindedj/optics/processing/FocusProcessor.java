@@ -246,9 +246,9 @@ public class FocusProcessor extends AbstractProcessor {
       // Fall back to the static FocusPath method when no navigator took the field. The one
       // analysis says what that method widens to, and a container it turned away is rejected from
       // the same result, so the method's shape and the diagnostic cannot disagree. A field a
-      // navigator did take reaches its element through a container the navigator's guard already
-      // admitted, so no container is turned away for it. This walk reports any generator conflict
-      // on a static field; the navigator method reports for a field it takes.
+      // navigator did take has an instantiable record in focus, which a walk that turned a
+      // container away never leaves, so no container is turned away for it. This walk reports any
+      // generator conflict on a static field; the navigator method reports for a field it takes.
       if (method == null) {
         WideningAnalysis.Widening widening =
             analysis.analyseDeclaration(

@@ -41,9 +41,7 @@ public final class IntroBook {
     // ANCHOR: focus
     // The Focus DSL: one generated path reaches every price, and rebuilds what it passes through
     Order discounted =
-        OrderFocus.lines()
-            .via(LineItemFocus.price())
-            .modifyAll(price -> price.multiply(new BigDecimal("0.9")), order);
+        OrderFocus.lines().price().modifyAll(price -> price.multiply(new BigDecimal("0.9")), order);
     // ANCHOR_END: focus
     return discounted;
   }

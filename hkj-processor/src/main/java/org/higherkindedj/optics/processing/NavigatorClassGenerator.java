@@ -33,8 +33,6 @@ import org.higherkindedj.optics.processing.WideningAnalysis.SpiLookup;
 import org.higherkindedj.optics.processing.WideningAnalysis.Step;
 import org.higherkindedj.optics.processing.WideningAnalysis.Tier;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
-import org.higherkindedj.optics.processing.spi.Cardinality;
-import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -438,7 +436,8 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * A component's own Focus method, as a note names it in place of the navigator it was not given.
+   * What a component's Focus method returns, or would return with every container widened: a note
+   * names it, and a navigator's target is read from its focus.
    *
    * @param tier the path type the method returns
    * @param source the record the path starts from
@@ -462,22 +461,45 @@ public class NavigatorClassGenerator {
   /**
    * What a component's own Focus method returns, read from the widening it carries.
    *
-   * <p>A component without a navigator is not always a plain path over itself: a {@code @Nullable}
-   * one widens through {@code .nullable()}, an {@code Either} through its own step, and a {@code
-   * Map} or an array steps into its element where the record widens it.
+   * <p>A component's path is not always a plain path over itself: a {@code @Nullable} one widens
+   * through {@code .nullable()}, an {@code Either} or a {@code List} through its own step, and a
+   * {@code Map} or an array steps into its element where the record widens it. Containers nested in
+   * one another compose to the leaf.
    *
-   * <p>The focus is what the last layer the walk peeled unwraps to. A component a note is about
-   * reaches its record directly or as an SPI container's element, so the walk meets two kinds of
-   * layer on the way: {@code .nullable()}, which rules out the component's own null and leaves it
-   * in focus, and the container's step, which records the element it unwraps to. A {@code Kind}
-   * layer records the element its generated path focuses on too.
+   * <p>This focus is what a navigator for the component reaches, so a navigator never changes what
+   * the method focuses on.
    *
    * @param record the record that declares the component
    * @param component the component
    * @return the method's path type, source and focus
    */
   private MethodPath methodPath(TypeElement record, RecordComponentElement component) {
-    Widening widening = widening(record, component);
+    return pathOf(record, component, widening(record, component));
+  }
+
+  /**
+   * What a component's Focus method would return were every container in it widened: the path a
+   * diagnostic offers to reach by widening, and the record it would navigate to.
+   *
+   * <p>Generation, and every statement about what a field's method returns, reads {@link
+   * #methodPath}. Only a fix that offers widening reads this, as do the checks that keep it from
+   * offering a widening that would give no usable navigator.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return the widened method's path type, source and focus
+   */
+  private MethodPath widenedPath(TypeElement record, RecordComponentElement component) {
+    return pathOf(record, component, analysis.analyse(component, true));
+  }
+
+  /**
+   * The path a widening arrives at. Its focus is what the last layer the walk peeled unwraps to:
+   * {@code .nullable()} rules out the component's own null and leaves it in focus, and each
+   * container's step records the element it unwraps to, a {@code Kind} layer's included.
+   */
+  private static MethodPath pathOf(
+      TypeElement record, RecordComponentElement component, Widening widening) {
     TypeMirror focus = component.asType();
     boolean nullable = false;
     for (Step step : widening.steps()) {
@@ -508,12 +530,9 @@ public class NavigatorClassGenerator {
     if (!shouldGenerateNavigator(record, component)) {
       return new Reach.None();
     }
-    TypeMirror reached = candidateType(component);
-    // A navigator steps into a container only where the record widens it, so a container the
-    // record leaves whole has no navigator to miss.
-    if (reached == null || !focusedByMethod(reached, record, component)) {
-      return new Reach.None();
-    }
+    // A navigator is offered only over what the method focuses on, so a container the record
+    // leaves whole has no navigator to miss.
+    TypeMirror reached = methodPath(record, component).focus();
     Reach reach = reach(reached, companionPackage(record));
     if (Target.instantiable(reached)) {
       return reach;
@@ -529,18 +548,9 @@ public class NavigatorClassGenerator {
     };
   }
 
-  /** The direct or SPI element type to ask about, before checking whether the method focuses it. */
-  private TypeMirror candidateType(RecordComponentElement component) {
-    TypeMirror fieldType = component.asType();
-    return WideningAnalysis.spiCandidate(fieldType)
-            && analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
-        ? WideningAnalysis.spiElement(fieldType, admitted.generator())
-        : fieldType;
-  }
-
   /**
-   * A navigable record, as a component reaches it: the component's own type, or the element of the
-   * SPI container the component is.
+   * A navigable record, as a component reaches it: the component's own type, or the element its
+   * method steps into through the containers the component nests.
    *
    * @param record the navigable record
    * @param type the record as the component instantiates it, whose type arguments a navigator into
@@ -564,31 +574,14 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * The navigable record a component reaches, instantiable or not, before the navigator question is
-   * asked of it.
-   *
-   * @param component the component to read
-   * @param fromPackage the package of the companion whose navigator is in question
-   * @return the navigable record it reaches, or null when it reaches none
-   */
-  private Target navigableTarget(RecordComponentElement component, String fromPackage) {
-    TypeMirror fieldType = component.asType();
-    TypeElement direct = navigableTypeElement(fieldType, fromPackage);
-    if (direct != null) {
-      return new Target(direct, (DeclaredType) fieldType);
-    }
-    return spiNavigable(fieldType, fromPackage);
-  }
-
-  /**
    * The record a record's Focus method for this component navigates to, or null when that method
    * hands back a path instead.
    *
-   * <p>A component reaches a navigator by being a navigable type itself, or by being an SPI
-   * container of one that the record widens, and in either case only when it gives that type a
-   * navigator can be instantiated with. Every site that asks — the navigator class, the method that
-   * returns it, and a navigation method composing it from another record — reads the answer from
-   * here, so they cannot disagree about which components have one.
+   * <p>A component reaches a navigator by being a navigable type itself, or by being a container of
+   * one that the record widens, and in either case only when it gives that type a navigator can be
+   * instantiated with. Every site that asks — the navigator class, the method that returns it, and
+   * a navigation method composing it from another record — reads the answer from here, so they
+   * cannot disagree about which components have one.
    *
    * @param record the record that declares the component
    * @param component the component
@@ -614,14 +607,16 @@ public class NavigatorClassGenerator {
     return unfilteredTarget(record, component);
   }
 
-  /** The same target question before include/exclude filters, for followable field suggestions. */
+  /**
+   * The same target question before include/exclude filters, for followable field suggestions: the
+   * navigable record the field's own method focuses on, where a navigator into it can be
+   * instantiated. A navigator only adds navigation to that path, so it is offered over nothing
+   * else, and a container the record leaves whole keeps its method's path with no navigator.
+   */
   private Target unfilteredTarget(TypeElement record, RecordComponentElement component) {
-    Target target = navigableTarget(component, companionPackage(record));
-    return target == null
-            || !target.instantiable()
-            || !focusedByMethod(target.type(), record, component)
-        ? null
-        : target;
+    Target target =
+        navigableElement(methodPath(record, component).focus(), companionPackage(record));
+    return target == null || !target.instantiable() ? null : target;
   }
 
   /**
@@ -646,17 +641,6 @@ public class NavigatorClassGenerator {
         .map(field -> field.getSimpleName().toString())
         .filter(inherited::contains)
         .toList();
-  }
-
-  /**
-   * Whether a navigable type is what the component's own Focus method focuses on: the component's
-   * type, or the element of a container the method widens into. A navigator only adds navigation to
-   * that path, so it is offered over nothing else, and a container the record leaves whole keeps
-   * its method's path with no navigator.
-   */
-  private boolean focusedByMethod(
-      TypeMirror type, TypeElement record, RecordComponentElement component) {
-    return processingEnv.getTypeUtils().isSameType(type, methodPath(record, component).focus());
   }
 
   /**
@@ -687,13 +671,15 @@ public class NavigatorClassGenerator {
 
     // The navigator is a path of the component's own tier, and is built from the very path the
     // field's method would return without it: an element the container declares nullable stays so.
+    // Its annotations are the ones the method writes, which leaves out any this package cannot
+    // name.
     Optional<TypeMirror> nullableElement = nullableElement(component);
     TypeName elementTypeName =
         nullableElement
             .map(
                 element ->
                     targetTypeName.annotated(
-                        element.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList()))
+                        ProcessorUtils.typeNameOf(element, analysis.targetPackage()).annotations()))
             .orElse(targetTypeName);
     ClassName pathClass = tier.pathClass();
     ParameterizedTypeName pathType =
@@ -759,16 +745,13 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * The element of the container a component reaches its navigable record through, where the
-   * container declares that element nullable; empty for a component that is the record itself, or a
-   * container whose elements are not nullable.
+   * The element a component reaches its navigable record as, where the container holding it
+   * declares that element nullable; empty for a component that is the record itself, or a container
+   * whose elements are not nullable.
    */
   private Optional<TypeMirror> nullableElement(RecordComponentElement component) {
-    TypeElement record = (TypeElement) component.getEnclosingElement();
-    return Optional.ofNullable(spiNavigable(component.asType(), companionPackage(record)))
-        .map(Target::type)
-        .<TypeMirror>map(type -> type)
-        .filter(NullableAnnotations::isNullable);
+    MethodPath path = methodPath((TypeElement) component.getEnclosingElement(), component);
+    return path.nullable() ? Optional.of(path.focus()) : Optional.empty();
   }
 
   /**
@@ -1375,37 +1358,16 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Returns the navigable element of an SPI container focused on a navigable type, or {@code null}
-   * when the field is not one.
+   * A path's focus as a navigator target, or {@code null} when it is not a navigable record.
    *
-   * <p>Every site that asks reads the answer from here, so the navigator class, the method's return
-   * type and the wrapping decision cannot disagree about which fields have one. Hardcoded
-   * Optional/Collection fields are excluded because they widen through their own path and never get
-   * a navigator class. An array is an SPI container like any other, focused on its component type.
+   * <p>A component's navigator target is read from the focus of {@link #methodPath}, so the
+   * navigator class, the method's return type and the wrapping decision cannot disagree with the
+   * method about which fields have one. A container the analysis turns away, or one the record
+   * leaves whole, keeps the container itself in focus, so there is no element to navigate to.
    */
-  private Target spiNavigable(TypeMirror fieldType, String fromPackage) {
-    if (!WideningAnalysis.spiCandidate(fieldType)) {
-      return null;
-    }
-    // A container the analysis turns away gets no navigator: the static method it would compose
-    // leaves the container itself in focus, so there is no element to navigate to.
-    return analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted
-        ? spiNavigableUnder(fieldType, admitted.generator(), fromPackage)
-        : null;
-  }
-
-  /**
-   * The navigable element a non-hardcoded container focuses on under {@code generator}, or {@code
-   * null} when there is none.
-   *
-   * <p>Split from {@link #spiNavigable} so that the note on an unwidened container can ask the same
-   * question of the generator it has already looked up.
-   */
-  private Target spiNavigableUnder(
-      TypeMirror fieldType, TraversableGenerator generator, String fromPackage) {
-    TypeMirror innerType = WideningAnalysis.spiElement(fieldType, generator);
-    TypeElement element = innerType == null ? null : navigableTypeElement(innerType, fromPackage);
-    return element == null ? null : new Target(element, (DeclaredType) innerType);
+  private Target navigableElement(TypeMirror focus, String fromPackage) {
+    TypeElement record = navigableTypeElement(focus, fromPackage);
+    return record == null ? null : new Target(record, (DeclaredType) focus);
   }
 
   /**
@@ -1526,21 +1488,24 @@ public class NavigatorClassGenerator {
    * default says nothing about it, so is told nothing.
    */
   private void noteUnwidenedContainer(TypeElement record, RecordComponentElement component) {
-    TypeMirror fieldType = component.asType();
-    // A container the processor recognises by name is widened however the record is annotated,
-    // and gets no navigator, so widening it again would change nothing.
+    // Only a container left whole stops the method short of a record that widening would reach:
+    // the processor widens every other container however the record is annotated.
     if (!writesAttribute(record, "generateNavigators")
         || Arrays.asList(focusSettings(record).includeFields())
             .contains(component.getSimpleName().toString())
         || !shouldGenerateNavigator(record, component)
-        || !WideningAnalysis.spiCandidate(fieldType)
         || widensCollections(record, component)
-        || !(analysis.spiLookup(fieldType) instanceof SpiLookup.Admitted admitted)
-        || admitted.generator().getCardinality() != Cardinality.ZERO_OR_MORE) {
+        || navigableElement(methodPath(record, component).focus(), companionPackage(record))
+            != null) {
       return;
     }
-    Target element = spiNavigableUnder(fieldType, admitted.generator(), companionPackage(record));
-    if (element == null || !element.instantiable()) {
+    // Widening would give no navigator either where the element has a field named like a path
+    // method: following the note would lead straight to that refusal.
+    MethodPath widened = widenedPath(record, component);
+    Target element = navigableElement(widened.focus(), companionPackage(record));
+    if (element == null
+        || !element.instantiable()
+        || !inheritedNames(widened.tier(), element).isEmpty()) {
       return;
     }
     String recordName = record.getSimpleName().toString();
@@ -1568,7 +1533,9 @@ public class NavigatorClassGenerator {
   /**
    * Warns at an includeFields entry that asks for a navigator the field cannot have. Existing
    * target diagnostics take precedence, and the widening declaration reports refused containers.
-   * The target and candidate fixes read the same analysis as navigator generation.
+   * Whether the field navigates, and which other fields could, is read from {@link #methodPath}, as
+   * navigator generation reads it; the widening the fix may offer is read from {@link
+   * #widenedPath}.
    */
   private void warnIncludedWithoutNavigator(TypeElement record, RecordComponentElement component) {
     String name = component.getSimpleName().toString();
@@ -1579,20 +1546,20 @@ public class NavigatorClassGenerator {
       return;
     }
     // An unreadable target has javac's own error at its annotation, whether reached directly or
-    // through a container. Ask about the same candidate type the existing target pass resolves.
-    TypeMirror reached = candidateType(component);
-    if (reached instanceof DeclaredType declared
+    // through a container. Ask about what the method would reach with every container widened.
+    MethodPath widened = widenedPath(record, component);
+    if (widened.focus() instanceof DeclaredType declared
         && declared.asElement().getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings
         && unreadable(settings)) {
       return;
     }
-    Target unwidened = navigableTarget(component, companionPackage(record));
+    Target widenedTarget = navigableElement(widened.focus(), companionPackage(record));
     Target refused = refusedContainerTarget(component, companionPackage(record));
 
     String recordName = record.getSimpleName().toString();
     String reason;
     String fix;
-    if (unwidened != null) {
+    if (widenedTarget != null) {
       reason =
           "A navigator steps into a container only where the record widens it, and "
               + recordName
@@ -1601,13 +1568,13 @@ public class NavigatorClassGenerator {
               + "\".";
       // Widening may expose a path-method clash too. In that case offering widening alone would
       // lead straight to a note or error, so offer the existing way to keep the plain path.
-      List<String> clashes = inheritedNames(analysis.analyse(component, true).tier(), unwidened);
+      List<String> clashes = inheritedNames(widened.tier(), widenedTarget);
       if (clashes.isEmpty()) {
         fix =
             ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name))
-                + (unwidened.instantiable()
+                + (widenedTarget.instantiable()
                     ? "."
-                    : " to step into its " + unwidened.record().getSimpleName() + " elements.");
+                    : " to step into its " + widenedTarget.record().getSimpleName() + " elements.");
       } else {
         reason += " Its widened navigator would also clash with target fields " + clashes + ".";
         fix = ProcessorUtils.capitalise(keepPlainPath(record, name)) + " to keep its plain path.";
@@ -1628,16 +1595,14 @@ public class NavigatorClassGenerator {
               + ".";
     } else {
       TypeElement plain =
-          component.asType() instanceof DeclaredType declared
+          methodPath(record, component).focus() instanceof DeclaredType declared
                   && declared.asElement().getKind() == ElementKind.RECORD
               ? (TypeElement) declared.asElement()
               : null;
       reason =
           "Navigator generation cannot reach a @GenerateFocus record through "
               + ProcessorUtils.simpleTypeName(component.asType())
-              + ". It needs a @GenerateFocus record or a supported container of one; built-in"
-              + " Optional, Maybe, List, Set and Collection paths do not get navigators."
-              + compositionHint(record, component);
+              + ". It needs a @GenerateFocus record or a supported container of one.";
       if (hasOtherIncludedNavigator(record, component)) {
         fix =
             ProcessorUtils.capitalise(
@@ -1739,29 +1704,12 @@ public class NavigatorClassGenerator {
                     .anyMatch(
                         component ->
                             component.getSimpleName().contentEquals(name)
-                                && navigableTarget(component, companionPackage(record)) == null))
+                                && navigableElement(
+                                        widenedPath(record, component).focus(),
+                                        companionPackage(record))
+                                    == null))
         .findFirst()
         .orElseThrow();
-  }
-
-  /** A companion composition only where the generated method focuses on an instantiable record. */
-  private String compositionHint(TypeElement record, RecordComponentElement component) {
-    MethodPath method = methodPath(record, component);
-    if (ProcessorUtils.hasUndenotableTypeArguments(component.asType())
-        || !Target.instantiable(method.focus())
-        || !(reach(method.focus(), companionPackage(record)) instanceof Reach.Navigable target)) {
-      return "";
-    }
-    return " "
-        + focusClassOf(record).simpleName()
-        + "."
-        + component.getSimpleName()
-        + "() returns "
-        + method.description()
-        + ", which composes with "
-        + focusClassOf(target.record()).canonicalName()
-        + "'s paths through "
-        + (method.nullable() ? ".some(Affines.nullable()).via()." : ".via().");
   }
 
   /**
@@ -1778,19 +1726,23 @@ public class NavigatorClassGenerator {
                   || !(skippedTarget(record, candidate) instanceof Reach.None)) {
                 return true;
               }
-              Target unwidened = navigableTarget(candidate, companionPackage(record));
-              if (unwidened != null) {
-                return inheritedNames(analysis.analyse(candidate, true).tier(), unwidened)
-                    .isEmpty();
+              MethodPath widened = widenedPath(record, candidate);
+              Target widenedTarget = navigableElement(widened.focus(), companionPackage(record));
+              if (widenedTarget != null) {
+                return inheritedNames(widened.tier(), widenedTarget).isEmpty();
               }
               return refusedContainerTarget(candidate, companionPackage(record)) != null
                   || annotationEnablesNavigator(record, candidate);
             });
   }
 
-  /** Whether annotating this compilation's record would give the field a usable navigator. */
+  /**
+   * Whether annotating this compilation's record would give the field a usable navigator: the
+   * record the field's method focuses on, as itself or as a container's element.
+   */
   private boolean annotationEnablesNavigator(TypeElement record, RecordComponentElement component) {
-    if (!(component.asType() instanceof DeclaredType declared)
+    MethodPath path = methodPath(record, component);
+    if (!(path.focus() instanceof DeclaredType declared)
         || declared.asElement().getKind() != ElementKind.RECORD) {
       return false;
     }
@@ -1798,7 +1750,7 @@ public class NavigatorClassGenerator {
     Target annotated = new Target(plain, declared);
     return ProcessorUtils.compiledFromSource(processingEnv.getElementUtils(), plain)
         && annotated.instantiable()
-        && inheritedNames(methodPath(record, component).tier(), annotated).isEmpty()
+        && inheritedNames(path.tier(), annotated).isEmpty()
         && Reachability.firstHidden(
                 processingEnv.getElementUtils(),
                 companionPackage(record),
@@ -1877,9 +1829,8 @@ public class NavigatorClassGenerator {
     String componentName = component.getSimpleName().toString();
 
     // A component whose type reaches a navigable one it can instantiate a navigator for — directly,
-    // or as the element of an SPI container — gets this navigator method in place of the plain path
-    // method. Hardcoded Optional/Collection fields are not among them: createFocusPathMethod widens
-    // those through .some()/.each() instead.
+    // or as the element of a container its method steps into — gets this navigator method in place
+    // of the plain path method.
     Target target = reachableTarget(recordElement, component);
     List<String> declined =
         target == null ? List.of() : declinedInheritedNames(recordElement, component, target);
@@ -1897,6 +1848,9 @@ public class NavigatorClassGenerator {
         navigatorType(
             navigatorClass, recordTypeName, typeNamesOf(target.type().getTypeArguments()));
     TypeName javadocTargetType = ClassName.get(target.record());
+    // The declaration pass reaches this component only here, so this walk is the one that reports
+    // a generator conflict on it; every other walk into the component stays silent.
+    Widening declared = declaredWidening(recordElement, component);
 
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
@@ -1905,7 +1859,7 @@ public class NavigatorClassGenerator {
                     + "<p>The returned navigator enables fluent navigation into the fields of\n"
                     + "{@link $T}. For example:\n"
                     + "<pre>{@code\n"
-                    + "$L.$L().fieldName().get(instance);\n"
+                    + "$L.$L().fieldName().$L(instance);\n"
                     + "}</pre>\n\n"
                     + "@return A navigator for the {@code $L} field.",
                 componentName,
@@ -1913,6 +1867,7 @@ public class NavigatorClassGenerator {
                 javadocTargetType,
                 recordElement.getSimpleName() + "Focus",
                 componentName,
+                declared.tier().getMethod(),
                 componentName)
             // The navigator type and the record's type-parameter bounds are written out here.
             .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
@@ -1931,10 +1886,14 @@ public class NavigatorClassGenerator {
     // The widening is the one the static Focus method would have carried, from the same analysis,
     // and the component name rides along as the path's field-name segment so that a navigated path
     // self-locates the way a static one does (issue #592).
+    //
+    // The navigator's type arguments are written out rather than inferred: a widening that ends in
+    // the no-argument .each() or .some() gives a diamond nothing to infer a nullable type argument
+    // from, and a nullness checker then reads the path as the non-null one.
     List<Object> args =
         new ArrayList<>(
             List.of(
-                navigatorClassName,
+                returnType,
                 WideningAnalysis.FOCUS_PATH_CLASS,
                 Lens.class,
                 recordTypeName,
@@ -1942,13 +1901,10 @@ public class NavigatorClassGenerator {
                 recordTypeName,
                 constructorArgs,
                 componentName));
-    // The declaration pass reaches this component only here, so this walk is the one that reports
-    // a generator conflict on it; every other walk into the component stays silent.
     String wideningExpression =
-        WideningAnalysis.expression(
-            declaredWidening(recordElement, component).steps(), args, analysis.targetPackage());
+        WideningAnalysis.expression(declared.steps(), args, analysis.targetPackage());
     methodBuilder.addStatement(
-        "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
+        "return new $T($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
             + wideningExpression
             + ")",
         args.toArray());

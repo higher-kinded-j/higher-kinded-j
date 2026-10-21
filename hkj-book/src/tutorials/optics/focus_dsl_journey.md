@@ -196,9 +196,9 @@ record Address(String street, Map<String, String> metadata) {}
 TraversalPath<Company, String> values = CompanyFocus.backup().metadata();
 ```
 
-Note the container: `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened
-by the processor before navigators are considered, so those fields never produce a
-navigator. Containers that arrive through the SPI, such as `Either` here, do.
+Note the container: an `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of a
+`@GenerateFocus` record always gets a navigator, as `backup` does here. A `Map` is stepped
+into only where the record widens it, as `metadata` is here.
 
 **Links to documentation**: [Focus DSL](../../optics/focus_dsl.md) | [Traversal Generator Plugins](../../tooling/generator_plugins.md)
 

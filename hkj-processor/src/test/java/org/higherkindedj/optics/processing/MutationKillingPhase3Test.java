@@ -132,9 +132,9 @@ class MutationKillingPhase3Test {
     }
 
     @Test
-    @DisplayName("Affine context (Optional field) should produce AffinePath return type")
+    @DisplayName("Affine context (Optional field) should produce an AffinePath navigator")
     void affineContextShouldProduceAffinePathReturnType() throws IOException {
-      // Optional<Branch> field → AffinePath (not directly navigable into Branch)
+      // Optional<Branch> field → a navigator over the AffinePath into Branch
       var inner =
           JavaFileObjects.forSourceString(
               "com.example.Leaf",
@@ -177,8 +177,11 @@ class MutationKillingPhase3Test {
               .getCharContent(true)
               .toString();
 
-      // Optional<Branch> → AffinePath (branch is wrapped in Optional)
-      assertThat(code).contains("AffinePath<Tree, Branch>");
+      // Optional<Branch> → a navigator over an AffinePath (branch is wrapped in Optional)
+      assertThat(code).contains("BranchNavigator<Tree> branch()");
+      assertThat(code).contains("BranchNavigator<S> extends NavigatorAffinePath<S, Branch>");
+      // List<Leaf> inside it composes to a traversal, which Branch's own navigator holds
+      assertThat(code).contains("BranchFocus.LeavesNavigator<S> leaves()");
       // name is plain String → FocusPath
       assertThat(code).contains("FocusPath<Tree, String>");
     }

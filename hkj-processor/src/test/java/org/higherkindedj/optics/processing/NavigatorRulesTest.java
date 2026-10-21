@@ -51,6 +51,7 @@ class NavigatorRulesTest {
         "com.example." + name,
         """
         package com.example;
+        import java.util.List;
         import java.util.Map;
         import org.higherkindedj.optics.annotations.GenerateFocus;
         import org.jspecify.annotations.Nullable;
@@ -283,6 +284,105 @@ class NavigatorRulesTest {
           .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
     }
 
+    @Test
+    @DisplayName("a map left whole inside a list draws the note, and widening it navigates")
+    void aMapLeftWholeInsideAListDrawsTheNote() {
+      JavaFileObject shelf = shelf("@GenerateFocus(generateNavigators = true)");
+      Compilation noted = javac().withProcessors(new FocusProcessor()).compile(ITEM, shelf);
+
+      assertThat(noted).succeededWithoutWarnings();
+      assertThat(noted)
+          .hadNoteContaining(
+              "record component 'Shelf.bins' has no navigator over its Item elements. A navigator"
+                  + " steps into a container only where the record widens it, and Shelf does not"
+                  + " widen 'bins'.")
+          .inFile(shelf)
+          .onLineContaining("bins");
+
+      Compilation widened =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  ITEM, shelf("@GenerateFocus(generateNavigators = true, widenFields = \"bins\")"));
+      assertThat(widened).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          widened, "com.example.ShelfFocus", "public static BinsNavigator<Shelf> bins()");
+    }
+
+    @Test
+    @DisplayName(
+        "an element annotation the companion's package cannot name is left off the navigator")
+    void anUnwritableElementAnnotationIsLeftOff() {
+      JavaFileObject tag =
+          JavaFileObjects.forSourceString(
+              "a.Tag",
+              """
+              package a;
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+              @Target(ElementType.TYPE_USE)
+              @interface Tag {}
+              """);
+      JavaFileObject leaf =
+          JavaFileObjects.forSourceString(
+              "a.Leaf",
+              """
+              package a;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              public record Leaf(String name) {}
+              """);
+      JavaFileObject outer =
+          JavaFileObjects.forSourceString(
+              "a.Outer",
+              """
+              package a;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus(targetPackage = "b")
+              public record Outer(List<@Nullable @Tag Leaf> list) {}
+              """);
+
+      Compilation compilation =
+          javac().withProcessors(new FocusProcessor()).compile(tag, leaf, outer);
+
+      // The companion is written into b, which cannot name a's package-private @Tag, so the
+      // navigator keeps only the @Nullable its method writes too.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "b.OuterFocus",
+          "ListNavigator<S> extends NavigatorTraversalPath<S, @Nullable Leaf>");
+    }
+
+    @Test
+    @DisplayName("left whole, with an element widening could not navigate into, draws no note")
+    void aClashingElementDrawsNoNote() {
+      JavaFileObject name =
+          record(
+              "Name",
+              """
+              @GenerateFocus
+              public record Name(String first, String last) {}
+              """);
+      JavaFileObject roster =
+          record(
+              "Roster",
+              """
+              @GenerateFocus(generateNavigators = true)
+              public record Roster(List<Map<String, Name>> groups) {}
+              """);
+
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(name, roster);
+
+      // Widening groups would reach Name, whose last() a traversal navigator already has, so the
+      // note's fix would lead straight to that refusal.
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(compilation.notes())
+          .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
+    }
+
     private static JavaFileObject holder(String annotation) {
       return record(
           "Holder",
@@ -290,6 +390,17 @@ class NavigatorRulesTest {
               + """
 
               public record Holder(Map<String, Item> many, Map<String, Item> kept) {}
+              """);
+    }
+
+    /** A shelf of bins, each a map of items, under the given annotation. */
+    private static JavaFileObject shelf(String annotation) {
+      return record(
+          "Shelf",
+          annotation
+              + """
+
+              public record Shelf(List<Map<String, Item>> bins) {}
               """);
     }
   }

@@ -322,7 +322,8 @@ public class Tutorial19_NavigatorGeneration {
    *
    * <p>The {@code maxNavigatorDepth} annotation attribute is a switch. Set to {@code 1}, it makes a
    * navigator's own navigation methods return plain paths. Any value from 2, the default 3
-   * included, ends no chain: each hop into a navigable record returns a navigator.
+   * included, ends no chain: each hop into a navigable record returns a navigator, unless it widens
+   * the path, as a hop from a list into a plain record field does.
    *
    * <p>For example, with {@code maxNavigatorDepth = 1} on {@code University}:
    *

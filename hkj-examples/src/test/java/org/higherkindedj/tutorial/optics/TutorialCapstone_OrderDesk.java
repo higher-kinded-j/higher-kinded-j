@@ -19,7 +19,6 @@ import java.util.function.UnaryOperator;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
 import org.higherkindedj.example.book.optics.cast.LineItem;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
@@ -98,8 +97,7 @@ public class TutorialCapstone_OrderDesk {
   }
 
   /** The desk's path to every line's price, named once and reused. */
-  static final TraversalPath<Order, BigDecimal> PRICES =
-      OrderFocus.lines().via(LineItemFocus.price());
+  static final TraversalPath<Order, BigDecimal> PRICES = OrderFocus.lines().price();
 
   private static final BigDecimal FIVE_POUNDS = new BigDecimal("5.00");
 

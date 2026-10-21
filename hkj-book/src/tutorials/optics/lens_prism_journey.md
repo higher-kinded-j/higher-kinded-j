@@ -45,7 +45,7 @@ Name, read and write a field through a generated Focus path, on the Optics chapt
 **What you'll learn**:
 - Naming the path to a field three records down through `OrderFocus`
 - Writing through a path, and getting a new order back with everything off the path reused
-- Stepping into a list's elements with `.via(...)` and updating every one
+- Stepping into a list's elements and updating every one
 
 **Key insight**: A generated path is a typed route through your records: the compiler checks every hop, and a write rebuilds only what the route passes through.
 

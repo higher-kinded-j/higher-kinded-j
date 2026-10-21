@@ -340,7 +340,7 @@ public class FocusProcessorSpiEnhancementsTest {
   class OptionalNavigableType {
 
     @Test
-    @DisplayName("should generate AffinePath for Optional<NavigableType> field")
+    @DisplayName("should generate an AffinePath navigator for Optional<NavigableType> field")
     void shouldGenerateAffinePathForOptionalNavigableType() {
       final JavaFileObject companySource =
           JavaFileObjects.forSourceString(
@@ -371,9 +371,10 @@ public class FocusProcessorSpiEnhancementsTest {
           javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
       assertThat(compilation).succeeded();
 
-      // Optional<Address> should produce AffinePath<Company, Address> via .some()
-      final String expectedAffinePath = "AffinePath<Company, Address>";
-      final String expectedSome = ".some()";
+      // Optional<Address> gets a navigator over the AffinePath<Company, Address> .some() reaches
+      final String expectedAffinePath =
+          "BackupNavigator<S> extends NavigatorAffinePath<S, Address>";
+      final String expectedSome = "\"backup\").some());";
 
       // Direct navigable field headquarters should produce a navigator
       final String expectedNavigator =
@@ -387,7 +388,7 @@ public class FocusProcessorSpiEnhancementsTest {
     }
 
     @Test
-    @DisplayName("should generate AffinePath for Maybe<NavigableType> field")
+    @DisplayName("should generate an AffinePath navigator for Maybe<NavigableType> field")
     void shouldGenerateAffinePathForMaybeNavigableType() {
       final JavaFileObject companySource =
           JavaFileObjects.forSourceString(
@@ -418,12 +419,13 @@ public class FocusProcessorSpiEnhancementsTest {
           javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
       assertThat(compilation).succeeded();
 
-      // Maybe<Address> produces an AffinePath through the Affine that reads a Maybe, not the
-      // Optional-only no-argument .some()
-      final String expectedAffinePath = "AffinePath<Company, Address>";
+      // Maybe<Address> gets a navigator over the AffinePath that the Affine reading a Maybe
+      // reaches, not the Optional-only no-argument .some()
+      final String expectedAffinePath =
+          "BackupNavigator<S> extends NavigatorAffinePath<S, Address>";
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedAffinePath);
       assertGeneratedCodeContains(
-          compilation, "com.example.CompanyFocus", "\"backup\").some(Affines.just());");
+          compilation, "com.example.CompanyFocus", "\"backup\").some(Affines.just()));");
     }
 
     @Test

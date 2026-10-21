@@ -22,7 +22,7 @@ A wither knows only its own record, so the list is streamed, each line rebuilt, 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:focus}}
 ```
 
-For Ada's order of a £40.00 lamp and four £2.50 bulbs, both versions price the lines at 36.000 and 2.250. The difference is what you can do next: name `OrderFocus.lines().via(LineItemFocus.price())` once, and the same path rounds the prices on the [Quickstart](quickstart.md) and checks them on [Updates That Can Fail](fluent_api.md).
+For Ada's order of a £40.00 lamp and four £2.50 bulbs, both versions price the lines at 36.000 and 2.250. The difference is what you can do next: name `OrderFocus.lines().price()` once, and the same path rounds the prices on the [Quickstart](quickstart.md) and checks them on [Updates That Can Fail](fluent_api.md).
 
 The annotation processor writes `OrderFocus` and `LineItemFocus` from `@GenerateFocus` on each record, which can sit beside Lombok's `@With` when Lombok comes first on the processor path. These records are the chapter's running cast, the order service the [Mapping chapter's capstone](../mapping/capstone.md) also uses:
 

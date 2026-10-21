@@ -46,8 +46,7 @@ import org.junit.jupiter.api.Test;
 public class TutorialCapstone_OrderDesk_Solution {
 
   /** The desk's path to every line's price, named once and reused. */
-  static final TraversalPath<Order, BigDecimal> PRICES =
-      OrderFocus.lines().via(LineItemFocus.price());
+  static final TraversalPath<Order, BigDecimal> PRICES = OrderFocus.lines().price();
 
   private static final BigDecimal FIVE_POUNDS = new BigDecimal("5.00");
 

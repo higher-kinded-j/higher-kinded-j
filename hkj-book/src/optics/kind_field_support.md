@@ -14,17 +14,14 @@ _Navigate a `Kind<F, A>` record field as you would a plain `List` field, with th
 [KindFieldFocusExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/KindFieldFocusExample.java)
 ~~~
 
-Domain records in a Higher-Kinded-J codebase often hold their contents in a `Kind<F, A>`: a team's members as `Kind<ListKind.Witness, Member>`, an optional lead as `Kind<MaybeKind.Witness, Member>`. The processor recognises those witnesses and generates the traversal for you, so the field reads exactly like a plain `List` field would:
+Domain records in a Higher-Kinded-J codebase often hold their contents in a `Kind<F, A>`: a team's members as `Kind<ListKind.Witness, Member>`, an optional lead as `Kind<MaybeKind.Witness, Member>`. The processor recognises those witnesses and generates the traversal for you, so the field reads exactly like a plain `List` field would, its [navigator](focus_navigation.md#which-fields-get-a-navigator) included:
 
 <!-- verify -->
 ```java
 // Kind<ListKind.Witness, Member> members, and yet:
 List<Member> everyone = SkillsTeamFocus.members().getAll(team);
 
-SkillsTeam levelled =
-    SkillsTeamFocus.members()
-        .via(MemberFocus.skills())
-        .modifyAll(Fixture::improve, team);
+SkillsTeam levelled = SkillsTeamFocus.members().skills().modifyAll(Fixture::improve, team);
 ```
 
 `Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.

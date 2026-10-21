@@ -25,7 +25,6 @@ import org.higherkindedj.example.book.optics.cast.CustomerProfile;
 import org.higherkindedj.example.book.optics.cast.CustomerProfileFocus;
 import org.higherkindedj.example.book.optics.cast.CustomerProfileLenses;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
-import org.higherkindedj.example.book.optics.cast.EmailAddressFocus;
 import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.LineItemFocus;
@@ -99,8 +98,7 @@ public final class CookbookBook {
 
   static OptionalField lowerAltEmail(CustomerProfile profile, CustomerProfile withoutAltEmail) {
     // ANCHOR: optional_field
-    AffinePath<CustomerProfile, String> altEmail =
-        CustomerProfileFocus.altEmail().via(EmailAddressFocus.value());
+    AffinePath<CustomerProfile, String> altEmail = CustomerProfileFocus.altEmail().value();
 
     CustomerProfile lowered = altEmail.modify(String::toLowerCase, profile);
 
@@ -126,8 +124,7 @@ public final class CookbookBook {
 
   static OrderHistory roundEveryPrice(OrderHistory history) {
     // ANCHOR: every_element
-    TraversalPath<OrderHistory, BigDecimal> prices =
-        OrderHistoryFocus.orders().via(OrderFocus.lines()).via(LineItemFocus.price());
+    TraversalPath<OrderHistory, BigDecimal> prices = OrderHistoryFocus.orders().lines().price();
 
     OrderHistory rounded =
         prices.modifyAll(price -> price.setScale(2, RoundingMode.HALF_EVEN), history);
@@ -344,8 +341,7 @@ public final class CookbookBook {
 
   static Checked checkQuantities(Order order) {
     // ANCHOR: check_values
-    Traversal<Order, Integer> quantities =
-        OrderFocus.lines().via(LineItemFocus.quantity()).toTraversal();
+    Traversal<Order, Integer> quantities = OrderFocus.lines().quantity().toTraversal();
 
     // Every bad quantity, reported together
     Validated<List<String>, Order> checked =
@@ -378,7 +374,7 @@ public final class CookbookBook {
 
   static Totals totals(Order order) {
     // ANCHOR: totals
-    TraversalPath<Order, Integer> quantities = OrderFocus.lines().via(LineItemFocus.quantity());
+    TraversalPath<Order, Integer> quantities = OrderFocus.lines().quantity();
 
     int items = quantities.foldMap(Monoids.integerAddition(), quantity -> quantity, order);
     boolean anyBulk = quantities.exists(quantity -> quantity >= 4, order);
@@ -428,7 +424,7 @@ public final class CookbookBook {
         Fold.sum(
             CustomerProfileFocus.name().asFold(),
             CustomerProfileFocus.nickname().asFold(),
-            CustomerProfileFocus.altEmail().via(EmailAddressFocus.value()).asFold());
+            CustomerProfileFocus.altEmail().value().asFold());
     // ANCHOR_END: several_places
     return new SeveralPlaces(all, known, searchTerms.getAll(profile));
   }
@@ -469,7 +465,7 @@ public final class CookbookBook {
     List<String> log = new ArrayList<>();
     TraversalPath<Order, String> skus =
         OrderFocus.lines()
-            .via(LineItemFocus.sku())
+            .sku()
             .traced((_, found) -> log.add("read " + found.size() + " SKUs: " + found));
 
     List<String> read = skus.getAll(order);

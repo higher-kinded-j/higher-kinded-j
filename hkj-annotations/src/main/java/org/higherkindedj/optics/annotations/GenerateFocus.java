@@ -82,7 +82,8 @@ public @interface GenerateFocus {
   String targetPackage() default "";
 
   /**
-   * Whether a field whose type is a {@code @GenerateFocus} record gets a navigator.
+   * Whether a field whose type is a {@code @GenerateFocus} record, or a container of one, gets a
+   * navigator.
    *
    * <p>A navigator enables patterns like {@code PersonFocus.address().city()} without explicit
    * {@code .via()} calls. A record from another module qualifies once that module has generated its
@@ -98,11 +99,16 @@ public @interface GenerateFocus {
    *   <li>It extends {@code NavigatorFocusPath}, {@code NavigatorAffinePath} or {@code
    *       NavigatorTraversalPath}, so it goes wherever a path of that type goes, and code that
    *       names the field's path type keeps compiling when the field gets a navigator.
-   *   <li>It steps into a container only where the field's method does: an {@code Either}, {@code
-   *       Try} or other zero-or-one SPI container always, a {@code Map}, an array or other
-   *       zero-or-more one under {@link #widenCollections()} or {@link #widenFields()}. {@code
-   *       Optional}, {@code Maybe}, {@code List}, {@code Set} and {@code Collection} are widened by
-   *       name and never get one.
+   *   <li>It steps into a container only where the field's method does: an {@code Optional}, {@code
+   *       Maybe}, {@code List}, {@code Set} or {@code Collection}, and an {@code Either}, {@code
+   *       Try} or other zero-or-one SPI container, always; a {@code Map}, an array or other
+   *       zero-or-more one under {@link #widenCollections()} or {@link #widenFields()}. Containers
+   *       nested in one another compose to the record they hold. So {@code List<LineItem> lines}
+   *       gets a navigator over every line, and {@code lines().quantity()} chains. A {@code Kind}
+   *       field the processor traverses gets one too.
+   *   <li>A navigation method hands on the next field's navigator only where the composed path has
+   *       the type of that field's own path: from {@code lines()}, a hop into another list chains,
+   *       and a hop into a plain record field returns the composed path.
    *   <li>It cannot navigate to a field of the record it reaches named like one of the path's own
    *       no-argument methods, such as {@code last} or {@code head}, since a call to it would reach
    *       the path's method instead. A record that writes {@code generateNavigators = true} is
@@ -165,7 +171,8 @@ public @interface GenerateFocus {
    * such as a {@code Map}, whole.
    *
    * <p>A navigator steps into a container only where the field is widened, so this is also how a
-   * container of {@code @GenerateFocus} records gets a navigator over its elements.
+   * {@code Map}, an array or a third-party collection of {@code @GenerateFocus} records gets a
+   * navigator over its elements.
    *
    * <p>Each name is checked against the record's components. A name that matches none is an error,
    * offering the component it most likely meant. A name whose field this cannot widen draws a

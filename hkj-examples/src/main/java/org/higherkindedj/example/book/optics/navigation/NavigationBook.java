@@ -16,8 +16,10 @@ import org.higherkindedj.example.book.optics.cast.CardFocus;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
 import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
+import org.higherkindedj.example.book.optics.cast.EmailAddressFocus;
 import org.higherkindedj.example.book.optics.cast.LineItem;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import org.higherkindedj.example.book.optics.cast.OrderLenses;
@@ -167,18 +169,35 @@ public final class NavigationBook {
     return List.of(city, same);
   }
 
-  /** What the page's navigator-or-via block reads. */
-  record NavigatorOrVia(String email, List<String> skus) {}
+  /** What the page's navigator-hops block reads. */
+  record NavigatorHops(String email, List<String> skus) {}
 
-  static NavigatorOrVia navigatorOrVia(Order order) {
-    // ANCHOR: navigator_or_via
-    // customer is a plain navigable field: navigator, so .email() chains
+  static NavigatorHops navigatorHops(Order order) {
+    // ANCHOR: navigator_hops
+    // customer is a navigable record: a navigator, so .email() chains
     String email = OrderFocus.customer().email().value().get(order);
 
-    // lines is a List: a TraversalPath, so the next hop is .via()
-    List<String> skus = OrderFocus.lines().via(LineItemFocus.sku()).getAll(order);
-    // ANCHOR_END: navigator_or_via
-    return new NavigatorOrVia(email, skus);
+    // lines is a List of them: a navigator over every line, so .sku() chains too
+    TraversalPath<Order, String> skuPath = OrderFocus.lines().sku();
+    List<String> skus = skuPath.getAll(order);
+    // ANCHOR_END: navigator_hops
+    return new NavigatorHops(email, skus);
+  }
+
+  /** What the page's widened-hop block reads. */
+  record WidenedHop(List<BigDecimal> prices, List<String> emails) {}
+
+  static WidenedHop widenedHop(OrderHistory history) {
+    // ANCHOR: widened_hop
+    // A hop into each order's list keeps the traversal, so lines() hands on its navigator
+    List<BigDecimal> prices = OrderHistoryFocus.orders().lines().price().getAll(history);
+
+    // A hop into one record lands on a traversal, so customer() hands back the plain path
+    TraversalPath<OrderHistory, Customer> customers = OrderHistoryFocus.orders().customer();
+    List<String> emails =
+        customers.via(CustomerFocus.email()).via(EmailAddressFocus.value()).getAll(history);
+    // ANCHOR_END: widened_hop
+    return new WidenedHop(prices, emails);
   }
 
   /** What the page's path-methods block computes, and the postcodes its trace saw. */
@@ -317,6 +336,13 @@ record PaymentHistory(UUID customerId, List<Payment> payments) {}
 record Stockroom(String name, Map<String, Integer> stock, Either<String, String> verifiedName) {}
 
 // ANCHOR_END: stockroom
+
+// ANCHOR: order_history
+// A customer's past orders: a list of orders, each holding a list of lines
+@GenerateFocus
+record OrderHistory(List<Order> orders) {}
+
+// ANCHOR_END: order_history
 
 // Width proofs for the nested-container table: the components are placeholders, with no role.
 

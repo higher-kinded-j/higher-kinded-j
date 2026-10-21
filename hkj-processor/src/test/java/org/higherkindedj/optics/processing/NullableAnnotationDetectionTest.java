@@ -207,9 +207,16 @@ class NullableAnnotationDetectionTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(item, basket);
 
       assertThat(compilation).succeeded();
-      // The static methods: the list traverses, the plain record field widens on nullability.
+      // The static methods: the list traverses into a navigator over its items, and the plain
+      // record field widens on nullability.
       assertGeneratedCodeContains(
-          compilation, "com.example.BasketFocus", "TraversalPath<Basket, Item> items()");
+          compilation, "com.example.BasketFocus", "ItemsNavigator<Basket> items()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.BasketFocus", "\"items\").nullable().each());");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.BasketFocus",
+          "ItemsNavigator<S> extends NavigatorTraversalPath<S, Item>");
       assertGeneratedCodeContains(
           compilation, "com.example.BasketFocus", "SingleNavigator<Basket> single()");
       // The navigator into that nullable record reports the same kinds for the same fields.
