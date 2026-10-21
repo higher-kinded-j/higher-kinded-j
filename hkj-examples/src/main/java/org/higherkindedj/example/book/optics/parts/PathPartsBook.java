@@ -12,7 +12,6 @@ import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.CustomerLenses;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.LineItemLenses;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -52,7 +51,7 @@ public final class PathPartsBook {
         ConsignmentFocus.state().via(ConsignmentStatePrisms.dispatched());
     Affine<Consignment, ConsignmentState.Dispatched> dispatched = dispatchedPath.toAffine();
 
-    TraversalPath<Order, Integer> quantityPath = OrderFocus.lines().via(LineItemFocus.quantity());
+    TraversalPath<Order, Integer> quantityPath = OrderFocus.lines().quantity();
     Traversal<Order, Integer> quantities = quantityPath.toTraversal();
     // ANCHOR_END: to_optic
     return new Optics(emailValue, dispatched, quantities);

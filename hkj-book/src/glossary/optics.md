@@ -493,12 +493,13 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 
 ## Navigator
 
-**Definition:** A path the Focus processor generates for a field whose type is another `@GenerateFocus` record, given a type for each of its type parameters if it has any. An `Either` of such a record gets one too, and so does a `Map` or an array the record widens. A navigator is the field's own path, a `FocusPath`, `AffinePath` or `TraversalPath`, with one method added per field of that record. So `UserFocus.address().city()` chains where a plain path needs `.via(AddressFocus.city())`, and the navigator still goes wherever its path goes:
+**Definition:** A path the Focus processor generates for a field whose type is another `@GenerateFocus` record, given a type for each of its type parameters if it has any. An `Optional`, `Maybe`, `List`, `Set`, `Collection`, `Either` or `Kind` of such a record gets one too, and so does a `Map` or an array the record widens. A navigator is the field's own path, a `FocusPath`, `AffinePath` or `TraversalPath`, with one method added per field of that record. So `UserFocus.address().city()` chains where a plain path needs `.via(AddressFocus.city())`, and the navigator still goes wherever its path goes:
 
 | The field on `User` | Its method returns |
 |---|---|
 | `Address address` | `AddressNavigator<User>`, a `FocusPath<User, Address>` |
 | `@Nullable Address billing` | `BillingNavigator<User>`, an `AffinePath<User, Address>` |
+| `List<Address> addresses` | `AddressesNavigator<User>`, a `TraversalPath<User, Address>` |
 | `Map<String, Address> sites`, named in `widenFields` | `SitesNavigator<User>`, a `TraversalPath<User, Address>` |
 
 Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns them off.

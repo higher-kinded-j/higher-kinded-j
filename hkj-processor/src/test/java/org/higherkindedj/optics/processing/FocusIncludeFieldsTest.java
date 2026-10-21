@@ -68,8 +68,7 @@ class FocusIncludeFieldsTest {
           List<String> tags | tags | List<String> | TraversalPath<Subject, String> tags()
           Plain plain | plain | Plain | FocusPath<Subject, Plain> plain()
           int number | number | int | FocusPath<Subject, Integer> number()
-          List<Address> addresses | addresses | List<Address> | TraversalPath<Subject, Address> addresses()
-          Optional<Address> optional | optional | Optional<Address> | AffinePath<Subject, Address> optional()
+          List<Plain> plains | plains | List<Plain> | TraversalPath<Subject, Plain> plains()
           """)
   @DisplayName("a non-navigator field warns at its name and offers an eligible field")
   void offersANavigatorField(String component, String name, String type, String method) {
@@ -208,11 +207,12 @@ class FocusIncludeFieldsTest {
     assertGeneratedCodeContains(followed, "com.example." + record + "Focus", method);
   }
 
-  @Test
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"Plain plain", "List<Plain> plain"})
   @DisplayName("another included source record can keep navigation through its annotation fix")
-  void removesNameBesideAnnotationSuggestion() {
+  void removesNameBesideAnnotationSuggestion(String component) {
     String annotation = "@GenerateFocus(includeFields = {\"id\", \"plain\"})";
-    JavaFileObject subject = source("Subject", annotation, "String id, Plain plain");
+    JavaFileObject subject = source("Subject", annotation, "String id, " + component);
     Compilation written = compile(subject);
     assertThat(written).succeeded();
     assertThat(written).hadWarningCount(2);
@@ -235,7 +235,7 @@ class FocusIncludeFieldsTest {
                 source(
                     "Subject",
                     "@GenerateFocus(includeFields = \"plain\")",
-                    "String id, Plain plain"));
+                    "String id, " + component));
     clean(followed);
     assertGeneratedCodeContains(
         followed, "com.example.SubjectFocus", "PlainNavigator<Subject> plain()");
@@ -483,31 +483,19 @@ class FocusIncludeFieldsTest {
       delimiter = '|',
       textBlock =
           """
-      List<Address> | java.util.List.of(new Address("High Street")) | getAll | .via()
-      Optional<Address> | Optional.of(new Address("High Street")) | getOptional | .via()
-      org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, Address> | org.higherkindedj.hkt.list.ListKindHelper.LIST.widen(java.util.List.of(new Address("High Street"))) | getAll | .via()
-      List<@Nullable Address> | java.util.Arrays.asList(null, new Address("High Street")) | getAll | .some(Affines.nullable()).via()
-      Optional<@Nullable Address> | Optional.of(new Address("High Street")) | getOptional | .some(Affines.nullable()).via()
-      org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, @Nullable Address> | org.higherkindedj.hkt.list.ListKindHelper.LIST.widen(java.util.Arrays.asList(null, new Address("High Street"))) | getAll | .some(Affines.nullable()).via()
+      List<Address> | java.util.List.of(new Address("High Street")) | getAll
+      Optional<Address> | Optional.of(new Address("High Street")) | getOptional
+      List<? extends Address> | java.util.List.of(new Address("High Street")) | getAll
+      List<Optional<Address>> | java.util.List.of(Optional.of(new Address("High Street"))) | getAll
+      org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, Address> | org.higherkindedj.hkt.list.ListKindHelper.LIST.widen(java.util.List.of(new Address("High Street"))) | getAll
+      List<@Nullable Address> | java.util.Arrays.asList(null, new Address("High Street")) | getAll
+      Optional<@Nullable Address> | Optional.of(new Address("High Street")) | getOptional
+      org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, @Nullable Address> | org.higherkindedj.hkt.list.ListKindHelper.LIST.widen(java.util.Arrays.asList(null, new Address("High Street"))) | getAll
       """)
-  @DisplayName("the offered composition compiles and runs, passing over nullable elements")
-  void compositionHintRuns(String container, String value, String getter, String hint)
+  @DisplayName("a container of records draws no warning, and navigating it passes over nulls")
+  void containerOfRecordsNavigates(String container, String value, String getter)
       throws ReflectiveOperationException {
-    String annotation = "@GenerateFocus(includeFields = \"members\")";
-    JavaFileObject subject = source("Subject", annotation, container + " members, Address address");
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written).hadNoteCount(0);
-    assertThat(written)
-        .hadWarningContaining(
-            "which composes with com.example.AddressFocus's paths through " + hint)
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    String composed =
-        "SubjectFocus.members()" + hint.replace("via()", "via(AddressFocus.street())");
-    String read = composed + "." + getter + "(subject)";
+    String read = "SubjectFocus.members().street()." + getter + "(subject)";
     if (getter.equals("getOptional")) {
       read += ".stream().toList()";
     }
@@ -517,7 +505,6 @@ class FocusIncludeFieldsTest {
             """
         package com.example;
         import java.util.Optional;
-        import org.higherkindedj.optics.util.Affines;
         public class Use {
           public static Object run() {
             var subject = new Subject(%s, new Address("Other Street"));
@@ -526,7 +513,7 @@ class FocusIncludeFieldsTest {
         }
         """
                 .formatted(value, read));
-    Compilation followed =
+    Compilation compilation =
         javac()
             .withProcessors(new FocusProcessor())
             .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
@@ -534,12 +521,13 @@ class FocusIncludeFieldsTest {
                 ADDRESS,
                 source(
                     "Subject",
-                    "@GenerateFocus(includeFields = \"address\")",
+                    "@GenerateFocus(includeFields = \"members\")",
                     container + " members, Address address"),
                 use);
-    clean(followed);
+
+    clean(compilation);
     org.assertj.core.api.Assertions.assertThat(
-            new RuntimeCompilationHelper.CompiledResult(followed)
+            new RuntimeCompilationHelper.CompiledResult(compilation)
                 .invokeStatic("com.example.Use", "run"))
         .isEqualTo(List.of("High Street"));
   }
@@ -549,26 +537,36 @@ class FocusIncludeFieldsTest {
       strings = {
         "List<Box<?>>",
         "List<Box>",
-        "List",
-        "List<? extends Address>",
         "Optional<Box<?>>",
         "org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, Box<?>>"
       })
-  @DisplayName("raw or wildcard elements receive no companion composition hint")
-  void noInvalidCompositionHint(String container) {
+  @DisplayName("a container of raw or wildcard records draws the element's note, not this warning")
+  void wildcardElementDrawsItsNote(String container) {
     Compilation written =
         compile(
             source(
                 "Subject", "@GenerateFocus(includeFields = \"members\")", container + " members"));
+
     assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
-        .doesNotContain("which composes", ".via()");
+    assertThat(written).hadWarningCount(0);
+    assertThat(written).hadNoteContaining("Navigator for field 'members' is not generated");
   }
 
   @Test
-  @DisplayName("a dependency that published no Focus companion receives no composition hint")
-  void noUnpublishedCompositionHint(@TempDir Path temp) throws IOException {
+  @DisplayName("a raw container warns, since it reaches no record")
+  void rawContainerWarns() {
+    Compilation written =
+        compile(source("Subject", "@GenerateFocus(includeFields = \"members\")", "List members"));
+
+    assertThat(written).succeeded();
+    assertThat(written).hadWarningCount(1);
+    assertThat(written)
+        .hadWarningContaining("Navigator generation cannot reach a @GenerateFocus record through");
+  }
+
+  @Test
+  @DisplayName("a list of records from a dependency without a companion draws that note instead")
+  void unpublishedElementDrawsItsNote(@TempDir Path temp) throws IOException {
     Compilation upstream = javac().withOptions("-proc:none").compile(ADDRESS);
     clean(upstream);
     Path dependency = classDirectory(upstream, temp.resolve("dependency"));
@@ -581,25 +579,15 @@ class FocusIncludeFieldsTest {
                     "Subject",
                     "@GenerateFocus(includeFields = \"members\")",
                     "List<Address> members"));
+
     assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
-        .doesNotContain("which composes", ".via()");
+    assertThat(written).hadWarningCount(0);
+    assertThat(written).hadNoteContaining("carries @GenerateFocus, but no public");
   }
 
   @Test
-  @DisplayName("a concrete generic element composes with its inferred companion instantiation")
-  void genericCompositionRuns() throws ReflectiveOperationException {
-    String annotation = "@GenerateFocus(includeFields = \"members\")";
-    JavaFileObject subject = source("Subject", annotation, "List<Box<String>> members");
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining("which composes with com.example.BoxFocus's paths through .via()")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
+  @DisplayName("a list of a generic record navigates through its instantiation")
+  void genericElementNavigates() throws ReflectiveOperationException {
     JavaFileObject use =
         JavaFileObjects.forSourceString(
             "com.example.Use",
@@ -608,11 +596,11 @@ class FocusIncludeFieldsTest {
         public class Use {
           public static Object run() {
             var subject = new Subject(java.util.List.of(new Box<String>("High Street")));
-            return SubjectFocus.members().via(BoxFocus.value()).getAll(subject);
+            return SubjectFocus.members().value().getAll(subject);
           }
         }
         """);
-    Compilation followed =
+    Compilation compilation =
         javac()
             .withProcessors(new FocusProcessor())
             .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
@@ -620,18 +608,19 @@ class FocusIncludeFieldsTest {
                 GENERIC,
                 source(
                     "Subject",
-                    "@GenerateFocus(generateNavigators = false)",
+                    "@GenerateFocus(includeFields = \"members\")",
                     "List<Box<String>> members"),
                 use);
-    clean(followed);
+
+    clean(compilation);
     org.assertj.core.api.Assertions.assertThat(
-            new RuntimeCompilationHelper.CompiledResult(followed)
+            new RuntimeCompilationHelper.CompiledResult(compilation)
                 .invokeStatic("com.example.Use", "run"))
         .isEqualTo(List.of("High Street"));
   }
 
   @Test
-  @DisplayName("a published companion hint honours its redirected package")
+  @DisplayName("a list of records navigates through a companion published to another package")
   void redirectedPublishedCompanion(@TempDir Path temp) throws IOException {
     Compilation upstream =
         javac()
@@ -641,21 +630,7 @@ class FocusIncludeFieldsTest {
                     "Address", "@GenerateFocus(targetPackage = \"com.paths\")", "String street"));
     clean(upstream);
     Path dependency = classDirectory(upstream, temp.resolve("dependency"));
-    String annotation = "@GenerateFocus(includeFields = \"members\")";
-    JavaFileObject subject = source("Subject", annotation, "List<Address> members");
-    Compilation written =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withClasspath(classpathWith(dependency))
-            .compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining("which composes with com.paths.AddressFocus's paths through .via()")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    Compilation followed =
+    Compilation compilation =
         javac()
             .withProcessors(new FocusProcessor())
             .withClasspath(classpathWith(dependency))
@@ -663,17 +638,20 @@ class FocusIncludeFieldsTest {
             .compile(
                 source(
                     "Subject",
-                    "@GenerateFocus(generateNavigators = false)",
+                    "@GenerateFocus(includeFields = \"members\")",
                     "List<Address> members"),
                 JavaFileObjects.forSourceString(
                     "com.example.Use",
                     """
                 package com.example;
                 class Use {
-                  Object path() { return SubjectFocus.members().via(com.paths.AddressFocus.street()); }
+                  Object path() { return SubjectFocus.members().street(); }
                 }
                 """));
-    clean(followed);
+
+    clean(compilation);
+    assertGeneratedCodeContains(
+        compilation, "com.example.SubjectFocus", "MembersNavigator<Subject> members()");
   }
 
   @ParameterizedTest

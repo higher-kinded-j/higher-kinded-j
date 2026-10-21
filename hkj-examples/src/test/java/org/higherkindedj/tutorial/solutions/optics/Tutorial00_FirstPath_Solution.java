@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.ORDER;
 
 import org.higherkindedj.example.book.optics.cast.LineItem;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -16,8 +15,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Solutions for Tutorial 00: Your first path.
  *
- * <p>The pattern throughout: start from the generated {@code OrderFocus}, chain each record hop as
- * a method call, and step from a list into its elements with {@code .via(...)}.
+ * <p>The pattern throughout: start from the generated {@code OrderFocus}, and chain each hop as a
+ * method call, a list's elements included.
  */
 @DisplayName("Tutorial 00: Your First Path (Solutions)")
 public class Tutorial00_FirstPath_Solution {
@@ -65,8 +64,9 @@ public class Tutorial00_FirstPath_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code OrderFocus.lines()} already reaches every line, so one {@code
-   * .via(...)} names every quantity, and {@code modifyAll} changes them all and rebuilds the order.
+   * Why this is idiomatic: {@code OrderFocus.lines()} already reaches every line and navigates on,
+   * so {@code .quantity()} names every quantity, and {@code modifyAll} changes them all and
+   * rebuilds the order.
    *
    * <p>Alternative: stream the lines, map each one to a new {@code LineItem}, collect the list and
    * build a new {@code Order} around it. Same result, with the rebuild written out twice.
@@ -78,7 +78,7 @@ public class Tutorial00_FirstPath_Solution {
   @Test
   @DisplayName("Exercise 3: update every element of a list")
   void exercise3_doubleEveryQuantity() {
-    Order doubled = OrderFocus.lines().via(LineItemFocus.quantity()).modifyAll(q -> q * 2, ORDER);
+    Order doubled = OrderFocus.lines().quantity().modifyAll(q -> q * 2, ORDER);
 
     assertThat(doubled.lines()).extracting(LineItem::quantity).containsExactly(2, 8);
   }

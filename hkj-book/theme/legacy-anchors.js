@@ -305,6 +305,8 @@
     "optics/focus_dsl.html#think-of-focus-paths-like": "optics/focus_dsl.html#the-whole-feature-on-one-screen",
     "optics/focus_dsl.html#type-safe-navigation-through-nested-data": "optics/focus_dsl.html#the-whole-feature-on-one-screen",
     "optics/focus_effects.html#working-with-sum-types-using-instanceof": "optics/focus_navigation.html#working-with-sum-types-using-instanceof",
+    "optics/focus_navigation.html#check-navigation-list-hop": "optics/focus_navigation.html#which-fields-get-a-navigator",
+    "optics/focus_navigation.html#check-navigation-list-hop-answer": "optics/focus_navigation.html#which-fields-get-a-navigator",
     "optics/focus_reference.html#cannot-infer-type-arguments-for-traverseover": "optics/focus_reference.html#object-turns-up-after-traverseover"
   };
 

@@ -1441,6 +1441,68 @@ class NullableFocusNullnessTest {
     }
 
     @Test
+    @DisplayName("@GenerateFocus: a navigator into a generic record with a nullable type argument")
+    void focusNavigatesIntoANullableTypeArgument() {
+      // The navigator's type arguments are written out: a widening ending in the no-argument
+      // .each() or .some() gives a diamond nothing to infer the nullable argument from.
+      Compilation compilation =
+          compileChecked(
+              List.of(new FocusProcessor()),
+              box("GenerateFocus"),
+              source(
+                  "com.example.Rack",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.jspecify.annotations.Nullable;
+
+                  @GenerateFocus
+                  public record Rack(
+                      Box<@Nullable String> box,
+                      List<Box<@Nullable String>> boxes,
+                      Optional<Box<@Nullable String>> spare,
+                      List<Optional<Box<@Nullable String>>> pending,
+                      List<@Nullable Box<@Nullable String>> sparse) {}
+                  """),
+              source(
+                  "com.example.Shed",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus
+                  public record Shed(Rack rack) {}
+                  """),
+              source(
+                  "com.example.RackUses",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.focus.AffinePath;
+                  import org.higherkindedj.optics.focus.FocusPath;
+                  import org.higherkindedj.optics.focus.TraversalPath;
+                  import org.jspecify.annotations.Nullable;
+
+                  class RackUses {
+                    static void use() {
+                      FocusPath<Rack, @Nullable String> box = RackFocus.box().value();
+                      TraversalPath<Rack, @Nullable String> boxes = RackFocus.boxes().value();
+                      AffinePath<Rack, @Nullable String> spare = RackFocus.spare().value();
+                      TraversalPath<Rack, @Nullable String> pending = RackFocus.pending().value();
+                      TraversalPath<Rack, @Nullable String> sparse = RackFocus.sparse().value();
+                      TraversalPath<Shed, @Nullable String> composed = ShedFocus.rack().boxes().value();
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
     @DisplayName(
         "@GenerateFocus: a nullable container, a nullable inner one, and nullable elements")
     void focusRulesOutANullContainer() {

@@ -175,7 +175,7 @@ class FocusArrayWideningTest {
           "HolderFocus | TraversalPath<Holder, String> grid()",
           "HolderFocus | TraversalPath<Holder, String> rows()",
           "HolderFocus | TraversalPath<Holder, String> extra()",
-          "HolderFocus | TraversalPath<Holder, Leaf> groups()",
+          "HolderFocus | GroupsNavigator<Holder> groups()",
           "HolderFocus | FocusPath<Holder, int[]> counts()",
           "BagFocus | <T> TraversalPath<Bag<T>, T> items()",
           "PlainFocus | FocusPath<Plain, String[]> tags()",

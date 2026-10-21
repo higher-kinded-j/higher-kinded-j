@@ -9,7 +9,6 @@ import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
 import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.LineItemLenses;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -38,7 +37,7 @@ public final class SelfCheckBook {
 
   static Order oneOfEach(Order order) {
     // ANCHOR: one_of_each
-    Order oneOfEach = OrderFocus.lines().via(LineItemFocus.quantity()).setAll(1, order);
+    Order oneOfEach = OrderFocus.lines().quantity().setAll(1, order);
     // ANCHOR_END: one_of_each
     return oneOfEach;
   }
@@ -50,9 +49,7 @@ public final class SelfCheckBook {
 
   static Validated<List<String>, Order> acceptQuantities(Order order) {
     return OpticOps.modifyAllValidated(
-        order,
-        OrderFocus.lines().via(LineItemFocus.quantity()).toTraversal(),
-        SelfCheckBook::checkQuantity);
+        order, OrderFocus.lines().quantity().toTraversal(), SelfCheckBook::checkQuantity);
   }
 
   // ANCHOR_END: check_quantities

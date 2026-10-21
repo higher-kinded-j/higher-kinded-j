@@ -78,8 +78,7 @@ public final class FromMonocleBook {
 
   static HeadOptionResults headOption(Order order) {
     // ANCHOR: head_option
-    AffinePath<Order, Integer> firstQuantity =
-        OrderFocus.lines().via(LineItemFocus.quantity()).headOption();
+    AffinePath<Order, Integer> firstQuantity = OrderFocus.lines().quantity().headOption();
 
     // The read is the first line's quantity
     Optional<Integer> read = firstQuantity.getOptional(order);

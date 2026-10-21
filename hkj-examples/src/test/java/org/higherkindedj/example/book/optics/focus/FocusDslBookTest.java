@@ -30,6 +30,7 @@ import org.higherkindedj.example.book.optics.cast.Payment;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.NavigatorAffinePath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -139,7 +140,8 @@ class FocusDslBookTest {
 
   @Test
   @DisplayName(
-      "checkpoint: a record field is a navigator, a sealed field a FocusPath, an Optional an AffinePath")
+      "checkpoint: a record field is a navigator, a sealed field a FocusPath, an Optional of a"
+          + " record an AffinePath navigator")
   void checkpointPathTypes() {
     Consignment pending = consignment(new ConsignmentState.Pending());
 
@@ -147,11 +149,14 @@ class FocusDslBookTest {
     FocusPath<Consignment, String> city = ConsignmentFocus.to().city();
     FocusPath<Consignment, ConsignmentState> state = ConsignmentFocus.state();
     AffinePath<CustomerProfile, EmailAddress> altEmail = CustomerProfileFocus.altEmail();
+    AffinePath<CustomerProfile, String> altEmailAddress = CustomerProfileFocus.altEmail().value();
 
     assertThat(to.get(pending)).isEqualTo(pending.to());
     assertThat(city.get(pending)).isEqualTo("London");
     assertThat(state.get(pending)).isEqualTo(new ConsignmentState.Pending());
     assertThat(altEmail.getOptional(WITH_NICKNAME)).isEmpty();
+    assertThat(altEmail).isInstanceOf(NavigatorAffinePath.class);
+    assertThat(altEmailAddress.getOptional(WITH_NICKNAME)).isEmpty();
   }
 
   @Nested

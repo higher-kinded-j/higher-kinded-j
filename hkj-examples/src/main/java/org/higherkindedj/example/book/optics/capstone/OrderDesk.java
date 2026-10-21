@@ -44,8 +44,7 @@ public final class OrderDesk {
 
   static final FocusPath<Order, OrderStatus> STATUS = OrderFocus.status();
 
-  static final TraversalPath<Order, BigDecimal> PRICES =
-      OrderFocus.lines().via(LineItemFocus.price());
+  static final TraversalPath<Order, BigDecimal> PRICES = OrderFocus.lines().price();
 
   static final TraversalPath<Order, BigDecimal> BULK_PRICES =
       OrderFocus.lines().filter(line -> line.quantity() >= 4).via(LineItemFocus.price());

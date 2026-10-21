@@ -43,7 +43,7 @@ A stream over a list field reads the elements, and a wither puts the new list ba
 
 | You write today | With optics | Note |
 |---|---|---|
-| `stream().map(f).toList()` over a list field, put back with a wither | `OrderFocus.lines().via(LineItemFocus.price()).modifyAll(f, order)` | the path does the rebuild, however deep the list |
+| `stream().map(f).toList()` over a list field, put back with a wither | `OrderFocus.lines().price().modifyAll(f, order)` | the path does the rebuild, however deep the list |
 | `stream().filter(p).map(f).toList()` | `.filter(p)` on the path, then `modifyAll(f, order)` | the stream drops what `p` rejects; the filtered path keeps it, unchanged |
 | `stream().map(f).toList()`, to read the values | `path.getAll(order)` | |
 | `reduce`, `anyMatch`, `count` | `foldMap(monoid, f, order)`, `exists(p, order)` and `count(order)` on the path | only reads; `exists` stops at its first match, as [What reads cost](production_readiness.md#read-cost) explains |
@@ -77,7 +77,7 @@ A [prism](prisms.md) is an `instanceof` pattern and the variant's constructor in
 | `new Returned(reason)`, the variant's constructor | `returned().build(new Returned(reason))`, the variant as a `ConsignmentState` | for a sealed variant, `build` only widens the type; `Prisms.some().build(x)` wraps, as `Optional.of(x)` does |
 | A sealed `switch` that changes one case and passes the rest through | `ConsignmentFocus.state().via(returned()).via(ReturnedFocus.reason()).modify(f, consignment)` | the `switch` stops compiling when a variant is added; the prism passes the new one through |
 | A `switch` that moves the state to another variant, `Pending` to `Dispatched` | `ConsignmentFocus.state().via(pending()).matches(consignment)`, then `ConsignmentFocus.state().set(new Dispatched(at), consignment)` | `modify` through a prism keeps the variant, so a move is a check and a write, as [Send goods out](capstone.md#send-goods-out) shows |
-| `profile.altEmail().map(EmailAddress::value)`, and a copy to write it back | `CustomerProfileFocus.altEmail().via(EmailAddressFocus.value())` | reads as the chain does, and writes too; `modify` leaves an empty `Optional` alone |
+| `profile.altEmail().map(EmailAddress::value)`, and a copy to write it back | `CustomerProfileFocus.altEmail().value()` | reads as the chain does, and writes too; `modify` leaves an empty `Optional` alone |
 
 A sealed `switch` that tidies a returned consignment's reason, and passes every other state through:
 

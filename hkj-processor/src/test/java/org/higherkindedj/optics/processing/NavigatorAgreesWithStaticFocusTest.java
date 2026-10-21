@@ -62,6 +62,21 @@ class NavigatorAgreesWithStaticFocusTest {
           new Shape("Leaf leaf", "leaf"),
           new Shape("Optional<Leaf> optionalLeaf", "optionalLeaf"),
           new Shape("List<Leaf> leaves", "leaves"),
+          new Shape("Set<Leaf> leafSet", "leafSet"),
+          new Shape("Collection<Leaf> leafCollection", "leafCollection"),
+          new Shape("Maybe<Leaf> maybeLeaf", "maybeLeaf"),
+          new Shape("List<@Nullable Leaf> nullableLeafList", "nullableLeafList"),
+          new Shape("Set<@Nullable Leaf> nullableLeafSet", "nullableLeafSet"),
+          new Shape("Collection<@Nullable Leaf> nullableLeafCollection", "nullableLeafCollection"),
+          new Shape("Optional<@Nullable Leaf> nullableOptionalLeaf", "nullableOptionalLeaf"),
+          new Shape("Maybe<@Nullable Leaf> nullableMaybeLeaf", "nullableMaybeLeaf"),
+          new Shape("@Nullable List<Leaf> optionalLeaves", "optionalLeaves"),
+          new Shape("List<? extends Leaf> boundedLeaves", "boundedLeaves"),
+          new Shape("List<Optional<Leaf>> nestedLeaves", "nestedLeaves"),
+          new Shape("Optional<List<@Nullable Leaf>> optionalSparseLeaves", "optionalSparseLeaves"),
+          new Shape("Either<String, List<Leaf>> eitherLeaves", "eitherLeaves"),
+          new Shape("Map<String, List<Leaf>> leafListMap", "leafListMap"),
+          new Shape("Kind<ListKind.Witness, Leaf> leafKind", "leafKind"),
           new Shape("Map<String, Leaf> leafMap", "leafMap"),
           new Shape("Leaf[] leafArray", "leafArray"),
           new Shape("@Nullable Map<String, Leaf> nullableLeafMap", "nullableLeafMap"),
@@ -71,6 +86,8 @@ class NavigatorAgreesWithStaticFocusTest {
           new Shape("Either<String, Leaf> eitherLeaf", "eitherLeaf"),
           new Shape("Box<String> box", "box"),
           new Shape("Map<String, Box<String>> boxMap", "boxMap"),
+          new Shape("List<Box<String>> boxList", "boxList"),
+          new Shape("List<Box<?>> looseBoxList", "looseBoxList"),
           new Shape("Box<String>[] boxArray", "boxArray"),
           new Shape("Box<?>[] looseBoxArray", "looseBoxArray"),
           new Shape("@SuppressWarnings(\"rawtypes\") Box[] rawBoxArray", "rawBoxArray"),
@@ -141,6 +158,7 @@ class NavigatorAgreesWithStaticFocusTest {
         import org.higherkindedj.hkt.Kind;
         import org.higherkindedj.hkt.either.Either;
         import org.higherkindedj.hkt.list.ListKind;
+        import org.higherkindedj.hkt.maybe.Maybe;
         import org.higherkindedj.optics.annotations.GenerateFocus;
         import org.jspecify.annotations.Nullable;
 
@@ -188,6 +206,25 @@ class NavigatorAgreesWithStaticFocusTest {
         .containsEntry("deep", "TraversalPath<_, String>")
         .containsEntry("members", "TraversalPath<_, String>")
         .containsEntry("eitherLeaf", "EitherLeafNavigator<_>")
+        .containsEntry("leaves", "LeavesNavigator<_>")
+        .containsEntry("leafSet", "LeafSetNavigator<_>")
+        .containsEntry("leafCollection", "LeafCollectionNavigator<_>")
+        .containsEntry("optionalLeaf", "OptionalLeafNavigator<_>")
+        .containsEntry("maybeLeaf", "MaybeLeafNavigator<_>")
+        .containsEntry("nullableLeafList", "NullableLeafListNavigator<_>")
+        .containsEntry("optionalLeaves", "OptionalLeavesNavigator<_>")
+        .containsEntry("boundedLeaves", "BoundedLeavesNavigator<_>")
+        .containsEntry("nullableLeafSet", "NullableLeafSetNavigator<_>")
+        .containsEntry("nullableMaybeLeaf", "NullableMaybeLeafNavigator<_>")
+        .containsEntry("nestedLeaves", "NestedLeavesNavigator<_>")
+        .containsEntry("optionalSparseLeaves", "OptionalSparseLeavesNavigator<_>")
+        .containsEntry("eitherLeaves", "EitherLeavesNavigator<_>")
+        .containsEntry(
+            "leafListMap",
+            widenCollections ? "LeafListMapNavigator<_>" : "FocusPath<_, Map<String, List<Leaf>>>")
+        .containsEntry("leafKind", "LeafKindNavigator<_>")
+        .containsEntry("boxList", "BoxListNavigator<_, String>")
+        .containsEntry("looseBoxList", "TraversalPath<_, Box<?>>")
         .containsEntry("box", "BoxNavigator<_, String>")
         .containsEntry(
             "boxMap",

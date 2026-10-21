@@ -20,7 +20,6 @@ import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
 import org.higherkindedj.example.book.optics.cast.CustomerProfile;
 import org.higherkindedj.example.book.optics.cast.CustomerProfileFocus;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
-import org.higherkindedj.example.book.optics.cast.EmailAddressFocus;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.validated.Validated;
@@ -276,8 +275,7 @@ class FromJavaBookTest {
     @Test
     @DisplayName("an Optional field's path reads like map, and modify leaves an empty one alone")
     void optionalFieldReadsLikeMap() {
-      AffinePath<CustomerProfile, String> altEmail =
-          CustomerProfileFocus.altEmail().via(EmailAddressFocus.value());
+      AffinePath<CustomerProfile, String> altEmail = CustomerProfileFocus.altEmail().value();
       CustomerProfile with =
           new CustomerProfile(
               "Ada", Optional.empty(), Optional.of(new EmailAddress(" ada@example.org ")));

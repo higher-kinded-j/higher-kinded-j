@@ -152,16 +152,16 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart LR
     accTitle: Which fields get a navigator
-    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator, and so does an SPI container of such a record that the declaring record widens. Optional, Maybe, List, Set and Collection fields are widened to a path chained with via. A generic record given a wildcard or no type arguments gets no navigator, so chain a lens you write with via. Anything else keeps a plain path chained with via.
+    accDescr: A record annotated with GenerateFocus, whose Focus class was generated and whose type parameters the field names, gets a navigator. So does an Optional, Maybe, List, Set, Collection or Kind of such a record, and an SPI container of one that the declaring record widens. A generic record given a wildcard or no type arguments gets no navigator, so chain a lens you write with via. Anything else keeps a plain path chained with via.
     F{"The field's<br/>type is..."}
     F --- R1["a record with<br/>@GenerateFocus, its Focus<br/>class generated and each<br/>type parameter named"]
-    F --- R2["a widened SPI<br/>container of<br/>such a record"]
-    F --- R3["Optional, Maybe, List,<br/>Set, Collection"]
+    F --- R2["an Optional, Maybe, List,<br/>Set, Collection or Kind<br/>of such a record"]
+    F --- R3["a widened SPI<br/>container of<br/>such a record"]
     F --- R4["a generic record<br/>given a wildcard or<br/>no type arguments"]
     F --- R5["anything else"]
     R1 --> N["Navigator<br/>chain with<br/>a method call"]
     R2 --> N
-    R3 --> W["Widened path<br/>chain with .via()"]
+    R3 --> N
     R4 --> Q["No navigator<br/>chain a lens you<br/>write with .via()"]
     R5 --> P["Plain path<br/>chain with .via()"]
 
@@ -170,13 +170,27 @@ flowchart LR
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class F decision
     class R1,R2,R3,R4,R5 step
-    class N,W,Q,P tier
+    class N,Q,P tier
 ```
 
-The middle branch is the one that surprises people. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<LineItem> lines` field gives you a `TraversalPath<Order, LineItem>` and never a `LinesNavigator`. SPI containers (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible. One gets a navigator when its element type is itself annotated and the record widens the container: an `Either` always, a `Map` or an array under `widenCollections`, or when `widenFields` names the field. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
+A container of such records gets a navigator over the path its method already returns, so the next hop is a method call there too. An `Optional`, `Maybe`, `List`, `Set` or `Collection` is always stepped into: a `List<LineItem> lines` field gives you a `LinesNavigator`, which is a `TraversalPath<Order, LineItem>` with a method for each `LineItem` field.
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_or_via}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:navigator_hops}}
+```
+
+An SPI container (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) gets a navigator only where the record widens it. An `Either` is always widened; a `Map` or an array is widened under `widenCollections`, or when `widenFields` names the field. Containers nested in one another compose to the record they hold, so `List<Optional<LineItem>>` gets a navigator over each `LineItem` too. So does a [`Kind<F, A>` field](kind_field_support.md) of such records. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
+
+A navigation method hands on the next field's navigator only where the composed path has the type of that field's own path. An order history holds a list of orders:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:order_history}}
+```
+
+`OrderFocus.lines()` is a traversal, as `orders()` is, so `orders().lines().price()` chains. `OrderFocus.customer()` is a `FocusPath`, and `orders().customer()` is a traversal, so it returns the plain `TraversalPath<OrderHistory, Customer>`. Its next hop is `.via(CustomerFocus.email())`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:widened_hop}}
 ```
 
 ### What a navigator provides {#what-a-navigator-provides}
@@ -187,7 +201,7 @@ A navigator is its path, with one method added per field of the target type. Eve
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:path_methods}}
 ```
 
-`toPath()` hands back the path without the navigation methods, where a type must name the plain path.
+`toPath()` hands back the path without the navigation methods, where a type must name the plain path. Every other path method returns a plain path too, so after `OrderFocus.lines().filter(...)` the next hop is `.via(LineItemFocus.price())`.
 
 ### When to use navigators {#when-to-use-navigators}
 
@@ -209,17 +223,17 @@ You want to replace only the first line of an order with a sofa. Which of `Order
 Where this lives: [Access by index](#access-by-index).
 ~~~
 
-~~~admonish question title="Checkpoint: a hop from a list" id="check-navigation-list-hop"
-`Order` and `LineItem` both carry `@GenerateFocus`. Does this compile?
+~~~admonish question title="Checkpoint: a hop from a map" id="check-navigation-map-hop"
+`OrderFocus.lines().sku()` compiles. A `Backorders` record holds `Map<String, LineItem> bySku`, and it carries a bare `@GenerateFocus`, as `LineItem` does. Does this compile?
 
 <!-- verify:rejects "cannot find symbol" -->
 ```java
-var skus = OrderFocus.lines().sku();
+var skus = BackordersFocus.bySku().sku();
 ```
 ~~~
 
-~~~admonish success title="Answer and why" collapsible=true id="check-navigation-list-hop-answer"
-**No: the compiler reports `cannot find symbol`.** A `List` field is widened to a `TraversalPath` before navigators are considered, so it never gets one. Spell the hop `.via(LineItemFocus.sku())`.
+~~~admonish success title="Answer and why" collapsible=true id="check-navigation-map-hop-answer"
+**No: the compiler reports `cannot find symbol`.** A `List` is always stepped into, but a `Map` is stepped into only where the record widens it. So `bySku()` is a `FocusPath<Backorders, Map<String, LineItem>>` with no navigator. Add `widenFields = "bySku"` to the annotation on `Backorders` to navigate into its values.
 
 Where this lives: [Which fields get a navigator](#which-fields-get-a-navigator).
 ~~~
@@ -288,7 +302,7 @@ Three things can keep such a navigator from being generated in full, and the pro
 
 ### Controlling navigator generation {#controlling-navigator-generation}
 
-**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path into a record still does, such as one from a navigator over an `Either`. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
+**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path into a record still does, such as `orders().customer()` from a navigator over a `List`. Every other hop into a navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
 
 <!-- verify -->
 ```java
@@ -429,7 +443,8 @@ Beyond three levels, compose the rest with `.via()`.
 * **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
-* **Navigators cover a field whose type is another annotated record.** An `Either` of one gets a navigator too, and so does a `Map` or an array the record widens. `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
+* **A navigator covers an annotated record, or a container of one.** An `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of one always gets a navigator, nested or not, and so does a `Kind` the processor traverses. A `Map` or an array gets one where the record widens it.
+* **A record hop from a wider path returns a plain path.** `orders().customer()` is a `TraversalPath`, so its next hop is `.via(CustomerFocus.email())`.
 * **A navigator is a path.** Every path method works on it, and it goes wherever a path of its type goes.
 ~~~
 

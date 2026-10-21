@@ -15,7 +15,6 @@ import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.CustomerFocus;
 import org.higherkindedj.example.book.optics.cast.CustomerLenses;
 import org.higherkindedj.example.book.optics.cast.LineItem;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.LineItemLenses;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -94,8 +93,7 @@ public final class FluentBook {
 
   static EveryError everyError(Order order) {
     // ANCHOR: every_error
-    Traversal<Order, BigDecimal> prices =
-        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
+    Traversal<Order, BigDecimal> prices = OrderFocus.lines().price().toTraversal();
 
     Validated<List<String>, Order> checked =
         OpticOps.modifyAllValidated(order, prices, FluentBook::checkPrice);
@@ -138,8 +136,7 @@ public final class FluentBook {
   }
 
   static Either<String, Order> firstError(Order order) {
-    Traversal<Order, BigDecimal> prices =
-        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
+    Traversal<Order, BigDecimal> prices = OrderFocus.lines().price().toTraversal();
     // ANCHOR: first_error
     Either<String, Order> firstFailure =
         OpticOps.modifyAllEither(order, prices, FluentBook::checkPriceEither);
@@ -170,8 +167,7 @@ public final class FluentBook {
 
   static Builders builders(Customer customer, Order order) {
     Lens<Customer, String> email = CustomerFocus.email().value().toLens();
-    Traversal<Order, BigDecimal> prices =
-        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
+    Traversal<Order, BigDecimal> prices = OrderFocus.lines().price().toTraversal();
     // ANCHOR: builders
     Either<String, Customer> checkedEmail =
         OpticOps.modifyingWithValidation(customer).throughEither(email, FluentBook::checkEmail);
@@ -193,7 +189,7 @@ public final class FluentBook {
     // ANCHOR: modify_f
     Applicative<CompletableFutureKind.Witness> futures = Instances.applicative(completableFuture());
 
-    TraversalPath<Order, BigDecimal> prices = OrderFocus.lines().via(LineItemFocus.price());
+    TraversalPath<Order, BigDecimal> prices = OrderFocus.lines().price();
 
     Kind<CompletableFutureKind.Witness, Order> pending =
         prices.modifyF(price -> FUTURE.widen(currentPrice(price)), order, futures);

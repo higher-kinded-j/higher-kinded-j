@@ -59,7 +59,7 @@ You arrive holding a field, not an optic type. Find its declaration in the table
 |---|---|---|
 | [`Customer customer`](focus_navigation.md#fluent-navigation-with-generated-navigators), a record with `@GenerateFocus` | a navigator, which is also a `FocusPath<Basket, Customer>` | `.email()` |
 | `String reference` | `FocusPath<Basket, String>` | `.get(basket)`, `.set(value, basket)`, `.modify(f, basket)` |
-| [`List<LineItem> lines`](focus_navigation.md#collection-navigation), or a `Set` or `Collection` | `TraversalPath<Basket, LineItem>`, already on the elements | `.via(LineItemFocus.quantity())` |
+| [`List<LineItem> lines`](focus_navigation.md#collection-navigation), or a `Set` or `Collection` | a navigator, which is also a `TraversalPath<Basket, LineItem>`, already on the elements | `.quantity()` |
 | [`Optional<String> giftMessage`](focus_navigation.md#some-unwrap-optional) | `AffinePath<Basket, String>` | `.getOptional(basket)` |
 | [`@Nullable String couponCode`](focus_navigation.md#nullable-handle-null-values), with a recognised `@Nullable` | `AffinePath<Basket, String>` | `.getOptional(basket)` |
 | [`String legacyNote`](focus_navigation.md#nullable-handle-null-values), which may hold null but is not annotated | `FocusPath<Basket, String>` | `.nullable()` |
@@ -112,7 +112,7 @@ The generated companion has one method per record component, and the field's *ty
 
 ### Chain with `.via()` {#chain-with-via}
 
-Paths compose with `.via()`. Composing a path with a wider one widens the result, so one focus joined to many focuses is many focuses, and anything joined to a traversal is a traversal:
+Paths compose with `.via()`. Composing a path with a wider one widens the result, so one focus joined to many focuses is many focuses, and anything joined to a traversal is a traversal. The navigator `OrderFocus.lines().sku()` is this same path, written as a method call:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:chained}}
@@ -215,9 +215,9 @@ Where this lives: [AffinePath: Zero or One Element](#affinepath-zero-or-one-elem
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-focus-types-answer"
-**A navigator for `Address`, so `.city()` chains straight on; a `FocusPath<Consignment, ConsignmentState>`, because a sealed field is not narrowed until a prism picks a variant; and an `AffinePath<CustomerProfile, EmailAddress>`.**
+**A navigator for `Address`, so `.city()` chains straight on; a `FocusPath<Consignment, ConsignmentState>`, because a sealed field is not narrowed until a prism picks a variant; and a navigator for `EmailAddress`.** That last is an `AffinePath<CustomerProfile, EmailAddress>`, on which `.value()` chains.
 
-Where this lives: [Find your field](#find-your-field).
+Where this lives: [Find your field](#find-your-field), and [Which fields get a navigator](focus_navigation.md#which-fields-get-a-navigator).
 ~~~
 
 ---

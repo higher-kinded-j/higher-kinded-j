@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.higherkindedj.example.book.optics.cast.CustomerLenses;
 import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.LineItemLenses;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -99,7 +98,7 @@ public final class GroupIntrosBook {
     // Order -> lines[] -> price: every price, in one expression
     Order afterRise =
         OrderFocus.lines()
-            .via(LineItemFocus.price())
+            .price()
             .modifyAll(price -> price.multiply(new BigDecimal("1.10")), order);
     // every price is 10% higher; order itself is untouched
     // ANCHOR_END: focus_in_depth

@@ -440,6 +440,16 @@ class NavigatorCoverageTest {
                 @GenerateFocus(generateNavigators = true)
                 public record Outer(String name, @Nullable Inner inner) {}
                 """;
+            case "optional" ->
+                """
+                @GenerateFocus(generateNavigators = true)
+                public record Outer(String name, Optional<Inner> inner) {}
+                """;
+            case "list" ->
+                """
+                @GenerateFocus(generateNavigators = true)
+                public record Outer(String name, List<Inner> inner) {}
+                """;
             default ->
                 """
                 @GenerateFocus(generateNavigators = true, widenFields = "inner")
@@ -450,7 +460,9 @@ class NavigatorCoverageTest {
           "com.example.Outer",
           """
           package com.example;
+          import java.util.List;
           import java.util.Map;
+          import java.util.Optional;
           import org.higherkindedj.optics.annotations.GenerateFocus;
           import org.jspecify.annotations.Nullable;
           """
@@ -480,7 +492,9 @@ class NavigatorCoverageTest {
       "count, traversal, TraversalPath",
       "isEmpty, traversal, TraversalPath",
       "toLens, affine, AffinePath",
-      "nullable, traversal, TraversalPath"
+      "nullable, traversal, TraversalPath",
+      "matches, optional, AffinePath",
+      "count, list, TraversalPath"
     })
     @DisplayName(
         "a field named like a path method that takes arguments, or that the tier lacks,"
@@ -506,7 +520,9 @@ class NavigatorCoverageTest {
       "nullable, affine, AffinePath",
       "headOption, traversal, TraversalPath",
       "toTraversal, traversal, TraversalPath",
-      "head, traversal, TraversalPath"
+      "head, traversal, TraversalPath",
+      "toAffine, optional, AffinePath",
+      "head, list, TraversalPath"
     })
     @DisplayName("a field named like a no-argument path method is refused at the navigating field")
     void aFieldNamedLikeANoArgumentMethodIsRefused(String field, String shape, String path) {

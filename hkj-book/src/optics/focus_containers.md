@@ -99,7 +99,7 @@ TraversalPath<WidenedCandidate, Integer> widened = WidenedCandidateFocus.scores(
 
 To widen some containers and keep others whole, name the fields instead: `@GenerateFocus(widenFields = "scores")` steps into `scores` and leaves every other container as it is. A name that matches no component is an error. A name `widenFields` cannot change draws a warning: a `List`, which its method widens anyway, or a `String`, which holds no container. See [Compiler Messages](compiler_errors.md#generatefocus-widenfields-cannot-widen).
 
-Navigators follow the same rule rather than adding to it. A container whose *element* is itself a `@GenerateFocus` record gets a navigator over its elements only where the record widens it. So `Map<String, Address>` stays a path to the whole map until `widenCollections` or `widenFields` says otherwise, and then its method returns a navigator over the values. Turning navigators on therefore never changes what a field's method focuses on.
+Navigators follow the same rule rather than adding to it. A container whose *element* is itself a `@GenerateFocus` record gets a navigator over its elements wherever its method steps into them. A `List<Address>` always does, so its method returns a navigator and the next hop, such as `.city()`, chains. `Map<String, Address>` stays a path to the whole map until `widenCollections` or `widenFields` says otherwise, and then its method returns a navigator over the values. Turning navigators on therefore never changes what a field's method focuses on.
 
 Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
@@ -255,7 +255,7 @@ Lens<Box<? extends Widget>, Widget> value =
 TraversalPath<Crate, Widget> widgets = CrateFocus.boxes().via(value);
 ```
 
-The setter needs only the new value because `Box` has one component. With more, it copies the others from `box`, and `LensLaws` checks the result, as [Every Write Runs the Canonical Constructor](lenses.md#every-write-runs-the-canonical-constructor) shows. If nothing needs the wildcard, declare `List<Box<Widget>>` instead, and `.via(BoxFocus.value())` composes as generated.
+The setter needs only the new value because `Box` has one component. With more, it copies the others from `box`, and `LensLaws` checks the result, as [Every Write Runs the Canonical Constructor](lenses.md#every-write-runs-the-canonical-constructor) shows. If nothing needs the wildcard, declare `List<Box<Widget>>` instead: `boxes()` then returns a navigator, and `boxes().value()` chains.
 
 ### Cross-Ecosystem Navigation
 

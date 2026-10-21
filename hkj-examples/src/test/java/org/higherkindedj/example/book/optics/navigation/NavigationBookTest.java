@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.example.book.optics.cast.Bank;
 import org.higherkindedj.example.book.optics.cast.Card;
@@ -28,6 +29,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.NavigatorTraversalPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -107,9 +109,23 @@ class NavigationBookTest {
   void navigators() {
     assertThat(NavigationBook.navigatorAsPath(CONSIGNMENT)).containsExactly("London", "London");
 
-    NavigationBook.NavigatorOrVia result = NavigationBook.navigatorOrVia(ORDER);
+    NavigationBook.NavigatorHops result = NavigationBook.navigatorHops(ORDER);
     assertThat(result.email()).isEqualTo("ada@example.com");
     assertThat(result.skus()).containsExactly("LAMP", "BULB");
+  }
+
+  @Test
+  @DisplayName("a hop onto the field's own path type navigates on, and a widening one does not")
+  void widenedHop() {
+    NavigationBook.WidenedHop hop =
+        NavigationBook.widenedHop(new OrderHistory(List.of(ORDER, ORDER)));
+
+    List<BigDecimal> prices = ORDER.lines().stream().map(LineItem::price).toList();
+    assertThat(hop.prices())
+        .containsExactlyElementsOf(Stream.concat(prices.stream(), prices.stream()).toList());
+    assertThat(hop.emails()).containsExactly("ada@example.com", "ada@example.com");
+    assertThat(OrderHistoryFocus.orders().lines()).isInstanceOf(NavigatorTraversalPath.class);
+    assertThat(OrderHistoryFocus.orders().customer()).isNotInstanceOf(NavigatorTraversalPath.class);
   }
 
   @Test

@@ -103,9 +103,15 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // Optional<Address> should produce AffinePath with delegate methods
+      // Optional<Address> gets a navigator over the AffinePath, with a method for each field
       assertGeneratedCodeContains(
-          compilation, "com.example.CompanyFocus", "AffinePath<Company, Address> backup()");
+          compilation, "com.example.CompanyFocus", "BackupNavigator<Company> backup()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.CompanyFocus",
+          "BackupNavigator<S> extends NavigatorAffinePath<S, Address>");
+      assertGeneratedCodeContains(
+          compilation, "com.example.CompanyFocus", "AffinePath<S, String> street()");
     }
   }
 
@@ -143,10 +149,13 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // List<Member> with widenCollections produces a TraversalPath method (not a navigator class,
-      // since List is a hardcoded widening type rather than an SPI container)
+      // List<Member> gets a navigator over the TraversalPath its method widens to
       assertGeneratedCodeContains(
-          compilation, "com.example.TeamFocus", "TraversalPath<Team, Member> members()");
+          compilation, "com.example.TeamFocus", "MembersNavigator<Team> members()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.TeamFocus",
+          "MembersNavigator<S> extends NavigatorTraversalPath<S, Member>");
     }
   }
 
@@ -476,9 +485,11 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // List<Leaf> should produce TraversalPath
+      // List<Leaf> gets a traversal navigator, whose fields compose to traversals
       assertGeneratedCodeContains(
-          compilation, "com.example.ContainerFocus", "TraversalPath<Container, Leaf> leaves()");
+          compilation, "com.example.ContainerFocus", "LeavesNavigator<Container> leaves()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ContainerFocus", "TraversalPath<S, String> data()");
     }
 
     @Test
@@ -524,9 +535,12 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // Optional<Person> should widen to AffinePath
+      // Optional<Person> gets an affine navigator, and Person's navigator into its home is wider
+      // than that navigator can hand on, so the composed path comes back
       assertGeneratedCodeContains(
-          compilation, "com.example.OrgFocus", "AffinePath<Org, Person> leader()");
+          compilation, "com.example.OrgFocus", "LeaderNavigator<Org> leader()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.OrgFocus", "AffinePath<S, Address> home()");
     }
   }
 
@@ -632,9 +646,11 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // List<Inner> should produce TraversalPath
+      // List<Inner> gets a traversal navigator, whose Optional field composes to a traversal
       assertGeneratedCodeContains(
-          compilation, "com.example.OuterFocus", "TraversalPath<Outer, Inner> items()");
+          compilation, "com.example.OuterFocus", "ItemsNavigator<Outer> items()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.OuterFocus", "TraversalPath<S, String> note()");
     }
   }
 }

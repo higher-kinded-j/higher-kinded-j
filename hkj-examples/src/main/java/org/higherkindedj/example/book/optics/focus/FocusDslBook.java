@@ -162,8 +162,8 @@ public final class FocusDslBook {
     // A plain value: read and write it
     FocusPath<Basket, String> reference = BasketFocus.reference();
 
-    // A List, Set or Collection: already on the elements, so the next hop is .via(...)
-    TraversalPath<Basket, Integer> quantities = BasketFocus.lines().via(LineItemFocus.quantity());
+    // A List, Set or Collection of records: a navigator already on the elements
+    TraversalPath<Basket, Integer> quantities = BasketFocus.lines().quantity();
 
     // An Optional, or a component with a recognised @Nullable: zero or one
     AffinePath<Basket, String> giftMessage = BasketFocus.giftMessage();

@@ -9,7 +9,6 @@ import org.higherkindedj.example.book.optics.JsonNodeOptics;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
 import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
-import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import tools.jackson.databind.JsonNode;
@@ -39,7 +38,7 @@ public final class QuickstartBook {
     // ANCHOR: round
     Order rounded =
         OrderFocus.lines()
-            .via(LineItemFocus.price())
+            .price()
             .modifyAll(price -> price.setScale(2, RoundingMode.HALF_EVEN), order);
     // ANCHOR_END: round
     return rounded;
