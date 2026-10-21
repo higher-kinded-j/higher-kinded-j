@@ -10,7 +10,7 @@ If you've ever written a utility method that takes a `CompletableFuture<Either<E
 ~~~admonish info title="What You'll Learn"
 - Why directly nesting monadic types like `CompletableFuture<Either<E, A>>` leads to complex, unwieldy code
 - How monad transformers wrap nested monads to provide a unified interface with familiar `map` and `flatMap` operations
-- The available transformers in Higher-Kinded-J: EitherT, OptionalT, MaybeT, ReaderT, and StateT
+- The available transformers in Higher-Kinded-J: WriterT, EitherT, OptionalT, MaybeT, ReaderT, and StateT
 - How to choose the right transformer for your use case based on the effect you need to add
 ~~~
 
@@ -19,6 +19,7 @@ The [Effect Path API](../effect/ch_intro.md) provides a fluent, concrete wrapper
 
 | Path Type | Corresponding Transformer |
 |-----------|--------------------------|
+| `WriterPath<W, A>` | `WriterT<F, W, A>` |
 | `EitherPath<E, A>` | `EitherT<F, E, A>` |
 | `OptionalPath<A>` | `OptionalT<F, A>` |
 | `MaybePath<A>` | `MaybeT<F, A>` |
@@ -132,7 +133,7 @@ All transformers require an outer monad `F` where `F extends WitnessArity<TypeAr
 
 ![supported_transformers.svg](../images/puml/supported_transformers.svg)
 
-Higher-Kinded-J provides five transformers. Each solves a specific composition problem:
+Higher-Kinded-J provides six transformers. Each solves a specific composition problem:
 
 ### EitherT: Typed Errors in Any Context
 
@@ -181,6 +182,16 @@ Higher-Kinded-J provides five transformers. Each solves a specific composition p
 **The solution:** `StateT<S, F, A>` wraps a function `S -> Kind<F, StateTuple<S, A>>`. Each `flatMap` threads the updated state to the next operation; the outer monad's effects are handled simultaneously.
 
 **Usage:** [How to use the StateT Monad Transformer](statet_transformer.md)
+
+---
+
+### WriterT: Accumulating Output Across Effect Boundaries
+
+**The problem:** You need an audit trail or log that travels with an effectful computation (for example, async steps), but threading the log through every function signature is tedious, and one missed handoff silently loses entries.
+
+**The solution:** `WriterT<F, W, A>` wraps `Kind<F, Pair<A, W>>`. Each step appends output with `tell`, and `flatMap` combines the outputs through a `Monoid<W>`, while the outer monad's effects are handled simultaneously.
+
+**Usage:** [How to use the WriterT Monad Transformer](writert_transformer.md)
 
 ---
 

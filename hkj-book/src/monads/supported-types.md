@@ -41,7 +41,7 @@ What does your computation do?
   |
   +-- Needs stack-safe recursion?         --> Trampoline
   +-- Building a DSL / interpreter?       --> Free / FreeAp
-  +-- Combining two monadic effects?      --> MaybeT / EitherT / OptionalT / ReaderT / StateT
+  +-- Combining two monadic effects?      --> WriterT / MaybeT / EitherT / OptionalT / ReaderT / StateT
 ```
 
 ## All Supported Types at a Glance
@@ -139,7 +139,7 @@ Three building blocks for generic programming, optics, and categorical abstracti
 
 ### Monad Transformers
 
-Five transformers that layer one monad's effects on top of another. "I need `IO` *and* `Either`" becomes `EitherT<IOKind.Witness, MyError, A>`.
+Six transformers that layer one monad's effects on top of another. "I need `IO` *and* `Either`" becomes `EitherT<IOKind.Witness, MyError, A>`.
 
 **[`MaybeT<F, A>`](../transformers/maybet_transformer.md)**: Adds presence/absence to any monad `F`. The inner computation is `Kind<F, Maybe<A>>`. Use when your `IO` or `CompletableFuture` might legitimately produce "no result."
 
@@ -150,6 +150,8 @@ Five transformers that layer one monad's effects on top of another. "I need `IO`
 **[`ReaderT<F, R, A>`](../transformers/readert_transformer.md)**: Adds environment reading to any monad `F`. The inner computation is `R -> Kind<F, A>`. Thread configuration through an effectful computation without parameter pollution.
 
 **[`StateT<S, F, A>`](../transformers/statet_transformer.md)**: Adds state threading to any monad `F`. The inner computation is `S -> Kind<F, (S, A)>`. Stateful algorithms that also need IO, error handling, or other effects.
+
+**[`WriterT<F, W, A>`](../transformers/writert_transformer.md)**: Adds output accumulation, such as logs or audit trails, to any monad `F`. The inner computation is `Kind<F, Pair<A, W>>`: a value paired with the output accumulated so far. Useful when a computation that also needs IO, error handling, or other effects must record what it did along the way.
 
 ---
 
