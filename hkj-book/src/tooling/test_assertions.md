@@ -44,13 +44,15 @@ Every public HKJ type a user is likely to assert on has a dedicated assertion cl
 
 | Category | Helpers |
 |----------|---------|
-| Discriminated unions | `EitherAssert`, `MaybeAssert`, `TryAssert`, `ValidatedAssert`, `LazyAssert` |
+| Discriminated unions | `EitherAssert`, `EitherOrBothAssert`, `MaybeAssert`, `TryAssert`, `ValidatedAssert`, `LazyAssert` |
+| Validation accumulation | `NonEmptyListAssert`, `FieldErrorAssert` |
 | Reader / Writer / State | `ReaderAssert` (with `ReaderResultAssert`), `WriterAssert`, `StateAssert` |
 | Effect types | `IOAssert`, `VTaskAssert`, `VStreamAssert` |
 | Effect paths | `VTaskPathAssert`, `VStreamPathAssert`, `VResultPathAssert`, `VTaskContextAssert` |
 | Monad transformers | `EitherTAssert`, `MaybeTAssert`, `OptionalTAssert`, `ReaderTAssert`, `StateTAssert`, `WriterTAssert` |
 | Free algebra | `FreeAssert`, `EitherFAssert` |
 | Error envelopes | `ErrorEnvelopeAssert` |
+| Kind-narrowing wrappers | `ListAssert`, `OptionalKindAssert`, `StreamAssert`, `IdAssert` |
 
 Each entry point follows the AssertJ convention `assertThatXxx(actual)`:
 
