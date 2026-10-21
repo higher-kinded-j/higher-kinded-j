@@ -7,9 +7,9 @@ This module provides Spring Boot integration for higher-kinded-j, enabling type-
 | hkj-spring Version | Spring Boot Version | Jackson Version | Notes |
 |--------------------|---------------------|-----------------|-------|
 | 0.2.7 | 3.5.7 | 2.x | Legacy support |
-| 0.2.8+ | 4.0.1+ | 3.x | Effect Path API |
-| 0.3.7+ | 4.0.3+ | 3.x | + VTaskPath/VStreamPath virtual thread handlers |
-| 0.4.x | 4.1.0+ | 3.x | + `@HkjHttpClient` declarative HTTP clients; built and tested against Spring Boot 4.1 |
+| 0.2.8 to 0.3.6 | 4.0.1+ | 3.x | Effect Path API |
+| 0.3.7 to 0.4.6 | 4.0.3+ | 3.x | + VTaskPath/VStreamPath virtual thread handlers |
+| 0.4.7 and later | 4.1.0+ | 3.x | + `@HkjHttpClient` declarative HTTP clients; built and tested against Spring Boot 4.1 |
 
 > **Important**: Version 0.2.8+ introduces breaking changes. Use 0.2.7 for Spring Boot 3.5.7 compatibility.
 
@@ -572,7 +572,7 @@ MIT (same as higher-kinded-j)
 
 If upgrading from 0.2.7 (Spring Boot 3.5.7):
 
-1. **Update Spring Boot**: Upgrade to Spring Boot 4.0.1+
+1. **Update Spring Boot**: Upgrade to Spring Boot 4.1.0+ (see [Requirements](#requirements))
 2. **Replace raw types with Path types**:
    - `Either<E, A>` → `EitherPath<E, A>` (use `Path.right()`, `Path.left()`, `Path.either()`)
    - `Validated<E, A>` → `ValidationPath<E, A>` (use `Path.valid()`, `Path.invalid()`)

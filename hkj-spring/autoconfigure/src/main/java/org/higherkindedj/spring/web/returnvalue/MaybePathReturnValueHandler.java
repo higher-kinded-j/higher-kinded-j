@@ -18,8 +18,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Return value handler that converts {@link MaybePath} return values from controller methods into
  * appropriate HTTP responses.
  *
- * <p>This handler is part of the Effect Path API integration for Spring Boot 4.0.1+. It handles
- * optional values with railway-oriented programming semantics.
+ * <p>This handler is part of the Effect Path API integration for Spring Boot. It handles optional
+ * values with railway-oriented programming semantics.
  *
  * <p>Conversion rules:
  *

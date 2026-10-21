@@ -72,7 +72,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation("com.google.guava:guava:33.5.0-jre")
+    implementation("com.google.guava:guava:33.7.2-jre")
 }
 ```
 
@@ -352,14 +352,14 @@ module com.example.generators {
 }
 ```
 
-**3. Add Avaje SPI to your build:**
+**3. Add javapoet and Avaje SPI to your build:**
 
 ```kotlin
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-processor:LATEST-VERSION")
-    implementation("com.palantir.javaformat:palantir-java-format:2.50.0")
-    compileOnly("io.avaje:avaje-spi-core:2.8")
-    annotationProcessor("io.avaje:avaje-spi-core:2.8")
+    implementation("com.palantir.javapoet:javapoet:0.22.0") // the javapoet release hkj-processor is built with
+    compileOnly("io.avaje:avaje-spi-service:2.17")
+    annotationProcessor("io.avaje:avaje-spi-service:2.17")
 }
 ```
 

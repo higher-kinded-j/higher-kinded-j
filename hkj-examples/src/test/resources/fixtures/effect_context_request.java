@@ -11,7 +11,8 @@
 // (see build.gradle.kts).
 
 import org.higherkindedj.hkt.context.RequestContext;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.text.MessageFormat;

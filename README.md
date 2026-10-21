@@ -83,7 +83,7 @@ Nobody wrote a line of error-handling code to produce it. The [mapping capstone]
 
 | Higher-Kinded-J | Spring Boot | Jackson | Java |
 |-----------------|-------------|---------|------|
-| 0.4.x | 4.1.0+ | 3.x (`tools.jackson`) | 25 |
+| 0.4.7 and later | 4.1.0+ | 3.x (`tools.jackson`) | 25 |
 
 ### Gradle
 

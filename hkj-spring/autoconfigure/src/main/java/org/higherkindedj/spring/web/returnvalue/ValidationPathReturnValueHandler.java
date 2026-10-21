@@ -26,9 +26,9 @@ import tools.jackson.databind.json.JsonMapper;
  * Return value handler that converts {@link ValidationPath} and {@link Validated} return values
  * from controller methods into appropriate HTTP responses.
  *
- * <p>This handler is part of the Effect Path API integration for Spring Boot 4.0.1+. It handles
- * validation results with error accumulation semantics, collecting ALL validation errors rather
- * than failing on the first error.
+ * <p>This handler is part of the Effect Path API integration for Spring Boot. It handles validation
+ * results with error accumulation semantics, collecting ALL validation errors rather than failing
+ * on the first error.
  *
  * <p>Supports both:
  *

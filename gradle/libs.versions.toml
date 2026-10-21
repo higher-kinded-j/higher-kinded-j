@@ -1,18 +1,17 @@
 [versions]
 # Core dependencies
-jspecify = "1.0.0"
-javapoet = "0.16.0"
-lombok = "1.18.42"
+jspecify = "1.0.1"
+javapoet = "0.22.0"
+lombok = "1.18.48"
 autoservice = "1.1.1"
-palantir-java-format = "2.91.0"
 
 # Testing
-junit = "6.1.0"
+junit = "6.1.3"
 assertj = "3.27.7"
 awaitility = "4.3.0"
-jqwik = "1.10.1"
-archunit = "1.4.2"
-compile-testing = "0.23.0"
+jqwik = "1.10.2"
+archunit = "1.5.1"
+compile-testing = "0.24.0"
 truth = "1.4.5"
 # protobuf-java's own well-known types are real generated messages, so they cover every field kind
 protobuf = "4.36.2"
@@ -25,37 +24,41 @@ nullaway = "0.14.2"
 # Benchmarking
 jmh = "1.37"
 jol = "0.17"
+# Reads JMH's results.json in the benchmark assertions
+gson = "2.14.0"
 # Mapping benchmarks: the comparisons for the generated mapper
 mapstruct = "1.6.3"
-hibernate-validator = "9.1.0.Final"  # as the Spring Boot BOM pins it
+hibernate-validator = "9.1.3.Final"  # as the Spring Boot BOM pins it
 
-# Spring Boot 4.1.0 (requires Java 17+, Jakarta EE 11, Servlet 6.1; Spring Framework 7.0.8)
-# Note: hkj-spring 0.2.7 supports Spring Boot 3.5.7, 0.2.8+ requires Spring Boot 4.0.1+
-spring-boot = "4.1.0"
+# Spring Boot (requires Java 17+, Jakarta EE 11, Servlet 6.1)
+spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
 
 # Jackson 3.x (group ID changed from com.fasterxml.jackson to tools.jackson in Spring Boot 4)
-# 3.1.4 matches the tools.jackson:jackson-bom managed by Spring Boot 4.1.0
-jackson = "3.1.4"
+# Matches the tools.jackson:jackson-bom that Spring Boot manages
+jackson = "3.1.5"
 
-# openapi-generator's JsonNullable holder, whose 0.2.11 serialises under Jackson 3 (book proofs)
-jackson-databind-nullable = "0.2.11"
+# openapi-generator's JsonNullable holder, which serialises under Jackson 3 from 0.2.11 (book proofs)
+jackson-databind-nullable = "0.2.12"
 
 # JOOQ - Database access library (for spec interface examples)
-jooq = "3.21.5"
+jooq = "3.21.9"
 
 # Maven Plugin API (for hkj-maven-plugin)
 maven-plugin-api = "3.9.14"
 maven-core = "3.9.14"
 maven-plugin-annotations = "3.15.2"
 
+# OpenRewrite, as the rewrite plugin version the hkj-openrewrite docs name bundles it
+rewrite = "8.75.5"
+
 # Code quality
-google-java-format = "1.35.0"
+google-java-format = "1.36.1"
 
 # Plugins
 maven-publish = "0.36.0"
 plugin-publish = "1.3.1"
-spotless = "8.6.0"
+spotless = "8.10.4"
 openrewrite = "7.34.0"
 jmh-plugin = "0.7.3"
 
@@ -64,7 +67,7 @@ avaje-spi = "2.17"
 
 # Optional library integrations
 eclipse-collections = "13.0.0"
-google-guava = "33.6.0-jre"
+google-guava = "33.7.2-jre"
 apache-commons-collections4 = "4.5.0"
 vavr = "1.0.1"
 pcollections = "5.0.0"
@@ -76,7 +79,6 @@ javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet"
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 autoservice-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
 autoservice = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
-palantir-java-format = { module = "com.palantir.javaformat:palantir-java-format", version.ref = "palantir-java-format" }
 
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -97,6 +99,7 @@ nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
 mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
 hibernate-validator = { module = "org.hibernate.validator:hibernate-validator", version.ref = "hibernate-validator" }
@@ -130,7 +133,7 @@ spring-security-oauth2-jose = { module = "org.springframework.security:spring-se
 # Jakarta
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 
-# Jackson 3.x (Spring Boot 4.0.1+ uses Jackson 3.x with new group ID)
+# Jackson 3.x (Spring Boot 4 uses Jackson 3.x with new group ID)
 # Note: jackson-annotations stays on the 2.x line — Jackson 3 reuses the 2.x annotations module
 # (the jackson-bom keeps it at 2.21), so it has no 3.x release; leave its version to the Jackson/Spring BOM.
 jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
@@ -146,6 +149,12 @@ maven-plugin-api = { module = "org.apache.maven:maven-plugin-api", version.ref =
 maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-core" }
 maven-plugin-annotations = { module = "org.apache.maven.plugin-tools:maven-plugin-annotations", version.ref = "maven-plugin-annotations" }
 javax-inject = { module = "javax.inject:javax.inject", version = "1" }
+
+# OpenRewrite
+rewrite-core = { module = "org.openrewrite:rewrite-core", version.ref = "rewrite" }
+rewrite-java = { module = "org.openrewrite:rewrite-java", version.ref = "rewrite" }
+rewrite-java25 = { module = "org.openrewrite:rewrite-java-25", version.ref = "rewrite" }
+rewrite-test = { module = "org.openrewrite:rewrite-test", version.ref = "rewrite" }
 
 # JOOQ
 jooq = { module = "org.jooq:jooq", version.ref = "jooq" }

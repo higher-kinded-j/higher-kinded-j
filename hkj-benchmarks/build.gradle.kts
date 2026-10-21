@@ -28,7 +28,7 @@ dependencies {
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.assertj.core)
-  testImplementation("com.google.code.gson:gson:2.13.2")
+  testImplementation(libs.gson)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 
