@@ -470,7 +470,7 @@ public class NavigatorClassGenerator {
    * reaches its record directly or as an SPI container's element, so the walk meets two kinds of
    * layer on the way: {@code .nullable()}, which rules out the component's own null and leaves it
    * in focus, and the container's step, which records the element it unwraps to. A {@code Kind}
-   * layer, which records its element only by name, never reaches a navigable record.
+   * layer records the element its generated path focuses on too.
    *
    * @param record the record that declares the component
    * @param component the component
@@ -1587,9 +1587,7 @@ public class NavigatorClassGenerator {
       return;
     }
     Target unwidened = navigableTarget(component, companionPackage(record));
-    if (unwidened != null && !unwidened.instantiable()) {
-      return;
-    }
+    Target refused = refusedContainerTarget(component, companionPackage(record));
 
     String recordName = record.getSimpleName().toString();
     String reason;
@@ -1605,11 +1603,29 @@ public class NavigatorClassGenerator {
       // lead straight to a note or error, so offer the existing way to keep the plain path.
       List<String> clashes = inheritedNames(analysis.analyse(component, true).tier(), unwidened);
       if (clashes.isEmpty()) {
-        fix = ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name)) + ".";
+        fix =
+            ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name))
+                + (unwidened.instantiable()
+                    ? "."
+                    : " to step into its " + unwidened.record().getSimpleName() + " elements.");
       } else {
         reason += " Its widened navigator would also clash with target fields " + clashes + ".";
         fix = ProcessorUtils.capitalise(keepPlainPath(record, name)) + " to keep its plain path.";
       }
+    } else if (refused != null) {
+      reason =
+          ProcessorUtils.simpleTypeName(component.asType())
+              + " holds "
+              + refused.record().getSimpleName()
+              + " records, but its wildcard type arguments prevent widening as written.";
+      fix =
+          "Write "
+              + ProcessorUtils.concreteAlternative((DeclaredType) component.asType()).orElseThrow()
+              + " in place of "
+              + ProcessorUtils.simpleTypeName(component.asType())
+              + " and "
+              + addToFieldList(record, "widenFields", name)
+              + ".";
     } else {
       TypeElement plain =
           component.asType() instanceof DeclaredType declared
@@ -1620,7 +1636,8 @@ public class NavigatorClassGenerator {
           "Navigator generation cannot reach a @GenerateFocus record through "
               + ProcessorUtils.simpleTypeName(component.asType())
               + ". It needs a @GenerateFocus record or a supported container of one; built-in"
-              + " Optional, Maybe, List, Set and Collection paths do not get navigators.";
+              + " Optional, Maybe, List, Set and Collection paths do not get navigators."
+              + compositionHint(record, component);
       if (hasOtherIncludedNavigator(record, component)) {
         fix =
             ProcessorUtils.capitalise(
@@ -1642,13 +1659,17 @@ public class NavigatorClassGenerator {
                 ? "Remove includeFields and set generateNavigators = false in @GenerateFocus on "
                     + recordName
                     + "."
-                : "Replace \""
-                    + name
-                    + "\" in includeFields on "
-                    + recordName
-                    + " with a navigator field from "
-                    + candidates
-                    + ".";
+                : !firstReplacementName(record).equals(name)
+                    ? ProcessorUtils.capitalise(
+                            FocusFieldListChecks.removeName(record, "includeFields", name))
+                        + "."
+                    : "Replace \""
+                        + name
+                        + "\" in includeFields on "
+                        + recordName
+                        + " with a navigator field from "
+                        + candidates
+                        + ".";
       }
       if (plain != null) {
         reason = plain.getSimpleName() + " is a record without @GenerateFocus. " + reason;
@@ -1685,6 +1706,64 @@ public class NavigatorClassGenerator {
                         correction));
   }
 
+  /** The refused SPI container's resolved element, without reading its generator. */
+  private Target refusedContainerTarget(RecordComponentElement component, String fromPackage) {
+    if (WideningAnalysis.spiCandidate(component.asType())
+        && analysis.spiLookup(component.asType()) instanceof SpiLookup.Refused refused
+        && refused.element() != null) {
+      TypeElement element = navigableTypeElement(refused.element(), fromPackage);
+      if (element != null) {
+        Target target = new Target(element, (DeclaredType) refused.element());
+        // A refused container left whole by the declaration is a zero-or-more container:
+        // zero-or-one containers are already rejected by the declaration's widening pass.
+        if (target.instantiable()
+            && ProcessorUtils.concreteAlternative((DeclaredType) component.asType()).isPresent()
+            && inheritedNames(Tier.TRAVERSAL, target).isEmpty()) {
+          return target;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The first included field needing a replacement, in the annotation's written order. The caller
+   * has ruled out other included navigators and usable corrections; an unwidened clashing target
+   * has its own removal, so it does not take this replacement.
+   */
+  private String firstReplacementName(TypeElement record) {
+    return Arrays.stream(focusSettings(record).includeFields())
+        .filter(
+            name ->
+                record.getRecordComponents().stream()
+                    .anyMatch(
+                        component ->
+                            component.getSimpleName().contentEquals(name)
+                                && navigableTarget(component, companionPackage(record)) == null))
+        .findFirst()
+        .orElseThrow();
+  }
+
+  /** A companion composition only where the generated method focuses on an instantiable record. */
+  private String compositionHint(TypeElement record, RecordComponentElement component) {
+    MethodPath method = methodPath(record, component);
+    if (ProcessorUtils.hasUndenotableTypeArguments(component.asType())
+        || !Target.instantiable(method.focus())
+        || !(reach(method.focus(), companionPackage(record)) instanceof Reach.Navigable target)) {
+      return "";
+    }
+    return " "
+        + focusClassOf(record).simpleName()
+        + "."
+        + component.getSimpleName()
+        + "() returns "
+        + method.description()
+        + ", which composes with "
+        + focusClassOf(target.record()).canonicalName()
+        + "'s paths through "
+        + (method.nullable() ? ".some(Affines.nullable()).via()." : ".via().");
+  }
+
   /**
    * Another included field keeps its navigator, or its own diagnostic explains how to obtain one.
    * In either case, removing this name must not disable or duplicate the other field's request.
@@ -1700,11 +1779,12 @@ public class NavigatorClassGenerator {
                 return true;
               }
               Target unwidened = navigableTarget(candidate, companionPackage(record));
-              return unwidened != null
-                  ? unwidened.instantiable()
-                      && inheritedNames(analysis.analyse(candidate, true).tier(), unwidened)
-                          .isEmpty()
-                  : annotationEnablesNavigator(record, candidate);
+              if (unwidened != null) {
+                return inheritedNames(analysis.analyse(candidate, true).tier(), unwidened)
+                    .isEmpty();
+              }
+              return refusedContainerTarget(candidate, companionPackage(record)) != null
+                  || annotationEnablesNavigator(record, candidate);
             });
   }
 

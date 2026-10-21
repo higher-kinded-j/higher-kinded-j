@@ -517,6 +517,11 @@ The name matches a component, but that component cannot return a navigator. A `S
 
 A non-empty `includeFields` gives navigators only to the fields it names, so naming an ineligible field also takes navigators away from every eligible field it leaves out. The warning points at the offending name and stops a `-Werror` build. A field already explained by a target note or error gets no additional warning. The [unwidened-container note](#generatefocus-no-navigator-over-elements) becomes this warning when `includeFields` names the field.
 
+- An unwidened `Map<String, Box<?>>`, with `Box<T>` annotated, is offered `widenFields` to step into its `Box` elements. That alone gives no navigator: the existing wildcard-target note then offers a concrete `Box<Object>`.
+- A `Map<String, ? extends Kiosk>` holds `Kiosk` records, but its wildcard prevents widening. Write `Map<String, Kiosk>` and add the field to `widenFields`, as the warning says.
+- A `List`, `Optional` or `Kind` path that focuses on an annotated record composes with its published Focus companion through `.via()`. For nullable elements, first rule out null with `.some(Affines.nullable()).via()`. No companion hint is offered for raw or wildcard elements, or a dependency that published no companion.
+- When several entries need a replacement, the first in list order receives it and the rest are offered removal. If another entry has a navigator or a correction of its own, remove the invalid name instead. Following all fix lines leaves one list without duplicate names.
+
 ~~~admonish example title="A valid name that cannot return a navigator"
 <!-- verify:reports "includeFields on Hawker names" -->
 ```java
@@ -555,6 +560,64 @@ record Hawker(java.util.Map<String, Kiosk> sites) {}
 
 ```
 warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. A navigator steps into a container only where the record widens it, and Hawker does not widen "sites". Add widenFields = "sites" to @GenerateFocus on Hawker.
+```
+~~~
+
+~~~admonish example title="A wildcard container and its combined correction"
+<!-- verify:reports "holds Kiosk records, but its wildcard type arguments prevent widening" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "sites")
+record Hawker(java.util.Map<String, ? extends Kiosk> sites, Kiosk kiosk) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Map<String, ? extends Kiosk> holds Kiosk records, but its wildcard type arguments prevent widening as written. Write Map<String, Kiosk> in place of Map<String, ? extends Kiosk> and add widenFields = "sites" to @GenerateFocus on Hawker.
+```
+
+Write the concrete type and widen the field together:
+
+<!-- verify -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "sites", widenFields = "sites")
+record Hawker(java.util.Map<String, Kiosk> sites, Kiosk kiosk) {}
+
+var towns = HawkerFocus.sites().town();
+```
+~~~
+
+~~~admonish example title="Compose a path over nullable records"
+<!-- verify:reports "which composes with" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "sites")
+record Hawker(java.util.List<@org.jspecify.annotations.Nullable Kiosk> sites, Kiosk kiosk) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through List<Kiosk>. It needs a @GenerateFocus record or a supported container of one; built-in Optional, Maybe, List, Set and Collection paths do not get navigators. HawkerFocus.sites() returns TraversalPath<Hawker, @Nullable Kiosk>, which composes with com.example.KioskFocus's paths through .some(Affines.nullable()).via(). Replace "sites" in includeFields on Hawker with a navigator field from [kiosk].
+```
+
+Keep `sites` as a path, choose `kiosk` for the navigator, and compose safely:
+
+<!-- verify -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = "kiosk")
+record Hawker(java.util.List<@org.jspecify.annotations.Nullable Kiosk> sites, Kiosk kiosk) {}
+
+var towns = HawkerFocus.sites()
+    .some(org.higherkindedj.optics.util.Affines.nullable())
+    .via(KioskFocus.town());
 ```
 ~~~
 

@@ -59,16 +59,21 @@ class WideningAnalysisDeclinedTest {
           public record Holder(
               Either<String, ?> either,
               Map<String, ?> map,
+              Map<String, ? extends Leaf> bounded,
+              Map rawMap,
               Set<?> set,
               Set raw,
               Optional<Either<String, ?>> nested,
               Map<String, Either<String, ?>> beneath,
               List<String> list,
               @Nullable Set<?> nullable) {}
+          record Leaf(String value) {}
           """);
 
   /** What the analysis says of each Holder component, by name, with collections left alone. */
   private static Map<String, Widening> leftAlone;
+
+  private static final Map<String, String> refusedElements = new LinkedHashMap<>();
 
   /** The same, with collections stepped into. */
   private static Map<String, Widening> steppedInto;
@@ -107,6 +112,14 @@ class WideningAnalysisDeclinedTest {
         for (RecordComponentElement component : holder.getRecordComponents()) {
           widenings.put(
               component.getSimpleName().toString(), analysis.analyse(component, widenCollections));
+          if (analysis.spiLookup(component.asType())
+              instanceof WideningAnalysis.SpiLookup.Refused refused) {
+            refusedElements.put(
+                component.getSimpleName().toString(),
+                refused.element() == null
+                    ? "none"
+                    : ProcessorUtils.simpleTypeName(refused.element()));
+          }
         }
         return false;
       }
@@ -115,6 +128,15 @@ class WideningAnalysisDeclinedTest {
     Compilation compilation = javac().withProcessors(new Probe()).compile(HOLDER);
     assertThat(compilation).succeeded();
     return Map.copyOf(widenings);
+  }
+
+  @Test
+  @DisplayName("a refused lookup carries its resolved element without exposing its generator")
+  void refusedLookupRetainsElement() {
+    org.assertj.core.api.Assertions.assertThat(refusedElements)
+        .containsEntry("bounded", "Leaf")
+        .containsEntry("map", "none")
+        .containsEntry("rawMap", "none");
   }
 
   /** The declined container as the diagnostic would name it, or null. */

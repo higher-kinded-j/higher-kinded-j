@@ -435,7 +435,9 @@ public final class WideningAnalysis {
     if (depth == 0) {
       Optional<KindFieldInfo> kindInfo = kindAnalyser.analyse(component);
       if (kindInfo.isPresent()) {
-        steps.add(new Step(kindStep(kindInfo.get()), kindInfo.get(), null, null));
+        steps.add(
+            new Step(
+                kindStep(kindInfo.get()), kindInfo.get(), null, typeArgumentAt(declaredType, 1)));
         return null;
       }
     }
@@ -782,8 +784,9 @@ public final class WideningAnalysis {
      * rather than inside generated source.
      *
      * @param generator the generator that supports the type
+     * @param element the resolved element, or null for a raw or unbounded container
      */
-    record Refused(TraversableGenerator generator) implements SpiLookup {}
+    record Refused(TraversableGenerator generator, TypeMirror element) implements SpiLookup {}
 
     /**
      * A generator supports the type and its widening can be written.
@@ -825,7 +828,7 @@ public final class WideningAnalysis {
       return new SpiLookup.None();
     }
     return ProcessorUtils.hasUndenotableTypeArguments(type)
-        ? new SpiLookup.Refused(generator)
+        ? new SpiLookup.Refused(generator, spiElement(type, generator))
         : new SpiLookup.Admitted(generator);
   }
 }
