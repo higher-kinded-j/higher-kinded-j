@@ -23,7 +23,7 @@ This project and everyone participating in it is governed by the [Code of Conduc
 
 ### Your First Code Contribution
 
-Unsure where to begin contributing? You can start by looking through `good first issue` or `help wanted` issues (you can add these labels yourself to issues you think fit).
+Unsure where to begin contributing? You can start by looking through `good first issue` or `help wanted` issues (you can add these labels yourself to issues you think fit). Once you have a first change merged, `good second issue` marks the next step up: still one module and a clear model to copy, but with a judgement call or two to make along the way.
 
 ### Pull Requests
 
