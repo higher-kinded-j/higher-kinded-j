@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -15,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.*;
@@ -22,6 +25,7 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.instances.Witnesses;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -200,7 +204,44 @@ class MonadErrorLawsTestFactory {
                       && Objects.equals(causeA.getMessage(), causeB.getMessage());
                 }
               }
+            }),
+        MonadErrorTestData.of(
+            "CompletableFuture",
+            Instances.monadError(completableFuture()),
+            FUTURE.widen(CompletableFuture.completedFuture(42)),
+            new RuntimeException("test error"),
+            new EqualityChecker<CompletableFutureKind.Witness>() {
+              @Override
+              public <A> boolean areEqual(
+                  Kind<CompletableFutureKind.Witness, A> a,
+                  Kind<CompletableFutureKind.Witness, A> b) {
+                Try<A> resultA = outcome(FUTURE.narrow(a));
+                Try<A> resultB = outcome(FUTURE.narrow(b));
+                if (resultA.isSuccess() != resultB.isSuccess()) {
+                  return false;
+                }
+                if (resultA.isSuccess()) {
+                  return Objects.equals(resultA.orElse(null), resultB.orElse(null));
+                } else {
+                  Throwable causeA = ((Try.Failure<A>) resultA).cause();
+                  Throwable causeB = ((Try.Failure<A>) resultB).cause();
+                  return causeA.getClass().equals(causeB.getClass())
+                      && Objects.equals(causeA.getMessage(), causeB.getMessage());
+                }
+              }
             }));
+  }
+
+  /**
+   * Waits for a future and captures its outcome, unwrapping the {@link CompletionException} that
+   * {@link CompletableFuture#join()} wraps a failure in, so the original error is compared.
+   */
+  private static <A> Try<A> outcome(CompletableFuture<A> future) {
+    try {
+      return Try.success(future.join());
+    } catch (CompletionException e) {
+      return Try.failure(e.getCause());
+    }
   }
 
   /** Creates a Semigroup for List<String> that concatenates lists. */
