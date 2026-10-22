@@ -24,9 +24,9 @@
 | `VResultPath<E, A>` | Virtual threads + typed error | `Path.vresultRight(v)`, `Path.vresultLeft(e)`, `Path.vresultDefer(() -> either)` | `.toEitherPath()` → `EitherPath<E, A>` |
 | `ReaderPath<R, A>` | Dependency injection | `Path.reader(r)`, `Path.ask()`, `Path.asks(fn)` | `.run(env)` → `A` |
 | `WriterPath<W, A>` | Logging, audit | `Path.writer(w, m)`, `Path.tell(log, m)` | `.run()` → `Writer<W, A>` |
-| `WithStatePath<S, A>` | Stateful computation | `Path.state(s)`, `Path.getState()` | `.run(initial)` → `(S, A)` |
+| `WithStatePath<S, A>` | Stateful computation | `Path.state(s)`, `Path.getState()` | `.run(initial)` → `StateTuple<S, A>` |
 | `TrampolinePath<A>` | Stack-safe recursion | `Path.trampolineDone(v)`, `Path.trampolineDefer(s)` | `.run()` → `A` |
-| `LazyPath<A>` | Deferred, memoised | `Path.lazyDefer(() -> ...)`, `Path.lazyNow(v)` | `.run()` → `A` |
+| `LazyPath<A>` | Deferred, memoised | `Path.lazyDefer(() -> ...)`, `Path.lazyNow(v)` | `.get()` → `A` |
 | `CompletableFuturePath<A>` | Async | `Path.future(cf)`, `Path.futureAsync(() -> ...)` | `.run()` → `CompletableFuture<A>` |
 | `ListPath<A>` | Batch processing with positional zipping | `Path.listPath(list)` | `.run()` → `List<A>` |
 | `StreamPath<A>` | Lazy sequences | `Path.stream(stream)` | `.run()` → `Stream<A>` |
@@ -35,7 +35,7 @@
 | `OptionalPath<A>` | java.util.Optional bridge | `Path.optional(opt)`, `Path.present(v)` | `.run()` → `Optional<A>` |
 | `FreePath<F, A>` | DSL building | `Path.freePure(v, f)`, `Path.freeLift(fa, f)` | `.foldMap(nat, m)` |
 | `FreeApPath<F, A>` | Independent-step DSLs, static analysis | `Path.freeApPure(v, f)`, `Path.freeApLift(fa, f)` | `.foldMapKind(nat, applicative)` |
-| `GenericPath<F, A>` | Custom monads | `Path.generic(kind, monad)` | `.run()` → `Kind<F, A>` |
+| `GenericPath<F, A>` | Custom monads | `Path.generic(kind, monad)` | `.runKind()` → `Kind<F, A>` |
 
 ---
 
