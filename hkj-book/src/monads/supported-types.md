@@ -41,7 +41,7 @@ What does your computation do?
   |
   +-- Needs stack-safe recursion?         --> Trampoline
   +-- Building a DSL / interpreter?       --> Free / FreeAp
-  +-- Combining two monadic effects?      --> WriterT / MaybeT / EitherT / OptionalT / ReaderT / StateT
+  +-- Combining two monadic effects?      --> MaybeT / EitherT / OptionalT / ReaderT / StateT / WriterT
 ```
 
 ## All Supported Types at a Glance
