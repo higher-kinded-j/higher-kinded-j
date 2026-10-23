@@ -5,6 +5,22 @@
 - Part of the [Glossary](../glossary.md); see it for the other categories.
 ~~~
 
+## Alternative
+
+**Definition:** A type class that extends Applicative with choice and failure: an empty value, and a way to fall back to another computation.
+
+**Core Operations:**
+- `empty()` - The empty or failed value of the context
+- `orElse(Kind<F, A> fa, Supplier<Kind<F, A>> fb)` - Take the first computation, and the second one when the first fails
+- `guard(boolean condition)` - `of(Unit)` when the condition holds, and `empty()` when it does not
+- `orElseAll(Kind<F, A> fa, Supplier<Kind<F, A>> fb, Supplier<Kind<F, A>>... more)` - Chain several alternatives in order
+
+**When To Use:** Fallback chains, non-deterministic computation, and parser combinators.
+
+**Related:** [Applicative](#applicative), [MonadZero](#monadzero), [Alternative Documentation](../functional/alternative.md)
+
+---
+
 ## Applicative
 
 **Definition:** A type class that extends Functor with the ability to lift pure values into a context and combine multiple independent computations.
@@ -95,6 +111,19 @@ Kind<MyDSL, String> result = mapped.lower(myDslFunctor);
 **When To Use:** With Free monads to avoid implementing Functor for every DSL instruction type; optimising chains of map operations.
 
 **Related:** [Coyoneda Documentation](../monads/coyoneda.md), [Map Fusion](#map-fusion)
+
+---
+
+## Foldable
+
+**Definition:** A type class for a structure that can be reduced to one summary value, by mapping each element to a Monoid and combining the results.
+
+**Core Operations:**
+- `foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, Kind<F, A> fa)` - Map every element to a Monoid value and combine them
+
+**When To Use:** Summarising a collection, such as a sum, a concatenation, or a check that every element passes.
+
+**Related:** [Monoid](#monoid), [Traverse](#traverse), [Foldable Documentation](../functional/foldable_and_traverse.md#foldable-one-structure-many-summaries)
 
 ---
 
@@ -361,6 +390,20 @@ Kind<EitherKind.Witness<String>, Double> result =
 
 ---
 
+## MonadZero
+
+**Definition:** A type class that extends Monad and Alternative with a zero value, the failed or empty computation that absorbs the rest of a chain.
+
+**Core Operations:**
+- `zero()` - The failed or empty value, and the `empty()` of an Alternative
+- `filter(Predicate<? super A> predicate, Kind<F, A> ma)` - Keep the values that pass the predicate, and turn the rest into zero
+
+**When To Use:** Filtering inside a monadic chain, and discarding a path that fails a guard.
+
+**Related:** [Monad](#monad), [Alternative](#alternative), [MonadZero Documentation](../functional/monad_zero.md)
+
+---
+
 ## Monoid
 
 **Definition:** A type class for types that have an associative binary operation (`combine`) and an identity element (`empty`). Extends Semigroup by adding the identity element, making it safe for reducing empty collections.
@@ -546,6 +589,20 @@ Applicative<ValidatedKind.Witness<String>> validator =
 **When To Use:** Error accumulation (especially with Validated), combining partial results, building aggregators where an empty/identity value doesn't make sense.
 
 **Related:** [Semigroup and Monoid Documentation](../functional/semigroup_and_monoid.md)
+
+---
+
+## Traverse
+
+**Definition:** A type class that extends Functor and Foldable, for a structure that can be walked while an effect runs at each element, with the results gathered into the same structure.
+
+**Core Operations:**
+- `traverse(Applicative<G> applicative, Function<? super A, ? extends Kind<G, ? extends B>> f, Kind<T, A> ta)` - Run an effect at each element, and gather the results
+- `sequenceA(Applicative<G> applicative, Kind<T, Kind<G, A>> tga)` - Gather a structure of effects into one effect
+
+**When To Use:** Validating a whole collection, and any effectful walk over a structure.
+
+**Related:** [Applicative](#applicative), [Foldable](#foldable), [Functor](#functor), [Traverse Documentation](../functional/foldable_and_traverse.md#traverse-effectful-iteration)
 
 ---
 
