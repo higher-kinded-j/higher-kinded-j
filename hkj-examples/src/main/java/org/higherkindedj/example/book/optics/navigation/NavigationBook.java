@@ -16,9 +16,6 @@ import org.higherkindedj.example.book.optics.cast.CardFocus;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
 import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
-import org.higherkindedj.example.book.optics.cast.Customer;
-import org.higherkindedj.example.book.optics.cast.CustomerFocus;
-import org.higherkindedj.example.book.optics.cast.EmailAddressFocus;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
@@ -184,20 +181,21 @@ public final class NavigationBook {
     return new NavigatorHops(email, skus);
   }
 
-  /** What the page's widened-hop block reads. */
-  record WidenedHop(List<BigDecimal> prices, List<String> emails) {}
+  /** What the page's wider-hop block reads. */
+  record WiderHop(List<BigDecimal> prices, List<String> emails) {}
 
-  static WidenedHop widenedHop(OrderHistory history) {
-    // ANCHOR: widened_hop
+  static WiderHop widerHop(OrderHistory history) {
+    // ANCHOR: wider_hop
     // A hop into each order's list keeps the traversal, so lines() hands on its navigator
     List<BigDecimal> prices = OrderHistoryFocus.orders().lines().price().getAll(history);
 
-    // A hop into one record lands on a traversal, so customer() hands back the plain path
-    TraversalPath<OrderHistory, Customer> customers = OrderHistoryFocus.orders().customer();
-    List<String> emails =
-        customers.via(CustomerFocus.email()).via(EmailAddressFocus.value()).getAll(history);
-    // ANCHOR_END: widened_hop
-    return new WidenedHop(prices, emails);
+    // A hop into one customer lands on a traversal too, so customer() hands on the traversal
+    // form of the order's customer navigator, and the chain goes on
+    OrderFocus.CustomerNavigator.TraversalForm<OrderHistory> customers =
+        OrderHistoryFocus.orders().customer();
+    List<String> emails = customers.email().value().getAll(history);
+    // ANCHOR_END: wider_hop
+    return new WiderHop(prices, emails);
   }
 
   /** What the page's path-methods block computes, and the postcodes its trace saw. */

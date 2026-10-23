@@ -1695,6 +1695,281 @@ public class FocusProcessorNavigatorTest {
                     + unresolvable
                     + "() names com.a.Money");
       }
+      // The navigator's forms leave the same fields out, and do not note them again.
+      assertGeneratedCodeContains(downstream, focus, "final class TraversalForm<");
+      for (String missing : List.of("count", "deepish", "amounts", "crate")) {
+        Assertions.assertThat(downstream.notes())
+            .extracting(note -> note.getMessage(null))
+            .filteredOn(message -> message.contains("has no '" + missing + "' method"))
+            .hasSize(1);
+      }
+    }
+
+    @Test
+    @DisplayName("a hop that widens the path hands on the form a dependency's navigator published")
+    void aWideningHopHandsOnAPublishedForm() throws IOException {
+      JavaFileObject depot =
+          JavaFileObjects.forSourceString(
+              "com.down.Depot",
+              """
+              package com.down;
+
+              import com.up.Node;
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Depot(List<Node> nodes, Optional<Node> spare) {}
+              """);
+      Compilation across =
+          compile(true, List.of(module("upstream", true, List.of(), LEAF, NODE)), depot);
+      Compilation together = compile(true, List.of(), LEAF, NODE, depot);
+      assertThat(across).succeeded();
+      assertThat(together).succeeded();
+
+      // NodeFocus.LeafNavigator holds a FocusPath, and each hop below lands on a wider path, so it
+      // hands on the form of that navigator the dependency published, as one compilation does.
+      assertGeneratedCodeContains(
+          across,
+          "com.down.DepotFocus",
+          "public NodeFocus.LeafNavigator.TraversalForm<S> leaf() {");
+      assertGeneratedCodeContains(
+          across, "com.down.DepotFocus", "public NodeFocus.LeafNavigator.AffineForm<S> leaf() {");
+      Assertions.assertThat(source(across, "com.down.DepotFocus"))
+          .isEqualTo(source(together, "com.down.DepotFocus"));
+    }
+
+    @Test
+    @DisplayName("a form missing from a dependency's class files leaves only that hop composed")
+    void aMissingFormClassFileLeavesOnlyThatHopComposed() throws IOException {
+      JavaFileObject depot =
+          JavaFileObjects.forSourceString(
+              "com.down.Depot",
+              """
+              package com.down;
+
+              import com.up.Node;
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Depot(List<Node> nodes, Optional<Node> spare) {}
+              """);
+      Compilation upstream = compile(true, List.of(), LEAF, NODE);
+      assertThat(upstream).succeeded();
+      // A stripped jar can leave out a class nothing in its own module refers to.
+      Path stripped =
+          GeneratorTestHelper.classDirectoryWithout(
+              upstream, tmp.resolve("stripped"), "com.up.NodeFocus$LeafNavigator$TraversalForm");
+
+      Compilation downstream = compile(true, List.of(stripped), depot);
+
+      assertThat(downstream).succeeded();
+      assertGeneratedCodeContains(
+          downstream, "com.down.DepotFocus", "public TraversalPath<S, Leaf> leaf() {");
+      assertGeneratedCodeContains(
+          downstream,
+          "com.down.DepotFocus",
+          "public NodeFocus.LeafNavigator.AffineForm<S> leaf() {");
+    }
+
+    @Test
+    @DisplayName("a published navigator's forms are read for what they publish, not assumed")
+    void aPublishedFormIsReadNotAssumed() throws IOException {
+      JavaFileObject part =
+          JavaFileObjects.forSourceString(
+              "com.f.Part",
+              """
+              package com.f;
+
+              public record Part(String code) {}
+              """);
+      JavaFileObject kit =
+          JavaFileObjects.forSourceString(
+              "com.f.Kit",
+              """
+              package com.f;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Kit(
+                  Part good,
+                  Part none,
+                  Part stray,
+                  Part arity,
+                  Part hidden,
+                  Part inner,
+                  Part shape,
+                  Part bare,
+                  Part bound,
+                  Part tier,
+                  Part focus) {}
+              """);
+      // Stands in for a companion something other than hkj-processor wrote: each navigator is
+      // composed as one, and each meets one way a nested class can fail to be its traversal form.
+      JavaFileObject kitFocus =
+          JavaFileObjects.forSourceString(
+              "com.f.KitFocus",
+              """
+              package com.f;
+
+              import org.higherkindedj.optics.focus.AffinePath;
+              import org.higherkindedj.optics.focus.FocusPath;
+              import org.higherkindedj.optics.focus.TraversalPath;
+
+              public final class KitFocus {
+                private KitFocus() {}
+
+                public static GoodNavigator<Kit> good() { return null; }
+                public static NoneNavigator<Kit> none() { return null; }
+                public static StrayNavigator<Kit> stray() { return null; }
+                public static ArityNavigator<Kit> arity() { return null; }
+                public static HiddenNavigator<Kit> hidden() { return null; }
+                public static InnerNavigator<Kit> inner() { return null; }
+                public static ShapeNavigator<Kit> shape() { return null; }
+                public static BareNavigator<Kit> bare() { return null; }
+                public static BoundNavigator<Kit> bound() { return null; }
+                public static TierNavigator<Kit> tier() { return null; }
+                public static FocusNavigator<Kit> focus() { return null; }
+
+                public static final class GoodNavigator<S> {
+                  public GoodNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S> {
+                    public TraversalForm(TraversalPath<S, Part> path) {}
+                    public TraversalPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                // Nests no forms at all.
+                public static final class NoneNavigator<S> {
+                  public NoneNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+                }
+
+                public static final class StrayNavigator<S> {
+                  public StrayNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  // The form name of a tier no narrower than the navigator's is never read.
+                  public static final class FocusForm<S> {
+                    public FocusForm(FocusPath<S, Part> path) {}
+                    public FocusPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                public static final class ArityNavigator<S> {
+                  public ArityNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S, X> {
+                    public TraversalForm(TraversalPath<S, Part> path) {}
+                    public TraversalPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                public static final class HiddenNavigator<S> {
+                  public HiddenNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  static final class TraversalForm<S> {
+                    public TraversalForm(TraversalPath<S, Part> path) {}
+                    public TraversalPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                // An inner class of a generic class, which javac cannot instantiate on its own.
+                public static final class InnerNavigator<S> {
+                  public InnerNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public final class TraversalForm<T> {
+                    public TraversalForm(TraversalPath<T, Part> path) {}
+                    public TraversalPath<T, Part> toPath() { return null; }
+                  }
+                }
+
+                public static final class ShapeNavigator<S> {
+                  public ShapeNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public interface TraversalForm<S> {
+                    TraversalPath<S, Part> toPath();
+                  }
+                }
+
+                public static final class BareNavigator<S> {
+                  public BareNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S> {
+                    public TraversalPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                // Accepts fewer sources than its navigator does.
+                public static final class BoundNavigator<S> {
+                  public BoundNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S extends Number> {
+                    public TraversalForm(TraversalPath<S, Part> path) {}
+                    public TraversalPath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                public static final class TierNavigator<S> {
+                  public TierNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S> {
+                    public TraversalForm(AffinePath<S, Part> path) {}
+                    public AffinePath<S, Part> toPath() { return null; }
+                  }
+                }
+
+                public static final class FocusNavigator<S> {
+                  public FocusNavigator(FocusPath<S, Part> path) {}
+                  public FocusPath<S, Part> toPath() { return null; }
+
+                  public static final class TraversalForm<S> {
+                    public TraversalForm(TraversalPath<S, String> path) {}
+                    public TraversalPath<S, String> toPath() { return null; }
+                  }
+                }
+              }
+              """);
+      JavaFileObject crate =
+          JavaFileObjects.forSourceString(
+              "com.c.Crate",
+              """
+              package com.c;
+
+              import com.f.Kit;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Crate(List<Kit> kits) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("f", false, List.of(), part, kit, kitFocus)), crate);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.c.CrateFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public KitFocus.GoodNavigator.TraversalForm<S> good() {");
+      for (String formless :
+          List.of(
+              "none", "stray", "arity", "hidden", "inner", "shape", "bare", "bound", "tier",
+              "focus")) {
+        assertGeneratedCodeContains(
+            downstream, focus, "public TraversalPath<S, Part> " + formless + "() {");
+      }
     }
 
     @Test
@@ -1935,10 +2210,13 @@ public class FocusProcessorNavigatorTest {
       assertThat(together).succeeded();
 
       // The dependency's generic navigator is read from what its companion published, instantiated
-      // with the navigator's own type variable, and its non-generic one beside it.
+      // with the navigator's own type variable, and its non-generic one beside it. So are their
+      // forms, which the forms of Outer's own navigator hand on.
       Assertions.assertThat(source(across, "com.down.OuterFocus"))
           .contains("public InnerFocus.DeepNavigator<S, T> deep() {")
           .contains("public InnerFocus.LeafNavigator<S> leaf() {")
+          .contains("public InnerFocus.DeepNavigator.TraversalForm<S, T> deep() {")
+          .contains("public InnerFocus.LeafNavigator.AffineForm<S> leaf() {")
           .isEqualTo(source(together, "com.down.OuterFocus"));
     }
 

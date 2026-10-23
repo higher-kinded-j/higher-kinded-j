@@ -106,11 +106,11 @@ Navigators are generated for **nested record** fields (`ShopperFocus.address().c
 containers of one that the record widens: an `Optional`, `Maybe`, `List`, `Set`, `Collection` or
 `Either` always, and a `Map`, an array or a third-party collection under `widenCollections = true`
 or when `widenFields` names the field. Containers nested in one another compose to the record they
-hold, so `List<Optional<OrgMember>>` navigates too, and so does a `Kind<F, A>` of records the processor traverses. A navigation
-method hands on the next field's navigator only where the composed path has the type of that
-field's own path: from a `List` navigator, a hop into another list chains (`units().members()`),
-but a hop into a plain record field returns a plain `TraversalPath`, so chain the hop after it with
-`.via(...)`. A path method such as `filter` returns a plain path too.
+hold, so `List<Optional<OrgMember>>` navigates too, and so does a `Kind<F, A>` of records the processor traverses. A hop
+that widens the path keeps navigating. Each navigator has a form nested in it for each wider path
+type, `AffineForm` and `TraversalForm`. From `OrderHistoryFocus.orders()`, a navigator over a `List<Order>`,
+`orders().customer()` returns `OrderFocus.CustomerNavigator.TraversalForm`, so `.email()` chains. A path
+method such as `filter` returns a plain path, so chain the next hop with `.via(...)`.
 A generic nested record gets a navigator too, instantiated with the
 field's type arguments: `Revision<EmailAddress> email` chains as `.email().current()`. A field that
 names no single type for its parameters, such as `Revision<?>` or a raw `Revision`, gets no
@@ -134,7 +134,10 @@ A nested record's field named like one of the path's no-argument methods, such a
 `each` or `segments`, cannot be navigated to, since the call would reach the path's own method. On
 a record that leaves navigators to the default, the field that reaches it keeps its plain path,
 with a note; on one that writes `generateNavigators = true`, the processor refuses it. Rename the
-field, or keep the navigating field a plain path with `excludeFields`.
+field, or keep the navigating field a plain path with `excludeFields`. The same goes for a form: a
+target field named `headOption` or `toTraversal` leaves out the `TraversalForm`, and `toAffine` the
+`AffineForm`, so a hop into it from a wider path returns a plain path. The record declaring the
+field gets a note naming the field to rename, if it writes `generateNavigators = true`.
 
 The names in `includeFields`, `excludeFields` and `widenFields` are checked against the record's
 components: one that matches none is an error offering the component it meant. A list that changes

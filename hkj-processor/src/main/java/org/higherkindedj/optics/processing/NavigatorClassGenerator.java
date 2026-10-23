@@ -74,6 +74,15 @@ import org.higherkindedj.optics.processing.util.Reachability;
  * {@link WideningAnalysis} says what that method is about to return; for any other target, the
  * return type is read from the method its companion actually published.
  *
+ * <p>Each navigator has a form nested in it for each tier wider than its own, {@code AffineForm} or
+ * {@code TraversalForm}: the same navigator over that wider path. Composing a field's path with a
+ * wider one lands on the wider tier, which the field's own navigator cannot hold, so a navigation
+ * method hands on the form of that tier instead, and {@code orders().customer().email()} keeps
+ * navigating after the hop into one customer. A form is left out where its path has a no-argument
+ * method named like a field of the target, or where the target has a type parameter of the form's
+ * name, and a hop that would need it returns the composed path. A record that writes {@code
+ * generateNavigators = true} is told about the first, with the field to rename.
+ *
  * <p>A target with type parameters of its own gets a navigator that declares them after the source,
  * {@code InnerNavigator<S, T>}, and a component reaching it passes the type arguments it was
  * declared with: {@code Inner<String> inner} gives {@code InnerNavigator<Outer, String>}. A
@@ -90,7 +99,7 @@ public class NavigatorClassGenerator {
   private final int maxDepth;
   private final WideningAnalysis analysis;
 
-  /** The no-argument methods each tier's navigator inherits, read once per processor. */
+  /** The no-argument methods each tier's navigator inherits, read once per generator. */
   private final Map<Tier, Set<String>> inheritedNoArgumentMethods = new EnumMap<>(Tier.class);
 
   /**
@@ -244,10 +253,95 @@ public class NavigatorClassGenerator {
         }
         continue;
       }
-      focusClassBuilder.addType(
-          generateNavigatorClass(
-              component, target.record(), currentDepth, widening(recordElement, component).tier()));
+      Tier tier = widening(recordElement, component).tier();
+      focusClassBuilder.addType(generateNavigatorClass(component, target, currentDepth, tier));
+      noteMissingForms(recordElement, component, target, tier);
     }
+  }
+
+  /**
+   * Notes a navigator left without a form because a field of its target is named like a no-argument
+   * method of that form's path, on a record that asks for navigators in so many words.
+   *
+   * <p>A hop into the component from a path of that tier then returns the composed path, so a chain
+   * such as {@code orders().customer().email()} stops there, and {@code headOption()} after it
+   * reaches the path's own method. A record that leaves navigators to the default asked for
+   * nothing, and is told nothing, and a field that clashes with the navigator's own tier is refused
+   * already.
+   */
+  private void noteMissingForms(
+      TypeElement record, RecordComponentElement component, Target target, Tier tier) {
+    if (!writesAttribute(record, "generateNavigators") || !inheritedNames(tier, target).isEmpty()) {
+      return;
+    }
+    // Each wider tier left without a form, with the target fields its path's methods clash with.
+    record Clash(Tier tier, List<String> fields) {}
+    List<Clash> clashes =
+        tier.wider().stream()
+            .filter(wider -> formNameFree(wider, target))
+            .map(wider -> new Clash(wider, inheritedNames(wider, target)))
+            .filter(clash -> !clash.fields().isEmpty())
+            .toList();
+    if (clashes.isEmpty()) {
+      return;
+    }
+    String name = component.getSimpleName().toString();
+    String targetName = target.record().getSimpleName().toString();
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        component,
+        "@GenerateFocus",
+        "the navigator for '"
+            + record.getSimpleName()
+            + "."
+            + name
+            + "' has no "
+            + clashes.stream()
+                .map(clash -> clash.tier().formName())
+                .collect(Collectors.joining(" or "))
+            + ".",
+        clashes.stream()
+            .map(
+                clash ->
+                    ProcessorUtils.capitalise(clash.tier().article())
+                        + " "
+                        + clash.tier().formName()
+                        + " would be "
+                        + clash.tier().withArticle()
+                        + ", which has its own "
+                        + clash.fields().stream()
+                            .map(field -> field + "()")
+                            .collect(Collectors.joining(" and "))
+                        + ", so it could not navigate to "
+                        + qualifiedFields(targetName, clash.fields())
+                        + ", and a hop into '"
+                        + name
+                        + "' from "
+                        + clash.tier().withArticle()
+                        + " returns a plain "
+                        + clash.tier().description()
+                        + ".")
+            .collect(Collectors.joining(" ")),
+        "Rename "
+            + qualifiedFields(
+                targetName,
+                clashes.stream().flatMap(clash -> clash.fields().stream()).distinct().toList())
+            + " to give the navigator for '"
+            + name
+            + "' "
+            + clashes.stream()
+                .map(clash -> clash.tier().article() + " " + clash.tier().formName())
+                .collect(Collectors.joining(" and "))
+            + ", or remove generateNavigators = true from @GenerateFocus on "
+            + record.getSimpleName()
+            + " to go without this note.");
+  }
+
+  /** Fields of a record as a message names them: {@code 'Customer.headOption' and ...}. */
+  private static String qualifiedFields(String record, List<String> fields) {
+    return fields.stream()
+        .map(field -> "'" + record + "." + field + "'")
+        .collect(Collectors.joining(" and "));
   }
 
   /**
@@ -644,19 +738,114 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Generates a navigator class for a specific field.
+   * The wider tiers a field's navigator has a form for: each tier wider than its own, except one
+   * whose path has a no-argument method named like a field of the target, since a form of that tier
+   * could not navigate to it, and one whose name is not {@linkplain #formNameFree free}.
+   *
+   * <p>A hop into the field from a wider path hands on the form of the composed tier, so the
+   * navigator's own companion and every navigation method in this round composing it read the forms
+   * from here.
+   *
+   * @param tier the tier of the field's own navigator
+   * @param target the record the navigator reaches
+   * @return the tiers of the forms nested in the navigator, narrowest first
+   */
+  private List<Tier> widerForms(Tier tier, Target target) {
+    return tier.wider().stream()
+        .filter(wider -> formNameFree(wider, target))
+        .filter(wider -> inheritedNames(wider, target).isEmpty())
+        .toList();
+  }
+
+  /**
+   * Whether a form's name is free inside a navigator into the target: no type parameter of the
+   * target takes it, nor a top-level type of the unnamed package, which generated code cannot
+   * qualify. Inside the navigator the form would hide either.
+   */
+  private boolean formNameFree(Tier form, Target target) {
+    return !namesOf(target.record().getTypeParameters()).contains(form.formName())
+        && processingEnv.getElementUtils().getTypeElement(form.formName()) == null;
+  }
+
+  /** The simple name of the navigator class a field's method returns. */
+  private static String navigatorClassName(RecordComponentElement component) {
+    return ProcessorUtils.capitalise(component.getSimpleName().toString()) + "Navigator";
+  }
+
+  /**
+   * Generates the navigator class for a field, with a form nested in it for each wider tier.
+   *
+   * <p>A form is the same navigator over a wider path: the one a navigation method from a navigator
+   * of that tier hands on, since composing that navigator's path with the field's own lands on a
+   * path of that tier, which the field's own navigator cannot hold. A form is generated whether or
+   * not any hop in this compilation reaches it, because a record in a dependant module may.
+   *
+   * @param component the record component (field)
+   * @param target the record the field's method reaches, and the type arguments it gives it
+   * @param currentDepth current depth
+   * @param tier the path tier of the field's own navigator
+   * @return the generated navigator TypeSpec
+   */
+  private TypeSpec generateNavigatorClass(
+      RecordComponentElement component, Target target, int currentDepth, Tier tier) {
+
+    String componentName = component.getSimpleName().toString();
+    List<TargetField> fields = targetFields(component, target.record(), tier);
+    List<Tier> forms = widerForms(tier, target);
+    TypeSpec.Builder navigator =
+        navigatorClass(
+            component,
+            target.record(),
+            currentDepth,
+            tier,
+            navigatorClassName(component),
+            CodeBlock.of("Navigator for fluent access to {@code $L} fields.", componentName),
+            forms,
+            fields);
+    for (Tier form : forms) {
+      navigator.addType(
+          navigatorClass(
+                  component,
+                  target.record(),
+                  currentDepth,
+                  form,
+                  form.formName(),
+                  CodeBlock.of(
+                      "The {@code $L} navigator that a hop from $L {@link $T} hands on.",
+                      componentName,
+                      form.article(),
+                      form.pathClass()),
+                  List.of(),
+                  fields)
+              .build());
+    }
+    return navigator.build();
+  }
+
+  /**
+   * Builds one navigator class for a field: its own, or one of its wider forms.
    *
    * @param component the record component (field)
    * @param targetRecord the target record type (the field's type)
    * @param currentDepth current depth
    * @param tier the path tier for this navigator
-   * @return the generated navigator TypeSpec
+   * @param navigatorClassName the class's simple name
+   * @param summary the first sentence of the class's javadoc
+   * @param forms the tiers of the wider forms nested in it, which its javadoc names
+   * @param fields the target's fields it navigates to, as {@link #targetFields} found them
+   * @return the navigator class, ready to build
    */
-  private TypeSpec generateNavigatorClass(
-      RecordComponentElement component, TypeElement targetRecord, int currentDepth, Tier tier) {
+  private TypeSpec.Builder navigatorClass(
+      RecordComponentElement component,
+      TypeElement targetRecord,
+      int currentDepth,
+      Tier tier,
+      String navigatorClassName,
+      CodeBlock summary,
+      List<Tier> forms,
+      List<TargetField> fields) {
 
     String componentName = component.getSimpleName().toString();
-    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
     TypeName targetTypeName = TypeName.get(targetRecord.asType());
 
     // The source comes first, then the target's own type parameters under their own names: the
@@ -702,17 +891,27 @@ public class NavigatorClassGenerator {
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(sourceTypeVar)
             .addTypeVariables(targetTypeVars)
+            .addJavadoc(summary)
             .addJavadoc(
-                "Navigator for fluent access to {@code $L} fields.\n\n"
-                    + "<p>This navigator is a {@link $T}, with a navigation method for each field\n"
-                    + "of {@link $T}.\n\n"
-                    + "<p>Path type: $L\n\n"
-                    + "@param <$L> the source type at the root of the navigation",
-                componentName,
+                "\n\n<p>This navigator is $L {@link $T}, with a navigation method for each field\n"
+                    + "of {@link $T}.\n\n",
+                tier.article(),
                 pathClass,
-                ClassName.get(targetRecord),
-                tierDescription,
-                sourceTypeVar.name());
+                ClassName.get(targetRecord));
+    if (!forms.isEmpty()) {
+      // A hop composes this navigator's path with a wider one, and lands on that tier.
+      navigatorBuilder.addJavadoc(
+          "<p>A hop into {@code $L} from a wider path hands on $L, nested here:\n"
+              + "the same navigator over that path.\n\n",
+          componentName,
+          forms.stream()
+              .map(form -> "{@code " + form.formName() + "}")
+              .collect(Collectors.joining(" or ")));
+    }
+    navigatorBuilder.addJavadoc(
+        "<p>Path type: $L\n\n@param <$L> the source type at the root of the navigation",
+        tierDescription,
+        sourceTypeVar.name());
     for (TypeVariableName targetTypeVar : targetTypeVars) {
       navigatorBuilder.addJavadoc(
           "\n@param <$L> the {@code $L} of the {@code $L} navigated to",
@@ -739,9 +938,9 @@ public class NavigatorClassGenerator {
             ? CodeBlock.of("toPath().some($T.nullable())", WideningAnalysis.AFFINES_CLASS)
             : CodeBlock.of("toPath()");
     addNavigationMethods(
-        navigatorBuilder, component, targetRecord, sourceTypeVar, currentDepth + 1, tier, elements);
+        navigatorBuilder, targetRecord, sourceTypeVar, currentDepth + 1, tier, elements, fields);
 
-    return navigatorBuilder.build();
+    return navigatorBuilder;
   }
 
   /**
@@ -780,38 +979,23 @@ public class NavigatorClassGenerator {
    * report the same path type for the same declaration, the field-name segments the static method
    * carries come along through {@code via}, and a shape only one of them understands — a {@code
    * Kind} component, a nested container — cannot arrive here half-widened (issue #719).
-   *
-   * <p>A field whose published method this compilation cannot compose is left out of the navigator,
-   * with a note on the component the navigator belongs to.
    */
   private void addNavigationMethods(
       TypeSpec.Builder navigatorBuilder,
-      RecordComponentElement owner,
       TypeElement targetRecord,
       TypeVariableName sourceTypeVar,
       int currentDepth,
       Tier currentTier,
-      CodeBlock elements) {
+      CodeBlock elements,
+      List<TargetField> fields) {
 
     ClassName targetFocusClass = focusClassOf(targetRecord);
-    Set<String> inheritedNames = inheritedNoArgumentMethods(currentTier);
 
-    for (RecordComponentElement component : targetRecord.getRecordComponents()) {
+    for (TargetField field : fields) {
+      RecordComponentElement component = field.component();
       String fieldName = component.getSimpleName().toString();
-
-      // A navigator is a path, so a field named like a no-argument path method has no navigation
-      // method it could take: the call would reach the path's own method instead.
-      if (inheritedNames.contains(fieldName)) {
-        reportInheritedName(owner, targetRecord, fieldName, currentTier);
-        continue;
-      }
-
       CodeBlock focusMethod = focusMethodCall(targetFocusClass, targetRecord, fieldName);
-      switch (fieldShape(targetRecord, targetFocusClass, component)) {
-        case FieldShape.Unresolvable unresolvable ->
-            reportUnresolvableField(owner, targetFocusClass, fieldName, unresolvable.type());
-        case FieldShape.Unrecognised _ ->
-            reportUnrecognisedField(owner, targetRecord, targetFocusClass, fieldName);
+      switch (field.shape()) {
         case FieldShape.Path path ->
             navigatorBuilder.addMethod(
                 navigationMethod(
@@ -839,6 +1023,46 @@ public class NavigatorClassGenerator {
         }
       }
     }
+  }
+
+  /** A field of a navigator's target, with the shape of the method a navigation method composes. */
+  private record TargetField(RecordComponentElement component, FieldShape.Composable shape) {}
+
+  /**
+   * The fields of a navigator's target that it navigates to, each with the shape of the static
+   * Focus method a navigation method composes for it, reporting each field it cannot navigate to.
+   *
+   * <p>A field named like a no-argument method of the navigator's tier has no navigation method it
+   * could take, since the call would reach the path's own method instead, and is refused. A field
+   * whose published method this compilation cannot compose is left out, with a note on the
+   * component the navigator belongs to. The navigator and each of its forms are built from the one
+   * list, so a field is reported once however many forms there are.
+   *
+   * @param owner the component whose navigator this is
+   * @param targetRecord the record the navigator reaches
+   * @param tier the tier of the component's own navigator
+   * @return the fields it navigates to, in declaration order
+   */
+  private List<TargetField> targetFields(
+      RecordComponentElement owner, TypeElement targetRecord, Tier tier) {
+    ClassName targetFocusClass = focusClassOf(targetRecord);
+    Set<String> inheritedNames = inheritedNoArgumentMethods(tier);
+    List<TargetField> fields = new ArrayList<>();
+    for (RecordComponentElement component : targetRecord.getRecordComponents()) {
+      String fieldName = component.getSimpleName().toString();
+      if (inheritedNames.contains(fieldName)) {
+        reportInheritedName(owner, targetRecord, fieldName, tier);
+        continue;
+      }
+      switch (fieldShape(targetRecord, targetFocusClass, component)) {
+        case FieldShape.Unresolvable unresolvable ->
+            reportUnresolvableField(owner, targetFocusClass, fieldName, unresolvable.type());
+        case FieldShape.Unrecognised _ ->
+            reportUnrecognisedField(owner, targetRecord, targetFocusClass, fieldName);
+        case FieldShape.Composable composable -> fields.add(new TargetField(component, composable));
+      }
+    }
+    return List.copyOf(fields);
   }
 
   /**
@@ -983,9 +1207,9 @@ public class NavigatorClassGenerator {
         .returns(ParameterizedTypeName.get(composed.pathClass(), sourceTypeVar, focusType))
         .addJavadoc(
             "Navigates to the {@code $L} field.\n\n"
-                + "@return a $L focusing on the {@code $L} field",
+                + "@return $L focusing on the {@code $L} field",
             fieldName,
-            composed.description(),
+            composed.withArticle(),
             fieldName);
   }
 
@@ -1054,10 +1278,10 @@ public class NavigatorClassGenerator {
   /**
    * Composes a field whose own Focus method hands back a navigator.
    *
-   * <p>That navigator holds a path of the field's own tier, so it can only be handed on when
-   * composing with this navigator's own path lands on that same tier. A wider composition has no
-   * navigator to wrap the result in, so the composed path is the answer and navigation stops there;
-   * so it does at the depth limit.
+   * <p>That navigator holds a path of the field's own tier, and each of its forms a path of a wider
+   * one, so the one handed on is whichever holds the tier that composing with this navigator's own
+   * path lands on. Where none does, a form the target's companion does not publish, the composed
+   * path is the answer and navigation stops there; so it does at the depth limit.
    *
    * <p>The navigator handed on is instantiated with the type arguments the field gives its own
    * target, after this navigator's source.
@@ -1071,14 +1295,13 @@ public class NavigatorClassGenerator {
       int currentDepth,
       Tier composed) {
 
-    if (currentDepth < maxDepth && composed == navigator.tier()) {
+    Optional<ClassName> holding =
+        currentDepth < maxDepth ? navigator.holding(composed) : Optional.empty();
+    if (holding.isPresent()) {
       methodBuilder.returns(
-          navigatorType(navigator.navigatorClass(), sourceTypeVar, navigator.typeArguments()));
+          navigatorType(holding.orElseThrow(), sourceTypeVar, navigator.typeArguments()));
       methodBuilder.addStatement(
-          "return new $T<>($L.via($L.toPath()))",
-          navigator.navigatorClass(),
-          elements,
-          focusMethod);
+          "return new $T<>($L.via($L.toPath()))", holding.orElseThrow(), elements, focusMethod);
       return;
     }
     methodBuilder.addStatement("return $L.via($L.toPath())", elements, focusMethod);
@@ -1090,19 +1313,45 @@ public class NavigatorClassGenerator {
    */
   private sealed interface FieldShape {
 
+    /** A method a navigation method can compose: a plain path, or a navigator. */
+    sealed interface Composable extends FieldShape {}
+
     /** A method returning a plain path of this tier and focus. */
-    record Path(Tier tier, TypeName focusType) implements FieldShape {}
+    record Path(Tier tier, TypeName focusType) implements Composable {}
 
     /**
      * A method returning a navigator that wraps a path of this tier and focus, instantiated with
-     * these type arguments after its source.
+     * these type arguments after its source, with a form nested in it for each of {@code forms}.
      */
     record Navigator(
-        Tier tier, TypeName focusType, ClassName navigatorClass, List<TypeName> typeArguments)
-        implements FieldShape {
+        Tier tier,
+        TypeName focusType,
+        ClassName navigatorClass,
+        List<TypeName> typeArguments,
+        List<Tier> forms)
+        implements Composable {
 
       public Navigator {
         typeArguments = List.copyOf(typeArguments);
+        forms = List.copyOf(forms);
+      }
+
+      /** This navigator with these forms nested in it. */
+      Navigator withForms(List<Tier> forms) {
+        return new Navigator(tier, focusType, navigatorClass, typeArguments, forms);
+      }
+
+      /**
+       * The class that holds a path of a tier no narrower than the navigator's own: the navigator
+       * itself, or its form of that tier; empty where it has no such form.
+       */
+      Optional<ClassName> holding(Tier composed) {
+        if (composed == tier) {
+          return Optional.of(navigatorClass);
+        }
+        return forms.contains(composed)
+            ? Optional.of(navigatorClass.nestedClass(composed.formName()))
+            : Optional.empty();
       }
     }
 
@@ -1133,9 +1382,9 @@ public class NavigatorClassGenerator {
           : new FieldShape.Navigator(
               widening.tier(),
               widening.focusType(),
-              targetFocusClass.nestedClass(
-                  ProcessorUtils.capitalise(component.getSimpleName().toString()) + "Navigator"),
-              typeNamesOf(target.type().getTypeArguments()));
+              targetFocusClass.nestedClass(navigatorClassName(component)),
+              typeNamesOf(target.type().getTypeArguments()),
+              widerForms(widening.tier(), target));
     }
     return publishedShape(targetRecord, targetFocusClass, component.getSimpleName().toString());
   }
@@ -1172,10 +1421,19 @@ public class NavigatorClassGenerator {
    * which carry the target's names and bounds, can be passed as its type arguments.
    */
   private boolean declaresTargetParameters(ExecutableElement method, TypeElement targetRecord) {
-    Types types = processingEnv.getTypeUtils();
     List<? extends TypeParameterElement> declared = method.getTypeParameters();
     List<? extends TypeParameterElement> own = targetRecord.getTypeParameters();
-    return namesOf(declared).equals(namesOf(own))
+    return namesOf(declared).equals(namesOf(own)) && boundedNoTighter(declared, own);
+  }
+
+  /**
+   * Whether there are as many type parameters as among {@code own}, each bounded no more tightly
+   * than the one in the same place, so that what {@code own} accepts they accept too.
+   */
+  private boolean boundedNoTighter(
+      List<? extends TypeParameterElement> declared, List<? extends TypeParameterElement> own) {
+    Types types = processingEnv.getTypeUtils();
+    return declared.size() == own.size()
         && IntStream.range(0, own.size())
             .allMatch(
                 i ->
@@ -1224,6 +1482,80 @@ public class NavigatorClassGenerator {
       return pathShape(source, returned);
     }
     TypeElement navigator = (TypeElement) declared.asElement();
+    FieldShape shape = navigatorShape(navigator, declared, source);
+    return shape instanceof FieldShape.Navigator own
+        ? own.withForms(publishedForms(navigator, declared, source, own))
+        : shape;
+  }
+
+  /**
+   * The wider forms a published navigator has nested in it: for each tier wider than its own, a
+   * class named for that tier that is a navigator of that tier over the same focus, composed as the
+   * navigator itself is. A navigator that nests no such class has no forms, and a hop from a wider
+   * path into its field returns the composed path.
+   *
+   * @param navigator the published navigator class
+   * @param declared the navigator as the published method returns it
+   * @param source the target, as the method is over it
+   * @param own the navigator's own shape
+   * @return the tiers of the forms it publishes, narrowest first
+   */
+  private List<Tier> publishedForms(
+      TypeElement navigator, DeclaredType declared, DeclaredType source, FieldShape.Navigator own) {
+    // Each form is looked up by its name, which leaves a nested class this module cannot read,
+    // such as one missing from a stripped jar, as no form rather than a failed compilation.
+    return own.tier().wider().stream()
+        .filter(
+            tier ->
+                Optional.ofNullable(
+                        processingEnv
+                            .getElementUtils()
+                            .getTypeElement(navigator.getQualifiedName() + "." + tier.formName()))
+                    .filter(form -> publishedForm(form, tier, navigator, declared, source, own))
+                    .isPresent())
+        .toList();
+  }
+
+  /**
+   * Whether a class nested in a published navigator is its form of a tier. A form declares the
+   * navigator's type parameters, and is read under the type arguments the method gives the
+   * navigator, as the hop that hands it on writes them, so it must accept whatever its navigator
+   * does. Only a static member can be read so: javac cannot instantiate an inner class of a generic
+   * class on its own. Whether it is a class at all is asked with the rest of what a navigator must
+   * be, once it is instantiated.
+   */
+  private boolean publishedForm(
+      TypeElement form,
+      Tier tier,
+      TypeElement navigator,
+      DeclaredType declared,
+      DeclaredType source,
+      FieldShape.Navigator own) {
+    if (!publicStatic(form)
+        || !boundedNoTighter(form.getTypeParameters(), navigator.getTypeParameters())) {
+      return false;
+    }
+    DeclaredType instantiated =
+        processingEnv
+            .getTypeUtils()
+            .getDeclaredType(form, declared.getTypeArguments().toArray(TypeMirror[]::new));
+    return navigatorShape(form, instantiated, source) instanceof FieldShape.Navigator shape
+        && shape.tier() == tier
+        && shape.focusType().equals(own.focusType());
+  }
+
+  /**
+   * The shape of a published navigator class, as a method returns it: a navigator of the tier and
+   * focus its own {@code toPath()} reports, where generated code in another package can name it and
+   * construct it from that path. Its forms are left to the caller.
+   *
+   * @param navigator the navigator class
+   * @param declared the navigator as it is returned
+   * @param source the target, as the returning method is over it
+   * @return the navigator's shape without forms, or why it cannot be composed
+   */
+  private FieldShape navigatorShape(
+      TypeElement navigator, DeclaredType declared, DeclaredType source) {
     if (!nameableNavigator(navigator, declared, source)) {
       return new FieldShape.Unrecognised();
     }
@@ -1231,14 +1563,7 @@ public class NavigatorClassGenerator {
     // `new Navigator<>(path)`, so it must take that path in a public constructor.
     // A navigator that extends one of hkj-core's navigator bases inherits it; one that does not
     // declares its own.
-    Optional<ExecutableElement> toPath =
-        ElementFilter.methodsIn(processingEnv.getElementUtils().getAllMembers(navigator)).stream()
-            .filter(
-                method ->
-                    method.getSimpleName().contentEquals("toPath")
-                        && method.getModifiers().contains(Modifier.PUBLIC)
-                        && method.getParameters().isEmpty())
-            .findFirst();
+    Optional<ExecutableElement> toPath = toPathOf(navigator);
     if (toPath.isEmpty()) {
       return new FieldShape.Unrecognised();
     }
@@ -1267,8 +1592,30 @@ public class NavigatorClassGenerator {
             path.tier(),
             ProcessorUtils.typeNameOf(focusType, declaredFocus, declared, analysis.targetPackage()),
             ClassName.get(navigator),
-            typeNamesOf(arguments.subList(1, arguments.size())))
+            typeNamesOf(arguments.subList(1, arguments.size())),
+            List.of())
         : new FieldShape.Unrecognised();
+  }
+
+  /**
+   * The public no-argument {@code toPath()} a navigator declares or inherits, looked for in the
+   * navigator and then in its supertypes. Only methods are asked for, so a class nested in the
+   * navigator is never read, and one this module cannot read leaves the navigator composable.
+   */
+  private Optional<ExecutableElement> toPathOf(TypeElement type) {
+    return ElementFilter.methodsIn(type.getEnclosedElements()).stream()
+        .filter(
+            method ->
+                method.getSimpleName().contentEquals("toPath")
+                    && method.getModifiers().contains(Modifier.PUBLIC)
+                    && method.getParameters().isEmpty())
+        .findFirst()
+        .or(
+            () ->
+                processingEnv.getTypeUtils().directSupertypes(type.asType()).stream()
+                    .map(supertype -> (TypeElement) ((DeclaredType) supertype).asElement())
+                    .flatMap(supertype -> toPathOf(supertype).stream())
+                    .findFirst());
   }
 
   /**
@@ -1767,10 +2114,7 @@ public class NavigatorClassGenerator {
     String recordName = record.getSimpleName().toString();
     String name = component.getSimpleName().toString();
     String targetName = target.record().getSimpleName().toString();
-    String fields =
-        declined.stream()
-            .map(field -> "'" + targetName + "." + field + "'")
-            .collect(Collectors.joining(" and "));
+    String fields = qualifiedFields(targetName, declined);
     Diagnostics.note(
         processingEnv.getMessager(),
         component,
@@ -1842,8 +2186,8 @@ public class NavigatorClassGenerator {
       return null; // Not navigable, filtered out, or declined: use the standard method
     }
 
-    String navigatorClassName = ProcessorUtils.capitalise(componentName) + "Navigator";
-    ClassName navigatorClass = focusClassOf(recordElement).nestedClass(navigatorClassName);
+    ClassName navigatorClass =
+        focusClassOf(recordElement).nestedClass(navigatorClassName(component));
     ParameterizedTypeName returnType =
         navigatorType(
             navigatorClass, recordTypeName, typeNamesOf(target.type().getTypeArguments()));

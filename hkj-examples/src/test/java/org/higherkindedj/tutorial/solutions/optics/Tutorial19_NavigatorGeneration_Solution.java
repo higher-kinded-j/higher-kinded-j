@@ -275,9 +275,8 @@ public class Tutorial19_NavigatorGeneration_Solution {
 
   /**
    * Why this is idiomatic: once a navigator chain ends, as it does at a navigator's own navigation
-   * methods under {@code maxNavigatorDepth = 1}, at a record without navigators, or where a hop
-   * widens the path, composing the lenses with {@code .via()} reaches the same field, and each hop
-   * names the lens it uses.
+   * methods under {@code maxNavigatorDepth = 1}, or at a record without navigators, composing the
+   * lenses with {@code .via()} reaches the same field, and each hop names the lens it uses.
    *
    * <p>Alternative: keep the default, under which depth ends no chain: each hop into a navigable
    * record returns a navigator. Each navigator class is generated once per record, so a long chain

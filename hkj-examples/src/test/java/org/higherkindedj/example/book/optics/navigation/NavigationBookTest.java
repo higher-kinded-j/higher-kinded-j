@@ -115,17 +115,16 @@ class NavigationBookTest {
   }
 
   @Test
-  @DisplayName("a hop onto the field's own path type navigates on, and a widening one does not")
-  void widenedHop() {
-    NavigationBook.WidenedHop hop =
-        NavigationBook.widenedHop(new OrderHistory(List.of(ORDER, ORDER)));
+  @DisplayName("a hop from a wider path navigates on, into a list or into one record")
+  void widerHop() {
+    NavigationBook.WiderHop hop = NavigationBook.widerHop(new OrderHistory(List.of(ORDER, ORDER)));
 
     List<BigDecimal> prices = ORDER.lines().stream().map(LineItem::price).toList();
     assertThat(hop.prices())
         .containsExactlyElementsOf(Stream.concat(prices.stream(), prices.stream()).toList());
     assertThat(hop.emails()).containsExactly("ada@example.com", "ada@example.com");
     assertThat(OrderHistoryFocus.orders().lines()).isInstanceOf(NavigatorTraversalPath.class);
-    assertThat(OrderHistoryFocus.orders().customer()).isNotInstanceOf(NavigatorTraversalPath.class);
+    assertThat(OrderHistoryFocus.orders().customer()).isInstanceOf(NavigatorTraversalPath.class);
   }
 
   @Test

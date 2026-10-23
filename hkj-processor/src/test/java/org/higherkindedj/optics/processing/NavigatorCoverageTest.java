@@ -550,6 +550,10 @@ class NavigatorCoverageTest {
                   + " 'inner' a plain path.")
           .inFile(holder)
           .onLineContaining(" inner)");
+      // The refusal is the one diagnostic: a form the same field would cost is not noted as well.
+      Assertions.assertThat(compilation.notes())
+          .extracting(note -> note.getMessage(null))
+          .noneMatch(note -> note.contains("Form"));
     }
   }
 

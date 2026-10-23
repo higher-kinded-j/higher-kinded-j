@@ -396,10 +396,10 @@ public class NavigatorExample {
    * Demonstrates what {@code maxNavigatorDepth} does, and does not, change.
    *
    * <p>With any value above 1, the default 3 included, each hop into another navigable record
-   * returns the navigator declared in the {@code Focus} class of the record the hop leaves, so
-   * depth ends no chain; a hop that widens the path still does. Only a value of 1 or less changes
-   * the generated code: a navigator's own navigation methods then return plain paths, and a further
-   * hop is composed with {@code .via()}.
+   * returns the navigator declared in the {@code Focus} class of the record the hop leaves, or its
+   * form for a wider path, so depth ends no chain. Only a value of 1 or less changes the generated
+   * code: a navigator's own navigation methods then return plain paths, and a further hop is
+   * composed with {@code .via()}.
    *
    * <pre>{@code
    * @GenerateFocus(maxNavigatorDepth = 2)

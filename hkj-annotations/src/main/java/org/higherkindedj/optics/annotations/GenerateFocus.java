@@ -106,14 +106,19 @@ public @interface GenerateFocus {
    *       nested in one another compose to the record they hold. So {@code List<LineItem> lines}
    *       gets a navigator over every line, and {@code lines().quantity()} chains. A {@code Kind}
    *       field the processor traverses gets one too.
-   *   <li>A navigation method hands on the next field's navigator only where the composed path has
-   *       the type of that field's own path: from {@code lines()}, a hop into another list chains,
-   *       and a hop into a plain record field returns the composed path.
+   *   <li>It has a form nested in it for each wider path type, {@code AffineForm} and {@code
+   *       TraversalForm}: the same navigator over that path. A hop that widens the path hands on
+   *       the form. So from {@code OrderHistoryFocus.orders()}, a navigator over a {@code
+   *       List<Order>}, {@code orders().customer()} returns {@code
+   *       OrderFocus.CustomerNavigator.TraversalForm}, and {@code .email()} chains.
    *   <li>It cannot navigate to a field of the record it reaches named like one of the path's own
    *       no-argument methods, such as {@code last} or {@code head}, since a call to it would reach
    *       the path's method instead. A record that writes {@code generateNavigators = true} is
    *       refused at the field that navigates; one that leaves the default keeps that field's plain
-   *       path, with a note.
+   *       path, with a note. A form is left out where its own path has such a method, such as
+   *       {@code headOption} on a {@code TraversalPath}, and a hop that would need it returns a
+   *       plain path. The record declaring the field is told so, with a note, if it writes {@code
+   *       generateNavigators = true}.
    * </ul>
    *
    * @return true to generate navigators, false for plain paths only (default: true, since 0.5.0)
@@ -131,10 +136,8 @@ public @interface GenerateFocus {
    *
    * <p>A value of {@code 2} or more, the default included, ends no chain. A hop into another
    * navigable record returns the navigator that the {@code Focus} class of the record it leaves
-   * declares for that field, and that navigator is generated once per record, so a longer chain
-   * generates no more code. A chain still ends where a hop widens the path: a navigator over an
-   * {@code Either}, a {@code @Nullable} field or a widened collection that hops into a record field
-   * returns the composed {@code AffinePath} or {@code TraversalPath}.
+   * declares for that field, or that navigator's form for a wider path. Each is generated once per
+   * record, so a longer chain generates no more code.
    *
    * <p>Default: 3.
    *

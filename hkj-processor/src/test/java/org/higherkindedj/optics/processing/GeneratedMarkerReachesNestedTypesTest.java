@@ -247,7 +247,10 @@ class GeneratedMarkerReachesNestedTypesTest {
             "@GenerateFocus navigators",
             List.of(new FocusProcessor()),
             List.of(COMPANY, ADDRESS),
-            Set.of("CompanyFocus$HeadquartersNavigator")),
+            Set.of(
+                "CompanyFocus$HeadquartersNavigator",
+                "CompanyFocus$HeadquartersNavigator$AffineForm",
+                "CompanyFocus$HeadquartersNavigator$TraversalForm")),
         Arguments.of(
             "@GenerateTraversals",
             List.of(new TraversalProcessor()),

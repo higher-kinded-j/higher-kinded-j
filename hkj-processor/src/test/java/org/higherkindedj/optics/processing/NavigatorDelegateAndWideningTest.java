@@ -535,12 +535,12 @@ class NavigatorDelegateAndWideningTest {
 
       assertThat(compilation).succeeded();
 
-      // Optional<Person> gets an affine navigator, and Person's navigator into its home is wider
-      // than that navigator can hand on, so the composed path comes back
+      // Optional<Person> gets an affine navigator, and a hop from it into Person's home lands on
+      // an AffinePath, so it hands on the affine form of Person's navigator into its home
       assertGeneratedCodeContains(
           compilation, "com.example.OrgFocus", "LeaderNavigator<Org> leader()");
       assertGeneratedCodeContains(
-          compilation, "com.example.OrgFocus", "AffinePath<S, Address> home()");
+          compilation, "com.example.OrgFocus", "PersonFocus.HomeNavigator.AffineForm<S> home()");
     }
   }
 
