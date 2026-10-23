@@ -79,7 +79,7 @@ Three recipe groups are shipped; each one has a composite that runs every recipe
 |-------|-----------|------|
 | Arity migration (0.2.x to 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | rewrites source |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers it cannot widen |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers whose elements have a field named like a path method |
 
 ### Arity migration (0.2.x to 0.3.0)
 
