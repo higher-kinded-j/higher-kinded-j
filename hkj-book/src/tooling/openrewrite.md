@@ -79,7 +79,7 @@ Three recipe groups are shipped; each one has a composite that runs every recipe
 |-------|-----------|------|
 | Arity migration (0.2.x to 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | rewrites source |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes and null errors |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers it cannot widen |
 
 ### Arity migration (0.2.x to 0.3.0)
 
@@ -131,19 +131,20 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes, and names in `widenFields` each container a 0.4.x navigator stepped into. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
 
-Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls they rewrite compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
+Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls and `widenFields` entries they write compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
 
 | Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all eight recipes below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all nine recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` overload bypassed witness type safety |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` becomes `CHAINABLE` and `ACCUMULATING` becomes `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` take the function alone, and `stateT.mapT(monad, f)` becomes `stateT.mapT(f)` |
+| `org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe` | On a `@GenerateFocus` record that writes `generateNavigators = true` and not `widenCollections = true`, adds to `widenFields` each field holding a `Map`, or third-party collection, of `@GenerateFocus` records, unless `includeFields` or `excludeFields` leaves it out. So `ImmutableList<Position> positions` gains `widenFields = "positions"`, and `positions().ticker()` compiles as it did on 0.4.x. A field whose elements have a field named like a path method, such as `last`, is marked instead, since 0.5.0 can give it no navigator |
 | `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks a `null` passed to a success or value factory, such as `Either.right`, `Try.success`, `VTask.succeed`, `State.pure`, `Context.succeed`, a `KindHelper` or context `pure`, or a `Path` factory such as `Path.ioPure`. It also marks a `null` `iterate` seed, `StateTuple` or `Writer` value, or stream element. A lambda that returns `null` is marked when given to `Try.of`, a deferred factory such as `VTask.of` or `IO.delay`, or the `map` of a lazy type, a `Path`, an `Either` or a `Writer`. The `map` of a `Maybe`, an `Optional` or a list, or of their Paths, is left alone, since there a null result means empty. A `CompletableFuture<Void>` given to `Path.future` is marked, as is `Void` as the value type of an `Either`, `Try`, lazy type or `Path`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
 | `org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe` | Marks a `null`, cast or not, passed as the error to `Either.left`, `EitherT.left`, `Maybe.toEither`, `raiseError` on any `MonadError`, or a `LensExtensions` or `PrismExtensions` helper, and a `mapLeft` or `bimap` error lambda that returns `null`. Also marks `Void` as the error type of an `Either`, `EitherT`, `EitherMonad` or `EitherTMonad`. Replace each with an error that says what went wrong, or `Unit.INSTANCE` where the error type is `Unit` |
 
@@ -153,10 +154,17 @@ rewrite {
 }
 ```
 
+`AddWidenFieldsForNavigatedContainersRecipe` finds its records by `generateNavigators = true` and keeps that setting, so run it before you take the setting out. Read its dry run for what it leaves to you:
+
+- **For each field it marks, rename the clashing element field.** Do it after the dry run and before `rewriteRun`, while the project is on 0.4.x. There the compiler reports each call through the old name; on 0.5.0, `byTicker().last()` would compile against the path's own `last()`. `rewriteRun` then widens the field. [A field named like a path method](../optics/focus_navigation.md#a-field-named-like-a-path-method) explains the clash.
+- **A setting or field list that is not a literal skips the record.** Widen its fields by hand.
+- **A note can remain where 0.4.x gave no navigator,** such as at a `Map` of `List`s, since widening it would change what its method returns. A note does not fail the build.
+- **An element whose module never ran the processor is widened anyway.** 0.5.0's note at the field says so; take the field out of `widenFields` to keep the container whole, as 0.4.x did.
+
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Three groups, three modes.** Arity migration and 0.5.0 deprecations rewrite source, apart from the null-success and null-error marks; the effect algebra helpers only flag call sites because their targets are user-specific generated code.
+* **Three groups, three modes.** Arity migration and 0.5.0 deprecations rewrite source, apart from the marks they leave for you; the effect algebra helpers only flag call sites because their targets are user-specific generated code.
 * **Always dry-run first.** `rewriteDryRun` (Gradle) or `mvn rewrite:dryRun` (Maven) shows the diff; `rewriteRun` applies it.
 * **Use the composite recipe.** Activating one of the three composites runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
 * **Recipe coverage tracks the library.** The same migrations also surface as compile-time checks in `hkj-checker`; pick whichever feedback loop fits the team.

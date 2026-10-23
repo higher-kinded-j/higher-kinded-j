@@ -182,11 +182,13 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a
 deprecated annotation that has no effect, replaces two deprecated `@PathSource` capabilities
 with the levels they generate, and drops the `Monad` argument that `StateT` no longer takes. It
-also marks, without rewriting, each null success or null error that 0.5.0 refuses: `rewriteRun` writes each mark
+adds to `@GenerateFocus`'s `widenFields` each container a 0.4.x navigator stepped into. It
+also marks, without rewriting, each null success or null error that 0.5.0 refuses, and each
+container it cannot widen: `rewriteRun` writes each mark
 into the source as a `/*~~(…)~~>*/` comment, to remove once the site is fixed. The composite recipe
 runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 before the
 project moves to 0.5.0: the recipes match the 0.4.x signatures, and the rewritten `StateT` calls
-compile only against 0.5.0, so bump the library straight after.
+and `widenFields` entries compile only against 0.5.0, so bump the library straight after.
 
 | Recipe | Change |
 |--------|--------|
@@ -197,6 +199,7 @@ compile only against 0.5.0, so bump the library straight after.
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` → `CHAINABLE` and `ACCUMULATING` → `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` → the function alone; `stateT.mapT(monad, f)` → `stateT.mapT(f)` |
+| `org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe` | On a `@GenerateFocus` record that writes `generateNavigators = true` and not `widenCollections = true`, adds to `widenFields` each field holding a `Map`, or third-party collection, of `@GenerateFocus` records, unless `includeFields` or `excludeFields` leaves it out. So `ImmutableList<Position> positions` gains `widenFields = "positions"`, and `positions().ticker()` compiles as it did on 0.4.x. Marks, without rewriting, a field whose elements have a field named like a path method, such as `last`, since 0.5.0 can give it no navigator: rename that field while the project is on 0.4.x. Appends where `widenFields` is written, and keeps `generateNavigators = true`. A note can remain at a field that had no navigator in 0.4.x, such as a `Map` of `List`s |
 | `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks, without rewriting: `null` passed to a success or value factory, such as `Either.right`, `Try.success`, `VTask.succeed`, `State.pure`, `Context.succeed`, a `KindHelper` or context `pure`, or a `Path` factory such as `Path.ioPure`; a `null` `iterate` seed, `StateTuple` or `Writer` value, or stream element; a lambda returning `null` given to `Try.of`, a deferred factory such as `VTask.of` or `IO.delay`, or the `map` of a lazy type, a `Path`, an `Either` or a `Writer` (never that of a `Maybe`, an `Optional` or a list, or of their Paths); a `CompletableFuture<Void>` given to `Path.future`; and `Void` as the value type of an `Either`, `Try`, lazy type or `Path`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
 | `org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe` | Marks, without rewriting: `null`, cast or not, passed as the error to `Either.left`, `EitherT.left`, `Maybe.toEither`, `raiseError` on any `MonadError`, or a `LensExtensions` or `PrismExtensions` helper; a `mapLeft` or `bimap` error lambda returning `null`; `Void` as the error type of an `Either`, `EitherT`, `EitherMonad` or `EitherTMonad`. Replace each with an error that says what went wrong, or `Unit.INSTANCE` where the error type is `Unit` |
 
