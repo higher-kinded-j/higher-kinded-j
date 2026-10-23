@@ -749,7 +749,9 @@ public interface VStream<A> extends VStreamKind<A> {
    * list grows as they arrive, so a size such as {@code Integer.MAX_VALUE} does not allocate that
    * many slots before the first element is read.
    */
-  private static final int CHUNK_BATCH_INITIAL_CAPACITY = 1024;
+  private static int chunkBatchInitialCapacity(int size) {
+    return Math.min(size, 1024);
+  }
 
   /**
    * Groups elements into non-empty lists of at most {@code size} elements. The last chunk may
@@ -784,7 +786,7 @@ public interface VStream<A> extends VStreamKind<A> {
     VStream<A> self = this;
     return DeferredStream.deferring(
         () -> {
-          List<A> batch = new ArrayList<>(Math.min(size, CHUNK_BATCH_INITIAL_CAPACITY));
+          List<A> batch = new ArrayList<>(chunkBatchInitialCapacity(size));
           VStream<A> current = self;
 
           try {
