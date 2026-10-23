@@ -356,31 +356,107 @@ class NavigatorRulesTest {
           "ListNavigator<S> extends NavigatorTraversalPath<S, @Nullable Leaf>");
     }
 
-    @Test
-    @DisplayName("left whole, with an element widening could not navigate into, draws no note")
-    void aClashingElementDrawsNoNote() {
-      JavaFileObject name =
-          record(
-              "Name",
-              """
-              @GenerateFocus
-              public record Name(String first, String last) {}
-              """);
-      JavaFileObject roster =
-          record(
-              "Roster",
-              """
-              @GenerateFocus(generateNavigators = true)
-              public record Roster(List<Map<String, Name>> groups) {}
-              """);
+    @ParameterizedTest(name = "{0} over ({1})")
+    @CsvSource(
+        delimiterString = " | ",
+        quoteCharacter = '"',
+        textBlock =
+            """
+            Map<String, Name> | String first, String last | String first, String surname | 'Name.last' | last()
+            List<Map<String, Name>> | String first, String last | String first, String surname | 'Name.last' | last()
+            Map<String, Name> | String head, String last | String top, String surname | 'Name.head' and 'Name.last' | head() and last()
+            Map<String, Name> | String first, String headOption | String first, String firstOption | 'Name.headOption' | headOption()
+            """)
+    @DisplayName(
+        "left whole, over elements with a field named like a path method, draws a note to rename"
+            + " the field first")
+    void aClashingElementDrawsANoteToRenameIt(
+        String container, String fields, String renamed, String named, String methods) {
+      Compilation noted =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(name(fields), roster(NAVIGATORS, container));
 
-      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(name, roster);
+      // Widening groups alone would reach Name, whose clashing fields its navigator, a
+      // TraversalPath, cannot navigate to, so the note asks for them to be renamed first. The
+      // headOption row tells the widened path from the whole container's, which has no such method.
+      assertThat(noted).succeededWithoutWarnings();
+      assertThat(noted)
+          .hadNoteContaining(
+              "record component 'Roster.groups' has no navigator over its Name elements. A"
+                  + " navigator steps into a container only where the record widens it, and Roster"
+                  + " does not widen 'groups'. Widened, its navigator would be a TraversalPath,"
+                  + " which has its own "
+                  + methods
+                  + ", so it could not navigate to "
+                  + named
+                  + ". Rename "
+                  + named
+                  + ", then add widenFields = \"groups\" to @GenerateFocus on Roster to navigate"
+                  + " into its elements, or add excludeFields = \"groups\" to @GenerateFocus on"
+                  + " Roster to go without this note.")
+          .inFile(roster(NAVIGATORS, container))
+          .onLineContaining("groups");
 
-      // Widening groups would reach Name, whose last() a traversal navigator already has, so the
-      // note's fix would lead straight to that refusal.
-      assertThat(compilation).succeededWithoutWarnings();
-      Assertions.assertThat(compilation.notes())
+      Compilation followed =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  name(renamed),
+                  roster(
+                      "@GenerateFocus(generateNavigators = true, widenFields = \"groups\")",
+                      container));
+      assertThat(followed).succeededWithoutWarnings();
+      Assertions.assertThat(followed.notes())
           .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
+      assertGeneratedCodeContains(
+          followed, "com.example.RosterFocus", "public static GroupsNavigator<Roster> groups()");
+    }
+
+    @Test
+    @DisplayName(
+        "left whole, over elements with a clashing field, can be kept whole without a note")
+    void aClashingElementCanBeKeptWhole() {
+      Compilation kept =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  name("String first, String last"),
+                  roster(
+                      "@GenerateFocus(generateNavigators = true, excludeFields = \"groups\")",
+                      "Map<String, Name>"));
+
+      assertThat(kept).succeededWithoutWarnings();
+      Assertions.assertThat(kept.notes())
+          .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
+      assertGeneratedCodeContains(
+          kept,
+          "com.example.RosterFocus",
+          "public static FocusPath<Roster, Map<String, Name>> groups()");
+    }
+
+    private static final String NAVIGATORS = "@GenerateFocus(generateNavigators = true)";
+
+    private static JavaFileObject name(String fields) {
+      return record(
+          "Name",
+          """
+          @GenerateFocus
+          public record Name(%s) {}
+          """
+              .formatted(fields));
+    }
+
+    /** A roster of groups, held in the given container, under the given annotation. */
+    private static JavaFileObject roster(String annotation, String container) {
+      return record(
+          "Roster",
+          annotation
+              + """
+
+              public record Roster(%s groups) {}
+              """
+                  .formatted(container));
     }
 
     private static JavaFileObject holder(String annotation) {

@@ -309,9 +309,7 @@ public class NavigatorClassGenerator {
                         + " would be "
                         + clash.tier().withArticle()
                         + ", which has its own "
-                        + clash.fields().stream()
-                            .map(field -> field + "()")
-                            .collect(Collectors.joining(" and "))
+                        + noArgumentCalls(clash.fields())
                         + ", so it could not navigate to "
                         + qualifiedFields(targetName, clash.fields())
                         + ", and a hop into '"
@@ -335,6 +333,25 @@ public class NavigatorClassGenerator {
             + ", or remove generateNavigators = true from @GenerateFocus on "
             + record.getSimpleName()
             + " to go without this note.");
+  }
+
+  /** Calls to no-argument methods as a message names them: {@code head() and last()}. */
+  private static String noArgumentCalls(List<String> methods) {
+    return methods.stream().map(method -> method + "()").collect(Collectors.joining(" and "));
+  }
+
+  /**
+   * The sentence saying why widening a container would still give it no navigator: the widened
+   * navigator has methods of its own named like fields of the record it reaches.
+   */
+  private static String widenedClash(Tier tier, String targetName, List<String> clashes) {
+    return "Widened, its navigator would be "
+        + tier.withArticle()
+        + ", which has its own "
+        + noArgumentCalls(clashes)
+        + ", so it could not navigate to "
+        + qualifiedFields(targetName, clashes)
+        + ".";
   }
 
   /** Fields of a record as a message names them: {@code 'Customer.headOption' and ...}. */
@@ -1833,6 +1850,12 @@ public class NavigatorClassGenerator {
    * it, on a record that asks for navigators in so many words. A record that writes {@code
    * generateNavigators = true} may expect the container to be stepped into; one that leaves the
    * default says nothing about it, so is told nothing.
+   *
+   * <p>Where the element has a field named like a method of the widened path, widening alone would
+   * lead straight to the refusal of a navigator that cannot navigate to it, so the note asks for
+   * the field to be renamed first. A call written for the navigator, such as {@code
+   * byTicker().last()}, may still compile against the whole container's path and fail when the path
+   * runs, so the field is not left without a word.
    */
   private void noteUnwidenedContainer(TypeElement record, RecordComponentElement component) {
     // Only a container left whole stops the method short of a record that widening would reach:
@@ -1846,17 +1869,34 @@ public class NavigatorClassGenerator {
             != null) {
       return;
     }
-    // Widening would give no navigator either where the element has a field named like a path
-    // method: following the note would lead straight to that refusal.
     MethodPath widened = widenedPath(record, component);
     Target element = navigableElement(widened.focus(), companionPackage(record));
-    if (element == null
-        || !element.instantiable()
-        || !inheritedNames(widened.tier(), element).isEmpty()) {
+    if (element == null || !element.instantiable()) {
       return;
     }
     String recordName = record.getSimpleName().toString();
     String name = component.getSimpleName().toString();
+    String elementName = element.record().getSimpleName().toString();
+    String reason =
+        "A navigator steps into a container only where the record widens it, and "
+            + recordName
+            + " does not widen '"
+            + name
+            + "'.";
+    String widen = addToFieldList(record, "widenFields", name) + " to navigate into its elements";
+    String fix = ProcessorUtils.capitalise(widen) + ".";
+    List<String> clashes = inheritedNames(widened.tier(), element);
+    if (!clashes.isEmpty()) {
+      reason += " " + widenedClash(widened.tier(), elementName, clashes);
+      fix =
+          "Rename "
+              + qualifiedFields(elementName, clashes)
+              + ", then "
+              + widen
+              + ", or "
+              + keepPlainPath(record, name)
+              + " to go without this note.";
+    }
     Diagnostics.note(
         processingEnv.getMessager(),
         component,
@@ -1866,15 +1906,10 @@ public class NavigatorClassGenerator {
             + "."
             + name
             + "' has no navigator over its "
-            + element.record().getSimpleName()
+            + elementName
             + " elements.",
-        "A navigator steps into a container only where the record widens it, and "
-            + recordName
-            + " does not widen '"
-            + name
-            + "'.",
-        ProcessorUtils.capitalise(addToFieldList(record, "widenFields", name))
-            + " to navigate into its elements.");
+        reason,
+        fix);
   }
 
   /**
@@ -1914,7 +1949,8 @@ public class NavigatorClassGenerator {
               + name
               + "\".";
       // Widening may expose a path-method clash too. In that case offering widening alone would
-      // lead straight to a note or error, so offer the existing way to keep the plain path.
+      // lead straight to a note or error, so the clashing fields are renamed first, as the
+      // unwidened-container note asks.
       List<String> clashes = inheritedNames(widened.tier(), widenedTarget);
       if (clashes.isEmpty()) {
         fix =
@@ -1923,8 +1959,16 @@ public class NavigatorClassGenerator {
                     ? "."
                     : " to step into its " + widenedTarget.record().getSimpleName() + " elements.");
       } else {
-        reason += " Its widened navigator would also clash with target fields " + clashes + ".";
-        fix = ProcessorUtils.capitalise(keepPlainPath(record, name)) + " to keep its plain path.";
+        String targetName = widenedTarget.record().getSimpleName().toString();
+        reason += " " + widenedClash(widened.tier(), targetName, clashes);
+        fix =
+            "Rename "
+                + qualifiedFields(targetName, clashes)
+                + ", then "
+                + addToFieldList(record, "widenFields", name)
+                + ", or "
+                + keepPlainPath(record, name)
+                + " to keep its plain path.";
       }
     } else if (refused != null) {
       reason =
@@ -2129,7 +2173,7 @@ public class NavigatorClassGenerator {
         "A navigator is "
             + methodPath(record, component).tier().withArticle()
             + ", which has its own "
-            + declined.stream().map(field -> field + "()").collect(Collectors.joining(" and "))
+            + noArgumentCalls(declined)
             + ", so it cannot navigate to "
             + fields
             + ", and "

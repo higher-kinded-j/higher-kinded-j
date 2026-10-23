@@ -134,7 +134,8 @@ A nested record's field named like one of the path's no-argument methods, such a
 `each` or `segments`, cannot be navigated to, since the call would reach the path's own method. On
 a record that leaves navigators to the default, the field that reaches it keeps its plain path,
 with a note; on one that writes `generateNavigators = true`, the processor refuses it. Rename the
-field, or keep the navigating field a plain path with `excludeFields`. The same goes for a form: a
+field, or keep the navigating field a plain path with `excludeFields`. An unwidened `Map` or other
+container of such records draws a note asking for the rename before `widenFields`. The same goes for a form: a
 target field named `headOption` or `toTraversal` leaves out the `TraversalForm`, and `toAffine` the
 `AffineForm`, so a hop into it from a wider path returns a plain path. The record declaring the
 field gets a note naming the field to rename, if it writes `generateNavigators = true`.
