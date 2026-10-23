@@ -502,7 +502,7 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 | `List<Address> addresses` | `AddressesNavigator<User>`, a `TraversalPath<User, Address>` |
 | `Map<String, Address> sites`, named in `widenFields` | `SitesNavigator<User>`, a `TraversalPath<User, Address>` |
 
-Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns them off.
+Each navigator has a form for each wider path type, nested in it, such as `AddressNavigator.TraversalForm`. A hop from a wider path, such as from a `List` of users into each one's `address`, returns that form, so the chain goes on. Navigators are on by default; `@GenerateFocus(generateNavigators = false)` turns them off.
 
 **Related:** [Collections, Optionals and Sealed Types](../optics/focus_navigation.md#fluent-navigation-with-generated-navigators), [Focus DSL](#focus-dsl), [Focus path type](#focus-path-type)
 

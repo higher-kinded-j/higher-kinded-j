@@ -6,6 +6,7 @@ import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -123,11 +124,17 @@ public final class WideningAnalysis {
   /** The path type a widening arrives at. */
   public enum Tier {
     /** {@code FocusPath} - exactly one element, always present. */
-    FOCUS,
+    FOCUS("FocusForm"),
     /** {@code AffinePath} - zero or one element. */
-    AFFINE,
+    AFFINE("AffineForm"),
     /** {@code TraversalPath} - zero or more elements. */
-    TRAVERSAL;
+    TRAVERSAL("TraversalForm");
+
+    private final String formName;
+
+    Tier(String formName) {
+      this.formName = formName;
+    }
 
     /**
      * Returns the tier reached by composing this one with another.
@@ -143,6 +150,27 @@ public final class WideningAnalysis {
         return AFFINE;
       }
       return FOCUS;
+    }
+
+    /**
+     * The tiers wider than this one, narrowest first: a navigator of this tier may have a form for
+     * each.
+     */
+    List<Tier> wider() {
+      return Arrays.stream(values()).filter(tier -> tier != this && widen(tier) == tier).toList();
+    }
+
+    /**
+     * The simple name of a navigator's form of this tier, nested in a navigator of a narrower one:
+     * {@code AffineForm} or {@code TraversalForm}. It is generated API, read back from a
+     * dependency's companion by that name, so it is spelled out here rather than derived. It names
+     * no optic type, so a compiler message naming the form cannot be read as one. A navigator's own
+     * name ends in {@code Navigator}, and its companion's in {@code Focus}, so a form never takes
+     * the name of a class it is nested in. No tier is narrower than {@code FOCUS}, so its name is
+     * never generated.
+     */
+    String formName() {
+      return formName;
     }
 
     /** The path class a method of this tier returns. */
@@ -167,7 +195,12 @@ public final class WideningAnalysis {
 
     /** The path class's simple name with its article, for a message: "an AffinePath". */
     String withArticle() {
-      return (this == AFFINE ? "an " : "a ") + description();
+      return article() + " " + description();
+    }
+
+    /** The article the path class's name takes: "an" for {@code AffinePath}, else "a". */
+    String article() {
+      return this == AFFINE ? "an" : "a";
     }
 
     /** The reader this tier's path offers, for the Javadoc example. */

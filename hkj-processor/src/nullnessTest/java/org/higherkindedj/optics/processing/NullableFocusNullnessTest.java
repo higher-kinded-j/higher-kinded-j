@@ -1478,6 +1478,18 @@ class NullableFocusNullnessTest {
                   public record Shed(Rack rack) {}
                   """),
               source(
+                  "com.example.Yard",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus
+                  public record Yard(List<Rack> racks, Optional<Rack> spareRack) {}
+                  """),
+              source(
                   "com.example.RackUses",
                   """
                   package com.example;
@@ -1495,6 +1507,11 @@ class NullableFocusNullnessTest {
                       TraversalPath<Rack, @Nullable String> pending = RackFocus.pending().value();
                       TraversalPath<Rack, @Nullable String> sparse = RackFocus.sparse().value();
                       TraversalPath<Shed, @Nullable String> composed = ShedFocus.rack().boxes().value();
+                      // Hops that widen the path hand on a navigator's form, which takes the
+                      // nullable type argument the navigator does.
+                      TraversalPath<Yard, @Nullable String> racked = YardFocus.racks().box().value();
+                      TraversalPath<Yard, @Nullable String> spares = YardFocus.racks().spare().value();
+                      AffinePath<Yard, @Nullable String> spareBox = YardFocus.spareRack().box().value();
                     }
                   }
                   """));

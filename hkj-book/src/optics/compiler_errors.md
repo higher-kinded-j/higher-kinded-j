@@ -34,6 +34,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
+| [`has no AffineForm`, `has no TraversalForm`](#generatefocus-no-form) | **Note.** A record that writes `generateNavigators = true` reaches a record with a field named like a wider path's own method, so a hop from that path returns the plain path |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
 | [`whose field cannot have a navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that cannot return a navigator |
 | [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
@@ -481,6 +482,31 @@ record Hamper(Bottle[] bottles) {}
 
 ```
 Note: @GenerateFocus: record component 'Hamper.bottles' has no navigator over its Bottle elements. A navigator steps into a container only where the record widens it, and Hamper does not widen 'bottles'. Add widenFields = "bottles" to @GenerateFocus on Hamper to navigate into its elements.
+```
+~~~
+
+### "@GenerateFocus: the navigator for 'X.y' has no TraversalForm" (a note) {#generatefocus-no-form}
+
+`X` writes `generateNavigators = true`, and its field `y` holds another `@GenerateFocus` record, `T`. `T` has a field named like a no-argument method that only a wider path has: `headOption` or `toTraversal` on a `TraversalPath`, or `toAffine` on an `AffinePath`. `y` keeps its own navigator, but not its form for that path, so a hop into `y` from such a path returns the plain path. The note names `AffineForm` where that is the form left out. It goes to `X`, which declares `y`, since the form belongs to `y`'s navigator; a record whose hop into `y` returns the plain path is not told.
+
+**Fix.** Rename the field of `T`, as the note says, and the navigator gets its form. To keep the name and go without the form, drop `generateNavigators = true` from `X`, since it is the default, and the note goes with it.
+
+~~~admonish note title="Why" collapsible=true
+A form is a navigator over the wider path, so it has that path's methods, and a navigation method of the same name would clash with one. Leaving the field out of the form would let `channels().feed().headOption()`, from a `List<Channel>`, compile against the path's own `headOption()`, which reads the first feed. So the form is left out. It is a note rather than an error because `y`'s own navigator is generated, and every hop from a path of its own type still chains.
+~~~
+
+~~~admonish example title="A declaration that draws it" collapsible=true
+<!-- verify:reports "the navigator for 'Channel.feed' has no TraversalForm" -->
+```java
+@GenerateFocus
+record Feed(String name, String headOption) {}
+
+@GenerateFocus(generateNavigators = true)
+record Channel(Feed feed) {}
+```
+
+```
+Note: @GenerateFocus: the navigator for 'Channel.feed' has no TraversalForm. A TraversalForm would be a TraversalPath, which has its own headOption(), so it could not navigate to 'Feed.headOption', and a hop into 'feed' from a TraversalPath returns a plain TraversalPath. Rename 'Feed.headOption' to give the navigator for 'feed' a TraversalForm, or remove generateNavigators = true from @GenerateFocus on Channel to go without this note.
 ```
 ~~~
 

@@ -181,16 +181,16 @@ A container of such records gets a navigator over the path its method already re
 
 An SPI container (a `Map`, an array, an Eclipse Collections `ImmutableList`, an `Either`) gets a navigator only where the record widens it. An `Either` is always widened; a `Map` or an array is widened under `widenCollections`, or when `widenFields` names the field. Containers nested in one another compose to the record they hold, so `List<Optional<LineItem>>` gets a navigator over each `LineItem` too. So does a [`Kind<F, A>` field](kind_field_support.md) of such records. A record with type parameters of its own gets one when the field names a type for each of them, as [A target with type parameters](#a-target-with-type-parameters) explains.
 
-A navigation method hands on the next field's navigator only where the composed path has the type of that field's own path. An order history holds a list of orders:
+A chain keeps navigating where a hop widens the path. An order history holds a list of orders:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:order_history}}
 ```
 
-`OrderFocus.lines()` is a traversal, as `orders()` is, so `orders().lines().price()` chains. `OrderFocus.customer()` is a `FocusPath`, and `orders().customer()` is a traversal, so it returns the plain `TraversalPath<OrderHistory, Customer>`. Its next hop is `.via(CustomerFocus.email())`:
+`OrderFocus.customer()` is a `FocusPath`, but `orders().customer()` reaches every order's customer, so it is a traversal. Each navigator has a form for each wider path type, nested in it as `AffineForm` and `TraversalForm`. So `orders().customer()` returns `OrderFocus.CustomerNavigator.TraversalForm`, and `.email()` chains:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:widened_hop}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:wider_hop}}
 ```
 
 ### What a navigator provides {#what-a-navigator-provides}
@@ -205,7 +205,7 @@ A navigator is its path, with one method added per field of the target type. Eve
 
 ### When to use navigators {#when-to-use-navigators}
 
-**They are on by default.** A navigator adds one small class per navigable field. Its type is a subtype of the plain path's, so code that names the path type keeps compiling, and your IDE can autocomplete the whole path.
+**They are on by default.** A navigable field gets up to three small classes: its navigator, and a form nested in it for each wider path type. Each is a subtype of the plain path it wraps, so code that names the path type keeps compiling, and your IDE can autocomplete the whole path.
 
 **Turn them off** with `@GenerateFocus(generateNavigators = false)` when generated-code size matters more than fluent hops, or the structures are shallow enough that `.via()` costs nothing.
 
@@ -302,7 +302,7 @@ Three things can keep such a navigator from being generated in full, and the pro
 
 ### Controlling navigator generation {#controlling-navigator-generation}
 
-**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain, though a hop that widens the path into a record still does, such as `orders().customer()` from a navigator over a `List`. Every other hop into a navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
+**Depth limiting**: only a `maxNavigatorDepth` of 1 or less changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain. Each hop into a navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field, or its form for a wider path. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
 
 <!-- verify -->
 ```java
@@ -336,7 +336,7 @@ Set one list or the other. Beside a non-empty `includeFields`, `excludeFields` i
 
 ### A field named like a path method {#a-field-named-like-a-path-method}
 
-A navigator already has its path's methods, so it cannot navigate to a field named like one that takes no arguments, such as `last`, `head` or `segments`. On a record that leaves navigators to the default, the field that reaches such a record keeps its plain path, with a note; on one that writes `generateNavigators = true`, the processor refuses it. [Compiler Messages](compiler_errors.md#generatefocus-navigator-cannot-navigate) gives both and their fixes. A field named like a method that takes arguments, such as `get` or `count`, navigates as usual.
+A navigator already has its path's methods, so it cannot navigate to a field named like one that takes no arguments, such as `last`, `head` or `segments`. On a record that leaves navigators to the default, the field that reaches such a record keeps its plain path, with a note; on one that writes `generateNavigators = true`, the processor refuses it. [Compiler Messages](compiler_errors.md#generatefocus-navigator-cannot-navigate) gives both and their fixes. A field named like a method that takes arguments, such as `get` or `count`, navigates as usual. A navigator's form for a wider path follows the same rule. A navigator into a record with a field named `headOption`, which only a `TraversalPath` has, has no `TraversalForm`, so a hop into that record from a list returns the plain path. The record that declares the field reaching it gets [a note](compiler_errors.md#generatefocus-no-form) naming the field to rename, if it writes `generateNavigators = true`.
 
 ### A target with type parameters {#a-target-with-type-parameters}
 
@@ -377,7 +377,7 @@ The note names the path the field's method returns, which follows the field's [p
 
 The processor reads each recognised annotation wherever its own `@Target` puts it: JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself. A nullable container widens through `.nullable()`, then its own step if it has one: `@Nullable List<T>` is `.nullable().each()`, so a null list has no elements. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
-Under a JSpecify checker such as NullAway, every optic and Focus path type takes a nullable focus. So a path typed `FocusPath<LegacyContact, @Nullable String>` checks, and its `.nullable()` is the non-null `AffinePath<LegacyContact, String>`. A read that hands the focus back in an `Optional` or a `Maybe`, such as `getOptional`, `preview` or `toMaybePath`, reads a null focus as absent, since neither can hold one. `toEitherPath` and `toTryPath` each have a form that says what a null focus becomes, as [A focus that may be null](focus_effects.md#a-focus-that-may-be-null) shows. To focus an Effect Path through such a path, pass `path.nullable()` to the Effect Path's `focus`, with the error that form takes.
+Under a JSpecify checker such as NullAway, every optic and Focus path type takes a nullable focus. So a path typed `FocusPath<LegacyContact, @Nullable String>` checks, and its `.nullable()` is the non-null `AffinePath<LegacyContact, String>`. A read that hands the focus back in an `Optional` or a `Maybe`, such as `getOptional`, `preview` or `toMaybePath`, reads a null focus as absent, since neither can hold one. `toEitherPath` and `toTryPath` each have an overload that says what a null focus becomes, as [A focus that may be null](focus_effects.md#a-focus-that-may-be-null) shows. To focus an Effect Path through such a path, pass `path.nullable()` to the Effect Path's `focus`, with the error that overload takes.
 
 ### Path widening {#path-widening}
 
@@ -444,7 +444,6 @@ Beyond three levels, compose the rest with `.via()`.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
 * **A navigator covers an annotated record, or a container of one.** An `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of one always gets a navigator, nested or not, and so does a `Kind` the processor traverses. A `Map` or an array gets one where the record widens it.
-* **A record hop from a wider path returns a plain path.** `orders().customer()` is a `TraversalPath`, so its next hop is `.via(CustomerFocus.email())`.
 * **A navigator is a path.** Every path method works on it, and it goes wherever a path of its type goes.
 ~~~
 

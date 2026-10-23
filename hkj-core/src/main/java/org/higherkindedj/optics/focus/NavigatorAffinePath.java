@@ -40,7 +40,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Each method here that takes no arguments is a name a field of a record the navigator reaches
  * cannot take, since a navigation method of that name would clash with it. Adding one changes what
- * such records may declare.
+ * such records may declare, and leaves a navigator into a record with a field of that name without
+ * its {@code AffineForm}, which a hop from a wider path hands on.
  *
  * <p>This class exists for generated code. Write an {@link AffinePath} by composing the paths the
  * generated companions publish, or with {@link AffinePath#of(Affine)}.

@@ -28,7 +28,8 @@ the claim, since the library can change under it.
   `OrderFocus.lines().price()`: an `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of
   records always gets a navigator, nested or not, and so does a `Kind` the processor traverses. A `Map`, an array or a third-party collection of
   records gets one only where the record widens it, through `widenCollections` or `widenFields`. A
-  hop into one record from a wider path, such as `orders().customer()`, returns a plain path.
+  hop into one record from a wider path, such as `orders().customer()`, returns the field's
+  navigator in its form for that path, `OrderFocus.CustomerNavigator.TraversalForm`, so it chains too.
   `maxNavigatorDepth` limits nothing above 1, so never document a deeper limit.
 - **`andThen` has an overload for every pair** of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal`,
   so no chain needs `asTraversal()` first. Composition Rules' table is generated from the overloads

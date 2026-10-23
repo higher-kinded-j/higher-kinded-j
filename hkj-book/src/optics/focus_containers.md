@@ -101,7 +101,7 @@ To widen some containers and keep others whole, name the fields instead: `@Gener
 
 Navigators follow the same rule rather than adding to it. A container whose *element* is itself a `@GenerateFocus` record gets a navigator over its elements wherever its method steps into them. A `List<Address>` always does, so its method returns a navigator and the next hop, such as `.city()`, chains. `Map<String, Address>` stays a path to the whole map until `widenCollections` or `widenFields` says otherwise, and then its method returns a navigator over the values. Turning navigators on therefore never changes what a field's method focuses on.
 
-Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, you get the same path type. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
+Whichever way you reach a field, by the static method or by a navigator on a record that holds this one, it widens the same way. The setting that decides it belongs to the record that *declares* the component, not to the one navigating to it.
 
 ---
 

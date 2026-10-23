@@ -1639,8 +1639,11 @@ class MutationKillingPhase3Test {
               .getCharContent(true)
               .toString();
 
+      // The navigator's traversal form composes the same unwidened method, so it never steps
+      // into the list either.
       assertThat(code).contains("FocusPath<S, ArrayList<String>> values()");
-      assertThat(code).doesNotContain("TraversalPath");
+      assertThat(code).contains("TraversalPath<S, ArrayList<String>> values()");
+      assertThat(code).doesNotContain("TraversalPath<S, String>");
     }
 
     @Test
