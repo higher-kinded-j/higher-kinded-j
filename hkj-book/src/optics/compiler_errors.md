@@ -462,12 +462,14 @@ Note: @GenerateFocus: record component 'Signatory.name' has no navigator into Fu
 
 ### "@GenerateFocus: record component 'X.y' has no navigator over its T elements" (a note) {#generatefocus-no-navigator-over-elements}
 
-`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen, or a container holding one, such as `List<Map<String, Item>>`. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead.
+`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen, or a container holding one, such as `List<Map<String, Item>>`. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead. Where `T` has a field named like a method of the widened path, such as `last`, the note names that field too, since widening `y` alone would draw [the cannot-navigate error](#generatefocus-navigator-cannot-navigate).
 
-**Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. `widenCollections = true` widens every such container instead. To keep the container whole, drop `generateNavigators = true`, which is the default, and the note goes with it.
+**Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. Where the note names a field of `T`, rename it first, or add `y` to `excludeFields` to keep the container whole. `widenCollections = true` widens every such container instead. To keep the container whole otherwise, drop `generateNavigators = true`, which is the default, and the note goes with it. Whichever you choose, find each call through a field the note names, such as `byTicker().last()`, by hand: it compiles against the path's own `last()`, so the compiler cannot point at it.
 
 ~~~admonish note title="Why" collapsible=true
 Widening decides what a field's method focuses on, and a navigator only adds methods to that path, so turning navigators on never changes it. A record that writes `generateNavigators = true` out may still expect a navigator over a container's elements, so it is told which `widenFields` value gives one. A record that leaves navigators to the default asked for nothing, and is told nothing.
+
+A call written for a navigator over the elements, such as `byTicker().ticker()`, does not compile against the container's path, so the compiler points at it. One through a field named like a path method, such as `byTicker().last()`, compiles against the path's own `last()` and fails when the path reads. Renaming the field does not change that call.
 ~~~
 
 ~~~admonish example title="A declaration that draws it" collapsible=true
@@ -482,6 +484,21 @@ record Hamper(Bottle[] bottles) {}
 
 ```
 Note: @GenerateFocus: record component 'Hamper.bottles' has no navigator over its Bottle elements. A navigator steps into a container only where the record widens it, and Hamper does not widen 'bottles'. Add widenFields = "bottles" to @GenerateFocus on Hamper to navigate into its elements.
+```
+~~~
+
+~~~admonish example title="A declaration that draws it with a field to rename" collapsible=true
+<!-- verify:reports "Rename 'Quote.last', then add widenFields" -->
+```java
+@GenerateFocus
+record Quote(String ticker, double last) {}
+
+@GenerateFocus(generateNavigators = true)
+record Book(Map<String, Quote> byTicker) {}
+```
+
+```
+Note: @GenerateFocus: record component 'Book.byTicker' has no navigator over its Quote elements. A navigator steps into a container only where the record widens it, and Book does not widen 'byTicker'. Widened, its navigator would be a TraversalPath, which has its own last(), so it could not navigate to 'Quote.last'. Rename 'Quote.last', then add widenFields = "byTicker" to @GenerateFocus on Book to navigate into its elements, or add excludeFields = "byTicker" to @GenerateFocus on Book to go without this note.
 ```
 ~~~
 

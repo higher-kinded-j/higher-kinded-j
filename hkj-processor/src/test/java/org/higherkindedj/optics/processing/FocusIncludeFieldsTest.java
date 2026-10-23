@@ -727,7 +727,8 @@ class FocusIncludeFieldsTest {
     assertThat(written).hadWarningCount(3);
     assertThat(written)
         .hadWarningContaining(
-            "Remove \"sites\" from includeFields on Subject to keep its plain path.");
+            "Rename 'Clash.last', then add widenFields = \"sites\" to @GenerateFocus on Subject, or"
+                + " remove \"sites\" from includeFields on Subject to keep its plain path.");
     assertThat(written)
         .hadWarningContaining(
             "Replace \"id\" in includeFields on Subject with a navigator field from [address].");
@@ -903,10 +904,12 @@ class FocusIncludeFieldsTest {
     assertThat(written).succeeded();
     assertThat(written).hadWarningCount(1);
     assertThat(written)
-        .hadWarningContaining("Its widened navigator would also clash with target fields [last].");
-    assertThat(written)
         .hadWarningContaining(
-            "Remove includeFields and replace generateNavigators = true with generateNavigators = false on Subject");
+            "Widened, its navigator would be a TraversalPath, which has its own last(), so it"
+                + " could not navigate to 'Clash.last'. Rename 'Clash.last', then add widenFields ="
+                + " \"sites\" to @GenerateFocus on Subject, or remove includeFields and replace"
+                + " generateNavigators = true with generateNavigators = false on Subject to keep"
+                + " its plain path.");
     clean(
         compile(
             source(
@@ -914,6 +917,18 @@ class FocusIncludeFieldsTest {
                 "@GenerateFocus(generateNavigators = false)",
                 "Map<String, Clash> sites"),
             "-Werror"));
+    // Following the rename instead gives the field its navigator, and the warning goes.
+    clean(
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withOptions("-Werror")
+            .compile(
+                source("Clash", "@GenerateFocus", "String surname"),
+                source(
+                    "Subject",
+                    "@GenerateFocus(generateNavigators = true, includeFields = \"sites\","
+                        + " widenFields = \"sites\")",
+                    "Map<String, Clash> sites")));
   }
 
   @Test
