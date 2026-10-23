@@ -745,8 +745,15 @@ public interface VStream<A> extends VStreamKind<A> {
   // =====================================================================
 
   /**
+   * Initial capacity of a chunk batch. A larger size still collects up to that many elements; the
+   * list grows as they arrive, so a size such as {@code Integer.MAX_VALUE} does not allocate that
+   * many slots before the first element is read.
+   */
+  private static final int CHUNK_BATCH_INITIAL_CAPACITY = 1024;
+
+  /**
    * Groups elements into non-empty lists of at most {@code size} elements. The last chunk may
-   * contain than {@code size} elements if the stream length is not an exact multiple.
+   * contain fewer than {@code size} elements if the stream length is not an exact multiple.
    *
    * <p>A chunk is only emitted once it holds an element, so each one is a {@link NonEmptyList}: its
    * {@link NonEmptyList#head() head}, {@link NonEmptyList#reduce reduce}, {@link NonEmptyList#min
@@ -755,6 +762,10 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p>Chunks are produced lazily (on demand), but elements within each chunk are collected
    * eagerly. This means a chunk is only produced when pulled, but once pulled, all {@code size}
    * elements for that chunk are consumed from the source stream immediately.
+   *
+   * <p>A size at least as large as the stream yields one chunk of every element. The batch list
+   * grows as elements arrive, so a size such as {@link Integer#MAX_VALUE} does not reserve a slot
+   * for every place in it before the first element is read.
    *
    * <p>{@code chunk(1)} is equivalent to {@code map(NonEmptyList::single)}, wrapping each element
    * in a single-element list.
@@ -773,7 +784,7 @@ public interface VStream<A> extends VStreamKind<A> {
     VStream<A> self = this;
     return DeferredStream.deferring(
         () -> {
-          List<A> batch = new ArrayList<>(size);
+          List<A> batch = new ArrayList<>(Math.min(size, CHUNK_BATCH_INITIAL_CAPACITY));
           VStream<A> current = self;
 
           try {

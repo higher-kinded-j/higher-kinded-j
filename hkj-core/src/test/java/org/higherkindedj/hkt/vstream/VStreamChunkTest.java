@@ -78,6 +78,55 @@ class VStreamChunkTest {
     }
 
     @Test
+    @DisplayName(
+        "chunk() with a size far larger than the stream, including Integer.MAX_VALUE, returns one chunk")
+    void chunkFarLargerThanStreamReturnsSingleChunk() {
+      VStream<Integer> stream = VStream.of(1, 2, 3);
+
+      for (int size : new int[] {100_000_000, Integer.MAX_VALUE}) {
+        assertThat(stream.chunk(size).toList().run())
+            .as("chunk(%s)", size)
+            .containsExactly(NonEmptyList.of(1, 2, 3));
+      }
+    }
+
+    @Test
+    @DisplayName("chunk(Integer.MAX_VALUE) on an empty stream returns no chunks")
+    void chunkMaxValueOnEmptyStreamReturnsEmpty() {
+      assertThat(VStream.<Integer>empty().chunk(Integer.MAX_VALUE).toList().run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("chunk() holds every element when the stream is long and the size is longer")
+    void chunkHoldsEveryElementWhenSizeExceedsALongStream() {
+      List<NonEmptyList<Integer>> chunks =
+          VStream.range(0, 20_000).chunk(Integer.MAX_VALUE).toList().run();
+
+      assertThat(chunks).hasSize(1);
+      assertThat(chunks.getFirst().size()).isEqualTo(20_000);
+      assertThat(chunks.getFirst().head()).isZero();
+      assertThat(chunks.getFirst().last()).isEqualTo(19_999);
+    }
+
+    @Test
+    @DisplayName("chunk() above a few thousand elements still splits on the given size")
+    void chunkAboveInitialCapacitySplitsOnSize() {
+      int size = 5_000;
+      List<NonEmptyList<Integer>> chunks = VStream.range(0, 12_000).chunk(size).toList().run();
+
+      assertThat(chunks).hasSize(3);
+      assertThat(chunks.get(0).size()).isEqualTo(size);
+      assertThat(chunks.get(0).head()).isZero();
+      assertThat(chunks.get(0).last()).isEqualTo(4_999);
+      assertThat(chunks.get(1).size()).isEqualTo(size);
+      assertThat(chunks.get(1).head()).isEqualTo(5_000);
+      assertThat(chunks.get(1).last()).isEqualTo(9_999);
+      assertThat(chunks.get(2).size()).isEqualTo(2_000);
+      assertThat(chunks.get(2).head()).isEqualTo(10_000);
+      assertThat(chunks.get(2).last()).isEqualTo(11_999);
+    }
+
+    @Test
     @DisplayName("chunk() on empty stream returns empty stream of chunks")
     void chunkEmptyStreamReturnsEmpty() {
       VStream<Integer> stream = VStream.empty();
@@ -368,6 +417,29 @@ class VStreamChunkTest {
 
       assertThatThrownBy(() -> stream.mapChunked(0, NonEmptyList::toJavaList))
           .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "mapChunked() with a size far larger than the stream, including Integer.MAX_VALUE, passes one batch")
+    void mapChunkedFarLargerThanStreamPassesOneBatch() {
+      for (int size : new int[] {100_000_000, Integer.MAX_VALUE}) {
+        List<NonEmptyList<Integer>> seen = new ArrayList<>();
+
+        List<Integer> result =
+            VStream.of(1, 2, 3)
+                .mapChunked(
+                    size,
+                    chunk -> {
+                      seen.add(chunk);
+                      return chunk.toJavaList();
+                    })
+                .toList()
+                .run();
+
+        assertThat(seen).as("batches for size %s", size).containsExactly(NonEmptyList.of(1, 2, 3));
+        assertThat(result).as("elements for size %s", size).containsExactly(1, 2, 3);
+      }
     }
   }
 }
