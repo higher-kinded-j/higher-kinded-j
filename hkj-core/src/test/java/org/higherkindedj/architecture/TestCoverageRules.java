@@ -57,7 +57,6 @@ class TestCoverageRules {
         .and()
         .haveSimpleNameEndingWith("Monad")
         .should(haveCorrespondingTestClass())
-        .allowEmptyShould(true)
         .check(productionClasses);
   }
 
@@ -83,21 +82,12 @@ class TestCoverageRules {
                             || testClass.getSimpleName().equals(baseClassName + "LawsTest")
                             || testClass.getSimpleName().contains(baseClassName));
 
-        // Also check if covered by a test factory
-        boolean coveredByTestFactory =
-            testClasses.stream()
-                .anyMatch(
-                    testClass ->
-                        testClass.getSimpleName().equals("MonadLawsTestFactory")
-                            || testClass.getSimpleName().equals("FunctorLawsTestFactory"));
-
-        if (!hasTestClass && !coveredByTestFactory) {
+        if (!hasTestClass) {
           events.add(
               SimpleConditionEvent.violated(
                   javaClass,
                   String.format(
-                      "Class %s does not have a corresponding test class (expected %s or coverage"
-                          + " in a TestFactory)",
+                      "Class %s does not have a corresponding test class (expected %s)",
                       javaClass.getName(), expectedTestClassName)));
         }
       }
