@@ -33,6 +33,7 @@ import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.resilience.Saga;
 import org.higherkindedj.hkt.resilience.SagaBuilder;
 import org.higherkindedj.hkt.resilience.SagaError;
+import org.higherkindedj.hkt.resilience.SagaSteps;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -94,6 +95,15 @@ final class Database {
   }
 }
 
+final class Inventory {
+
+  String reserveItem(String sku) {
+    return "reservation-" + sku;
+  }
+
+  void releaseItem(String sku) {}
+}
+
 final class ProfileService {
   UserProfile fetch(String id) {
     return new UserProfile(id);
@@ -113,6 +123,8 @@ class Fixture {
   static final String sql = "SELECT 1";
   static final Request request = new Request("/orders");
   static final List<String> userIds = List.of("u-1", "u-2");
+  static final List<String> skus = List.of("sku-1", "sku-2");
+  static final Inventory inventory = new Inventory();
 
   static final RetryPolicy retryPolicy = RetryPolicy.fixed(3, Duration.ofMillis(10));
   static final CircuitBreakerConfig config = CircuitBreakerConfig.defaults();

@@ -13,6 +13,7 @@ import org.higherkindedj.example.market.model.RiskAssessment;
 import org.higherkindedj.example.market.model.value.Price;
 import org.higherkindedj.example.market.model.value.Symbol;
 import org.higherkindedj.example.market.model.value.Volume;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 
 /**
@@ -49,10 +50,10 @@ public interface WindowAggregator {
   /**
    * Groups a window of assessments by symbol and computes an aggregated view for each group.
    *
-   * @param window the list of risk assessments in this window
+   * @param window the risk assessments in this window, which always holds at least one
    * @return a list of aggregated views, one per symbol present in the window
    */
-  private static List<AggregatedView> computeViewsBySymbol(List<RiskAssessment> window) {
+  private static List<AggregatedView> computeViewsBySymbol(NonEmptyList<RiskAssessment> window) {
     Map<Symbol, List<RiskAssessment>> bySymbol = new LinkedHashMap<>();
     for (RiskAssessment ra : window) {
       bySymbol.computeIfAbsent(ra.tick().tick().symbol(), k -> new ArrayList<>()).add(ra);

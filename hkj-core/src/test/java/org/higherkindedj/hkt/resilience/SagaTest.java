@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -11,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -102,7 +105,7 @@ class SagaTest {
       AtomicInteger compensationCount = new AtomicInteger(0);
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("step-a", VTask.of(() -> "a"), v -> compensationCount.incrementAndGet())
               .step(
                   "step-b",
@@ -223,7 +226,7 @@ class SagaTest {
       CopyOnWriteArrayList<Integer> order = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("step-1", VTask.of(() -> "a"), v -> order.add(1))
               .step("step-2", prev -> VTask.of(() -> "b"), v -> order.add(2))
               .step("step-3", prev -> VTask.of(() -> "c"), v -> order.add(3))
@@ -309,7 +312,7 @@ class SagaTest {
       RuntimeException compFailure = new RuntimeException("comp-2 failed");
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("charge", VTask.of(() -> "paid"), v -> {})
               .step(
                   "reserve",
@@ -386,7 +389,7 @@ class SagaTest {
     @DisplayName("SagaExecutionException message includes step name and failure count")
     void sagaExecutionExceptionMessageIncludesDetails() {
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step(
                   "payment",
                   VTask.of(() -> "paid"),
@@ -408,18 +411,117 @@ class SagaTest {
   class BuilderTests {
 
     @Test
-    @DisplayName("Empty builder throws IllegalStateException on build")
-    void emptyBuilderThrowsOnBuild() {
-      assertThatThrownBy(() -> SagaBuilder.<Unit>start().build())
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("at least one step");
+    @DisplayName("Builder before its first step offers the steps but no build")
+    void startOffersStepsButNoBuild() {
+      assertThat(SagaBuilder.Start.class.getMethods())
+          .extracting(Method::getName)
+          .contains("step", "stepAsync", "stepNoCompensation")
+          .doesNotContain("build");
+    }
+
+    @Test
+    @DisplayName("Every step method can add the first step")
+    void everyStepMethodCanAddTheFirstStep() {
+      List<String> compensated = new ArrayList<>();
+      RuntimeException boom = new RuntimeException("boom");
+
+      List<Saga<String>> firstSteps =
+          List.of(
+              SagaBuilder.start().step("a", VTask.of(() -> "a"), compensated::add).build(),
+              SagaBuilder.start().step("b", _ -> VTask.of(() -> "b"), compensated::add).build(),
+              SagaBuilder.start()
+                  .stepAsync(
+                      "c", _ -> VTask.of(() -> "c"), v -> VTask.exec(() -> compensated.add(v)))
+                  .build(),
+              SagaBuilder.start().stepNoCompensation("d", _ -> VTask.of(() -> "d")).build());
+
+      for (Saga<String> saga : firstSteps) {
+        saga.andThen(_ -> Saga.<String>noCompensation(VTask.fail(boom))).runSafe().run();
+      }
+
+      assertThat(compensated).containsExactly("a", "b", "c");
+    }
+
+    @Test
+    @DisplayName("A failing first step is reported by its name, whichever step method added it")
+    void failingFirstStepIsNamed() {
+      VTask<String> fails = VTask.fail(new RuntimeException("boom"));
+
+      List<Saga<String>> firstSteps =
+          List.of(
+              SagaBuilder.start().step("a", fails, _ -> {}).build(),
+              SagaBuilder.start().step("b", _ -> fails, _ -> {}).build(),
+              SagaBuilder.start()
+                  .stepAsync("c", _ -> fails, _ -> VTask.succeed(Unit.INSTANCE))
+                  .build(),
+              SagaBuilder.start().stepNoCompensation("d", _ -> fails).build());
+
+      assertThat(firstSteps)
+          .extracting(saga -> saga.runSafe().run().getLeft().failedStep())
+          .containsExactly("a", "b", "c", "d");
+    }
+
+    @Test
+    @DisplayName("A function-taking first step receives Unit.INSTANCE")
+    void firstStepReceivesUnit() {
+      List<Object> received = new ArrayList<>();
+
+      SagaBuilder.start()
+          .step("a", prev -> VTask.of(() -> received.add(prev)), _ -> {})
+          .stepAsync("b", _ -> VTask.of(() -> "b"), _ -> VTask.succeed(Unit.INSTANCE))
+          .build()
+          .run()
+          .run();
+      SagaBuilder.start()
+          .stepAsync(
+              "c", prev -> VTask.of(() -> received.add(prev)), _ -> VTask.succeed(Unit.INSTANCE))
+          .build()
+          .run()
+          .run();
+      SagaBuilder.start()
+          .stepNoCompensation("d", prev -> VTask.of(() -> received.add(prev)))
+          .build()
+          .run()
+          .run();
+
+      assertThat(received).containsExactly(Unit.INSTANCE, Unit.INSTANCE, Unit.INSTANCE);
+    }
+
+    @Test
+    @DisplayName("Steps added in a loop are held as SagaSteps, and a switch covers no steps")
+    void stepsFromDataCoverTheEmptyCase() {
+      List<String> released = new ArrayList<>();
+
+      Maybe<Saga<Unit>> both = reserveAll(List.of("x", "y"), released);
+
+      assertThat(reserveAll(List.of(), released).isNothing()).isTrue();
+      assertThat(both.map(saga -> saga.runSafe().run()))
+          .isEqualTo(Maybe.just(Either.right(Unit.INSTANCE)));
+      both.map(
+          saga ->
+              saga.andThen(_ -> Saga.<Unit>noCompensation(VTask.fail(new RuntimeException("boom"))))
+                  .runSafe()
+                  .run());
+
+      assertThat(released).containsExactly("y", "x");
+    }
+
+    private Maybe<Saga<Unit>> reserveAll(List<String> items, List<String> released) {
+      SagaSteps<Unit> steps = SagaBuilder.start();
+      for (String item : items) {
+        steps =
+            steps.step("reserve-" + item, VTask.succeed(Unit.INSTANCE), _ -> released.add(item));
+      }
+      return switch (steps) {
+        case SagaBuilder<Unit> builder -> Maybe.just(builder.build());
+        case SagaBuilder.Start _ -> Maybe.nothing();
+      };
     }
 
     @Test
     @DisplayName("Builder with single step produces working saga")
     void builderWithSingleStep() {
-      Saga<String> saga =
-          SagaBuilder.<Unit>start().step("only", VTask.of(() -> "sole"), v -> {}).build();
+      Saga<String> saga = SagaBuilder.start().step("only", VTask.of(() -> "sole"), v -> {}).build();
 
       String result = saga.run().run();
 
@@ -430,7 +532,7 @@ class SagaTest {
     @DisplayName("Builder step with standalone action ignores previous result")
     void builderStepWithStandaloneAction() {
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("first", VTask.of(() -> "A"), v -> {})
               .step("second", VTask.of(() -> "B"), v -> {})
               .build();
@@ -444,7 +546,7 @@ class SagaTest {
     @DisplayName("Builder step with dependent action uses previous result")
     void builderStepWithDependentAction() {
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("first", VTask.of(() -> "hello"), v -> {})
               .step("second", prev -> VTask.of(() -> prev + " world"), v -> {})
               .build();
@@ -458,7 +560,7 @@ class SagaTest {
     @DisplayName("Builder multi-step chain threads results through")
     void builderMultiStepChain() {
       Saga<Integer> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("init", VTask.of(() -> 1), v -> {})
               .step("double", prev -> VTask.of(() -> prev * 2), v -> {})
               .step("add-ten", prev -> VTask.of(() -> prev + 10), v -> {})
@@ -473,7 +575,7 @@ class SagaTest {
     @DisplayName("Builder stepNoCompensation adds step without compensation")
     void builderStepNoCompensation() {
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("first", VTask.of(() -> "a"), v -> {})
               .stepNoCompensation("final", prev -> VTask.of(() -> prev + "b"))
               .build();
@@ -489,7 +591,7 @@ class SagaTest {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("step-a", VTask.of(() -> "a"), v -> compensated.add("comp-a"))
               .step("step-b", prev -> VTask.of(() -> prev + "b"), v -> compensated.add("comp-b"))
               .step(
@@ -623,7 +725,7 @@ class SagaTest {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .stepAsync(
                   "async-step",
                   prev -> VTask.of(() -> "async-val"),
@@ -804,7 +906,7 @@ class SagaTest {
       Exception checkedException = new Exception("checked error in step");
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .<String>stepAsync(
                   "async-failing",
                   prev -> VTask.fail(checkedException),
@@ -825,7 +927,7 @@ class SagaTest {
       Exception checkedException = new Exception("checked sync error");
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .<String>step("sync-failing", VTask.fail(checkedException), v -> {})
               .build();
 
@@ -843,7 +945,7 @@ class SagaTest {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .stepAsync(
                   "step-1",
                   prev -> VTask.of(() -> "first"),
@@ -865,7 +967,7 @@ class SagaTest {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("step-1", VTask.of(() -> "first"), v -> compensated.add("comp-1"))
               .<String>step(
                   "step-2",
@@ -904,7 +1006,7 @@ class SagaTest {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .stepNoCompensation("no-comp", prev -> VTask.of(() -> "val"))
               .step(
                   "failing",

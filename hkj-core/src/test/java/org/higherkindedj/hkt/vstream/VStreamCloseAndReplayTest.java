@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
@@ -249,7 +250,7 @@ class VStreamCloseAndReplayTest {
         operator("distinct", VStream::distinct),
         operator("chunk", s -> s.chunk(2)),
         operator("chunkWhile", s -> s.chunkWhile((a, b) -> false)),
-        operator("mapChunked", s -> s.mapChunked(2, chunk -> chunk)),
+        operator("mapChunked", s -> s.mapChunked(2, NonEmptyList::toJavaList)),
         operator("concat", s -> s.concat(VStream.of(9))),
         operator("append", s -> s.append(9)),
         operator("zipWith", s -> s.zipWith(VStream.of(1, 2, 3, 4), Integer::sum)),
@@ -878,6 +879,21 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
+    @DisplayName("chunkWhile closes where its chunk got to when the predicate throws past a concat")
+    void chunkWhilePredicateClosesWhereItGotTo() {
+      AtomicInteger runs = new AtomicInteger();
+
+      // The chunk starts in of(1), so closing its start would not reach the finaliser
+      VStream<NonEmptyList<Integer>> chunked =
+          VStream.of(1)
+              .concat(VStream.of(1, 2, 3).onFinalize(VTask.exec(runs::incrementAndGet)))
+              .chunkWhile((a, b) -> b == 2 ? boom() : true);
+
+      assertThatThrownBy(() -> chunked.toList().run()).hasMessage("function failed");
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
     @DisplayName("recover after a throwing map emits the recovery, and the upstream is closed")
     void recoverAfterThrowingMapCloses() {
       AtomicInteger runs = new AtomicInteger();
@@ -1050,7 +1066,7 @@ class VStreamCloseAndReplayTest {
     void chunkClosesWhereItGotTo() {
       AtomicInteger runs = new AtomicInteger();
 
-      VStream<List<Integer>> chunked =
+      VStream<NonEmptyList<Integer>> chunked =
           VStream.of(0).concat(pullFailingAt(2, finalised(runs))).chunk(10);
 
       assertThatThrownBy(() -> chunked.toList().run()).hasMessage("pull failed");
@@ -1063,11 +1079,11 @@ class VStreamCloseAndReplayTest {
       AtomicInteger first = new AtomicInteger();
       AtomicInteger later = new AtomicInteger();
 
-      VStream<List<Integer>> firstChunk =
+      VStream<NonEmptyList<Integer>> firstChunk =
           VStream.<Integer>empty()
               .concat(pullFailingAt(1, finalised(first)))
               .chunkWhile((a, b) -> true);
-      VStream<List<Integer>> laterChunk =
+      VStream<NonEmptyList<Integer>> laterChunk =
           VStream.of(0).concat(pullFailingAt(2, finalised(later))).chunkWhile((a, b) -> true);
 
       assertThatThrownBy(() -> firstChunk.toList().run()).hasMessage("pull failed");
@@ -1157,15 +1173,17 @@ class VStreamCloseAndReplayTest {
     @DisplayName("distinct, chunk and chunkWhile give the same step on a second run")
     void statefulOperatorsRepeat() {
       VTask<VStream.Step<Integer>> distinct = VStream.of(1, 2).distinct().pull();
-      VTask<VStream.Step<List<Integer>>> chunk = VStream.of(1, 2, 3).chunk(2).pull();
-      VTask<VStream.Step<List<Integer>>> chunkWhile =
+      VTask<VStream.Step<NonEmptyList<Integer>>> chunk = VStream.of(1, 2, 3).chunk(2).pull();
+      VTask<VStream.Step<NonEmptyList<Integer>>> chunkWhile =
           VStream.of(1, 1, 2).chunkWhile(Objects::equals).pull();
 
       assertThat(emitted(distinct.run())).isEqualTo(emitted(distinct.run()));
-      assertThat(emitted(chunk.run())).isEqualTo(emitted(chunk.run())).isEqualTo(List.of(1, 2));
+      assertThat(emitted(chunk.run()))
+          .isEqualTo(emitted(chunk.run()))
+          .isEqualTo(NonEmptyList.of(1, 2));
       assertThat(emitted(chunkWhile.run()))
           .isEqualTo(emitted(chunkWhile.run()))
-          .isEqualTo(List.of(1, 1));
+          .isEqualTo(NonEmptyList.of(1, 1));
     }
   }
 
@@ -1191,22 +1209,23 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("a chunk already emitted does not change when its stream is pulled again")
-    void chunkWhileChunkStaysFixed() {
-      VStream<List<Integer>> rest =
+    @DisplayName("a chunkWhile tail pulled again emits the same chunk")
+    void chunkWhileTailReplaysItsChunk() {
+      VStream<NonEmptyList<Integer>> rest =
           tailOf(VStream.of(1, 2, 2, 2).chunkWhile(Objects::equals).pull().run());
 
       // Follow the skips to the stream whose pull emits the second chunk
-      VStream<List<Integer>> emitter = rest;
-      VStream.Step<List<Integer>> step = emitter.pull().run();
-      while (step instanceof VStream.Step.Skip<List<Integer>> skip) {
+      VStream<NonEmptyList<Integer>> emitter = rest;
+      VStream.Step<NonEmptyList<Integer>> step = emitter.pull().run();
+      while (step instanceof VStream.Step.Skip<NonEmptyList<Integer>> skip) {
         emitter = skip.tail();
         step = emitter.pull().run();
       }
-      List<Integer> second = emitted(step);
-      emitter.pull().run();
+      NonEmptyList<Integer> second = emitted(step);
+      NonEmptyList<Integer> again = emitted(emitter.pull().run());
 
       assertThat(second).containsExactly(2, 2, 2);
+      assertThat(again).isEqualTo(second);
     }
   }
 

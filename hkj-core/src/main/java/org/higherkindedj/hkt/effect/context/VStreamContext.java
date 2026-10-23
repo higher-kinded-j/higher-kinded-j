@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -334,12 +335,15 @@ public final class VStreamContext<A> {
   // ===== Chunking Operations =====
 
   /**
-   * Groups elements into lists of at most {@code size} elements.
+   * Groups elements into non-empty lists of at most {@code size} elements.
+   *
+   * <p>Delegates to {@link VStream#chunk(int)}.
    *
    * @param size the maximum number of elements per chunk; must be positive
-   * @return a new VStreamContext of element lists
+   * @return a new VStreamContext of non-empty element lists
+   * @throws IllegalArgumentException if size is not positive
    */
-  public VStreamContext<List<A>> chunk(int size) {
+  public VStreamContext<NonEmptyList<A>> chunk(int size) {
     return new VStreamContext<>(path.chunk(size));
   }
 

@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vstream.VStreamReactive;
@@ -270,12 +271,13 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   // ===== Chunking operations =====
 
   @Override
-  public VStreamPath<List<A>> chunk(int size) {
+  public VStreamPath<NonEmptyList<A>> chunk(int size) {
     return new DefaultVStreamPath<>(stream.chunk(size));
   }
 
   @Override
-  public <B> VStreamPath<B> mapChunked(int size, Function<List<A>, List<B>> f) {
+  public <B> VStreamPath<B> mapChunked(
+      int size, Function<? super NonEmptyList<A>, ? extends List<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
     return new DefaultVStreamPath<>(stream.mapChunked(size, f));
   }

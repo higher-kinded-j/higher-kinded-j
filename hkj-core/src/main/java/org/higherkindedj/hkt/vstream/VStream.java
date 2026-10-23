@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -744,24 +745,28 @@ public interface VStream<A> extends VStreamKind<A> {
   // =====================================================================
 
   /**
-   * Groups elements into lists of at most {@code size} elements. The last chunk may contain fewer
-   * than {@code size} elements if the stream length is not an exact multiple.
+   * Groups elements into non-empty lists of at most {@code size} elements. The last chunk may
+   * contain than {@code size} elements if the stream length is not an exact multiple.
+   *
+   * <p>A chunk is only emitted once it holds an element, so each one is a {@link NonEmptyList}: its
+   * {@link NonEmptyList#head() head}, {@link NonEmptyList#reduce reduce}, {@link NonEmptyList#min
+   * min} and {@link NonEmptyList#max max} always give a value. An empty stream gives no chunks.
    *
    * <p>Chunks are produced lazily (on demand), but elements within each chunk are collected
    * eagerly. This means a chunk is only produced when pulled, but once pulled, all {@code size}
    * elements for that chunk are consumed from the source stream immediately.
    *
-   * <p>{@code chunk(1)} is equivalent to {@code map(List::of)}, wrapping each element in a
-   * singleton list.
+   * <p>{@code chunk(1)} is equivalent to {@code map(NonEmptyList::single)}, wrapping each element
+   * in a single-element list.
    *
    * <p><b>Warning:</b> For infinite streams, this produces an infinite stream of chunks. Use {@link
    * #take(long)} to limit before or after chunking.
    *
    * @param size The maximum number of elements per chunk. Must be positive.
-   * @return A new {@code VStream} of element lists. Never null.
+   * @return A new {@code VStream} of non-empty element lists. Never null.
    * @throws IllegalArgumentException if size is not positive.
    */
-  default VStream<List<A>> chunk(int size) {
+  default VStream<NonEmptyList<A>> chunk(int size) {
     if (size <= 0) {
       throw new IllegalArgumentException("chunk size must be positive, got: " + size);
     }
@@ -784,7 +789,7 @@ public interface VStream<A> extends VStreamKind<A> {
                   if (batch.isEmpty()) {
                     return VStream.empty();
                   }
-                  return VStream.of(Collections.unmodifiableList(batch));
+                  return VStream.of(chunkOf(batch));
                 }
               }
             }
@@ -795,8 +800,7 @@ public interface VStream<A> extends VStreamKind<A> {
           }
 
           VStream<A> remaining = current;
-          return DerivedStream.concatContinuing(
-              VStream.of(Collections.unmodifiableList(batch)), remaining.chunk(size));
+          return DerivedStream.concatContinuing(VStream.of(chunkOf(batch)), remaining.chunk(size));
         },
         self);
   }
@@ -808,15 +812,16 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p>This is useful for grouping sorted data where consecutive elements with the same key should
    * be batched together.
    *
-   * <p>Each chunk contains at least one element. Single-element chunks are produced when the
-   * predicate fails for every pair of adjacent elements.
+   * <p>Each chunk contains at least one element, so each one is a {@link NonEmptyList}.
+   * Single-element chunks are produced when the predicate fails for every pair of adjacent
+   * elements. An empty stream gives no chunks.
    *
    * @param sameChunk A predicate testing whether two adjacent elements belong in the same chunk.
    *     Must not be null.
-   * @return A new {@code VStream} of element lists. Never null.
+   * @return A new {@code VStream} of non-empty element lists. Never null.
    * @throws NullPointerException if sameChunk is null.
    */
-  default VStream<List<A>> chunkWhile(BiPredicate<A, A> sameChunk) {
+  default VStream<NonEmptyList<A>> chunkWhile(BiPredicate<? super A, ? super A> sameChunk) {
     Objects.requireNonNull(sameChunk, "sameChunk must not be null");
     VStream<A> self = this;
     return DeferredStream.deferring(
@@ -829,11 +834,7 @@ public interface VStream<A> extends VStreamKind<A> {
               switch (step) {
                 case Step.Emit<A> e -> {
                   // Start building a chunk with this first element
-                  List<A> chunk = new ArrayList<>();
-                  chunk.add(e.value());
-                  A prev = e.value();
-                  VStream<A> tail = e.tail();
-                  return buildChunkWhile(chunk, prev, tail, sameChunk);
+                  return buildChunkWhile(e.value(), e.tail(), sameChunk);
                 }
                 case Step.Skip<A> s -> current = s.tail();
                 case Step.Done<A> _ -> {
@@ -854,8 +855,10 @@ public interface VStream<A> extends VStreamKind<A> {
    * chunk, and flattens the results back into a single stream.
    *
    * <p>This enables efficient batch operations such as bulk database inserts or batch API calls.
-   * The batch function receives a list of up to {@code size} elements and returns a list of
-   * transformed elements. The result lists are concatenated in order.
+   * The batch function receives each chunk {@link #chunk(int)} emits, a {@link NonEmptyList} of up
+   * to {@code size} elements, and returns a list of transformed elements. The result lists are
+   * concatenated in order. Pass {@link NonEmptyList#toJavaList() batch.toJavaList()} to a batch API
+   * that takes a {@link List}.
    *
    * <p>The batch function may return a list of a different size than its input, allowing expansion
    * or contraction of elements.
@@ -868,7 +871,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * @throws IllegalArgumentException if size is not positive.
    * @throws NullPointerException if f is null.
    */
-  default <B> VStream<B> mapChunked(int size, Function<List<A>, List<B>> f) {
+  default <B> VStream<B> mapChunked(
+      int size, Function<? super NonEmptyList<A>, ? extends List<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
     return chunk(size)
         .flatMap(
@@ -1571,17 +1575,18 @@ public interface VStream<A> extends VStreamKind<A> {
   }
 
   /**
-   * Internal helper for chunkWhile: continues building a chunk and recursively creates subsequent
-   * chunks.
+   * Internal helper for chunkWhile: builds the chunk that starts with {@code first}, then
+   * recursively creates subsequent chunks.
    */
-  private static <A> VStream<List<A>> buildChunkWhile(
-      List<A> chunk, A prev, VStream<A> tail, BiPredicate<A, A> sameChunk) {
+  private static <A> VStream<NonEmptyList<A>> buildChunkWhile(
+      A first, VStream<A> tail, BiPredicate<? super A, ? super A> sameChunk) {
     return DeferredStream.deferring(
         () -> {
           VStream<A> current = tail;
-          // A copy, so a second pull of this stream cannot change a chunk the first one emitted
-          List<A> currentChunk = new ArrayList<>(chunk);
-          A currentPrev = prev;
+          // A list of this run's own, so a second pull starts again from the first element
+          List<A> currentChunk = new ArrayList<>();
+          currentChunk.add(first);
+          A currentPrev = first;
 
           try {
             while (true) {
@@ -1595,17 +1600,14 @@ public interface VStream<A> extends VStreamKind<A> {
                     currentPrev = e.value();
                   } else {
                     // Current chunk is complete, start a new one
-                    List<A> emitChunk = Collections.unmodifiableList(currentChunk);
-                    List<A> newChunk = new ArrayList<>();
-                    newChunk.add(e.value());
                     return DerivedStream.concatContinuing(
-                        VStream.of(emitChunk),
-                        buildChunkWhile(newChunk, e.value(), e.tail(), sameChunk));
+                        VStream.of(chunkOf(currentChunk)),
+                        buildChunkWhile(e.value(), e.tail(), sameChunk));
                   }
                 }
                 case Step.Skip<A> s -> current = s.tail();
                 case Step.Done<A> _ -> {
-                  return VStream.of(Collections.unmodifiableList(currentChunk));
+                  return VStream.of(chunkOf(currentChunk));
                 }
               }
             }
@@ -1616,6 +1618,11 @@ public interface VStream<A> extends VStreamKind<A> {
           }
         },
         tail);
+  }
+
+  /** The chunk a batch makes, which the caller has checked holds an element. */
+  private static <A> NonEmptyList<A> chunkOf(List<A> batch) {
+    return NonEmptyList.of(batch.getFirst(), batch.subList(1, batch.size()));
   }
 
   /**

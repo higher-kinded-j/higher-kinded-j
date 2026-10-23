@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Affine;
@@ -1076,9 +1077,9 @@ class VStreamPathTest {
     void chunkGroupsCorrectly() {
       VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
 
-      VStreamPath<List<Integer>> chunked = path.chunk(2);
+      VStreamPath<NonEmptyList<Integer>> chunked = path.chunk(2);
 
-      List<List<Integer>> result = chunked.toList().unsafeRun();
+      List<NonEmptyList<Integer>> result = chunked.toList().unsafeRun();
       assertThat(result).hasSize(3);
       assertThat(result.get(0)).containsExactly(1, 2);
       assertThat(result.get(1)).containsExactly(3, 4);
@@ -1091,7 +1092,7 @@ class VStreamPathTest {
       VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5, 6);
 
       VStreamPath<Integer> result =
-          path.mapChunked(3, chunk -> chunk.stream().map(n -> n * 10).toList());
+          path.mapChunked(3, chunk -> chunk.map(n -> n * 10).toJavaList());
 
       assertThatVStreamPath(result).producesElements(10, 20, 30, 40, 50, 60);
     }
@@ -1102,10 +1103,9 @@ class VStreamPathTest {
       VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5, 6);
 
       // Chunk into batches of 3, then process each batch in parallel
-      VStreamPath<List<Integer>> chunked = path.chunk(3);
+      VStreamPath<NonEmptyList<Integer>> chunked = path.chunk(3);
       VStreamPath<Integer> result =
-          chunked.parEvalMap(
-              2, batch -> VTask.of(() -> batch.stream().mapToInt(Integer::intValue).sum()));
+          chunked.parEvalMap(2, batch -> VTask.of(() -> batch.reduce(Integer::sum)));
 
       assertThatVStreamPath(result).producesElements(6, 15);
     }
@@ -1115,7 +1115,7 @@ class VStreamPathTest {
     void chunkOnEmptyReturnsEmpty() {
       VStreamPath<Integer> path = Path.vstreamEmpty();
 
-      VStreamPath<List<Integer>> result = path.chunk(3);
+      VStreamPath<NonEmptyList<Integer>> result = path.chunk(3);
 
       assertThatVStreamPath(result).isEmpty();
     }

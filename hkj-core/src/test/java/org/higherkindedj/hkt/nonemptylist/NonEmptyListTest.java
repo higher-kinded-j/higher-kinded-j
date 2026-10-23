@@ -236,6 +236,14 @@ class NonEmptyListTest {
     }
 
     @Test
+    @DisplayName("stream gives the elements in order, head first")
+    void stream() {
+      assertThat(NonEmptyList.of(1, 2, 3).stream().map(n -> n * 10).toList())
+          .containsExactly(10, 20, 30);
+      assertThat(NonEmptyList.single("only").stream()).containsExactly("only");
+    }
+
+    @Test
     @DisplayName("is iterable in a for-each loop")
     void iterable() {
       int total = 0;

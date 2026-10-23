@@ -111,7 +111,7 @@ public final class Saga<A> {
     return singleStep(SagaStep.ofAsync(action, _ -> VTask.succeed(Unit.INSTANCE), "step-1"));
   }
 
-  /** Creates a named saga step. Package-private, used by {@link SagaBuilder}. */
+  /** Creates a named saga step. Package-private, used by {@link SagaSteps}. */
   @SuppressWarnings("unchecked")
   static <A> Saga<A> namedStep(String name, VTask<A> action, Function<A, VTask<Unit>> compensate) {
     SagaStep<A> step = SagaStep.ofAsync(action, compensate, name);

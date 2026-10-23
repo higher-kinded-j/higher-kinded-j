@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Each;
@@ -369,15 +370,15 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   // ===== Chunking operations =====
 
   /**
-   * Groups elements into lists of at most {@code size} elements.
+   * Groups elements into non-empty lists of at most {@code size} elements.
    *
    * <p>Delegates to {@link VStream#chunk(int)}.
    *
    * @param size the maximum number of elements per chunk; must be positive
-   * @return a new VStreamPath of element lists
+   * @return a new VStreamPath of non-empty element lists
    * @throws IllegalArgumentException if size is not positive
    */
-  VStreamPath<List<A>> chunk(int size);
+  VStreamPath<NonEmptyList<A>> chunk(int size);
 
   /**
    * Chunks the stream, applies a batch function to each chunk, and flattens the results.
@@ -385,13 +386,13 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    * <p>Delegates to {@link VStream#mapChunked(int, java.util.function.Function)}.
    *
    * @param size the maximum number of elements per batch; must be positive
-   * @param f the batch function to apply; must not be null
+   * @param f the batch function to apply to each non-empty chunk; must not be null
    * @param <B> the type of elements in the output
    * @return a new VStreamPath with transformed elements
    * @throws IllegalArgumentException if size is not positive
    * @throws NullPointerException if f is null
    */
-  <B> VStreamPath<B> mapChunked(int size, Function<List<A>, List<B>> f);
+  <B> VStreamPath<B> mapChunked(int size, Function<? super NonEmptyList<A>, ? extends List<B>> f);
 
   /**
    * Collects all elements in parallel batches. This is a terminal operation.

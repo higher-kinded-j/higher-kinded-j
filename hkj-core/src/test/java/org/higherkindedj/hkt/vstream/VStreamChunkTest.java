@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,7 @@ class VStreamChunkTest {
     void chunkExactDivisor() {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5, 6);
 
-      List<List<Integer>> chunks = stream.chunk(3).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(3).toList().run();
 
       assertThat(chunks).hasSize(2);
       assertThat(chunks.get(0)).containsExactly(1, 2, 3);
@@ -36,7 +37,7 @@ class VStreamChunkTest {
     void chunkLastChunkSmaller() {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5);
 
-      List<List<Integer>> chunks = stream.chunk(3).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(3).toList().run();
 
       assertThat(chunks).hasSize(2);
       assertThat(chunks.get(0)).containsExactly(1, 2, 3);
@@ -44,16 +45,25 @@ class VStreamChunkTest {
     }
 
     @Test
-    @DisplayName("chunk(1) equivalent to wrapping each in singleton list")
-    void chunkOfOneEquivalentToMapListOf() {
+    @DisplayName("chunk() emits non-empty lists, so head and reduce always give a value")
+    void chunkEmitsNonEmptyLists() {
+      VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5);
+
+      assertThatVStream(stream.chunk(2).map(NonEmptyList::head)).producesElements(1, 3, 5);
+      assertThatVStream(stream.chunk(2).map(chunk -> chunk.reduce(Integer::sum)))
+          .producesElements(3, 7, 5);
+    }
+
+    @Test
+    @DisplayName("chunk(1) equivalent to map(NonEmptyList::single)")
+    void chunkOfOneEquivalentToMapSingle() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      List<List<Integer>> chunks = stream.chunk(1).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(1).toList().run();
 
-      assertThat(chunks).hasSize(3);
-      assertThat(chunks.get(0)).containsExactly(1);
-      assertThat(chunks.get(1)).containsExactly(2);
-      assertThat(chunks.get(2)).containsExactly(3);
+      assertThat(chunks)
+          .containsExactly(NonEmptyList.single(1), NonEmptyList.single(2), NonEmptyList.single(3))
+          .isEqualTo(stream.map(NonEmptyList::single).toList().run());
     }
 
     @Test
@@ -61,7 +71,7 @@ class VStreamChunkTest {
     void chunkLargerThanStreamReturnsSingleChunk() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      List<List<Integer>> chunks = stream.chunk(10).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(10).toList().run();
 
       assertThat(chunks).hasSize(1);
       assertThat(chunks.getFirst()).containsExactly(1, 2, 3);
@@ -72,7 +82,7 @@ class VStreamChunkTest {
     void chunkEmptyStreamReturnsEmpty() {
       VStream<Integer> stream = VStream.empty();
 
-      List<List<Integer>> chunks = stream.chunk(3).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(3).toList().run();
 
       assertThat(chunks).isEmpty();
     }
@@ -82,7 +92,7 @@ class VStreamChunkTest {
     void chunkPreservesOrder() {
       VStream<String> stream = VStream.of("a", "b", "c", "d", "e");
 
-      List<List<String>> chunks = stream.chunk(2).toList().run();
+      List<NonEmptyList<String>> chunks = stream.chunk(2).toList().run();
 
       assertThat(chunks).hasSize(3);
       assertThat(chunks.get(0)).containsExactly("a", "b");
@@ -99,12 +109,12 @@ class VStreamChunkTest {
           VStream.iterate(1, n -> n + 1).peek(_ -> pullCount.incrementAndGet());
 
       // Take 2 chunks of size 3, so we should pull exactly 6 elements
-      VStream<List<Integer>> chunked = stream.chunk(3).take(2);
+      VStream<NonEmptyList<Integer>> chunked = stream.chunk(3).take(2);
 
       // Nothing pulled yet (lazy)
       assertThat(pullCount.get()).isZero();
 
-      List<List<Integer>> result = chunked.toList().run();
+      List<NonEmptyList<Integer>> result = chunked.toList().run();
 
       assertThat(result).hasSize(2);
       assertThat(result.get(0)).containsExactly(1, 2, 3);
@@ -133,7 +143,7 @@ class VStreamChunkTest {
       // filter() produces Skip steps for non-matching elements
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5, 6).filter(n -> n % 2 != 0);
 
-      List<List<Integer>> chunks = stream.chunk(2).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunk(2).toList().run();
 
       assertThat(chunks).hasSize(2);
       assertThat(chunks.get(0)).containsExactly(1, 3);
@@ -150,7 +160,7 @@ class VStreamChunkTest {
     void chunkWhileGroupsConsecutiveEquals() {
       VStream<Integer> stream = VStream.of(1, 1, 2, 2, 2, 3);
 
-      List<List<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
 
       assertThat(chunks).hasSize(3);
       assertThat(chunks.get(0)).containsExactly(1, 1);
@@ -159,11 +169,21 @@ class VStreamChunkTest {
     }
 
     @Test
+    @DisplayName("chunkWhile() emits non-empty lists, so head and size need no empty case")
+    void chunkWhileEmitsNonEmptyLists() {
+      VStream<String> stream = VStream.of("a", "a", "b", "c", "c", "c");
+
+      VStream<String> runs = stream.chunkWhile(String::equals).map(run -> run.head() + run.size());
+
+      assertThatVStream(runs).producesElements("a2", "b1", "c3");
+    }
+
+    @Test
     @DisplayName("chunkWhile() single-element chunks when no adjacent matches")
     void chunkWhileSingleElementChunks() {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4);
 
-      List<List<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
 
       assertThat(chunks).hasSize(4);
       for (int i = 0; i < 4; i++) {
@@ -176,7 +196,7 @@ class VStreamChunkTest {
     void chunkWhileAllSameProducesSingleChunk() {
       VStream<String> stream = VStream.of("x", "x", "x", "x");
 
-      List<List<String>> chunks = stream.chunkWhile(String::equals).toList().run();
+      List<NonEmptyList<String>> chunks = stream.chunkWhile(String::equals).toList().run();
 
       assertThat(chunks).hasSize(1);
       assertThat(chunks.getFirst()).containsExactly("x", "x", "x", "x");
@@ -187,7 +207,7 @@ class VStreamChunkTest {
     void chunkWhileEmptyStreamReturnsEmpty() {
       VStream<Integer> stream = VStream.empty();
 
-      List<List<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
 
       assertThat(chunks).isEmpty();
     }
@@ -198,7 +218,8 @@ class VStreamChunkTest {
       // Group numbers that differ by at most 1
       VStream<Integer> stream = VStream.of(1, 2, 3, 10, 11, 20);
 
-      List<List<Integer>> chunks = stream.chunkWhile((a, b) -> Math.abs(a - b) <= 1).toList().run();
+      List<NonEmptyList<Integer>> chunks =
+          stream.chunkWhile((a, b) -> Math.abs(a - b) <= 1).toList().run();
 
       assertThat(chunks).hasSize(3);
       assertThat(chunks.get(0)).containsExactly(1, 2, 3);
@@ -211,7 +232,7 @@ class VStreamChunkTest {
     void chunkWhileSingleElement() {
       VStream<Integer> stream = VStream.of(42);
 
-      List<List<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
 
       assertThat(chunks).hasSize(1);
       assertThat(chunks.getFirst()).containsExactly(42);
@@ -226,7 +247,7 @@ class VStreamChunkTest {
       VStream<Integer> stream = VStream.of(2, 1, 4, 3, 6, 5, 8, 7).filter(n -> n % 2 != 0);
 
       // Group consecutive odd numbers that differ by exactly 2
-      List<List<Integer>> chunks = stream.chunkWhile((a, b) -> b - a == 2).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile((a, b) -> b - a == 2).toList().run();
 
       // Odd numbers after filter: 1, 3, 5, 7
       // 1->3 differ by 2: same chunk
@@ -243,7 +264,7 @@ class VStreamChunkTest {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10).filter(n -> n % 2 != 0);
 
       // Group by equality (each element is unique, so each gets its own chunk)
-      List<List<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> chunks = stream.chunkWhile(Integer::equals).toList().run();
 
       // Odd numbers: 1, 3, 5, 7, 9 — each in its own chunk
       assertThat(chunks).hasSize(5);
@@ -273,8 +294,7 @@ class VStreamChunkTest {
     void mapChunkedAppliesBatchFunction() {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5, 6);
 
-      VStream<Integer> result =
-          stream.mapChunked(3, chunk -> chunk.stream().map(n -> n * 10).toList());
+      VStream<Integer> result = stream.mapChunked(3, chunk -> chunk.map(n -> n * 10).toJavaList());
 
       assertThatVStream(result).producesElements(10, 20, 30, 40, 50, 60);
     }
@@ -285,7 +305,7 @@ class VStreamChunkTest {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4);
 
       VStream<String> result =
-          stream.mapChunked(2, chunk -> chunk.stream().map(n -> "item-" + n).toList());
+          stream.mapChunked(2, chunk -> chunk.map(n -> "item-" + n).toJavaList());
 
       assertThatVStream(result).producesElements("item-1", "item-2", "item-3", "item-4");
     }
@@ -317,8 +337,7 @@ class VStreamChunkTest {
       VStream<Integer> stream = VStream.of(1, 2, 3, 4, 5, 6);
 
       // Contract: return only the sum of each chunk
-      VStream<Integer> result =
-          stream.mapChunked(3, chunk -> List.of(chunk.stream().mapToInt(Integer::intValue).sum()));
+      VStream<Integer> result = stream.mapChunked(3, chunk -> List.of(chunk.reduce(Integer::sum)));
 
       assertThatVStream(result).producesElements(6, 15);
     }
@@ -328,7 +347,7 @@ class VStreamChunkTest {
     void mapChunkedEmptyStreamReturnsEmpty() {
       VStream<Integer> stream = VStream.empty();
 
-      VStream<Integer> result = stream.mapChunked(3, chunk -> chunk);
+      VStream<Integer> result = stream.mapChunked(3, NonEmptyList::toJavaList);
 
       assertThatVStream(result).isEmpty();
     }
@@ -347,7 +366,7 @@ class VStreamChunkTest {
     void mapChunkedWithZeroSizeThrows() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
-      assertThatThrownBy(() -> stream.mapChunked(0, chunk -> chunk))
+      assertThatThrownBy(() -> stream.mapChunked(0, NonEmptyList::toJavaList))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }

@@ -7,7 +7,6 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.Saga;
 import org.higherkindedj.hkt.resilience.SagaBuilder;
@@ -29,10 +28,10 @@ import org.junit.jupiter.api.Test;
  * automatically:
  *
  * <pre>
- *   Saga&lt;OrderConfirmed&gt; placeOrder = SagaBuilder.&lt;OrderConfirmed&gt;create()
- *       .step(reserveInventory, releaseInventory)
- *       .step(chargeCustomer, refundCustomer)
- *       .step(shipOrder, cancelShipment)
+ *   Saga&lt;OrderConfirmed&gt; placeOrder = SagaBuilder.start()
+ *       .step("reserve", reserveInventory, releaseInventory)
+ *       .step("charge", chargeCustomer, refundCustomer)
+ *       .step("ship", shipOrder, cancelShipment)
  *       .build();
  * </pre>
  *
@@ -173,8 +172,8 @@ public class Tutorial02_Saga {
      * Exercise 4: SagaBuilder fluent multi-step.
      *
      * <pre>
-     *   // Nudge:    SagaBuilder.&lt;Unit&gt;start().step(...).step(...).build().
-     *   // Strategy: SagaBuilder.&lt;Unit&gt;start()
+     *   // Nudge:    SagaBuilder.start().step(...).step(...).build().
+     *   // Strategy: SagaBuilder.start()
      *   //               .step("charge", VTask.succeed("payment-456"), _ -&gt; {})
      *   //               .step("reserve", prev -&gt; VTask.succeed(prev + ":reserved"), _ -&gt; {})
      *   //               .build()
@@ -184,7 +183,7 @@ public class Tutorial02_Saga {
     @Test
     @DisplayName("Exercise 4: Use SagaBuilder for multi-step saga")
     void exercise4_sagaBuilder() {
-      // TODO: Build a Saga<String> using SagaBuilder.<Unit>start() with two named steps:
+      // TODO: Build a Saga<String> using SagaBuilder.start() with two named steps:
       //       .step("charge", VTask.succeed("payment-456"), _ -> {})
       //       .step("reserve", prev -> VTask.succeed(prev + ":reserved"), _ -> {})
       //       and finally .build()
@@ -255,7 +254,7 @@ public class Tutorial02_Saga {
       AtomicBoolean inventoryReleased = new AtomicBoolean(false);
 
       Saga<String> orderSaga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("charge-payment", VTask.succeed("pay-789"), _ -> paymentRefunded.set(true))
               .step(
                   "reserve-inventory",

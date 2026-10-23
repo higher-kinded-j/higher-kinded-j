@@ -42,6 +42,7 @@ import org.higherkindedj.example.market.model.value.Symbol;
 import org.higherkindedj.example.market.model.value.Volume;
 import org.higherkindedj.example.market.risk.RiskCalculator;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.Par;
@@ -77,7 +78,7 @@ class Fixture {
 
   static final RiskCalculator calculator = new RiskCalculator();
 
-  static List<AggregatedView> computeViewsBySymbol(List<RiskAssessment> window) {
+  static List<AggregatedView> computeViewsBySymbol(NonEmptyList<RiskAssessment> window) {
     return List.of();
   }
 }

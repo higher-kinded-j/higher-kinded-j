@@ -2,11 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.resilience;
 
-import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.vtask.VTask;
 
 /**
  * A fluent builder for constructing complex {@link Saga} instances with multiple steps.
@@ -14,10 +10,15 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <p>Each step has a name (for error reporting), an action, and a compensation. Steps execute
  * sequentially; each step's action can depend on the result of the previous step.
  *
+ * <p>{@link #start()} gives a {@link Start}, which offers the step methods but no {@code build()}.
+ * Each step method returns a {@code SagaBuilder}, so {@link #build()} always has a step to run and
+ * never fails, and a saga with no steps does not compile. Both stages are {@link SagaSteps}, the
+ * type to hold a builder in where the steps come from data and there may be none.
+ *
  * <h2>Example</h2>
  *
  * <pre>{@code
- * Saga<String> orderSaga = SagaBuilder.<Unit>start()
+ * Saga<String> orderSaga = SagaBuilder.start()
  *     .step("charge-payment",
  *         VTask.of(() -> paymentService.charge(order)),
  *         paymentId -> paymentService.refund(paymentId))
@@ -36,115 +37,46 @@ import org.higherkindedj.hkt.vtask.VTask;
  * @see Saga
  * @see SagaError
  */
-public final class SagaBuilder<A> {
+public final class SagaBuilder<A> extends SagaSteps<A> {
 
-  private final Saga<A> saga;
-  private final int stepCount;
-
-  private SagaBuilder(Saga<A> saga, int stepCount) {
-    this.saga = saga;
-    this.stepCount = stepCount;
+  SagaBuilder(Saga<A> saga) {
+    super(saga);
   }
 
   /**
-   * Starts building a new saga. The initial result is {@link Unit#INSTANCE}.
+   * Starts building a new saga. A function-taking first step receives {@link Unit#INSTANCE} as the
+   * previous result.
    *
-   * @return a new SagaBuilder at the starting position
+   * @return the builder before its first step, which has no {@code build()}
    */
-  public static SagaBuilder<Unit> start() {
-    // Initial saga that produces Unit without tracking any step
-    Saga<Unit> initial = new Saga<>(_ -> Unit.INSTANCE);
-    return new SagaBuilder<>(initial, 0);
+  public static Start start() {
+    return Start.INSTANCE;
   }
 
   /**
-   * Adds a step with a standalone action (not depending on the previous result) and synchronous
-   * compensation.
-   *
-   * @param name the step name
-   * @param action the forward action
-   * @param compensate compensation to run on failure (receives the action's result)
-   * @param <B> the result type of this step
-   * @return a new SagaBuilder at the new step
-   */
-  public <B> SagaBuilder<B> step(String name, VTask<B> action, Consumer<B> compensate) {
-    Objects.requireNonNull(name, "name must not be null");
-    Objects.requireNonNull(action, "action must not be null");
-    Objects.requireNonNull(compensate, "compensate must not be null");
-
-    Saga<B> newSaga = saga.andThen(_ -> Saga.namedStepSync(name, action, compensate));
-    return new SagaBuilder<>(newSaga, stepCount + 1);
-  }
-
-  /**
-   * Adds a step whose action depends on the previous step's result, with synchronous compensation.
-   *
-   * @param name the step name
-   * @param action function producing the forward action from the previous result
-   * @param compensate compensation to run on failure
-   * @param <B> the result type of this step
-   * @return a new SagaBuilder at the new step
-   */
-  public <B> SagaBuilder<B> step(
-      String name, Function<A, VTask<B>> action, Consumer<B> compensate) {
-    Objects.requireNonNull(name, "name must not be null");
-    Objects.requireNonNull(action, "action must not be null");
-    Objects.requireNonNull(compensate, "compensate must not be null");
-
-    Saga<B> newSaga =
-        saga.andThen(prevResult -> Saga.namedStepSync(name, action.apply(prevResult), compensate));
-    return new SagaBuilder<>(newSaga, stepCount + 1);
-  }
-
-  /**
-   * Adds a step with asynchronous (VTask-based) compensation.
-   *
-   * @param name the step name
-   * @param action function producing the forward action from the previous result
-   * @param compensate function producing a compensation VTask
-   * @param <B> the result type of this step
-   * @return a new SagaBuilder at the new step
-   */
-  public <B> SagaBuilder<B> stepAsync(
-      String name, Function<A, VTask<B>> action, Function<B, VTask<Unit>> compensate) {
-    Objects.requireNonNull(name, "name must not be null");
-    Objects.requireNonNull(action, "action must not be null");
-    Objects.requireNonNull(compensate, "compensate must not be null");
-
-    Saga<B> newSaga =
-        saga.andThen(prevResult -> Saga.namedStep(name, action.apply(prevResult), compensate));
-    return new SagaBuilder<>(newSaga, stepCount + 1);
-  }
-
-  /**
-   * Adds a step with no compensation. Use for final steps or idempotent operations.
-   *
-   * @param name the step name
-   * @param action function producing the forward action from the previous result
-   * @param <B> the result type of this step
-   * @return a new SagaBuilder at the new step
-   */
-  public <B> SagaBuilder<B> stepNoCompensation(String name, Function<A, VTask<B>> action) {
-    Objects.requireNonNull(name, "name must not be null");
-    Objects.requireNonNull(action, "action must not be null");
-
-    Saga<B> newSaga =
-        saga.andThen(
-            prevResult ->
-                Saga.namedStep(name, action.apply(prevResult), _ -> VTask.succeed(Unit.INSTANCE)));
-    return new SagaBuilder<>(newSaga, stepCount + 1);
-  }
-
-  /**
-   * Builds the saga from the accumulated steps.
+   * Builds the saga from the accumulated steps. It always holds at least one step, so this never
+   * fails.
    *
    * @return a new Saga ready for execution
-   * @throws IllegalStateException if no steps have been added
    */
   public Saga<A> build() {
-    if (stepCount == 0) {
-      throw new IllegalStateException("Saga must have at least one step");
+    return saga();
+  }
+
+  /**
+   * A saga builder before its first step. It offers the same step methods as {@link SagaBuilder},
+   * and each one returns a {@code SagaBuilder} holding that step. It has no {@code build()}, so a
+   * saga with no steps does not compile.
+   *
+   * <p>A function-taking step added here receives {@link Unit#INSTANCE} as the previous result.
+   */
+  public static final class Start extends SagaSteps<Unit> {
+
+    private static final Start INSTANCE = new Start();
+
+    private Start() {
+      // Gives Unit and tracks no step, so there is nothing to compensate before the first step
+      super(new Saga<>(_ -> Unit.INSTANCE));
     }
-    return saga;
   }
 }

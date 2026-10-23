@@ -5,6 +5,7 @@ package org.higherkindedj.example.effect;
 import java.util.List;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -122,8 +123,8 @@ public class VStreamParallelExample {
   /**
    * Demonstrates chunking for efficient batch operations.
    *
-   * <p>chunk(n) groups elements into lists of at most n elements, which can then be processed as
-   * batches. mapChunked combines chunk + map + flatten into a single operation.
+   * <p>chunk(n) groups elements into non-empty lists of at most n elements, which can then be
+   * processed as batches. mapChunked combines chunk + map + flatten into a single operation.
    */
   private static void batchDatabaseInsert() {
     System.out.println("--- Batch Database Insert ---");
@@ -137,7 +138,7 @@ public class VStreamParallelExample {
             batch -> {
               // Simulate bulk insert returning confirmation for each record
               System.out.println("  Inserting batch of " + batch.size() + ": " + batch);
-              return batch.stream().map(r -> "inserted:" + r).toList();
+              return batch.map(r -> "inserted:" + r).toJavaList();
             });
 
     List<String> allResults = insertResults.toList().run();
@@ -176,15 +177,15 @@ public class VStreamParallelExample {
   /**
    * Demonstrates basic chunking operations.
    *
-   * <p>chunk(n) produces a stream of lists, each containing up to n elements. The last chunk may be
-   * smaller.
+   * <p>chunk(n) produces a stream of NonEmptyLists, each containing up to n elements. The last
+   * chunk may be smaller.
    */
   private static void chunkingBasics() {
     System.out.println("--- Chunking Basics ---");
 
     VStream<Integer> numbers = VStream.range(1, 11);
 
-    List<List<Integer>> chunks = numbers.chunk(3).toList().run();
+    List<NonEmptyList<Integer>> chunks = numbers.chunk(3).toList().run();
     System.out.println("Chunks of 3: " + chunks);
     System.out.println();
   }
@@ -204,7 +205,7 @@ public class VStreamParallelExample {
 
     VStream<Integer> sortedData = VStream.of(1, 1, 2, 2, 2, 3, 3, 4);
 
-    List<List<Integer>> groups = sortedData.chunkWhile(Integer::equals).toList().run();
+    List<NonEmptyList<Integer>> groups = sortedData.chunkWhile(Integer::equals).toList().run();
     System.out.println("Groups of equal elements: " + groups);
     System.out.println();
   }
@@ -232,7 +233,7 @@ public class VStreamParallelExample {
             chunk ->
                 VTask.of(
                     () -> {
-                      int sum = chunk.stream().mapToInt(Integer::intValue).sum();
+                      int sum = chunk.reduce(Integer::sum);
                       System.out.println("  Processing batch " + chunk + " -> sum=" + sum);
                       return sum;
                     }));
@@ -277,7 +278,7 @@ public class VStreamParallelExample {
     System.out.println("VStreamPath parallel result: " + result);
 
     // Chunked batch processing via path
-    List<List<Integer>> chunks = Path.vstreamRange(1, 8).chunk(3).toList().unsafeRun();
+    List<NonEmptyList<Integer>> chunks = Path.vstreamRange(1, 8).chunk(3).toList().unsafeRun();
     System.out.println("VStreamPath chunks: " + chunks);
     System.out.println();
   }
