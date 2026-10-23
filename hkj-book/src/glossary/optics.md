@@ -260,8 +260,8 @@ EitherPath<AppError, String> cityPath = loadUser(id)
 
 **Core Operations:**
 - `foldMap(Monoid<M> monoid, Function<A, M> f, S source)` - Map and combine all values
-- `toList(S source)` - Extract all focused values as a list
-- `headOption(S source)` - Get the first value if any
+- `getAll(S source)` - Extract all focused values as a list
+- `preview(S source)` - Get the first value, as an `Optional`, if any
 - `exists(Predicate<A> p, S source)` - Check if any value satisfies predicate
 - `all(Predicate<A> p, S source)` - Check if all values satisfy predicate
 
@@ -293,7 +293,7 @@ boolean allQualified = allPlayers.all(p -> p.score() >= 100, league);
 - Querying collections within complex types
 - When you need read-only access to multiple elements
 
-**Related:** [Traversal](#traversal), [Getter (Fold of one)](#lens)
+**Related:** [Traversal](#traversal), [Getter (Fold of one)](../optics/getters.md)
 
 ---
 
@@ -625,7 +625,7 @@ public interface ShipmentMapping extends MappingSpec<Shipment, ShipmentDto> {
 
 **Core Operations:**
 - `modifyF(Applicative<F> app, Function<A, Kind<F,A>> f, S source)` - Effectful modification of all elements
-- `toList(S source)` - Extract all focused values as a list
+- `asFold().getAll(S source)` - Extract all focused values as a list. A `Traversal` has no read method of its own, so it reads through its `Fold`; `Traversals.getAll(traversal, source)` does the same
 
 **Example:**
 <!-- verify -->
