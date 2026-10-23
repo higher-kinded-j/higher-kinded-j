@@ -2,11 +2,14 @@
 # Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements,
 # removes a deprecated annotation that has no effect, replaces two deprecated
 # @PathSource capabilities with the levels they generate, and drops the Monad
-# argument that StateT no longer takes. It also marks, without rewriting, each
-# null success that 0.5.0 refuses.
+# argument that StateT no longer takes. It adds to @GenerateFocus's widenFields
+# each container a 0.4.x navigator stepped into. It also marks, without
+# rewriting, each null success or null error that 0.5.0 refuses, and each
+# container it cannot widen.
 #
 # Run these with hkj-openrewrite 0.5.0 before the project moves to 0.5.0: they
-# match the 0.4.x signatures, and the StateT rewrite compiles only against 0.5.0.
+# match the 0.4.x signatures, and the StateT and widenFields rewrites compile
+# only against 0.5.0.
 #
 # Usage:
 #   rewrite {
@@ -25,8 +28,13 @@ description: >-
   with arguments swapped). Also removes @PathConfig, which has no effect, and
   replaces @PathSource's EFFECTFUL and ACCUMULATING capabilities with the
   levels they generate, CHAINABLE and RECOVERABLE. Drops the Monad argument
-  from StateT construction and StateT.mapT. Finally marks each null passed
-  to a success factory, Try.of supplier returning null, and Either, Try or
+  from StateT construction and StateT.mapT. Adds to @GenerateFocus's
+  widenFields each Map, or third-party collection, of @GenerateFocus records
+  that a 0.4.x navigator stepped into, on a record that writes
+  generateNavigators = true, and marks one whose elements have a field named
+  like a path method, since 0.5.0 can give it no navigator. Finally marks each
+  null passed to a success factory, Try.of supplier returning null, and
+  Either, Try or
   Path typed with Void, since a Right or Success always holds a value. It
   also marks each null given as an error, as to Either.left or raiseError,
   each mapLeft or bimap error lambda returning null, and Either typed with a
@@ -42,6 +50,7 @@ recipeList:
   - org.higherkindedj.openrewrite.RemovePathConfig
   - org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe
   - org.higherkindedj.openrewrite.RemoveStateTMonadArgument
+  - org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe
   - org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe
   - org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe
 

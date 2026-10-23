@@ -66,6 +66,16 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
     "package org.higherkindedj.hkt.either; public interface Either<L, R> {"
         + " static <L, R> Either<L, R> right(R value) { return null; }"
         + " static <L, R> Either<L, R> left(L value) { return null; } }",
+    // @GenerateFocus as 0.4.x declares it, with no widenFields
+    "package org.higherkindedj.optics.annotations;"
+        + " import java.lang.annotation.*;"
+        + " @Target(ElementType.TYPE) @Retention(RetentionPolicy.CLASS)"
+        + " public @interface GenerateFocus {"
+        + "   boolean generateNavigators() default false;"
+        + "   boolean widenCollections() default false;"
+        + "   String[] includeFields() default {};"
+        + "   String[] excludeFields() default {}; }",
+    "package org.eclipse.collections.api.list; public interface ImmutableList<T> {}",
   };
 
   @Override
@@ -127,6 +137,41 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
                     return /*~~(A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/Either.left(null);
                 }
             }
+            """));
+  }
+
+  @Test
+  void addsWidenFieldsWhereANavigatorSteppedIntoAContainer() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus
+            public record Position(String ticker) {}
+            """),
+        java(
+            """
+            package com.example;
+
+            import java.util.Map;
+            import org.eclipse.collections.api.list.ImmutableList;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record AssetClass(String name, ImmutableList<Position> positions, Map<String, Position> byTicker) {}
+            """,
+            """
+            package com.example;
+
+            import java.util.Map;
+            import org.eclipse.collections.api.list.ImmutableList;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true, widenFields = {"positions", "byTicker"})
+            public record AssetClass(String name, ImmutableList<Position> positions, Map<String, Position> byTicker) {}
             """));
   }
 

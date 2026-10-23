@@ -15,6 +15,8 @@ dependencies {
     testImplementation(libs.rewrite.java)
     testImplementation(libs.rewrite.test)
     testImplementation(libs.rewrite.java25)
+    // Only to read the path methods a 0.5.0 navigator inherits, which a recipe keeps a copy of
+    testRuntimeOnly(project(":hkj-core"))
 
     // Testing dependencies
     testImplementation(platform(libs.junit.bom))

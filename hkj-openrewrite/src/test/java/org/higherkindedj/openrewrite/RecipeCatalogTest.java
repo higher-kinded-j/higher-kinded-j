@@ -76,7 +76,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe",
             "org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe",
             "org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe",
-            "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe");
+            "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe",
+            "org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe");
   }
 
   @Test
