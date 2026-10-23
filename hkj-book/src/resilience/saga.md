@@ -72,7 +72,7 @@ For larger sagas, the builder provides a more readable structure:
 
 <!-- verify -->
 ```java
-Saga<String> orderSaga = SagaBuilder.<Unit>start()
+Saga<String> orderSaga = SagaBuilder.start()
     .step("charge-payment",
         VTask.of(() -> paymentService.charge(order)),
         paymentService::refund)
@@ -87,13 +87,22 @@ Saga<String> orderSaga = SagaBuilder.<Unit>start()
 
 Step names appear in error reporting, making it clear which step failed and which compensations ran.
 
+A saga needs at least one step. `SagaBuilder.start()` returns a `SagaBuilder.Start`, which offers the step methods but no `build()`. So a builder with no steps fails to compile with `cannot find symbol` for `method build()`. The builder each step returns has a `build()` that never fails.
+
+<!-- verify:rejects "method build()" -->
+```java
+Saga<Unit> empty = SagaBuilder.start().build(); // does not compile: Start has no build()
+```
+
+Where the steps come from data, see [Steps From Data](#steps-from-data).
+
 ### Async Compensation
 
 When compensation itself requires an asynchronous operation, use `stepAsync`:
 
 <!-- verify -->
 ```java
-SagaBuilder.<Unit>start()
+SagaBuilder.start()
     .stepAsync("charge-payment",
         _ -> VTask.of(() -> paymentService.charge(order)),
         paymentId -> VTask.of(() -> {
@@ -109,7 +118,7 @@ Some steps are idempotent or represent final actions that do not need undoing:
 
 <!-- verify -->
 ```java
-SagaBuilder.<Unit>start()
+SagaBuilder.start()
     .step("charge-payment",
         VTask.of(() -> paymentService.charge(order)),
         paymentService::refund)
@@ -117,6 +126,26 @@ SagaBuilder.<Unit>start()
         paymentId -> VTask.of(() -> emailService.sendConfirmation(order, paymentId)))
     .build();
 ```
+
+### Steps From Data {#steps-from-data}
+
+When the steps come from data, such as one reservation per item, there may be none. Hold the builder as a `SagaSteps<Unit>`, the type both stages share. Switching on it to build must then cover `SagaBuilder.Start`, the stage with no steps:
+
+<!-- verify -->
+```java
+SagaSteps<Unit> steps = SagaBuilder.start();
+for (String sku : skus) {
+    steps = steps.step("reserve-" + sku,
+        VTask.exec(() -> inventoryService.reserveItem(sku)),
+        _ -> inventoryService.releaseItem(sku));
+}
+Maybe<Saga<Unit>> reserveAll = switch (steps) {
+    case SagaBuilder<Unit> builder -> Maybe.just(builder.build());
+    case SagaBuilder.Start _ -> Maybe.nothing();   // no items, so no saga to run
+};
+```
+
+Each step the loop adds gives `Unit`, so its compensation takes what it undoes from the loop variable, as `releaseItem(sku)` does. The two stages are closed by design, so the switch needs no default.
 
 ## Running a Saga
 
@@ -222,7 +251,7 @@ blocking call is not cut short.
 | `saga.flatMap(fn)` | Chain with another saga |
 
 ~~~admonish info title="Key Takeaways"
-* **Each compensatable completed step registers an undo**: compensations run in reverse order over the steps that finished; the failed step itself, a `stepNoCompensation` step, and anything a partially applied action did before failing have nothing registered to undo
+* **Each completed step registers an undo**: compensations run in reverse order over the steps that finished. A `stepNoCompensation` step's undo does nothing, and `SagaError` lists it as succeeded. The failed step, and anything its action did before failing, have nothing to undo
 * **Saga is for business cleanup, Resource for infrastructure**: refunds and releases belong here; files, connections, and locks belong to `Resource`
 * **`runSafe()` tells the whole story**: `SagaError` names the failed step and carries every compensation result, so partial compensation is detectable, not silent
 * **Compensation is best-effort**: all compensations are attempted even when some fail; design them idempotent so a repeated undo is harmless

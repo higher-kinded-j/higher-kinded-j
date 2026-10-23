@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.Saga;
 import org.higherkindedj.hkt.resilience.SagaBuilder;
@@ -146,7 +145,7 @@ public class Tutorial02_Saga_Solution {
     void exercise4_sagaBuilder() {
       // SOLUTION: Use SagaBuilder for fluent multi-step construction
       Saga<String> saga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("charge", VTask.succeed("payment-456"), _ -> {})
               .step("reserve", prev -> VTask.succeed(prev + ":reserved"), _ -> {})
               .build();
@@ -214,7 +213,7 @@ public class Tutorial02_Saga_Solution {
       AtomicBoolean inventoryReleased = new AtomicBoolean(false);
 
       Saga<String> orderSaga =
-          SagaBuilder.<Unit>start()
+          SagaBuilder.start()
               .step("charge-payment", VTask.succeed("pay-789"), _ -> paymentRefunded.set(true))
               .step(
                   "reserve-inventory",

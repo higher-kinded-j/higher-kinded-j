@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -412,9 +413,10 @@ class VStreamContextTest {
     void chunkGroupsElements() {
       VStreamContext<Integer> ctx = VStreamContext.fromList(List.of(1, 2, 3, 4, 5));
 
-      List<List<Integer>> result = ctx.chunk(2).toList();
+      List<NonEmptyList<Integer>> result = ctx.chunk(2).toList();
 
-      assertThat(result).containsExactly(List.of(1, 2), List.of(3, 4), List.of(5));
+      assertThat(result)
+          .containsExactly(NonEmptyList.of(1, 2), NonEmptyList.of(3, 4), NonEmptyList.single(5));
     }
   }
 

@@ -22,6 +22,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -54,8 +55,8 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * never {@code null}; any attempt to introduce a {@code null} element is rejected at construction
  * time.
  *
- * <p>{@code NonEmptyList} implements {@link Iterable}, so it works directly in for-each loops and
- * stream pipelines.
+ * <p>{@code NonEmptyList} implements {@link Iterable}, so it works directly in for-each loops, and
+ * {@link #stream()} gives a {@link Stream} for stream pipelines.
  *
  * @param <A> the (non-null) element type
  * @param head the first element; never {@code null}
@@ -360,6 +361,16 @@ public record NonEmptyList<A>(A head, List<A> tail) implements NonEmptyListKind<
   }
 
   // ===== Interop =====
+
+  /**
+   * Returns a sequential {@link Stream} of the elements in order, {@code head} first, without
+   * copying them.
+   *
+   * @return a non-null {@code Stream} of {@code head} followed by {@code tail}
+   */
+  public Stream<A> stream() {
+    return Stream.concat(Stream.of(head), tail.stream());
+  }
 
   /**
    * Converts this {@code NonEmptyList} to an immutable {@link java.util.List} containing the same

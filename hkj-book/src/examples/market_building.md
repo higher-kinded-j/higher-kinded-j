@@ -347,7 +347,7 @@ them into fixed-size windows and compute summary statistics like VWAP (Volume-We
 Average Price).
 
 **HKJ features:**
-- `VStream.chunk(size)`: groups consecutive elements into `List<A>` batches
+- `VStream.chunk(size)`: groups consecutive elements into `NonEmptyList<A>` batches, so every window has a first tick
 - `VStream.flatMap(f)`: expands per-symbol groups into individual views
 
 <!-- verify -->

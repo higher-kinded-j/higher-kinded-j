@@ -5,6 +5,7 @@ package org.higherkindedj.tutorial.solutions.concurrency;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -114,7 +115,8 @@ public class TutorialVStreamParallel_Solution {
 
     /**
      * Why this is idiomatic: {@code chunk(n)} groups elements into fixed-size lists of {@code n}
-     * (final chunk may be smaller). Useful for batching I/O calls.
+     * (final chunk may be smaller). Useful for batching I/O calls. Each chunk is a {@code
+     * NonEmptyList}, so there is no empty chunk to handle.
      *
      * <p>Alternative: a manual sliding loop. Same answer; the combinator stays in the lazy
      * pipeline.
@@ -127,7 +129,7 @@ public class TutorialVStreamParallel_Solution {
     void exercise4_basicChunking() {
       VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5, 6, 7);
 
-      List<List<Integer>> result = numbers.chunk(3).toList().run();
+      List<NonEmptyList<Integer>> result = numbers.chunk(3).toList().run();
 
       assertThat(result).hasSize(3);
       assertThat(result.get(0)).containsExactly(1, 2, 3);
@@ -143,7 +145,8 @@ public class TutorialVStreamParallel_Solution {
      * pipeline shorter.
      *
      * <p>Common wrong attempt: return a single value from the per-chunk function. It expects a
-     * list; wrap with {@code List.of(...)} for one-output reductions.
+     * list; wrap with {@code List.of(...)} for one-output reductions. The chunk is a {@code
+     * NonEmptyList}, so its {@code reduce} always gives a value.
      */
     @Test
     @DisplayName("Exercise 5: Batch transformation")
@@ -151,10 +154,7 @@ public class TutorialVStreamParallel_Solution {
       VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5, 6);
 
       List<Integer> result =
-          numbers
-              .mapChunked(3, chunk -> List.of(chunk.stream().mapToInt(Integer::intValue).sum()))
-              .toList()
-              .run();
+          numbers.mapChunked(3, chunk -> List.of(chunk.reduce(Integer::sum))).toList().run();
 
       assertThat(result).containsExactly(6, 15);
     }
@@ -174,7 +174,7 @@ public class TutorialVStreamParallel_Solution {
     void exercise6_chunkWhile() {
       VStream<Integer> numbers = VStream.of(1, 1, 2, 2, 2, 3);
 
-      List<List<Integer>> result = numbers.chunkWhile(Integer::equals).toList().run();
+      List<NonEmptyList<Integer>> result = numbers.chunkWhile(Integer::equals).toList().run();
 
       assertThat(result).hasSize(3);
       assertThat(result.get(0)).containsExactly(1, 1);

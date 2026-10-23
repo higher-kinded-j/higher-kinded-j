@@ -3,7 +3,6 @@
 package org.higherkindedj.example.resilience;
 
 import java.util.function.Consumer;
-import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.Saga;
 import org.higherkindedj.hkt.resilience.SagaBuilder;
@@ -173,7 +172,7 @@ public class SagaOrderExample {
     // SagaBuilder provides named steps for better error reporting
     // and a cleaner builder pattern.
     Saga<String> orderSaga =
-        SagaBuilder.<Unit>start()
+        SagaBuilder.start()
             // Step 1: Charge payment (standalone action, does not depend on previous result)
             .step(
                 "charge-payment",
@@ -226,7 +225,7 @@ public class SagaOrderExample {
     // runSafe returns Either<SagaError, A> instead of throwing exceptions.
     // This allows functional-style error handling.
     Saga<String> saga =
-        SagaBuilder.<Unit>start()
+        SagaBuilder.start()
             .step(
                 "validate-order",
                 VTask.of(

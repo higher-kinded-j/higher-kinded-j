@@ -10,6 +10,7 @@
 import java.util.List;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;

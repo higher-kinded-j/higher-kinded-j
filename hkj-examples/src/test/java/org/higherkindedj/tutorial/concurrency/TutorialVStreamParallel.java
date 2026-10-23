@@ -5,6 +5,7 @@ package org.higherkindedj.tutorial.concurrency;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -127,7 +128,8 @@ public class TutorialVStreamParallel {
      * Exercise 4: Basic chunking
      *
      * <p>chunk(n) groups elements into lists of at most n elements. The last chunk may have fewer
-     * elements.
+     * elements. Each chunk is a NonEmptyList, since a chunk is only emitted once it holds an
+     * element.
      *
      * <p>Task: Chunk a stream of 7 elements into groups of 3.
      *
@@ -140,7 +142,7 @@ public class TutorialVStreamParallel {
       // VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5, 6, 7);
 
       // TODO: Chunk into groups of 3
-      List<List<Integer>> result = answerRequired();
+      List<NonEmptyList<Integer>> result = answerRequired();
 
       assertThat(result).hasSize(3);
       assertThat(result.get(0)).containsExactly(1, 2, 3);
@@ -156,8 +158,7 @@ public class TutorialVStreamParallel {
      *
      * <p>Task: Use mapChunked to sum each group of 3 elements.
      *
-     * <p>Hint: stream.mapChunked(3, chunk ->
-     * List.of(chunk.stream().mapToInt(Integer::intValue).sum()))
+     * <p>Hint: stream.mapChunked(3, chunk -> List.of(chunk.reduce(Integer::sum)))
      */
     @Test
     @DisplayName("Exercise 5: Batch transformation")
@@ -188,7 +189,7 @@ public class TutorialVStreamParallel {
       // VStream<Integer> numbers = VStream.of(1, 1, 2, 2, 2, 3);
 
       // TODO: Group consecutive equal elements
-      List<List<Integer>> result = answerRequired();
+      List<NonEmptyList<Integer>> result = answerRequired();
 
       assertThat(result).hasSize(3);
       assertThat(result.get(0)).containsExactly(1, 1);

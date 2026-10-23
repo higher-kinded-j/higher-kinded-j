@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.effect.NaturalTransformation;
 import org.higherkindedj.hkt.effect.VStreamTransformations;
 import org.higherkindedj.hkt.effect.context.VStreamContext;
 import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.higherkindedj.hkt.vstream.VStreamReactive;
@@ -269,7 +270,8 @@ public class VStreamAdvancedExample {
     System.out.println("Parallel: " + parResult);
 
     // Chunking
-    List<List<Integer>> chunks = VStreamContext.fromList(List.of(1, 2, 3, 4, 5)).chunk(2).toList();
+    List<NonEmptyList<Integer>> chunks =
+        VStreamContext.fromList(List.of(1, 2, 3, 4, 5)).chunk(2).toList();
     System.out.println("Chunks: " + chunks);
   }
 }

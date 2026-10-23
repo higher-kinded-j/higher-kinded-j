@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -301,7 +302,7 @@ class VStreamBracketTest {
       AtomicInteger count = new AtomicInteger(0);
 
       // chunk pulls its source as soon as it is pulled, so the failure comes from pull() itself
-      VStream<List<Integer>> stream =
+      VStream<NonEmptyList<Integer>> stream =
           VStream.<Integer>fail(new RuntimeException("boom"))
               .chunk(2)
               .onFinalize(VTask.exec(count::incrementAndGet));

@@ -232,7 +232,7 @@ String first = reasons.head();   // total: no Optional, no throw. This is the wh
 | `NonEmptyList.semigroup()` | The canonical combine for accumulation |
 
 Ops: `head()`, `last()`, `size()`, `map`, `flatMap`, `foldLeft`, `reverse`, `concat`, `append`,
-`prepend`, `reduce(sg)`, `min/max(cmp)`, `toJavaList()`.
+`prepend`, `reduce(sg)`, `min/max(cmp)`, `stream()`, `toJavaList()`.
 
 Use the `Nel` factories to get a `NonEmptyList` error channel without naming a semigroup:
 

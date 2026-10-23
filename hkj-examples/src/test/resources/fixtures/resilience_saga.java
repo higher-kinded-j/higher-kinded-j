@@ -7,12 +7,15 @@
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
+import java.util.List;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.resilience.Saga;
 import org.higherkindedj.hkt.resilience.SagaBuilder;
 import org.higherkindedj.hkt.resilience.SagaError;
 import org.higherkindedj.hkt.resilience.SagaExecutionException;
+import org.higherkindedj.hkt.resilience.SagaSteps;
 import org.higherkindedj.hkt.vtask.VTask;
 
 record Order(String id) {}
@@ -37,6 +40,12 @@ final class InventoryService {
   }
 
   void release(String reservationId) {}
+
+  String reserveItem(String sku) {
+    return "reservation-" + sku;
+  }
+
+  void releaseItem(String sku) {}
 }
 
 final class ShippingService {
@@ -77,6 +86,8 @@ class Fixture {
   static final ShippingService shippingService = new ShippingService();
 
   static final EmailService emailService = new EmailService();
+
+  static final List<String> skus = List.of("sku-1", "sku-2");
 
   static final SimpleLogger log = new SimpleLogger();
 

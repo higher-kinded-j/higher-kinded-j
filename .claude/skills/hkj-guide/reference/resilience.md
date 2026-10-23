@@ -230,7 +230,7 @@ Saga<String> saga = Saga.of(
         trackingId -> shippingService.cancel(trackingId)));
 
 // SagaBuilder (named steps for error reporting)
-Saga<String> saga = SagaBuilder.<Unit>start()
+Saga<String> saga = SagaBuilder.start()
     .step("charge-payment",
         VTask.of(() -> paymentService.charge(order)),
         paymentId -> paymentService.refund(paymentId))
@@ -240,6 +240,23 @@ Saga<String> saga = SagaBuilder.<Unit>start()
     .stepNoCompensation("send-confirmation",  // Idempotent step, no undo needed
         reservationId -> VTask.of(() -> emailService.sendConfirmation(order, reservationId)))
     .build();
+```
+
+`SagaBuilder.start()` has no `build()`, so a saga with no steps does not compile. Where the steps
+come from data and there may be none, hold the builder as a `SagaSteps<Unit>` and switch on it:
+
+<!-- verify -->
+```java
+SagaSteps<Unit> steps = SagaBuilder.start();
+for (String sku : skus) {
+    steps = steps.step("reserve-" + sku,
+        VTask.exec(() -> inventory.reserveItem(sku)),
+        _ -> inventory.releaseItem(sku));   // each loop step gives Unit
+}
+Maybe<Saga<Unit>> reserveAll = switch (steps) {
+    case SagaBuilder<Unit> builder -> Maybe.just(builder.build());
+    case SagaBuilder.Start _ -> Maybe.nothing();   // no items, so no saga to run
+};
 ```
 
 ### Running

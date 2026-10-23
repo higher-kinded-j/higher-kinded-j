@@ -5,6 +5,7 @@ package org.higherkindedj.benchmarks;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -329,7 +330,7 @@ public class VStreamBenchmark {
 
   /** Chunk then process: groups of 10. */
   @Benchmark
-  public List<List<Integer>> chunkExecution() {
+  public List<NonEmptyList<Integer>> chunkExecution() {
     return prebuiltStream.chunk(10).toList().run();
   }
 
