@@ -344,8 +344,8 @@ public class AddWidenFieldsForNavigatedContainersRecipe extends Recipe {
             .anyMatch(AddWidenFieldsForNavigatedContainersRecipe::isWildcard)) {
       return Optional.empty();
     }
-    // A generic record is Parameterized where it is given arguments, and declares its type
-    // parameters where it is raw: 0.4.x gave neither a navigator.
+    // A generic record given arguments is a parameterised type, and a raw one declares its type
+    // parameters: 0.4.x gave neither a navigator.
     return container.getTypeParameters().get(index) instanceof JavaType.Class record
             && record.getKind() == JavaType.FullyQualified.Kind.Record
             && record.getTypeParameters().isEmpty()
@@ -639,7 +639,7 @@ public class AddWidenFieldsForNavigatedContainersRecipe extends Recipe {
         JavaType.Primitive.String);
   }
 
-  /** An array initializer of the elements given, such as {@code {"positions", "holdings"}}. */
+  /** An array initialiser of the elements given, such as {@code {"positions", "holdings"}}. */
   private static J.NewArray array(List<Expression> elements) {
     List<JRightPadded<Expression>> padded = new ArrayList<>();
     for (int i = 0; i < elements.size(); i++) {
