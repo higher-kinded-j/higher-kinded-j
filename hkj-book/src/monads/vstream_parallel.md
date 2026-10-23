@@ -197,6 +197,10 @@ Each chunk is a [`NonEmptyList`](nonemptylist_monad.md), because a chunk is only
 holds an element. So `head()`, `reduce` and `max` on a chunk always give a value, with no empty
 case to handle. An empty stream gives no chunks.
 
+A size at least as large as the stream, even `Integer.MAX_VALUE`, still yields one chunk of
+every element. The batch list grows as elements arrive, so that size does not reserve a slot
+for every place in it.
+
 ### chunkWhile(predicate)
 
 Groups consecutive elements while a predicate holds between adjacent pairs. Useful for
