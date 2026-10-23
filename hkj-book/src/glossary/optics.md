@@ -89,6 +89,23 @@ Lens<UserProfile, Optional<Integer>> themeLens =
 
 ---
 
+## Each
+
+**Definition:** A type class that gives a container its canonical element-wise `Traversal`. One `each()` call reaches every element of a `List`, a `Set`, a `Map`'s values or an `Optional`. You can write an instance for your own container, so code that traverses "every element" works the same way across container types.
+
+**Core Operations:**
+- `each()` - Returns the canonical `Traversal<S, A>` over every element
+- `supportsIndexed()` - Reports whether the instance also offers an indexed traversal
+- `EachIndexed.indexedTraversal()` - Returns an `IndexedTraversal<I, S, A>` that pairs each element with its index or key
+- `Each.fromTraversal(traversal)` - Wraps an existing traversal as an `Each` instance
+- `EachInstances` - Ready-made instances such as `listEach()`, `setEach()`, `mapValuesEach()` and `optionalEach()`
+
+**When To Use:** Traversing every element of a container, from a standard collection to one of your own types, without writing the traversal by hand each time.
+
+**Related:** [Traversal](#traversal), [At](#at), [Each: Canonical Element-Wise Traversal](../optics/each_typeclass.md)
+
+---
+
 ## Edits
 
 **Definition:** A sparse, accumulating multi-edit over optics. `Edits.combine(...)` folds several pure edits (`set`, `modify`) into one reusable [Update](type-classes.md#update) at compile time; a fallible edit is rejected there, so a validation failure can never be silently dropped. `Edits.accumulate(...)` adds the validated REST-`PATCH` shape: it mixes pure and fallible edits, reports every bad field at once (each located as a [FieldError](#fielderror)), and applies the writes only if all validated. The `…IfPresent` factories treat `null` as absent, which is what makes a patch sparse.
@@ -389,6 +406,23 @@ Dashboard dashboard =
 
 ---
 
+## Getter
+
+**Definition:** A read-only optic that extracts exactly one value, stored or computed, from a source. It composes with other getters and can never write. A Getter is a [Fold](#fold) of exactly one element, so it also answers queries such as `exists` and `find`.
+
+**Core Operations:**
+- `get(S source)` - Extract the single focused value
+- `andThen(Getter<A, B> other)` - Compose with another getter to read deeper
+- `asFold()` - View the getter as a `Fold`, to compose with other folds
+- `Getter.of(f)` and `Getter.to(f)` - Build a getter from a function
+- `Getter.constant(value)` and `Getter.identity()` - Build a getter that always returns one value, or the source itself
+
+**When To Use:** Reading a derived value, such as a full name built from two fields, as a composable optic when you never need to write it back.
+
+**Related:** [Fold](#fold), [Lens](#lens), [Getters: A Practical Guide](../optics/getters.md)
+
+---
+
 ## Iso (Isomorphism)
 
 **Definition:** An optic representing a lossless, bidirectional conversion between two types. If you can convert `A` to `B` and back to `A` without losing information, you have an isomorphism.
@@ -413,6 +447,21 @@ String back = stringToChars.reverseGet(chars);       // "Hello"
 **When To Use:** Converting between equivalent representations (e.g., Celsius/Fahrenheit, String/ByteArray, domain models and DTOs with no information loss).
 
 **Related:** [Iso Documentation](../optics/iso.md)
+
+---
+
+## Ixed
+
+**Definition:** A type class for safe, update-only access by index or key. It gives a `Traversal` over zero or one existing element, so a missing key or index is a no-op. It never inserts, deletes or changes the shape of the structure. Use [At](#at) when you need insertion or deletion.
+
+**Core Operations:**
+- `ix(I index)` - Returns a `Traversal<S, A>` over the element at the index, if it exists
+- `IxedInstances.mapIx()` and `IxedInstances.listIx()` - Instances for maps and lists
+- `IxedInstances.fromAt(at)` - Derives an `Ixed` instance from an existing `At` instance
+
+**When To Use:** Updating an entry only when it already exists, where a missing key or an out-of-bounds index should do nothing rather than insert or throw.
+
+**Related:** [At](#at), [Traversal](#traversal), [Indexed Access: At and Ixed Type Classes](../optics/indexed_access.md)
 
 ---
 
