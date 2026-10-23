@@ -28,7 +28,7 @@ Functor, Monad, and the rest of the abstraction hierarchy.
 
 Core data structures and the effect types built on them.
 
-[Choice](glossary/data-effects.md#choice), [Cons](glossary/data-effects.md#cons), [Const](glossary/data-effects.md#const), [Either](glossary/data-effects.md#either), [EitherOrBoth](glossary/data-effects.md#eitherorboth), [IO](glossary/data-effects.md#io), [Maybe](glossary/data-effects.md#maybe), [NonEmptyList](glossary/data-effects.md#nonemptylist), [Snoc](glossary/data-effects.md#snoc), [TimeSource](glossary/data-effects.md#timesource), [Try](glossary/data-effects.md#try), [Tuple](glossary/data-effects.md#tuple), [Unit](glossary/data-effects.md#unit), [Validated](glossary/data-effects.md#validated)
+[Choice](glossary/data-effects.md#choice), [Cons](glossary/data-effects.md#cons), [Const](glossary/data-effects.md#const), [Either](glossary/data-effects.md#either), [EitherOrBoth](glossary/data-effects.md#eitherorboth), [IO](glossary/data-effects.md#io), [Maybe](glossary/data-effects.md#maybe), [NonEmptyList](glossary/data-effects.md#nonemptylist), [Reader](glossary/data-effects.md#reader), [Snoc](glossary/data-effects.md#snoc), [State](glossary/data-effects.md#state), [TimeSource](glossary/data-effects.md#timesource), [Try](glossary/data-effects.md#try), [Tuple](glossary/data-effects.md#tuple), [Unit](glossary/data-effects.md#unit), [Validated](glossary/data-effects.md#validated), [Writer](glossary/data-effects.md#writer)
 
 ## [Effect Paths & Effect Handlers](glossary/effect-paths.md)
 

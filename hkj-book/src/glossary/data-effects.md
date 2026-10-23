@@ -266,6 +266,27 @@ Validated<NonEmptyList<String>, Integer> bad = Validated.invalidNel("must be pos
 
 ---
 
+## Reader {#reader}
+
+**Definition:** `Reader<R, A>` describes a computation that reads a shared, read-only environment of type `R` and produces a value of type `A`. `run(R)` supplies the environment and returns the result. This is functional dependency injection: composed steps share the environment without passing it through every call.
+
+**Core Operations:**
+
+| Operation | Purpose |
+|---|---|
+| `Reader.of(Function<R, A>)` | Wrap an environment-to-value function. |
+| `run(R)` | Supply the environment and return the value. |
+| `Reader.ask()` | Read the environment itself. |
+| `Reader.constant(A)` | Return a fixed value, ignoring the environment. |
+| `map(f)` | Transform the result value. |
+| `flatMap(f)` | Sequence another `Reader` using the same environment. |
+
+**Effect Path Equivalent:** Use [ReaderPath](../effect/advanced_effects.md#readerpath-the-environment-you-inherit) for fluent composition.
+
+**Related:** [Reader Documentation](../monads/reader_monad.md), [Monad](type-classes.md#monad), [Monad Transformer](type-classes.md#monad-transformer)
+
+---
+
 ## Snoc
 
 **Definition:** A list decomposition pattern that views a non-empty list as a pair of all elements except the last (init) and the last element. The name "snoc" is "cons" spelled backwards, reflecting that it works from the opposite end of the list.
@@ -302,6 +323,30 @@ List<Integer> built = snoc.build(Pair.of(List.of(1, 2, 3), 4));
 **Relationship to Cons:** Cons and Snoc are dual patterns. Cons works from the front (head/tail), Snoc works from the back (init/last).
 
 **Related:** [Cons](#cons), [List Decomposition](../optics/list_decomposition.md)
+
+---
+
+## State {#state}
+
+**Definition:** `State<S, A>` describes a computation that threads a state of type `S` through a sequence of steps. Running it returns a `StateTuple<S, A>` containing the result value and the next state. State changes are returned as values rather than applied to a shared mutable variable.
+
+**Core Operations:**
+
+| Operation | Purpose |
+|---|---|
+| `State.of(Function<S, StateTuple<S, A>>)` | Wrap a state-transition function. |
+| `run(S)` | Supply the initial state and return the value and final state. |
+| `State.pure(A)` | Return a value without changing the state. |
+| `State.get()` | Read the current state as the result value. |
+| `State.set(S)` | Replace the state, returning `Unit`. |
+| `State.modify(Function<S, S>)` | Transform the state, returning `Unit`. |
+| `State.inspect(Function<S, A>)` | Read a value from the state without changing it. |
+| `map(f)` | Transform the result value, preserving the state transition. |
+| `flatMap(f)` | Sequence another `State` using the state produced by the first. |
+
+**Effect Path Equivalent:** Use [WithStatePath](../effect/advanced_effects.md#withstatepath-computation-with-memory) for fluent composition.
+
+**Related:** [State Documentation](../monads/state_monad.md), [Monad](type-classes.md#monad), [Monad Transformer](type-classes.md#monad-transformer)
 
 ---
 
@@ -482,6 +527,28 @@ Validated<String, Integer> validated =
 **Effect Path Equivalent:** Use [ValidationPath](effect-paths.md#effect-path) for fluent composition.
 
 **Related:** [Validated Documentation](../monads/validated_monad.md), [ValidationPath](../effect/path_validation.md), [NonEmptyList](#nonemptylist), [Validated Assembly](optics.md#validated-assembly), [FieldError](optics.md#fielderror)
+
+---
+
+## Writer {#writer}
+
+**Definition:** `Writer<W, A>` is a record pairing a computed value of type `A` with an accumulated log of type `W`. `flatMap` combines step logs through a `Monoid<W>`, so each step can add output without a mutable logger. `run()` returns the value; `exec()` returns the log.
+
+**Core Operations:**
+
+| Operation | Purpose |
+|---|---|
+| `Writer.value(Monoid<W>, A)` | Pair a value with the monoid's empty log. |
+| `Writer.of(W, A)` | Pair a log with a value. |
+| `Writer.tell(W)` | Add a log with `Unit` as the value. |
+| `map(f)` | Transform the value, keeping the log. |
+| `flatMap(Monoid<W>, f)` | Sequence another `Writer` and combine the logs. |
+| `run()` | Return the value. |
+| `exec()` | Return the log. |
+
+**Effect Path Equivalent:** Use [WriterPath](../effect/advanced_effects.md#writerpath-accumulating-output) for fluent composition.
+
+**Related:** [Writer Documentation](../monads/writer_monad.md), [Monoid](type-classes.md#monoid), [Monad Transformer](type-classes.md#monad-transformer)
 
 ---
 
