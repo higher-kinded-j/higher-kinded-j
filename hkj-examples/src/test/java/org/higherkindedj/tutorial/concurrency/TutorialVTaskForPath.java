@@ -384,13 +384,13 @@ public class TutorialVTaskForPath {
 
       VTaskPath<Cart> fetchCart = Path.vtaskPure(cart);
 
-      // TODO: Replace answerRequired() with:
+      // TODO: Replace answerRequired() with the following (add import java.util.Locale):
       // ForPath.from(fetchCart)
       //     .let(c -> c.subtotal())                              // subtotal = 25.0
       //     .let(t -> t._2() * (1 - discountRate))               // afterDiscount = 22.5
       //     .let(t -> t._3() * (1 + taxRate))                    // total = 24.3
       //     .yield((cart, subtotal, afterDiscount, total) ->
-      //         String.format("Total: $%.2f", total))
+      //         String.format(Locale.ROOT, "Total: $%.2f", total))
       VTaskPath<String> result = answerRequired();
 
       Try<String> tryResult = result.runSafe();

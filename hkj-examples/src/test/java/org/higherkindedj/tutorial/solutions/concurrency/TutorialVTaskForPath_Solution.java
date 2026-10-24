@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.effect.Path;
@@ -399,7 +400,8 @@ public class TutorialVTaskForPath_Solution {
               .let(t -> t._2() * (1 - discountRate))
               .let(t -> t._3() * (1 + taxRate))
               .yield(
-                  (cart1, subtotal, afterDiscount, total) -> String.format("Total: $%.2f", total));
+                  (cart1, subtotal, afterDiscount, total) ->
+                      String.format(Locale.ROOT, "Total: $%.2f", total));
 
       Try<String> tryResult = result.runSafe();
       assertThatTry(tryResult).isSuccess();
