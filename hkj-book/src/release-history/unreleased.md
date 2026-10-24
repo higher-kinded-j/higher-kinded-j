@@ -153,6 +153,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Documentation {#documentation}
 
+- **MaybePath now has a glossary entry** ([#1264](https://github.com/higher-kinded-j/higher-kinded-j/issues/1264)): it explains absence, the main factories, and where to read more. See [MaybePath](../glossary/effect-paths.md#maybepath).
 - **EitherPath now has a glossary entry** ([#1237](https://github.com/higher-kinded-j/higher-kinded-j/issues/1237)): it explains typed failures, the main factories, and where to read more. See [EitherPath](../glossary/effect-paths.md#eitherpath).
 - **Reader, State and Writer now have glossary entries** ([#1235](https://github.com/higher-kinded-j/higher-kinded-j/issues/1235)): each names its core operations and Effect Path equivalent. See [Data & Core Effect Types](../glossary/data-effects.md#reader).
 - **The Optics chapter reads in order, from a first nested update to a PATCH** ([#1034](https://github.com/higher-kinded-j/higher-kinded-j/pull/1034)). The sidebar starts with the pages a newcomer needs, then groups the rest by task, reference pages last. The introduction sets a Lombok `@With` cascade beside the Focus path that replaces it. Every page keeps its address. See [Optics](../optics/ch_intro.md).
