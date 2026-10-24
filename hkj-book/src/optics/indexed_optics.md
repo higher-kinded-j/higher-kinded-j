@@ -182,7 +182,7 @@ IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
 The `forMap()` factory creates a traversal where each value is paired with its key.
 
 ~~~admonish tip title="Alternative: EachIndexed.indexedTraversal()"
-You can also obtain indexed traversals through the [Each type class](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly; the index type is fixed at compile time, with no `Optional` to unwrap:
+You can also obtain indexed traversals through the [Each type class](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly, with the index type fixed at compile time:
 
 <!-- verify -->
 ```java
@@ -192,8 +192,6 @@ IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraver
 ```
 
 This is useful when working with custom containers that implement `EachIndexed` or when integrating with the Focus DSL.
-
-(`Each.eachWithIndex()` is the deprecated predecessor; [Each](each_typeclass.md) covers the migration.)
 ~~~
 
 ---

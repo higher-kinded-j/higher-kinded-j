@@ -37,7 +37,6 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
-import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -171,16 +170,6 @@ class VStreamEachTest {
     @DisplayName("supportsIndexed() should return false for VStream")
     void supportsIndexedReturnsFalse() {
       assertThat(vstreamEach.supportsIndexed()).isFalse();
-    }
-
-    @Test
-    @DisplayName("deprecated eachWithIndex() returns empty for VStream (non-EachIndexed)")
-    @SuppressWarnings({"deprecation", "removal"}) // exercises the deprecated bridge for back-compat
-    void eachWithIndexReturnsEmpty() {
-      Optional<IndexedTraversal<Object, VStream<String>, String>> indexed =
-          vstreamEach.eachWithIndex();
-
-      assertThat(indexed).isEmpty();
     }
 
     @Test
