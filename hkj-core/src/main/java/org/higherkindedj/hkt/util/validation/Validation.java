@@ -21,9 +21,8 @@ package org.higherkindedj.hkt.util.validation;
  *       KindValidator#requireNonNull} on {@link org.higherkindedj.hkt.Kind} parameters).
  *   <li>{@link org.higherkindedj.hkt.exception.KindUnwrapException} — thrown by Kind unwrap
  *       operations such as {@link KindValidator#narrow}, {@link KindValidator#narrowWithTypeCheck},
- *       {@link KindValidator#narrowHolder}, {@link KindValidator#narrowWithPattern}, and {@link
- *       FunctionValidator#requireNonNullResult} (which signals a bind-style violation where a user
- *       function returned a null Kind).
+ *       {@link KindValidator#narrowHolder}, and {@link FunctionValidator#requireNonNullResult}
+ *       (which signals a bind-style violation where a user function returned a null Kind).
  * </ul>
  */
 public interface Validation {

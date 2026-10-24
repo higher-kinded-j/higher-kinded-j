@@ -95,40 +95,4 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
       @Nullable Kind<StateTKind.Witness<S, F>, A> kind) {
     return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
   }
-
-  /**
-   * Unwraps (narrows) a {@link Kind} to a concrete {@link StateT} instance with less type safety
-   * regarding the witness type.
-   *
-   * <p><b>Use with extreme caution.</b> This method performs an unchecked cast and relies on the
-   * caller to ensure that the provided {@code Kind<?, A>} is indeed a {@code StateT} that can be
-   * meaningfully cast to {@code StateT<S, F, A>}. The witness part of the {@code Kind} (the first
-   * type parameter, {@code ?}) is effectively ignored by the cast, and the {@code S} and {@code F}
-   * types are determined by the call site's context.
-   *
-   * <p>This might be used in highly generic HKT code where the exact witness structure is
-   * abstracted away, but it sacrifices compile-time safety for flexibility. Prefer {@link
-   * #narrow(Kind)} whenever possible.
-   *
-   * @param kind The higher-kinded representation, typed broadly as {@code Kind<?, A>}. It is
-   *     assumed to be a {@code StateT} instance. Must not be null.
-   * @param <S> The target state type for the resulting {@code StateT}.
-   * @param <F> The target higher-kinded type witness for the underlying monad of the resulting
-   *     {@code StateT}.
-   * @param <A> The target value type for the resulting {@code StateT}.
-   * @return The concrete {@link StateT} instance, guaranteed to be non-null if the input `kind` was
-   *     a valid, non-null {@code StateT} representation.
-   * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code kind} is {@code null} or
-   *     not actually an instance of {@link StateT}.
-   * @deprecated since 0.4.5, scheduled for removal in 0.5.0. The wildcard {@code Kind<?, A>}
-   *     parameter bypasses the HKT witness type safety enforced everywhere else in the library, and
-   *     this method has no callers. Use {@link #narrow(Kind)} instead, which enforces the witness
-   *     type at compile time.
-   */
-  @Deprecated(since = "0.4.5", forRemoval = true)
-  @SuppressWarnings("unchecked")
-  static <S, F extends WitnessArity<TypeArity.Unary>, A> StateT<S, F, A> narrowK(
-      @Nullable Kind<?, A> kind) {
-    return Validation.kind().narrowWithTypeCheck(kind, StateT.class);
-  }
 }

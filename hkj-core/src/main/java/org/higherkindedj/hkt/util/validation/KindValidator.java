@@ -91,9 +91,9 @@ public enum KindValidator {
   /**
    * Specialised narrowing for holder-based Kind implementations.
    *
-   * <p>Most KindHelpers wrap their concrete implementation in an internal record (e.g. {@code
-   * OptionalHolder}, {@code LazyHolder}). Pass a method reference to the holder's accessor to
-   * extract the wrapped value with one line:
+   * <p>A KindHelper whose type does not implement {@link Kind} itself, such as {@code Optional} or
+   * {@code Lazy}, wraps it in an internal record (e.g. {@code OptionalHolder}, {@code LazyHolder}).
+   * Pass a method reference to the holder's accessor to extract the wrapped value with one line:
    *
    * <pre>{@code
    * public <A> Optional<A> narrow(@Nullable Kind<OptionalKind.Witness, A> kind) {
@@ -102,12 +102,9 @@ public enum KindValidator {
    * }
    * }</pre>
    *
-   * <p>This is the preferred holder-narrow entry point. {@link #narrowWithPattern} is retained as a
-   * deprecated alias.
-   *
    * @param kind The Kind to narrow, may be null
    * @param targetType The target type class for error messaging
-   * @param holderType The holder type class for pattern matching
+   * @param holderType The holder type the Kind must be an instance of
    * @param accessor Function to extract the value from the holder (typically a method reference)
    * @param <F> The witness type of the Kind
    * @param <A> The value type of the Kind
@@ -131,43 +128,6 @@ public enum KindValidator {
           throw new KindUnwrapException(context.invalidTypeMessage(kind));
         }
         yield accessor.apply(holderType.cast(kind));
-      }
-    };
-  }
-
-  /**
-   * Specialised narrowing for holder-based Kind implementations using pattern matching.
-   *
-   * @param kind The Kind to narrow, may be null
-   * @param targetType The target type class for error messaging
-   * @param holderType The holder type class for pattern matching
-   * @param extractor Function to extract the value from the holder
-   * @param <F> The witness type of the Kind
-   * @param <A> The value type of the Kind
-   * @param <T> The target type to narrow to
-   * @param <H> The holder type
-   * @return The narrowed result
-   * @throws KindUnwrapException if kind is null or not of the expected holder type
-   * @deprecated since 0.4.4, scheduled for removal in 0.5.0. Use {@link #narrowHolder(Kind, Class,
-   *     Class, Function)} instead — the new name better reflects what the method does and is paired
-   *     with a clearer Javadoc example.
-   */
-  @Deprecated(since = "0.4.4", forRemoval = true)
-  public <F extends WitnessArity<?>, A, T, H extends Kind<F, A>> T narrowWithPattern(
-      @Nullable Kind<F, A> kind,
-      Class<T> targetType,
-      Class<H> holderType,
-      Function<? super H, ? extends T> extractor) {
-
-    var context = new KindContext(targetType, NARROW.toString());
-
-    return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
-      default -> {
-        if (!holderType.isInstance(kind)) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind));
-        }
-        yield extractor.apply(holderType.cast(kind));
       }
     };
   }
