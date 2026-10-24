@@ -65,26 +65,20 @@ public interface Each<S, A> {
     // The canonical traversal for all elements
     Traversal<S, A> each();
 
-    // Check if indexed access is supported (i.e. this is an EachIndexed).
-    // The real body also falls back to the deprecated eachWithIndex() for
-    // back-compatibility; that member is omitted here for clarity.
+    // Check if indexed access is supported (i.e. this is an EachIndexed)
     default boolean supportsIndexed() {
         return this instanceof EachIndexed<?, ?, ?>;
     }
 }
 
 // Containers with a meaningful index implement EachIndexed, which fixes the
-// index type I at the type level: no Optional, no cast.
+// index type I at the type level.
 public interface EachIndexed<I, S, A> extends Each<S, A> {
     IndexedTraversal<I, S, A> indexedTraversal();
 }
 ```
 
 The interface is simple by design. Implement `each()` to provide a traversal; if your container has meaningful indices, implement `EachIndexed` and provide `indexedTraversal()` instead.
-
-~~~admonish warning title="Deprecated: eachWithIndex()"
-Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<IndexedTraversal<I, S, A>>` and let the caller choose the index type `<I>` freely even though the real index type was fixed; a mismatched request compiled but failed at runtime with a `ClassCastException`. It is **deprecated (for removal in 0.5.0)** in favour of `EachIndexed.indexedTraversal()`, which fixes the index type at the type level and needs no `Optional` unwrap. Migrate by typing the variable as `EachIndexed` and calling `indexedTraversal()` directly.
-~~~
 
 ---
 
@@ -387,7 +381,7 @@ Contributor updated = allTasks.modifyAll(Task::escalated, contributor);
 * **Each<S, A>** provides a canonical `Traversal<S, A>` for any container type
 * **EachInstances** covers Java collections: List, Set, Collection, Map, Optional, arrays, Stream, VStream, String
 * **EachExtensions** covers HKT types: Maybe, Either, Try, Validated
-* **EachIndexed.indexedTraversal()** returns an `IndexedTraversal` when the container supports meaningful indices (`eachWithIndex()` is deprecated for removal in 0.5.0)
+* **EachIndexed.indexedTraversal()** returns an `IndexedTraversal` when the container supports meaningful indices
 * **Focus DSL integration** via `.each(Each)` enables fluent navigation through custom containers
 * **Each.fromTraversal()** and **Each.fromIndexedTraversal()** wrap existing optics
 ~~~
