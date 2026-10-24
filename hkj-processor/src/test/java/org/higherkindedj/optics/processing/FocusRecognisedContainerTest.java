@@ -34,12 +34,11 @@ import org.junit.jupiter.params.provider.ValueSource;
  * Each container {@code @GenerateFocus} recognises by name reaches an optic that reads and rebuilds
  * it.
  *
- * <p>They do not share one: the no-argument {@code .each()} and {@code .some()} carry a {@code
- * List} traversal and an {@code Optional} affine, and cast the focused value to that type
- * unchecked, so a {@code Set}, a {@code Collection} or a {@code Maybe} routed through either
- * compiles and then throws on first use. A compile-testing assertion cannot see that, which is why
- * the reads and modifications below run the generated path and read the component back rather than
- * only reading the emitted source.
+ * <p>They do not share one: a {@code List} traversal or an {@code Optional} affine handed a {@code
+ * Set}, a {@code Collection} or a {@code Maybe} through an unchecked cast would compile and then
+ * throw on first use. A compile-testing assertion cannot see that, which is why the reads and
+ * modifications below run the generated path and read the component back rather than only reading
+ * the emitted source.
  */
 @DisplayName("Recognised container widening")
 class FocusRecognisedContainerTest {
@@ -80,9 +79,10 @@ class FocusRecognisedContainerTest {
   class EmittedExpression {
 
     @Test
-    @DisplayName("List widens through the no-argument each()")
-    void listWidensThroughTheNoArgumentEach() {
-      assertGeneratedCodeContains(compileHolder(), "com.example.HolderFocus", "\"list\").each();");
+    @DisplayName("List widens through EachInstances.listEach()")
+    void listWidensThroughListEach() {
+      assertGeneratedCodeContains(
+          compileHolder(), "com.example.HolderFocus", "\"list\").each(EachInstances.listEach());");
     }
 
     @Test
@@ -107,12 +107,12 @@ class FocusRecognisedContainerTest {
       assertGeneratedCodeContains(
           compileHolder(),
           "com.example.HolderFocus",
-          "\"nested\").each(EachInstances.setEach()).some();");
+          "\"nested\").each(EachInstances.setEach()).some(FocusPaths.optionalSome());");
     }
 
     @Test
-    @DisplayName("a no-argument step before a Set spells out the element it hands on")
-    void aNoArgumentStepBeforeASetSpellsOutTheElementItHandsOn() {
+    @DisplayName("a List before a Set hands on its element with no witness")
+    void aListBeforeASetNeedsNoWitness() {
       JavaFileObject source =
           JavaFileObjects.forSourceString(
               "com.example.Nested",
@@ -133,7 +133,7 @@ class FocusRecognisedContainerTest {
       assertGeneratedCodeContains(
           compilation,
           "com.example.NestedFocus",
-          "\"rows\").<Set<String>>each().each(EachInstances.setEach());");
+          "\"rows\").each(EachInstances.listEach()).each(EachInstances.setEach());");
     }
   }
 
@@ -306,12 +306,12 @@ class FocusRecognisedContainerTest {
     }
 
     @Test
-    @DisplayName("a no-argument step before a Maybe spells out the element it hands on")
-    void aNoArgumentStepBeforeAMaybeSpellsOutTheElementItHandsOn() {
+    @DisplayName("a List before a Maybe hands on its element with no witness")
+    void aListBeforeAMaybeNeedsNoWitness() {
       assertGeneratedCodeContains(
           result.compilation(),
           "com.example.SavedFocus",
-          "\"drafts\").<Maybe<String>>each().some(Affines.just());");
+          "\"drafts\").each(EachInstances.listEach()).some(Affines.just());");
     }
 
     @Test

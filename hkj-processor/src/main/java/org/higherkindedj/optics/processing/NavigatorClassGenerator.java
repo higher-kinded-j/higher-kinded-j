@@ -2257,8 +2257,10 @@ public class NavigatorClassGenerator {
                 componentName,
                 declared.tier().getMethod(),
                 componentName)
-            // The navigator type and the record's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            // The navigator type and the record's type-parameter bounds are written out here, and
+            // so may a cast to a raw or wildcard container.
+            .addAnnotations(
+                WideningAnalysis.warningSuppression(component, recordElement, declared.steps()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnType);
 
@@ -2275,9 +2277,9 @@ public class NavigatorClassGenerator {
     // and the component name rides along as the path's field-name segment so that a navigated path
     // self-locates the way a static one does (issue #592).
     //
-    // The navigator's type arguments are written out rather than inferred: a widening that ends in
-    // the no-argument .each() or .some() gives a diamond nothing to infer a nullable type argument
-    // from, and a nullness checker then reads the path as the non-null one.
+    // The navigator's type arguments are written out rather than inferred, so that its element
+    // type, nullness included, is the one the static method declares, whatever a diamond would
+    // infer.
     List<Object> args =
         new ArrayList<>(
             List.of(

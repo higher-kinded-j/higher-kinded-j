@@ -73,13 +73,14 @@ mvn rewrite:run      # apply changes
 
 ## Recipe Catalogue
 
-Three recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
+Four recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
 
 | Group | Composite | Mode |
 |-------|-----------|------|
 | Arity migration (0.2.x to 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | rewrites source |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers whose elements have a field named like a path method |
+| 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | rewrites source, and marks calls a typed form does not fit |
 
 ### Arity migration (0.2.x to 0.3.0)
 
@@ -161,12 +162,58 @@ rewrite {
 - **A note can remain where 0.4.x gave no navigator,** such as at a `Map` of `List`s, since widening it would change what its method returns. A note does not fail the build.
 - **An element whose module never ran the processor is widened anyway.** 0.5.0's note at the field says so; take the field out of `widenFields` to keep the container whole, as 0.4.x did.
 
+### 0.6.0 deprecation migration
+
+Rewrites call sites of APIs deprecated in 0.5.0 for removal in 0.6.0 to their replacements. A Focus path's untyped shortcuts, which do not read their element type from the focus, become their typed forms, which do. `ScopeJoiner.resultEither()`, the other API due to go, has no recipe; [Removals in 0.6.0](../release-history/upgrading.md#removals-in-060) gives its replacement.
+
+Run it before your build moves to 0.6.0, with `hkj-openrewrite` 0.5.x on the rewrite classpath, since 0.6.0 removes the methods it matches. The typed forms compile against 0.4.x and later, so the rewritten code builds on the release you are on.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | Composite; runs the recipe below |
+| `org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe` | On a `FocusPath`, an `AffinePath`, a `TraversalPath` or a navigator, `each()` becomes `each(EachInstances.listEach())`, `some()` becomes `some(FocusPaths.optionalSome())`, `at(index)` and `atKey(key)` become `via(FocusPaths.listAt(index))` and `via(FocusPaths.mapAt(key))`, and `traverseOver(traverse)` becomes `each(EachInstances.fromTraverse(traverse))`. `head()`, `last()`, `tail()`, `init()`, `cons()`, `snoc()`, `headTail()` and `initLast()` become `via` with the `FocusPaths` list optic of the same name, such as `via(FocusPaths.listHead())`. A type witness written on the shortcut, as in `<Role>each()`, is dropped, since the typed form reads the element type from the path |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0")
+}
+```
+
+A typed form fits only a path that focuses on its container exactly, such as a `List<Role>`. The recipe marks each call it cannot rewrite, and `rewriteRun` leaves the mark in the source as a `/*~~(…)~~>*/` comment, to remove once the call is replaced:
+
+- **A raw or wildcard container**, such as a lens onto a `List<? extends Number>`. The shortcut read it correctly, and no typed form takes it. View it as the container exactly through an `Iso`, as the code after this list shows, then step in. Give a raw container its type argument.
+- **A subtype such as `ArrayList`, or a type variable bounded by the container**: declare the focus as the container itself, such as `List` or `Map`. For `each()` on an `ArrayList`, `each(EachInstances.fromIterableCollecting(ArrayList::new))` also works, and rebuilds an `ArrayList`.
+- **Another type altogether.** The call threw `ClassCastException` when it ran; compose the optic for what the path does focus on.
+- **A key or a `Traverse` that does not fit the path**, such as an `Object` key on a `Map<String, Integer>`. Pass a key of the map's key type, or the `Traverse` for the `Kind`'s witness.
+- **A result read with another element type**: a witness, as in `<CharSequence>each()` on a `List<String>`, or a wider type the result is assigned to. Write the typed form, and make the code around it take the element the path holds.
+- **A call made on the result with no target type**, such as `path.each().getAll(source)`, where the shortcut focused on `Object`. Write the typed form, and check the code that reads its result.
+- **A method reference to a shortcut**: write the typed form in a lambda.
+
+A call whose result nothing reads, or that another shortcut is called on, is rewritten.
+
+Each of these views sees a wildcard container as the container exactly, so the typed form fits. The `List` is seen through a read-only view, and the `Kind` is mapped with its own `Traverse`:
+
+<!-- verify -->
+```java
+TraversalPath<Basket, Number> amounts =
+    amountsPath
+        .via(Iso.<List<? extends Number>, List<Number>>of(Collections::unmodifiableList, l -> l))
+        .each(EachInstances.listEach());
+
+TraversalPath<Basket, CharSequence> labels =
+    labelsPath
+        .via(
+            Iso.<Kind<ListKind.Witness, ? extends CharSequence>, Kind<ListKind.Witness, CharSequence>>of(
+                k -> ListTraverse.INSTANCE.map(c -> c, k), k -> k))
+        .each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
+```
+
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Three groups, three modes.** Arity migration and 0.5.0 deprecations rewrite source, apart from the marks they leave for you; the effect algebra helpers only flag call sites because their targets are user-specific generated code.
+* **Four groups, three modes.** Arity migration and the 0.5.0 and 0.6.0 deprecations rewrite source, apart from the marks the two deprecation groups leave for you. The effect algebra helpers only flag call sites, because their targets are user-specific generated code.
 * **Always dry-run first.** `rewriteDryRun` (Gradle) or `mvn rewrite:dryRun` (Maven) shows the diff; `rewriteRun` applies it.
-* **Use the composite recipe.** Activating one of the three composites runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
+* **Use the composite recipe.** Activating a group's composite runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
 * **Recipe coverage tracks the library.** The same migrations also surface as compile-time checks in `hkj-checker`; pick whichever feedback loop fits the team.
 ~~~
 
@@ -177,6 +224,7 @@ rewrite {
 - [Build Plugins](gradle_plugin.md) - The Gradle and Maven plugins that set up the rest of the tooling; add `hkj-openrewrite` to the rewrite plugin as the [Quick Start](#quick-start) shows
 - [Release History](../release-history.md) - Per-version notes; recipe groups are documented in the release that introduces them
 - [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) - Every API deprecated for removal, the release that deprecated it, and the recipe that migrates it
+- [Removals in 0.6.0](../release-history/upgrading.md#removals-in-060) - The APIs deprecated in 0.5.0, and the recipe that migrates them
 ~~~
 
 ---

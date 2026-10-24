@@ -215,13 +215,13 @@ int lineCount = quantitiesFold.length(order);
 
 <!-- verify -->
 ```java
-// Using Focus DSL instead of manual lens composition. Mid-chain, each() has nothing to infer
-// its element type from, so give it a witness: `.<OrgUnit>each()`.
+// Using Focus DSL instead of manual lens composition. Each each(listEach()) takes its element
+// type from the List the path focuses on, so the chain needs no witnesses.
 TraversalPath<OrgChart, Integer> allSalaries =
     FocusPath.of(chartUnitsLens)
-        .<OrgUnit>each()
+        .each(EachInstances.listEach())
         .via(unitMembersLens)
-        .<OrgMember>each()
+        .each(EachInstances.listEach())
         .via(memberSalaryLens);
 
 OrgChart updated = allSalaries.modifyAll(s -> (int)(s * 1.05), company);
@@ -245,7 +245,7 @@ sealed interface Notification permits EmailMessage, SMS, Push {}
 record EmailMessage(String address, String subject, String body) implements Notification {}
 
 TraversalPath<Outbox, Notification> allNotifications =
-    FocusPath.of(outboxNotificationsLens).each();
+    FocusPath.of(outboxNotificationsLens).each(EachInstances.listEach());
 
 TraversalPath<Outbox, EmailMessage> emailsOnly =
     allNotifications.via(AffinePath.instanceOf(EmailMessage.class));
@@ -268,7 +268,7 @@ record Inventory(List<Product> products, String warehouseId) {}
 record Product(String sku, String name, BigDecimal price, int stock) {}
 
 TraversalPath<Inventory, Product> allProducts =
-    FocusPath.of(inventoryProductsLens).each();
+    FocusPath.of(inventoryProductsLens).each(EachInstances.listEach());
 
 // Apply 20% discount to premium products with low stock
 Inventory updated = allProducts.modifyWhen(
@@ -284,7 +284,8 @@ Inventory updated = allProducts.modifyWhen(
 
 <!-- verify -->
 ```java
-TraversalPath<Order, LineItem> allLines = FocusPath.of(orderLinesLens).each();
+TraversalPath<Order, LineItem> allLines =
+    FocusPath.of(orderLinesLens).each(EachInstances.listEach());
 
 int totalQuantity = allLines.via(lineItemQuantityLens)
     .foldMap(intSumMonoid, q -> q, order);

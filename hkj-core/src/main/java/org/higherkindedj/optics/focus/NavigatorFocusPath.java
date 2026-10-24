@@ -189,7 +189,14 @@ public abstract non-sealed class NavigatorFocusPath<
     return path.then(other);
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     each(EachInstances.listEach())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> TraversalPath<S, E> each() {
     return path.each();
   }
@@ -199,17 +206,38 @@ public abstract non-sealed class NavigatorFocusPath<
     return path.each(eachInstance);
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listAt(index))}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, E> at(int index) {
     return path.at(index);
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.mapAt(key))}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <K, V extends @Nullable Object> AffinePath<S, V> atKey(K key) {
     return path.atKey(key);
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     some(FocusPaths.optionalSome())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E> AffinePath<S, E> some() {
     return path.some();
   }
@@ -224,48 +252,112 @@ public abstract non-sealed class NavigatorFocusPath<
     return path.nullable();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     each(EachInstances.fromTraverse(traverse))}, which reads its element type from the path.
+   *     The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it
+   *     cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <F extends WitnessArity<TypeArity.Unary>, E> TraversalPath<S, E> traverseOver(
       Traverse<F> traverse) {
     return path.traverseOver(traverse);
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listCons())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> cons() {
     return path.cons();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listHeadTail())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> headTail() {
     return path.headTail();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listSnoc())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> snoc() {
     return path.snoc();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listInitLast())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> initLast() {
     return path.initLast();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listHead())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, E> head() {
     return path.head();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listLast())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, E> last() {
     return path.last();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listTail())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, List<E>> tail() {
     return path.tail();
   }
 
+  /**
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Use {@code
+   *     via(FocusPaths.listInit())}, which reads its element type from the path. The {@code
+   *     MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it cannot.
+   */
   @Override
+  @Deprecated(since = "0.5.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   public final <E extends @Nullable Object> AffinePath<S, List<E>> init() {
     return path.init();
   }

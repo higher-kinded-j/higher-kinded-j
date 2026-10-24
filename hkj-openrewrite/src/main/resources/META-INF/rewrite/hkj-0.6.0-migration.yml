@@ -1,0 +1,39 @@
+# Higher-Kinded-J 0.6.0 Migration Recipes
+# Rewrites usages of APIs deprecated in 0.5.0 for removal in 0.6.0 to their
+# replacements: a Focus path's untyped shortcuts, such as each() and some(),
+# become their typed forms, such as each(EachInstances.listEach()).
+#
+# Run these with hkj-openrewrite 0.5.x before the project moves to 0.6.0:
+# they match the deprecated signatures, which 0.6.0 removes. The typed forms
+# compile against 0.4.x and later.
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0")
+#   }
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0
+displayName: Migrate Higher-Kinded-J APIs deprecated for removal in 0.6.0
+description: >-
+  Rewrites call sites of Higher-Kinded-J methods deprecated in 0.5.0 for
+  removal in 0.6.0 to their replacements. A Focus path's untyped shortcuts,
+  whose element type is not read from the focus, become their typed forms:
+  each() becomes each(EachInstances.listEach()), some() becomes
+  some(FocusPaths.optionalSome()), at(index) and atKey(key) become
+  via(FocusPaths.listAt(index)) and via(FocusPaths.mapAt(key)),
+  traverseOver(traverse) becomes each(EachInstances.fromTraverse(traverse)),
+  and head(), last(), tail(), init(), cons(), snoc(), headTail() and
+  initLast() become via with the FocusPaths list optic of the same name.
+  A call the typed form does not fit is marked rather than rewritten, with
+  a way to replace it: one whose path does not focus on the container
+  exactly, such as a List<? extends T> or an ArrayList, whose key or
+  Traverse does not fit the path, or whose result is read with another
+  element type.
+tags:
+  - higher-kinded-j
+  - migration
+  - deprecation
+recipeList:
+  - org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe

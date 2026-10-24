@@ -599,9 +599,9 @@ class FocusPathsTest {
       // Navigate: User -> List<Map> -> Map -> Optional -> String
       var path =
           FocusPath.of(settingsLens)
-              .<Map<String, Optional<String>>>each()
-              .<String, Optional<String>>atKey("theme")
-              .<String>some();
+              .each(EachInstances.listEach())
+              .via(FocusPaths.mapAt("theme"))
+              .some(FocusPaths.optionalSome());
 
       Map<String, Optional<String>> map1 = new HashMap<>();
       map1.put("theme", Optional.of("dark"));
@@ -619,6 +619,7 @@ class FocusPathsTest {
     }
 
     @Test
+    @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
     @DisplayName("a record rebuilt through each() or at() should hold an unmodifiable list")
     void recordRebuiltThroughAListPathShouldHoldAnUnmodifiableList() {
       record Basket(List<Integer> items) {}
@@ -636,6 +637,7 @@ class FocusPathsTest {
     }
 
     @Test
+    @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
     @DisplayName("a path over a field declared as ArrayList should read, and write through an Each")
     void pathOverAnArrayListFieldShouldWriteThroughAnEachThatRebuildsIt() {
       record Shelf(ArrayList<Integer> items) {}

@@ -17,8 +17,10 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.Test;
 
@@ -139,7 +141,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
    */
   @Test
   void exercise3_affinePathToMaybePath() {
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     User withEmail = new User("Alice", Optional.of("alice@example.com"));
     User withoutEmail = new User("Bob", Optional.empty());
@@ -168,7 +171,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
    */
   @Test
   void exercise4_affinePathToEitherPathWithError() {
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     User withEmail = new User("Alice", Optional.of("alice@example.com"));
     User withoutEmail = new User("Bob", Optional.empty());
@@ -198,7 +202,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
    */
   @Test
   void exercise5_traversalPathToListPath() {
-    TraversalPath<Company, User> employeesPath = FocusPath.of(companyEmployeesLens).each();
+    TraversalPath<Company, User> employeesPath =
+        FocusPath.of(companyEmployeesLens).each(EachInstances.listEach());
 
     Company company =
         new Company(
@@ -291,7 +296,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
    */
   @Test
   void exercise8_eitherPathFocusAffine() {
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     EitherPath<String, User> userWithEmail =
         Path.right(new User("Alice", Optional.of("alice@example.com")));
@@ -325,7 +331,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
   @Test
   void exercise9_tryPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     TryPath<User> userPath = Path.success(new User("Alice", Optional.of("alice@example.com")));
     TryPath<User> userWithoutEmail = Path.success(new User("Bob", Optional.empty()));
@@ -367,7 +374,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
 
     assertThat(nameIO.unsafeRun()).isEqualTo("Alice");
 
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
     IOPath<User> userWithoutEmailIO = Path.ioPure(new User("Bob", Optional.empty()));
 
     IOPath<String> emailIO =
@@ -393,7 +401,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
   @Test
   void exercise11_validationPathFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     ValidationPath<List<String>, User> validUser =
         Path.valid(new User("Alice", Optional.of("alice@example.com")), Semigroups.list());
@@ -435,7 +444,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
   @Test
   void exercise12_combinedPipeline() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     User alice = new User("Alice", Optional.of("alice@example.com"));
 
@@ -476,7 +486,8 @@ public class Tutorial14_FocusEffectBridge_Solution {
   @Test
   void exercise13_simplePathsFocus() {
     FocusPath<User, String> namePath = FocusPath.of(userNameLens);
-    AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).some();
+    AffinePath<User, String> emailPath =
+        FocusPath.of(userEmailLens).some(FocusPaths.optionalSome());
 
     User alice = new User("Alice", Optional.of("alice@example.com"));
     User bob = new User("Bob", Optional.empty());

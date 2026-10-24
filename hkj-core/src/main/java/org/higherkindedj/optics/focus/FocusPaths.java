@@ -22,8 +22,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Static utilities for creating optics used in Focus path navigation.
  *
- * <p>This class provides pre-built optics for common collection types that are used internally by
- * the Focus DSL for methods like {@code each()}, {@code at()}, {@code some()}, and {@code atKey()}.
+ * <p>This class provides pre-built optics for common collection types, to compose onto a Focus
+ * path: {@code path.via(FocusPaths.listAt(0))} focuses on the first element of a list, and {@code
+ * path.some(FocusPaths.optionalSome())} on the value of an {@code Optional}.
  *
  * <h2>Supported Types</h2>
  *

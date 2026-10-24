@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.optics.annotations.GenerateFocus;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;

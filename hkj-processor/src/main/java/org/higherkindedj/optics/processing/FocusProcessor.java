@@ -41,10 +41,11 @@ import org.higherkindedj.optics.processing.util.Reachability;
  * <ul>
  *   <li><b>Standard fields</b> - Generate {@code FocusPath}
  *   <li><b>Optional/Maybe fields</b> - Generate {@code AffinePath}, an {@code Optional} via {@code
- *       .some()} and a {@code Maybe} via {@code .some(Affines.just())}
+ *       .some(FocusPaths.optionalSome())} and a {@code Maybe} via {@code .some(Affines.just())}
  *   <li><b>Collection fields</b> (List, Set, Collection) - Generate {@code TraversalPath}, each
  *       through the {@code Each} that rebuilds it
- *   <li><b>Kind&lt;F, A&gt; fields</b> - Generate appropriate path via {@code .traverseOver()}
+ *   <li><b>Kind&lt;F, A&gt; fields</b> - Generate appropriate path via {@code
+ *       .each(EachInstances.fromTraverse())}
  * </ul>
  *
  * <h2>Kind Field Support</h2>
@@ -75,7 +76,7 @@ import org.higherkindedj.optics.processing.util.Reachability;
  *
  *     public static TraversalPath<Team, Member> members() {
  *         return FocusPath.of(Lens.of(...))
- *             .<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+ *             .each(EachInstances.<ListKind.Witness, Member>fromTraverse(ListTraverse.INSTANCE));
  *     }
  * }
  * }</pre>
@@ -335,8 +336,9 @@ public class FocusProcessor extends AbstractProcessor {
                 recordTypeName,
                 innerTypeName)
             // The path type, the setter lambda's inferred value and the record's type-parameter
-            // bounds all land in this method.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            // bounds all land in this method, and so may a cast to a raw or wildcard container.
+            .addAnnotations(
+                WideningAnalysis.warningSuppression(component, recordElement, widening.steps()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnTypeName);
 

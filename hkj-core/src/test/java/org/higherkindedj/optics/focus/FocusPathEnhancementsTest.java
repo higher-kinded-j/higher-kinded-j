@@ -24,6 +24,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -143,7 +144,8 @@ class FocusPathEnhancementsTest {
     void affinePathViaFocusPath() {
       Lens<Config, Optional<String>> apiKeyOptLens =
           Lens.of(Config::apiKey, (c, k) -> new Config(k));
-      AffinePath<Config, String> apiKeyPath = FocusPath.of(apiKeyOptLens).some();
+      AffinePath<Config, String> apiKeyPath =
+          FocusPath.of(apiKeyOptLens).some(FocusPaths.optionalSome());
 
       // Create a trivial FocusPath for String manipulation
       FocusPath<String, String> identityPath = FocusPath.identity();
@@ -157,7 +159,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.via(FocusPath) should compose correctly")
     void traversalPathViaFocusPath() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
       FocusPath<Person, String> namePath = FocusPath.of(personNameLens);
 
       // Using via(FocusPath) directly
@@ -210,7 +213,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.then() should work as alias for via()")
     void affinePathThen() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       FocusPath<String, String> identityPath = FocusPath.identity();
 
@@ -225,7 +229,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.then() should work as alias for via()")
     void traversalPathThen() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       TraversalPath<Team, String> viaResult = membersPath.via(personNameLens);
       TraversalPath<Team, String> thenResult = membersPath.then(personNameLens);
@@ -303,7 +308,8 @@ class FocusPathEnhancementsTest {
     void instanceOfWithTraversal() {
       Lens<Drawing, List<Shape>> shapesLens = Lens.of(Drawing::shapes, (d, s) -> new Drawing(s));
 
-      TraversalPath<Drawing, Shape> allShapes = FocusPath.of(shapesLens).each();
+      TraversalPath<Drawing, Shape> allShapes =
+          FocusPath.of(shapesLens).each(EachInstances.listEach());
       AffinePath<Shape, Circle> circlePath = AffinePath.instanceOf(Circle.class);
 
       // Compose traversal with instanceOf
@@ -349,7 +355,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.modifyF should return source unchanged when no focus")
     void affinePathModifyFNoFocus() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       Config withoutKey = new Config(Optional.empty());
 
@@ -367,7 +374,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.modifyF should sequence effects across elements")
     void traversalPathModifyFSequencesEffects() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -400,7 +408,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("modifyWhen should only modify elements matching predicate")
     void modifyWhenOnlyModifiesMatchingElements() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -424,7 +433,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("modifyWhen should leave non-matching elements unchanged")
     void modifyWhenLeavesNonMatchingUnchanged() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -445,7 +455,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("modifyWhen with no matches should return original")
     void modifyWhenNoMatchesReturnsOriginal() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -470,7 +481,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("foldMap should aggregate values with string monoid")
     void foldMapWithStringMonoid() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -488,7 +500,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("foldMap should work with integer sum")
     void foldMapWithIntegerSum() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -506,7 +519,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("foldMap should return empty for empty traversal")
     void foldMapEmptyTraversal() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team emptyTeam = new Team("Empty", List.of());
 
@@ -520,7 +534,7 @@ class FocusPathEnhancementsTest {
     void foldCombinesElements() {
       Lens<Team, List<String>> tagsLens =
           Lens.of(t -> t.members().stream().map(Person::name).toList(), (t, tags) -> t);
-      TraversalPath<Team, String> tagsPath = FocusPath.of(tagsLens).each();
+      TraversalPath<Team, String> tagsPath = FocusPath.of(tagsLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -537,7 +551,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("foldMap with custom monoid")
     void foldMapWithCustomMonoid() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       // Custom monoid for finding max age
       Monoid<Integer> maxMonoid =
@@ -719,7 +734,8 @@ class FocusPathEnhancementsTest {
       Lens<DoubleOptional, Optional<Optional<String>>> valueLens =
           Lens.of(DoubleOptional::value, (d, v) -> new DoubleOptional(v));
 
-      AffinePath<DoubleOptional, Optional<String>> firstOpt = FocusPath.of(valueLens).some();
+      AffinePath<DoubleOptional, Optional<String>> firstOpt =
+          FocusPath.of(valueLens).some(FocusPaths.optionalSome());
       AffinePath<Optional<String>, String> secondOpt = AffinePath.of(optionalAffine);
 
       AffinePath<DoubleOptional, String> nestedPath = firstOpt.via(secondOpt);
@@ -741,7 +757,8 @@ class FocusPathEnhancementsTest {
       Lens<OptionalList, Optional<List<String>>> itemsLens =
           Lens.of(OptionalList::items, (o, i) -> new OptionalList(i));
 
-      AffinePath<OptionalList, List<String>> optListPath = FocusPath.of(itemsLens).some();
+      AffinePath<OptionalList, List<String>> optListPath =
+          FocusPath.of(itemsLens).some(FocusPaths.optionalSome());
       TraversalPath<List<String>, String> allItems = TraversalPath.of(listTraversal);
 
       TraversalPath<OptionalList, String> allOptItems = optListPath.via(allItems);
@@ -757,7 +774,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.then(Lens) should work like via(Lens)")
     void affinePathThenLens() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       // Create a simple lens that gets the length of a string
       Lens<String, Integer> lengthLens =
@@ -777,7 +795,8 @@ class FocusPathEnhancementsTest {
       Lens<NumericConfig, Optional<String>> valueLens =
           Lens.of(NumericConfig::numericValue, (c, v) -> new NumericConfig(v));
 
-      AffinePath<NumericConfig, String> valuePath = FocusPath.of(valueLens).some();
+      AffinePath<NumericConfig, String> valuePath =
+          FocusPath.of(valueLens).some(FocusPaths.optionalSome());
       AffinePath<NumericConfig, Integer> intPath = valuePath.then(parseIntPrism);
 
       NumericConfig validNum = new NumericConfig(Optional.of("42"));
@@ -797,7 +816,8 @@ class FocusPathEnhancementsTest {
       Lens<NestedOpt, Optional<Optional<String>>> nestedLens =
           Lens.of(NestedOpt::nested, (n, v) -> new NestedOpt(v));
 
-      AffinePath<NestedOpt, Optional<String>> firstLevel = FocusPath.of(nestedLens).some();
+      AffinePath<NestedOpt, Optional<String>> firstLevel =
+          FocusPath.of(nestedLens).some(FocusPaths.optionalSome());
       AffinePath<NestedOpt, String> deepPath = firstLevel.then(optionalAffine);
 
       NestedOpt present = new NestedOpt(Optional.of(Optional.of("deep")));
@@ -812,7 +832,8 @@ class FocusPathEnhancementsTest {
       Lens<NestedOpt, Optional<Optional<String>>> nestedLens =
           Lens.of(NestedOpt::nested, (n, v) -> new NestedOpt(v));
 
-      AffinePath<NestedOpt, Optional<String>> firstLevel = FocusPath.of(nestedLens).some();
+      AffinePath<NestedOpt, Optional<String>> firstLevel =
+          FocusPath.of(nestedLens).some(FocusPaths.optionalSome());
       AffinePath<Optional<String>, String> secondLevel = AffinePath.of(optionalAffine);
 
       AffinePath<NestedOpt, String> deepPath = firstLevel.then(secondLevel);
@@ -825,7 +846,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.then(Iso) should produce AffinePath")
     void affinePathThenIso() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       AffinePath<Config, String> uppercasePath = apiKeyPath.then(uppercaseIso);
 
@@ -841,7 +863,8 @@ class FocusPathEnhancementsTest {
       Lens<OptionalList, Optional<List<String>>> itemsLens =
           Lens.of(OptionalList::items, (o, i) -> new OptionalList(i));
 
-      AffinePath<OptionalList, List<String>> optListPath = FocusPath.of(itemsLens).some();
+      AffinePath<OptionalList, List<String>> optListPath =
+          FocusPath.of(itemsLens).some(FocusPaths.optionalSome());
 
       TraversalPath<OptionalList, String> allItems = optListPath.then(listTraversal);
 
@@ -857,7 +880,8 @@ class FocusPathEnhancementsTest {
       Lens<OptionalList, Optional<List<String>>> itemsLens =
           Lens.of(OptionalList::items, (o, i) -> new OptionalList(i));
 
-      AffinePath<OptionalList, List<String>> optListPath = FocusPath.of(itemsLens).some();
+      AffinePath<OptionalList, List<String>> optListPath =
+          FocusPath.of(itemsLens).some(FocusPaths.optionalSome());
       TraversalPath<List<String>, String> allPath = TraversalPath.of(listTraversal);
 
       TraversalPath<OptionalList, String> allItems = optListPath.then(allPath);
@@ -898,7 +922,8 @@ class FocusPathEnhancementsTest {
       Lens<Container, List<Optional<String>>> itemsLens =
           Lens.of(Container::items, (c, i) -> new Container(i));
 
-      TraversalPath<Container, Optional<String>> allOptionals = FocusPath.of(itemsLens).each();
+      TraversalPath<Container, Optional<String>> allOptionals =
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
       AffinePath<Optional<String>, String> somePath = AffinePath.of(optionalAffine);
 
       TraversalPath<Container, String> allPresent = allOptionals.via(somePath);
@@ -917,7 +942,8 @@ class FocusPathEnhancementsTest {
       Lens<NestedLists, List<List<String>>> itemsLens =
           Lens.of(NestedLists::items, (n, i) -> new NestedLists(i));
 
-      TraversalPath<NestedLists, List<String>> allLists = FocusPath.of(itemsLens).each();
+      TraversalPath<NestedLists, List<String>> allLists =
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
       TraversalPath<List<String>, String> allStrings = TraversalPath.of(listTraversal);
 
       TraversalPath<NestedLists, String> allDeep = allLists.via(allStrings);
@@ -930,7 +956,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.then(FocusPath) should work like via(FocusPath)")
     void traversalPathThenFocusPath() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
       FocusPath<Person, String> namePath = FocusPath.of(personNameLens);
 
       TraversalPath<Team, String> namesPath = membersPath.then(namePath);
@@ -953,7 +980,8 @@ class FocusPathEnhancementsTest {
       Lens<NumericList, List<String>> numbersLens =
           Lens.of(NumericList::numbers, (n, l) -> new NumericList(l));
 
-      TraversalPath<NumericList, String> allStrings = FocusPath.of(numbersLens).each();
+      TraversalPath<NumericList, String> allStrings =
+          FocusPath.of(numbersLens).each(EachInstances.listEach());
       TraversalPath<NumericList, Integer> allInts = allStrings.then(parseIntPrism);
 
       NumericList mixed = new NumericList(List.of("1", "abc", "2", "def", "3"));
@@ -970,7 +998,7 @@ class FocusPathEnhancementsTest {
           Lens.of(OptionalContainer::items, (c, i) -> new OptionalContainer(i));
 
       TraversalPath<OptionalContainer, Optional<String>> allOptionals =
-          FocusPath.of(itemsLens).each();
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
 
       TraversalPath<OptionalContainer, String> allPresent = allOptionals.then(optionalAffine);
 
@@ -989,7 +1017,7 @@ class FocusPathEnhancementsTest {
           Lens.of(OptionalContainer::items, (c, i) -> new OptionalContainer(i));
 
       TraversalPath<OptionalContainer, Optional<String>> allOptionals =
-          FocusPath.of(itemsLens).each();
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
       AffinePath<Optional<String>, String> somePath = AffinePath.of(optionalAffine);
 
       TraversalPath<OptionalContainer, String> allPresent = allOptionals.then(somePath);
@@ -1008,7 +1036,8 @@ class FocusPathEnhancementsTest {
       Lens<NestedLists, List<List<String>>> itemsLens =
           Lens.of(NestedLists::items, (n, i) -> new NestedLists(i));
 
-      TraversalPath<NestedLists, List<String>> allLists = FocusPath.of(itemsLens).each();
+      TraversalPath<NestedLists, List<String>> allLists =
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
 
       TraversalPath<NestedLists, String> allStrings = allLists.then(listTraversal);
 
@@ -1025,7 +1054,8 @@ class FocusPathEnhancementsTest {
       Lens<NestedLists, List<List<String>>> itemsLens =
           Lens.of(NestedLists::items, (n, i) -> new NestedLists(i));
 
-      TraversalPath<NestedLists, List<String>> allLists = FocusPath.of(itemsLens).each();
+      TraversalPath<NestedLists, List<String>> allLists =
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
       TraversalPath<List<String>, String> allPath = TraversalPath.of(listTraversal);
 
       TraversalPath<NestedLists, String> allStrings = allLists.then(allPath);
@@ -1043,7 +1073,8 @@ class FocusPathEnhancementsTest {
       Lens<Container, List<String>> itemsLens =
           Lens.of(Container::items, (c, i) -> new Container(i));
 
-      TraversalPath<Container, String> allStrings = FocusPath.of(itemsLens).each();
+      TraversalPath<Container, String> allStrings =
+          FocusPath.of(itemsLens).each(EachInstances.listEach());
       TraversalPath<Container, String> allUppercase = allStrings.then(uppercaseIso);
 
       Container container = new Container(List.of("hello", "world"));
@@ -1125,7 +1156,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.traced() should invoke observer with Optional")
     void affinePathTracedInvokesObserver() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       Config withKey = new Config(Optional.of("secret-123"));
       Config withoutKey = new Config(Optional.empty());
@@ -1149,7 +1181,8 @@ class FocusPathEnhancementsTest {
     @DisplayName("AffinePath.traced() should still allow set operations")
     void affinePathTracedAllowsSet() {
       AffinePath<Config, String> apiKeyPath =
-          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k))).some();
+          FocusPath.of(Lens.of(Config::apiKey, (c, k) -> new Config(k)))
+              .some(FocusPaths.optionalSome());
 
       Config config = new Config(Optional.of("old-key"));
 
@@ -1168,7 +1201,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.traced() should invoke observer with list")
     void traversalPathTracedInvokesObserver() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1197,7 +1231,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.traced() should observe every query, with every focus")
     void traversalPathTracedObservesQueries() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
       Person alice = new Person("Alice", 30, new Address("A", "X"));
       Person bob = new Person("Bob", 25, new Address("B", "Y"));
       Team team = new Team("Dev", List.of(alice, bob));
@@ -1218,7 +1253,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.traced() should still allow modify operations")
     void traversalPathTracedAllowsModify() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1243,7 +1279,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TraversalPath.traced() with empty traversal")
     void traversalPathTracedWithEmpty() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team emptyTeam = new Team("Empty", List.of());
 
@@ -1261,7 +1298,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.setAll() should delegate to underlying without tracing")
     void tracedTraversalPathSetAll() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1288,7 +1326,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.filter() should delegate to underlying")
     void tracedTraversalPathFilter() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1313,7 +1352,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.via(Lens) should delegate to underlying")
     void tracedTraversalPathViaLens() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1354,7 +1394,8 @@ class FocusPathEnhancementsTest {
       Lens<Person, String> nameAsStringLens =
           Lens.of(Person::name, (p, n) -> new Person(n, p.age(), p.address()));
 
-      TraversalPath<Team, Person> membersPath = FocusPath.of(membersLensLocal).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(membersLensLocal).each(EachInstances.listEach());
       TraversalPath<Team, String> namesPath = membersPath.via(nameAsStringLens);
 
       Team team =
@@ -1379,7 +1420,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.via(Affine) should delegate to underlying")
     void tracedTraversalPathViaAffine() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       // Create an affine that gets the first character of a name if non-empty
       Affine<String, Character> firstCharAffine =
@@ -1414,7 +1456,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.via(Traversal) should delegate to underlying")
     void tracedTraversalPathViaTraversal() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1447,7 +1490,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.via(Iso) should delegate to underlying")
     void tracedTraversalPathViaIso() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(
@@ -1478,7 +1522,8 @@ class FocusPathEnhancementsTest {
     @Test
     @DisplayName("TracedTraversalFocusPath.toTraversal() should return underlying traversal")
     void tracedTraversalPathToTraversal() {
-      TraversalPath<Team, Person> membersPath = FocusPath.of(teamMembersLens).each();
+      TraversalPath<Team, Person> membersPath =
+          FocusPath.of(teamMembersLens).each(EachInstances.listEach());
 
       Team team =
           new Team(

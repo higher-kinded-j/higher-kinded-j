@@ -58,7 +58,7 @@ What does `PriceListFocus.prices()` return, and how do you read the price of `LA
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-map-answer"
-**A `FocusPath` to the whole map; `.atKey("LAMP")` gives an `AffinePath` to one price.** A `Map` field is not stepped into by default, so its path still focuses the map, and `.atKey` picks one value, which may be absent.
+**A `FocusPath` to the whole map; `.via(FocusPaths.mapAt("LAMP"))` gives an `AffinePath` to one price.** A `Map` field is not stepped into by default, so its path still focuses the map, and `mapAt` picks one value, which may be absent.
 
 Where this lives: [Access by index](focus_navigation.md#access-by-index).
 ~~~

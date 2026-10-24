@@ -19,6 +19,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -47,7 +48,7 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li><b>modifyF()</b>: Effectful modification using Applicative/Monad
  *   <li><b>foldMap()</b>: Aggregate values using a Monoid
- *   <li><b>traverseOver()</b>: Generic collection traversal via Traverse type class
+ *   <li><b>fromTraverse()</b>: Generic collection traversal via Traverse type class
  *   <li><b>modifyWhen()</b>: Conditional modification with predicates
  *   <li><b>instanceOf()</b>: Focus on specific variants of sealed interfaces
  *   <li><b>traced()</b>: Debug path navigation with observers
@@ -211,7 +212,8 @@ public class Tutorial13_AdvancedFocusDSL {
                 new Employee("Charlie", 8, 75000)));
 
     // Path to all employee salaries - using intermediate step for type inference
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
     TraversalPath<Department, Integer> salariesPath = employeesPath.via(employeeSalaryLens);
 
     // Define a Monoid for integer addition
@@ -263,15 +265,16 @@ public class Tutorial13_AdvancedFocusDSL {
   }
 
   /**
-   * Exercise 3: Generic Collection Traversal with traverseOver()
+   * Exercise 3: Generic Collection Traversal with fromTraverse()
    *
-   * <p>When your data contains collections wrapped in Kind<F, A> (rather than raw List<A>), use
-   * traverseOver() with a Traverse instance to navigate into the collection elements.
+   * <p>When your data contains collections wrapped in Kind<F, A> (rather than raw List<A>), build
+   * an Each from a Traverse instance with EachInstances.fromTraverse() to navigate into the
+   * collection elements.
    *
-   * <p>Task: Use traverseOver to access elements in Kind-wrapped collections
+   * <p>Task: Use fromTraverse to access elements in Kind-wrapped collections
    *
    * <pre>
-   *   // Strategy: rolesKindPath.<ListKind.Witness,
+   *   // Strategy: rolesKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
    * </pre>
    */
   @Test
@@ -284,11 +287,11 @@ public class Tutorial13_AdvancedFocusDSL {
                 List.of(new Role("Admin", 10), new Role("Developer", 5), new Role("Viewer", 1))));
 
     // The roles field is Kind<ListKind.Witness, Role>, not List<Role>
-    // We need to use traverseOver() with ListTraverse to navigate into it
+    // We need to use fromTraverse() with ListTraverse to navigate into it
     FocusPath<User, Kind<ListKind.Witness, Role>> rolesKindPath = FocusPath.of(userRolesLens);
 
-    // TODO: Replace null with rolesKindPath.<ListKind.Witness,
-    // Role>traverseOver(ListTraverse.INSTANCE)
+    // TODO: Replace null with
+    // rolesKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
     TraversalPath<User, Role> allRolesPath = answerRequired();
 
     // Get all roles
@@ -303,25 +306,25 @@ public class Tutorial13_AdvancedFocusDSL {
     User promoted = answerRequired();
 
     List<Role> promotedRoles =
-        rolesKindPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE).getAll(promoted);
+        rolesKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE)).getAll(promoted);
     assertThat(promotedRoles.stream().map(Role::level).toList()).containsExactly(11, 6, 2);
   }
 
   /**
-   * Exercise 4: Chaining traverseOver with other operations
+   * Exercise 4: Chaining fromTraverse with other operations
    *
-   * <p>traverseOver() returns a TraversalPath, which can be further composed with via() to navigate
-   * deeper into each element.
+   * <p>each(fromTraverse()) returns a TraversalPath, which can be further composed with via() to
+   * navigate deeper into each element.
    *
-   * <p>Task: Compose traverseOver with via to access nested properties
+   * <p>Task: Compose fromTraverse with via to access nested properties
    *
    * <pre>
    *   // Strategy: step2.via(roleLevelLens)
    * </pre>
    */
   @Test
-  @DisplayName("Exercise 4: traverseOver composition")
-  void exercise4_traverseOverComposition() {
+  @DisplayName("Exercise 4: fromTraverse composition")
+  void exercise4_fromTraverseComposition() {
     User user =
         new User(
             "Bob",
@@ -330,8 +333,7 @@ public class Tutorial13_AdvancedFocusDSL {
 
     // Build path step by step for clarity
     FocusPath<User, Kind<ListKind.Witness, Role>> step1 = FocusPath.of(userRolesLens);
-    TraversalPath<User, Role> step2 =
-        step1.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    TraversalPath<User, Role> step2 = step1.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // Compose with roleLevelLens to get all levels
     // TODO: Replace null with step2.via(roleLevelLens)
@@ -348,7 +350,7 @@ public class Tutorial13_AdvancedFocusDSL {
 
     List<Integer> doubledLevels =
         FocusPath.of(userRolesLens)
-            .<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE)
+            .each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
             .via(roleLevelLens)
             .getAll(doubled);
     assertThat(doubledLevels).containsExactly(20, 6, 2);
@@ -377,7 +379,8 @@ public class Tutorial13_AdvancedFocusDSL {
                 new Employee("Charlie", 6, 55000),
                 new Employee("Diana", 1, 40000)));
 
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
 
     // Give a 10% raise only to employees with 5+ years of service
     // TODO: Replace null with:
@@ -421,7 +424,8 @@ public class Tutorial13_AdvancedFocusDSL {
                 new Circle(7.0)));
 
     // Path to all shapes
-    TraversalPath<Drawing, Shape> allShapes = FocusPath.of(drawingShapesLens).each();
+    TraversalPath<Drawing, Shape> allShapes =
+        FocusPath.of(drawingShapesLens).each(EachInstances.listEach());
 
     // Create a path that only focuses on Circles
     // TODO: Replace null with AffinePath.instanceOf(Circle.class)
@@ -443,7 +447,7 @@ public class Tutorial13_AdvancedFocusDSL {
 
     List<Circle> enlargedCircles =
         FocusPath.of(drawingShapesLens)
-            .each()
+            .each(EachInstances.listEach())
             .via(AffinePath.instanceOf(Circle.class))
             .getAll(enlarged);
     assertThat(enlargedCircles.stream().map(Circle::radius).toList())
@@ -472,7 +476,8 @@ public class Tutorial13_AdvancedFocusDSL {
     List<String> observations = new ArrayList<>();
 
     // Path to all employee names
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
 
     // Create an observer that logs each employee accessed
     BiConsumer<Department, List<Employee>> observer =
@@ -502,7 +507,7 @@ public class Tutorial13_AdvancedFocusDSL {
   /**
    * Exercise 8: Combining Multiple Advanced Features
    *
-   * <p>This exercise combines traverseOver, modifyWhen, and foldMap to solve a real-world scenario.
+   * <p>This exercise combines fromTraverse, modifyWhen, and foldMap to solve a real-world scenario.
    *
    * <p>Task: Process a team structure using multiple Focus DSL features
    *
@@ -528,10 +533,10 @@ public class Tutorial13_AdvancedFocusDSL {
 
     // Build a path to all roles across all team members
     FocusPath<Team, List<User>> step1 = FocusPath.of(teamMembersLens);
-    TraversalPath<Team, User> step2 = step1.each();
+    TraversalPath<Team, User> step2 = step1.each(EachInstances.listEach());
     TraversalPath<Team, Kind<ListKind.Witness, Role>> step3 = step2.via(userRolesLens);
     TraversalPath<Team, Role> allRoles =
-        step3.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+        step3.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // Count total number of roles
     // TODO: Replace 0 with allRoles.count(team)
@@ -580,7 +585,7 @@ public class Tutorial13_AdvancedFocusDSL {
    * <ul>
    *   <li>modifyF() for effectful modifications with Applicative/Monad
    *   <li>foldMap() for aggregating values using Monoid
-   *   <li>traverseOver() for generic collection traversal via Traverse
+   *   <li>fromTraverse() for generic collection traversal via Traverse
    *   <li>modifyWhen() for conditional modifications
    *   <li>instanceOf() for sum type navigation
    *   <li>traced() for debugging path navigation
@@ -590,7 +595,7 @@ public class Tutorial13_AdvancedFocusDSL {
    *
    * <ul>
    *   <li>Type class integration enables powerful abstractions over effects and aggregation
-   *   <li>traverseOver() bridges the Traverse type class with optics traversal
+   *   <li>fromTraverse() bridges the Traverse type class with optics traversal
    *   <li>modifyWhen() provides clean syntax for conditional updates
    *   <li>instanceOf() makes sum type handling type-safe and ergonomic
    *   <li>traced() helps debug complex optic compositions
@@ -600,7 +605,7 @@ public class Tutorial13_AdvancedFocusDSL {
    *
    * <ul>
    *   <li>Use {@code @GenerateFocus} for automatic Kind field support - the processor detects
-   *       {@code Kind<F, A>} fields and generates {@code traverseOver()} calls automatically
+   *       {@code Kind<F, A>} fields and generates {@code fromTraverse()} calls automatically
    *   <li>See {@code KindFieldFocusExample.java} for automatic Kind field detection in action
    *   <li>Use {@code @TraverseField} annotation for custom Kind types not in the library
    *   <li>Explore the TraverseTraversals utility class for more Traverse-based optics

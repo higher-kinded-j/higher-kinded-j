@@ -1168,8 +1168,8 @@ class ProcessorCoverageTest {
     }
 
     @Test
-    @DisplayName("should write a type witness on a collection wrapping an SPI container")
-    void shouldWriteATypeWitnessOnACollectionWrappingAnSpiContainer() {
+    @DisplayName("should compose a collection wrapping an SPI container with no witness")
+    void shouldComposeACollectionWrappingAnSpiContainerWithNoWitness() {
       final var sourceFile =
           JavaFileObjects.forSourceString(
               "com.example.ListOfMaps",
@@ -1185,12 +1185,11 @@ class ProcessorCoverageTest {
       Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
 
       assertThat(compilation).succeeded();
-      // The generator's Each instance has its type arguments inferred from what .each() hands it,
-      // so the no-arg step in front of it spells its element out.
+      // The List's own instance hands the generator's Each its element, so no witness is written.
       assertGeneratedCodeContains(
           compilation, "com.example.ListOfMapsFocus", "TraversalPath<ListOfMaps, Integer> rows()");
       assertGeneratedCodeContainsRaw(
-          compilation, "com.example.ListOfMapsFocus", ".<Map<String, Integer>>each()");
+          compilation, "com.example.ListOfMapsFocus", ".each(EachInstances.listEach())");
     }
 
     @Test

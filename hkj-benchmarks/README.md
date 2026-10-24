@@ -38,7 +38,7 @@ Unlike unit tests which verify correctness, these benchmarks:
 | `MemoryFootprintBenchmark` | VTask, IO, CompletableFuture | Memory allocation patterns |
 | `AbstractionOverheadBenchmark` | VTask, IO vs raw Java | Abstraction cost measurement |
 | `AccumulationBenchmark` | `Validated`, `Edits` | Failure accumulation grows linearly with the failures |
-| `EachRebuildBenchmark` | Focus `.each()`, `arrayEach()` | List and array rebuilds grow linearly with the elements |
+| `EachRebuildBenchmark` | Focus `.each(listEach())`, `arrayEach()` | List and array rebuilds grow linearly with the elements |
 
 ### Benchmark Categories
 

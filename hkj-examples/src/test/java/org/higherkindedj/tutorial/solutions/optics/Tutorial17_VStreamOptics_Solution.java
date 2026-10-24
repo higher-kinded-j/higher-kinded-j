@@ -164,8 +164,8 @@ public class Tutorial17_VStreamOptics_Solution {
      * TraversalPath} that walks every element of the {@code VStream} field — the Focus DSL stays
      * uniform across containers.
      *
-     * <p>Alternative: collect the VStream to a list and use {@code each()}. Same answer for the
-     * read; loses the streaming when the data is large.
+     * <p>Alternative: collect the VStream to a list and use {@code EachInstances.listEach()}. Same
+     * answer for the read; loses the streaming when the data is large.
      *
      * <p>Common wrong attempt: pass a {@code listEach} to a vstream-shaped lens. The compiler
      * rejects the mismatch; double-check the {@code Each} instance.

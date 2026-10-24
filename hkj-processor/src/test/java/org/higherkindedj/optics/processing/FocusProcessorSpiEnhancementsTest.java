@@ -150,7 +150,7 @@ public class FocusProcessorSpiEnhancementsTest {
 
       assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", expectedTraversalPath);
 
-      // The generated method body should contain .each() to compose the traversal
+      // The generated method body should contain .each(...) to compose the traversal
       assertGeneratedCodeContains(compilation, "com.example.ConfigFocus", ".each(");
     }
 
@@ -182,7 +182,7 @@ public class FocusProcessorSpiEnhancementsTest {
 
       assertGeneratedCodeContains(compilation, "com.example.FormFocus", expectedAffinePath);
 
-      // The generated method body should contain .some() for ZERO_OR_ONE SPI types
+      // The generated method body should contain .some(...) for ZERO_OR_ONE SPI types
       assertGeneratedCodeContains(compilation, "com.example.FormFocus", ".some(");
     }
 
@@ -371,10 +371,11 @@ public class FocusProcessorSpiEnhancementsTest {
           javac().withProcessors(new FocusProcessor()).compile(companySource, addressSource);
       assertThat(compilation).succeeded();
 
-      // Optional<Address> gets a navigator over the AffinePath<Company, Address> .some() reaches
+      // Optional<Address> gets a navigator over the AffinePath<Company, Address> that
+      // .some(FocusPaths.optionalSome()) reaches
       final String expectedAffinePath =
           "BackupNavigator<S> extends NavigatorAffinePath<S, Address>";
-      final String expectedSome = "\"backup\").some());";
+      final String expectedSome = "\"backup\").some(FocusPaths.optionalSome()));";
 
       // Direct navigable field headquarters should produce a navigator
       final String expectedNavigator =
@@ -420,7 +421,7 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation).succeeded();
 
       // Maybe<Address> gets a navigator over the AffinePath that the Affine reading a Maybe
-      // reaches, not the Optional-only no-argument .some()
+      // reaches, not the Optional affine of .some(FocusPaths.optionalSome())
       final String expectedAffinePath =
           "BackupNavigator<S> extends NavigatorAffinePath<S, Address>";
       assertGeneratedCodeContains(compilation, "com.example.CompanyFocus", expectedAffinePath);
@@ -568,12 +569,15 @@ public class FocusProcessorSpiEnhancementsTest {
     @DisplayName("should accept a wildcard nested inside a type argument")
     void shouldAcceptWildcardNestedInsideTypeArgument() {
       // Either<String, List<? extends Leaf>> has a ground instantiation: the wildcard belongs to
-      // the List, which widens through the free type variable of .each().
+      // the List, whose instance is cast to the List as written.
       Compilation compilation = compile("", "Either<String, List<? extends Leaf>> groundEither");
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
-          compilation, "com.example.HolderFocus", ".some(Affines.eitherRight()).each()");
+          compilation,
+          "com.example.HolderFocus",
+          ".some(Affines.eitherRight()).each((Each<List<? extends Leaf>, Leaf>) (Each<?, ?>)"
+              + " EachInstances.<Leaf>listEach())");
     }
 
     @ParameterizedTest(name = "@GenerateFocus({0})")

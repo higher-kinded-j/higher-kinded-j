@@ -65,6 +65,20 @@
  *       like a path method
  * </ul>
  *
+ * <h2>0.6.0 Deprecation Migration</h2>
+ *
+ * <p>Rewrites usages of APIs deprecated in 0.5.0 for removal in 0.6.0 to their replacements. The
+ * recipes match the deprecated signatures, so run them from this module's 0.5.x release before the
+ * project moves to 0.6.0.
+ *
+ * <ul>
+ *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0} - Runs all 0.6.0
+ *       deprecation migrations
+ *   <li>{@code org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe} - A Focus path's
+ *       untyped shortcuts, such as {@code each()} and {@code some()}, to their typed forms, such as
+ *       {@code each(EachInstances.listEach())} and {@code some(FocusPaths.optionalSome())}
+ * </ul>
+ *
  * <h2>Usage</h2>
  *
  * <pre>{@code

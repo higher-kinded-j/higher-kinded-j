@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.FocusPaths;
@@ -33,11 +34,11 @@ import org.junit.jupiter.api.Test;
  * <p>The Focus DSL gives the same path a fluent shape that follows the data:
  *
  * <pre>
- *   var path = FocusPath.of(Order.class)
- *       .into(OrderLenses::items).each()       // Traversal
- *       .into(ItemLenses::status)              // Lens
- *       .at(ItemStatusPrisms::shipped)         // Prism
- *       .into(ShippedLenses::tracking);        // Lens
+ *   var path = FocusPath.of(OrderLenses.items())
+ *       .each(EachInstances.listEach())        // Traversal
+ *       .via(ItemLenses.status())              // Lens
+ *       .via(ItemStatusPrisms.shipped())       // Prism
+ *       .via(ShippedLenses.tracking());        // Lens
  * </pre>
  *
  * <p>The Focus DSL provides an ergonomic, type-safe way to navigate through nested data structures.
@@ -158,7 +159,7 @@ public class Tutorial12_FocusDSL {
    * <p>Task: Use AffinePath to navigate through optional data
    *
    * <pre>
-   *   // Strategy: FocusPath.of(apiKeyLens).some()
+   *   // Strategy: FocusPath.of(apiKeyLens).some(FocusPaths.optionalSome())
    * </pre>
    */
   @Test
@@ -172,8 +173,8 @@ public class Tutorial12_FocusDSL {
     Config withoutKey = new Config(Optional.empty());
 
     // Create a path that unwraps the Optional
-    // FocusPath + some() -> AffinePath
-    // TODO: Replace null with FocusPath.of(apiKeyLens).some()
+    // FocusPath + some(Affine) -> AffinePath
+    // TODO: Replace null with FocusPath.of(apiKeyLens).some(FocusPaths.optionalSome())
     AffinePath<Config, String> keyPath = answerRequired();
 
     // getOptional returns Optional<A>
@@ -204,7 +205,7 @@ public class Tutorial12_FocusDSL {
    * <p>Task: Use TraversalPath to work with list elements
    *
    * <pre>
-   *   // Strategy: FocusPath.of(membersLens).each()
+   *   // Strategy: FocusPath.of(membersLens).each(EachInstances.listEach())
    * </pre>
    */
   @Test
@@ -217,8 +218,8 @@ public class Tutorial12_FocusDSL {
     Team team = new Team("Engineering", List.of("Alice", "Bob", "Charlie"));
 
     // Create a path that traverses all members
-    // FocusPath + each() -> TraversalPath
-    // TODO: Replace null with FocusPath.of(membersLens).each()
+    // FocusPath + each(Each) -> TraversalPath
+    // TODO: Replace null with FocusPath.of(membersLens).each(EachInstances.listEach())
     TraversalPath<Team, String> membersPath = answerRequired();
 
     // getAll returns all focused elements
@@ -240,13 +241,13 @@ public class Tutorial12_FocusDSL {
   /**
    * Exercise 5: Accessing specific list elements
    *
-   * <p>The at(index) method creates an AffinePath for a specific list index. It returns empty if
-   * the index is out of bounds.
+   * <p>FocusPaths.listAt(index) is an affine onto one list index, and via() turns it into an
+   * AffinePath. It returns empty if the index is out of bounds.
    *
    * <p>Task: Focus on specific elements by index
    *
    * <pre>
-   *   // Strategy: FocusPath.of(songsLens).at(0)
+   *   // Strategy: FocusPath.of(songsLens).via(FocusPaths.listAt(0))
    * </pre>
    */
   @Test
@@ -260,8 +261,8 @@ public class Tutorial12_FocusDSL {
     Playlist playlist = new Playlist("Favourites", List.of("Song A", "Song B", "Song C"));
 
     // Create a path to the first song
-    // FocusPath + at(0) -> AffinePath
-    // TODO: Replace null with FocusPath.of(songsLens).at(0)
+    // FocusPath + via(listAt(0)) -> AffinePath
+    // TODO: Replace null with FocusPath.of(songsLens).via(FocusPaths.listAt(0))
     AffinePath<Playlist, String> firstSongPath = answerRequired();
 
     // Get the first song
@@ -270,7 +271,7 @@ public class Tutorial12_FocusDSL {
     assertThat(firstSong).contains("Song A");
 
     // Create a path to an out-of-bounds index
-    AffinePath<Playlist, String> tenthSongPath = FocusPath.of(songsLens).at(10);
+    AffinePath<Playlist, String> tenthSongPath = FocusPath.of(songsLens).via(FocusPaths.listAt(10));
 
     // TODO: Replace null with tenthSongPath.getOptional(playlist)
     Optional<String> noSong = answerRequired();
@@ -285,12 +286,12 @@ public class Tutorial12_FocusDSL {
   /**
    * Exercise 6: Map navigation
    *
-   * <p>Maps can be navigated using atKey(key) for a specific key.
+   * <p>Maps can be navigated using FocusPaths.mapAt(key) for a specific key.
    *
    * <p>Task: Navigate through map structures
    *
    * <pre>
-   *   // Strategy: FocusPath.of(valuesLens).atKey("theme")
+   *   // Strategy: FocusPath.of(valuesLens).via(FocusPaths.mapAt("theme"))
    * </pre>
    */
   @Test
@@ -309,8 +310,8 @@ public class Tutorial12_FocusDSL {
                 "timezone", "UTC"));
 
     // Create a path to a specific map key
-    // FocusPath + atKey("theme") -> AffinePath
-    // TODO: Replace null with FocusPath.of(valuesLens).atKey("theme")
+    // FocusPath + via(mapAt("theme")) -> AffinePath
+    // TODO: Replace null with FocusPath.of(valuesLens).via(FocusPaths.mapAt("theme"))
     AffinePath<Settings, String> themePath = answerRequired();
 
     // Get the theme value
@@ -319,7 +320,8 @@ public class Tutorial12_FocusDSL {
     assertThat(theme).contains("dark");
 
     // Check a missing key
-    AffinePath<Settings, String> missingPath = FocusPath.of(valuesLens).atKey("missing");
+    AffinePath<Settings, String> missingPath =
+        FocusPath.of(valuesLens).via(FocusPaths.mapAt("missing"));
     assertThat(missingPath.getOptional(settings)).isEmpty();
   }
 
@@ -357,9 +359,12 @@ public class Tutorial12_FocusDSL {
 
     // Path to all department managers (only those that exist)
     // Company -> List<Department> -> Department -> Optional<String> -> String
-    // This chains: each() (list), via(managerLens) (lens), some() (optional)
+    // This chains: each(listEach()) (list), via(managerLens) (lens), some(optionalSome())
     TraversalPath<Company, String> managersPath =
-        FocusPath.of(deptLens).<Department>each().via(managerLens).<String>some();
+        FocusPath.of(deptLens)
+            .each(EachInstances.listEach())
+            .via(managerLens)
+            .some(FocusPaths.optionalSome());
 
     // TODO: Replace null with managersPath.getAll(company)
     List<String> managers = answerRequired();
@@ -372,7 +377,11 @@ public class Tutorial12_FocusDSL {
 
     // Verify modifications
     List<String> updatedManagers =
-        FocusPath.of(deptLens).<Department>each().via(managerLens).<String>some().getAll(updated);
+        FocusPath.of(deptLens)
+            .each(EachInstances.listEach())
+            .via(managerLens)
+            .some(FocusPaths.optionalSome())
+            .getAll(updated);
     assertThat(updatedManagers).containsExactly("ALICE", "CHARLIE");
   }
 
@@ -407,7 +416,8 @@ public class Tutorial12_FocusDSL {
                 new Product("Thingamajig", 200.0)));
 
     // Path to all products
-    TraversalPath<Inventory, Product> allProducts = FocusPath.of(productsLens).each();
+    TraversalPath<Inventory, Product> allProducts =
+        FocusPath.of(productsLens).each(EachInstances.listEach());
 
     // Filter to only expensive products (price > 100)
     // TODO: Replace null with allProducts.filter(p -> p.price() > 100)
@@ -525,9 +535,9 @@ public class Tutorial12_FocusDSL {
    * <ul>
    *   <li>Creating FocusPath from Lens using FocusPath.of()
    *   <li>Composing paths with via() for deep navigation
-   *   <li>AffinePath for optional/nullable values using some()
-   *   <li>TraversalPath for collections using each()
-   *   <li>Accessing specific elements with at(index) and atKey(key)
+   *   <li>AffinePath for optional/nullable values using some(FocusPaths.optionalSome())
+   *   <li>TraversalPath for collections using each(EachInstances.listEach())
+   *   <li>Accessing specific elements with FocusPaths.listAt(index) and FocusPaths.mapAt(key)
    *   <li>Filtering traversals with filter()
    *   <li>Converting paths with toLens(), asAffine(), asTraversal()
    *   <li>Using FocusPaths utility for common operations

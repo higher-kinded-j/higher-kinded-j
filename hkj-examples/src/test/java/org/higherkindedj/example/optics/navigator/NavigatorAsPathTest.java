@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ReaderPath;
 import org.higherkindedj.hkt.expression.ForPath;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -75,7 +76,8 @@ class NavigatorAsPathTest {
 
     FocusPath<Pool, List<String>> hostList =
         FocusPath.of(Lens.of(Pool::hosts, (pool, hosts) -> new Pool(pool.size(), hosts)));
-    TraversalPath<AppEnv, String> hosts = AppEnvFocus.db().pool().via(hostList).each();
+    TraversalPath<AppEnv, String> hosts =
+        AppEnvFocus.db().pool().via(hostList).each(EachInstances.listEach());
     assertThat(hosts.getAll(ENV)).containsExactly("a", "b");
 
     assertThat(AppEnvFocus.db().asTraversal().getAll(ENV)).hasSize(1);

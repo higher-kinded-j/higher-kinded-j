@@ -11,6 +11,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.Test;
 
@@ -120,8 +121,8 @@ public class Tutorial19_NavigatorGeneration_Solution {
 
   /**
    * Why this is idiomatic: an {@code Optional} field demands an {@code AffinePath}. The generated
-   * navigator widens through {@code .some()} so the partiality lives in the type, not in the call
-   * sites.
+   * navigator widens through {@code .some(FocusPaths.optionalSome())} so the partiality lives in
+   * the type, not in the call sites.
    *
    * <p>Alternative: use a focus path and call {@code .map} after {@code get}. Awkward and loses the
    * corresponding {@code modify}; the affine handles both directions.
@@ -135,8 +136,9 @@ public class Tutorial19_NavigatorGeneration_Solution {
         new Organisation("HKJ Ltd", Optional.of(new Address("1 Elm Rd", "Oxford", "OX1 1AA")));
     Organisation noOffice = new Organisation("Ghost Ltd", Optional.empty());
 
-    // SOLUTION: Create AffinePath via .some() for Optional field
-    AffinePath<Organisation, Address> officePath = FocusPath.of(orgOfficeLens).some();
+    // SOLUTION: Create AffinePath via .some(optionalSome()) for Optional field
+    AffinePath<Organisation, Address> officePath =
+        FocusPath.of(orgOfficeLens).some(FocusPaths.optionalSome());
 
     // SOLUTION: getOptional on present value
     Optional<Address> presentAddress = officePath.getOptional(org);
@@ -152,7 +154,7 @@ public class Tutorial19_NavigatorGeneration_Solution {
 
   /**
    * Why this is idiomatic: a collection field demands a {@code TraversalPath}. The generator widens
-   * through {@code .each()} so the multiplicity is part of the type.
+   * through {@code .each(EachInstances.listEach())} so the multiplicity is part of the type.
    *
    * <p>Alternative: read the list, stream-map, write back. Same answer; the path keeps the
    * navigation declarative.
@@ -167,8 +169,9 @@ public class Tutorial19_NavigatorGeneration_Solution {
     Lens<Department, List<String>> membersLens =
         Lens.of(Department::members, (d, m) -> new Department(d.deptName(), m));
 
-    // SOLUTION: Create TraversalPath via .each() for List field
-    TraversalPath<Department, String> allMembers = FocusPath.of(membersLens).each();
+    // SOLUTION: Create TraversalPath via .each(listEach()) for List field
+    TraversalPath<Department, String> allMembers =
+        FocusPath.of(membersLens).each(EachInstances.listEach());
 
     // SOLUTION: getAll to retrieve all members
     List<String> names = allMembers.getAll(engineering);
@@ -232,8 +235,9 @@ public class Tutorial19_NavigatorGeneration_Solution {
 
     // SOLUTION: Compose through Optional then List (AFFINE + TRAVERSAL = TRAVERSAL)
     // Break chain into steps to help Java's type inference with local records
-    AffinePath<Team, Department> deptPath = FocusPath.of(deptLens).some();
-    TraversalPath<Team, String> allMembers = deptPath.via(membersLens).each();
+    AffinePath<Team, Department> deptPath = FocusPath.of(deptLens).some(FocusPaths.optionalSome());
+    TraversalPath<Team, String> allMembers =
+        deptPath.via(membersLens).each(EachInstances.listEach());
 
     // SOLUTION: getAll on present team
     List<String> members = allMembers.getAll(team);

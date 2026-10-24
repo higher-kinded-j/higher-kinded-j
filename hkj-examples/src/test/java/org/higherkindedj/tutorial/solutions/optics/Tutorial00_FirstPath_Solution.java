@@ -71,9 +71,9 @@ public class Tutorial00_FirstPath_Solution {
    * <p>Alternative: stream the lines, map each one to a new {@code LineItem}, collect the list and
    * build a new {@code Order} around it. Same result, with the rebuild written out twice.
    *
-   * <p>Common wrong attempt: {@code OrderFocus.lines().each()}. The generated method already ends
-   * in {@code .each()}, so a second one tries to read a {@code LineItem} as a {@code List}: it
-   * compiles and then throws {@code ClassCastException} at run time.
+   * <p>Common wrong attempt: {@code OrderFocus.lines().each(EachInstances.listEach())}. The
+   * generated method already ends in {@code .each(...)}, so a second one asks for a {@code List}
+   * where the path focuses a {@code LineItem}, and does not compile.
    */
   @Test
   @DisplayName("Exercise 3: update every element of a list")

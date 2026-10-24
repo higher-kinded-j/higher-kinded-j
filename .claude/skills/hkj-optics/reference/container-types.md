@@ -17,10 +17,10 @@ Every container type has a **cardinality** that determines the generated Focus p
 | `Try<A>`          | Zero or one    | `AffinePath`        | `Affines.trySuccess()`           |
 | `Validated<E, A>` | Zero or one    | `AffinePath`        | `Affines.validatedValid()`       |
 | `Maybe<A>`        | Zero or one    | `AffinePath`        | `Affines.just()` (built-in)      |
-| `Optional<A>`     | Zero or one    | `AffinePath`        | `.some()` (built-in)             |
+| `Optional<A>`     | Zero or one    | `AffinePath`        | `FocusPaths.optionalSome()` (built-in) |
 | `Map<K, V>`       | Zero or more   | **`FocusPath`** ^1  | `EachInstances.mapValuesEach()`  |
 | `T[]` (arrays) ^2 | Zero or more   | **`FocusPath`** ^1  | `EachInstances.arrayEach()`      |
-| `List<A>`         | Zero or more   | `TraversalPath`     | `.each()` (built-in)            |
+| `List<A>`         | Zero or more   | `TraversalPath`     | `EachInstances.listEach()` (built-in) |
 | `Set<A>`          | Zero or more   | `TraversalPath`     | `EachInstances.setEach()` (built-in) |
 | `Collection<A>`   | Zero or more   | `TraversalPath`     | `EachInstances.collectionEach()` (built-in) |
 
@@ -72,7 +72,7 @@ public static FocusPath<Contractor, String> name() {
 <!-- verify -->
 ```java
 public static AffinePath<Contractor, String> email() {
-    return FocusPath.of(ContractorLenses.email()).some();
+    return FocusPath.of(ContractorLenses.email()).some(FocusPaths.optionalSome());
 }
 ```
 
@@ -84,13 +84,13 @@ public static AffinePath<Contractor, String> nickname() {
 }
 ```
 
-Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each()` and `@Nullable Optional<T>` is `.nullable().some()`, and a null container has no focus. A nullable container inside another, as in `List<@Nullable List<T>>`, is ruled out the same way, and a navigator passes over a null element it would read. Position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
+Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())` and `@Nullable Optional<T>` is `.nullable().some(FocusPaths.optionalSome())`, and a null container has no focus. A nullable container inside another, as in `List<@Nullable List<T>>`, is ruled out the same way, and a navigator passes over a null element it would read. Position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
 ### List<T> -> TraversalPath (element traversal)
 <!-- verify -->
 ```java
 public static TraversalPath<Contractor, Skill> skills() {
-    return FocusPath.of(ContractorLenses.skills()).each();
+    return FocusPath.of(ContractorLenses.skills()).each(EachInstances.listEach());
 }
 ```
 
@@ -98,7 +98,7 @@ public static TraversalPath<Contractor, Skill> skills() {
 <!-- verify -->
 ```java
 public static AffinePath<Contractor, Skill> skill(int index) {
-    return FocusPath.of(ContractorLenses.skills()).at(index);
+    return FocusPath.of(ContractorLenses.skills()).via(FocusPaths.listAt(index));
 }
 ```
 
@@ -120,7 +120,7 @@ public static TraversalPath<Contractor, Integer> scores() {
 
 ## Nested Container Widening
 
-Patterns like `Optional<List<String>>` or `Either<E, Map<K, V>>` are detected automatically. The processor generates composed widening chains (e.g., `.some().each()`).
+Patterns like `Optional<List<String>>` or `Either<E, Map<K, V>>` are detected automatically. The processor generates composed widening chains (e.g., `.some(FocusPaths.optionalSome()).each(EachInstances.listEach())`).
 
 ## Raw and Wildcard Container Type Arguments
 
@@ -137,8 +137,8 @@ record Holder(Either<String, Widget> either) {}
 ```
 
 - Both of the container's own type arguments count, focused or not: `Either<?, Widget>` is rejected too.
-- A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Widget>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each()`.
-- The built-in `Optional` and `List` widenings take a wildcard without complaint, because `.some()` and the no-argument `.each()` are methods with a free type variable and no optic argument to unify.
+- A wildcard nested *inside* an argument is fine: `Either<String, List<? extends Widget>>` has a ground instantiation and widens to `.some(Affines.eitherRight()).each(EachInstances.listEach())`, the `Each` cast to one over `List<? extends Widget>`.
+- The built-in `Optional` and `List` widenings take a raw or wildcard argument without complaint: the processor names `FocusPaths.optionalSome()` or `EachInstances.listEach()` for the element type and casts it to the type the field declares.
 - `Maybe`, `Set` and `Collection` are built in too, but each widens by naming an optic instance (`Affines.just()` or an `Each`). So the rule applies to them as it does to an SPI container: `Maybe<?>`, `Set<? extends Widget>` and a raw `Set` are rejected at the declaration.
 - A `ZERO_OR_MORE` SPI container is rejected only when something actually widens it: `widenCollections = true`, or `widenFields` naming the field. At the default settings it stays a `FocusPath`, and so does everything beneath it: `Map<String, Either<String, ? extends Widget>>` compiles by default, because the un-widened `Map` means the `Either` is never asked for an optic.
 - A custom generator that names no optic expression is exempt, because it widens nothing: the path stops at its container, as if no generator supported it. Every generator HKJ ships for a type the SPI widens names one.

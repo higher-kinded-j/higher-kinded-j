@@ -340,16 +340,19 @@ total `B -> S` build, so the result could not honour `build`. To validate siblin
 
 | Method | On Path Type | Produces | Description |
 |--------|-------------|----------|-------------|
-| `.each()` | FocusPath on `List` | TraversalPath | Traverse all elements (`List` only) |
+| `.each(EachInstances.listEach())` | FocusPath on `List` | TraversalPath | Traverse all elements, rebuilding the list |
 | `.each(EachInstances.setEach())` | FocusPath on `Set` | TraversalPath | Traverse all elements, rebuilding the set |
 | `.each(EachInstances.collectionEach())` | FocusPath on `Collection` | TraversalPath | Traverse all elements, rebuilding a set as a set and anything else as a list |
 | `.each(Each)` | FocusPath on custom container | TraversalPath | Traverse with custom Each instance |
-| `.at(index)` | FocusPath on `List` | AffinePath | Access specific index |
-| `.some()` | FocusPath on `Optional` | AffinePath | Unwrap Optional |
+| `.via(FocusPaths.listAt(index))` | FocusPath on `List` | AffinePath | Access specific index |
+| `.via(FocusPaths.mapAt(key))` | FocusPath on `Map` | AffinePath | Access the value at a key |
+| `.some(FocusPaths.optionalSome())` | FocusPath on `Optional` | AffinePath | Unwrap Optional |
 | `.some(Affine)` | FocusPath on `Either`/`Try`/etc | AffinePath | Unwrap with custom Affine |
 | `.nullable()` | FocusPath on `@Nullable` field | AffinePath | Handle null safely |
 | `.filter(predicate)` | TraversalPath | TraversalPath | Keep only matching elements |
 | `AffinePath.instanceOf(Class)` | Static factory | AffinePath | Safe downcast; compose via `.via()` |
+
+The no-argument `each()`, `some()`, `head()`, `last()`, `tail()`, `init()`, `cons()`, `snoc()`, `headTail()` and `initLast()`, and `at(index)`, `atKey(key)` and `traverseOver(traverse)`, are deprecated for removal in 0.6.0: they compile on any focus and throw `ClassCastException` on the wrong one. Write the typed form above instead; a list step is `.via(FocusPaths.listHead())` and so on, and `traverseOver(t)` is `.each(EachInstances.fromTraverse(t))`. In existing code, the `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` recipe rewrites them and marks the calls a typed form does not fit.
 
 ---
 

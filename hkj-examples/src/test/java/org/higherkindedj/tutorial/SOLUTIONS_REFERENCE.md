@@ -998,14 +998,14 @@ Company shouted = cityPath.modify(String::toUpperCase, acme);
 
 **Exercise 3:**
 ```java
-AffinePath<Organisation, Address> officePath = FocusPath.of(orgOfficeLens).some();
+AffinePath<Organisation, Address> officePath = FocusPath.of(orgOfficeLens).some(FocusPaths.optionalSome());
 Optional<Address> presentAddress = officePath.getOptional(org);
 Optional<Address> absentAddress = officePath.getOptional(noOffice);
 ```
 
 **Exercise 4:**
 ```java
-TraversalPath<Department, String> allMembers = FocusPath.of(membersLens).each();
+TraversalPath<Department, String> allMembers = FocusPath.of(membersLens).each(EachInstances.listEach());
 List<String> names = allMembers.getAll(engineering);
 Department shouted = allMembers.modifyAll(String::toUpperCase, engineering);
 ```
@@ -1018,8 +1018,8 @@ List<Integer> quantities = allQuantities.getAll(warehouse);
 
 **Exercise 6:**
 ```java
-AffinePath<Team, Department> deptPath = FocusPath.of(deptLens).some();
-TraversalPath<Team, String> allMembers = deptPath.via(membersLens).each();
+AffinePath<Team, Department> deptPath = FocusPath.of(deptLens).some(FocusPaths.optionalSome());
+TraversalPath<Team, String> allMembers = deptPath.via(membersLens).each(EachInstances.listEach());
 List<String> members = allMembers.getAll(team);
 List<String> noMembers = allMembers.getAll(emptyTeam);
 ```

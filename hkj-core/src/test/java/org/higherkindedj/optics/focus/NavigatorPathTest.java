@@ -59,6 +59,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * path method gives what the wrapped path's own does, and none can be overridden.
  */
 @DisplayName("Navigator path bases")
+@SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
 class NavigatorPathTest {
 
   record Basket(

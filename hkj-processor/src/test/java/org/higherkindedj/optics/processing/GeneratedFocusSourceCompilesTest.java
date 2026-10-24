@@ -251,9 +251,9 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<StillCompiles> CORPUS =
       List.of(
-          // The no-argument widenings take a wildcard: .some() and .each() unify nothing. A Maybe,
-          // a Set or a Collection is not among them -- each names the optic that rebuilds it, which
-          // a wildcard leaves uninstantiable, so those are rejected rather than left alone.
+          // An Optional or a List takes a raw or wildcard argument: its instance is cast to the
+          // container as written. A Maybe, a Set or a Collection is not among them, so those are
+          // rejected rather than left alone.
           new StillCompiles("List<? extends Leaf> f", ""),
           new StillCompiles("Optional<? extends Leaf> f", ""),
           new StillCompiles("Optional<? super Leaf> f", ""),
