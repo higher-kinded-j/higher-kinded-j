@@ -250,7 +250,7 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   `Alternative`, `MonadZero`, `Bifunctor`, `Profunctor`, `Foldable`, `Traverse`, `Natural`,
   `Semigroup` or `Monoid`; the worked examples below each quotation are gated. `optics/folds.md`
   quotes `Foldable` for the same reason, to say what the optic mirrors, and
-  `optics/each_typeclass.md` quotes `Each` and `EachIndexed` with one member elided.
+  `optics/each_typeclass.md` quotes `Each`, without its static factories, and `EachIndexed`.
 - **A `static` extension method quoted as a signature.** `getters.md` quotes
   the `public static` signature of `getMaybe`, nullness bounds and all, and
   `coupled_fields.md` quotes both overloads of `Lens.paired` the same way. A signature-only

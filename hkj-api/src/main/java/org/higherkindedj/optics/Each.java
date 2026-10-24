@@ -125,10 +125,19 @@ public interface Each<S extends @Nullable Object, A extends @Nullable Object> {
   Traversal<S, A> each();
 
   /**
-   * Checks if this {@code Each} instance supports indexed traversal.
+   * Checks if this {@code Each} instance supports indexed traversal, that is, whether it is an
+   * {@link EachIndexed}.
    *
-   * @return {@code true} if this is an {@link EachIndexed}, whose {@link
-   *     EachIndexed#indexedTraversal()} gives the indexed traversal; {@code false} otherwise
+   * <p>To reach the indexed traversal from code that holds only an {@code Each<S, A>}, narrow with
+   * a type pattern. A cast to a particular index type would be unchecked.
+   *
+   * <pre>{@code
+   * if (each instanceof EachIndexed<?, S, A> indexed) {
+   *     IndexedTraversal<?, S, A> traversal = indexed.indexedTraversal();
+   * }
+   * }</pre>
+   *
+   * @return {@code true} if this is an {@link EachIndexed}; {@code false} otherwise
    */
   default boolean supportsIndexed() {
     return this instanceof EachIndexed<?, ?, ?>;

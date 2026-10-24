@@ -9,10 +9,10 @@ import org.jspecify.annotations.Nullable;
  * An {@link Each} whose elements carry a meaningful index, with the index type {@code I} fixed at
  * the type level.
  *
- * <p>{@link #indexedTraversal()} returns the underlying {@link IndexedTraversal} directly, so the
- * index type is checked at compile time: a list's instance indexes by {@code Integer} position, a
- * map's by its keys. This mirrors {@link At} and {@link Ixed}, which also carry their index type at
- * the type level. {@link Each#supportsIndexed()} tells whether a given {@link Each} is one.
+ * <p>{@link #indexedTraversal()} returns an {@link IndexedTraversal} whose index type is {@code I},
+ * so a wrong index type is a compile error. This mirrors {@link At} and {@link Ixed}, which also
+ * carry their index type at the type level. {@link Each#supportsIndexed()} shows how code holding a
+ * plain {@link Each} reaches it.
  *
  * <pre>{@code
  * EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
