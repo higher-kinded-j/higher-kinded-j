@@ -194,7 +194,7 @@ and `widenFields` entries compile only against 0.5.0, so bump the library straig
 | Recipe | Change |
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | **Composite** — runs the sub-recipes below |
-| `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` → `StateTKind.narrow(..)` (the wildcard `Kind` overload bypassed witness type safety) |
+| `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` → `StateTKind.narrow(..)` (the wildcard `Kind` parameter bypassed witness type safety, so an argument typed `Kind<?, A>` needs its witness declared by hand) |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` → `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments) |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |

@@ -59,9 +59,12 @@ type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.RenameStateTKindNarrowK
 displayName: StateTKind.narrowK -> StateTKind.narrow
 description: >-
-  StateTKind.narrowK was deprecated since 0.4.5 and scheduled for removal in
-  0.5.0; its wildcard Kind parameter bypasses witness type safety. Replace
-  call sites with the type-safe StateTKind.narrow.
+  StateTKind.narrowK, deprecated since 0.4.5, is removed in 0.5.0; its
+  wildcard Kind parameter bypassed witness type safety. Replaces call sites
+  with the type-safe StateTKind.narrow, which takes a
+  Kind<StateTKind.Witness<S, F>, A>, so an argument typed Kind<?, A> needs
+  that type declared by hand. The recipe matches only the removed method,
+  so run it while the project is on 0.4.x.
 tags:
   - higher-kinded-j
   - deprecation
@@ -76,9 +79,10 @@ type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern
 displayName: KindValidator.narrowWithPattern -> KindValidator.narrowHolder
 description: >-
-  KindValidator.narrowWithPattern was deprecated since 0.4.4 and scheduled
-  for removal in 0.5.0. The replacement narrowHolder has an identical
-  signature; this is a pure rename.
+  KindValidator.narrowWithPattern, deprecated since 0.4.4, is removed in
+  0.5.0. The replacement narrowHolder has an identical signature; this is a
+  pure rename. The recipe matches only the removed method, so run it while
+  the project is on 0.4.x.
 tags:
   - higher-kinded-j
   - deprecation
