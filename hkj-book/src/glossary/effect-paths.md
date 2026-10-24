@@ -285,6 +285,16 @@ public record PaymentEffects(
 
 ---
 
+## EitherPath
+
+**Definition:** A path over `Either<E, A>` for a computation that succeeds with a value or fails with a typed error `E`. The first failure stops the chain, and `run()` returns the `Either`.
+
+**Factories:** `Path.right(value)`, `Path.left(error)`, and `Path.either(either)`.
+
+**Related:** [EitherPath documentation](../effect/path_either.md), [Path](#path), [Either](data-effects.md#either), [Railway-Oriented Programming](#railway-oriented-programming), [recover](#recover)
+
+---
+
 ## foldMap
 
 **Definition:** The method that interprets a Free monad program by traversing its instruction tree, applying a natural transformation (interpreter) to each `Suspend` node, and combining results using the target monad's `flatMap`. Stack-safe via internal trampolining.
