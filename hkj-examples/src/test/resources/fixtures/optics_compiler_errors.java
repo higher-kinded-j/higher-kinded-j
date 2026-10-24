@@ -23,6 +23,7 @@ import org.higherkindedj.example.book.optics.Audited;
 import org.higherkindedj.example.book.optics.BaseEndpoint;
 import org.higherkindedj.example.book.optics.Endpoint;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
 import org.higherkindedj.hkt.free.Free;

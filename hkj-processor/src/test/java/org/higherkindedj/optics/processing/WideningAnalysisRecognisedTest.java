@@ -26,6 +26,7 @@ import org.higherkindedj.optics.processing.WideningAnalysis.Step;
 import org.higherkindedj.optics.processing.WideningAnalysis.StepKind;
 import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,12 +56,18 @@ class WideningAnalysisRecognisedTest {
           import java.util.Set;
           import org.higherkindedj.hkt.maybe.Maybe;
 
+          @SuppressWarnings("rawtypes")
           public record Holder(
               Optional<String> optional,
               Maybe<String> maybe,
               List<String> list,
               Set<String> set,
-              Collection<String> collection) {}
+              Collection<String> collection,
+              Optional<? extends CharSequence> boundedOptional,
+              Maybe<?> looseMaybe,
+              List<? super String> lowerList,
+              Set rawSet,
+              Collection<? extends CharSequence> boundedCollection) {}
           """);
 
   /** The step each Holder component widens through, by component name. */
@@ -70,7 +77,21 @@ class WideningAnalysisRecognisedTest {
           "maybe", StepKind.MAYBE,
           "list", StepKind.LIST,
           "set", StepKind.SET,
-          "collection", StepKind.COLLECTION);
+          "collection", StepKind.COLLECTION,
+          "boundedOptional", StepKind.OPTIONAL,
+          "looseMaybe", StepKind.MAYBE,
+          "lowerList", StepKind.LIST,
+          "rawSet", StepKind.SET,
+          "boundedCollection", StepKind.COLLECTION);
+
+  /** The container as written, for each component whose instance is cast to it. */
+  private static final Map<String, String> CAST_TO =
+      Map.of(
+          "boundedOptional", "Optional<? extends CharSequence>",
+          "looseMaybe", "Maybe<?>",
+          "lowerList", "List<? super String>",
+          "rawSet", "Set",
+          "boundedCollection", "Collection<? extends CharSequence>");
 
   /**
    * A generator that outranks the built-in ones for all five types and names an optic of its own,
@@ -164,6 +185,22 @@ class WideningAnalysisRecognisedTest {
   void widensEveryRecognisedContainerWithNoGeneratorOnThePath() {
     EXPECTED.forEach(
         (component, kind) -> assertThat(kinds(pluginFree.get(component))).containsExactly(kind));
+  }
+
+  @Test
+  @DisplayName("casts a raw or wildcard container's instance to it, and turns none away")
+  void castsARawOrWildcardContainersInstanceToIt() {
+    EXPECTED
+        .keySet()
+        .forEach(
+            component -> {
+              Widening widening = pluginFree.get(component);
+              TypeMirror castTo = widening.steps().getFirst().undenotableContainer();
+              assertThat(castTo == null ? null : ProcessorUtils.simpleTypeName(castTo))
+                  .as(component)
+                  .isEqualTo(CAST_TO.get(component));
+              assertThat(widening.declined()).as(component).isNull();
+            });
   }
 
   @Test

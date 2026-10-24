@@ -807,7 +807,7 @@ class FocusIncludeFieldsTest {
       textBlock =
           """
       @GenerateFocus(includeFields = "sites", widenFields = "sites") | Map<String, ? extends Address> sites | has a wildcard type argument
-      @GenerateFocus(includeFields = "sites") | java.util.Set<? extends Address> sites | has a wildcard type argument
+      @GenerateFocus(includeFields = "sites") | org.higherkindedj.hkt.either.Either<String, ? extends Address> sites | has a wildcard type argument
       @GenerateFocus(generateNavigators = true, includeFields = "clash") | Clash clash | cannot navigate to
       @GenerateFocus(includeFields = "missing") | String id | which is not a component
       """)
