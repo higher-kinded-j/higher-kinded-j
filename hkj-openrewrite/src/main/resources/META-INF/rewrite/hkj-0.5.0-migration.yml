@@ -97,10 +97,12 @@ type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.RemovePathConfig
 displayName: Remove @PathConfig
 description: >-
-  @PathConfig was deprecated since 0.4.11 and scheduled for removal in
-  0.5.0. No processor reads it, so removing it from a package-info.java
-  changes nothing generated. A type whose Path class should be named with
-  another suffix sets @PathSource(suffix = ...) instead.
+  @PathConfig was deprecated in 0.4.11 and is removed in 0.5.0, so the
+  recipe matches it only while the project compiles against 0.4.x: run it
+  before the project moves to 0.5.0. No processor reads it, so removing it
+  from a package-info.java changes nothing generated. A type whose Path
+  class should be named with another suffix sets @PathSource(suffix = ...)
+  instead.
 tags:
   - higher-kinded-j
   - deprecation
