@@ -103,7 +103,7 @@ The interface is simple by design. Implement `each()` to provide a traversal; if
 import org.higherkindedj.optics.each.EachInstances;
 
 // List traversal with index support
-Each<List<String>, String> listEach = EachInstances.listEach();
+EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
 
 // Set traversal (no meaningful index)
 Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
@@ -112,13 +112,13 @@ Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
 Each<Collection<String>, String> collectionEach = EachInstances.collectionEach();
 
 // Map values traversal with key as index
-Each<Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
+EachIndexed<String, Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
 
 // Optional traversal (0 or 1 element)
 Each<Optional<String>, String> optEach = EachInstances.optionalEach();
 
 // Array traversal with index support
-Each<Integer[], Integer> arrayEach = EachInstances.arrayEach();
+EachIndexed<Integer, Integer[], Integer> arrayEach = EachInstances.arrayEach();
 
 // Stream traversal (consumed during traversal)
 Each<Stream<String>, String> streamEach = EachInstances.streamEach();
@@ -127,7 +127,7 @@ Each<Stream<String>, String> streamEach = EachInstances.streamEach();
 Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
 
 // String character traversal with index support
-Each<String, Character> stringEach = EachInstances.stringCharsEach();
+EachIndexed<Integer, String, Character> stringEach = EachInstances.stringCharsEach();
 ```
 
 ### HKT Types (EachExtensions)
@@ -168,7 +168,7 @@ Each<Validated<List<AppError>, Payload>, Payload> validatedEach = EachExtensions
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/each/EachBook.java:traverse_all}}
 ```
 
-### Using Indexed Traversal
+### Using Indexed Traversal {#using-indexed-traversal}
 
 When position matters, type the instance as `EachIndexed` and call `indexedTraversal()`. The index type (`Integer` for lists) is fixed at compile time:
 
@@ -368,7 +368,7 @@ Contributor updated = allTasks.modifyAll(Task::escalated, contributor);
 - You need a canonical traversal for a container type
 - Integrating with Focus DSL's `.each(Each)` method
 - Building reusable optics for custom containers
-- You want indexed access when available
+- You want indexed access, through `EachIndexed`, where the container has an index
 
 **Use direct Traversal when:**
 - You need a non-canonical traversal (e.g., every second element)

@@ -342,7 +342,7 @@ public class EachInstancesExample {
     System.out.println("--- Indexed Traversal via EachIndexed.indexedTraversal() ---");
 
     // EachInstances.listEach() returns an EachIndexed<Integer, ...>, so the index type is
-    // fixed at compile time — no Optional, no cast.
+    // fixed at compile time.
     EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
     IndexedTraversal<Integer, List<String>, String> listIndexed = listEach.indexedTraversal();
 
