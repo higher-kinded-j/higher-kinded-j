@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
@@ -166,6 +167,65 @@ class VStreamParTest {
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("concurrency");
     }
+
+    @Test
+    @DisplayName(
+        "parEvalMap() with Integer.MAX_VALUE on a short stream returns every element, in order")
+    void parEvalMapWithMaxConcurrencyReturnsEveryElementInOrder() {
+      List<Integer> result =
+          VStreamPar.parEvalMap(VStream.of(1, 2, 3), Integer.MAX_VALUE, VTask::succeed)
+              .toList()
+              .run();
+
+      assertThat(result).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("parEvalMap(Integer.MAX_VALUE) on an empty stream returns no elements")
+    void parEvalMapMaxValueOnEmptyStreamReturnsEmpty() {
+      List<Integer> result =
+          VStreamPar.parEvalMap(VStream.<Integer>empty(), Integer.MAX_VALUE, VTask::succeed)
+              .toList()
+              .run();
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("parEvalMap() above a few thousand elements still returns every element in order")
+    void parEvalMapAboveInitialCapacityReturnsEveryElementInOrder() {
+      List<Integer> result =
+          VStreamPar.parEvalMap(VStream.range(0, 3_000), 2_000, VTask::succeed).toList().run();
+
+      assertThat(result).containsExactlyElementsOf(IntStream.range(0, 3_000).boxed().toList());
+    }
+
+    @Test
+    @DisplayName(
+        "parEvalMap() forks every element of a batch larger than its list's initial capacity")
+    void parEvalMapForksEveryElementWhenConcurrencyExceedsInitialCapacity() {
+      int elements = 1_025;
+      CountDownLatch started = new CountDownLatch(elements);
+
+      List<Integer> result =
+          VStreamPar.parEvalMap(
+                  VStream.range(0, elements),
+                  2_000,
+                  n ->
+                      VTask.of(
+                          () -> {
+                            started.countDown();
+                            if (!started.await(10, TimeUnit.SECONDS)) {
+                              throw new IllegalStateException(
+                                  "not every element of the batch was in flight");
+                            }
+                            return n;
+                          }))
+              .toList()
+              .run();
+
+      assertThat(result).containsExactlyElementsOf(IntStream.range(0, elements).boxed().toList());
+    }
   }
 
   @Nested
@@ -281,6 +341,18 @@ class VStreamParTest {
       assertThatThrownBy(() -> VStreamPar.parEvalMapUnordered(VStream.of(1), 0, VTask::succeed))
           .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    @DisplayName(
+        "parEvalMapUnordered() with Integer.MAX_VALUE on a short stream returns every element")
+    void parEvalMapUnorderedWithMaxConcurrencyReturnsEveryElement() {
+      List<Integer> result =
+          VStreamPar.parEvalMapUnordered(VStream.of(1, 2, 3), Integer.MAX_VALUE, VTask::succeed)
+              .toList()
+              .run();
+
+      assertThat(result).containsExactlyInAnyOrder(1, 2, 3);
+    }
   }
 
   @Nested
@@ -372,6 +444,17 @@ class VStreamParTest {
     void parEvalFlatMapWithZeroConcurrencyThrows() {
       assertThatThrownBy(() -> VStreamPar.parEvalFlatMap(VStream.of(1), 0, VStream::of))
           .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("parEvalFlatMap() with Integer.MAX_VALUE on a short stream returns every element")
+    void parEvalFlatMapWithMaxConcurrencyReturnsEveryElement() {
+      List<Integer> result =
+          VStreamPar.parEvalFlatMap(VStream.of(1, 2, 3), Integer.MAX_VALUE, VStream::of)
+              .toList()
+              .run();
+
+      assertThat(result).containsExactly(1, 2, 3);
     }
   }
 
@@ -569,6 +652,13 @@ class VStreamParTest {
     void parCollectWithNegativeBatchSizeThrows() {
       assertThatThrownBy(() -> VStreamPar.parCollect(VStream.of(1), -1))
           .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("parCollect() with Integer.MAX_VALUE on a short stream returns every element")
+    void parCollectWithMaxBatchSizeReturnsEveryElement() {
+      assertThat(VStreamPar.parCollect(VStream.of(1, 2, 3), Integer.MAX_VALUE).run())
+          .containsExactly(1, 2, 3);
     }
   }
 
