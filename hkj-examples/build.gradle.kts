@@ -107,6 +107,20 @@ spotless {
     }
 }
 
+// Tests run under a fixed English locale, so their results do not depend on the machine's default
+// locale (a comma-decimal locale would otherwise change %.2f output). This covers every Test task in
+// this module: test, bookVerify and tutorialTest.
+// To run them under another locale by hand: ./gradlew :hkj-examples:test -PtestLocale=el_GR
+// A test run from an IDE with its own runner bypasses this setting; IntelliJ should delegate test
+// runs to Gradle.
+val testLocale = providers.gradleProperty("testLocale").orElse("en_GB").get()
+val testLanguage = testLocale.substringBefore('_')
+val testCountry = testLocale.substringAfter('_', "")
+
+tasks.withType<Test>().configureEach {
+    jvmArgs("-Duser.language=$testLanguage", "-Duser.country=$testCountry")
+}
+
 // Default test task: runs solution tests only (tutorials are excluded)
 // Solutions must pass as they verify the tutorial exercises are correct
 tasks.named<Test>("test") {
