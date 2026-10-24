@@ -7,6 +7,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.example.book.optics.cast.Customer;
@@ -196,8 +197,13 @@ public final class IndexedAdvancedBook {
                   price.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN);
 
               System.out.printf(
+                  Locale.ROOT,
                   "Updating price at [history=%d, order=%d, item=%d]: %.2f -> %.2f%n",
-                  customerIdx, orderIdx, itemIdx, price, raised);
+                  customerIdx,
+                  orderIdx,
+                  itemIdx,
+                  price,
+                  raised);
 
               return raised;
             },
