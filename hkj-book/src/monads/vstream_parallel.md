@@ -97,6 +97,10 @@ VStream<Integer> doubled = VStreamPar.parEvalMap(
 // Output order matches input order
 ```
 
+A concurrency at least as large as the stream, even `Integer.MAX_VALUE`, still processes
+every element and forks one task per element. The batch list grows as elements arrive, so
+that concurrency does not reserve a slot for every place in it.
+
 ### parEvalMapUnordered: Maximum Throughput
 
 When output order does not matter, `parEvalMapUnordered` emits results as they
@@ -125,6 +129,9 @@ VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
 );
 // Results may be in any order
 ```
+
+A concurrency at least as large as the stream still emits every element. Its batch list
+grows as elements arrive, as `parEvalMap`'s does.
 
 ### parEvalFlatMap: Parallel Stream Expansion
 

@@ -110,6 +110,11 @@ public final class VStreamPar {
    * <p>This is the primary parallel processing operation for VStream. Use this when the order of
    * output elements must match the order of input elements.
    *
+   * <p>A concurrency at least as large as the stream processes every element, forking one task per
+   * element. The batch list grows as elements arrive, so a concurrency such as {@link
+   * Integer#MAX_VALUE} does not reserve a slot for every place in it before the first element is
+   * read.
+   *
    * @param <A> The type of elements in the input stream.
    * @param <B> The type of elements in the output stream.
    * @param stream The source stream. Must not be null.
@@ -131,7 +136,7 @@ public final class VStreamPar {
     return DeferredStream.deferring(
         () -> {
           // Pull up to concurrency elements from source
-          List<A> batch = new ArrayList<>(concurrency);
+          List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
           AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
           boolean done;
           List<B> results;
@@ -172,6 +177,11 @@ public final class VStreamPar {
    * <p>The output stream contains exactly the same elements as {@link #parEvalMap}, but potentially
    * in a different order.
    *
+   * <p>A concurrency at least as large as the stream emits every element, forking one task per
+   * element. The batch list grows as elements arrive, so a concurrency such as {@link
+   * Integer#MAX_VALUE} does not reserve a slot for every place in it before the first element is
+   * read.
+   *
    * @param <A> The type of elements in the input stream.
    * @param <B> The type of elements in the output stream.
    * @param stream The source stream. Must not be null.
@@ -193,7 +203,7 @@ public final class VStreamPar {
     return DeferredStream.deferring(
         () -> {
           // Pull up to concurrency elements from source
-          List<A> batch = new ArrayList<>(concurrency);
+          List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
           AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
           boolean done;
           List<B> results;
@@ -561,6 +571,19 @@ public final class VStreamPar {
   }
 
   // ===== Internal helpers =====
+
+  /**
+   * Initial capacity of a parallel batch. A larger concurrency still forks up to that many tasks;
+   * the list grows as elements arrive, so a concurrency such as {@code Integer.MAX_VALUE} does not
+   * allocate that many slots before the first element is read.
+   *
+   * <p>The same cap is private to {@link VStream#chunk(int)}, so this class keeps its own. {@code
+   * pullBatch} still reads up to {@code concurrency} elements, and each of those still forks a
+   * task.
+   */
+  private static int batchInitialCapacity(int concurrency) {
+    return Math.min(concurrency, 1024);
+  }
 
   /**
    * Unwraps a {@link StructuredTaskScope.FailedException} into the appropriate unchecked exception.
