@@ -11,14 +11,19 @@ import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.J;
 
 /**
- * Replaces {@code @PathSource}'s deprecated {@code EFFECTFUL} capability with {@code CHAINABLE},
- * and {@code ACCUMULATING} with {@code RECOVERABLE}.
+ * Replaces {@code @PathSource}'s {@code EFFECTFUL} capability with {@code CHAINABLE}, and {@code
+ * ACCUMULATING} with {@code RECOVERABLE}.
  *
- * <p>Each deprecated level generates exactly the class its replacement does, so the replacement
- * changes nothing generated. Only the constant's name changes: a reference keeps the qualifier it
- * was written with, whether {@code PathSource.Capability.EFFECTFUL}, a fully qualified name, or a
+ * <p>Each level generates exactly the class its replacement does, so the replacement changes
+ * nothing generated. Only the constant's name changes: a reference keeps the qualifier it was
+ * written with, whether {@code PathSource.Capability.EFFECTFUL}, a fully qualified name, or a
  * static import. Every reference to the two constants is renamed, not only those in
  * {@code @PathSource}, since the constants mean nothing elsewhere.
+ *
+ * <p>Both levels were deprecated in 0.4.11 and are removed in 0.5.0, so run the recipe before the
+ * project moves to 0.5.0. Against 0.4.x it finds every reference. Against 0.5.0 it still renames a
+ * qualified one, but misses each unqualified use, such as a statically imported constant or a
+ * {@code case} label, which no longer resolves; it renames a static import without its uses.
  */
 public class ReplaceDeprecatedPathSourceCapabilitiesRecipe extends Recipe {
 
@@ -35,12 +40,13 @@ public class ReplaceDeprecatedPathSourceCapabilitiesRecipe extends Recipe {
 
   @Override
   public String getDescription() {
-    return "`PathSource.Capability.EFFECTFUL` and `ACCUMULATING` were deprecated since 0.4.11 and"
-        + " scheduled for removal in 0.5.0. `EFFECTFUL` generates exactly what `CHAINABLE` does,"
-        + " and `ACCUMULATING` exactly what `RECOVERABLE` does, so replacing them in `@PathSource`"
+    return "`PathSource.Capability.EFFECTFUL` generates exactly what `CHAINABLE` does, and"
+        + " `ACCUMULATING` exactly what `RECOVERABLE` does, so replacing them in `@PathSource`"
         + " changes nothing generated. Every reference to the two constants is renamed, so a"
         + " `switch` over `PathSource.Capability` that lists a deprecated level beside its"
-        + " replacement is left with a duplicate label to remove.";
+        + " replacement is left with a duplicate label to remove. The two constants are removed in"
+        + " 0.5.0, so run it while the project is on 0.4.x: against 0.5.0 it misses an unqualified"
+        + " use, such as a statically imported constant or a `case` label.";
   }
 
   @Override

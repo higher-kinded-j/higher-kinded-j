@@ -214,8 +214,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
     String suffix = annotation.suffix();
     String pathClassName = sourceName + suffix;
-    PathSource.Capability written = annotation.capability();
-    PathSource.Capability capability = generatedLevel(written);
+    PathSource.Capability capability = annotation.capability();
 
     // Get witness type (using MirroredTypeException pattern)
     TypeMirror witnessTypeMirror = getWitnessType(annotation);
@@ -269,7 +268,7 @@ public class PathSourceProcessor extends AbstractProcessor {
                 noteRecoveryMismatch(
                     sourceElement,
                     mirror,
-                    written,
+                    capability,
                     hasErrorType,
                     witnessTypeMirror,
                     errorTypeMirror,
@@ -599,12 +598,12 @@ public class PathSourceProcessor extends AbstractProcessor {
   private void noteRecoveryMismatch(
       TypeElement source,
       AnnotationMirror mirror,
-      PathSource.Capability written,
+      PathSource.Capability capability,
       boolean hasErrorType,
       TypeMirror witness,
       TypeMirror errorType,
       String pathClassName) {
-    boolean recoverable = isRecoverable(generatedLevel(written));
+    boolean recoverable = isRecoverable(capability);
     if (hasErrorType && !recoverable) {
       String errorName = ProcessorUtils.simpleTypeName(errorType);
       report(
@@ -614,8 +613,8 @@ public class PathSourceProcessor extends AbstractProcessor {
           "errorType",
           "errorType '" + errorName + "' has no effect on the generated '" + pathClassName + "'",
           (ProcessorUtils.getAnnotationValue(mirror, "capability") == null
-                  ? "The default capability, " + written + ","
-                  : "Capability " + written)
+                  ? "The default capability, " + capability + ","
+                  : "Capability " + capability)
               + " generates no recovery methods; recover, recoverWith and mapError are generated"
               + " only for RECOVERABLE.",
           usableErrorType(errorType)
@@ -635,7 +634,7 @@ public class PathSourceProcessor extends AbstractProcessor {
           mirror,
           "capability",
           "capability "
-              + written
+              + capability
               + " generates no recovery methods on '"
               + pathClassName
               + "' without an errorType",
@@ -699,19 +698,6 @@ public class PathSourceProcessor extends AbstractProcessor {
             ProcessorUtils.getAnnotationValue(mirror, attribute));
   }
 
-  /**
-   * The level whose methods a capability generates. The deprecated levels generate exactly what
-   * CHAINABLE and RECOVERABLE do, so replacing them changes nothing generated.
-   */
-  @SuppressWarnings("removal") // the deprecated levels generate until they are removed
-  static PathSource.Capability generatedLevel(PathSource.Capability capability) {
-    return switch (capability) {
-      case EFFECTFUL -> PathSource.Capability.CHAINABLE;
-      case ACCUMULATING -> PathSource.Capability.RECOVERABLE;
-      case COMPOSABLE, COMBINABLE, CHAINABLE, RECOVERABLE -> capability;
-    };
-  }
-
   // Package-private for tests.
   static TypeMirror getWitnessType(PathSource annotation) {
     try {
@@ -743,7 +729,6 @@ public class PathSourceProcessor extends AbstractProcessor {
         capability == PathSource.Capability.COMPOSABLE ? COMPOSABLE : COMBINABLE, typeA);
   }
 
-  // Each takes a level from generatedLevel, which never answers a deprecated one.
   private boolean isChainable(PathSource.Capability capability) {
     return capability == PathSource.Capability.CHAINABLE
         || capability == PathSource.Capability.RECOVERABLE;

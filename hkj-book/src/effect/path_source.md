@@ -448,27 +448,6 @@ Path.free(program, ConsoleOpFunctor.instance()), then remove @PathSource.
 
 [`FreePath`](path_free.md) shows how to build such programs and interpret them.
 
-### Deprecated capabilities {#deprecated-capabilities}
-
-`EFFECTFUL` and `ACCUMULATING` are deprecated for removal in 0.5.0. Neither generates what its
-name promises:
-
-| Deprecated | Generates exactly what this does | So it lacks |
-|---|---|---|
-| `EFFECTFUL` | `CHAINABLE` | `unsafeRun`, `delay` and `async` |
-| `ACCUMULATING` | `RECOVERABLE` | Error accumulation: `zipWith` stops at the first error |
-
-<!-- verify:reports "has been deprecated and marked for removal" -->
-```java
-@PathSource(witness = TracedKind.Witness.class, capability = PathSource.Capability.EFFECTFUL)
-record Traced<A>(A value, List<String> log) implements TracedKind<A> {}
-```
-
-javac warns at each use that `EFFECTFUL in Capability has been deprecated and marked for removal`,
-which fails a build under `-Werror`. The
-[`ReplaceDeprecatedPathSourceCapabilitiesRecipe`](../tooling/openrewrite.md#050-deprecation-migration)
-replaces each with the level it generates.
-
 ---
 
 ~~~admonish info title="Key Takeaways"
