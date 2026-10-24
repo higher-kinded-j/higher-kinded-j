@@ -475,12 +475,12 @@ public final class ProcessorUtils {
    * {@code @ImportOptics} does for a raw source type, or the generator writes a cast of its own
    * that it answers for, and suppresses {@code unchecked} for that cast. {@code @GenerateFocus},
    * for one, casts an instance typed for a container's element to the raw or wildcard {@code
-   * Optional}, {@code List} or {@code Kind} a component declares: reading through it gives that
-   * element, and writing builds a new container that the declaration admits. {@link
-   * #warningSuppression} merges that {@code unchecked} with any {@code rawtypes} the member needs.
-   * A generator may also refuse for a reason of its own: {@code @PathVia} refuses a raw type in a
-   * bridged signature because the bridge builds its Path from the effect's type arguments, while
-   * answering for a raw bound on its class.
+   * Optional}, {@code Maybe}, {@code List}, {@code Set}, {@code Collection} or {@code Kind} a
+   * component declares: reading through it gives that element, and writing builds a new container
+   * that the declaration admits. {@link #warningSuppression} merges that {@code unchecked} with any
+   * {@code rawtypes} the member needs. A generator may also refuse for a reason of its own:
+   * {@code @PathVia} refuses a raw type in a bridged signature because the bridge builds its Path
+   * from the effect's type arguments, while answering for a raw bound on its class.
    *
    * <p>A declaration takes one {@code @SuppressWarnings}, so a member needing a second token for a
    * reason of its own merges both into a single annotation rather than adding another.

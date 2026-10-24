@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Tests for the SPI widening enhancements:
@@ -519,6 +520,28 @@ public class FocusProcessorSpiEnhancementsTest {
                   .toList());
     }
 
+    /** Holder over {@code component}, under the annotations the diagnostic's remedy names. */
+    private static Compilation compileWithSiblings(String annotations, String component) {
+      return javac()
+          .withProcessors(new LensProcessor(), new TraversalProcessor())
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Holder",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.optics.annotations.GenerateLenses;
+                  import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+                  %s
+                  @SuppressWarnings("rawtypes")
+                  public record Holder(%s) {}
+                  """
+                      .formatted(annotations, component)),
+              LEAF);
+    }
+
     @Test
     @DisplayName("should reject a wildcard in the focused type argument")
     void shouldRejectWildcardInFocusedTypeArgument() {
@@ -532,6 +555,10 @@ public class FocusProcessorSpiEnhancementsTest {
           .hadErrorContaining(
               "Declare the component with concrete type arguments, such as"
                   + " Either<String, Leaf>, or drop @GenerateFocus from the record");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@GenerateLenses and @GenerateTraversals compose no optic instance and take the"
+                  + " component as written.");
     }
 
     @Test
@@ -788,6 +815,62 @@ public class FocusProcessorSpiEnhancementsTest {
       assertThat(compilation)
           .hadErrorContaining("a raw type offers no type arguments to infer it from.");
       assertThat(compilation).hadErrorContaining("such as Either<Object, Object>,");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@GenerateLenses composes no optic instance and takes the component as written.");
+    }
+
+    @Test
+    @DisplayName("should keep a type-use annotation out of the reported type name")
+    void shouldKeepATypeUseAnnotationOutOfTheReportedTypeName() {
+      // Both halves of the message must render the type the same way: naming '@Nully Either<?,
+      // Leaf>' and then suggesting 'Either<Object, Leaf>' reads as advice to drop the annotation.
+      JavaFileObject annotation =
+          JavaFileObjects.forSourceString(
+              "com.example.Nully",
+              """
+              package com.example;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+
+              @Target(ElementType.TYPE_USE)
+              public @interface Nully {}
+              """);
+
+      Compilation compilation = compile("", "@Nully Either<?, Leaf> f", annotation);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "record component 'Holder.f' has a wildcard type argument in Either<?, Leaf>.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the component with concrete type arguments, such as Either<Object, Leaf>,");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Either<?, Leaf>", "Either<String, ? extends Leaf>"})
+    @DisplayName("should compile a wildcard under both siblings its remedy names")
+    void shouldCompileAWildcardUnderBothSiblings(String component) {
+      Compilation compilation =
+          compileWithSiblings("@GenerateLenses\n@GenerateTraversals", component + " f");
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderTraversals");
+    }
+
+    @Test
+    @DisplayName("should compile a raw container under the lens alone its remedy names")
+    void shouldCompileARawContainerUnderTheLensAlone() {
+      // @GenerateTraversals has no element type to focus in a raw container either: it compiles,
+      // but with a note and no traversal, which is why the remedy leaves it out.
+      assertThat(compileWithSiblings("@GenerateTraversals", "Either f"))
+          .hadNoteContaining("no traversal was generated for component");
+
+      Compilation compilation = compileWithSiblings("@GenerateLenses", "Either f");
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderLenses");
     }
 
     @Test

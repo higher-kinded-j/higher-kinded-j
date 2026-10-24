@@ -59,13 +59,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *       Each<A[], A>}, and no primitive is an {@code A}. A generator that names no optic expression
  *       takes no part: its container stays in focus, as if no generator supported it.
  *   <li>A widening names an optic instance, whose type arguments come from the container's own.
- *       Where those are raw or a wildcard, an {@code Optional}, a {@code List} or a {@code Kind}
+ *       Where those are raw or a wildcard, one of the five recognised containers or a {@code Kind}
  *       casts its instance, typed for the element the arguments stand for, to the container as
  *       written. Reading through it gives that element, and writing builds a new container of it,
- *       which the component takes back. That cast is not supported yet for a {@code Maybe}, a
- *       {@code Set}, a {@code Collection} or an SPI container: the walk turns such a container away
- *       and the widening {@linkplain Widening#declined() names it}, so that the declaration is
- *       rejected where it is written rather than inside generated source.
+ *       which the component takes back. That cast is not supported yet for an SPI container, whose
+ *       optic expression its generator writes: the walk turns such a container away and the
+ *       widening {@linkplain Widening#declined() names it}, so that the declaration is rejected
+ *       where it is written rather than inside generated source.
  *   <li>A {@code @Nullable} component widens through {@code .nullable()} before anything else. A
  *       container that is null then has no focus, rather than one the next step throws on, and a
  *       component the containers leave alone widens through {@code .nullable()} alone. A nullable
@@ -279,8 +279,8 @@ public final class WideningAnalysis {
    * @param kindInfo the Kind analysis for a {@code KIND_*} layer, otherwise null
    * @param generator the generator for an {@code SPI_*} layer, otherwise null
    * @param innerType the type this layer unwraps to, or null when it unwraps to nothing
-   * @param undenotableContainer the container as written, for an {@code Optional}, {@code List} or
-   *     {@code Kind} layer whose own type arguments are raw or a wildcard, or a {@code Kind} with a
+   * @param undenotableContainer the container as written, for a recognised container or {@code
+   *     Kind} layer whose own type arguments are raw or a wildcard, or a {@code Kind} with a
    *     wildcard anywhere in its witness, whose instance is cast to it; otherwise null
    */
   public record Step(
@@ -469,21 +469,17 @@ public final class WideningAnalysis {
 
     StepKind recognised = RECOGNISED_CONTAINERS.get(qualifiedName);
     if (recognised != null) {
-      boolean undenotable = ProcessorUtils.hasUndenotableTypeArguments(type);
-      // A raw or wildcard-carrying Optional or List casts its instance to the container as written;
-      // a Maybe, a Set or a Collection does not, so it has no widening that can be written.
-      return refusesUndenotable(recognised) && undenotable
-          ? declaredType
-          : descend(
-              component,
-              report,
-              recognised,
-              null,
-              typeArgumentAt(declaredType, 0),
-              undenotable ? declaredType : null,
-              widenCollections,
-              depth,
-              steps);
+      // A raw or wildcard-carrying container casts its instance to the container as written.
+      return descend(
+          component,
+          report,
+          recognised,
+          null,
+          typeArgumentAt(declaredType, 0),
+          ProcessorUtils.hasUndenotableTypeArguments(type) ? declaredType : null,
+          widenCollections,
+          depth,
+          steps);
     }
 
     // A Kind field is read from the component's own declaration, so only the outermost layer of a
@@ -680,7 +676,9 @@ public final class WideningAnalysis {
                     step,
                     args,
                     targetPackage);
-            case MAYBE -> stockInstance("some", AFFINES_CLASS, "just", args);
+            case MAYBE ->
+                typedInstance(
+                    "some", AFFINE_CLASS, AFFINES_CLASS, "just", step, args, targetPackage);
             case LIST ->
                 typedInstance(
                     "each",
@@ -690,8 +688,18 @@ public final class WideningAnalysis {
                     step,
                     args,
                     targetPackage);
-            case SET -> stockInstance("each", EACH_INSTANCES_CLASS, "setEach", args);
-            case COLLECTION -> stockInstance("each", EACH_INSTANCES_CLASS, "collectionEach", args);
+            case SET ->
+                typedInstance(
+                    "each", EACH_CLASS, EACH_INSTANCES_CLASS, "setEach", step, args, targetPackage);
+            case COLLECTION ->
+                typedInstance(
+                    "each",
+                    EACH_CLASS,
+                    EACH_INSTANCES_CLASS,
+                    "collectionEach",
+                    step,
+                    args,
+                    targetPackage);
             case NULLABLE -> ".nullable()";
             case NULLABLE_LAYER -> stockInstance("some", AFFINES_CLASS, "nullable", args);
             case SPI_ZERO_OR_ONE -> ".some(" + opticExpression(step, args) + ")";
@@ -810,11 +818,22 @@ public final class WideningAnalysis {
                 .getTypeArguments().stream().anyMatch(WideningAnalysis::containsWildcard));
   }
 
-  /** The element a cast layer's instance is typed for: the bound its arguments stand for. */
+  /**
+   * The element a cast layer's instance is typed for: the bound its arguments stand for.
+   *
+   * <p>An {@code Optional} or a {@code Maybe} holds no null, so where its instance is cast, a
+   * nullness annotation on that bound is left out: {@code Maybe<? extends @Nullable String>} holds
+   * a {@code String}, and {@code Affines.just()} is typed for a non-null element.
+   */
   private static TypeName elementOf(Step step, String targetPackage) {
-    return step.innerType() == null
-        ? ClassName.get(Object.class)
-        : ProcessorUtils.typeNameOf(step.innerType(), targetPackage).box();
+    if (step.innerType() == null) {
+      return ClassName.get(Object.class);
+    }
+    TypeName element = ProcessorUtils.typeNameOf(step.innerType(), targetPackage).box();
+    return step.undenotableContainer() != null
+            && (step.kind() == StepKind.OPTIONAL || step.kind() == StepKind.MAYBE)
+        ? nullRuledOut(element)
+        : element;
   }
 
   /** Resolves a generator's optic expression, collecting the imports it names into {@code args}. */
@@ -822,14 +841,6 @@ public final class WideningAnalysis {
     TraversableGenerator generator = step.generator();
     return OpticExpressionResolver.resolve(
         generator.generateOpticExpression(), generator.getRequiredImports(), args);
-  }
-
-  /**
-   * Whether a raw or wildcard-carrying container of this kind is turned away: the cast an {@code
-   * Optional} or {@code List} instance takes to such a container is not supported yet for it.
-   */
-  private static boolean refusesUndenotable(StepKind kind) {
-    return kind == StepKind.MAYBE || kind == StepKind.SET || kind == StepKind.COLLECTION;
   }
 
   /**

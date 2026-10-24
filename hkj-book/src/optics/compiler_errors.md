@@ -30,7 +30,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`does not return an Iso with both type arguments`](#generateisos-x-does-not-return-an-iso-with-both-type-arguments) | The `@GenerateIsos` method returns something else |
 | [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
 | [`The generated companion is a top-level class`](#companion-cannot-be-reached) | A type the generated companion names is `private`, or hidden in another package |
-| [`has a wildcard type argument`, `has a raw Set`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened container is raw, or has a wildcard type argument |
+| [`has a wildcard type argument`, `has a raw Either`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened SPI container, such as `Either`, is raw or has a wildcard |
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
@@ -394,21 +394,21 @@ class Shop {
 ```
 ~~~
 
-### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Set<? extends T>"
+### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Either<String, ? extends T>" {#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t}
 
-A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Maybe`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
+A container that the processor widens through the optic its SPI generator supplies is declared raw, or with a wildcard type argument. The same error covers `Either`, `Try`, `Validated`, `Map` and every other such container, and is also reported as *"has a raw Either"*. A `Map` or another collection draws it only once something widens it. The five built-in containers, `Optional`, `Maybe`, `List`, `Set` and `Collection`, never draw it.
 
-**Fix.** Name the type argument, `Set<Widget>` rather than `Set<? extends Widget>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
+**Fix.** Name the type arguments, `Either<String, Widget>` rather than `Either<String, ? extends Widget>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
 
 ~~~admonish note title="Why" collapsible=true
-That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional` and `List` are exempt: the processor names their instance for the element the arguments stand for, and casts it to the type the field declares.
+That optic, such as `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. A built-in container is exempt because the processor names its instance for the element the arguments stand for, and casts it to the type the field declares.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "has a wildcard type argument" -->
+<!-- verify:rejects "has a wildcard type argument in Either<String, ? extends T>" -->
 ```java
 @GenerateFocus
-record Bag<T>(Set<? extends T> items) {}
+record Bag<T>(Either<String, ? extends T> item) {}
 ```
 ~~~
 
