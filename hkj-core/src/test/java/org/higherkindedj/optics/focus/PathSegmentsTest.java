@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,8 @@ class PathSegmentsTest {
   private static final FocusPath<Address, String> ZIP = FocusPath.of(ZIP_LENS, "zip");
   private static final AffinePath<Address, String> ZIP_AFFINE = ZIP.nullable();
   private static final TraversalPath<Address, String> LINES =
-      FocusPath.of(Lens.of(Address::lines, (a, l) -> new Address(a.zip(), l)), "lines").each();
+      FocusPath.of(Lens.of(Address::lines, (a, l) -> new Address(a.zip(), l)), "lines")
+          .each(EachInstances.listEach());
   private static final AffinePath<Customer, Address> ADDRESS_AFFINE = ADDRESS.nullable();
   private static final TraversalPath<Customer, Address> BRANCHES =
       FocusPath.of(
@@ -37,7 +39,7 @@ class PathSegmentsTest {
                   Customer::branches,
                   (c, b) -> new Customer(c.name(), c.address(), c.nickname(), b)),
               "branches")
-          .each();
+          .each(EachInstances.listEach());
 
   private static final Customer CUSTOMER =
       new Customer(
@@ -151,7 +153,7 @@ class PathSegmentsTest {
                   (c, n) -> new Customer(c.name(), c.address(), n, c.branches())),
               "nickname");
 
-      assertThat(nickname.some().segments()).containsExactly("nickname");
+      assertThat(nickname.some(FocusPaths.optionalSome()).segments()).containsExactly("nickname");
       assertThat(LINES.segments()).containsExactly("lines");
       assertThat(ZIP_AFFINE.segments()).containsExactly("zip");
     }

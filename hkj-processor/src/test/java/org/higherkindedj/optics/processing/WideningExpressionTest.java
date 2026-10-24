@@ -38,13 +38,13 @@ class WideningExpressionTest {
       ClassName.get("org.higherkindedj.optics.util", "Affines");
 
   private static Step step(StepKind kind) {
-    return new Step(kind, null, null, null);
+    return new Step(kind, null, null, null, null);
   }
 
   private static Step kindStep(StepKind kind, KindSemantics semantics) {
     KindFieldInfo kindInfo =
         KindFieldInfo.of("W", ClassName.get(String.class), "T.INSTANCE", semantics);
-    return new Step(kind, kindInfo, null, null);
+    return new Step(kind, kindInfo, null, null, null);
   }
 
   private static String build(Step... steps) {
@@ -56,11 +56,11 @@ class WideningExpressionTest {
   void shouldAppendNullableForNullableStep() {
     String expression = build(step(StepKind.NULLABLE), step(StepKind.OPTIONAL));
 
-    assertThat(expression).isEqualTo(".nullable().some()");
+    assertThat(expression).isEqualTo(".nullable().some($T.optionalSome())");
   }
 
   @Test
-  @DisplayName("should append traverseOver().headOption() for a KIND_ZERO_OR_ONE step")
+  @DisplayName("should append each(fromTraverse()).headOption() for a KIND_ZERO_OR_ONE step")
   void shouldAppendHeadOptionForKindZeroOrOne() {
     String expression =
         build(
@@ -68,11 +68,12 @@ class WideningExpressionTest {
             kindStep(StepKind.KIND_ZERO_OR_ONE, KindSemantics.ZERO_OR_ONE));
 
     assertThat(expression)
-        .isEqualTo(".some().<W, java.lang.String>traverseOver(T.INSTANCE).headOption()");
+        .isEqualTo(
+            ".some($T.optionalSome()).each($T.<W, java.lang.String>fromTraverse(T.INSTANCE)).headOption()");
   }
 
   @Test
-  @DisplayName("should append traverseOver().headOption() for a KIND_EXACTLY_ONE step")
+  @DisplayName("should append each(fromTraverse()).headOption() for a KIND_EXACTLY_ONE step")
   void shouldAppendHeadOptionForKindExactlyOne() {
     String expression =
         build(
@@ -80,17 +81,19 @@ class WideningExpressionTest {
             kindStep(StepKind.KIND_EXACTLY_ONE, KindSemantics.EXACTLY_ONE));
 
     assertThat(expression)
-        .isEqualTo(".some().<W, java.lang.String>traverseOver(T.INSTANCE).headOption()");
+        .isEqualTo(
+            ".some($T.optionalSome()).each($T.<W, java.lang.String>fromTraverse(T.INSTANCE)).headOption()");
   }
 
   @Test
-  @DisplayName("should append traverseOver() for a KIND_ZERO_OR_MORE step")
+  @DisplayName("should append each(fromTraverse()) for a KIND_ZERO_OR_MORE step")
   void shouldAppendTraverseOverForKindZeroOrMore() {
     String expression =
         build(
             step(StepKind.LIST), kindStep(StepKind.KIND_ZERO_OR_MORE, KindSemantics.ZERO_OR_MORE));
 
-    assertThat(expression).isEqualTo(".each().<W, java.lang.String>traverseOver(T.INSTANCE)");
+    assertThat(expression)
+        .isEqualTo(".each($T.listEach()).each($T.<W, java.lang.String>fromTraverse(T.INSTANCE))");
   }
 
   @Test

@@ -49,15 +49,18 @@
  *
  * <h2>Collection Navigation</h2>
  *
- * <p>Focus paths provide methods for navigating collections:
+ * <p>Focus paths step into a container through an instance that names it, so a step compiles only
+ * on a path that focuses that container:
  *
  * <ul>
- *   <li>{@code each()} - traverse all elements in a List, Set, or array
- *   <li>{@code at(int)} - focus on a single element by index
- *   <li>{@code atKey(K)} - focus on a map value by key
- *   <li>{@code some()} - unwrap an Optional value
- *   <li>{@code traverseOver(Traverse)} - traverse Kind-wrapped collections using Traverse type
- *       class
+ *   <li>{@code each(Each)} - traverse all elements, such as {@code each(EachInstances.listEach())}
+ *       for a List
+ *   <li>{@code some(Affine)} - unwrap a zero-or-one container, such as {@code
+ *       some(FocusPaths.optionalSome())} for an Optional
+ *   <li>{@code via(FocusPaths.listAt(int))} - focus on a single element by index
+ *   <li>{@code via(FocusPaths.mapAt(K))} - focus on a map value by key
+ *   <li>{@code each(EachInstances.fromTraverse(Traverse))} - traverse Kind-wrapped collections
+ *       using the Traverse type class
  * </ul>
  *
  * <h2>Type Class Integration</h2>
@@ -69,8 +72,8 @@
  *       async operations, or other effects
  *   <li><b>Monoid Aggregation</b> - Use {@code foldMap()} on TraversalPath to aggregate values
  *       using a Monoid
- *   <li><b>Traverse Support</b> - Use {@code traverseOver()} to navigate into Kind-wrapped
- *       collections
+ *   <li><b>Traverse Support</b> - Use {@code EachInstances.fromTraverse()} to navigate into
+ *       Kind-wrapped collections
  * </ul>
  *
  * <pre>{@code
@@ -90,7 +93,7 @@
  *
  * // Traverse Kind-wrapped collection
  * TraversalPath<User, Role> allRoles = rolesPath
- *     .<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+ *     .each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
  * }</pre>
  *
  * <h2>Conditional and Sum Type Support</h2>

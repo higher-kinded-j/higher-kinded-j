@@ -39,6 +39,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Prisms;

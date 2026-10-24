@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -19,14 +20,14 @@ import org.higherkindedj.optics.focus.TraversalPath;
 /**
  * Demonstrates the integration of the Focus DSL with the Traverse type class.
  *
- * <p>This example shows how to use {@code traverseOver()} to navigate into Kind-wrapped
- * collections, enabling generic traversal over any type with a Traverse instance.
+ * <p>This example shows how to use {@code EachInstances.fromTraverse()} to navigate into
+ * Kind-wrapped collections, enabling generic traversal over any type with a Traverse instance.
  *
  * <h2>Key Concepts</h2>
  *
  * <ul>
- *   <li>Using {@code traverseOver()} with ListTraverse for Kind-wrapped lists
- *   <li>Using {@code traverseOver()} with MaybeTraverse for optional values
+ *   <li>Using {@code EachInstances.fromTraverse()} with ListTraverse for Kind-wrapped lists
+ *   <li>Using {@code EachInstances.fromTraverse()} with MaybeTraverse for optional values
  *   <li>Composing traversals across multiple levels
  *   <li>Working with sum types and Kind-wrapped collections together
  * </ul>
@@ -94,9 +95,9 @@ public class TraverseIntegrationExample {
     combinedPatternExample();
   }
 
-  /** Demonstrates basic traverseOver usage with a single Kind-wrapped collection. */
+  /** Demonstrates basic fromTraverse usage with a single Kind-wrapped collection. */
   static void basicTraverseOverExample() {
-    System.out.println("--- Basic traverseOver() ---");
+    System.out.println("--- Basic fromTraverse ---");
 
     // Create a team with Kind-wrapped members
     SkillsTeam team =
@@ -114,10 +115,10 @@ public class TraverseIntegrationExample {
     FocusPath<SkillsTeam, Kind<ListKind.Witness, Member>> membersKindPath =
         FocusPath.of(teamMembersLens);
 
-    // Use traverseOver to traverse into the Kind-wrapped list
+    // Use fromTraverse to traverse into the Kind-wrapped list
     // Note: Explicit type parameters are required for Java's type inference
     TraversalPath<SkillsTeam, Member> allMembersPath =
-        membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+        membersKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // Get all members
     List<Member> members = allMembersPath.getAll(team);
@@ -129,9 +130,9 @@ public class TraverseIntegrationExample {
     System.out.println();
   }
 
-  /** Demonstrates nested traverseOver for deep navigation. */
+  /** Demonstrates nested fromTraverse for deep navigation. */
   static void nestedTraverseOverExample() {
-    System.out.println("--- Nested traverseOver() ---");
+    System.out.println("--- Nested fromTraverse ---");
 
     SkillsTeam team =
         new SkillsTeam(
@@ -152,10 +153,10 @@ public class TraverseIntegrationExample {
     // Build path step by step (helps with type inference)
     FocusPath<SkillsTeam, Kind<ListKind.Witness, Member>> step1 = FocusPath.of(teamMembersLens);
     TraversalPath<SkillsTeam, Member> step2 =
-        step1.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+        step1.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
     TraversalPath<SkillsTeam, Kind<ListKind.Witness, Skill>> step3 = step2.via(memberSkillsLens);
     TraversalPath<SkillsTeam, Skill> allSkillsPath =
-        step3.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
+        step3.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // Get all skills across all members
     List<Skill> allSkills = allSkillsPath.getAll(team);
@@ -183,9 +184,9 @@ public class TraverseIntegrationExample {
     System.out.println();
   }
 
-  /** Demonstrates traverseOver with Maybe for optional values. */
+  /** Demonstrates fromTraverse with Maybe for optional values. */
   static void optionalTraverseExample() {
-    System.out.println("--- Optional traverseOver() with Maybe ---");
+    System.out.println("--- Optional fromTraverse with Maybe ---");
 
     // Project with a lead team
     ProjectPlan projectWithLead =
@@ -216,7 +217,7 @@ public class TraverseIntegrationExample {
 
     // Traverse the Maybe to get the team (if present)
     TraversalPath<ProjectPlan, SkillsTeam> leadTeamPath =
-        leadTeamKindPath.<MaybeKind.Witness, SkillsTeam>traverseOver(MaybeTraverse.INSTANCE);
+        leadTeamKindPath.each(EachInstances.fromTraverse(MaybeTraverse.INSTANCE));
 
     // Get lead team from each project
     List<SkillsTeam> leadsFromWithLead = leadTeamPath.getAll(projectWithLead);
@@ -229,11 +230,11 @@ public class TraverseIntegrationExample {
     TraversalPath<ProjectPlan, Kind<ListKind.Witness, Member>> membersKindPath =
         leadTeamPath.via(teamMembersLens);
     TraversalPath<ProjectPlan, Member> membersPath =
-        membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+        membersKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
     TraversalPath<ProjectPlan, Kind<ListKind.Witness, Skill>> skillsKindPath =
         membersPath.via(memberSkillsLens);
     TraversalPath<ProjectPlan, Skill> skillsPath =
-        skillsKindPath.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
+        skillsKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // Get all skills from lead team (if exists)
     List<Skill> skillsWithLead = skillsPath.getAll(projectWithLead);
@@ -245,9 +246,9 @@ public class TraverseIntegrationExample {
     System.out.println();
   }
 
-  /** Demonstrates combining sum types with traverseOver. */
+  /** Demonstrates combining sum types with fromTraverse. */
   static void combinedPatternExample() {
-    System.out.println("--- Combined Pattern: Sum Types + traverseOver ---");
+    System.out.println("--- Combined Pattern: Sum Types + fromTraverse ---");
 
     // Create project variants
     List<ProjectVariant> variants =
@@ -315,15 +316,15 @@ public class TraverseIntegrationExample {
                 FocusPath<ActiveProject, Kind<ListKind.Witness, SkillsTeam>> teamsKindPath =
                     FocusPath.of(allTeamsLens);
                 TraversalPath<ActiveProject, SkillsTeam> teamsPath =
-                    teamsKindPath.<ListKind.Witness, SkillsTeam>traverseOver(ListTraverse.INSTANCE);
+                    teamsKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
                 TraversalPath<ActiveProject, Kind<ListKind.Witness, Member>> membersKindPath =
                     teamsPath.via(teamMembersLens);
                 TraversalPath<ActiveProject, Member> membersPath =
-                    membersKindPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+                    membersKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
                 TraversalPath<ActiveProject, Kind<ListKind.Witness, Skill>> skillsKindPath =
                     membersPath.via(memberSkillsLens);
                 TraversalPath<ActiveProject, Skill> skillsPath =
-                    skillsKindPath.<ListKind.Witness, Skill>traverseOver(ListTraverse.INSTANCE);
+                    skillsKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
                 int skillCount = skillsPath.count(active);
                 System.out.println(

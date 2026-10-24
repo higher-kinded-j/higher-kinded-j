@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
-import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.JavaFile;
@@ -175,24 +174,7 @@ public class SpecInterfaceGenerator {
             || typeParameters.stream()
                 .flatMap(parameter -> parameter.getBounds().stream())
                 .anyMatch(bound -> ProcessorUtils.firstRawIn(bound) != null);
-    // A declaration takes one @SuppressWarnings, so a method needing both reasons carries them as
-    // one array, written the way an author would write it.
-    if (rawTypes && unchecked) {
-      methodBuilder.addAnnotation(
-          AnnotationSpec.builder(SuppressWarnings.class)
-              .addMember("value", "{$S, $S}", "rawtypes", "unchecked")
-              .build());
-    } else if (rawTypes) {
-      methodBuilder.addAnnotation(
-          AnnotationSpec.builder(SuppressWarnings.class)
-              .addMember("value", "$S", "rawtypes")
-              .build());
-    } else if (unchecked) {
-      methodBuilder.addAnnotation(
-          AnnotationSpec.builder(SuppressWarnings.class)
-              .addMember("value", "$S", "unchecked")
-              .build());
-    }
+    methodBuilder.addAnnotations(ProcessorUtils.warningSuppression(rawTypes, unchecked));
 
     // Generate method body based on optic kind
     CodeBlock body =

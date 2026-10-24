@@ -171,7 +171,7 @@ public class FocusBridgingExample {
 
       // offices() already returns TraversalPath<OfficeNetwork, Office> (auto-traversed)
       // staff() already returns TraversalPath<Office, OfficeWorker> (auto-traversed)
-      // No .each() needed - the generator handles collection traversal automatically
+      // No .each(...) needed - the generator handles collection traversal automatically
       return OfficeNetworkFocus.offices()
           .filter(office -> CompanyBridge.officeCity().get(office).equals(city))
           .via(OfficeFocus.staff())

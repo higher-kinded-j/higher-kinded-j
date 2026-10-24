@@ -399,7 +399,7 @@ public class EachInstancesExample {
     byId.put(accessories.id(), accessories);
     OrderIndex index = new OrderIndex(byId);
 
-    // Navigate using Each instances with Focus DSL: a map is not a container .each() recognises
+    // Navigate using Each instances with Focus DSL: a map's values take mapValuesEach
     // OrderIndex -> Map<UUID, Order> -> Order (values) -> List<LineItem> -> LineItem
     TraversalPath<OrderIndex, Order> allOrders =
         FocusPath.of(byIdLens).each(EachInstances.mapValuesEach());

@@ -82,9 +82,9 @@ public class KindFieldAnalyser {
    * <p>then a {@link KindFieldInfo} is returned with the necessary information for code generation.
    *
    * <p>Both type arguments are written out as explicit type arguments of the generated {@code
-   * traverseOver} call, and a parameterised witness's own arguments as those of its {@code
-   * Traverse} factory; an explicit type argument cannot be a wildcard, so each is resolved to the
-   * type it stands for first. That is sound because a lawful {@code Traverse} rebuilds the
+   * EachInstances.fromTraverse} call, and a parameterised witness's own arguments as those of its
+   * {@code Traverse} factory; an explicit type argument cannot be a wildcard, so each is resolved
+   * to the type it stands for first. That is sound because a lawful {@code Traverse} rebuilds the
    * container rather than writing into it, so a component declared {@code Kind<F, ? extends A>}
    * comes back holding a {@code Kind<F, A>}, which its declaration admits; and a witness bound
    * names the witness exactly, since every witness the registry knows is a final class. A witness
@@ -183,10 +183,10 @@ public class KindFieldAnalyser {
                   + witness.variable()
                   + ", such as "
                   + example(witness.element())
-                  + ", or drop the annotation and apply traverseOver to the path yourself, with a"
-                  + " Traverse<"
+                  + ", or drop the annotation and widen the path yourself with"
+                  + " each(EachInstances.fromTraverse(traverse)), given a Traverse<"
                   + witness.variable()
-                  + "> in hand where "
+                  + "> where "
                   + witness.variable()
                   + " is known.");
       case Shape.KindOf _ -> {
@@ -236,8 +236,8 @@ public class KindFieldAnalyser {
         baseWitness
             + " is a Higher-Kinded-J witness with no registered Traverse, so the component keeps a"
             + " plain FocusPath focusing the Kind.",
-        "Add @TraverseField naming the Traverse for it, or apply traverseOver to the path"
-            + " yourself.");
+        "Add @TraverseField naming the Traverse for it, or widen the path yourself with"
+            + " each(EachInstances.fromTraverse(traverse)).");
   }
 
   /** The component as a diagnostic names it: {@code Record.component}. */

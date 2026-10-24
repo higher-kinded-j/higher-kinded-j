@@ -29,8 +29,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * Integration tests for {@link FocusProcessor} Kind field support.
  *
- * <p>These tests verify that the processor correctly generates traverseOver() calls for Kind&lt;F,
- * A&gt; fields, using the appropriate Traverse instances from the library.
+ * <p>These tests verify that the processor correctly generates EachInstances.fromTraverse() calls
+ * for Kind&lt;F, A&gt; fields, using the appropriate Traverse instances from the library.
  */
 @DisplayName("FocusProcessor Kind Field Tests")
 public class FocusProcessorKindFieldTest {
@@ -40,7 +40,7 @@ public class FocusProcessorKindFieldTest {
   class ListKindFieldSupport {
 
     @Test
-    @DisplayName("should generate TraversalPath with traverseOver for Kind<ListKind.Witness, A>")
+    @DisplayName("should generate TraversalPath with fromTraverse for Kind<ListKind.Witness, A>")
     void shouldGenerateTraversalPathForListKind() {
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -60,10 +60,10 @@ public class FocusProcessorKindFieldTest {
 
       assertThat(compilation).succeeded();
 
-      // Check that the generated code contains traverseOver with ListTraverse
+      // Check that the generated code contains fromTraverse with ListTraverse
       assertGeneratedCodeContainsRaw(
           compilation, "com.example.TeamFocus", "TraversalPath<Team, String> members()");
-      assertGeneratedCodeContainsRaw(compilation, "com.example.TeamFocus", "traverseOver");
+      assertGeneratedCodeContainsRaw(compilation, "com.example.TeamFocus", "fromTraverse");
       assertGeneratedCodeContainsRaw(compilation, "com.example.TeamFocus", "ListTraverse.INSTANCE");
     }
 
@@ -102,7 +102,7 @@ public class FocusProcessorKindFieldTest {
   class MaybeKindFieldSupport {
 
     @Test
-    @DisplayName("should generate AffinePath with traverseOver for Kind<MaybeKind.Witness, A>")
+    @DisplayName("should generate AffinePath with fromTraverse for Kind<MaybeKind.Witness, A>")
     void shouldGenerateAffinePathForMaybeKind() {
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -123,7 +123,7 @@ public class FocusProcessorKindFieldTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContainsRaw(
           compilation, "com.example.ConfigFocus", "AffinePath<Config, String> description()");
-      assertGeneratedCodeContainsRaw(compilation, "com.example.ConfigFocus", "traverseOver");
+      assertGeneratedCodeContainsRaw(compilation, "com.example.ConfigFocus", "fromTraverse");
       assertGeneratedCodeContainsRaw(
           compilation, "com.example.ConfigFocus", "MaybeTraverse.INSTANCE");
       assertGeneratedCodeContainsRaw(compilation, "com.example.ConfigFocus", ".headOption()");
@@ -233,7 +233,7 @@ public class FocusProcessorKindFieldTest {
     @DisplayName("should generate AffinePath for Kind<IdKind.Witness, A>")
     void shouldGenerateAffinePathForIdKind() {
       // Note: Even though IdKind always contains exactly one element, we return AffinePath
-      // because traverseOver() returns TraversalPath and we narrow via headOption().
+      // because each(fromTraverse()) returns TraversalPath and we narrow via headOption().
       // This is a type-safe approach that works correctly at runtime.
       final var sourceFile =
           JavaFileObjects.forSourceString(
@@ -292,6 +292,33 @@ public class FocusProcessorKindFieldTest {
       // Should use instance() factory method with type parameter
       assertGeneratedCodeContainsRaw(compilation, "com.example.ResponseFocus", "EitherTraverse");
       assertGeneratedCodeContainsRaw(compilation, "com.example.ResponseFocus", "instance()");
+    }
+
+    @Test
+    @DisplayName("a witness argument the record declares widens with no cast")
+    void aWitnessArgumentTheRecordDeclaresWidensWithNoCast() {
+      final var sourceFile =
+          JavaFileObjects.forSourceString(
+              "com.example.Reply",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.either.EitherKind;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus
+              public record Reply<E>(Kind<EitherKind.Witness<E>, Integer> result) {}
+              """);
+
+      var compilation = javac().withProcessors(new FocusProcessor()).compile(sourceFile);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContainsRaw(
+          compilation,
+          "com.example.ReplyFocus",
+          ".each(EachInstances.<org.higherkindedj.hkt.either.EitherKind.Witness<E>,"
+              + " java.lang.Integer>fromTraverse(");
     }
   }
 
@@ -417,13 +444,13 @@ public class FocusProcessorKindFieldTest {
       assertGeneratedCodeContainsRaw(
           compilation, "com.example.MixedRecordFocus", "TraversalPath<MixedRecord, String> tags()");
 
-      // Kind<ListKind.Witness, Integer> - uses traverseOver()
+      // Kind<ListKind.Witness, Integer> - uses each(fromTraverse())
       assertGeneratedCodeContainsRaw(
           compilation,
           "com.example.MixedRecordFocus",
           "TraversalPath<MixedRecord, Integer> scores()");
 
-      // Kind<MaybeKind.Witness, String> - uses traverseOver().headOption()
+      // Kind<MaybeKind.Witness, String> - uses each(fromTraverse()).headOption()
       assertGeneratedCodeContainsRaw(
           compilation,
           "com.example.MixedRecordFocus",
@@ -477,7 +504,7 @@ public class FocusProcessorKindFieldTest {
     @DisplayName("should skip witness type arguments when a parameterised witness is used raw")
     void shouldSkipWitnessTypeArgumentsForRawWitness() {
       // EitherKind.Witness is registered as parameterised, but used RAW here so the generated
-      // traverseOver call carries no witness type arguments. The record itself does not compile
+      // fromTraverse call carries no witness type arguments. The record itself does not compile
       // (the raw witness violates Kind's WitnessArity bound), but annotation processing runs
       // before that bound check, so the generation path is still exercised.
       final var sourceFile =
@@ -544,20 +571,23 @@ public class FocusProcessorKindFieldTest {
         delimiterString = " -> ",
         value = {
           "Kind<ListKind.Witness, ? extends CharSequence> -> TraversalPath<Holder, CharSequence>"
-              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.CharSequence>"
-              + "traverseOver(org.higherkindedj.hkt.list.ListTraverse.INSTANCE)",
+              + " -> EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,"
+              + " java.lang.CharSequence>fromTraverse(org.higherkindedj.hkt.list.ListTraverse.INSTANCE)",
           "Kind<ListKind.Witness, ?> -> TraversalPath<Holder, Object>"
-              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.Object>traverseOver(",
+              + " -> EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,"
+              + " java.lang.Object>fromTraverse(",
           "Kind<ListKind.Witness, ? super String> -> TraversalPath<Holder, Object>"
-              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.Object>traverseOver(",
+              + " -> EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,"
+              + " java.lang.Object>fromTraverse(",
           "Kind<MaybeKind.Witness, ? extends CharSequence> -> AffinePath<Holder, CharSequence>"
-              + " -> java.lang.CharSequence>traverseOver("
-              + "org.higherkindedj.hkt.maybe.MaybeTraverse.INSTANCE).headOption()",
+              + " -> java.lang.CharSequence>fromTraverse("
+              + "org.higherkindedj.hkt.maybe.MaybeTraverse.INSTANCE)).headOption()",
           "Kind<? extends ListKind.Witness, String> -> TraversalPath<Holder, String>"
-              + " -> .<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.String>traverseOver(",
+              + " -> EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,"
+              + " java.lang.String>fromTraverse(",
           "Kind<EitherKind.Witness<?>, String> -> AffinePath<Holder, String>"
-              + " -> .<org.higherkindedj.hkt.either.EitherKind.Witness<java.lang.Object>,"
-              + " java.lang.String>traverseOver("
+              + " -> EachInstances.<org.higherkindedj.hkt.either.EitherKind.Witness<java.lang.Object>,"
+              + " java.lang.String>fromTraverse("
               + "org.higherkindedj.hkt.either.EitherTraverse.<java.lang.Object>instance())",
           "Kind<EitherKind.Witness<? extends CharSequence>, String> -> AffinePath<Holder, String>"
               + " -> org.higherkindedj.hkt.either.EitherTraverse.<java.lang.CharSequence>instance()",
@@ -620,7 +650,8 @@ public class FocusProcessorKindFieldTest {
       assertGeneratedCodeContainsRaw(
           compilation,
           "com.example.HolderFocus",
-          ".<org.higherkindedj.hkt.list.ListKind.Witness, java.lang.CharSequence>traverseOver(");
+          "EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,"
+              + " java.lang.CharSequence>fromTraverse(");
     }
 
     @Test
@@ -703,8 +734,9 @@ public class FocusProcessorKindFieldTest {
                   + " particular, so no Traverse instance can be named for it. Declare the witness"
                   + " the Traverse is written for in place of F, such as"
                   + " Kind<TreeKind.Witness, String> for a Traverse<TreeKind.Witness>, or drop the"
-                  + " annotation and apply traverseOver to the path yourself, with a Traverse<F> in"
-                  + " hand where F is known.");
+                  + " annotation and widen the path yourself with"
+                  + " each(EachInstances.fromTraverse(traverse)), given a Traverse<F> where F is"
+                  + " known.");
       assertThat(traverseFieldNotes(compilation)).hasSize(1);
     }
 
@@ -849,8 +881,8 @@ public class FocusProcessorKindFieldTest {
         "@GenerateFocus: record component 'Holder.f' names a witness the processor does not"
             + " recognise. org.higherkindedj.hkt.nonemptylist.NonEmptyListKind.Witness is a Higher-Kinded-J witness"
             + " with no registered Traverse, so the component keeps a plain FocusPath focusing the"
-            + " Kind. Add @TraverseField naming the Traverse for it, or apply traverseOver to the"
-            + " path yourself.";
+            + " Kind. Add @TraverseField naming the Traverse for it, or widen the path yourself"
+            + " with each(EachInstances.fromTraverse(traverse)).";
 
     private JavaFileObject holder(String settings, String component) {
       return JavaFileObjects.forSourceString(

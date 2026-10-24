@@ -224,7 +224,7 @@ TraversalPath<Depot, Integer> allLevels = allStock.each(EachInstances.mapValuesE
 Depot restocked = allLevels.modifyAll(level -> level + 10, depot);
 ```
 
-This is particularly useful when the container type isn't a standard `List` that `.each()` recognises automatically.
+This is how a path steps into any container: a `Map`'s values here, a `List` with `EachInstances.listEach()`, and your own container with the instance you give it.
 
 ---
 

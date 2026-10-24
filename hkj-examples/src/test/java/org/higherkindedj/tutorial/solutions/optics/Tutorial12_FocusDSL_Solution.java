@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.FocusPaths;
@@ -108,12 +109,13 @@ public class Tutorial12_FocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code .some()} on a lens-into-{@code Optional} produces an {@code
-   * AffinePath} that reads partially. {@code matches} answers presence; {@code getOptional} carries
-   * the absent case forward.
+   * Why this is idiomatic: {@code .some(FocusPaths.optionalSome())} on a lens-into-{@code Optional}
+   * produces an {@code AffinePath} that reads partially. {@code matches} answers presence; {@code
+   * getOptional} carries the absent case forward.
    *
    * <p>Alternative: compose the {@code lens} with {@code Prisms.some()} explicitly. Same outcome;
-   * the DSL's {@code some()} is a one-word shorthand for the common case.
+   * the path's {@code some(...)} keeps the chain on the path, and does not compile on a focus that
+   * is not an {@code Optional}.
    *
    * <p>Common wrong attempt: use {@code .get()} on the path expecting a plain value. The affine
    * cannot guarantee a value exists; the type forces you to handle absence.
@@ -127,8 +129,8 @@ public class Tutorial12_FocusDSL_Solution {
     Config withKey = new Config(Optional.of("secret-123"));
     Config withoutKey = new Config(Optional.empty());
 
-    // SOLUTION: Create path that unwraps Optional using some()
-    AffinePath<Config, String> keyPath = FocusPath.of(apiKeyLens).some();
+    // SOLUTION: Create path that unwraps Optional using some(optionalSome())
+    AffinePath<Config, String> keyPath = FocusPath.of(apiKeyLens).some(FocusPaths.optionalSome());
 
     // SOLUTION: getOptional returns Optional<A>
     Optional<String> foundKey = keyPath.getOptional(withKey);
@@ -148,15 +150,16 @@ public class Tutorial12_FocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code .each()} promotes a list-shaped lens into a {@code
-   * TraversalPath}. {@code getAll}, {@code modifyAll}, and {@code count} attach naturally to the
-   * resulting path.
+   * Why this is idiomatic: {@code .each(EachInstances.listEach())} promotes a list-shaped lens into
+   * a {@code TraversalPath}. {@code getAll}, {@code modifyAll}, and {@code count} attach naturally
+   * to the resulting path.
    *
    * <p>Alternative: build a {@code Traversal} explicitly with the listTraversal helper. Same
-   * answer; the DSL's {@code each()} is the named shortcut and signals iteration intent cleanly.
+   * answer; the path's {@code each(...)} names its {@code Each} and signals iteration intent
+   * cleanly.
    *
    * <p>Common wrong attempt: try to call {@code get} on a traversal-shaped path expecting the first
-   * element. {@code getAll} returns the whole collection — pick {@code at(0)} with an affine if
+   * element. {@code getAll} returns the whole collection — pick {@code FocusPaths.listAt(0)} if
    * "the first element" is what you want.
    */
   @Test
@@ -167,8 +170,9 @@ public class Tutorial12_FocusDSL_Solution {
 
     Team team = new Team("Engineering", List.of("Alice", "Bob", "Charlie"));
 
-    // SOLUTION: Create traversal path using each()
-    TraversalPath<Team, String> membersPath = FocusPath.of(membersLens).each();
+    // SOLUTION: Create traversal path using each(listEach())
+    TraversalPath<Team, String> membersPath =
+        FocusPath.of(membersLens).each(EachInstances.listEach());
 
     // SOLUTION: getAll returns all focused elements
     List<String> allMembers = membersPath.getAll(team);
@@ -184,14 +188,14 @@ public class Tutorial12_FocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code .at(i)} narrows a list-shaped lens to a single index — an {@code
-   * AffinePath} because the index may be out of bounds. {@code set} writes through the same path
-   * and rebuilds the list.
+   * Why this is idiomatic: {@code .via(FocusPaths.listAt(i))} narrows a list-shaped lens to a
+   * single index — an {@code AffinePath} because the index may be out of bounds. {@code set} writes
+   * through the same path and rebuilds the list.
    *
    * <p>Alternative: read the list, mutate {@code list.set(i, value)}, write it back. Works for
    * mutable lists; many record-shaped fields are immutable lists where this fails.
    *
-   * <p>Common wrong attempt: assume {@code at(10)} on a three-element list throws. It returns
+   * <p>Common wrong attempt: assume {@code listAt(10)} on a three-element list throws. It returns
    * {@code Optional.empty()} — the affine carries the absence forward, just like other partial
    * reads.
    */
@@ -204,14 +208,14 @@ public class Tutorial12_FocusDSL_Solution {
 
     Playlist playlist = new Playlist("Favourites", List.of("Song A", "Song B", "Song C"));
 
-    // SOLUTION: Create path to first element using at(0)
-    AffinePath<Playlist, String> firstSongPath = FocusPath.of(songsLens).at(0);
+    // SOLUTION: Create path to first element using listAt(0)
+    AffinePath<Playlist, String> firstSongPath = FocusPath.of(songsLens).via(FocusPaths.listAt(0));
 
     // SOLUTION: Get the first song
     Optional<String> firstSong = firstSongPath.getOptional(playlist);
     assertThat(firstSong).contains("Song A");
 
-    AffinePath<Playlist, String> tenthSongPath = FocusPath.of(songsLens).at(10);
+    AffinePath<Playlist, String> tenthSongPath = FocusPath.of(songsLens).via(FocusPaths.listAt(10));
 
     // SOLUTION: Out of bounds returns empty
     Optional<String> noSong = tenthSongPath.getOptional(playlist);
@@ -223,14 +227,14 @@ public class Tutorial12_FocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code .atKey(key)} narrows a map-shaped lens to a single value. The
-   * result is an {@code AffinePath} because the key may be absent — present and missing keys are
-   * answered by the same partial read.
+   * Why this is idiomatic: {@code .via(FocusPaths.mapAt(key))} narrows a map-shaped lens to a
+   * single value. The result is an {@code AffinePath} because the key may be absent — present and
+   * missing keys are answered by the same partial read.
    *
    * <p>Alternative: read the map and call {@code get(key)} expecting a possibly-{@code null} value.
    * Loses the typed absence; the affine wrapper makes the missing case impossible to forget.
    *
-   * <p>Common wrong attempt: write through {@code atKey} with a map literal that has a different
+   * <p>Common wrong attempt: write through {@code mapAt} with a map literal that has a different
    * value type. The lens enforces the map's value type at the call site; mismatch is a compile
    * error.
    */
@@ -248,28 +252,30 @@ public class Tutorial12_FocusDSL_Solution {
                 "language", "en",
                 "timezone", "UTC"));
 
-    // SOLUTION: Create path to map key using atKey()
-    AffinePath<Settings, String> themePath = FocusPath.of(valuesLens).atKey("theme");
+    // SOLUTION: Create path to map key using mapAt()
+    AffinePath<Settings, String> themePath =
+        FocusPath.of(valuesLens).via(FocusPaths.mapAt("theme"));
 
     // SOLUTION: Get the theme value
     Optional<String> theme = themePath.getOptional(settings);
     assertThat(theme).contains("dark");
 
-    AffinePath<Settings, String> missingPath = FocusPath.of(valuesLens).atKey("missing");
+    AffinePath<Settings, String> missingPath =
+        FocusPath.of(valuesLens).via(FocusPaths.mapAt("missing"));
     assertThat(missingPath.getOptional(settings)).isEmpty();
   }
 
   /**
-   * Why this is idiomatic: chain {@code each()}, {@code via}, and {@code some()} — every
+   * Why this is idiomatic: chain {@code each(...)}, {@code via}, and {@code some(...)} — every
    * department, then its optional manager, then the present-only manager. The {@code TraversalPath}
    * returns the present managers and rewrites them in a single pass.
    *
    * <p>Alternative: a stream pipeline that filters out empty {@code Optional}s and then maps. Same
    * reads; the corresponding writes are what the path makes a one-line update.
    *
-   * <p>Common wrong attempt: forget {@code some()} and try to traverse over an {@code
+   * <p>Common wrong attempt: forget {@code some(...)} and try to traverse over an {@code
    * Optional<String>} as if it were always present. The path would be ill-formed; the explicit
-   * {@code some()} confirms the partiality.
+   * {@code some(...)} confirms the partiality.
    */
   @Test
   void exercise7_deepNavigation() {
@@ -291,7 +297,10 @@ public class Tutorial12_FocusDSL_Solution {
                 new Department("Marketing", Optional.of("Charlie"))));
 
     TraversalPath<Company, String> managersPath =
-        FocusPath.of(deptLens).<Department>each().via(managerLens).<String>some();
+        FocusPath.of(deptLens)
+            .each(EachInstances.listEach())
+            .via(managerLens)
+            .some(FocusPaths.optionalSome());
 
     // SOLUTION: Get all present managers
     List<String> managers = managersPath.getAll(company);
@@ -301,7 +310,11 @@ public class Tutorial12_FocusDSL_Solution {
     Company updated = managersPath.modifyAll(String::toUpperCase, company);
 
     List<String> updatedManagers =
-        FocusPath.of(deptLens).<Department>each().via(managerLens).<String>some().getAll(updated);
+        FocusPath.of(deptLens)
+            .each(EachInstances.listEach())
+            .via(managerLens)
+            .some(FocusPaths.optionalSome())
+            .getAll(updated);
     assertThat(updatedManagers).containsExactly("ALICE", "CHARLIE");
   }
 
@@ -335,7 +348,8 @@ public class Tutorial12_FocusDSL_Solution {
                 new Product("Gizmo", 75.0),
                 new Product("Thingamajig", 200.0)));
 
-    TraversalPath<Inventory, Product> allProducts = FocusPath.of(productsLens).each();
+    TraversalPath<Inventory, Product> allProducts =
+        FocusPath.of(productsLens).each(EachInstances.listEach());
 
     // SOLUTION: Filter to expensive products
     TraversalPath<Inventory, Product> expensiveProducts = allProducts.filter(p -> p.price() > 100);
@@ -390,7 +404,7 @@ public class Tutorial12_FocusDSL_Solution {
   /**
    * Why this is idiomatic: {@code FocusPaths.listElements()}, {@code listAt(0)}, and {@code
    * listLast()} are pre-built traversals/affines for the most common list patterns. Reach for them
-   * when the lens-then-{@code each()} chain would just rebuild the same canonical optic.
+   * when the lens-then-{@code each(...)} chain would just rebuild the same canonical optic.
    *
    * <p>Alternative: build the optics by hand. Equivalent; the utility methods cut the boilerplate
    * to one call.

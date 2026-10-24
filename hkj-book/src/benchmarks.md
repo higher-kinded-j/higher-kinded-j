@@ -84,7 +84,7 @@ Each of these runs at two sizes, ten times apart, so a test can check that the c
 | Benchmark | What It Measures |
 |-----------|-----------------|
 | `AccumulationBenchmark` | Collecting every failure of a bulk parse, `Edits.accumulate`, `PathOps.traverseValidated` and a generated mapping's null scan |
-| `EachRebuildBenchmark` | Modifying every element through a Focus path's `.each()` on a `List`, and through `EachInstances.arrayEach()` |
+| `EachRebuildBenchmark` | Modifying every element through a Focus path's `.each(EachInstances.listEach())` on a `List`, and through `EachInstances.arrayEach()` |
 
 ---
 

@@ -21,9 +21,9 @@ The previous page gave you one method per record component. This page is about t
 
 ## Collections {#collection-navigation}
 
-### `.each()`: traverse all elements {#each-traverse-all-elements}
+### Traverse all elements {#each-traverse-all-elements}
 
-`.each()` steps from a collection into its elements. For a `List`, `Set` or `Collection` field the generated method has already applied the right one, which is why `OrderFocus.lines()` focuses each `LineItem`:
+`.each(...)` steps from a collection into its elements. For a `List`, `Set` or `Collection` field the generated method has already applied the right one, which is why `OrderFocus.lines()` focuses each `LineItem`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:each_generated}}
@@ -31,7 +31,7 @@ The previous page gave you one method per record component. This page is about t
 
 ### `.each(Each)`: traverse with a custom `Each` instance {#eacheach-traverse-with-a-custom-each-instance}
 
-The no-argument `.each()` carries a `List` traversal and nothing else. Every other container (a `Set`, a `Collection`, a `Map`, an array, a third-party collection) takes an explicit `Each` instead. An `Each` is a small strategy object, as a `Comparator` is for sorting, that says how to visit a container's elements. The generated method already does this for you: `EachInstances.setEach()` for a `Set` field, `EachInstances.collectionEach()` for a `Collection`. Hand-built paths have to say it themselves, and this works on `FocusPath`, `AffinePath` and `TraversalPath` alike. A price list keeps its prices in a `Map` keyed by SKU:
+Every container takes an explicit `Each`: a `List`, a `Set`, a `Collection`, a `Map`, an array, a third-party collection. An `Each` is a small strategy object, as a `Comparator` is for sorting, that says how to visit a container's elements. Its type names the container, so `.each(EachInstances.listEach())` does not compile on a path that focuses anything but a `List`. The generated method already does this for you: `EachInstances.listEach()` for a `List` field, `EachInstances.setEach()` for a `Set`, `EachInstances.collectionEach()` for a `Collection`. Hand-built paths have to say it themselves, and this works on `FocusPath`, `AffinePath` and `TraversalPath` alike. A price list keeps its prices in a `Map` keyed by SKU:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:catalogue}}
@@ -45,11 +45,15 @@ The no-argument `.each()` carries a `List` traversal and nothing else. Every oth
 
 For available `Each` instances and how to create your own, see [Each](each_typeclass.md).
 
+~~~admonish tip title="Shorter with static imports"
+`import static org.higherkindedj.optics.each.EachInstances.listEach;` turns `.each(EachInstances.listEach())` into `.each(listEach())`, and `FocusPaths.optionalSome` and `FocusPaths.mapAt` shorten the same way. Import `listAt`, `listHead` and `listLast` from one class only, since `FocusPaths`, `Affines` and `Prisms` each have their own.
+~~~
+
 ### Access by index {#access-by-index}
 
-`.at(index)` focuses a single element of a list, and `.atKey(key)` a single value of a map. On a `FocusPath` or an `AffinePath` both return an `AffinePath`, because the position may not be occupied; on a `TraversalPath` the result stays a `TraversalPath`.
+`.via(FocusPaths.listAt(index))` focuses a single element of a list, and `.via(FocusPaths.mapAt(key))` a single value of a map. On a `FocusPath` or an `AffinePath` both give an `AffinePath`, because the position may not be occupied; on a `TraversalPath` the result stays a `TraversalPath`.
 
-The generated Focus class has exactly one method per record component, so there is no generated `order.line(0)` accessor. Index from the path that still focuses the list. When the result feeds straight into another composition, spell the element type out (`FocusPath.of(OrderLenses.lines()).<LineItem>at(0)`): nothing in the argument list mentions `LineItem`, so inference has nothing to work from.
+The generated Focus class has exactly one method per record component, so there is no generated `order.line(0)` accessor. Index from the path that still focuses the list. The element type comes from that path, so the result composes further with no type witness.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/navigation/NavigationBook.java:by_index}}
@@ -63,9 +67,9 @@ The generated Focus class has exactly one method per record component, so there 
 
 ## Optional and nullable values {#optional-and-nullable-values}
 
-### `.some()`: unwrap an `Optional` {#some-unwrap-optional}
+### Unwrap an `Optional` {#some-unwrap-optional}
 
-An `Optional<T>` field is unwrapped for you: the generated method applies `.some()` and returns an `AffinePath`. Call `.some()` yourself when the `Optional` sits behind a hand-written lens.
+An `Optional<T>` field is unwrapped for you: the generated method applies `.some(FocusPaths.optionalSome())` and returns an `AffinePath`. Apply it yourself when the `Optional` sits behind a hand-written lens.
 
 ### `.nullable()`: read a null as absent {#nullable-handle-null-values}
 
@@ -214,11 +218,11 @@ You can now step into a collection, read an optional or nullable value, pick one
 ~~~
 
 ~~~admonish question title="Checkpoint: replace the first line only" id="check-navigation-headoption"
-You want to replace only the first line of an order with a sofa. Which of `OrderFocus.lines().headOption().set(sofa, order)` and `FocusPath.of(OrderLenses.lines()).<LineItem>at(0).set(sofa, order)` does that, and what does the other do?
+You want to replace only the first line of an order with a sofa. Which of `OrderFocus.lines().headOption().set(sofa, order)` and `FocusPath.of(OrderLenses.lines()).via(FocusPaths.listAt(0)).set(sofa, order)` does that, and what does the other do?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-navigation-headoption-answer"
-**The second.** `at(0)` indexes the list itself, so it writes only the first line. `headOption()` narrows the reads to the first element, but its writes go to every element the traversal reaches, so it replaces every line with the sofa.
+**The second.** `listAt(0)` indexes the list itself, so it writes only the first line. `headOption()` narrows the reads to the first element, but its writes go to every element the traversal reaches, so it replaces every line with the sofa.
 
 Where this lives: [Access by index](#access-by-index).
 ~~~
@@ -284,7 +288,7 @@ For a runnable example covering all container types, see [ContainerNavigationExa
 | `ListPrisms.cons()` | `Prism<List<A>, Pair<A, List<A>>>` | Decompose as (head, tail) |
 | `ListPrisms.snoc()` | `Prism<List<A>, Pair<List<A>, A>>` | Decompose as (init, last) |
 
-The same decompositions are available directly on a path focusing a list, as `.head()`, `.last()`, `.tail()`, `.init()`, `.cons()` and `.snoc()`.
+On a path focusing a list, compose the same decompositions with `.via`, from `FocusPaths.listHead()`, `listLast()`, `listTail()`, `listInit()`, `listCons()` and `listSnoc()`.
 
 For the full treatment, including stack-safe operations on large lists, see [List Decomposition](list_decomposition.md).
 
@@ -375,7 +379,7 @@ The note names the path the field's method returns, which follows the field's [p
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 
-The processor reads each recognised annotation wherever its own `@Target` puts it: JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself. A nullable container widens through `.nullable()`, then its own step if it has one: `@Nullable List<T>` is `.nullable().each()`, so a null list has no elements. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
+The processor reads each recognised annotation wherever its own `@Target` puts it: JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself. A nullable container widens through `.nullable()`, then its own step if it has one: `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())`, so a null list has no elements. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
 Under a JSpecify checker such as NullAway, every optic and Focus path type takes a nullable focus. So a path typed `FocusPath<LegacyContact, @Nullable String>` checks, and its `.nullable()` is the non-null `AffinePath<LegacyContact, String>`. A read that hands the focus back in an `Optional` or a `Maybe`, such as `getOptional`, `preview` or `toMaybePath`, reads a null focus as absent, since neither can hold one. `toEitherPath` and `toTryPath` each have an overload that says what a null focus becomes, as [A focus that may be null](focus_effects.md#a-focus-that-may-be-null) shows. To focus an Effect Path through such a path, pass `path.nullable()` to the Effect Path's `focus`, with the error that overload takes.
 
@@ -416,16 +420,16 @@ If you write a `TraversableGenerator` for your own container type, override `gen
 
 #### Nested container widening {#nested-container-widening}
 
-A field whose type nests containers gets a composed chain, up to three levels deep:
+A field whose type nests containers gets a composed chain, up to three levels deep. In the table, `optionalSome()` is `FocusPaths.optionalSome()` and `listEach()` is `EachInstances.listEach()`:
 
 | Field Type | Generated Chain | Return Type |
 |-----------|----------------|-------------|
-| `Optional<List<String>>` | `.some().each()` | `TraversalPath` |
-| `List<Optional<String>>` | `.each().some()` | `TraversalPath` |
-| `Optional<Optional<String>>` | `.some().some()` | `AffinePath` |
-| `List<List<String>>` | `.each().each()` | `TraversalPath` |
-| `Optional<Either<E, String>>` | `.some().some(Affines.eitherRight())` | `AffinePath` |
-| `Either<E, List<Integer>>` | `.some(Affines.eitherRight()).each()` | `TraversalPath` |
+| `Optional<List<String>>` | `.some(optionalSome()).each(listEach())` | `TraversalPath` |
+| `List<Optional<String>>` | `.each(listEach()).some(optionalSome())` | `TraversalPath` |
+| `Optional<Optional<String>>` | `.some(optionalSome()).some(optionalSome())` | `AffinePath` |
+| `List<List<String>>` | `.each(listEach()).each(listEach())` | `TraversalPath` |
+| `Optional<Either<E, String>>` | `.some(optionalSome()).some(Affines.eitherRight())` | `AffinePath` |
+| `Either<E, List<Integer>>` | `.some(Affines.eitherRight()).each(listEach())` | `TraversalPath` |
 | `Either<E, Map<K, V>>` | `.some(Affines.eitherRight())` | `AffinePath` to the `Map` |
 | `Either<E, Map<K, V>>` with `widenCollections = true` | `.some(Affines.eitherRight()).each(EachInstances.mapValuesEach())` | `TraversalPath` |
 
@@ -440,7 +444,7 @@ Beyond three levels, compose the rest with `.via()`.
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
+* **A generated collection method is element-level; a generated `Map` method is not.** `FocusPaths.listAt(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `FocusPaths.mapAt(k)` composes straight onto the generated path, because that path still focuses the whole map.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
 * **A navigator covers an annotated record, or a container of one.** An `Optional`, `Maybe`, `List`, `Set`, `Collection` or `Either` of one always gets a navigator, nested or not, and so does a `Kind` the processor traverses. A `Map` or an array gets one where the record widens it.

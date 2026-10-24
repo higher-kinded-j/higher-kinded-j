@@ -5,7 +5,7 @@ _Run an update through an effect, fold a traversal into one value, and cross bet
 ~~~admonish info title="What You'll Learn"
 - Validate or fetch inside an update with `modifyF`, choosing the effect by the `Applicative` you pass
 - Sum or join every value a traversal reaches with `foldMap` and a `Monoid`
-- Traverse a `Kind<F, A>` field with `traverseOver`, giving the type witnesses Java cannot infer
+- Traverse a `Kind<F, A>` field with an `Each` built from its `Traverse` instance
 - Change only the elements that match with `modifyWhen`, and print what a path focused with `traced`
 - Cross between Focus and Effect paths in either direction, and predict when an `AffinePath` must name its absent case
 ~~~
@@ -81,29 +81,28 @@ String roster = agents.foldMap(Monoids.string(), Agent::name, agency);
 
 ---
 
-## Generic Collection Traversal with `traverseOver()`
+## Generic Collection Traversal with `fromTraverse` {#generic-collection-traversal-with-traverseover}
 
-When a field holds `Kind<F, A>` rather than a plain collection, `traverseOver()` steps into it with a `Traverse` instance:
+When a field holds `Kind<F, A>` rather than a plain collection, `.each(...)` steps into it with an `Each` built from a `Traverse` instance:
 
 <!-- verify -->
 ```java
 FocusPath<RoleBox, Kind<ListKind.Witness, Role>> rolesPath = FocusPath.of(Fixture.rolesLens);
 
 TraversalPath<RoleBox, Role> allRoles =
-    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    rolesPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
 List<Role> roles = allRoles.getAll(roleBox);
 RoleBox promoted = allRoles.modifyAll(Fixture::promote, roleBox);
 ```
 
-The explicit type witnesses are load-bearing: Java cannot infer `F` and `E` from the `Traverse` argument alone. (A *witness* is the marker type that stands in for the higher-kinded `F`; see [Higher-Kinded Types](../hkts/hkt_introduction.md) if the term is new.)
+`EachInstances.fromTraverse` takes the witness `F` from the `Traverse` and the element type from the path, so the chain spells out neither. (A *witness* is the marker type that stands in for the higher-kinded `F`; see [Higher-Kinded Types](../hkts/hkt_introduction.md) if the term is new.)
 
 | Field shape | Use |
 |-------------|-----|
-| `List<T>` | `each()`, already applied by the generated method |
-| `Set<T>`, `Collection<T>` | `each(EachInstances.setEach())` / `each(EachInstances.collectionEach())`, already applied by the generated method; the no-argument `each()` is `List`-only |
-| `Kind<F, T>` on an annotated record | nothing: the processor applies `traverseOver` for you |
-| `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
+| `List<T>`, `Set<T>`, `Collection<T>` | `each(EachInstances.listEach())`, `each(EachInstances.setEach())` or `each(EachInstances.collectionEach())`, already applied by the generated method |
+| `Kind<F, T>` on an annotated record | nothing: the processor applies `each(EachInstances.fromTraverse(...))` for you |
+| `Kind<F, T>` behind a hand-written lens | `each(EachInstances.fromTraverse(SomeTraverse.INSTANCE))` |
 
 ~~~admonish tip title="See Also"
 When the `Kind<F, A>` field is on a `@GenerateFocus` record, the processor recognises the witness and generates the traversal itself. See [Kind Field Support](kind_field_support.md).
@@ -305,7 +304,7 @@ EitherPath<String, Integer> salary =
 ~~~admonish info title="Key Takeaways"
 * **`modifyF` is the effectful `modify`.** The instance you pass picks the effect; the path is unchanged. Widen going in, narrow coming out.
 * **`foldMap` turns a traversal into a query.** Any `Monoid` will do, so sums, joins and set unions are the same call.
-* **`traverseOver` is `each` for `Kind<F, A>`.** Explicit type witnesses are required, because inference cannot recover `F` from the `Traverse` argument.
+* **`EachInstances.fromTraverse` makes any `Traverse` an `Each`.** `.each(EachInstances.fromTraverse(traverse))` steps into a `Kind<F, A>` field as `.each(EachInstances.listEach())` steps into a `List`.
 * **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, as must a focus that may be null, while `Maybe` and `Optional` take absence as it comes.
 ~~~
 

@@ -310,6 +310,7 @@ class TraversalPathTest {
 
   @Nested
   @DisplayName("Collection Navigation")
+  @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
   class CollectionNavigation {
 
     @Test
@@ -366,6 +367,7 @@ class TraversalPathTest {
 
   @Nested
   @DisplayName("List Decomposition Navigation")
+  @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
   class ListDecompositionNavigation {
 
     @Test

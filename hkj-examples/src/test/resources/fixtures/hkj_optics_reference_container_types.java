@@ -2,8 +2,8 @@
 //
 // The page shows what @GenerateFocus emits for each container cardinality, one field at a time. The
 // records that carry those fields are declared here and annotated for real, so the processor
-// generates ContractorLenses / AllocationFocus during the gate: the page's `FocusPath.of(...).some()`,
-// `.each(...)`, `.at(index)` and `.nullable()` shapes are therefore checked against genuinely
+// generates ContractorLenses / AllocationFocus during the gate: the page's `FocusPath.of(...).some(...)`,
+// `.each(...)`, `.via(...)` and `.nullable()` shapes are therefore checked against genuinely
 // generated code rather than a stand-in for it.
 //
 // The records are TOP-LEVEL, not nested: a nested record makes the processor join the enclosing
@@ -31,6 +31,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Affines;
 import org.jspecify.annotations.Nullable;

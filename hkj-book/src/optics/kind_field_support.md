@@ -6,7 +6,7 @@ _Navigate a `Kind<F, A>` record field as you would a plain `List` field, with th
 - Read and modify a `Kind<F, A>` field through its generated path, with no `Traverse` passed by hand
 - Predict the path type each library witness generates, from `ListKind` to `IdKind`, by its `KindSemantics`
 - Write `@TraverseField` to give a witness of your own its `Traverse` instance and cardinality
-- Predict when a `Kind` field falls back to a plain `FocusPath`, and apply `traverseOver` yourself
+- Predict when a `Kind` field falls back to a plain `FocusPath`, and widen it yourself with `EachInstances.fromTraverse`
 - Narrow a traversal with `headOption()`, knowing it reads the first element but writes to every one
 ~~~
 
@@ -36,7 +36,7 @@ Without automatic detection, every `Kind` field would need its `Traverse` instan
 ```java
 // What you would otherwise write, once per field, per call site
 TraversalPath<SkillsTeam, Member> memberPath =
-    FocusPath.of(SkillsTeamLenses.members()).<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+    FocusPath.of(SkillsTeamLenses.members()).each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 ```
 
 The processor knows which `Traverse` belongs to `ListKind.Witness`, so the generated method has already applied it.
@@ -64,7 +64,7 @@ A *witness* is the marker type that stands in for the higher-kinded `F` (see [Hi
 
 Parameterised witnesses are handled too: an `EitherKind.Witness<String>` field generates a call to `EitherTraverse.<String>instance()` with the type argument carried through.
 
-A wildcard resolves to the type it stands for, as it does for `List<? extends Member>` through `.each()`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<SkillsTeam, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`, and with the annotation a note says so.
+A wildcard resolves to the type it stands for, as it does for `List<? extends Member>`: `Kind<ListKind.Witness, ? extends Member>` widens to `TraversalPath<SkillsTeam, Member>`, and an unbounded or super-bounded wildcard focuses `Object`. A wildcard inside a parameterised witness resolves the same way, so `Kind<EitherKind.Witness<? extends CharSequence>, Member>` reads `EitherTraverse.<CharSequence>instance()`. The traversal rebuilds the container rather than writing into it, so a component declared with the wildcard comes back holding a `Kind<ListKind.Witness, Member>`, which its declaration admits. A wildcard in the witness position itself, `Kind<?, Member>`, names no `Traverse` instance, and the field keeps its plain `FocusPath`, with or without `@TraverseField`, and with the annotation a note says so.
 
 <!-- verify -->
 ```java
@@ -83,12 +83,12 @@ List<String> allWarnings = warnings.getAll(response);
 
 `KindSemantics` is cardinality for witnesses: it classifies a witness by how many values its type can hold, exactly as a container's `Cardinality` does for a plain field, and that classification picks the path type:
 
-- **`ZERO_OR_MORE`** (`ListKind`, `StreamKind`): a `TraversalPath`, straight from `traverseOver`.
+- **`ZERO_OR_MORE`** (`ListKind`, `StreamKind`): a `TraversalPath`, straight from `each(EachInstances.fromTraverse(...))`.
 - **`ZERO_OR_ONE`** (`MaybeKind`, `OptionalKind`, `TryKind`, `EitherKind`, `ValidatedKind`): a `TraversalPath` narrowed with `headOption()` to an `AffinePath`.
 - **`EXACTLY_ONE`** (`IdKind`): also narrowed to an `AffinePath`.
 
 ~~~admonish note title="Why `AffinePath` for `EXACTLY_ONE`?"
-An `IdKind` always holds exactly one value, so a `FocusPath` would be the honest type. The generation route does not allow it: `traverseOver` returns a `TraversalPath`, and the only narrowing available is `headOption()`, which lands on `AffinePath`. The result is correct at runtime, and one step weaker than the type could be.
+An `IdKind` always holds exactly one value, so a `FocusPath` would be the honest type. The generation route does not allow it: `each` returns a `TraversalPath`, and the only narrowing available is `headOption()`, which lands on `AffinePath`. The result is correct at runtime, and one step weaker than the type could be.
 ~~~
 
 ---
@@ -122,7 +122,7 @@ The expression is emitted verbatim, so any of these forms works:
 @TraverseField(traverse = "com.example.TreeTraverse.TRAVERSE")     // static field
 ```
 
-A `Kind<F, A>` field with an unrecognised witness and no `@TraverseField` is not an error: the processor falls back to a plain `FocusPath` focusing the raw `Kind`, and you apply `traverseOver` yourself. For one of the library's own witnesses it says so with a note, since a Higher-Kinded-J witness with no registered `Traverse` is a gap rather than a choice.
+A `Kind<F, A>` field with an unrecognised witness and no `@TraverseField` is not an error: the processor falls back to a plain `FocusPath` focusing the raw `Kind`, and you widen it yourself with `each(EachInstances.fromTraverse(traverse))`. For one of the library's own witnesses it says so with a note, since a Higher-Kinded-J witness with no registered `Traverse` is a gap rather than a choice.
 
 The same fallback applies to a witness that names no `Traverse` instance, whether or not `@TraverseField` is present: a bare or `? super` wildcard, one of the record's own type variables, or a wildcard bounded by one (`Kind<? extends F, Member>` resolves to `F`), since a `Traverse` is written for one witness and a type variable stands for any. With `@TraverseField` on a `Kind` whose witness is any of those, on a raw `Kind`, or on a component that is not declared as a `Kind` at all, the processor says so with a note naming the component and what would make the annotation apply, so an annotation that asked for a traversal is never dropped in silence. See the two notes' entries in [Compiler Errors](compiler_errors.md#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note).
 
@@ -137,7 +137,7 @@ The same fallback applies to a witness that names no `Traverse` instance, whethe
 ```
 
 ~~~admonish warning title="The set is a `setAll`"
-For a `ZERO_OR_ONE` witness this is exactly right: there is at most one element, so setting "all" of them sets the one. On a genuinely multi-element traversal it is a trap. When you mean the first element only, index it (`.at(0)` from the path focusing the container) rather than narrowing with `headOption()`.
+For a `ZERO_OR_ONE` witness this is exactly right: there is at most one element, so setting "all" of them sets the one. On a genuinely multi-element traversal it is a trap. When you mean the first element only, index a `List` with `.via(FocusPaths.listAt(0))` rather than narrowing with `headOption()`.
 ~~~
 
 ---
@@ -170,12 +170,12 @@ SkillsTeam afterTraining =
 * **`KindSemantics` is cardinality for witnesses**, and picks the path type nearly as a container type does: zero-or-more gives a `TraversalPath`, zero-or-one an `AffinePath`. `EXACTLY_ONE` is the exception, landing on `AffinePath` where the type would justify a `FocusPath`.
 * **`@TraverseField` opens the door to your own `Kind` types**, with the `Traverse` given as a verbatim expression.
 * **`headOption()` reads the first and writes to all.** Sound for zero-or-one witnesses, a trap on a real traversal.
-* **An unknown witness degrades gracefully** to a `FocusPath` over the raw `Kind`, which you can still `traverseOver` by hand.
+* **An unknown witness degrades gracefully** to a `FocusPath` over the raw `Kind`, which you can still widen by hand with `each(EachInstances.fromTraverse(traverse))`.
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Focus DSL](focus_dsl.md): core concepts and path types
-- [Type Class and Effect Integration](focus_effects.md): `traverseOver()` in the general case
+- [Type Class and Effect Integration](focus_effects.md): `EachInstances.fromTraverse` in the general case
 - [Foldable and Traverse](../functional/foldable_and_traverse.md): the `Traverse` type class itself
 - [Core Type Integration](core_type_integration.md): `Maybe`, `Either` and `Validated` alongside optics
 ~~~

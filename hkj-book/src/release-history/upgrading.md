@@ -6,10 +6,18 @@ Sections run newest first: start at the top and read down to the section for the
 
 ## Removals in 0.6.0 {#removals-in-060}
 
-Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build.
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build. A Focus path shortcut's replacement is its typed form: the same verb, given an instance that reads the element type from the path. So a typed form fits only a path that focuses on its container exactly. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` recipe runs every recipe the table names, and marks each call a typed form does not fit rather than rewriting it. [0.6.0 deprecation migration](../tooling/openrewrite.md#060-deprecation-migration) gives each such call its replacement.
 
 | Deprecated | Since | Use instead | Recipe |
 |---|---|---|---|
+| A Focus path's `each()`, on `FocusPath`, `AffinePath`, `TraversalPath` and a navigator | 0.5.0 | `each(EachInstances.listEach())` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `some()` | 0.5.0 | `some(FocusPaths.optionalSome())` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `at(index)` | 0.5.0 | `via(FocusPaths.listAt(index))` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `atKey(key)` | 0.5.0 | `via(FocusPaths.mapAt(key))` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `traverseOver(traverse)` | 0.5.0 | `each(EachInstances.fromTraverse(traverse))` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `head()`, `last()`, `tail()` and `init()` | 0.5.0 | `via(FocusPaths.listHead())`, `via(FocusPaths.listLast())`, `via(FocusPaths.listTail())` and `via(FocusPaths.listInit())` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `cons()` and `headTail()` | 0.5.0 | `via(FocusPaths.listCons())` and `via(FocusPaths.listHeadTail())` | `ReplaceUntypedPathShortcutsRecipe` |
+| A Focus path's `snoc()` and `initLast()` | 0.5.0 | `via(FocusPaths.listSnoc())` and `via(FocusPaths.listInitLast())` | `ReplaceUntypedPathShortcutsRecipe` |
 | `ScopeJoiner.resultEither()` | 0.5.0 | `joinEither()` on the `Scope`, in place of `join()`; for a `StructuredTaskScope` you open yourself, the value its `join()` returns, or the cause of the `FailedException` it throws | By hand |
 
 ---

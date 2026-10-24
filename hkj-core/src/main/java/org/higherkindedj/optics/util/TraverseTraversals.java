@@ -42,11 +42,9 @@ import org.jspecify.annotations.NullMarked;
  * Traversal<Maybe<String>, String> maybeTraversal = TraverseTraversals.forMaybe();
  *
  * // Compose with other optics
- * FocusPath<User, Kind<ListKind.Witness, Role>> rolesPath = UserFocus.roles();
- * TraversalPath<User, Role> allRoles = rolesPath.traverseOver(
- *     ListTraverse.INSTANCE,
- *     ListKindHelper.LIST
- * );
+ * FocusPath<User, Kind<ListKind.Witness, Role>> rolesPath = FocusPath.of(UserLenses.roles());
+ * TraversalPath<User, Role> allRoles =
+ *     rolesPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
  * }</pre>
  *
  * @see Traverse

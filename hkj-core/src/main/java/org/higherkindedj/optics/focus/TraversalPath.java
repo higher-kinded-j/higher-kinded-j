@@ -556,7 +556,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *     is not a {@code List}, or, when the path writes, if it is a {@code List} subtype such as
    *     {@code ArrayList}
    * @see #each(Each)
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code each(EachInstances.listEach())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> each() {
     return via((Traversal<A, E>) FocusPaths.listElements());
@@ -589,7 +595,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath focusing on elements at the index (skipping lists that are too short)
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listAt(index))}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> at(int index) {
     // The index affine joins as a traversal, so the path stays a TraversalPath
@@ -604,7 +616,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @param <K> the key type
    * @param <V> the value type
    * @return a TraversalPath focusing on values at the key (skipping maps without the key)
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code Map}. Use {@code via(FocusPaths.mapAt(key))}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <K, V extends @Nullable Object> TraversalPath<S, V> atKey(K key) {
     Affine<A, V> keyAffine = (Affine<A, V>) FocusPaths.mapAt(key);
@@ -616,7 +634,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the inner type of the Optionals
    * @return a TraversalPath over present Optional values
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not an
+   *     {@code Optional}. Use {@code some(FocusPaths.optionalSome())}, which does not compile on
+   *     another focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or
+   *     marks a call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E> TraversalPath<S, E> some() {
     Affine<A, E> someAffine = (Affine<A, E>) FocusPaths.optionalSome();
@@ -628,7 +652,9 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * value.
    *
    * <p>This is a semantic alias for {@link #via(Affine)} that signals the intent of navigating into
-   * a container type that holds zero or one element.
+   * a container type that holds zero or one element: an {@code Optional} through {@code
+   * FocusPaths.optionalSome()}, and an {@code Either}, {@code Try}, {@code Validated} or {@code
+   * Maybe} through its own affine.
    *
    * @param affine the affine for accessing the inner value
    * @param <B> the inner value type
@@ -662,16 +688,19 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * Company updated = allEmployees.modifyAll(Employee::giveRaise, company);
    * }</pre>
    *
-   * <p>For standard {@code List<E>} fields, prefer the {@link #each()} method which handles the
-   * conversion automatically.
-   *
    * @param <F> the witness type of the traversable container
    * @param <E> the element type within the container
    * @param traverse the Traverse instance for the container type
    * @return a TraversalPath focusing on all nested elements within each container
-   * @see #each() for simpler List traversal
    * @see org.higherkindedj.optics.util.TraverseTraversals
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code Kind} of the {@code Traverse}'s witness. Use {@code
+   *     each(EachInstances.fromTraverse(traverse))}, which does not compile on another focus. The
+   *     {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a call it
+   *     cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <F extends WitnessArity<TypeArity.Unary>, E> TraversalPath<S, E> traverseOver(
       Traverse<F> traverse) {
@@ -690,7 +719,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over (head, tail) pairs
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listCons())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, Pair<E, List<E>>> cons() {
     Prism<A, Pair<E, List<E>>> prism =
@@ -703,7 +738,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over (head, tail) pairs
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listHeadTail())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   default <E extends @Nullable Object> TraversalPath<S, Pair<E, List<E>>> headTail() {
     return cons();
   }
@@ -717,7 +758,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over (init, last) pairs
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listSnoc())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, Pair<List<E>, E>> snoc() {
     Prism<A, Pair<List<E>, E>> prism =
@@ -730,7 +777,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * @param <E> the element type of the lists
    * @return a TraversalPath over (init, last) pairs
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listInitLast())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   default <E extends @Nullable Object> TraversalPath<S, Pair<List<E>, E>> initLast() {
     return snoc();
   }
@@ -748,7 +801,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over head elements
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listHead())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> head() {
     Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead();
@@ -768,7 +827,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over last elements
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listLast())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> last() {
     Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast();
@@ -784,7 +849,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over tails
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listTail())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, List<E>> tail() {
     Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail();
@@ -800,7 +871,13 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * @return a TraversalPath over inits
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
    *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
+   * @deprecated since 0.5.0, scheduled for removal in 0.6.0. Its element type is not read from the
+   *     focus, so it compiles on any focus, and the path fails when it runs on one that is not a
+   *     {@code List}. Use {@code via(FocusPaths.listInit())}, which does not compile on another
+   *     focus. The {@code MigrateDeprecationsTo0_6_0} OpenRewrite recipe replaces it, or marks a
+   *     call it cannot.
    */
+  @Deprecated(since = "0.5.0", forRemoval = true)
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, List<E>> init() {
     Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit();
@@ -830,8 +907,9 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    * <h2>Example Usage</h2>
    *
    * <pre>{@code
-   * // TraversalPath from traverseOver
-   * TraversalPath<Config, Value> allValues = configPath.traverseOver(MaybeTraverse.INSTANCE);
+   * // A TraversalPath over a Kind field
+   * TraversalPath<Config, Value> allValues =
+   *     configPath.each(EachInstances.fromTraverse(MaybeTraverse.INSTANCE));
    *
    * // Narrow to just the first (and likely only) value
    * AffinePath<Config, Value> firstValue = allValues.headOption();

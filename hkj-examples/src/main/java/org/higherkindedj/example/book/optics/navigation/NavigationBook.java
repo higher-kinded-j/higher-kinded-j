@@ -31,6 +31,7 @@ import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.extensions.EachExtensions;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.ListPrisms;
@@ -49,12 +50,13 @@ public final class NavigationBook {
 
   static List<List<LineItem>> eachGenerated(Order order) {
     // ANCHOR: each_generated
-    // Generated: FocusPath.of(lens).each()
+    // Generated: FocusPath.of(lens).each(EachInstances.listEach())
     TraversalPath<Order, LineItem> allLines = OrderFocus.lines();
     List<LineItem> lines = allLines.getAll(order);
 
-    // Applying .each() yourself, starting from the lens to the whole list
-    TraversalPath<Order, LineItem> sameThing = FocusPath.of(OrderLenses.lines()).each();
+    // Applying the Each yourself, starting from the lens to the whole list
+    TraversalPath<Order, LineItem> sameThing =
+        FocusPath.of(OrderLenses.lines()).each(EachInstances.listEach());
     // ANCHOR_END: each_generated
     return List.of(lines, sameThing.getAll(order));
   }
@@ -85,15 +87,16 @@ public final class NavigationBook {
   static Indexed byIndex(Order order, PriceList priceList) {
     // ANCHOR: by_index
     // A List field: start from the lens, because the generated path is element-level
-    AffinePath<Order, LineItem> firstLine = FocusPath.of(OrderLenses.lines()).at(0);
+    AffinePath<Order, LineItem> firstLine =
+        FocusPath.of(OrderLenses.lines()).via(FocusPaths.listAt(0));
     Optional<LineItem> first = firstLine.getOptional(order); // empty if out of bounds
 
     // Or narrow the generated traversal to its first element. Mind the asymmetry:
     // headOption reads the first element but writes to all of them
     AffinePath<Order, LineItem> alsoFirst = OrderFocus.lines().headOption();
 
-    // A Map field: the generated path still focuses the whole map, so .atKey() applies
-    AffinePath<PriceList, BigDecimal> lamp = PriceListFocus.prices().atKey("LAMP");
+    // A Map field: the generated path still focuses the whole map, so mapAt applies
+    AffinePath<PriceList, BigDecimal> lamp = PriceListFocus.prices().via(FocusPaths.mapAt("LAMP"));
     Optional<BigDecimal> lampPrice = lamp.getOptional(priceList);
     // ANCHOR_END: by_index
     return new Indexed(first, alsoFirst, lampPrice);

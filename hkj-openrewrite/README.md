@@ -4,13 +4,14 @@ Automated refactoring recipes for [Higher-Kinded-J](https://higher-kinded-j.gith
 to perform version migrations and to surface code that should adopt newer, safer APIs — without
 hand-editing every call site.
 
-The module ships three recipe groups:
+The module ships four recipe groups:
 
 | Group | Composite recipe | What it does |
 |-------|------------------|--------------|
 | Arity migration (0.2.x → 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | Adds `WitnessArity` / `TypeArity` bounds introduced by the embedded kind system |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | Flags raw `Free` / manual `Inject` usage and incomplete `Free` switches |
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal or changed in 0.5.0 |
+| 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | Migrates APIs deprecated in 0.5.0 for removal in 0.6.0 |
 
 ## Quick Start
 
@@ -68,8 +69,8 @@ mvn rewrite:run      # apply changes
 ```
 
 > Pick the `hkj-openrewrite` version that contains the recipe group you need: the arity recipes
-> exist from 0.3.0 onward, the 0.5.0 deprecation recipes from the 0.5.0-era release onward. Newer
-> releases retain the older recipes.
+> exist from 0.3.0 onward, the 0.5.0 and 0.6.0 deprecation recipes from the 0.5.0-era release
+> onward. Newer releases retain the older recipes.
 
 ---
 
@@ -206,6 +207,30 @@ and `widenFields` entries compile only against 0.5.0, so bump the library straig
 ```kotlin
 rewrite {
     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0")
+}
+```
+
+### 0.6.0 deprecation migration
+
+Rewrites call sites of APIs deprecated in 0.5.0 for removal in 0.6.0 to their replacements: a
+Focus path's untyped shortcuts, which do not read their element type from the focus, become their
+typed forms. `ScopeJoiner.resultEither()` has no recipe and is replaced by hand. Run it with
+`hkj-openrewrite` 0.5.x before the project moves to 0.6.0, which removes the methods it matches.
+The typed forms compile against 0.4.x and later. A typed form fits only a path that focuses on its
+container exactly, so the recipe marks, rather than rewrites, a call on a raw or wildcard container
+(view it through an `Iso` to the exact type), on a subtype such as `ArrayList` (declare the field as
+`List`), or on another type. It also marks a key or `Traverse` that does not fit the path, a result
+read with another element type, from a witness such as `<CharSequence>each()` or from the type it is
+assigned to, and a method reference to a shortcut. Each mark says how to replace the call.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | **Composite** — runs the recipe below |
+| `org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe` | On a `FocusPath`, `AffinePath`, `TraversalPath` or navigator: `each()` → `each(EachInstances.listEach())`, `some()` → `some(FocusPaths.optionalSome())`, `at(index)` → `via(FocusPaths.listAt(index))`, `atKey(key)` → `via(FocusPaths.mapAt(key))`, `traverseOver(traverse)` → `each(EachInstances.fromTraverse(traverse))`, and `head()`, `last()`, `tail()`, `init()`, `cons()`, `snoc()`, `headTail()`, `initLast()` → `via(FocusPaths.listHead())` and so on. Drops a type witness written on the shortcut, such as `<Role>each()` |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0")
 }
 ```
 

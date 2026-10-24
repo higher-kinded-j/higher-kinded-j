@@ -15,7 +15,7 @@
 <!-- exercises: optics/Tutorial12_FocusDSL optics/Tutorial13_AdvancedFocusDSL optics/Tutorial14_FocusEffectBridge optics/Tutorial15_ListPrisms optics/Tutorial16_OpticsSpecInterfaces optics/Tutorial17_VStreamOptics optics/Tutorial18_FoldCombination optics/Tutorial19_NavigatorGeneration optics/Tutorial20_ContainerNavigation -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
-The Focus DSL is the ergonomic layer that lets us write `.focus().attributes().at(key)` from [One Line, Six Layers](../../hkts/one_line_six_layers.md) as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
+The Focus DSL is the ergonomic layer behind the `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md): it composes those steps as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
 ~~~
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md), and Tutorials 05-06 of the [Traversals Journey](traversals_journey.md)
@@ -40,9 +40,9 @@ Learn the Focus DSL for ergonomic, type-safe path navigation through nested data
 **What you'll learn**:
 - Creating `FocusPath` from a Lens with `FocusPath.of()`
 - Composing paths with `via()` for deep navigation
-- `AffinePath` for optional values using `some()`
-- `TraversalPath` for collections using `each()`
-- Accessing specific elements with `at(index)` and `atKey(key)`
+- `AffinePath` for optional values using `some(FocusPaths.optionalSome())`
+- `TraversalPath` for collections using `each(EachInstances.listEach())`
+- Accessing specific elements with `FocusPaths.listAt(index)` and `FocusPaths.mapAt(key)`
 - Filtering traversals with `filter()`
 - Converting paths with `toLens()`, `asAffine()`, `asTraversal()`
 
@@ -55,13 +55,13 @@ FocusPath (Lens-like: exactly 1)
     ├── via(Lens)     → FocusPath
     ├── via(Prism)    → AffinePath
     ├── via(Affine)   → AffinePath
-    └── each()        → TraversalPath
+    └── each(Each)    → TraversalPath
 
 AffinePath (0 or 1)
     │
     ├── via(Lens)     → AffinePath
     ├── via(Prism)    → AffinePath
-    └── each()        → TraversalPath
+    └── each(Each)    → TraversalPath
 
 TraversalPath (0 to many)
     │
@@ -74,7 +74,7 @@ TraversalPath (0 to many)
 // Build a path through nested structure
 var path = FocusPath.of(companyLens)       // FocusPath<Root, Company>
     .via(departmentsLens)                   // FocusPath<Root, List<Dept>>
-    .<Dept>each()                           // TraversalPath<Root, Dept>
+    .each(EachInstances.listEach())         // TraversalPath<Root, Dept>
     .via(managerLens)                       // TraversalPath<Root, Manager>
     .via(emailLens);                        // TraversalPath<Root, String>
 
@@ -99,12 +99,12 @@ Master advanced Focus DSL features including type class integration, monoid aggr
 **What you'll learn**:
 - `modifyF()` for effectful modifications with Applicative/Monad
 - `foldMap()` for aggregating values using Monoid
-- `traverseOver()` for generic collection traversal via Traverse type class
+- `EachInstances.fromTraverse()` for generic collection traversal via the Traverse type class
 - `modifyWhen()` for conditional modifications
 - `instanceOf()` for sum type navigation
 - `traced()` for debugging path navigation
 
-**Key insight**: `traverseOver()` bridges the HKT Traverse type class with optics, letting you navigate into `Kind<F, A>` wrapped collections. This is the foundation for automatic Kind field support in `@GenerateFocus`.
+**Key insight**: `EachInstances.fromTraverse()` bridges the HKT Traverse type class with optics, letting you navigate into `Kind<F, A>` wrapped collections. This is the foundation for automatic Kind field support in `@GenerateFocus`.
 
 **Effectful modifications**:
 <!-- verify -->
@@ -145,10 +145,10 @@ String allNames = namePath.foldMap(
 **Kind field support**:
 <!-- verify -->
 ```java
-// Manual traverseOver for Kind<ListKind.Witness, Role> field
+// Widen a Kind<ListKind.Witness, Role> field by hand
 FocusPath<User, Kind<ListKind.Witness, Role>> rolesKindPath = FocusPath.of(userRolesLens);
 TraversalPath<User, Role> allRolesPath = rolesKindPath
-    .<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    .each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
 // With @GenerateFocus, this is generated automatically:
 // TraversalPath<User, Role> roles = UserFocus.roles();
@@ -257,8 +257,8 @@ Optional<MarketPrice> price = pricePath.getOptional(position);
 | Type | Focus Count | Created By |
 |------|-------------|------------|
 | `FocusPath<S,A>` | Exactly 1 | `FocusPath.of(lens)` |
-| `AffinePath<S,A>` | 0 or 1 | `.via(prism)`, `.some()` |
-| `TraversalPath<S,A>` | 0 to many | `.each()`, `.via(traversal)` |
+| `AffinePath<S,A>` | 0 or 1 | `.via(prism)`, `.some(affine)` |
+| `TraversalPath<S,A>` | 0 to many | `.each(eachInstance)`, `.via(traversal)` |
 
 ### Common Operations
 
@@ -278,10 +278,10 @@ Optional<MarketPrice> price = pricePath.getOptional(position);
 |--------|--------|
 | `via(lens)` | Navigate through required field |
 | `via(prism)` | Navigate to sum type variant (widens to Affine) |
-| `some()` | Navigate into Optional (widens to Affine) |
-| `each()` | Navigate into collection (widens to Traversal) |
-| `at(index)` | Navigate to specific index (widens to Affine) |
-| `atKey(key)` | Navigate to map key (widens to Affine) |
+| `some(FocusPaths.optionalSome())` | Navigate into Optional (widens to Affine) |
+| `each(EachInstances.listEach())` | Navigate into a List (widens to Traversal) |
+| `via(FocusPaths.listAt(index))` | Navigate to specific index (widens to Affine) |
+| `via(FocusPaths.mapAt(key))` | Navigate to map key (widens to Affine) |
 | `filter(pred)` | Filter traversal targets |
 
 ---
@@ -305,12 +305,12 @@ Optional<String> value = affinePath.getOptional(source);
 path.<EitherKind.Witness<AppError>>modifyF(Instances.monadError(either()), ...)
 ```
 
-### 3. Forgetting traverseOver for Kind Fields
+### 3. Forgetting the Traverse for Kind Fields
 **Problem**: Can't navigate into `Kind<ListKind.Witness, A>` field.
 
-**Solution**: Use `traverseOver` with the appropriate Traverse instance:
+**Solution**: Build an `Each` from the appropriate Traverse instance:
 ```java
-path.traverseOver(ListTraverse.INSTANCE)
+path.each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
 ```
 
 ---

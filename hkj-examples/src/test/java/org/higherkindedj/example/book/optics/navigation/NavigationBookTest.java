@@ -29,6 +29,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.NavigatorTraversalPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.DisplayName;
@@ -43,7 +44,8 @@ class NavigationBookTest {
   private static final Consignment CONSIGNMENT = consignment(new ConsignmentState.Pending());
 
   @Test
-  @DisplayName("the generated list method and .each() on the lens reach the same elements")
+  @DisplayName(
+      "the generated list method and .each(listEach()) on the lens reach the same elements")
   void eachGenerated() {
     assertThat(NavigationBook.eachGenerated(ORDER))
         .containsExactly(List.of(LAMP, BULB), List.of(LAMP, BULB));
@@ -232,7 +234,7 @@ class NavigationBookTest {
   void checkpointAtZeroOrHeadOption() {
     LineItem sofa = new LineItem("SOFA", 1, new BigDecimal("400.00"));
 
-    assertThat(FocusPath.of(OrderLenses.lines()).<LineItem>at(0).set(sofa, ORDER).lines())
+    assertThat(FocusPath.of(OrderLenses.lines()).via(FocusPaths.listAt(0)).set(sofa, ORDER).lines())
         .containsExactly(sofa, BULB);
     assertThat(OrderFocus.lines().headOption().set(sofa, ORDER).lines())
         .containsExactly(sofa, sofa);

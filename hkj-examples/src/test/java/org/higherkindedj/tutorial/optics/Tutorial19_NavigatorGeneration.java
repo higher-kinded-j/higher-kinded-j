@@ -173,7 +173,7 @@ public class Tutorial19_NavigatorGeneration {
    * <p>Task: Create an AffinePath through an Optional field and retrieve the value
    *
    * <pre>
-   *   // Strategy: FocusPath.of(orgOfficeLens).some()
+   *   // Strategy: FocusPath.of(orgOfficeLens).some(FocusPaths.optionalSome())
    * </pre>
    */
   @Test
@@ -183,8 +183,8 @@ public class Tutorial19_NavigatorGeneration {
         new Organisation("HKJ Ltd", Optional.of(new Address("1 Elm Rd", "Oxford", "OX1 1AA")));
     Organisation noOffice = new Organisation("Ghost Ltd", Optional.empty());
 
-    // TODO: Create a FocusPath for registeredOffice, then widen to AffinePath via .some()
-    // Hint: FocusPath.of(orgOfficeLens).some()
+    // TODO: Create a FocusPath for registeredOffice, then widen to AffinePath via .some(...)
+    // Hint: FocusPath.of(orgOfficeLens).some(FocusPaths.optionalSome())
     AffinePath<Organisation, Address> officePath = answerRequired();
 
     // TODO: Use officePath.getOptional to get the address from org
@@ -209,7 +209,7 @@ public class Tutorial19_NavigatorGeneration {
    * <p>Task: Create a TraversalPath through a List field
    *
    * <pre>
-   *   // Strategy: FocusPath.of(membersLens).each()
+   *   // Strategy: FocusPath.of(membersLens).each(EachInstances.listEach())
    * </pre>
    */
   @Test
@@ -220,8 +220,8 @@ public class Tutorial19_NavigatorGeneration {
     Lens<Department, List<String>> membersLens =
         Lens.of(Department::members, (d, m) -> new Department(d.deptName(), m));
 
-    // TODO: Create a FocusPath for members, then widen to TraversalPath via .each()
-    // Hint: FocusPath.of(membersLens).each()
+    // TODO: Create a FocusPath for members, then widen to TraversalPath via .each(...)
+    // Hint: FocusPath.of(membersLens).each(EachInstances.listEach())
     TraversalPath<Department, String> allMembers = answerRequired();
 
     // TODO: Use allMembers.getAll to get all member names
@@ -242,7 +242,8 @@ public class Tutorial19_NavigatorGeneration {
    * MapValueGenerator} and reports {@code Cardinality.ZERO_OR_MORE}. In navigator generation, this
    * means a Map field produces a TraversalPath, just like List or Set.
    *
-   * <p>Here we simulate this by creating a TraversalPath over Map values using {@code .each()}.
+   * <p>Here we simulate this by creating a TraversalPath over Map values using {@code
+   * .each(EachInstances.mapValuesEach())}.
    *
    * <p>Task: Create a TraversalPath that focuses on all Map values
    *
@@ -302,8 +303,8 @@ public class Tutorial19_NavigatorGeneration {
     // TODO: Compose a path through Optional<Department> then into List<String> members
     // This should produce a TraversalPath (AFFINE + TRAVERSAL = TRAVERSAL)
     // Hint: Break into steps: AffinePath<Team, Department> deptPath =
-    // FocusPath.of(deptLens).some();
-    //       then deptPath.via(membersLens).each()
+    // FocusPath.of(deptLens).some(FocusPaths.optionalSome());
+    //       then deptPath.via(membersLens).each(EachInstances.listEach())
     TraversalPath<Team, String> allMembers = answerRequired();
 
     // TODO: Use allMembers.getAll on team (should have 2 members)

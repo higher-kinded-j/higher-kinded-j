@@ -253,8 +253,8 @@ public final class CookbookBook {
 
   static MapEntry stockLevels(Stockroom stockroom) {
     // ANCHOR: map_entry
-    AffinePath<Stockroom, Integer> desks = StockroomFocus.stock().atKey("DESK");
-    AffinePath<Stockroom, Integer> lamps = StockroomFocus.stock().atKey("LAMP");
+    AffinePath<Stockroom, Integer> desks = StockroomFocus.stock().via(FocusPaths.mapAt("DESK"));
+    AffinePath<Stockroom, Integer> lamps = StockroomFocus.stock().via(FocusPaths.mapAt("LAMP"));
 
     // A missing key reads as the fallback
     int desksInStock = desks.getOrElse(0, stockroom);

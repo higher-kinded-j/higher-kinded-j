@@ -52,7 +52,7 @@ These are engineering estimates from the shape of the generated code, not benchm
 
 `Traversals.modify(traversal, f, source)` over a `List<A>` allocates one new list, plus a small constant number of short-lived objects *per element*: the traversal threads each result through the `Id` applicative and an immutable cons-list before flattening. Budget O(n) allocations, not O(1). (Reads and writes on a bare `Traversal` go through the `Traversals` utility; the interface itself declares no plain read or write.) If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not compare references to skip rebuilding.
 
-A Focus path's `.each()` on a `List` is `Traversals.forList()`, and `EachInstances.arrayEach()` is `Traversals.forArray()`, as `FocusPaths.listElements` and `EachInstances.arrayEach` show. Both rebuild this way, in time linear in the length, into a new unmodifiable list or a new array.
+A Focus path's `.each(EachInstances.listEach())` is `Traversals.forList()`, and `EachInstances.arrayEach()` is `Traversals.forArray()`, as `EachInstances.listEach` and `EachInstances.arrayEach` show. Both rebuild this way, in time linear in the length, into a new unmodifiable list or a new array.
 
 ### What each collection optic builds {#collection-optics}
 
@@ -60,7 +60,7 @@ Each collection optic rebuilds its container in its own way, and several return 
 
 | Optic | What it builds | When nothing changes | Implemented in |
 |---|---|---|---|
-| `Traversals.forList()`, a Focus path's `.each()`, `EachInstances.arrayEach().each()` | Collects the results on an immutable cons list, then builds one new unmodifiable list, or one new array. | An empty list or array still gets a new, empty one. | `Traversals.forList`, `Traversals.forArray` |
+| `Traversals.forList()`, a Focus path's `.each(EachInstances.listEach())`, `EachInstances.arrayEach().each()` | Collects the results on an immutable cons list, then builds one new unmodifiable list, or one new array. | An empty list or array still gets a new, empty one. | `Traversals.forList`, `Traversals.forArray` |
 | `Traversals.forMapValues()` | Copies the keys and values into two lists, traverses the values, then builds one new `LinkedHashMap` in the source's order. | An empty map still gets a new, empty map. | `Traversals.traverseMapValues` |
 | `Traversals.forMap(key)` | Copies the whole map to replace one value. | An absent key returns the source itself. | `Traversals.forMap` |
 | `filtered(p)`, `filterBy(query, p)` | Tests each element once, in the same pass as the update; `filterBy`'s test is a `Fold.exists`, which stops at the first queried focus that matches. | A rejected element passes through with `of`, keeping its reference. | `Traversal.filtered`, `Traversal.filterBy` |
@@ -158,7 +158,7 @@ The annotation surface (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, 
 
 The shapes of generated classes (`XLenses`, `XFocus`, etc.) are also stable; existing fields and methods do not disappear without a deprecation cycle. New fields and methods may be added to support new annotation parameters; this is additive and source-compatible.
 
-The Focus DSL surface (`FocusPath`, `AffinePath`, `TraversalPath`, methods like `.each()`, `.via()`, `.modifyAll()`) is stable. The Free Monad DSL APIs (`OpticPrograms`, `OpticInterpreters`) are also stable but used by fewer projects; if you adopt them, weigh the smaller adoption surface accordingly.
+The Focus DSL surface (`FocusPath`, `AffinePath`, `TraversalPath`, methods like `.each(...)`, `.via(...)`, `.modifyAll(...)`) is stable. The Free Monad DSL APIs (`OpticPrograms`, `OpticInterpreters`) are also stable but used by fewer projects; if you adopt them, weigh the smaller adoption surface accordingly.
 
 `Profunctor` adaptations (`contramap`, `map`, `dimap`) are stable.
 

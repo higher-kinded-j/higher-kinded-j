@@ -20,10 +20,14 @@ import org.junit.jupiter.api.Test;
  * <p>Covers patterns such as:
  *
  * <ul>
- *   <li>{@code Optional<List<String>>} produces {@code .some().each()} returning TraversalPath
- *   <li>{@code List<Optional<String>>} produces {@code .each().some()} returning TraversalPath
- *   <li>{@code Optional<Optional<String>>} produces {@code .some().some()} returning AffinePath
- *   <li>{@code List<List<String>>} produces {@code .each().each()} returning TraversalPath
+ *   <li>{@code Optional<List<String>>} produces {@code
+ *       .some(FocusPaths.optionalSome()).each(EachInstances.listEach())} returning TraversalPath
+ *   <li>{@code List<Optional<String>>} produces {@code
+ *       .each(EachInstances.listEach()).some(FocusPaths.optionalSome())} returning TraversalPath
+ *   <li>{@code Optional<Optional<String>>} produces {@code
+ *       .some(FocusPaths.optionalSome()).some(FocusPaths.optionalSome())} returning AffinePath
+ *   <li>{@code List<List<String>>} produces {@code
+ *       .each(EachInstances.listEach()).each(EachInstances.listEach())} returning TraversalPath
  * </ul>
  */
 @DisplayName("Nested Container Widening")
@@ -34,7 +38,8 @@ public class FocusProcessorNestedContainerTest {
   class TwoLevelNesting {
 
     @Test
-    @DisplayName("Optional<List<String>> should produce .some().each() returning TraversalPath")
+    @DisplayName(
+        "Optional<List<String>> should produce .some(FocusPaths.optionalSome()).each(EachInstances.listEach()) returning TraversalPath")
     void optionalOfListShouldProduceSomeThenEach() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -53,7 +58,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> tags() {
-              return FocusPath.of(Lens.of(Config::tags, (source, newValue) -> new Config(source.name(), newValue)), "tags").some().each();
+              return FocusPath.of(Lens.of(Config::tags, (source, newValue) -> new Config(source.name(), newValue)), "tags").some(FocusPaths.optionalSome()).each(EachInstances.listEach());
           }
           """;
 
@@ -63,7 +68,8 @@ public class FocusProcessorNestedContainerTest {
     }
 
     @Test
-    @DisplayName("List<Optional<String>> should produce .each().some() returning TraversalPath")
+    @DisplayName(
+        "List<Optional<String>> should produce .each(EachInstances.listEach()).some(FocusPaths.optionalSome()) returning TraversalPath")
     void listOfOptionalShouldProduceEachThenSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -82,7 +88,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each().some();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each(EachInstances.listEach()).some(FocusPaths.optionalSome());
           }
           """;
 
@@ -92,7 +98,8 @@ public class FocusProcessorNestedContainerTest {
     }
 
     @Test
-    @DisplayName("Optional<Optional<String>> should produce .some().some() returning AffinePath")
+    @DisplayName(
+        "Optional<Optional<String>> should produce .some(FocusPaths.optionalSome()).some(FocusPaths.optionalSome()) returning AffinePath")
     void optionalOfOptionalShouldProduceSomeThenSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -110,7 +117,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, String> nested() {
-              return FocusPath.of(Lens.of(Config::nested, (source, newValue) -> new Config(source.name(), newValue)), "nested").some().some();
+              return FocusPath.of(Lens.of(Config::nested, (source, newValue) -> new Config(source.name(), newValue)), "nested").some(FocusPaths.optionalSome()).some(FocusPaths.optionalSome());
           }
           """;
 
@@ -120,7 +127,8 @@ public class FocusProcessorNestedContainerTest {
     }
 
     @Test
-    @DisplayName("List<List<String>> should produce .each().each() returning TraversalPath")
+    @DisplayName(
+        "List<List<String>> should produce .each(EachInstances.listEach()).each(EachInstances.listEach()) returning TraversalPath")
     void listOfListShouldProduceEachThenEach() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -138,7 +146,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> matrix() {
-              return FocusPath.of(Lens.of(Config::matrix, (source, newValue) -> new Config(source.name(), newValue)), "matrix").each().each();
+              return FocusPath.of(Lens.of(Config::matrix, (source, newValue) -> new Config(source.name(), newValue)), "matrix").each(EachInstances.listEach()).each(EachInstances.listEach());
           }
           """;
 
@@ -149,7 +157,7 @@ public class FocusProcessorNestedContainerTest {
 
     @Test
     @DisplayName(
-        "Set<Optional<String>> should produce .each(setEach()).some() returning TraversalPath")
+        "Set<Optional<String>> should produce .each(setEach()).some(FocusPaths.optionalSome()) returning TraversalPath")
     void setOfOptionalShouldProduceEachThenSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -168,7 +176,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each(EachInstances.setEach()).some();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each(EachInstances.setEach()).some(FocusPaths.optionalSome());
           }
           """;
 
@@ -184,7 +192,7 @@ public class FocusProcessorNestedContainerTest {
 
     @Test
     @DisplayName(
-        "Optional<List<Optional<String>>> should produce .some().each().some() returning"
+        "Optional<List<Optional<String>>> should produce .some(FocusPaths.optionalSome()).each(EachInstances.listEach()).some(FocusPaths.optionalSome()) returning"
             + " TraversalPath")
     void optionalOfListOfOptionalShouldProduceThreeLevelChain() {
       final JavaFileObject source =
@@ -204,7 +212,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> deep() {
-              return FocusPath.of(Lens.of(Config::deep, (source, newValue) -> new Config(source.name(), newValue)), "deep").some().each().some();
+              return FocusPath.of(Lens.of(Config::deep, (source, newValue) -> new Config(source.name(), newValue)), "deep").some(FocusPaths.optionalSome()).each(EachInstances.listEach()).some(FocusPaths.optionalSome());
           }
           """;
 
@@ -215,7 +223,7 @@ public class FocusProcessorNestedContainerTest {
 
     @Test
     @DisplayName(
-        "List<List<List<String>>> should produce .each().each().each() returning TraversalPath")
+        "List<List<List<String>>> should produce .each(EachInstances.listEach()).each(EachInstances.listEach()).each(EachInstances.listEach()) returning TraversalPath")
     void listOfListOfListShouldProduceThreeLevelChain() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -233,7 +241,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> cube() {
-              return FocusPath.of(Lens.of(Config::cube, (source, newValue) -> new Config(source.name(), newValue)), "cube").each().each().each();
+              return FocusPath.of(Lens.of(Config::cube, (source, newValue) -> new Config(source.name(), newValue)), "cube").each(EachInstances.listEach()).each(EachInstances.listEach()).each(EachInstances.listEach());
           }
           """;
 
@@ -330,7 +338,8 @@ public class FocusProcessorNestedContainerTest {
   class NonNestedRegression {
 
     @Test
-    @DisplayName("Simple Optional<String> should still produce .some() returning AffinePath")
+    @DisplayName(
+        "Simple Optional<String> should still produce .some(FocusPaths.optionalSome()) returning AffinePath")
     void simpleOptionalShouldBeUnchanged() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -348,7 +357,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, String> email() {
-              return FocusPath.of(Lens.of(Config::email, (source, newValue) -> new Config(source.name(), newValue)), "email").some();
+              return FocusPath.of(Lens.of(Config::email, (source, newValue) -> new Config(source.name(), newValue)), "email").some(FocusPaths.optionalSome());
           }
           """;
 
@@ -358,7 +367,8 @@ public class FocusProcessorNestedContainerTest {
     }
 
     @Test
-    @DisplayName("Simple List<String> should still produce .each() returning TraversalPath")
+    @DisplayName(
+        "Simple List<String> should still produce .each(EachInstances.listEach()) returning TraversalPath")
     void simpleListShouldBeUnchanged() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -376,7 +386,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, String> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").each(EachInstances.listEach());
           }
           """;
 
@@ -420,7 +430,7 @@ public class FocusProcessorNestedContainerTest {
     @Test
     @DisplayName(
         "Optional<Either<String, Integer>> should produce"
-            + " .<Either<String, Integer>>some().some(Affines.eitherRight()) returning AffinePath")
+            + " .some(FocusPaths.optionalSome()).some(Affines.eitherRight()) returning AffinePath")
     void optionalOfEitherShouldProduceSomeThenSpiSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -439,7 +449,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static AffinePath<Config, Integer> result() {
-              return FocusPath.of(Lens.of(Config::result, (source, newValue) -> new Config(source.name(), newValue)), "result").<Either<String, Integer>>some().some(Affines.eitherRight());
+              return FocusPath.of(Lens.of(Config::result, (source, newValue) -> new Config(source.name(), newValue)), "result").some(FocusPaths.optionalSome()).some(Affines.eitherRight());
           }
           """;
 
@@ -451,7 +461,7 @@ public class FocusProcessorNestedContainerTest {
     @Test
     @DisplayName(
         "List<Either<String, Integer>> should produce"
-            + " .<Either<String, Integer>>each().some(Affines.eitherRight()) returning TraversalPath")
+            + " .each(EachInstances.listEach()).some(Affines.eitherRight()) returning TraversalPath")
     void listOfEitherShouldProduceEachThenSpiSome() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -470,7 +480,7 @@ public class FocusProcessorNestedContainerTest {
       final String expectedMethod =
           """
           public static TraversalPath<Config, Integer> results() {
-              return FocusPath.of(Lens.of(Config::results, (source, newValue) -> new Config(source.name(), newValue)), "results").<Either<String, Integer>>each().some(Affines.eitherRight());
+              return FocusPath.of(Lens.of(Config::results, (source, newValue) -> new Config(source.name(), newValue)), "results").each(EachInstances.listEach()).some(Affines.eitherRight());
           }
           """;
 
@@ -482,7 +492,7 @@ public class FocusProcessorNestedContainerTest {
     @Test
     @DisplayName(
         "Either<String, List<Integer>> with widenCollections should produce"
-            + " .some(eitherRight()).each() returning TraversalPath")
+            + " .some(eitherRight()).each(EachInstances.listEach()) returning TraversalPath")
     void eitherOfListShouldProduceSpiSomeThenEach() {
       final JavaFileObject source =
           JavaFileObjects.forSourceString(
@@ -501,11 +511,11 @@ public class FocusProcessorNestedContainerTest {
       // Either<String, List<Integer>>:
       // The outer Either is an SPI ZERO_OR_ONE type (focuses on R = List<Integer>)
       // The inner List<Integer> is a COLLECTION type
-      // Chain: .some(Affines.eitherRight()).each() → TraversalPath
+      // Chain: .some(Affines.eitherRight()).each(EachInstances.listEach()) → TraversalPath
       final String expectedMethod =
           """
           public static TraversalPath<Config, Integer> items() {
-              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").some(Affines.eitherRight()).each();
+              return FocusPath.of(Lens.of(Config::items, (source, newValue) -> new Config(source.name(), newValue)), "items").some(Affines.eitherRight()).each(EachInstances.listEach());
           }
           """;
 
@@ -677,7 +687,7 @@ public class FocusProcessorNestedContainerTest {
       assertGeneratedCodeContains(
           compilation,
           "com.example.WidenNestedFocus",
-          "some().each(EachInstances.mapValuesEach())");
+          "some(FocusPaths.optionalSome()).each(EachInstances.mapValuesEach())");
     }
   }
 }

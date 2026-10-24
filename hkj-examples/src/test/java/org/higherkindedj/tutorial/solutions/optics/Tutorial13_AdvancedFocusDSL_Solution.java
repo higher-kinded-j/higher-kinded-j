@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeKindHelper;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -172,7 +173,8 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
                 new Employee("Charlie", 8, 75000)));
 
     // Using intermediate step for type inference
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
     TraversalPath<Department, Integer> salariesPath = employeesPath.via(employeeSalaryLens);
 
     Monoid<Integer> intAddition =
@@ -217,17 +219,17 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code traverseOver(traverse)} lifts any {@code Traverse} type class
-   * instance into a path. {@code ListTraverse.INSTANCE} is the bridge between the higher-kinded
-   * list and the path DSL.
+   * Why this is idiomatic: {@code each(EachInstances.fromTraverse(traverse))} lifts any {@code
+   * Traverse} type class instance into a path. {@code ListTraverse.INSTANCE} is the bridge between
+   * the higher-kinded list and the path DSL.
    *
    * <p>Alternative: build a custom traversal that knows about {@code Kind<ListKind.Witness, A>}.
    * Same answer; using the canonical {@code ListTraverse} instance keeps the integration stable
    * across versions.
    *
-   * <p>Common wrong attempt: confuse {@code traverseOver} with {@code each()}. {@code each()} works
-   * on plain {@code List<A>} fields; {@code traverseOver} is for fields already wrapped in {@code
-   * Kind<F, A>}.
+   * <p>Common wrong attempt: reach for {@code EachInstances.listEach()}. It works on plain {@code
+   * List<A>} fields; {@code fromTraverse} is for fields already wrapped in {@code Kind<F, A>}, and
+   * {@code listEach()} does not compile on one.
    */
   @Test
   void exercise3_traverseTypeClassIntegration() {
@@ -239,9 +241,9 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
 
     FocusPath<User, Kind<ListKind.Witness, Role>> rolesKindPath = FocusPath.of(userRolesLens);
 
-    // SOLUTION: Use traverseOver with ListTraverse
+    // SOLUTION: Use fromTraverse with ListTraverse
     TraversalPath<User, Role> allRolesPath =
-        rolesKindPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+        rolesKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // SOLUTION: Get all roles
     List<Role> roles = allRolesPath.getAll(user);
@@ -253,24 +255,24 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
     User promoted = allRolesPath.modifyAll(Role::promote, user);
 
     List<Role> promotedRoles =
-        rolesKindPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE).getAll(promoted);
+        rolesKindPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE)).getAll(promoted);
     assertThat(promotedRoles.stream().map(Role::level).toList()).containsExactly(11, 6, 2);
   }
 
   /**
-   * Why this is idiomatic: {@code traverseOver(...).via(lens)} chains an HKT traversal with a lens
-   * — User → roles → level for every role. The composed path is one named optic with all the usual
-   * operations.
+   * Why this is idiomatic: {@code each(fromTraverse(...)).via(lens)} chains an HKT traversal with a
+   * lens — User → roles → level for every role. The composed path is one named optic with all the
+   * usual operations.
    *
    * <p>Alternative: extract the levels into a list, transform, and rewrite the user. Same runtime;
    * the composed path stays in one expression and survives schema growth.
    *
-   * <p>Common wrong attempt: forget the {@code traverseOver} step and try to {@code via} directly
+   * <p>Common wrong attempt: forget the {@code fromTraverse} step and try to {@code via} directly
    * into a {@code Kind<ListKind.Witness, Role>}. The lens does not know how to iterate a
    * higher-kinded container; the {@code Traverse} instance is what supplies the iteration.
    */
   @Test
-  void exercise4_traverseOverComposition() {
+  void exercise4_fromTraverseComposition() {
     User user =
         new User(
             "Bob",
@@ -278,8 +280,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
                 List.of(new Role("Admin", 10), new Role("User", 3), new Role("Guest", 1))));
 
     FocusPath<User, Kind<ListKind.Witness, Role>> step1 = FocusPath.of(userRolesLens);
-    TraversalPath<User, Role> step2 =
-        step1.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    TraversalPath<User, Role> step2 = step1.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // SOLUTION: Compose with lens
     TraversalPath<User, Integer> allLevelsPath = step2.via(roleLevelLens);
@@ -293,7 +294,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
 
     List<Integer> doubledLevels =
         FocusPath.of(userRolesLens)
-            .<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE)
+            .each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
             .via(roleLevelLens)
             .getAll(doubled);
     assertThat(doubledLevels).containsExactly(20, 6, 2);
@@ -321,7 +322,8 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
                 new Employee("Charlie", 6, 55000),
                 new Employee("Diana", 1, 40000)));
 
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
 
     // SOLUTION: Use modifyWhen for conditional modification
     Department afterRaises =
@@ -355,7 +357,8 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
                 new Rectangle(5.0, 5.0),
                 new Circle(7.0)));
 
-    TraversalPath<Drawing, Shape> allShapes = FocusPath.of(drawingShapesLens).each();
+    TraversalPath<Drawing, Shape> allShapes =
+        FocusPath.of(drawingShapesLens).each(EachInstances.listEach());
 
     // SOLUTION: Create instanceOf for Circles
     AffinePath<Shape, Circle> circlePrism = AffinePath.instanceOf(Circle.class);
@@ -373,7 +376,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
 
     List<Circle> enlargedCircles =
         FocusPath.of(drawingShapesLens)
-            .each()
+            .each(EachInstances.listEach())
             .via(AffinePath.instanceOf(Circle.class))
             .getAll(enlarged);
     assertThat(enlargedCircles.stream().map(Circle::radius).toList())
@@ -399,7 +402,8 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
 
     List<String> observations = new ArrayList<>();
 
-    TraversalPath<Department, Employee> employeesPath = FocusPath.of(deptEmployeesLens).each();
+    TraversalPath<Department, Employee> employeesPath =
+        FocusPath.of(deptEmployeesLens).each(EachInstances.listEach());
 
     BiConsumer<Department, List<Employee>> observer =
         (source, employees) -> {
@@ -423,7 +427,7 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
   }
 
   /**
-   * Why this is idiomatic: combine {@code each()}, {@code traverseOver}, and {@code via} to
+   * Why this is idiomatic: combine {@code listEach()}, {@code fromTraverse}, and {@code via} to
    * navigate a team of users with role lists. One named path traverses every level and the caller
    * asks the questions through {@code getAll}, {@code modifyAll}, or {@code foldMap}.
    *
@@ -449,10 +453,10 @@ public class Tutorial13_AdvancedFocusDSL_Solution {
                         List.of(new Role("Admin", 8), new Role("Dev", 6), new Role("User", 3))))));
 
     FocusPath<Team, List<User>> step1 = FocusPath.of(teamMembersLens);
-    TraversalPath<Team, User> step2 = step1.each();
+    TraversalPath<Team, User> step2 = step1.each(EachInstances.listEach());
     TraversalPath<Team, Kind<ListKind.Witness, Role>> step3 = step2.via(userRolesLens);
     TraversalPath<Team, Role> allRoles =
-        step3.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+        step3.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 
     // SOLUTION: Count total roles
     int totalRoles = allRoles.count(team);

@@ -28,6 +28,7 @@ import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
 import org.higherkindedj.hkt.future.CompletableFutureMonad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
@@ -217,7 +218,7 @@ public class AsyncFetchExample {
 
     // Path to every line of the order
     TraversalPath<Order, LineItem> allLinesPath =
-        FocusPath.of(OrderLenses.lines()).<LineItem>each();
+        FocusPath.of(OrderLenses.lines()).each(EachInstances.listEach());
 
     // Async function to price each line from the pricing service
     Function<LineItem, Kind<CompletableFutureKind.Witness, LineItem>> priceLine =

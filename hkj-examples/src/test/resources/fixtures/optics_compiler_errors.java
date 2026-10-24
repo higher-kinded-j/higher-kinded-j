@@ -49,6 +49,7 @@ import org.higherkindedj.optics.annotations.ViaConstructor;
 import org.higherkindedj.optics.annotations.ViaBuilder;
 import org.higherkindedj.optics.annotations.ViaCopyAndSet;
 import org.higherkindedj.optics.annotations.Wither;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.free.OpticInterpreters;
@@ -71,7 +72,7 @@ record OrgChart(String name, List<OrgUnit> units) {}
 /** The record the Free monad entries build a program over. */
 record Saver(String name, int age) {}
 
-/** A `Kind`-typed component, which is what `traverseOver` is for. */
+/** A `Kind`-typed component, which is what `fromTraverse` is for. */
 record Role(String name) {}
 
 record Operator(String name, Kind<ListKind.Witness, Role> roles) {}

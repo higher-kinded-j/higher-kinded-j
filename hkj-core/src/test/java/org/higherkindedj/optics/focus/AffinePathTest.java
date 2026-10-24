@@ -260,6 +260,7 @@ class AffinePathTest {
 
   @Nested
   @DisplayName("Collection Navigation")
+  @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
   class CollectionNavigation {
 
     @Test
@@ -469,7 +470,7 @@ class AffinePathTest {
 
       // Compose: FocusPath -> some() -> via(innerNicknamePath)
       AffinePath<ConfigWithNullable, String> nicknamePath =
-          FocusPath.of(userOptLens).<UserWithNullable>some().via(innerNicknamePath);
+          FocusPath.of(userOptLens).some(FocusPaths.optionalSome()).via(innerNicknamePath);
 
       ConfigWithNullable withNickname =
           new ConfigWithNullable(Optional.of(new UserWithNullable("Alice", "Ally")));
@@ -602,7 +603,8 @@ class AffinePathTest {
       // Path: Profile -> Optional<String> -> String (via some) -> String (via nullable)
       // This tests the scenario where Optional contains a value but that value might be null
       // (which shouldn't happen in practice but tests the composition)
-      AffinePath<Profile, String> bioPath = FocusPath.of(bioOptLens).some();
+      AffinePath<Profile, String> bioPath =
+          FocusPath.of(bioOptLens).some(FocusPaths.optionalSome());
 
       Profile withBio = new Profile(Optional.of("Software developer"));
       Profile withEmptyBio = new Profile(Optional.empty());
@@ -643,7 +645,8 @@ class AffinePathTest {
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
       // Build AffinePath: Outer -> Optional<Inner> -> Inner -> String
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> valuePath = innerPath.via(valueLens);
 
       // Call nullable() directly on the AffinePath
@@ -672,7 +675,8 @@ class AffinePathTest {
 
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
 
       // Set works when value is present (non-null)
@@ -697,7 +701,8 @@ class AffinePathTest {
 
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
 
       Outer withValue = new Outer(Optional.of(new Inner("hello")));
@@ -722,7 +727,8 @@ class AffinePathTest {
 
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
 
       Outer withValue = new Outer(Optional.of(new Inner("hello")));
@@ -744,7 +750,8 @@ class AffinePathTest {
 
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
 
       Outer withValue = new Outer(Optional.of(new Inner("hello")));
@@ -764,7 +771,8 @@ class AffinePathTest {
 
       Lens<Inner, String> valueLens = Lens.of(Inner::value, (i, v) -> new Inner(v));
 
-      AffinePath<Outer, Inner> innerPath = FocusPath.of(innerOptLens).<Inner>some();
+      AffinePath<Outer, Inner> innerPath =
+          FocusPath.of(innerOptLens).some(FocusPaths.optionalSome());
       AffinePath<Outer, String> safeValuePath = innerPath.via(valueLens).<String>nullable();
 
       Outer withValue = new Outer(Optional.of(new Inner("hello")));
@@ -777,6 +785,7 @@ class AffinePathTest {
 
   @Nested
   @DisplayName("List Decomposition Navigation")
+  @SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
   class ListDecompositionNavigation {
 
     @Test

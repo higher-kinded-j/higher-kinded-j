@@ -212,7 +212,9 @@ class NullableAnnotationDetectionTest {
       assertGeneratedCodeContains(
           compilation, "com.example.BasketFocus", "ItemsNavigator<Basket> items()");
       assertGeneratedCodeContains(
-          compilation, "com.example.BasketFocus", "\"items\").nullable().each());");
+          compilation,
+          "com.example.BasketFocus",
+          "\"items\").nullable().each(EachInstances.listEach()));");
       assertGeneratedCodeContains(
           compilation,
           "com.example.BasketFocus",

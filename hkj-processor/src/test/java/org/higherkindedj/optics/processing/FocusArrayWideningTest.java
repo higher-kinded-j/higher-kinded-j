@@ -192,7 +192,7 @@ class FocusArrayWideningTest {
     }
 
     @Test
-    @DisplayName("an array widens through arrayEach, after a type witness where one is needed")
+    @DisplayName("an array widens through arrayEach, after a List with no witness")
     void anArrayWidensThroughArrayEach() {
       assertGeneratedCodeContains(
           COMPILATION, "com.example.HolderFocus", "\"tags\").each(EachInstances.arrayEach());");
@@ -203,7 +203,7 @@ class FocusArrayWideningTest {
       assertGeneratedCodeContains(
           COMPILATION,
           "com.example.HolderFocus",
-          "\"rows\").<String[]>each().each(EachInstances.arrayEach());");
+          "\"rows\").each(EachInstances.listEach()).each(EachInstances.arrayEach());");
     }
   }
 
