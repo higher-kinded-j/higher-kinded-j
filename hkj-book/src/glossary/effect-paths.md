@@ -480,6 +480,16 @@ record ReadLine<A>(Function<String, A> k) implements ConsoleOp<A> {
 
 ---
 
+## MaybePath
+
+**Definition:** A path over `Maybe<A>` for a value that may be absent. Absence is its only failure, so it has no error value, and `run()` returns the `Maybe`.
+
+**Factories:** `Path.just(value)`, `Path.nothing()`, and `Path.maybe(value)` for either a nullable value or an existing `Maybe`.
+
+**Related:** [MaybePath documentation](../effect/path_maybe.md), [Path](#path), [Maybe](data-effects.md#maybe), [OptionalPath](#optionalpath), [EitherPath](#eitherpath)
+
+---
+
 ## OptionalPath
 
 **Definition:** A path that wraps Java's `Optional<A>`, making standard-library optional values composable with the Effect Path API.
