@@ -478,7 +478,10 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 
 ### When an unpaired accessor is refused {#unpaired-accessors}
 
-When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out. A getter on a mapping that builds is offered the [`@ReadOnly` marker](beans.md#read-only-properties) too, for a property `parse` should read and `build` leave out.
+When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`. A [word](#word-accessors) of the other kind is offered too, even one that differs by boxing alone, so `setx(int)` beside `Integer getX()` is told to become `setX(Integer)`. So is a builder's `setaway(String)`, which spells `away` after its `set`. Otherwise the diagnostic offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out. A getter on a mapping that builds is offered the [`@ReadOnly` marker](beans.md#read-only-properties) too, for a property `parse` should read and `build` leave out.
+
+- **An `@Unmapped` marker replaces the spec's own rename onto the accessor's name.** Beside it, the rename would name nothing on the wire and be refused.
+- **No marker is offered for a name that is a Java keyword.** A rename to `default` gives such a name, and no method can be called `default()`.
 
 ### A method that only starts like an accessor {#word-accessors}
 

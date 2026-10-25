@@ -7,11 +7,14 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ~~~admonish info title="At a glance"
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.
 - **A `@GenerateFocus` message that offers a navigator asks first for the renames it needs.** Following its fix line no longer leads into another note or error.
+- **A `@GenerateMapping` bean refusal's fix line compiles once followed**, and names the near miss it passed over, such as `setx(int)` beside `Integer getX()`.
 ~~~
 
 ---
 
 ## Mapping {#mapping}
+
+- **A bean property's fix line compiles once followed** ([#1149](https://github.com/higher-kinded-j/higher-kinded-j/issues/1149)). The setter offered for `eMails` is `seteMails`, not `setEMails`. A rename to a keyword such as `default` is offered no marker, and a marker replaces the spec's own rename. A near miss such as `setx(int)` beside `Integer getX()` is named. See [When an unpaired accessor is refused](../mapping/rules.md#unpaired-accessors).
 
 ---
 

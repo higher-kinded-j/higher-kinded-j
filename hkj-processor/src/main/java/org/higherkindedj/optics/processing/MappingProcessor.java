@@ -1512,8 +1512,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' would read as a present empty list and clear the domain value.",
             "Give '"
                 + property.name()
-                + "' a set"
-                + ProcessorUtils.capitalise(property.name())
+                + "' a "
+                + BeanPropertyAnalyser.setterName(property.name())
                 + " setter, and let "
                 + write.getter()
                 + "() answer null until it is set, with no initialiser on the field and no list"
@@ -1732,7 +1732,8 @@ public class MappingProcessor extends AbstractProcessor {
                 .filter(member -> member.getAnnotation(ReadOnly.class) != null)
                 .isEmpty()
             && !(reads && bean.direction() == WireShape.Direction.PARSE_ONLY)
-            && filled.isEmpty();
+            && filled.isEmpty()
+            && SourceVersion.isName(name);
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -1784,7 +1785,7 @@ public class MappingProcessor extends AbstractProcessor {
                     + (one ? " is" : " are")
                     + " not meant to carry "
                     + target
-                    + unmappedOffer(spec, first)
+                    + unmappedOffer(spec, component, first)
                 : "."));
   }
 
@@ -1824,7 +1825,7 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * An unpaired accessor named after a domain component the bean carries under no name: the
-   * component, and the unpaired accessor of the other role that is most likely its misspelling.
+   * component, and the method of the other role that is most likely its misspelling.
    */
   private record UnpairedRefusal(
       WireShape.UnpairedAccessor accessor,
@@ -1833,10 +1834,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The unpaired accessors named after a domain component the bean carries under no name, in the
-   * bean's order. Each is offered its likely misspelling: the nearest unpaired accessor of the
-   * other role at the same type, since a rename to another type would pair nothing. A misspelling
-   * is offered once, and never one named after a component the mapping needs, which is a refusal of
-   * its own.
+   * bean's order. Each is offered its likely misspelling ({@link #nearestPartner}): an unpaired
+   * accessor or a word of the other role. A misspelling is offered once, and never one named after
+   * another component the mapping needs, which is a refusal of its own.
    */
   private List<UnpairedRefusal> uncarriedAccessors(
       TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
@@ -1848,7 +1848,7 @@ public class MappingProcessor extends AbstractProcessor {
       String component = unmapped.contains(accessor.name()) ? null : uncarried.get(accessor.name());
       if (component != null) {
         Optional<WireShape.UnpairedAccessor> partner =
-            nearestPartner(accessor, bean.unpaired(), uncarried, offered);
+            nearestPartner(accessor, bean, uncarried, offered);
         partner.ifPresent(other -> offered.add(other.name()));
         refusals.add(new UnpairedRefusal(accessor, component, partner));
       }
@@ -2289,19 +2289,46 @@ public class MappingProcessor extends AbstractProcessor {
         fix);
   }
 
+  /**
+   * The likely misspelling of an unpaired accessor: the nearest method of the other role, by the
+   * name it spells. It is an unpaired accessor at the same type, a builder's {@code
+   * setaway(String)} among them, which spells {@code away} after its {@code set}, or a {@link
+   * WireShape.BeanShape#words word}. A word may differ by boxing alone, as {@code setx(int)} beside
+   * {@code Integer getX()} does, since that is what passed it over, and may share the accessor's
+   * name, which makes it the misspelling itself.
+   */
   private Optional<WireShape.UnpairedAccessor> nearestPartner(
       WireShape.UnpairedAccessor accessor,
-      List<WireShape.UnpairedAccessor> unpaired,
+      WireShape.BeanShape bean,
       Map<String, String> uncarried,
       Set<String> offered) {
-    return unpaired.stream()
+    Types types = processingEnv.getTypeUtils();
+    Stream<WireShape.UnpairedAccessor> unpaired =
+        bean.unpaired().stream()
+            .filter(other -> !uncarried.containsKey(other.name()))
+            .filter(other -> types.isSameType(other.type(), accessor.type()));
+    Stream<WireShape.UnpairedAccessor> words =
+        bean.words().stream()
+            .filter(
+                word -> word.name().equals(accessor.name()) || !uncarried.containsKey(word.name()))
+            .filter(word -> types.isSameType(boxed(word.type()), boxed(accessor.type())));
+    return Stream.concat(unpaired, words)
         .filter(other -> other.reads() != accessor.reads())
-        .filter(other -> !uncarried.containsKey(other.name()) && !offered.contains(other.name()))
-        .filter(other -> processingEnv.getTypeUtils().isSameType(other.type(), accessor.type()))
-        .map(other -> Map.entry(other, ProcessorUtils.editDistance(accessor.name(), other.name())))
+        .filter(other -> !offered.contains(other.name()))
+        .map(
+            other ->
+                Map.entry(other, ProcessorUtils.editDistance(accessor.name(), spelledName(other))))
         .filter(near -> near.getValue() < ProcessorUtils.NEAR_MISS)
         .min(Map.Entry.comparingByValue())
         .map(Map.Entry::getKey);
+  }
+
+  /** The name an accessor spells: a builder's {@code setaway(String)} spells {@code away}. */
+  private static String spelledName(WireShape.UnpairedAccessor accessor) {
+    return accessor.role() == WireShape.UnpairedAccessor.Role.BUILDER_SETTER
+            && accessor.name().equals(accessor.method())
+        ? BeanPropertyAnalyser.spelledAfterSet(accessor.method()).orElse(accessor.name())
+        : accessor.name();
   }
 
   /**
@@ -2339,28 +2366,54 @@ public class MappingProcessor extends AbstractProcessor {
         addPartner(bean, accessor, sparse)
             + refusal
                 .partner()
-                .map(
-                    other ->
-                        " Or, if "
-                            + other.signature()
-                            + " is meant to "
-                            + (accessor.reads() ? "write" : "read")
-                            + " '"
-                            + name
-                            + "', rename it "
-                            + other.renamedFor(name)
-                            + ".")
+                .map(other -> partnerRename(accessor, other, sparse))
                 .orElse(
-                    (accessor.reads() && readable.getAsBoolean()
-                            ? readOnlyOffer(spec, accessor)
-                            : "")
-                        + (sparse
-                            ? " Or, if clients must not change " + component
-                            : " Or, if "
-                                + accessor.signature()
-                                + " is not meant to carry "
-                                + component)
-                        + unmappedOffer(spec, accessor)));
+                    // A keyword, as a rename to 'default' gives, can name no marker.
+                    !SourceVersion.isName(name)
+                        ? ""
+                        : (accessor.reads() && readable.getAsBoolean()
+                                ? readOnlyOffer(spec, accessor)
+                                : "")
+                            + (sparse
+                                ? " Or, if clients must not change " + component
+                                : " Or, if "
+                                    + accessor.signature()
+                                    + " is not meant to carry "
+                                    + component)
+                            + unmappedOffer(spec, refusal.component(), accessor)));
+  }
+
+  /**
+   * The rename that pairs an unpaired accessor with its likely misspelling: after the accessor's
+   * property, and at the type {@link #addPartner} offers where the misspelling declares another, as
+   * a word that differs by boxing alone does.
+   */
+  private String partnerRename(
+      WireShape.UnpairedAccessor accessor, WireShape.UnpairedAccessor other, boolean sparse) {
+    String name = accessor.name();
+    String meant =
+        " Or, if "
+            + other.signature()
+            + " is meant to "
+            + (accessor.reads() ? "write" : "read")
+            + " '"
+            + name
+            + "', ";
+    if (processingEnv.getTypeUtils().isSameType(other.type(), accessor.type())) {
+      return meant + "rename it " + other.renamedFor(name) + ".";
+    }
+    TypeMirror type =
+        sparse && accessor.type().getKind().isPrimitive()
+            ? boxed(accessor.type())
+            : accessor.type();
+    WireShape.UnpairedAccessor retyped =
+        new WireShape.UnpairedAccessor(
+            other.name(), other.method(), type, other.role(), other.inheritedFrom());
+    return meant
+        + "change it to "
+        + (other.reads() ? ProcessorUtils.simpleTypeName(type) + " " : "")
+        + retyped.renamedFor(name)
+        + ".";
   }
 
   /**
@@ -2396,9 +2449,26 @@ public class MappingProcessor extends AbstractProcessor {
    * annotated where it is a marker, and replaced where it has a body, which a marker cannot have. A
    * method with a body that a mix-in declares may serve another spec, such as the leaf a mapping
    * sharing the mix-in converts the component through, so it moves to the specs that use it rather
-   * than being replaced in the mix-in.
+   * than being replaced in the mix-in. A {@code @MapField} rename the spec declares onto the
+   * accessor's name binds or is refused, so the marker that takes its target off the wire replaces
+   * it: beside it, the rename would name nothing on the wire.
    */
-  private String unmappedOffer(TypeElement spec, WireShape.UnpairedAccessor accessor) {
+  private String unmappedOffer(
+      TypeElement spec, String component, WireShape.UnpairedAccessor accessor) {
+    Optional<ExecutableElement> rename =
+        sameNamedMember(spec, component)
+            .filter(member -> declaredLocally(member, spec))
+            .filter(
+                member ->
+                    member.getAnnotation(MapField.class) != null
+                        && member.getAnnotation(MapField.class).to().equals(accessor.name()));
+    if (rename.isPresent()) {
+      return ", replace "
+          + memberIn(rename.get(), spec)
+          + " with "
+          + unmappedMarker(accessor)
+          + ".";
+    }
     return sameNamedMember(spec, accessor.name())
             .map(
                 existing ->
@@ -2782,7 +2852,7 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape.BeanProperty property,
       WireShape.WriteSite.CollectionAdd write) {
     boolean raw = ProcessorUtils.isRaw((DeclaredType) property.type());
-    String setter = "set" + ProcessorUtils.capitalise(property.name());
+    String setter = BeanPropertyAnalyser.setterName(property.name());
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,

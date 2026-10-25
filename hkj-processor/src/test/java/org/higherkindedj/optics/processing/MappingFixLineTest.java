@@ -1597,6 +1597,306 @@ class MappingFixLineTest {
     }
   }
 
+  /**
+   * A line that spells a bean accessor or a marker spells the one the mapping then reads: the
+   * setter of a property whose second letter is a capital, no marker a keyword would name, a marker
+   * that replaces the rename it would otherwise strand, and the near miss that was meant to pair.
+   */
+  @Nested
+  @DisplayName("an accessor or marker a refusal spells for a bean property")
+  class SpeltForTheProperty {
+
+    @Test
+    @DisplayName("is spelt as the mapping reads it, and names the method it passed over")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              import org.jspecify.annotations.Nullable;
+
+              record Contact(String name, List<String> eMails) {}
+              class ContactPatch {
+                private @Nullable String name;
+                private @Nullable List<String> eMails;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public List<String> geteMails() {
+                  if (eMails == null) { eMails = new ArrayList<>(); }
+                  return eMails;
+                }
+              }
+              @GenerateMapping
+              interface ContactPatchMapping extends UpdateSpec<Contact, ContactPatch> {}
+
+              class ContactModel {
+                private String name;
+                private List<? extends String> eMails = new ArrayList<>();
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<? extends String> geteMails() { return eMails; }
+              }
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactModel> {}
+
+              record Config(String name, String defaultValue) {}
+              class ConfigPatch {
+                private @Nullable String name;
+                private @Nullable String dflt;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public void setDefault(@Nullable String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigPatchMapping extends UpdateSpec<Config, ConfigPatch> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              class ConfigModel {
+                private String name;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getDefault() { return "on"; }
+              }
+              @GenerateMapping
+              interface ConfigMapping extends MappingSpec<Config, ConfigModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Trip(String away, String up) {}
+              class TripModel {
+                private String holiday;
+                private String up;
+                public void setHoliday(String holiday) { this.holiday = holiday; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface TripMapping extends MappingSpec<Trip, TripModel> {
+                @MapField(to = "holiday")
+                String away();
+              }
+
+              record Tour(String away, String up) {}
+              final class TourModel {
+                private final String away;
+                private final String up;
+                private TourModel(Builder builder) {
+                  this.away = builder.away;
+                  this.up = builder.up;
+                }
+                public String getAway() { return away; }
+                public String getUp() { return up; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String away;
+                  private String up;
+                  public Builder setaway(String away) { this.away = away; return this; }
+                  public Builder up(String up) { this.up = up; return this; }
+                  public TourModel build() { return new TourModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface TourMapping extends MappingSpec<Tour, TourModel> {}
+
+              record Point(Integer x, Integer y) {}
+              class PointPatch {
+                private Integer x;
+                private Integer y;
+                public Integer getX() { return x; }
+                public void setx(int x) { this.x = x; }
+                public Integer getY() { return y; }
+                public void setY(Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(7);
+      assertThat(compilation).hadErrorContaining("Give 'eMails' a seteMails setter, and let");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "give 'eMails' a seteMails setter, which takes the property as declared.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "would never reach 'Config.defaultValue' (renamed to 'default'), and nothing would"
+                  + " say so. Add String getDefault() to 'ConfigPatch'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "build would never write it. Add setDefault(String) to 'ConfigModel'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add String getHoliday() to 'TripModel'. Or, if setHoliday(String) is not meant to"
+                  + " carry 'Trip.away', replace 'away()' with '@Unmapped String holiday();'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add a setter for 'away' taking String to the builder of 'TourModel'. Or, if"
+                  + " setaway(String) is meant to write 'away', rename it away(String).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setX(Integer) to 'PointPatch'. Or, if setx(int) is meant to write 'x', change"
+                  + " it to setX(Integer).");
+      Assertions.assertThat(compilation.errors().toString())
+          .doesNotContain("setEMails")
+          .doesNotContain("default();");
+    }
+
+    @Test
+    @DisplayName("each line it offers maps the property once followed")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              import org.jspecify.annotations.Nullable;
+
+              record Contact(String name, List<String> eMails) {}
+              class ContactPatch {
+                private @Nullable String name;
+                private @Nullable List<String> eMails;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable List<String> geteMails() { return eMails; }
+                public void seteMails(@Nullable List<String> eMails) { this.eMails = eMails; }
+              }
+              @GenerateMapping
+              interface ContactPatchMapping extends UpdateSpec<Contact, ContactPatch> {}
+
+              record Config(String name, String defaultValue) {}
+              class ConfigPatch {
+                private @Nullable String name;
+                private @Nullable String dflt;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable String getDefault() { return dflt; }
+                public void setDefault(@Nullable String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigPatchMapping extends UpdateSpec<Config, ConfigPatch> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              class ConfigModel {
+                private String name;
+                private String dflt;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getDefault() { return dflt; }
+                public void setDefault(String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigMapping extends MappingSpec<Config, ConfigModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Trip(String away, String up) {}
+              class TripModel {
+                private String holiday;
+                private String up;
+                public void setHoliday(String holiday) { this.holiday = holiday; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface TripMapping extends MappingSpec<Trip, TripModel> {
+                @Unmapped String holiday();
+              }
+
+              record Tour(String away, String up) {}
+              final class TourModel {
+                private final String away;
+                private final String up;
+                private TourModel(Builder builder) {
+                  this.away = builder.away;
+                  this.up = builder.up;
+                }
+                public String getAway() { return away; }
+                public String getUp() { return up; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String away;
+                  private String up;
+                  public Builder away(String away) { this.away = away; return this; }
+                  public Builder up(String up) { this.up = up; return this; }
+                  public TourModel build() { return new TourModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface TourMapping extends MappingSpec<Tour, TourModel> {}
+
+              record Point(Integer x, Integer y) {}
+              class PointPatch {
+                private Integer x;
+                private Integer y;
+                public Integer getX() { return x; }
+                public void setX(Integer x) { this.x = x; }
+                public Integer getY() { return y; }
+                public void setY(Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
+
+              final class Probe {
+                static Object contact() {
+                  ContactPatch patch = new ContactPatch();
+                  patch.setName("Ada");
+                  return ContactPatchMappingImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Contact("Bo", List.of("bo@example.com")));
+                }
+
+                static Object config() {
+                  ConfigPatch patch = new ConfigPatch();
+                  patch.setDefault("off");
+                  return ConfigPatchMappingImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Config("flags", "on"));
+                }
+
+                static Object configBuilt() {
+                  return Validated.validNel(
+                      ConfigMappingImpl.INSTANCE.build(new Config("flags", "on")).getDefault());
+                }
+
+                static Object trip() {
+                  return Validated.validNel(
+                      TripMappingImpl.INSTANCE.build(new Trip("Lisbon", "north")).getUp());
+                }
+
+                static Object tour() {
+                  return TourMappingImpl.INSTANCE.parse(
+                      TourMappingImpl.INSTANCE.build(new Tour("Lisbon", "north")));
+                }
+
+                static Object point() {
+                  PointPatch patch = new PointPatch();
+                  patch.setX(3);
+                  return PointPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Point(1, 2));
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "contact"))
+          .hasValueSatisfying(
+              contact -> contact.toString().equals("Contact[name=Ada, eMails=[bo@example.com]]"),
+              "the contact, its e-mails unchanged");
+      assertThatValidated(probe(result, "config"))
+          .hasValueSatisfying(
+              config -> config.toString().equals("Config[name=flags, defaultValue=off]"),
+              "the config, its default updated");
+      assertThatValidated(probe(result, "configBuilt")).hasValue("on");
+      assertThatValidated(probe(result, "trip")).hasValue("north");
+      assertThatValidated(probe(result, "tour"))
+          .hasValueSatisfying(
+              tour -> tour.toString().equals("Tour[away=Lisbon, up=north]"),
+              "the tour, through the renamed builder setter");
+      assertThatValidated(probe(result, "point"))
+          .hasValueSatisfying(
+              point -> point.toString().equals("Point[x=3, y=2]"), "the point, its x updated");
+    }
+  }
+
   @Nested
   @DisplayName("a domain Optional against a plain wire component")
   class OptionalAgainstPlain {
