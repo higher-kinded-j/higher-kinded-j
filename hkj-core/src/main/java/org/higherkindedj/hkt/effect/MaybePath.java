@@ -308,7 +308,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof MaybePath<?> otherMaybe)) {
-      throw new IllegalArgumentException("Cannot zipWith non-MaybePath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(MaybePath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -360,8 +360,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof MaybePath<?> maybePath)) {
-      throw new IllegalArgumentException(
-          "via mapper must return MaybePath, got: " + result.getClass());
+      throw PathTypeMismatch.VIA.exception(MaybePath.class, result);
     }
 
     @SuppressWarnings("unchecked")
@@ -381,8 +380,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof MaybePath<?> maybePath)) {
-      throw new IllegalArgumentException(
-          "then supplier must return MaybePath, got: " + result.getClass());
+      throw PathTypeMismatch.THEN.exception(MaybePath.class, result);
     }
 
     @SuppressWarnings("unchecked")
