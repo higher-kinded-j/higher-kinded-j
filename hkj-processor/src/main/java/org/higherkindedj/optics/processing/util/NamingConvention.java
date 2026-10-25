@@ -19,11 +19,12 @@ import java.util.stream.Stream;
  * same value or a near miss, follows only this one, since a method of another kind can compile in
  * the call and quietly do something else.
  *
- * <p>{@link #ACCESSOR} is also the order a field's accessor is paired by, and {@link #WITHER} what
- * decides which {@code @ViaCopyAndSet} setter has its result handed back and which method
- * {@code @ImportOptics} reads as a wither; the others serve only what a diagnostic offers. {@link
- * #hasPrefix} tells a getter, setter or wither from a word that starts like one, such as {@code
- * withdraw}.
+ * <p>{@link #ACCESSOR} is also the order a field's accessor is paired by, {@linkplain #of(String,
+ * String) then spelt as a wither writes the field} where {@code @ImportOptics} pairs one with a
+ * wither, and {@link #WITHER} what decides which {@code @ViaCopyAndSet} setter has its result
+ * handed back and which method {@code @ImportOptics} reads as a wither; the others serve only what
+ * a diagnostic offers. {@link #hasPrefix} tells a getter, setter or wither from a word that starts
+ * like one, such as {@code withdraw}.
  *
  * @since 0.5.0
  */
@@ -73,6 +74,28 @@ public enum NamingConvention {
    */
   public List<String> of(String name) {
     return spellings(Objects.requireNonNull(name, "name"), prefixes);
+  }
+
+  /**
+   * The spellings of {@code name} in this convention, as {@link #of} gives them, then each prefix
+   * before {@code writtenAs}, the name as another method writes it after its own prefix, where that
+   * adds a spelling. A wither {@code witheMail} writes {@code eMail} as JavaBeans does, so its
+   * accessor is {@code eMail}, {@code getEMail} or {@code isEMail}, then {@code geteMail} or {@code
+   * iseMail}; a wither {@code withEMail} writes it as {@link #of} spells it, and adds nothing. The
+   * bare name is never respelt.
+   *
+   * @param name the bare name, a field's; must not be null
+   * @param writtenAs the name as another method writes it after its prefix; must not be null
+   * @return the spellings (non-null)
+   * @since 0.5.1
+   */
+  public List<String> of(String name, String writtenAs) {
+    Objects.requireNonNull(writtenAs, "writtenAs");
+    return Stream.concat(
+            of(name).stream(),
+            prefixes.stream().filter(prefix -> !prefix.isEmpty()).map(prefix -> prefix + writtenAs))
+        .distinct()
+        .toList();
   }
 
   /**

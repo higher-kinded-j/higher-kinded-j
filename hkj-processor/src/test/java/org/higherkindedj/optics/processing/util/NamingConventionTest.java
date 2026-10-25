@@ -35,9 +35,21 @@ class NamingConventionTest {
   }
 
   @Test
+  @DisplayName("a name as another method writes it is spelt after of's spellings, bare name aside")
+  void spellsAsAnotherMethodWritesIt() {
+    assertThat(NamingConvention.ACCESSOR.of("eMail", "eMail"))
+        .containsExactly("eMail", "getEMail", "isEMail", "geteMail", "iseMail");
+    // Written as capitalising writes it, the name adds nothing, and the bare name is not respelt.
+    assertThat(NamingConvention.ACCESSOR.of("eMail", "EMail"))
+        .isEqualTo(NamingConvention.ACCESSOR.of("eMail"));
+  }
+
+  @Test
   @DisplayName("a null name is refused")
   void nullIsRefused() {
     assertThatNullPointerException().isThrownBy(() -> NamingConvention.ACCESSOR.of(null));
+    assertThatNullPointerException().isThrownBy(() -> NamingConvention.ACCESSOR.of(null, "name"));
+    assertThatNullPointerException().isThrownBy(() -> NamingConvention.ACCESSOR.of("name", null));
     assertThatNullPointerException()
         .isThrownBy(() -> NamingConvention.ACCESSOR.sameValueAmong(null, List.of()));
     assertThatNullPointerException().isThrownBy(() -> NamingConvention.WITHER.spells(null));

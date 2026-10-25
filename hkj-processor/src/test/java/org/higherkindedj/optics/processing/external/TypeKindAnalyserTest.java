@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.external;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -442,6 +443,154 @@ class TypeKindAnalyserTest {
           .containsExactly("limit", "eMail");
       // The mutable guard counts any void set method, so it errs towards refusing.
       assertThat(analysis.hasMutableFields()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a wither pairs with a getter spelt as JavaBeans spells it, and withURL sets uRL")
+    void witherPairsWithAJavaBeansGetter() {
+      // geteMail and witheMail are the pair Lombok's beanspec capitalisation writes for 'eMail'.
+      // withURL sets 'uRL', its first letter in lower case, and not the 'URL' JavaBeans reads.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Contact",
+              """
+              package com.test;
+
+              public final class Contact {
+                  private final String eMail;
+                  private final String url;
+
+                  public Contact(String eMail, String url) {
+                      this.eMail = eMail;
+                      this.url = url;
+                  }
+
+                  public String geteMail() { return eMail; }
+                  public String getURL() { return url; }
+
+                  public Contact witheMail(String eMail) { return new Contact(eMail, url); }
+                  public Contact withURL(String url) { return new Contact(eMail, url); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Contact", source);
+
+      assertThat(analysis.witherMethods())
+          .extracting(WitherInfo::fieldName, WitherInfo::getterMethodName)
+          .containsExactly(tuple("eMail", "geteMail"), tuple("uRL", "getURL"));
+    }
+
+    @Test
+    @DisplayName("a JavaBeans getter pairs only with a wither spelt the same way")
+    void javaBeansGetterPairsOnlyWithAWitherSpeltTheSameWay() {
+      // JavaBeans reads geteMail and withEMail as two properties, eMail and EMail, and here they
+      // are two fields: pairing them would read one and set the other.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Pair",
+              """
+              package com.test;
+
+              public final class Pair {
+                  private final String eMail;
+                  private final String EMail;
+
+                  public Pair(String eMail, String EMail) {
+                      this.eMail = eMail;
+                      this.EMail = EMail;
+                  }
+
+                  public String geteMail() { return eMail; }
+
+                  public Pair withEMail(String v) { return new Pair(eMail, v); }
+                  public Pair witheMail(String v) { return new Pair(v, EMail); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Pair", source);
+
+      assertThat(analysis.witherMethods())
+          .extracting(WitherInfo::witherMethodName, WitherInfo::getterMethodName)
+          .containsExactly(tuple("witheMail", "geteMail"));
+      assertThat(analysis.withersLeftOut()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("of two withers for one field, the one whose getter the rule prefers is generated")
+    void twoWithersForOneFieldGenerateThePreferredGetter() {
+      // The bare name ranks first, so eMail() is preferred to geteMail() though witheMail is
+      // declared first.
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Ranked",
+              """
+              package com.test;
+
+              public final class Ranked {
+                  private final int n;
+                  private final String mail;
+
+                  public Ranked(int n, String mail) {
+                      this.n = n;
+                      this.mail = mail;
+                  }
+
+                  public int eMail() { return n; }
+                  public String geteMail() { return mail; }
+
+                  public Ranked witheMail(String mail) { return new Ranked(n, mail); }
+                  public Ranked withEMail(int n) { return new Ranked(n, mail); }
+              }
+              """);
+
+      TypeAnalysis analysis = analyseType("com.test.Ranked", source);
+
+      assertThat(analysis.witherMethods())
+          .extracting(WitherInfo::witherMethodName, WitherInfo::getterMethodName)
+          .containsExactly(tuple("withEMail", "eMail"));
+      assertThat(analysis.withersLeftOut())
+          .extracting(leftOut -> leftOut.skipped().getterMethodName())
+          .containsExactly("geteMail");
+    }
+
+    @Test
+    @DisplayName("two withers the ranks leave tied are told apart by name, not declaration order")
+    void withersTheRanksLeaveTiedAreToldApartByName() {
+      // The Kelvin sign lower-cases to an ASCII k, so a wither spelt with it reaches the field
+      // kMail as withkMail does, and both pair with getKMail() at one rank. Neither is spelt as
+      // WITHER spells the field, withKMail with an ASCII K, so only the name tells them apart.
+      String ascii = "public KMail withkMail(String m) { return new KMail(m); }";
+      String kelvin =
+          "public KMail with"
+              + Character.toString(0x212A)
+              + "Mail(String m) { return new KMail(m); }";
+
+      assertThat(keptWither(ascii, kelvin)).isEqualTo("withkMail");
+      assertThat(keptWither(kelvin, ascii)).isEqualTo("withkMail");
+    }
+
+    /** The one wither a KMail class declaring the given withers, in that order, is analysed to. */
+    private String keptWither(String first, String second) {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.KMail",
+              """
+              package com.test;
+
+              public final class KMail {
+                  private final String m;
+                  public KMail(String m) { this.m = m; }
+                  public String getKMail() { return m; }
+                  %s
+                  %s
+              }
+              """
+                  .formatted(first, second));
+
+      TypeAnalysis analysis = analyseType("com.test.KMail", source);
+
+      assertThat(analysis.witherMethods()).hasSize(1);
+      return analysis.witherMethods().getFirst().witherMethodName();
     }
   }
 

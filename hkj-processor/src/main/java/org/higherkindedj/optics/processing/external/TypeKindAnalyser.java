@@ -140,9 +140,11 @@ public class TypeKindAnalyser {
     }
 
     // One lens per field name: a class that spells its getter more than one way has a wither for
-    // each, and the pair whose getter the rule prefers is the one generated. The choice is made
-    // over all of a field's withers before any is reported, so that what the notes say is what
-    // was generated however many spellings there are.
+    // each, and the pair whose getter the rule prefers is the one generated. A class that spells
+    // the wither both ways, withEMail and witheMail, can have two for one getter, and then the
+    // wither the rule prefers is generated. The choice is made over all of a field's withers before
+    // any is reported, so that what the notes say is what was generated however many spellings
+    // there are.
     Map<String, List<WitherInfo>> byField = new LinkedHashMap<>();
     for (WitherInfo wither : detected) {
       byField.computeIfAbsent(wither.fieldName(), field -> new ArrayList<>()).add(wither);
@@ -151,11 +153,15 @@ public class TypeKindAnalyser {
     List<TypeAnalysis.LeftOutWither> leftOut = new ArrayList<>();
     byField.forEach(
         (field, candidates) -> {
-          // Each rank stands for one getter spelling, and a wither with no getter never reaches
-          // here, so exactly one candidate is lowest.
+          // A wither with no getter never reaches here, and two withers of one field are named
+          // differently, so the name settles what the ranks leave tied and exactly one candidate
+          // is lowest.
           WitherInfo kept =
               candidates.stream()
-                  .min(Comparator.comparingInt(TypeKindAnalyser::getterRank))
+                  .min(
+                      Comparator.comparingInt(TypeKindAnalyser::getterRank)
+                          .thenComparingInt(TypeKindAnalyser::witherRank)
+                          .thenComparing(WitherInfo::witherMethodName))
                   .orElseThrow();
           witherMethods.add(kept);
           candidates.stream()
@@ -190,13 +196,42 @@ public class TypeKindAnalyser {
   }
 
   /**
-   * How far down the spellings of {@link NamingConvention#ACCESSOR} a wither's getter is, in the
+   * How far down its {@linkplain #getterSpellings getter spellings} a wither's getter is, in the
    * order the pairing rule prefers them. Two withers that reach one field name are told apart by
    * it, so which lens is generated does not depend on the order the class declares its members in.
-   * The getter is always one of the spellings, since that is what paired it.
+   * Every wither's spellings start with {@link NamingConvention#ACCESSOR}'s, so the ranks of two
+   * withers' getters compare. The getter is always one of the spellings, since that is what paired
+   * it.
    */
   private static int getterRank(WitherInfo wither) {
-    return NamingConvention.ACCESSOR.of(wither.fieldName()).indexOf(wither.getterMethodName());
+    return getterSpellings(wither.fieldName(), wither.witherMethodName())
+        .indexOf(wither.getterMethodName());
+  }
+
+  /**
+   * 0 where a wither is spelt as {@link NamingConvention#WITHER} spells its field, {@code
+   * withEMail}, and 1 otherwise, as for the JavaBeans {@code witheMail}. Two withers that pair with
+   * one getter are told apart by it, for the same reason as {@link #getterRank}.
+   */
+  private static int witherRank(WitherInfo wither) {
+    return NamingConvention.WITHER.of(wither.fieldName()).contains(wither.witherMethodName())
+        ? 0
+        : 1;
+  }
+
+  /**
+   * The getters a wither pairs with, in the order the pairing rule prefers them: {@link
+   * NamingConvention#ACCESSOR}'s spellings of the field, then {@code get} and {@code is} before the
+   * field as the wither writes it after {@code with}. Only a JavaBeans {@code witheMail} adds any,
+   * {@code geteMail} and {@code iseMail}, and they come last, so every pair the capitalised
+   * spellings form still forms, and with the same wither generated. A {@code withEMail} adds none,
+   * so it never pairs with a {@code geteMail}, which on a class with both an {@code eMail} and an
+   * {@code EMail} field reads the other. A {@code witheMail} pairs with a {@code getEMail} ahead of
+   * a {@code geteMail}, though, and on such a class reads the other field too.
+   */
+  private static List<String> getterSpellings(String fieldName, String witherName) {
+    return NamingConvention.ACCESSOR.of(
+        fieldName, NamingConvention.WITHER.withoutPrefix(witherName));
   }
 
   /**
@@ -261,7 +296,8 @@ public class TypeKindAnalyser {
       }
 
       // Find corresponding getter method
-      String getterName = findGetterMethod(classElement, fieldName, method.getParameters().get(0));
+      String getterName =
+          findGetterMethod(classElement, fieldName, methodName, method.getParameters().get(0));
       if (getterName == null) {
         continue; // No getter found, skip this wither
       }
@@ -324,17 +360,22 @@ public class TypeKindAnalyser {
     return false;
   }
 
+  /**
+   * The field a wither sets, which the lens is named after: what follows {@code with}, its first
+   * letter in lower case. {@code withYear} gives {@code year}, {@code witheMail} and {@code
+   * withEMail} both give {@code eMail}, and {@code withURL} gives {@code uRL}, where JavaBeans
+   * would read {@code URL}.
+   */
   private String extractFieldName(String witherMethodName) {
-    // withYear -> year, withDayOfMonth -> dayOfMonth
     String afterWith = witherMethodName.substring(4);
     return afterWith.substring(0, 1).toLowerCase(Locale.ROOT) + afterWith.substring(1);
   }
 
   private String findGetterMethod(
-      TypeElement classElement, String fieldName, VariableElement witherParam) {
+      TypeElement classElement, String fieldName, String witherName, VariableElement witherParam) {
     TypeMirror expectedType = witherParam.asType();
 
-    List<String> getterCandidates = NamingConvention.ACCESSOR.of(fieldName);
+    List<String> getterCandidates = getterSpellings(fieldName, witherName);
 
     // The spellings are tried in order, so a class that declares more than one of them pairs
     // through the same spelling whichever order its members are read in.
