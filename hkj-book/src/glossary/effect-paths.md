@@ -31,6 +31,18 @@ var program =
 
 ---
 
+## CompletableFuturePath
+
+**Definition:** A path over Java's `CompletableFuture<A>`: asynchronous work that completes with a value or fails with an exception. It adds recovery, timeouts and retry to the future. `join()` waits for the result, and `run()` returns the underlying future.
+
+**Factories:** `Path.future(future)`, `Path.futureCompleted(value)`, `Path.futureFailed(exception)` and `Path.futureAsync(supplier)`.
+
+**Operations:** `map`, `via`, `recover`, `withTimeout`, `completeOnTimeout`, `race` and `withRetry`.
+
+**Related:** [CompletableFuture Monad](../monads/cf_monad.md), [Migration Cookbook (Recipe 4)](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath), [Path](#path), [VTaskPath](#vtaskpath), [Retry](concurrency.md#retry)
+
+---
+
 ## @ComposeEffects
 
 **Definition:** An annotation processor that generates composition infrastructure for multiple effect algebras: `Inject` instances, a composed `Functor`, and a `BoundSet` for program construction. Annotate a record whose fields are declared `Class<XOp<?>>`, each naming an `@EffectAlgebra`.
@@ -285,6 +297,18 @@ public record PaymentEffects(
 
 ---
 
+## EitherOrBothPath
+
+**Definition:** A path over `EitherOrBoth<L, A>`: a success that can also carry non-fatal warnings. A `Left` is fatal, a `Right` is clean, and a `Both` is a value with warnings.
+
+**Factories:** `Path.right(value, semigroup)`, `Path.left(error, semigroup)` and `Path.both(warnings, value, semigroup)`. The shortcuts `Path.rightNel(value)`, `Path.leftNel(error)` and `Path.bothNel(warning, value)` use a `NonEmptyList` for the warnings.
+
+**Operations:** `map`, `via`, `warnings()`, `isBoth()`, `toEitherPathDroppingWarnings()` and `toEitherPathFailingOnWarnings()`.
+
+**Related:** [EitherOrBothPath documentation](../effect/path_either_or_both.md), [Path](#path), [EitherOrBoth](data-effects.md#eitherorboth), [Semigroup](type-classes.md#semigroup)
+
+---
+
 ## EitherPath
 
 **Definition:** A path over `Either<E, A>` for a computation that succeeds with a value or fails with a typed error `E`. The first failure stops the chain, and `run()` returns the `Either`.
@@ -397,6 +421,18 @@ public class IOConsoleInterpreter extends ConsoleOpInterpreter<IOKind.Witness> {
 **When to Use:** Write one interpreter per effect algebra per execution mode. A production interpreter targets `IO`; a test interpreter targets `Id` for pure, synchronous execution.
 
 **Related:** [foldMap](#foldmap), [Effect Algebra](#effect-algebra)
+
+---
+
+## IOPath
+
+**Definition:** A path over `IO<A>`: a side effect that is described now and run later. Nothing happens until `unsafeRun()` is called. `run()` returns the underlying `IO` without running it.
+
+**Factories:** `Path.io(supplier)`, `Path.ioRunnable(runnable)`, `Path.ioPure(value)` and `Path.ioPath(io)`.
+
+**Operations:** `map`, `via`, `handleError`, `guarantee`, `withRetry` and `withTimeout`.
+
+**Related:** [IOPath documentation](../effect/path_io.md), [Path](#path), [IO](data-effects.md#io), [Retry](concurrency.md#retry), [Bracket Pattern](concurrency.md#bracket-pattern)
 
 ---
 
@@ -694,6 +730,18 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execu
 **Two channels, kept apart:** a business failure travels in the value channel as `Left`, whilst an unexpected defect stays on the `VTask` channel. The outcome-aware structured-concurrency combinators (`firstSuccess`, `allSucceed`, `allSucceedAccumulating`, `withTimeout`, `bracketOutcome`) preserve that split, and the `with*` resilience combinators are railway-aware.
 
 **Related:** [VResultPath](../effect/path_vresult.md), [Path](#path), [Railway-Oriented Programming](#railway-oriented-programming), [Either](data-effects.md#either), [Resilience Combinators](concurrency.md#resilience-combinators)
+
+---
+
+## VTaskPath
+
+**Definition:** A path over `VTask<A>`: a deferred computation that runs on a virtual thread. It suits I/O-bound work that needs to scale. `unsafeRun()` runs it, `runAsync()` returns a future, and `run()` returns the underlying `VTask`.
+
+**Factories:** `Path.vtask(callable)`, `Path.vtaskExec(runnable)`, `Path.vtaskPure(value)`, `Path.vtaskFail(throwable)` and `Path.vtaskPath(vtask)`.
+
+**Operations:** `map`, `via`, `handleError`, `timeout`, `withRetry`, `withCircuitBreaker` and `withBulkhead`.
+
+**Related:** [VTaskPath documentation](../effect/path_vtask.md), [Path](#path), [VResultPath](#vresultpath), [Virtual Thread](concurrency.md#virtual-thread), [Resilience Combinators](concurrency.md#resilience-combinators)
 
 ---
 
