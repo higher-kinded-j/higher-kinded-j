@@ -33,6 +33,8 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`has a wildcard type argument`, `has a raw Either`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened SPI container, such as `Either`, is raw or has a wildcard |
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
+| [`cannot share its class name`](#generatefocus-navigator-shares-class-name) | A record that writes `generateNavigators = true` has two fields whose names differ only in the case of their first letter |
+| [`has its class name`](#generatefocus-no-navigator-shared-name) | **Note.** The same clash, on a record that leaves navigators to the default: the later field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`has no AffineForm`, `has no TraversalForm`](#generatefocus-no-form) | **Note.** A record that writes `generateNavigators = true` reaches a record with a field named like a wider path's own method, so a hop from that path returns the plain path |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
@@ -459,6 +461,56 @@ record Signatory(FullName name) {}
 
 ```
 Note: @GenerateFocus: record component 'Signatory.name' has no navigator into FullName. A navigator is a FocusPath, which has its own last(), so it cannot navigate to 'FullName.last', and SignatoryFocus.name() keeps the path it has without one. Rename 'FullName.last' to navigate into FullName, or add excludeFields = "name" to @GenerateFocus on Signatory to keep the path without this note.
+```
+~~~
+
+### "@GenerateFocus: the navigator for 'X.y' cannot share its class name with 'X.z'" {#generatefocus-navigator-shares-class-name}
+
+`X` writes `generateNavigators = true`, and two of its fields that reach `@GenerateFocus` records have names that differ only in the case of their first letter, such as `pouches` and `Pouches`. A navigator class takes its field's name with the first letter in upper case, so both would be `PouchesNavigator`. The first field in declaration order keeps the navigator, and the message is at the later one.
+
+**Fix.** Rename either field, or keep the later one a plain path, as the message says: add it to `excludeFields`, or remove it from `includeFields`.
+
+~~~admonish note title="Why" collapsible=true
+Both classes would be nested in the record's `Focus` class, which cannot hold two classes of one name, so javac would report the second as already defined, in a file you cannot edit. The first field keeps its navigator, so a field added after it never takes that navigator away. A record that leaves navigators to the default draws [a note](#generatefocus-no-navigator-shared-name) instead.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "the navigator for 'Satchel.Pouches' cannot share its class name with 'Satchel.pouches'" -->
+```java
+@GenerateFocus
+record Pouch(String label, int grams) {}
+
+@GenerateFocus(generateNavigators = true)
+record Satchel(List<Pouch> pouches, List<Pouch> Pouches) {}
+```
+
+```
+error: @GenerateFocus: the navigator for 'Satchel.Pouches' cannot share its class name with 'Satchel.pouches'. 'Satchel.pouches' already has the navigator class PouchesNavigator, and a navigator for 'Pouches' would take the same name, since a navigator class takes its field's name with the first letter in upper case. Rename 'Satchel.Pouches' or 'Satchel.pouches', or add excludeFields = "Pouches" to @GenerateFocus on Satchel to keep 'Pouches' a plain path.
+```
+~~~
+
+### "@GenerateFocus: record component 'X.y' has no navigator, because 'X.z' has its class name" (a note) {#generatefocus-no-navigator-shared-name}
+
+`X` leaves navigators to the default, and `z`, declared before `y`, has a name that differs from `y`'s only in the case of its first letter. `z`'s navigator already has the class name `y`'s would take, as the [entry before](#generatefocus-navigator-shares-class-name) explains, so `y` keeps the path it has without one.
+
+**Fix.** Rename either field to give both a navigator. To keep the plain path and silence the note, add `y` to `excludeFields` on `X`, as the note says.
+
+~~~admonish note title="Why" collapsible=true
+A record that leaves the default asked for no navigator in particular, so the later field keeps the path it would have with navigators off, rather than failing the build. A record that writes `generateNavigators = true` is refused instead, by the entry before this one.
+~~~
+
+~~~admonish example title="A declaration that draws it" collapsible=true
+<!-- verify:reports "record component 'Satchel.Pouches' has no navigator, because 'Satchel.pouches' has its class name" -->
+```java
+@GenerateFocus
+record Pouch(String label, int grams) {}
+
+@GenerateFocus
+record Satchel(List<Pouch> pouches, List<Pouch> Pouches) {}
+```
+
+```
+Note: @GenerateFocus: record component 'Satchel.Pouches' has no navigator, because 'Satchel.pouches' has its class name. 'Satchel.pouches' already has the navigator class PouchesNavigator, and a navigator for 'Pouches' would take the same name, since a navigator class takes its field's name with the first letter in upper case. SatchelFocus.Pouches() keeps the path it has without one. Rename 'Satchel.Pouches' or 'Satchel.pouches' to give both a navigator, or add excludeFields = "Pouches" to @GenerateFocus on Satchel to keep the path without this note.
 ```
 ~~~
 

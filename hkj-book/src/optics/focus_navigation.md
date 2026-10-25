@@ -246,7 +246,7 @@ Where this lives: [Which fields get a navigator](#which-fields-get-a-navigator).
 
 ## The fine print {#the-fine-print}
 
-The rest of this page is detail for an unusual field or build. It covers an SPI container, a list you take apart, a record in another module, and the annotation's navigator options. Then come a field named like a path method, a target with type parameters, where a `@Nullable` counts, and the rules by which a path widens.
+The rest of this page is detail for an unusual field or build. It covers an SPI container, a list you take apart, a record in another module, and the annotation's navigator options. Then come a field named like a path method, two fields with one navigator name, a target with type parameters, where a `@Nullable` counts, and the rules by which a path widens.
 
 ### `.some(Affine)`: navigate SPI container types {#someaffine-navigate-spi-container-types}
 
@@ -341,6 +341,10 @@ Set one list or the other. Beside a non-empty `includeFields`, `excludeFields` i
 ### A field named like a path method {#a-field-named-like-a-path-method}
 
 A navigator already has its path's methods, so it cannot navigate to a field named like one that takes no arguments, such as `last`, `head` or `segments`. On a record that leaves navigators to the default, the field that reaches such a record keeps its plain path, with a note; on one that writes `generateNavigators = true`, the processor refuses it. [Compiler Messages](compiler_errors.md#generatefocus-navigator-cannot-navigate) gives both and their fixes. A `Map` or other container of such records that the record leaves unwidened gets [a note](compiler_errors.md#generatefocus-no-navigator-over-elements) asking for the field to be renamed before it is widened. A field named like a method that takes arguments, such as `get` or `count`, navigates as usual. A navigator's form for a wider path follows the same rule. A navigator into a record with a field named `headOption`, which only a `TraversalPath` has, has no `TraversalForm`, so a hop into that record from a list returns the plain path. The record that declares the field reaching it gets [a note](compiler_errors.md#generatefocus-no-form) naming the field to rename, if it writes `generateNavigators = true`.
+
+### Two fields with one navigator name {#two-fields-with-one-navigator-name}
+
+A navigator class takes its field's name with the first letter in upper case. So two fields whose names differ only in that letter's case, such as `pouches` and `Pouches`, would name one class, `PouchesNavigator`, where both reach `@GenerateFocus` records. The first in declaration order keeps the navigator. On a record that leaves navigators to the default, the later one keeps its plain path, with [a note](compiler_errors.md#generatefocus-no-navigator-shared-name); on one that writes `generateNavigators = true`, the processor [refuses it](compiler_errors.md#generatefocus-navigator-shares-class-name). Rename either field, or keep the later one a plain path with `excludeFields`.
 
 ### A target with type parameters {#a-target-with-type-parameters}
 

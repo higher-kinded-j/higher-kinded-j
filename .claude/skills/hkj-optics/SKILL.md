@@ -139,6 +139,9 @@ container of such records draws a note asking for the rename before `widenFields
 target field named `headOption` or `toTraversal` leaves out the `TraversalForm`, and `toAffine` the
 `AffineForm`, so a hop into it from a wider path returns a plain path. The record declaring the
 field gets a note naming the field to rename, if it writes `generateNavigators = true`.
+Two fields whose names differ only in the case of their first letter, such as `items` and `Items`,
+would name one navigator class, so the first in declaration order keeps the navigator; the later
+one keeps its plain path, with a note on the default or an error under `generateNavigators = true`.
 
 The names in `includeFields`, `excludeFields` and `widenFields` are checked against the record's
 components: one that matches none is an error offering the component it meant. A list that changes

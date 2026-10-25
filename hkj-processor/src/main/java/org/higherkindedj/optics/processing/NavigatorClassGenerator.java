@@ -690,9 +690,11 @@ public class NavigatorClassGenerator {
    *
    * <p>A component reaches a navigator by being a navigable type itself, or by being a container of
    * one that the record widens, and in either case only when it gives that type a navigator can be
-   * instantiated with. Every site that asks — the navigator class, the method that returns it, and
-   * a navigation method composing it from another record — reads the answer from here, so they
-   * cannot disagree about which components have one.
+   * instantiated with. A reachable navigator is still declined where its target has a field named
+   * like one of the path's own methods, on a record that leaves navigators to the default, and
+   * where an earlier component's navigator already has its class name. Every site that asks — the
+   * navigator class, the method that returns it, and a navigation method composing it from another
+   * record — reads the answer from here, so they cannot disagree about which components have one.
    *
    * @param record the record that declares the component
    * @param component the component
@@ -700,9 +702,30 @@ public class NavigatorClassGenerator {
    */
   private Target navigatorTarget(TypeElement record, RecordComponentElement component) {
     Target target = reachableTarget(record, component);
-    return target == null || !declinedInheritedNames(record, component, target).isEmpty()
+    return target == null
+            || !declinedInheritedNames(record, component, target).isEmpty()
+            || sharedNavigatorName(record, component).isPresent()
         ? null
         : target;
+  }
+
+  /**
+   * The earlier component whose navigator class already has the name this component's would take: a
+   * navigator class takes its field's name with the first letter in upper case, so two components
+   * whose names differ only in that letter's case name the same class. The first in declaration
+   * order with a navigator keeps it, so a component added after another never takes its navigator
+   * away. Only the declaring record's own components are read, so a record is judged as its own
+   * companion was generated.
+   */
+  private Optional<RecordComponentElement> sharedNavigatorName(
+      TypeElement record, RecordComponentElement component) {
+    List<RecordComponentElement> components = List.copyOf(record.getRecordComponents());
+    String className = navigatorClassName(component);
+    return components.stream()
+        .limit(components.indexOf(component))
+        .filter(earlier -> navigatorClassName(earlier).equals(className))
+        .filter(earlier -> navigatorTarget(record, earlier) != null)
+        .findFirst();
   }
 
   /**
@@ -2190,6 +2213,98 @@ public class NavigatorClassGenerator {
             + " to keep the path without this note.");
   }
 
+  /**
+   * Says why a component's method keeps its plain path. Where {@link #navigatorTarget} declined a
+   * navigator the component could reach, the rule that declined it is named; otherwise a container
+   * the record left whole may be. The declaration pass reaches each component once, here, so each
+   * is told once.
+   */
+  private void reportPlainPath(TypeElement record, RecordComponentElement component) {
+    Target reachable = reachableTarget(record, component);
+    if (reachable == null) {
+      noteUnwidenedContainer(record, component);
+      return;
+    }
+    List<String> declined = declinedInheritedNames(record, component, reachable);
+    if (!declined.isEmpty()) {
+      noteInheritedNamesDeclined(record, component, reachable, declined);
+      return;
+    }
+    reportSharedNavigatorName(
+        record, component, sharedNavigatorName(record, component).orElseThrow());
+  }
+
+  /**
+   * Reports a component whose navigator class would take the name of an earlier component's: an
+   * error where the record writes {@code generateNavigators = true}, and otherwise a note, the
+   * component keeping its plain path either way.
+   */
+  private void reportSharedNavigatorName(
+      TypeElement record, RecordComponentElement component, RecordComponentElement earlier) {
+    String recordName = record.getSimpleName().toString();
+    String name = component.getSimpleName().toString();
+    String earlierName = earlier.getSimpleName().toString();
+    String explanation =
+        "'"
+            + recordName
+            + "."
+            + earlierName
+            + "' already has the navigator class "
+            + navigatorClassName(earlier)
+            + ", and a navigator for '"
+            + name
+            + "' would take the same name, since a navigator class takes its field's name with the"
+            + " first letter in upper case.";
+    String rename =
+        "Rename '" + recordName + "." + name + "' or '" + recordName + "." + earlierName;
+    if (writesAttribute(record, "generateNavigators")) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          component,
+          "@GenerateFocus",
+          "the navigator for '"
+              + recordName
+              + "."
+              + name
+              + "' cannot share its class name with '"
+              + recordName
+              + "."
+              + earlierName
+              + "'.",
+          explanation,
+          rename
+              + "', or "
+              + keepPlainPath(record, name)
+              + " to keep '"
+              + name
+              + "' a plain path.");
+    } else {
+      Diagnostics.note(
+          processingEnv.getMessager(),
+          component,
+          "@GenerateFocus",
+          "record component '"
+              + recordName
+              + "."
+              + name
+              + "' has no navigator, because '"
+              + recordName
+              + "."
+              + earlierName
+              + "' has its class name.",
+          explanation
+              + " "
+              + focusClassOf(record).simpleName()
+              + "."
+              + name
+              + "() keeps the path it has without one.",
+          rename
+              + "' to give both a navigator, or "
+              + keepPlainPath(record, name)
+              + " to keep the path without this note.");
+    }
+  }
+
   /** Whether a record's {@code @GenerateFocus} writes the named attribute out. */
   private static boolean writesAttribute(TypeElement record, String attribute) {
     return record.getAnnotationMirrors().stream()
@@ -2219,14 +2334,9 @@ public class NavigatorClassGenerator {
     // A component whose type reaches a navigable one it can instantiate a navigator for — directly,
     // or as the element of a container its method steps into — gets this navigator method in place
     // of the plain path method.
-    Target target = reachableTarget(recordElement, component);
-    List<String> declined =
-        target == null ? List.of() : declinedInheritedNames(recordElement, component, target);
-    if (target == null || !declined.isEmpty()) {
-      noteUnwidenedContainer(recordElement, component);
-      if (!declined.isEmpty()) {
-        noteInheritedNamesDeclined(recordElement, component, target, declined);
-      }
+    Target target = navigatorTarget(recordElement, component);
+    if (target == null) {
+      reportPlainPath(recordElement, component);
       return null; // Not navigable, filtered out, or declined: use the standard method
     }
 

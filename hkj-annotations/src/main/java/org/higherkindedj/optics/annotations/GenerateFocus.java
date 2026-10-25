@@ -119,6 +119,11 @@ public @interface GenerateFocus {
    *       {@code headOption} on a {@code TraversalPath}, and a hop that would need it returns a
    *       plain path. The record declaring the field is told so, with a note, if it writes {@code
    *       generateNavigators = true}.
+   *   <li>A navigator class takes its field's name with the first letter in upper case, so of two
+   *       fields whose names differ only in that letter's case, such as {@code items} and {@code
+   *       Items}, only the first in declaration order gets one. A record that writes {@code
+   *       generateNavigators = true} is refused at the later field; one that leaves the default
+   *       keeps that field's plain path, with a note.
    * </ul>
    *
    * @return true to generate navigators, false for plain paths only (default: true, since 0.5.0)

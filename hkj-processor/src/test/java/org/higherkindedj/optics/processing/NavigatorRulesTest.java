@@ -18,8 +18,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * A generated navigator extends the hkj-core base for its tier, so it is a path. A container's
- * element gets one only where the record widens the container, and a field named like a path method
- * is refused. Each fix line the processor offers is followed here and compiles.
+ * element gets one only where the record widens the container, a field named like a path method is
+ * refused, and of two fields whose navigator classes would share a name the first keeps its
+ * navigator. Each fix line the processor offers is followed here and compiles.
  */
 @DisplayName("Navigator rules and their fix lines")
 class NavigatorRulesTest {
@@ -53,6 +54,7 @@ class NavigatorRulesTest {
         package com.example;
         import java.util.List;
         import java.util.Map;
+        import java.util.Optional;
         import org.higherkindedj.optics.annotations.GenerateFocus;
         import org.jspecify.annotations.Nullable;
         """
@@ -198,6 +200,160 @@ class NavigatorRulesTest {
 
               public record Person(Name name, Other other) {}
               """);
+    }
+  }
+
+  @Nested
+  @DisplayName("Two fields whose navigator classes would share a name")
+  class SharedClassName {
+
+    @ParameterizedTest(name = "{0} beside {1}")
+    @CsvSource(
+        delimiterString = " | ",
+        textBlock =
+            """
+            List<Item> items | Item Items | ItemsNavigator<Dup> items() | FocusPath<Dup, Item> Items()
+            List<Item> items | Optional<Item> Items | ItemsNavigator<Dup> items() | AffinePath<Dup, Item> Items()
+            Item item | Item Item | ItemNavigator<Dup> item() | FocusPath<Dup, Item> Item()
+            Item Items | List<Item> items | ItemsNavigator<Dup> Items() | TraversalPath<Dup, Item> items()
+            """)
+    @DisplayName(
+        "leaves the later field a plain path with a note, where navigators are the default")
+    void isDeclinedWithANoteOnTheDefault(
+        String first, String later, String navigator, String plainPath) {
+      String earlierName = first.substring(first.indexOf(' ') + 1);
+      String laterName = later.substring(later.indexOf(' ') + 1);
+      JavaFileObject dup = dup("@GenerateFocus", first, later);
+      Compilation noted = javac().withProcessors(new FocusProcessor()).compile(ITEM, dup);
+
+      assertThat(noted).succeededWithoutWarnings();
+      assertThat(noted)
+          .hadNoteContaining(
+              "record component 'Dup."
+                  + laterName
+                  + "' has no navigator, because 'Dup."
+                  + earlierName
+                  + "' has its class name. 'Dup."
+                  + earlierName
+                  + "' already has the navigator class "
+                  + navigator.substring(0, navigator.indexOf('<'))
+                  + ", and a navigator for '"
+                  + laterName
+                  + "' would take the same name, since a navigator class takes its field's name"
+                  + " with the first letter in upper case. DupFocus."
+                  + laterName
+                  + "() keeps the path it has without one. Rename 'Dup."
+                  + laterName
+                  + "' or 'Dup."
+                  + earlierName
+                  + "' to give both a navigator, or add excludeFields = \""
+                  + laterName
+                  + "\" to @GenerateFocus on Dup to keep the path without this note.")
+          .inFile(dup)
+          .onLineContaining(later);
+      Assertions.assertThat(noted.notes())
+          .filteredOn(note -> note.getMessage(null).contains("has its class name"))
+          .hasSize(1);
+      assertGeneratedCodeContains(noted, "com.example.DupFocus", "public static " + navigator);
+      assertGeneratedCodeContains(noted, "com.example.DupFocus", "public static " + plainPath);
+
+      Compilation followed =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(
+                  ITEM, dup("@GenerateFocus(excludeFields = \"" + laterName + "\")", first, later));
+      assertThat(followed).succeededWithoutWarnings();
+      Assertions.assertThat(followed.notes())
+          .noneMatch(note -> note.getMessage(null).contains("already has the navigator class"));
+      assertGeneratedCodeContains(followed, "com.example.DupFocus", "public static " + navigator);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " | ",
+        textBlock =
+            """
+            @GenerateFocus(generateNavigators = true) | add excludeFields = "Items" to @GenerateFocus on Dup | @GenerateFocus(generateNavigators = true, excludeFields = "Items")
+            @GenerateFocus(generateNavigators = true, includeFields = {"items", "Items"}) | remove "Items" from includeFields on Dup | @GenerateFocus(generateNavigators = true, includeFields = "items")
+            """)
+    @DisplayName("is refused, where the record asks for navigators, with a fix line that compiles")
+    void isRefusedWithAFollowableFixLine(String annotation, String fix, String followed) {
+      JavaFileObject dup = dup(annotation, "List<Item> items", "Item Items");
+      Compilation refused = javac().withProcessors(new FocusProcessor()).compile(ITEM, dup);
+
+      assertThat(refused).failed();
+      assertThat(refused).hadErrorCount(1);
+      assertThat(refused)
+          .hadErrorContaining(
+              "the navigator for 'Dup.Items' cannot share its class name with 'Dup.items'."
+                  + " 'Dup.items' already has the navigator class ItemsNavigator, and a navigator"
+                  + " for 'Items' would take the same name, since a navigator class takes its"
+                  + " field's name with the first letter in upper case. Rename 'Dup.Items' or"
+                  + " 'Dup.items', or "
+                  + fix
+                  + " to keep 'Items' a plain path.")
+          .inFile(dup)
+          .onLineContaining("Item Items");
+
+      Compilation fixed =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(ITEM, dup(followed, "List<Item> items", "Item Items"));
+      assertThat(fixed).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          fixed, "com.example.DupFocus", "public static ItemsNavigator<Dup> items()");
+      assertGeneratedCodeContains(
+          fixed, "com.example.DupFocus", "public static FocusPath<Dup, Item> Items()");
+    }
+
+    @Test
+    @DisplayName("composes the earlier navigator and the later plain path from another record")
+    void composesFromAnotherRecord() {
+      JavaFileObject holder =
+          record(
+              "Holder",
+              """
+              @GenerateFocus
+              public record Holder(Dup dup) {}
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(ITEM, dup("@GenerateFocus", "List<Item> items", "Item Items"), holder);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.example.HolderFocus", "DupFocus.ItemsNavigator<S> items()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.HolderFocus", "public FocusPath<S, Item> Items()");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiterString = " | ",
+        textBlock =
+            """
+            String items | not navigable
+            Name items | declined for a field named like a path method
+            """)
+    @DisplayName("gives the later field the navigator where the earlier one has none")
+    void anEarlierFieldWithoutANavigatorLeavesTheName(String first, String reason) {
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .compile(NAME, ITEM, dup("@GenerateFocus", first, "Item Items"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(compilation.notes())
+          .as(reason)
+          .noneMatch(note -> note.getMessage(null).contains("already has the navigator class"));
+      assertGeneratedCodeContains(
+          compilation, "com.example.DupFocus", "public static ItemsNavigator<Dup> Items()");
+    }
+
+    private static JavaFileObject dup(String annotation, String first, String later) {
+      return record(
+          "Dup", annotation + "\npublic record Dup(\n    " + first + ",\n    " + later + ") {}\n");
     }
   }
 
