@@ -285,7 +285,20 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(s -> Path.right(s.length())))
-          .withMessageContaining("via mapper must return MaybePath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected MaybePath but mapper returned EitherPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("via() names a VStreamPath result by its interface")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void viaNamesVStreamPathResult() {
+      MaybePath<String> path = Path.just(TEST_VALUE);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.via(s -> Path.vstreamOf(s.length())))
+          .withMessageContaining("expected MaybePath but mapper returned VStreamPath.");
     }
 
     @Test
@@ -332,7 +345,20 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(() -> Path.right(42)))
-          .withMessageContaining("then supplier must return MaybePath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected MaybePath but supplier returned EitherPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names a VTaskPath result by its interface")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenNamesVTaskPathResult() {
+      MaybePath<String> path = Path.just(TEST_VALUE);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.then(() -> Path.vtaskPure(42)))
+          .withMessageContaining("expected MaybePath but supplier returned VTaskPath.");
     }
   }
 
@@ -408,7 +434,9 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(eitherPath, (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-MaybePath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected MaybePath but other was EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
