@@ -73,10 +73,10 @@ Collection fields and sealed interfaces use the same annotation-driven pattern. 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:round}}
 ```
 
-`OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. It is a navigator, as `customer()` is in section 1, so `.price()` zooms each element down to the price field. `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
+`OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each(EachInstances.listEach())` for you, so it hands back a path focused on a `LineItem`, not on the list. It is a navigator, as `customer()` is in section 1, so `.price()` zooms each element down to the price field. `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
 
-~~~admonish warning title="Do not add your own `.each()`"
-`OrderFocus.lines().each()` compiles and then fails at run time. The extra `each()` tries to read a `LineItem` as a `List`; its type parameter is inferred from whatever you assign it to, which is why the compiler lets it through. `TraversalPath.each()` is for a focus that is *itself* a list, and its javadoc documents the `ClassCastException`.
+~~~admonish warning title="Do not add your own `each`"
+`OrderFocus.lines().each(EachInstances.listEach())` does not compile: the path already focuses a `LineItem`, and a `LineItem` is not a `List`. The deprecated no-argument `.each()` does compile, because its element type is inferred from whatever you assign it to, and then fails at run time with a `ClassCastException`.
 ~~~
 
 **Match a variant, and move to another.** A consignment's state is a sealed interface, and `@GeneratePrisms` writes one prism per variant:
@@ -152,7 +152,7 @@ Where this lives: [Sum types and collections, the same way](#2-sum-types-and-col
 ~~~admonish info title="Key Takeaways"
 * **The annotations generate plain Java at compile time.** `XLenses`, `XFocus`, `XPrisms` and `XTraversals` are ordinary classes you call with ordinary method chains. Nothing here uses runtime reflection.
 * **`@GenerateLenses` and `@GenerateFocus` are the pair to reach for.** Lenses give you `withFoo` and the classic optics; Focus gives you the path DSL, whose navigators let a hop into another record chain as a method call.
-* **A collection accessor is already element-level.** `OrderFocus.lines()` focuses a `LineItem`, because the generated method ends in `.each()` for you. Adding another `.each()` compiles and then fails at run time.
+* **A collection accessor is already element-level.** `OrderFocus.lines()` focuses a `LineItem`, because the generated method ends in `.each(EachInstances.listEach())` for you. Adding another does not compile.
 * **A prism rebuilds the variant it narrowed to.** `modify` is `A -> A`, so it cannot turn a `Pending` into a `Dispatched`; that is a read through the prism followed by building the new variant.
 * **Types you do not own join the same vocabulary.** An `OpticsSpec` interface plus `@ImportOptics` generates optics for `JsonNode`, JOOQ records or JDK types, and they compose with everything else.
 ~~~

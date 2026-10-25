@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
  * <p>Tests the {@code traverseOver()} method across FocusPath, AffinePath, and TraversalPath.
  */
 @DisplayName("Traverse Integration with Focus DSL")
+@SuppressWarnings("removal") // exercises the deprecated shortcuts until their removal
 class TraverseIntegrationTest {
 
   // Test domain types

@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
-import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.jspecify.annotations.Nullable;
 
@@ -10,17 +9,15 @@ import org.jspecify.annotations.Nullable;
  * An {@link Each} whose elements carry a meaningful index, with the index type {@code I} fixed at
  * the type level.
  *
- * <p>This is the type-safe successor to {@link Each#eachWithIndex()}. That method let the caller
- * choose the index type {@code <I>} freely even though the underlying traversal's index type is
- * fixed, so a mismatched request compiled but failed at runtime with a {@link ClassCastException}.
- * {@code EachIndexed} instead exposes the underlying {@link IndexedTraversal} directly through
- * {@link #indexedTraversal()}, so the index type is checked at compile time. This mirrors {@link
- * At} and {@link Ixed}, which also carry their index type at the type level.
+ * <p>{@link #indexedTraversal()} returns an {@link IndexedTraversal} whose index type is {@code I},
+ * so a wrong index type is a compile error. This mirrors {@link At} and {@link Ixed}, which also
+ * carry their index type at the type level. {@link Each#supportsIndexed()} shows how code holding a
+ * plain {@link Each} reaches it.
  *
  * <pre>{@code
  * EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
  *
- * // Index type is Integer, checked at compile time — no Optional, no cast.
+ * // Index type is Integer, checked at compile time.
  * IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
  *
  * List<String> numbered = IndexedTraversals.imodify(
@@ -55,19 +52,5 @@ public interface EachIndexed<I, S extends @Nullable Object, A extends @Nullable 
   @Override
   default Traversal<S, A> each() {
     return indexedTraversal().asTraversal();
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @deprecated since 0.4.7, for removal in 0.5.0. Use {@link #indexedTraversal()} — it carries the
-   *     index type {@code I} at the type level, so an incorrect index type is a compile error
-   *     rather than a runtime {@link ClassCastException}.
-   */
-  @Override
-  @Deprecated(since = "0.4.7", forRemoval = true)
-  @SuppressWarnings({"unchecked", "removal"}) // deprecated bridge; prefer indexedTraversal()
-  default <J> Optional<IndexedTraversal<J, S, A>> eachWithIndex() {
-    return Optional.of((IndexedTraversal<J, S, A>) indexedTraversal());
   }
 }

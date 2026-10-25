@@ -36,9 +36,9 @@ Each call in the third column takes the source after the function or value, as `
 | `Getter`, and `to f` | `Getter` | `Getter`, and `Getter.to(f)` |
 | `Setter'`, and `sets f` | `Setter` | `Setter`, and `Setter.of(f)` for `sets f` |
 | `Iso'`, `iso f g` and `from` | `Iso`, and `reverse` | `Iso.of(get, reverseGet)`, and `reverse()` |
-| `each`, from the `Each` class | `each`, from `Each` | `each()` on an `Each` instance such as `EachInstances.listEach()`, or `.each()` on a path |
+| `each`, from the `Each` class | `each`, from `Each` | `each()` on an `Each` instance such as `EachInstances.listEach()`, or `.each(EachInstances.listEach())` on a path |
 | `at k`, from `At`: a lens onto a `Maybe` | `at(i)`, from `At` | `at(i)` on an `At` instance such as `AtInstances.mapAt()`: a lens onto an `Optional` |
-| `ix i`, from `Ixed`: a traversal | `index(i)`, from `Index`: an `Optional` | `ix(i)` on an `Ixed` instance such as `IxedInstances.listIx()`: a traversal; on a `FocusPath`, `.at(i)` or `.atKey(k)` gives an `AffinePath` |
+| `ix i`, from `Ixed`: a traversal | `index(i)`, from `Index`: an `Optional` | `ix(i)` on an `Ixed` instance such as `IxedInstances.listIx()`: a traversal; on a `FocusPath`, `.via(FocusPaths.listAt(i))` or `.via(FocusPaths.mapAt(k))` gives an `AffinePath` |
 | `makeLenses`, `makePrisms` | `GenLens`, `GenPrism`, `Focus`, and `@Lenses` in Scala 2 | `@GenerateLenses`, `@GeneratePrisms`, `@GenerateFocus` |
 
 Monocle's `Optional` is this library's `Affine`, a name chosen so it never reads as `java.util.Optional`.
@@ -131,7 +131,7 @@ As `makeLenses` and Monocle's `GenLens` do, an annotation processor writes the o
 1. **Start from a Focus path, not a raw optic.** `OrderFocus.customer().email()` is the `Focus` you know. It is a path, whose `.via(...)` takes a lens, prism, affine, iso or traversal.
 2. **Write `modify` where you mean the `set` of `lens`.** An affine's `set` may write to an absent focus, and `modify` never does.
 3. **Pass the effect's instance yourself.** `modifyF` takes the `Applicative` as an argument; for validation, `OpticOps.modifyAllValidated` needs none.
-4. **Index the list, not the traversal.** `.at(0)` on a path that focuses the list, such as `FocusPath.of(OrderLenses.lines())`, writes one element. On a `TraversalPath` of lines it indexes into each line instead, and fails when run.
+4. **Index the list, not the traversal.** `.via(FocusPaths.listAt(0))` on a path that focuses the list, such as `FocusPath.of(OrderLenses.lines())`, writes one element. On a `TraversalPath` of lines it does not compile, because each focus is a line rather than a list.
 5. **Check hand-written optics with `hkj-test`.** `LensLaws`, `PrismLaws`, `AffineLaws`, `TraversalLaws` and `IsoLaws` state the laws you already know.
 
 **The code on this page is [FromMonocleBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/comingfrom/FromMonocleBook.java) and its [FromMonocleBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/optics/comingfrom/FromMonocleBookTest.java)**: the page includes the first, and the test holds each difference this page states about the library.

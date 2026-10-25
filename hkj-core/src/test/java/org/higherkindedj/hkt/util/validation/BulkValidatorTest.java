@@ -214,47 +214,20 @@ class BulkValidatorTest {
   @Nested
   @DisplayName("KindValidator.narrowHolder")
   class NarrowHolder {
+    // Holder fixtures, so narrowHolder is called directly rather than through a KindHelper.
+    interface FixtureWitness extends WitnessArity<TypeArity.Unary> {}
+
+    record FixtureHolder(String value) implements Kind<FixtureWitness, String> {}
+
+    record OtherHolder(String value) implements Kind<FixtureWitness, String> {}
+
     @Test
     void unwrapsViaAccessor() {
-      var either = Either.<String, Integer>right(42);
-      var kind = EITHER.widen(either);
+      Kind<FixtureWitness, String> kind = new FixtureHolder("hello");
 
-      // Use real EITHER.narrow exercising narrowHolder under the hood
-      Either<String, Integer> result = EITHER.narrow(kind);
-
-      assertThat(result).isEqualTo(either);
-    }
-
-    @Test
-    void throwsForNullKind() {
-      assertThatExceptionOfType(KindUnwrapException.class)
-          .isThrownBy(() -> EITHER.narrow(null))
-          .withMessageContaining("narrow")
-          .withMessageContaining("null");
-    }
-  }
-
-  // Fixture types for exercising the deprecated narrowWithPattern method directly,
-  // since the 12 KindHelpers have all migrated to narrowHolder.
-  interface FixtureWitness extends WitnessArity<TypeArity.Unary> {}
-
-  record FixtureHolder<A>(A value) implements Kind<FixtureWitness, A> {}
-
-  record OtherHolder<A>(A value) implements Kind<FixtureWitness, A> {}
-
-  @Nested
-  @DisplayName("KindValidator.narrowWithPattern (deprecated)")
-  @SuppressWarnings({"removal", "unchecked", "rawtypes"})
-  class NarrowWithPattern {
-
-    private final Class<FixtureHolder> holderClass = FixtureHolder.class;
-
-    @Test
-    void unwrapsViaExtractor() {
-      Kind<FixtureWitness, String> kind = new FixtureHolder<>("hello");
-
-      Object result =
-          Validation.KIND.narrowWithPattern(kind, Object.class, holderClass, FixtureHolder::value);
+      String result =
+          Validation.kind()
+              .narrowHolder(kind, String.class, FixtureHolder.class, FixtureHolder::value);
 
       assertThat(result).isEqualTo("hello");
     }
@@ -264,22 +237,22 @@ class BulkValidatorTest {
       assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(
               () ->
-                  Validation.KIND.narrowWithPattern(
-                      null, Object.class, holderClass, FixtureHolder::value))
-          .withMessageContaining("narrow")
-          .withMessageContaining("null");
+                  Validation.kind()
+                      .narrowHolder(null, String.class, FixtureHolder.class, FixtureHolder::value))
+          .withMessage("Cannot narrow null Kind for String");
     }
 
     @Test
     void throwsForWrongHolderType() {
-      Kind<FixtureWitness, String> wrongKind = new OtherHolder<>("hello");
+      Kind<FixtureWitness, String> wrongKind = new OtherHolder("hello");
 
       assertThatExceptionOfType(KindUnwrapException.class)
           .isThrownBy(
               () ->
-                  Validation.KIND.narrowWithPattern(
-                      wrongKind, Object.class, holderClass, FixtureHolder::value))
-          .withMessageContaining("OtherHolder");
+                  Validation.kind()
+                      .narrowHolder(
+                          wrongKind, String.class, FixtureHolder.class, FixtureHolder::value))
+          .withMessage("Kind instance cannot be narrowed to String (received: OtherHolder)");
     }
   }
 

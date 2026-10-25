@@ -1443,8 +1443,8 @@ class NullableFocusNullnessTest {
     @Test
     @DisplayName("@GenerateFocus: a navigator into a generic record with a nullable type argument")
     void focusNavigatesIntoANullableTypeArgument() {
-      // The navigator's type arguments are written out: a widening ending in the no-argument
-      // .each() or .some() gives a diamond nothing to infer the nullable argument from.
+      // The navigator's type arguments are written out, so the nullable argument is the one the
+      // static method declares, whatever a diamond would infer.
       Compilation compilation =
           compileChecked(
               List.of(new FocusProcessor()),
@@ -1584,6 +1584,138 @@ class NullableFocusNullnessTest {
                       TraversalPath<Crate, String> row = CrateFocus.row().name();
                       TraversalPath<Crate, String> byName = CrateFocus.byName().name();
                       List<String> read = row.getAll(crate);
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("@GenerateFocus: a nullable raw or wildcard container, outer or inner")
+    void focusCastsANullableWildcardContainer() {
+      // The instance cast to a wildcard container is cast to it without the @Nullable: the step
+      // before has ruled the null out, so the path focuses the container without it.
+      Compilation compilation =
+          compileChecked(
+              List.of(new FocusProcessor()),
+              source(
+                  "com.example.Leaf",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus
+                  public record Leaf(String name) {}
+                  """),
+              source(
+                  "com.example.Bin",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.list.ListKind;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.jspecify.annotations.Nullable;
+
+                  @GenerateFocus
+                  public record Bin(
+                      @Nullable List<? extends Leaf> leaves,
+                      List<@Nullable List<? extends Leaf>> rows,
+                      @Nullable Optional<? extends Leaf> spare,
+                      List<@Nullable Optional<? extends Leaf>> pending,
+                      @Nullable Kind<ListKind.Witness, ? extends Leaf> kinds) {}
+                  """),
+              source(
+                  "com.example.BinUses",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.optics.focus.AffinePath;
+                  import org.higherkindedj.optics.focus.TraversalPath;
+
+                  class BinUses {
+                    static void use(Bin bin) {
+                      TraversalPath<Bin, Leaf> leaves = BinFocus.leaves();
+                      TraversalPath<Bin, Leaf> rows = BinFocus.rows();
+                      AffinePath<Bin, Leaf> spare = BinFocus.spare();
+                      TraversalPath<Bin, Leaf> pending = BinFocus.pending();
+                      TraversalPath<Bin, Leaf> kinds = BinFocus.kinds();
+                      List<Leaf> all = leaves.getAll(bin);
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("@GenerateFocus: a nullable raw or wildcard Maybe, Set or Collection")
+    void focusCastsANullableWildcardMaybeSetOrCollection() {
+      // An Optional or a Maybe holds no null, so the instance cast to one with a nullable bound is
+      // typed for the bound without its @Nullable; a Set or a Collection keeps it.
+      Compilation compilation =
+          compileChecked(
+              List.of(new FocusProcessor()),
+              source(
+                  "com.example.Leaf",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus
+                  public record Leaf(String name) {}
+                  """),
+              source(
+                  "com.example.Crate",
+                  """
+                  package com.example;
+
+                  import java.util.Collection;
+                  import java.util.List;
+                  import java.util.Optional;
+                  import java.util.Set;
+                  import org.higherkindedj.hkt.maybe.Maybe;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+                  import org.jspecify.annotations.Nullable;
+
+                  @GenerateFocus
+                  public record Crate(
+                      @Nullable Set<? extends Leaf> bag,
+                      List<@Nullable Set<? extends Leaf>> bags,
+                      @Nullable Maybe<? extends Leaf> spare,
+                      List<@Nullable Maybe<?>> pending,
+                      @Nullable Collection<? extends Leaf> pile,
+                      Set<? extends @Nullable String> labels,
+                      Maybe<? extends @Nullable String> note,
+                      Optional<? extends @Nullable String> memo) {}
+                  """),
+              source(
+                  "com.example.CrateUses",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.higherkindedj.optics.focus.AffinePath;
+                  import org.higherkindedj.optics.focus.TraversalPath;
+                  import org.jspecify.annotations.Nullable;
+
+                  class CrateUses {
+                    static void use(Crate crate) {
+                      TraversalPath<Crate, Leaf> bag = CrateFocus.bag();
+                      TraversalPath<Crate, Leaf> bags = CrateFocus.bags();
+                      AffinePath<Crate, Leaf> spare = CrateFocus.spare();
+                      TraversalPath<Crate, Object> pending = CrateFocus.pending();
+                      TraversalPath<Crate, Leaf> pile = CrateFocus.pile();
+                      TraversalPath<Crate, @Nullable String> labels = CrateFocus.labels();
+                      AffinePath<Crate, String> note = CrateFocus.note();
+                      AffinePath<Crate, String> memo = CrateFocus.memo();
+                      List<Leaf> all = bag.getAll(crate);
                     }
                   }
                   """));

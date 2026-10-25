@@ -63,7 +63,7 @@ Index into a collection from the path that still focuses it, then keep navigatin
 ```java
 Optional<String> firstEmail =
     FocusPath.of(OrgChartLenses.units())
-        .<OrgUnit>at(0)
+        .via(FocusPaths.listAt(0))
         .via(OrgUnitFocus.members())
         .via(OrgMemberFocus.email())
         .preview(company);
@@ -71,7 +71,7 @@ Optional<String> firstEmail =
 String email = firstEmail.orElse("nobody@example.com");
 ```
 
-Two details earn their place. `.at(0)` needs its element type spelled out, because nothing in the argument list mentions `OrgUnit`. And `.at(0)` yields an `AffinePath`, which composing with a traversal widens back out, so the read is `preview` (the first focus, if any) rather than `getOptional`.
+`FocusPaths.listAt(0)` takes `OrgUnit` from the list the path focuses on, so nothing needs spelling out. It yields an `AffinePath`, which composing with a traversal widens back out, so the read is `preview` (the first focus, if any) rather than `getOptional`.
 
 ### Pattern 3: Validation Across a Traversal
 
@@ -197,23 +197,14 @@ Java takes the witness from the `Traverse` argument, but the element type only f
 List<Role> roles = rolesPath.traverseOver(ListTraverse.INSTANCE).getAll(user);
 ```
 
-Assigned to a declared `TraversalPath`, both type arguments are inferred:
+Widen through `each(EachInstances.fromTraverse(...))` instead. It takes the element type from the `Kind` the path focuses on, so it holds in a chain:
 
 <!-- verify -->
 ```java
-TraversalPath<Operator, Role> allRoles = rolesPath.traverseOver(ListTraverse.INSTANCE);
-List<Role> roles = allRoles.getAll(user);
+List<Role> roles = rolesPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE)).getAll(user);
 ```
 
-In a chain, supply both type arguments:
-
-<!-- verify -->
-```java
-List<Role> roles =
-    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE).getAll(user);
-```
-
-The same holds for any generic call whose result nothing pins, such as `Instances.validated(Semigroups.<String>list())` at the head of a chain. [Common Compiler Errors](compiler_errors.md#traverseover-and-the-higher-kinded-witness-type) has the entry for the message.
+`traverseOver` is deprecated for removal in 0.6.0. The same inference gap holds for any generic call whose result nothing pins, such as `Instances.validated(Semigroups.<String>list())` at the head of a chain. [Common Compiler Errors](compiler_errors.md#traverseover-and-the-higher-kinded-witness-type) has the entry for the message.
 
 ### "Incompatible types" on a long chain
 
@@ -235,14 +226,14 @@ Check, in order: whether an `AffinePath` in the chain actually matches (`matches
 
 ## FAQ
 
-### When should I use `each()` versus `traverseOver()`?
+### Which `Each` does a field need? {#when-should-i-use-each-versus-traverseover}
 
 | Field is | Use |
 |----------|-----|
-| `List<T>` | `each()`, already applied by the generated method |
-| `Set<T>`, `Collection<T>` | `each(EachInstances.setEach())` / `each(EachInstances.collectionEach())`, already applied by the generated method; the no-argument `each()` is `List`-only |
+| `List<T>` | `each(EachInstances.listEach())`, already applied by the generated method |
+| `Set<T>`, `Collection<T>` | `each(EachInstances.setEach())` / `each(EachInstances.collectionEach())`, already applied by the generated method |
 | `Kind<F, T>` on a `@GenerateFocus` record | nothing: the processor generates the traversal |
-| `Kind<F, T>` behind a hand-written lens | `traverseOver(SomeTraverse.INSTANCE)` |
+| `Kind<F, T>` behind a hand-written lens | `each(EachInstances.fromTraverse(SomeTraverse.INSTANCE))`; `traverseOver` is deprecated |
 
 ### Why pass `Instances.monadError(maybe())` to `modifyF()` rather than an Applicative?
 
@@ -262,12 +253,12 @@ Yes. Navigate as far as the generated paths go, then `.via()` a hand-written or 
 
 In order of preference:
 
-1. **Model the absence as `Optional<T>`.** The generated method applies `.some()` and hands you an `AffinePath`, with no extra step at all.
+1. **Model the absence as `Optional<T>`.** The generated method applies `.some(FocusPaths.optionalSome())` and hands you an `AffinePath`, with no extra step at all.
 2. **Annotate the component `@Nullable`.** Any of the six recognised annotations will do, wherever that annotation's own `@Target` puts it, and the generated method applies `.nullable()` for you.
 3. **Chain `.nullable()`** on the generated `FocusPath`. It turns null into an empty focus.
 4. **Build the path with `AffinePath.ofNullable(getter, setter)`** when there is no generated companion to start from.
 
-Two rules govern the annotated form. A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each()`, and a null list has no elements. A nullable container inside another is ruled out the same way, and a navigator passes over a null element it would read. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
+Two rules govern the annotated form. A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())`, and a null list has no elements. A nullable container inside another is ruled out the same way, and a navigator passes over a null element it would read. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
 
 ### Can I build Focus paths at runtime?
 

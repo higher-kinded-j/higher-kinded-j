@@ -15,8 +15,8 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
  * Demonstrates automatic Kind field support in the Focus DSL annotation processor.
  *
  * <p>This example shows how the {@code @GenerateFocus} annotation automatically generates
- * appropriate traversal code for {@code Kind<F, A>} fields, eliminating the need for manual {@code
- * traverseOver()} calls.
+ * appropriate traversal code for {@code Kind<F, A>} fields, so none of them needs widening by hand
+ * with {@code each(EachInstances.fromTraverse(...))}.
  *
  * <h2>Key Concepts</h2>
  *
@@ -37,7 +37,7 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
  *
  *     public static TraversalPath<Workstream, Member> members() {
  *         return FocusPath.of(...)
- *             .<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
+ *             .each(EachInstances.<ListKind.Witness, Member>fromTraverse(ListTraverse.INSTANCE));
  *     }
  * }
  * }</pre>
@@ -61,8 +61,8 @@ public class KindFieldFocusExample {
    * A team member with Kind-wrapped skills.
    *
    * <p>The {@code skills} field uses {@code Kind<ListKind.Witness, Skill>} to demonstrate
-   * HKT-wrapped collection support. The generated Focus class will automatically include {@code
-   * traverseOver()} for this field.
+   * HKT-wrapped collection support. The generated Focus class widens this field with {@code
+   * each(EachInstances.fromTraverse(ListTraverse.INSTANCE))}.
    */
   @GenerateFocus
   public record Member(String name, Kind<ListKind.Witness, Skill> skills) {}
@@ -111,7 +111,7 @@ public class KindFieldFocusExample {
                 List.of(new Skill("Java", 90), new Skill("Kotlin", 80), new Skill("Scala", 70))));
 
     // The generated MemberFocus.skills() returns TraversalPath<Member, Skill>
-    // This is automatically generated with traverseOver(ListTraverse.INSTANCE)
+    // This is automatically generated with each(EachInstances.fromTraverse(ListTraverse.INSTANCE))
     System.out.println("Member: " + alice.name());
 
     // Get all skills using the generated TraversalPath
@@ -149,7 +149,7 @@ public class KindFieldFocusExample {
             ListKindHelper.LIST.widen(List.of()));
 
     // The generated WorkstreamFocus.lead() returns AffinePath<Workstream, Member>
-    // This is automatically generated with traverseOver(MaybeTraverse.INSTANCE).headOption()
+    // Generated with each(EachInstances.fromTraverse(MaybeTraverse.INSTANCE)).headOption()
     System.out.println(
         "Workstream with lead - has lead: " + WorkstreamFocus.lead().matches(workstreamWithLead));
     System.out.println(

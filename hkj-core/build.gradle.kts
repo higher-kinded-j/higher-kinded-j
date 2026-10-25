@@ -47,11 +47,22 @@ tasks.javadoc {
   exclude("org/higherkindedj/example/**")
   (options as? CoreJavadocOptions)?.addStringOption("Xdoclint:none", "-quiet")
 }
+
+// Tests run under a fixed English locale, so their results do not depend on the machine's default
+// locale (a comma-decimal or Turkish locale would otherwise change %.2f and toUpperCase output).
+// To run the suite under another locale by hand: ./gradlew :hkj-core:test -PtestLocale=tr_TR
+// A test run from an IDE with its own runner bypasses this setting; IntelliJ should delegate test
+// runs to Gradle.
+val testLocale = providers.gradleProperty("testLocale").orElse("en_GB").get()
+val testLanguage = testLocale.substringBefore('_')
+val testCountry = testLocale.substringAfter('_', "")
+
 tasks.test {
   useJUnitPlatform()
   finalizedBy(tasks.jacocoTestReport)
   // Headroom for large-N stack-safety stress tests (e.g. 200,000-element traversals).
   maxHeapSize = "1g"
+  jvmArgs("-Duser.language=$testLanguage", "-Duser.country=$testCountry")
  // jvmArgs = listOf("--add-opens", "org.higherkindedj.hkj/org.higherkindedj.internal=ALL-UNNAMED")
 
   // Note: Parallel execution disabled due to:

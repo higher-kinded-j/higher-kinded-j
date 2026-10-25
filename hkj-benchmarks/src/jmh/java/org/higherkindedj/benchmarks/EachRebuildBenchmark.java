@@ -21,8 +21,8 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 /**
- * Modifying every element of a list through a Focus path's {@code each()}, and of an array through
- * {@code EachInstances.arrayEach()}.
+ * Modifying every element of a list through a Focus path's {@code each(EachInstances.listEach())},
+ * and of an array through {@code EachInstances.arrayEach()}.
  *
  * <p>The cost should grow with the number of elements. {@code BenchmarkAssertionsTest} compares the
  * two sizes: ten times the elements should cost about ten times as long, where a rebuild that
@@ -36,7 +36,8 @@ public class EachRebuildBenchmark {
   record Basket(List<Integer> items) {}
 
   private static final TraversalPath<Basket, Integer> ITEMS =
-      FocusPath.of(Lens.of(Basket::items, (basket, items) -> new Basket(items))).each();
+      FocusPath.of(Lens.of(Basket::items, (basket, items) -> new Basket(items)))
+          .each(EachInstances.listEach());
 
   private static final Traversal<Integer[], Integer> ARRAY =
       EachInstances.<Integer>arrayEach().each();

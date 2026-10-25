@@ -34,12 +34,11 @@ import org.junit.jupiter.params.provider.ValueSource;
  * Each container {@code @GenerateFocus} recognises by name reaches an optic that reads and rebuilds
  * it.
  *
- * <p>They do not share one: the no-argument {@code .each()} and {@code .some()} carry a {@code
- * List} traversal and an {@code Optional} affine, and cast the focused value to that type
- * unchecked, so a {@code Set}, a {@code Collection} or a {@code Maybe} routed through either
- * compiles and then throws on first use. A compile-testing assertion cannot see that, which is why
- * the reads and modifications below run the generated path and read the component back rather than
- * only reading the emitted source.
+ * <p>They do not share one: a {@code List} traversal or an {@code Optional} affine handed a {@code
+ * Set}, a {@code Collection} or a {@code Maybe} through an unchecked cast would compile and then
+ * throw on first use. A compile-testing assertion cannot see that, which is why the reads and
+ * modifications below run the generated path and read the component back rather than only reading
+ * the emitted source.
  */
 @DisplayName("Recognised container widening")
 class FocusRecognisedContainerTest {
@@ -80,9 +79,10 @@ class FocusRecognisedContainerTest {
   class EmittedExpression {
 
     @Test
-    @DisplayName("List widens through the no-argument each()")
-    void listWidensThroughTheNoArgumentEach() {
-      assertGeneratedCodeContains(compileHolder(), "com.example.HolderFocus", "\"list\").each();");
+    @DisplayName("List widens through EachInstances.listEach()")
+    void listWidensThroughListEach() {
+      assertGeneratedCodeContains(
+          compileHolder(), "com.example.HolderFocus", "\"list\").each(EachInstances.listEach());");
     }
 
     @Test
@@ -107,12 +107,12 @@ class FocusRecognisedContainerTest {
       assertGeneratedCodeContains(
           compileHolder(),
           "com.example.HolderFocus",
-          "\"nested\").each(EachInstances.setEach()).some();");
+          "\"nested\").each(EachInstances.setEach()).some(FocusPaths.optionalSome());");
     }
 
     @Test
-    @DisplayName("a no-argument step before a Set spells out the element it hands on")
-    void aNoArgumentStepBeforeASetSpellsOutTheElementItHandsOn() {
+    @DisplayName("a List before a Set hands on its element with no witness")
+    void aListBeforeASetNeedsNoWitness() {
       JavaFileObject source =
           JavaFileObjects.forSourceString(
               "com.example.Nested",
@@ -133,7 +133,7 @@ class FocusRecognisedContainerTest {
       assertGeneratedCodeContains(
           compilation,
           "com.example.NestedFocus",
-          "\"rows\").<Set<String>>each().each(EachInstances.setEach());");
+          "\"rows\").each(EachInstances.listEach()).each(EachInstances.setEach());");
     }
   }
 
@@ -306,12 +306,12 @@ class FocusRecognisedContainerTest {
     }
 
     @Test
-    @DisplayName("a no-argument step before a Maybe spells out the element it hands on")
-    void aNoArgumentStepBeforeAMaybeSpellsOutTheElementItHandsOn() {
+    @DisplayName("a List before a Maybe hands on its element with no witness")
+    void aListBeforeAMaybeNeedsNoWitness() {
       assertGeneratedCodeContains(
           result.compilation(),
           "com.example.SavedFocus",
-          "\"drafts\").<Maybe<String>>each().some(Affines.just());");
+          "\"drafts\").each(EachInstances.listEach()).some(Affines.just());");
     }
 
     @Test
@@ -357,158 +357,268 @@ class FocusRecognisedContainerTest {
   }
 
   @Nested
-  @DisplayName("A container whose optic cannot be instantiated")
-  class AContainerWhoseOpticCannotBeInstantiated {
+  @DisplayName("A raw or wildcard container")
+  class ARawOrWildcardContainer {
 
-    private Compilation compile(String component) {
-      return javac()
-          .withProcessors(new FocusProcessor())
-          .compile(
-              JavaFileObjects.forSourceString(
-                  "com.example.Holder",
-                  """
-                  package com.example;
+    private static final JavaFileObject LOOSE =
+        JavaFileObjects.forSourceString(
+            "com.example.Loose",
+            """
+            package com.example;
 
-                  import java.util.Collection;
-                  import java.util.Set;
-                  import org.higherkindedj.hkt.maybe.Maybe;
-                  import org.higherkindedj.optics.annotations.GenerateFocus;
+            import java.util.Collection;
+            import java.util.List;
+            import java.util.Set;
+            import org.higherkindedj.hkt.maybe.Maybe;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
 
-                  @GenerateFocus
-                  @SuppressWarnings("rawtypes")
-                  public record Holder(%s f) {}
-                  """
-                      .formatted(component)));
+            @GenerateFocus(widenCollections = true)
+            @SuppressWarnings("rawtypes")
+            public record Loose(
+                Set<? extends CharSequence> set,
+                Collection<?> collection,
+                Maybe<? extends CharSequence> item,
+                Set raw,
+                Maybe rawItem,
+                List<Maybe<?>> drafts,
+                Set<? super String> lower,
+                Set<? extends CharSequence>[] shelves) {}
+            """);
+
+    private final CompiledResult result =
+        RuntimeCompilationHelper.compileWith(new FocusProcessor(), LOOSE);
+
+    /** A Loose built from its eight components, in declaration order. */
+    private Object loose(Object... components) {
+      try {
+        Constructor<?> constructor =
+            result.loadClass("com.example.Loose").getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        return constructor.newInstance(components);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not build com.example.Loose", e);
+      }
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(
-        strings = {
-          "Set<?>",
-          "Set<? extends CharSequence>",
-          "Collection<?>",
-          "Maybe<?>",
-          "Maybe<? extends CharSequence>"
-        })
-    @DisplayName("a wildcard is reported against the declaration")
-    void aWildcardIsReportedAgainstTheDeclaration(String component) {
-      assertThat(compile(component))
-          .hadErrorContaining(
-              "record component 'Holder.f' has a wildcard type argument in " + component + ".");
+    /** The Loose every component of which holds lower-case names. */
+    private Object loose() {
+      return loose(
+          new HashSet<>(List.of("alice", "bob")),
+          new ArrayList<>(List.of("alice", "alice")),
+          Maybe.just("alice"),
+          new HashSet<>(List.of("alice")),
+          Maybe.just("alice"),
+          List.of(Maybe.just("alice"), Maybe.nothing()),
+          new HashSet<Object>(List.of("alice")),
+          new Set<?>[] {new HashSet<>(List.of("alice"))});
+    }
+
+    private Object path(String component) {
+      try {
+        return result.invokeStatic("com.example.LooseFocus", component);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("could not read com.example.LooseFocus." + component, e);
+      }
+    }
+
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    private TraversalPath<Object, Object> many(String component) {
+      return (TraversalPath<Object, Object>) path(component);
+    }
+
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    private AffinePath<Object, Object> one(String component) {
+      return (AffinePath<Object, Object>) path(component);
+    }
+
+    private static Object upperAny(Object value) {
+      return upper(value.toString());
+    }
+
+    private void generates(String code) {
+      assertGeneratedCodeContains(result.compilation(), "com.example.LooseFocus", code);
     }
 
     @Test
-    @DisplayName("a type-use annotation stays out of the reported type name")
-    void aTypeUseAnnotationStaysOutOfTheReportedTypeName() {
-      // Both halves of the message must render the type the same way: naming '@Nully Set<?>' and
-      // then suggesting 'Set<Object>' reads as advice to drop the annotation (#759).
-      var annotation =
-          JavaFileObjects.forSourceString(
-              "com.example.Nully",
-              """
-              package com.example;
-
-              import java.lang.annotation.ElementType;
-              import java.lang.annotation.Target;
-
-              @Target(ElementType.TYPE_USE)
-              public @interface Nully {}
-              """);
-      var holder =
-          JavaFileObjects.forSourceString(
-              "com.example.Holder",
-              """
-              package com.example;
-
-              import java.util.Set;
-              import org.higherkindedj.optics.annotations.GenerateFocus;
-
-              @GenerateFocus
-              public record Holder(@Nully Set<?> f) {}
-              """);
-
-      Compilation compilation =
-          javac().withProcessors(new FocusProcessor()).compile(annotation, holder);
-
-      assertThat(compilation)
-          .hadErrorContaining(
-              "record component 'Holder.f' has a wildcard type argument in Set<?>.");
-      assertThat(compilation)
-          .hadErrorContaining(
-              "Declare the component with concrete type arguments, such as Set<Object>,");
+    @DisplayName("compiles, with each instance cast to the container as written")
+    void castsEachInstanceToTheContainerAsWritten() {
+      assertThat(result.compilation()).succeeded();
+      generates(
+          "\"set\").each((Each<Set<? extends CharSequence>, CharSequence>) (Each<?, ?>)"
+              + " EachInstances.<CharSequence>setEach());");
+      generates(
+          "\"collection\").each((Each<Collection<?>, Object>) (Each<?, ?>)"
+              + " EachInstances.<Object>collectionEach());");
+      generates(
+          "\"item\").some((Affine<Maybe<? extends CharSequence>, CharSequence>) (Affine<?, ?>)"
+              + " Affines.<CharSequence>just());");
+      generates("\"raw\").each((Each<Set, Object>) (Each<?, ?>) EachInstances.<Object>setEach());");
+      generates(
+          "\"rawItem\").some((Affine<Maybe, Object>) (Affine<?, ?>) Affines.<Object>just());");
+      generates(
+          "\"drafts\").each(EachInstances.listEach()).some((Affine<Maybe<?>, Object>) (Affine<?,"
+              + " ?>) Affines.<Object>just());");
+      generates(
+          "\"lower\").each((Each<Set<? super String>, Object>) (Each<?, ?>)"
+              + " EachInstances.<Object>setEach());");
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Set", "Collection", "Maybe"})
-    @DisplayName("a raw container is reported against the declaration")
-    void aRawContainerIsReportedAgainstTheDeclaration(String component) {
-      assertThat(compile(component))
-          .hadErrorContaining("record component 'Holder.f' has a raw " + component + ".");
+    @Test
+    @DisplayName("compiles clean under -Xlint:all and -Werror")
+    void compilesCleanUnderWerror() {
+      assertThat(
+              javac()
+                  .withProcessors(new FocusProcessor())
+                  .withOptions("-Xlint:all,-processing", "-Werror")
+                  .compile(LOOSE))
+          .succeededWithoutWarnings();
     }
 
-    /** Holder over {@code component}, under the annotations the diagnostic's remedy names. */
-    private Compilation compileWithSiblings(String component, String annotations) {
-      return javac()
-          .withProcessors(new LensProcessor(), new TraversalProcessor())
-          .compile(
-              JavaFileObjects.forSourceString(
-                  "com.example.Holder",
-                  """
-                  package com.example;
-
-                  import java.util.Collection;
-                  import java.util.Set;
-                  import org.higherkindedj.hkt.maybe.Maybe;
-                  import org.higherkindedj.optics.annotations.GenerateLenses;
-                  import org.higherkindedj.optics.annotations.GenerateTraversals;
-
-                  %s
-                  @SuppressWarnings("rawtypes")
-                  public record Holder(%s f) {}
-                  """
-                      .formatted(annotations, component)));
+    @Test
+    @DisplayName("each path focuses on the element the type arguments stand for")
+    void eachPathFocusesOnTheElementTheArgumentsStandFor() {
+      generates("public static TraversalPath<Loose, CharSequence> set()");
+      generates("public static TraversalPath<Loose, Object> collection()");
+      generates("public static AffinePath<Loose, CharSequence> item()");
+      generates("public static TraversalPath<Loose, Object> raw()");
+      generates("public static AffinePath<Loose, Object> rawItem()");
+      generates("public static TraversalPath<Loose, Object> drafts()");
+      generates("public static TraversalPath<Loose, Object> lower()");
+      generates("public static TraversalPath<Loose, CharSequence> shelves()");
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(
-        strings = {
-          "Set<?>",
-          "Set<? extends CharSequence>",
-          "Collection<?>",
-          "Maybe<?>",
-          "Maybe<? extends CharSequence>"
-        })
-    @DisplayName(
-        "for a wildcard, the remedy names both sibling annotations, and both take it as written")
-    void theWildcardRemedyNamesBothSiblingsAndBothTakeItAsWritten(String component) {
-      assertThat(compile(component))
-          .hadErrorContaining(
-              "@GenerateLenses and @GenerateTraversals compose no optic instance and take the"
-                  + " component as written.");
+    @Test
+    @DisplayName("a wildcard Set comes back a Set of what was written")
+    void aWildcardSetComesBackASet() {
+      Object modified = many("set").modifyAll(ARawOrWildcardContainer::upperAny, loose());
 
-      Compilation compilation =
-          compileWithSiblings(component, "@GenerateLenses\n@GenerateTraversals");
-
-      assertThat(compilation).succeeded();
-      assertThat(compilation).generatedSourceFile("com.example.HolderTraversals");
+      assertThat(invoke(modified, "set")).isEqualTo(Set.of("ALICE", "BOB"));
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"Set", "Collection", "Maybe"})
-    @DisplayName("for a raw container, the remedy names the lens alone, which takes it as written")
-    void theRawRemedyNamesTheLensAlone(String component) {
-      assertThat(compile(component))
-          .hadErrorContaining(
-              "@GenerateLenses composes no optic instance and takes the component as written.");
-      // @GenerateTraversals has no element type to focus in a raw container either: it compiles,
-      // but with a note and no traversal, which is why the remedy leaves it out.
-      assertThat(compileWithSiblings(component, "@GenerateTraversals"))
-          .hadNoteContaining("no traversal was generated for component");
+    @Test
+    @DisplayName("a wildcard Collection holding a list keeps its duplicates")
+    void aWildcardCollectionKeepsItsDuplicates() {
+      Object modified = many("collection").modifyAll(ARawOrWildcardContainer::upperAny, loose());
 
-      Compilation compilation = compileWithSiblings(component, "@GenerateLenses");
+      assertThat(invoke(modified, "collection")).isEqualTo(List.of("ALICE", "ALICE"));
+    }
 
-      assertThat(compilation).succeeded();
-      assertThat(compilation).generatedSourceFile("com.example.HolderLenses");
+    @Test
+    @DisplayName("a wildcard Collection holding a set comes back a set")
+    void aWildcardCollectionHoldingASetComesBackASet() {
+      Object source =
+          loose(
+              Set.of(),
+              new HashSet<>(List.of("alice", "bob")),
+              Maybe.nothing(),
+              Set.of(),
+              Maybe.nothing(),
+              List.of(),
+              Set.of(),
+              new Set<?>[0]);
+
+      Object modified = many("collection").modifyAll(ARawOrWildcardContainer::upperAny, source);
+
+      assertThat(invoke(modified, "collection"))
+          .isInstanceOf(Set.class)
+          .isEqualTo(Set.of("ALICE", "BOB"));
+    }
+
+    @Test
+    @DisplayName("a wildcard Maybe rebuilds a Just, and reads Nothing as empty")
+    void aWildcardMaybeRebuildsAJust() {
+      Object modified = one("item").modify(ARawOrWildcardContainer::upperAny, loose());
+
+      assertThat(invoke(modified, "item")).isEqualTo(Maybe.just("ALICE"));
+      assertThat(
+              one("item")
+                  .getOptional(
+                      loose(
+                          Set.of(),
+                          List.of(),
+                          Maybe.nothing(),
+                          Set.of(),
+                          Maybe.nothing(),
+                          List.of(),
+                          Set.of(),
+                          new Set<?>[0])))
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("a raw Set and a raw Maybe are read and rebuilt as Object")
+    void aRawContainerIsReadAndRebuilt() {
+      Object source = loose();
+
+      assertThat(many("raw").getAll(source)).containsExactly("alice");
+      assertThat(invoke(many("raw").modifyAll(ARawOrWildcardContainer::upperAny, source), "raw"))
+          .isEqualTo(Set.of("ALICE"));
+      assertThat(
+              invoke(one("rawItem").modify(ARawOrWildcardContainer::upperAny, source), "rawItem"))
+          .isEqualTo(Maybe.just("ALICE"));
+    }
+
+    @Test
+    @DisplayName("a super-bounded Set takes back whatever is written, as Object")
+    void aSuperBoundedSetTakesBackObjects() {
+      Object modified = many("lower").setAll(42, loose());
+
+      assertThat(invoke(modified, "lower")).isEqualTo(Set.of(42));
+    }
+
+    @Test
+    @DisplayName("a wildcard Maybe nested in a List is reached through it")
+    void aWildcardMaybeNestedInAListIsReachedThroughIt() {
+      Object source = loose();
+
+      assertThat(many("drafts").getAll(source)).containsExactly("alice");
+      assertThat(
+              invoke(many("drafts").modifyAll(ARawOrWildcardContainer::upperAny, source), "drafts"))
+          .isEqualTo(List.of(Maybe.just("ALICE"), Maybe.nothing()));
+    }
+
+    @Test
+    @DisplayName("an array of wildcard Sets is stepped into, and comes back a new array")
+    void anArrayOfWildcardSetsIsSteppedInto() {
+      Set<?>[] shelves = {new HashSet<>(List.of("alice"))};
+      Object source =
+          loose(
+              Set.of(),
+              List.of(),
+              Maybe.nothing(),
+              Set.of(),
+              Maybe.nothing(),
+              List.of(),
+              Set.of(),
+              shelves);
+
+      Object modified = many("shelves").modifyAll(ARawOrWildcardContainer::upperAny, source);
+
+      assertThat((Object[]) invoke(modified, "shelves")).containsExactly(Set.of("ALICE"));
+      assertThat(shelves).containsExactly(Set.of("alice"));
+    }
+
+    @Test
+    @DisplayName("modifying leaves the source containers as they were")
+    void modifyingLeavesTheSourceAsItWas() {
+      Set<String> names = new HashSet<>(List.of("alice", "bob"));
+      List<String> pile = new ArrayList<>(List.of("alice", "alice"));
+      Object source =
+          loose(
+              names,
+              pile,
+              Maybe.nothing(),
+              Set.of(),
+              Maybe.nothing(),
+              List.of(),
+              Set.of(),
+              new Set<?>[0]);
+
+      many("set").modifyAll(ARawOrWildcardContainer::upperAny, source);
+      many("collection").modifyAll(ARawOrWildcardContainer::upperAny, source);
+
+      assertThat(names).containsExactlyInAnyOrder("alice", "bob");
+      assertThat(pile).containsExactly("alice", "alice");
     }
   }
 }

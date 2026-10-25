@@ -59,14 +59,12 @@ import org.jspecify.annotations.Nullable;
  * List<Integer> values = Traversals.getAll(mapEach.each(), map);
  *
  * // With indexed access
- * Each<List<String>, String> listEach = EachInstances.listEach();
- * listEach.<Integer>eachWithIndex().ifPresent(indexed -> {
- *     List<String> numbered = IndexedTraversals.imodify(
- *         indexed,
- *         (i, s) -> (i + 1) + ". " + s,
- *         list
- *     );
- * });
+ * EachIndexed<Integer, List<String>, String> indexedListEach = EachInstances.listEach();
+ * List<String> numbered = IndexedTraversals.imodify(
+ *     indexedListEach.indexedTraversal(),
+ *     (i, s) -> (i + 1) + ". " + s,
+ *     list
+ * );
  *
  * // Use with FocusDSL
  * TraversalPath<User, Order> allOrders = userPath.via(ordersLens).each(listEach);
@@ -87,8 +85,8 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for {@link List} types.
    *
-   * <p>The returned {@code Each} traverses all elements in order and supports indexed access via
-   * {@link Each#eachWithIndex()}.
+   * <p>The returned {@code EachIndexed} traverses all elements in order and supports indexed access
+   * via {@link EachIndexed#indexedTraversal()}.
    *
    * @param <A> The element type of the list
    * @return An {@code Each} instance for lists
@@ -166,8 +164,8 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for {@link Map} values.
    *
-   * <p>The returned {@code Each} traverses all values in the map, with the corresponding key as the
-   * index in {@link Each#eachWithIndex()}.
+   * <p>The returned {@code EachIndexed} traverses all values in the map, with the corresponding key
+   * as the index in {@link EachIndexed#indexedTraversal()}.
    *
    * @param <K> The key type of the map
    * @param <V> The value type of the map
@@ -218,8 +216,8 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for array types.
    *
-   * <p>The returned {@code Each} traverses all elements in order and supports indexed access via
-   * {@link Each#eachWithIndex()}.
+   * <p>The returned {@code EachIndexed} traverses all elements in order and supports indexed access
+   * via {@link EachIndexed#indexedTraversal()}.
    *
    * <p><strong>Note:</strong> Due to Java's type erasure, array instances cannot be cached and a
    * new instance is created for each call.
@@ -330,8 +328,8 @@ public final class EachInstances {
   /**
    * Creates an {@link Each} instance for {@link String} that traverses individual characters.
    *
-   * <p>The returned {@code Each} traverses all characters in order and supports indexed access via
-   * {@link Each#eachWithIndex()}.
+   * <p>The returned {@code EachIndexed} traverses all characters in order and supports indexed
+   * access via {@link EachIndexed#indexedTraversal()}.
    *
    * @return An {@code Each} instance for string characters
    */

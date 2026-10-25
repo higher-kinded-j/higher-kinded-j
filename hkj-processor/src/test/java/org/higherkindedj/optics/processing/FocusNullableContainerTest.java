@@ -169,12 +169,12 @@ class FocusNullableContainerTest {
     @CsvSource(
         delimiterString = " | ",
         value = {
-          "list | TraversalPath<Holder, String> list() | \"list\").nullable().each();",
+          "list | TraversalPath<Holder, String> list() | \"list\").nullable().each(EachInstances.listEach());",
           "set | TraversalPath<Holder, String> set()"
               + " | \"set\").nullable().each(EachInstances.setEach());",
           "collection | TraversalPath<Holder, String> collection()"
               + " | \"collection\").nullable().each(EachInstances.collectionEach());",
-          "optional | AffinePath<Holder, String> optional() | \"optional\").nullable().some();",
+          "optional | AffinePath<Holder, String> optional() | \"optional\").nullable().some(FocusPaths.optionalSome());",
           "maybe | AffinePath<Holder, String> maybe() | \"maybe\").nullable().some(Affines.just());",
           "map | TraversalPath<Holder, String> map()"
               + " | \"map\").nullable().each(EachInstances.mapValuesEach());",
@@ -183,8 +183,8 @@ class FocusNullableContainerTest {
           "array | TraversalPath<Holder, String> array()"
               + " | \"array\").nullable().each(EachInstances.arrayEach());",
           "kind | TraversalPath<Holder, String> kind()"
-              + " | \"kind\").nullable().<org.higherkindedj.hkt.list.ListKind.Witness,",
-          "nested | TraversalPath<Holder, String> nested() | \"nested\").nullable().each().some();",
+              + " | \"kind\").nullable().each(EachInstances.<org.higherkindedj.hkt.list.ListKind.Witness,",
+          "nested | TraversalPath<Holder, String> nested() | \"nested\").nullable().each(EachInstances.listEach()).some(FocusPaths.optionalSome());",
           "elements | TraversalPath<Holder, @Nullable String> elements()"
               + " | \"elements\").each(EachInstances.arrayEach());"
         })
@@ -199,7 +199,7 @@ class FocusNullableContainerTest {
     @CsvSource(
         delimiterString = " | ",
         value = {
-          "lists | \"lists\").<@Nullable List<String>>each().some(Affines.nullable()).each();",
+          "lists | \"lists\").each(EachInstances.listEach()).some(Affines.nullable()).each(EachInstances.listEach());",
           "grid | \"grid\").each(EachInstances.arrayEach()).some(Affines.nullable())"
               + ".each(EachInstances.arrayEach());",
           "groups | \"groups\").each(EachInstances.mapValuesEach()).some(Affines.nullable())"

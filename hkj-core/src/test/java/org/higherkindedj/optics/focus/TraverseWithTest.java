@@ -97,7 +97,7 @@ class TraverseWithTest {
     @DisplayName("returns Optional.of(result) when affine matches")
     void returnsOptionalOfResultWhenMatches() {
       FocusPath<Team, List<String>> membersPath = FocusPath.of(memberListLens);
-      AffinePath<Team, String> firstMemberPath = membersPath.<String>head();
+      AffinePath<Team, String> firstMemberPath = membersPath.via(FocusPaths.listHead());
       Team team = new Team("Dev", List.of("Alice", "Bob"));
 
       VTaskPath<Optional<String>> result =
@@ -110,7 +110,7 @@ class TraverseWithTest {
     @DisplayName("returns Optional.empty() when affine does not match")
     void returnsOptionalEmptyWhenNotMatches() {
       FocusPath<Team, List<String>> membersPath = FocusPath.of(memberListLens);
-      AffinePath<Team, String> firstMemberPath = membersPath.<String>head();
+      AffinePath<Team, String> firstMemberPath = membersPath.via(FocusPaths.listHead());
       Team team = new Team("Empty", List.of());
 
       VTaskPath<Optional<String>> result =
@@ -123,7 +123,7 @@ class TraverseWithTest {
     @DisplayName("does not execute task when affine does not match")
     void doesNotExecuteTaskWhenNotMatches() {
       FocusPath<Team, List<String>> membersPath = FocusPath.of(memberListLens);
-      AffinePath<Team, String> firstMemberPath = membersPath.<String>head();
+      AffinePath<Team, String> firstMemberPath = membersPath.via(FocusPaths.listHead());
       Team team = new Team("Empty", List.of());
 
       // If the task were executed, it would throw

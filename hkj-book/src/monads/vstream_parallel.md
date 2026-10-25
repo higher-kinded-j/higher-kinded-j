@@ -97,6 +97,10 @@ VStream<Integer> doubled = VStreamPar.parEvalMap(
 // Output order matches input order
 ```
 
+A concurrency at least as large as the stream, even `Integer.MAX_VALUE`, still processes
+every element and forks one task per element. The batch list grows as elements arrive, so
+that concurrency does not reserve a slot for every place in it.
+
 ### parEvalMapUnordered: Maximum Throughput
 
 When output order does not matter, `parEvalMapUnordered` emits results as they
@@ -125,6 +129,9 @@ VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
 );
 // Results may be in any order
 ```
+
+A concurrency at least as large as the stream still emits every element. Its batch list
+grows as elements arrive, as `parEvalMap`'s does.
 
 ### parEvalFlatMap: Parallel Stream Expansion
 
@@ -196,6 +203,10 @@ VStream<NonEmptyList<Integer>> chunks = VStream.range(1, 11).chunk(3);
 Each chunk is a [`NonEmptyList`](nonemptylist_monad.md), because a chunk is only emitted once it
 holds an element. So `head()`, `reduce` and `max` on a chunk always give a value, with no empty
 case to handle. An empty stream gives no chunks.
+
+A size at least as large as the stream, even `Integer.MAX_VALUE`, still yields one chunk of
+every element. The batch list grows as elements arrive, so that size does not reserve a slot
+for every place in it.
 
 ### chunkWhile(predicate)
 

@@ -42,13 +42,14 @@ import java.lang.annotation.Target;
  * ) {}
  * }</pre>
  *
- * <p>The generated code will automatically call {@code traverseOver()} with the specified Traverse
+ * <p>The generated code steps into the field with an {@code Each} built from the specified Traverse
  * instance:
  *
  * <pre>{@code
  * public static TraversalPath<Forest, Tree> trees() {
  *     return FocusPath.of(...)
- *         .<TreeKind.Witness, Tree>traverseOver(com.example.TreeTraverse.INSTANCE);
+ *         .each(EachInstances.<TreeKind.Witness, Tree>fromTraverse(
+ *             com.example.TreeTraverse.INSTANCE));
  * }
  * }</pre>
  *

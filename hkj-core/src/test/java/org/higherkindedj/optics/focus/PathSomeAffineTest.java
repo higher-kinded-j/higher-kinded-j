@@ -9,6 +9,7 @@ import java.util.Optional;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Affines;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -116,7 +117,7 @@ class PathSomeAffineTest {
           FocusPath.of(Lens.of(l -> l, (l, v) -> v));
 
       TraversalPath<List<Either<String, Integer>>, Either<String, Integer>> eachPath =
-          idPath.each();
+          idPath.each(EachInstances.listEach());
 
       TraversalPath<List<Either<String, Integer>>, Integer> result =
           eachPath.some(Affines.eitherRight());

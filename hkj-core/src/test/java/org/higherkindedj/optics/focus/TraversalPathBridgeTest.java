@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.StreamPath;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -224,8 +225,8 @@ class TraversalPathBridgeTest {
       FocusPath<Team, List<String>> membersPath = FocusPath.of(memberListLens);
       Team team = new Team("QA", List.of("Tester1", "Tester2"));
 
-      // Using each() to get TraversalPath, then bridge to ListPath
-      TraversalPath<Team, String> eachMember = membersPath.<String>each();
+      // Using each(EachInstances.listEach()) to get TraversalPath, then bridge to ListPath
+      TraversalPath<Team, String> eachMember = membersPath.each(EachInstances.listEach());
       ListPath<String> result = eachMember.toListPath(team);
 
       assertThat(result.run()).containsExactly("Tester1", "Tester2");
@@ -235,9 +236,10 @@ class TraversalPathBridgeTest {
     @DisplayName("deep traversal to ListPath")
     void deepTraversalToListPath() {
       // Build the traversal step by step for type safety
-      TraversalPath<Company, Team> allTeams = FocusPath.of(teamsLens).<Team>each();
+      TraversalPath<Company, Team> allTeams =
+          FocusPath.of(teamsLens).each(EachInstances.listEach());
       TraversalPath<Company, List<String>> allMemberLists = allTeams.via(memberListLens);
-      TraversalPath<Company, String> allMembersPath = allMemberLists.<String>each();
+      TraversalPath<Company, String> allMembersPath = allMemberLists.each(EachInstances.listEach());
 
       Company company =
           new Company(

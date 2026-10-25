@@ -44,7 +44,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * What each {@code @PathSource} attribute does to the generated Path: the class name its suffix
  * gives, the attributes refused at the annotation, the kinds of type it applies to, the methods it
  * generates, the attributes that wait for a later round, the note for a witness an effect algebra
- * generates, the notes for recovery asked for by halves, and the deprecated capability levels.
+ * generates, and the notes for recovery asked for by halves.
  */
 @DisplayName("@PathSource attributes")
 class PathSourceAttributesTest {
@@ -97,7 +97,7 @@ class PathSourceAttributesTest {
   private static Compilation compile(JavaFileObject... sources) {
     return javac()
         .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
-        .withOptions("-Xlint:all,-removal", "-Werror")
+        .withOptions("-Xlint:all", "-Werror")
         .compile(Stream.concat(Stream.of(WITNESS, ERROR), Arrays.stream(sources)).toList());
   }
 
@@ -643,7 +643,7 @@ class PathSourceAttributesTest {
                   new EffectAlgebraProcessor(),
                   new PathSourceProcessor(),
                   new CompanionAnnotationProcessor())
-              .withOptions("-Xlint:all,-removal")
+              .withOptions("-Xlint:all")
               .compile(
                   WITNESS,
                   box("suffix = \"-x\""),
@@ -743,7 +743,7 @@ class PathSourceAttributesTest {
               new PathSourceProcessor(),
               new CompanionAnnotationProcessor())
           // An algebra's generated types carry @NullMarked, which no processor here claims.
-          .withOptions("-Xlint:all,-removal,-processing", "-Werror")
+          .withOptions("-Xlint:all,-processing", "-Werror")
           .compile(sources);
     }
 
@@ -801,7 +801,7 @@ class PathSourceAttributesTest {
       final Compilation compilation =
           javac()
               .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
-              .withOptions("-Xlint:all,-removal", "-Werror")
+              .withOptions("-Xlint:all", "-Werror")
               .withClasspath(classpathWith(classDirectory(algebra, library)))
               .compile(CONSOLE);
 
@@ -1093,42 +1093,6 @@ class PathSourceAttributesTest {
       assertThat(pathSourceNotes(compilation)).isEmpty();
       assertThat(generated(compilation, "BoxPath"))
           .contains("public BoxPath<A> recover(", "public BoxPath<A> mapError(");
-    }
-  }
-
-  @Nested
-  @DisplayName("Deprecated capability levels")
-  class DeprecatedLevels {
-
-    @Test
-    @DisplayName("EFFECTFUL is reported for removal, and generates exactly CHAINABLE's class")
-    void effectfulGeneratesChainable() throws IOException {
-      final JavaFileObject effectful = box("capability = PathSource.Capability.EFFECTFUL");
-
-      final Compilation compilation =
-          javac().withProcessors(new PathSourceProcessor()).compile(WITNESS, ERROR, effectful);
-
-      assertThat(compilation).succeeded();
-      assertThat(compilation)
-          .hadWarningContaining("has been deprecated and marked for removal")
-          .inFile(effectful)
-          .onLineContaining("capability");
-      assertThat(compilation.warnings().stream().map(warning -> warning.getMessage(null)))
-          .allSatisfy(message -> assertThat(message).startsWith("EFFECTFUL in "));
-      assertThat(generated(compilation, "BoxPath"))
-          .isEqualTo(
-              generated(compile(box("capability = PathSource.Capability.CHAINABLE")), "BoxPath"));
-    }
-
-    @Test
-    @DisplayName("ACCUMULATING generates exactly RECOVERABLE's class")
-    void accumulatingGeneratesRecoverable() throws IOException {
-      final Compilation accumulating =
-          compile(box("errorType = Err.class", "capability = PathSource.Capability.ACCUMULATING"));
-      final Compilation recoverable =
-          compile(box("errorType = Err.class", "capability = PathSource.Capability.RECOVERABLE"));
-
-      assertThat(generated(accumulating, "BoxPath")).isEqualTo(generated(recoverable, "BoxPath"));
     }
   }
 }

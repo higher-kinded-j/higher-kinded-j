@@ -11,7 +11,7 @@ import org.higherkindedj.optics.annotations.KindSemantics;
  *
  * <p>This registry provides the mapping between Higher-Kinded-J library witness types and their
  * Traverse implementations. The Focus processor uses this registry to automatically generate
- * appropriate {@code traverseOver()} calls for recognised Kind fields.
+ * appropriate {@code each(EachInstances.fromTraverse())} calls for recognised Kind fields.
  *
  * <h2>Supported Types</h2>
  *

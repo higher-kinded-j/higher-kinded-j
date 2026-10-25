@@ -343,7 +343,7 @@ public class NavigatorExample {
     System.out.println("  Raw Map value:                 " + stockPath.get(grocer));
 
     // With widenCollections = true: stock() returns TraversalPath<GrocerWidened, Integer>
-    // Already widened — no manual .each() call needed.
+    // Already widened — no manual .each(...) call needed.
     var stockWidened = GrocerWidenedFocus.stock(); // TraversalPath<GrocerWidened, Integer>
     System.out.println(
         "GrocerWidenedFocus.stock() type: " + stockWidened.getClass().getSimpleName());

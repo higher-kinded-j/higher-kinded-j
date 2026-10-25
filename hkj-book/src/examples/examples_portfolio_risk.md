@@ -184,7 +184,7 @@ annotation processor handles each one via the SPI:
 | `Optional<StopLoss>` | JDK | ZERO_OR_ONE | `AffinePath` | `OptionalGenerator` |
 | `Map<String, Double>` | JDK | ZERO_OR_MORE | `FocusPath`, or `TraversalPath` under `widenCollections` | `MapValueGenerator` |
 
-The generated code calls the appropriate `each()` or `some()` for you. A `ZERO_OR_MORE`
+The generated code calls the appropriate `each(...)` or `some(...)` for you. A `ZERO_OR_MORE`
 container stops at the container until the record declaring it widens it. Here `widenFields`
 names the two `ImmutableList` fields. `widenCollections = true` widens every such field, as
 the `WidenedAssetClass` record in the example demonstrates for the `Map`. Static Focus methods and

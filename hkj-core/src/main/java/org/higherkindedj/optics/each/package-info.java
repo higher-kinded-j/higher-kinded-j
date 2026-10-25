@@ -31,21 +31,21 @@
  *
  * <pre>{@code
  * import org.higherkindedj.optics.each.EachInstances;
- * import org.higherkindedj.optics.Each;
+ * import org.higherkindedj.optics.EachIndexed;
  * import org.higherkindedj.optics.Traversal;
+ * import org.higherkindedj.optics.util.IndexedTraversals;
  * import org.higherkindedj.optics.util.Traversals;
  *
- * // Get an Each instance for List
- * Each<List<String>, String> listEach = EachInstances.listEach();
+ * // Get an Each instance for List; it is an EachIndexed, indexed by Integer
+ * EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
  *
  * // Use the traversal
  * Traversal<List<String>, String> trav = listEach.each();
  * List<String> result = Traversals.modify(trav, String::toUpperCase, list);
  *
  * // Use indexed access
- * listEach.<Integer>eachWithIndex().ifPresent(indexed -> {
- *     IndexedTraversals.imodify(indexed, (i, s) -> i + ": " + s, list);
- * });
+ * List<String> numbered =
+ *     IndexedTraversals.imodify(listEach.indexedTraversal(), (i, s) -> i + ": " + s, list);
  * }</pre>
  *
  * @see org.higherkindedj.optics.Each

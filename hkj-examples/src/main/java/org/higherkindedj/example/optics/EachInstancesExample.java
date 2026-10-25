@@ -342,7 +342,7 @@ public class EachInstancesExample {
     System.out.println("--- Indexed Traversal via EachIndexed.indexedTraversal() ---");
 
     // EachInstances.listEach() returns an EachIndexed<Integer, ...>, so the index type is
-    // fixed at compile time — no Optional, no cast.
+    // fixed at compile time.
     EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
     IndexedTraversal<Integer, List<String>, String> listIndexed = listEach.indexedTraversal();
 
@@ -399,7 +399,7 @@ public class EachInstancesExample {
     byId.put(accessories.id(), accessories);
     OrderIndex index = new OrderIndex(byId);
 
-    // Navigate using Each instances with Focus DSL: a map is not a container .each() recognises
+    // Navigate using Each instances with Focus DSL: a map's values take mapValuesEach
     // OrderIndex -> Map<UUID, Order> -> Order (values) -> List<LineItem> -> LineItem
     TraversalPath<OrderIndex, Order> allOrders =
         FocusPath.of(byIdLens).each(EachInstances.mapValuesEach());

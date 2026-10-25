@@ -3,7 +3,6 @@
 package org.higherkindedj.optics;
 
 import java.util.Objects;
-import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.jspecify.annotations.Nullable;
 
@@ -49,24 +48,22 @@ import org.jspecify.annotations.Nullable;
  * <h3>Indexed Traversal:</h3>
  *
  * <p>Some containers support indexed access, where each element has an associated index (e.g.,
- * position in a List, key in a Map). Use {@link #eachWithIndex()} to get an {@link
- * IndexedTraversal} that provides access to both index and value:
+ * position in a List, key in a Map). Their instances implement {@link EachIndexed}, whose {@link
+ * EachIndexed#indexedTraversal()} returns an {@link IndexedTraversal} that provides access to both
+ * index and value:
  *
  * <pre>{@code
- * Each<List<String>, String> listEach = EachInstances.listEach();
+ * EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
  *
  * // Get indexed traversal (index type is Integer for List)
- * Optional<IndexedTraversal<Integer, List<String>, String>> indexed =
- *     listEach.eachWithIndex();
+ * IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
  *
  * // Use to modify with position awareness
- * indexed.ifPresent(iTraversal -> {
- *     List<String> numbered = IndexedTraversals.imodify(
- *         iTraversal,
- *         (index, value) -> value + " #" + index,
- *         list
- *     );
- * });
+ * List<String> numbered = IndexedTraversals.imodify(
+ *     indexed,
+ *     (index, value) -> value + " #" + index,
+ *     list
+ * );
  * }</pre>
  *
  * <h3>Creating Custom Each Instances:</h3>
@@ -95,6 +92,7 @@ import org.jspecify.annotations.Nullable;
  * @param <S> The container type (e.g., {@code List<A>}, {@code Map<K, V>}, {@code Optional<A>})
  * @param <A> The element type within the container
  * @see Traversal
+ * @see EachIndexed
  * @see At
  * @see Ixed
  * @see org.higherkindedj.hkt.Traverse
@@ -127,39 +125,22 @@ public interface Each<S extends @Nullable Object, A extends @Nullable Object> {
   Traversal<S, A> each();
 
   /**
-   * Returns an indexed traversal if the container supports indexed access, choosing the index type
-   * at the call site.
+   * Checks if this {@code Each} instance supports indexed traversal, that is, whether it is an
+   * {@link EachIndexed}.
    *
-   * <p>This method is unsound: the caller picks {@code <I>} freely, but the underlying traversal
-   * has a fixed index type, so a mismatched request compiles and then fails at runtime with a
-   * {@link ClassCastException}. Indexing instances now implement {@link EachIndexed}, whose {@link
-   * EachIndexed#indexedTraversal()} fixes the index type at the type level — prefer that.
+   * <p>To reach the indexed traversal from code that holds only an {@code Each<S, A>}, narrow with
+   * a type pattern. A cast to a particular index type would be unchecked.
    *
-   * @param <I> the requested index type
-   * @return an {@link Optional} of the {@link IndexedTraversal} if indexed access is supported;
-   *     {@link Optional#empty()} otherwise
-   * @deprecated since 0.4.7, for removal in 0.5.0. Narrow to {@link EachIndexed} and call {@link
-   *     EachIndexed#indexedTraversal()} instead — the index type is then checked at compile time.
+   * <pre>{@code
+   * if (each instanceof EachIndexed<?, S, A> indexed) {
+   *     IndexedTraversal<?, S, A> traversal = indexed.indexedTraversal();
+   * }
+   * }</pre>
+   *
+   * @return {@code true} if this is an {@link EachIndexed}; {@code false} otherwise
    */
-  @Deprecated(since = "0.4.7", forRemoval = true)
-  default <I> Optional<IndexedTraversal<I, S, A>> eachWithIndex() {
-    return Optional.empty();
-  }
-
-  /**
-   * Checks if this {@code Each} instance supports indexed traversal.
-   *
-   * <p>True for any {@link EachIndexed}. For backwards compatibility it also falls back to the
-   * deprecated {@link #eachWithIndex()} — so a legacy {@code Each} that signalled indexed support
-   * by overriding {@code eachWithIndex()} still reports {@code true} until that method is removed
-   * in 0.5.0, at which point the fallback can be dropped.
-   *
-   * @return {@code true} if this is an {@link EachIndexed}, or if its (deprecated) {@code
-   *     eachWithIndex()} returns a value; {@code false} otherwise
-   */
-  @SuppressWarnings({"deprecation", "removal"}) // back-compat fallback until eachWithIndex removal
   default boolean supportsIndexed() {
-    return this instanceof EachIndexed<?, ?, ?> || eachWithIndex().isPresent();
+    return this instanceof EachIndexed<?, ?, ?>;
   }
 
   /**

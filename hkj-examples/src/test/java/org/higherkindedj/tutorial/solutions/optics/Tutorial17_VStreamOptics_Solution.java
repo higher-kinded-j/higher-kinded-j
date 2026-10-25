@@ -125,15 +125,16 @@ public class Tutorial17_VStreamOptics_Solution {
 
     /**
      * Why this is idiomatic: {@code VStream}'s {@code Each} reports {@code supportsIndexed = false}
-     * because virtual streams have no random index access. Code that needs indexed traversal (e.g.
-     * {@code modifyAtIndex}) checks this flag first.
+     * because virtual streams have no random index access. Code that takes any {@code Each} and
+     * wants an indexed traversal checks this flag, or matches on {@code EachIndexed}, first.
      *
-     * <p>Alternative: assume every container supports indexed traversal. False — only containers
-     * like {@code List} and {@code Vector} do; the flag is the typed answer.
+     * <p>Alternative: assume every container supports indexed traversal. False: only containers
+     * with a meaningful index, such as a {@code List}, an array or a {@code String}, do, and their
+     * instances are {@code EachIndexed}.
      *
      * <p>Common wrong attempt: try to obtain an indexed traversal from a vstream. It is not an
-     * {@code EachIndexed}, so there is no {@code indexedTraversal()} to call; the compile-time
-     * check is the polite version.
+     * {@code EachIndexed}, so there is no {@code indexedTraversal()} to call, and the compiler says
+     * so.
      */
     @Test
     @DisplayName("Exercise 4: Check VStream indexed support")
@@ -164,8 +165,8 @@ public class Tutorial17_VStreamOptics_Solution {
      * TraversalPath} that walks every element of the {@code VStream} field — the Focus DSL stays
      * uniform across containers.
      *
-     * <p>Alternative: collect the VStream to a list and use {@code each()}. Same answer for the
-     * read; loses the streaming when the data is large.
+     * <p>Alternative: collect the VStream to a list and use {@code EachInstances.listEach()}. Same
+     * answer for the read; loses the streaming when the data is large.
      *
      * <p>Common wrong attempt: pass a {@code listEach} to a vstream-shaped lens. The compiler
      * rejects the mismatch; double-check the {@code Each} instance.

@@ -38,6 +38,8 @@ import org.higherkindedj.optics.free.OpticInterpreters;
 import org.higherkindedj.optics.free.OpticOpKind;
 import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.util.Traversals;
+import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.focus.FocusPaths;
 
 @GenerateLenses
 @GenerateFocus
@@ -66,7 +68,7 @@ record Department(String name, List<Employee> staff) {}
 @GenerateFocus
 record Division(String name, Department department) {}
 
-// A Kind field behind a hand-written lens, for the traverseOver recipe
+// A Kind field behind a hand-written lens, for the fromTraverse recipe
 record Role(String name) {}
 
 record Operator(String name, Kind<ListKind.Witness, Role> roles) {}

@@ -10,7 +10,7 @@
  *   <li>{@link org.higherkindedj.example.optics.focus.NavigatorExample} - Fluent cross-type
  *       navigation using generated navigator classes
  *   <li>{@link org.higherkindedj.example.optics.focus.TraverseIntegrationExample} - Using
- *       traverseOver() with Traverse type class
+ *       EachInstances.fromTraverse() with the Traverse type class
  *   <li>{@link org.higherkindedj.example.optics.focus.ValidationPipelineExample} - Validation
  *       pipelines using modifyF() and foldMap()
  *   <li>{@link org.higherkindedj.example.optics.focus.AsyncFetchExample} - Async data loading with

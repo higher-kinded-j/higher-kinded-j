@@ -230,10 +230,10 @@ class GeneratedFocusSourceCompilesTest {
   /**
    * A component and the settings it is read under, which together must keep compiling.
    *
-   * <p>Every entry compiles before the undenotable-container rule exists, so each one is a record
-   * the rule must leave alone. A container the analysis never widens is the subtle half: it stays a
-   * plain {@code FocusPath}, nothing beneath it is ever asked for an optic, and an undenotable type
-   * argument down there costs it nothing.
+   * <p>Every entry compiles today, so each one is a record the undenotable-container rule must
+   * leave alone. A container the analysis never widens is the subtle half: it stays a plain {@code
+   * FocusPath}, nothing beneath it is ever asked for an optic, and an undenotable type argument
+   * down there costs it nothing.
    *
    * <p>The {@code Kind} components join under every setting. The shape sweep would accept their
    * rejection, since a rejection carries the tag it checks for, so this is where they are pinned as
@@ -251,12 +251,21 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<StillCompiles> CORPUS =
       List.of(
-          // The no-argument widenings take a wildcard: .some() and .each() unify nothing. A Maybe,
-          // a Set or a Collection is not among them -- each names the optic that rebuilds it, which
-          // a wildcard leaves uninstantiable, so those are rejected rather than left alone.
+          // A recognised container takes a raw or wildcard argument: its instance is cast to the
+          // container as written, wherever the walk meets it.
           new StillCompiles("List<? extends Leaf> f", ""),
           new StillCompiles("Optional<? extends Leaf> f", ""),
           new StillCompiles("Optional<? super Leaf> f", ""),
+          new StillCompiles("Maybe<?> f", ""),
+          new StillCompiles("Maybe f", ""),
+          new StillCompiles("Set<?> f", ""),
+          new StillCompiles("Collection<? extends Leaf> f", ""),
+          new StillCompiles("Set f", ""),
+          new StillCompiles("List<Set<?>> f", ""),
+          new StillCompiles("List<Maybe<? extends Leaf>> f", ""),
+          new StillCompiles("Set<?>[] f", "widenCollections = true"),
+          new StillCompiles("Set[] f", "widenCollections = true"),
+          new StillCompiles("@Nullable Set<?> f", ""),
           // A ZERO_OR_MORE SPI container is widened only where the record asks for it, so a
           // navigable element inside one does not ask the wildcard for an optic.
           new StillCompiles("Map<String, ? extends Leaf> f", ""),
@@ -318,13 +327,6 @@ class GeneratedFocusSourceCompilesTest {
 
   private static final List<Rejected> REJECTED =
       List.of(
-          // A Maybe, a Set or a Collection names its own optic, so a wildcard or raw one has none
-          // to write.
-          new Rejected("Maybe<?> f", "", "Maybe<?>"),
-          new Rejected("Maybe f", "", "Maybe"),
-          new Rejected("Set<?> f", "", "Set<?>"),
-          new Rejected("Collection<? extends Leaf> f", "", "Collection<? extends Leaf>"),
-          new Rejected("Set f", "", "Set"),
           // A ZERO_OR_ONE generator always widens, so its container is met under every setting.
           new Rejected("Either<String, ? extends Leaf> f", "", "Either<String, ? extends Leaf>"),
           new Rejected("Try<?> f", "generateNavigators = true", "Try<?>"),
@@ -343,17 +345,17 @@ class GeneratedFocusSourceCompilesTest {
           // The walk carries on beneath a layer it widened, and names the first it turns away.
           new Rejected(
               "Optional<Either<String, ? extends Leaf>> f", "", "Either<String, ? extends Leaf>"),
-          new Rejected("List<Set<?>> f", "", "Set<?>"),
-          new Rejected("List<Maybe<? extends Leaf>> f", "", "Maybe<? extends Leaf>"),
+          new Rejected("List<Either<?, Leaf>> f", "", "Either<?, Leaf>"),
+          new Rejected("Set<Try<? extends Leaf>> f", "", "Try<? extends Leaf>"),
           new Rejected(
               "Either<String, Map<String, ?>> f", "widenCollections = true", "Map<String, ?>"),
           new Rejected("Optional<Optional<Either<String, ?>>> f", "", "Either<String, ?>"),
           // An array is met under the settings a Map is, and its element is judged as any other.
-          new Rejected("Set<?>[] f", "widenCollections = true", "Set<?>"),
-          new Rejected("Set[] f", "widenCollections = true", "Set"),
+          new Rejected("Either<?, Leaf>[] f", "widenCollections = true", "Either<?, Leaf>"),
+          new Rejected("Try[] f", "widenCollections = true", "Try"),
           // A @Nullable component turned away at its outermost layer still widens through
           // .nullable(), and is rejected all the same.
-          new Rejected("@Nullable Set<?> f", "", "Set<?>"));
+          new Rejected("@Nullable Either<?, Leaf> f", "", "Either<?, Leaf>"));
 
   static Stream<Arguments> rejected() {
     return REJECTED.stream()

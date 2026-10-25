@@ -209,7 +209,7 @@ A stockroom keeps its stock by SKU in a `Map<String, Integer>`. You want a count
 ```
 ~~~
 
-A `Map` component's path focuses the whole map, and `.atKey(key)` narrows it to one value that may be missing. `getOrElse` supplies the fallback for a missing key.
+A `Map` component's path focuses the whole map, and `.via(FocusPaths.mapAt(key))` narrows it to one value that may be missing. `getOrElse` supplies the fallback for a missing key.
 
 ---
 

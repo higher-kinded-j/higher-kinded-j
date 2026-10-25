@@ -30,7 +30,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`does not return an Iso with both type arguments`](#generateisos-x-does-not-return-an-iso-with-both-type-arguments) | The `@GenerateIsos` method returns something else |
 | [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
 | [`The generated companion is a top-level class`](#companion-cannot-be-reached) | A type the generated companion names is `private`, or hidden in another package |
-| [`has a wildcard type argument`, `has a raw Set`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened container is raw, or has a wildcard type argument |
+| [`has a wildcard type argument`, `has a raw Either`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened SPI container, such as `Either`, is raw or has a wildcard |
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
 | [`has no navigator into`](#generatefocus-no-navigator-into) | **Note.** The same clash, on a record that leaves navigators to the default: the field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
@@ -123,9 +123,11 @@ Rows below and headings on the page say which, wherever it is not an error.
 
 | The message says | What it means |
 |------------------|---------------|
-| [`List<Object> cannot be converted to`, after `traverseOver`](#traverseover-and-the-higher-kinded-witness-type) | `traverseOver`'s element type is not pinned |
+| [`List<Object> cannot be converted to`, after `traverseOver`](#traverseover-and-the-higher-kinded-witness-type) | `traverseOver`'s element type is not pinned; `each(EachInstances.fromTraverse(...))` pins it |
 | [`Incompatible types`, after `.each().via()`](#incompatible-types-when-chaining-eachvia) | Usually one `.each()` too many |
-| [`Cannot infer type argument(s)`](#cannot-infer-type-arguments-on-an-intermediate-each) | Only the final `each()` in a chain can infer its element type |
+| [`Cannot infer type argument(s)`](#cannot-infer-type-arguments-on-an-intermediate-each) | Only the final untyped `each()` in a chain can infer its element type |
+| [`no suitable method found for each(...)`, or for `some` or `via`](#no-suitable-method-found-for-each) | The path does not focus on the container the typed step names |
+| [`each() in org.higherkindedj.optics.focus.FocusPath has been deprecated and marked for removal`](#untyped-shortcut-marked-for-removal) | **Warning.** A no-argument shortcut, due to go in 0.6.0, has a typed form |
 | [`::new` rejected as a `BiFunction`](#method-reference-new-doesnt-work-with-single-field-records-as-bifunction) | A single-component record has no two-argument constructor |
 | [`Sealed or non-sealed local classes are not allowed`](#sealed-or-non-sealed-local-classes-are-not-allowed) | A sealed interface is declared inside a method body |
 | [`Cannot resolve method 'flatMap(...)'`](#cannot-resolve-method-flatmapfunction) | Two `Free` witness types are being mixed |
@@ -392,21 +394,21 @@ class Shop {
 ```
 ~~~
 
-### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Set<? extends T>"
+### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Either<String, ? extends T>" {#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t}
 
-A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Maybe`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
+A container that the processor widens through the optic its SPI generator supplies is declared raw, or with a wildcard type argument. The same error covers `Either`, `Try`, `Validated`, `Map` and every other such container, and is also reported as *"has a raw Either"*. A `Map` or another collection draws it only once something widens it. The five built-in containers, `Optional`, `Maybe`, `List`, `Set` and `Collection`, never draw it.
 
-**Fix.** Name the type argument, `Set<Widget>` rather than `Set<? extends Widget>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
+**Fix.** Name the type arguments, `Either<String, Widget>` rather than `Either<String, ? extends Widget>`. For a wildcard, you can instead drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance. The lens keeps the component's type as written. The traversal focuses [the type the wildcard stands for](traversals.md#wildcard-element-types): `Widget` for `? extends Widget`, and `Object` for `?` or `? super Widget`. A raw container has no element type for `@GenerateTraversals` to focus, so it draws a note and no traversal there; keep `@GenerateLenses` alone for one. See [Custom Containers](focus_containers.md#supported-container-types).
 
 ~~~admonish note title="Why" collapsible=true
-That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose element type is free to be whatever the field says.
+That optic, such as `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. A built-in container is exempt because the processor names its instance for the element the arguments stand for, and casts it to the type the field declares.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "has a wildcard type argument" -->
+<!-- verify:rejects "has a wildcard type argument in Either<String, ? extends T>" -->
 ```java
 @GenerateFocus
-record Bag<T>(Set<? extends T> items) {}
+record Bag<T>(Either<String, ? extends T> item) {}
 ```
 ~~~
 
@@ -417,7 +419,7 @@ record Bag<T>(Set<? extends T> items) {}
 **Fix.** Rename the field, or keep `y` a plain path, as the message says. It names the change that does that on `X`: add `y` to `excludeFields`, remove it from `includeFields`, or, where `includeFields` names only `y`, remove `includeFields` and set `generateNavigators = false`. A plain path still reaches the clashing field through `.via(TFocus.z())`.
 
 ~~~admonish note title="Why" collapsible=true
-A navigator is a path, so it already has each of those methods. A navigation method of the same name would clash with it, and leaving the field out would let `name().last()` compile against the path's own `last()`. That method reads the last element of a list, so on a record it throws `ClassCastException` when the path runs. A record that asks for navigators in so many words is refused; one that leaves the default draws [a note](#generatefocus-no-navigator-into) instead. A name that takes arguments, such as `get` or `count`, does not clash, because `get()` and `get(source)` are two methods.
+A navigator is a path, so it already has each of those methods. A navigation method of the same name would clash with it, and leaving the field out would let `name().last()` compile against the path's own `last()`. That method reads the last element of a list, so on a record it throws `ClassCastException` when the path runs. It is deprecated, and a deprecated method clashes all the same while the path has it. A record that asks for navigators in so many words is refused; one that leaves the default draws [a note](#generatefocus-no-navigator-into) instead. A name that takes arguments, such as `get` or `count`, does not clash, because `get()` and `get(source)` are two methods.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -744,10 +746,10 @@ Selection is still deterministic, the first registered wins, but which one that 
 
 `@TraverseField` names a `Traverse` for a `Kind<F, A>` component with a declared witness, and this component is not one.
 
-**Fix.** Declare the component as the `Kind<F, A>` the `Traverse` is written for, `Kind<TreeKind.Witness, Tree>` for a `Traverse<TreeKind.Witness>`, with both type arguments given and a witness that is a type rather than a bare or `? super` wildcard, a type variable of the record, or a wildcard bounded by one; or drop the annotation and take the path the component gets on its own, applying `traverseOver` yourself where the witness is known. See [Custom `Kind` Types with `@TraverseField`](kind_field_support.md#custom-kind-types-with-traversefield).
+**Fix.** Declare the component as the `Kind<F, A>` the `Traverse` is written for, `Kind<TreeKind.Witness, Tree>` for a `Traverse<TreeKind.Witness>`, with both type arguments given and a witness that is a type rather than a bare or `? super` wildcard, a type variable of the record, or a wildcard bounded by one; or drop the annotation and take the path the component gets on its own, widening it yourself with `each(EachInstances.fromTraverse(traverse))` where the witness is known. See [Custom `Kind` Types with `@TraverseField`](kind_field_support.md#custom-kind-types-with-traversefield).
 
 ~~~admonish note title="Why" collapsible=true
-The second sentence says which way: the component is not declared as a `Kind` at all (`List<String> is not declared as a Kind<F, A> component`), the `Kind` is written raw and so names neither a witness nor an element, its witness is a bare or `? super` wildcard (`Kind<?, String>`) that stands for no type and so names no `Traverse` instance, or its witness is one of the record's own type variables (`Kind<F, String>` in a `Holder<F>`, or `Kind<? extends F, String>`, whose wildcard resolves to `F`), which stands for any witness, while a `Traverse` is written for one. The component keeps the path it would have had without the annotation, a plain `FocusPath`, or `.each()` for a `List`, which compiles and is correct as far as it goes; what is missing is the traversal the annotation asked for.
+The second sentence says which way: the component is not declared as a `Kind` at all (`List<String> is not declared as a Kind<F, A> component`), the `Kind` is written raw and so names neither a witness nor an element, its witness is a bare or `? super` wildcard (`Kind<?, String>`) that stands for no type and so names no `Traverse` instance, or its witness is one of the record's own type variables (`Kind<F, String>` in a `Holder<F>`, or `Kind<? extends F, String>`, whose wildcard resolves to `F`), which stands for any witness, while a `Traverse` is written for one. The component keeps the path it would have had without the annotation, a plain `FocusPath`, or `.each(EachInstances.listEach())` for a `List`, which compiles and is correct as far as it goes; what is missing is the traversal the annotation asked for.
 
 It is a note rather than an error because nothing is broken: the generated class is sound, and the same declaration without the annotation passes without comment. A warning cannot be suppressed and would fail a `-Werror` build with no remedy short of editing the record.
 ~~~
@@ -766,7 +768,7 @@ record Inbox(
 
 The component is a `Kind<F, A>` whose witness is one of Higher-Kinded-J's own, but not one the Focus processor has a `Traverse` registered for. Nothing widens it, so the generated method is a plain `FocusPath` focusing the `Kind`.
 
-**Fix.** Add `@TraverseField` naming the `Traverse` instance for the witness, or keep the plain path and apply `traverseOver` yourself. See [Kind Field Support](kind_field_support.md#convention-based-detection).
+**Fix.** Add `@TraverseField` naming the `Traverse` instance for the witness, or keep the plain path and widen it yourself with `each(EachInstances.fromTraverse(traverse))`. See [Kind Field Support](kind_field_support.md#convention-based-detection).
 
 ~~~admonish note title="Why" collapsible=true
 A witness of your own draws no note, since not traversing it is an ordinary choice; a library witness with no registered `Traverse` is a gap you would want to hear about. The note is written once for the component, however many navigators reach the record.
@@ -2524,16 +2526,16 @@ interface Orders {
 
 `traverseOver` takes its witness type from the `Traverse` argument, but its element type only from where the result goes. In a chain such as `.traverseOver(...).getAll(user)`, the element type falls back to `Object`, and javac reports `incompatible types: List<Object> cannot be converted to List<Role>`.
 
-**Fix.** Assign the result to a declared `TraversalPath`, or state both type parameters where the call sits in a chain:
+**Fix.** Widen through `each(EachInstances.fromTraverse(...))`, which takes the element type from the `Kind` the path focuses on, so it holds in a chain too:
 
 <!-- verify -->
 ```java
 TraversalPath<Operator, Role> allRoles =
-    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+    rolesPath.each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 ```
 
 ~~~admonish note title="Why" collapsible=true
-The element type appears only in the return type, so Java can infer it only from a target type, such as the variable the result is assigned to. The phantom error type in [Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright) is inferred the same way. The receiver of a further method call is not a target, so the element type takes its bound, `Object`. The witness is never the problem, since the `Traverse<F>` argument fixes it. [Focus DSL Reference](focus_reference.md#object-turns-up-after-traverseover) shows the failing chain beside both fixes.
+`traverseOver`'s element type appears only in its return type, so Java can infer it only from a target type, such as the variable the result is assigned to. The phantom error type in [Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright) is inferred the same way. The receiver of a further method call is not a target, so the element type takes its bound, `Object`. `fromTraverse` returns an `Each` typed from the `Kind` it reads, as every `Each` is, so the path's own focus fixes the element. `traverseOver` is deprecated for removal in 0.6.0. [Focus DSL Reference](focus_reference.md#object-turns-up-after-traverseover) shows the failing chain beside the fix.
 ~~~
 
 ### "Incompatible types when chaining .each().via()"
@@ -2554,24 +2556,56 @@ A generated accessor for a collection component is *already* element-level, so `
 ~~~
 
 ~~~admonish warning title="The extra `.each()` compiles"
-`each()` is `<E> TraversalPath<S, E>` and infers `E` from the assignment target, so a surplus hop type-checks and then fails at runtime when the list traversal is applied to something that is not a list. It is not caught by the compiler, which is why it belongs on this page rather than in a debugging note.
+The untyped `each()` is `<E> TraversalPath<S, E>` and infers `E` from the assignment target, so a surplus hop type-checks and then fails at runtime when the list traversal is applied to something that is not a list. It is deprecated for removal in 0.6.0. Its typed form, `each(EachInstances.listEach())`, does not compile on a focus that is not a `List`.
 ~~~
 
 ### "Cannot infer type argument(s)" on an intermediate `.each()`
 
-Only the *final* `each()` in a chain can infer its element type from the target type. An intermediate one has nothing to infer from.
+Only the *final* untyped `each()` in a chain can infer its element type from the target type. An intermediate one has nothing to infer from.
 
-**Fix.** Spell the element type at the intermediate hop:
+**Fix.** Use the typed form at each hop. It takes the element type from the `List` the path focuses on, so no hop needs it spelled out:
 
 <!-- verify -->
 ```java
 TraversalPath<OrgChart, Integer> allSalaries =
     FocusPath.of(OrgChartLenses.units())
-        .<OrgUnit>each()
+        .each(EachInstances.listEach())
         .via(OrgUnitLenses.members())
-        .<OrgMember>each()
+        .each(EachInstances.listEach())
         .via(OrgMemberLenses.salary());
 ```
+
+### "No suitable method found for each(...)" on a typed step {#no-suitable-method-found-for-each}
+
+The path does not focus on the container the step names: `EachInstances.listEach()` takes a path that focuses on a `List`, and `FocusPaths.optionalSome()` one that focuses on an `Optional`.
+
+**Fix.** Give the step the instance for what the path does focus on. A generated collection path already focuses on each element, so it needs no step of its own, and a `Set`, a `Map` or another container takes its own `Each`. A path over a `List<? extends T>` takes an `Iso` to `List<T>` first, and one over a `Kind<F, ? extends T>` an `Iso` to `Kind<F, T>`, as [0.6.0 deprecation migration](../tooling/openrewrite.md#060-deprecation-migration) shows.
+
+<!-- verify:rejects "no suitable method found for each" -->
+```java
+// Rejected: the generated path already focuses on each OrgUnit, not on a List
+TraversalPath<OrgChart, OrgUnit> units = OrgChartFocus.units().each(EachInstances.listEach());
+```
+
+~~~admonish note title="Why" collapsible=true
+`listEach()` is an `Each<List<A>, A>`, and `each` takes an `Each` whose first type is the path's focus, so javac looks for an `A` that makes `List<A>` an `OrgUnit` and finds none. The deprecated no-argument `each()` compiled here, because it does not read its element type from the focus, and failed with `ClassCastException` when it ran. `some(FocusPaths.optionalSome())` on a focus that is not an `Optional`, and `via(FocusPaths.listAt(0))` on one that is not a `List`, give the same message, naming `some` or `via`.
+~~~
+
+### "each() in org.higherkindedj.optics.focus.FocusPath has been deprecated and marked for removal" (a warning) {#untyped-shortcut-marked-for-removal}
+
+A Focus path's no-argument `each()`, `some()`, `head()`, `last()`, `tail()`, `init()`, `cons()`, `snoc()`, `headTail()` or `initLast()` is deprecated for removal in 0.6.0, and so are its `at(index)`, `atKey(key)` and `traverseOver(traverse)`. The warning names the method and the path type, a navigator included.
+
+**Fix.** Write its typed form: the same verb, given an instance that names the container, such as `each(EachInstances.listEach())` or `some(FocusPaths.optionalSome())`. [Removals in 0.6.0](../release-history/upgrading.md#removals-in-060) gives each one. The `MigrateDeprecationsTo0_6_0` recipe rewrites the calls it can and marks the rest, as [0.6.0 deprecation migration](../tooling/openrewrite.md#060-deprecation-migration) says.
+
+<!-- verify:reports "each() in org.higherkindedj.optics.focus.FocusPath has been deprecated and marked for removal" -->
+```java
+// Warned: each() takes its element type from the assignment, not from the path
+TraversalPath<OrgChart, OrgUnit> units = FocusPath.of(OrgChartLenses.units()).each();
+```
+
+~~~admonish note title="Why" collapsible=true
+The shortcut does not read its element type from the path's focus. So it compiles on any focus, and fails with `ClassCastException` when it runs on one that is not its container. The typed form reads the element from the focus, so on the wrong focus it does not compile, with [No suitable method found for each(...)](#no-suitable-method-found-for-each). The warning fails a build only under `-Werror`.
+~~~
 
 ### "Method reference ::new doesn't work with single-field records as BiFunction"
 

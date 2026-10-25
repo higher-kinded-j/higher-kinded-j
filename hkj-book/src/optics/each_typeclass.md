@@ -65,26 +65,20 @@ public interface Each<S, A> {
     // The canonical traversal for all elements
     Traversal<S, A> each();
 
-    // Check if indexed access is supported (i.e. this is an EachIndexed).
-    // The real body also falls back to the deprecated eachWithIndex() for
-    // back-compatibility; that member is omitted here for clarity.
+    // Check if indexed access is supported (i.e. this is an EachIndexed)
     default boolean supportsIndexed() {
         return this instanceof EachIndexed<?, ?, ?>;
     }
 }
 
 // Containers with a meaningful index implement EachIndexed, which fixes the
-// index type I at the type level: no Optional, no cast.
+// index type I at the type level.
 public interface EachIndexed<I, S, A> extends Each<S, A> {
     IndexedTraversal<I, S, A> indexedTraversal();
 }
 ```
 
 The interface is simple by design. Implement `each()` to provide a traversal; if your container has meaningful indices, implement `EachIndexed` and provide `indexedTraversal()` instead.
-
-~~~admonish warning title="Deprecated: eachWithIndex()"
-Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<IndexedTraversal<I, S, A>>` and let the caller choose the index type `<I>` freely even though the real index type was fixed; a mismatched request compiled but failed at runtime with a `ClassCastException`. It is **deprecated (for removal in 0.5.0)** in favour of `EachIndexed.indexedTraversal()`, which fixes the index type at the type level and needs no `Optional` unwrap. Migrate by typing the variable as `EachIndexed` and calling `indexedTraversal()` directly.
-~~~
 
 ---
 
@@ -109,7 +103,7 @@ Earlier releases exposed `Each.eachWithIndex()`, which returned an `Optional<Ind
 import org.higherkindedj.optics.each.EachInstances;
 
 // List traversal with index support
-Each<List<String>, String> listEach = EachInstances.listEach();
+EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
 
 // Set traversal (no meaningful index)
 Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
@@ -118,13 +112,13 @@ Each<Set<Integer>, Integer> setEach = EachInstances.setEach();
 Each<Collection<String>, String> collectionEach = EachInstances.collectionEach();
 
 // Map values traversal with key as index
-Each<Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
+EachIndexed<String, Map<String, Double>, Double> mapEach = EachInstances.mapValuesEach();
 
 // Optional traversal (0 or 1 element)
 Each<Optional<String>, String> optEach = EachInstances.optionalEach();
 
 // Array traversal with index support
-Each<Integer[], Integer> arrayEach = EachInstances.arrayEach();
+EachIndexed<Integer, Integer[], Integer> arrayEach = EachInstances.arrayEach();
 
 // Stream traversal (consumed during traversal)
 Each<Stream<String>, String> streamEach = EachInstances.streamEach();
@@ -133,7 +127,7 @@ Each<Stream<String>, String> streamEach = EachInstances.streamEach();
 Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
 
 // String character traversal with index support
-Each<String, Character> stringEach = EachInstances.stringCharsEach();
+EachIndexed<Integer, String, Character> stringEach = EachInstances.stringCharsEach();
 ```
 
 ### HKT Types (EachExtensions)
@@ -174,7 +168,7 @@ Each<Validated<List<AppError>, Payload>, Payload> validatedEach = EachExtensions
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/each/EachBook.java:traverse_all}}
 ```
 
-### Using Indexed Traversal
+### Using Indexed Traversal {#using-indexed-traversal}
 
 When position matters, type the instance as `EachIndexed` and call `indexedTraversal()`. The index type (`Integer` for lists) is fixed at compile time:
 
@@ -224,7 +218,7 @@ TraversalPath<Depot, Integer> allLevels = allStock.each(EachInstances.mapValuesE
 Depot restocked = allLevels.modifyAll(level -> level + 10, depot);
 ```
 
-This is particularly useful when the container type isn't a standard `List` that `.each()` recognises automatically.
+This is how a path steps into any container: a `Map`'s values here, a `List` with `EachInstances.listEach()`, and your own container with the instance you give it.
 
 ---
 
@@ -374,7 +368,7 @@ Contributor updated = allTasks.modifyAll(Task::escalated, contributor);
 - You need a canonical traversal for a container type
 - Integrating with Focus DSL's `.each(Each)` method
 - Building reusable optics for custom containers
-- You want indexed access when available
+- You want indexed access, through `EachIndexed`, where the container has an index
 
 **Use direct Traversal when:**
 - You need a non-canonical traversal (e.g., every second element)
@@ -387,7 +381,7 @@ Contributor updated = allTasks.modifyAll(Task::escalated, contributor);
 * **Each<S, A>** provides a canonical `Traversal<S, A>` for any container type
 * **EachInstances** covers Java collections: List, Set, Collection, Map, Optional, arrays, Stream, VStream, String
 * **EachExtensions** covers HKT types: Maybe, Either, Try, Validated
-* **EachIndexed.indexedTraversal()** returns an `IndexedTraversal` when the container supports meaningful indices (`eachWithIndex()` is deprecated for removal in 0.5.0)
+* **EachIndexed.indexedTraversal()** returns an `IndexedTraversal` when the container supports meaningful indices
 * **Focus DSL integration** via `.each(Each)` enables fluent navigation through custom containers
 * **Each.fromTraversal()** and **Each.fromIndexedTraversal()** wrap existing optics
 ~~~

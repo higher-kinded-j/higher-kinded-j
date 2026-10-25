@@ -38,8 +38,8 @@ the processor generates one method per component, each already carrying the wide
 FocusPath<Candidate, String> name = CandidateFocus.name();          // plain field
 FocusPath<Candidate, Integer> age = CandidateFocus.age();           // boxed primitive
 
-AffinePath<Candidate, String> email = CandidateFocus.email();       // .some()
-TraversalPath<Candidate, Skill> skills = CandidateFocus.skills();   // .each()
+AffinePath<Candidate, String> email = CandidateFocus.email();       // .some(optionalSome())
+TraversalPath<Candidate, Skill> skills = CandidateFocus.skills();   // .each(listEach())
 
 // SPI ZERO_OR_ONE: .some(Affines.eitherRight())
 AffinePath<Candidate, Integer> timeout = CandidateFocus.timeout();
@@ -49,7 +49,7 @@ FocusPath<Candidate, Map<String, Integer>> scores = CandidateFocus.scores();
 TraversalPath<Candidate, Integer> allScores = scores.each(EachInstances.mapValuesEach());
 ```
 
-Two things are worth noticing. There is exactly one method per component, so indexed accessors such as `skill(0)` are not generated; index with `.at(0)` from `FocusPath.of(CandidateLenses.skills())` instead. And the `Map` field is the odd one out, which the next section explains.
+Two things are worth noticing. There is exactly one method per component, so indexed accessors such as `skill(0)` are not generated; index with `.via(FocusPaths.listAt(0))` from `FocusPath.of(CandidateLenses.skills())` instead. And the `Map` field is the odd one out, which the next section explains.
 
 ---
 
@@ -78,7 +78,7 @@ In words: a plain field implies a `FocusPath`, a container of zero or one an `Af
 
 The diagram gives the tier a container's cardinality *implies*. Which of them a static Focus method actually widens to is the next section's subject: `List`, `Set` and `Collection` always do, and the rest wait for `widenCollections` or `widenFields`.
 
-Nested containers compose the same rule up to three levels: `Optional<List<String>>` becomes `.some().each()` and lands on a `TraversalPath`. See [Nested Container Widening](focus_navigation.md#nested-container-widening).
+Nested containers compose the same rule up to three levels: `Optional<List<String>>` becomes `.some(FocusPaths.optionalSome()).each(EachInstances.listEach())` and lands on a `TraversalPath`. See [Nested Container Widening](focus_navigation.md#nested-container-widening).
 
 ### The `ZERO_OR_MORE` Asymmetry, and `widenCollections`
 
@@ -111,19 +111,19 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 
 | Container | Source | Optic used |
 |-----------|--------|------------|
-| `Optional<A>` | JDK | `.some()` (recognised directly) |
+| `Optional<A>` | JDK | `FocusPaths.optionalSome()` (recognised directly) |
 | `Maybe<A>` | HKJ | `Affines.just()` (recognised directly) |
 | `Either<L, R>` | HKJ | `Affines.eitherRight()` |
 | `Try<A>` | HKJ | `Affines.trySuccess()` |
 | `Validated<E, A>` | HKJ | `Affines.validatedValid()` |
 
-`Optional` and `Maybe` are recognised by name rather than by the SPI, and they do not share an optic. The no-argument `.some()` reads an `Optional` only, so a `Maybe` field widens through `.some(Affines.just())`.
+`Optional` and `Maybe` are recognised by name rather than by the SPI, and they do not share an optic: an `Optional` field widens through `.some(FocusPaths.optionalSome())`, a `Maybe` field through `.some(Affines.just())`.
 
 `ZERO_OR_MORE` containers, which produce a `TraversalPath` (at the static method for the first three rows, which are recognised by name, and for the rest only under `widenCollections = true`):
 
 | Container | Source | Optic used |
 |-----------|--------|------------|
-| `List<A>` | JDK | `.each()` (recognised directly) |
+| `List<A>` | JDK | `EachInstances.listEach()` (recognised directly) |
 | `Set<A>` | JDK | `EachInstances.setEach()` (recognised directly) |
 | `Collection<A>` | JDK | `EachInstances.collectionEach()` (recognised directly) |
 | `Map<K, V>` | JDK | `EachInstances.mapValuesEach()` |
@@ -135,7 +135,7 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
 | `PMap`, `PSortedMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
 
-The three JDK collections are recognised by name rather than by the SPI, but they do not share one traversal: the no-argument `.each()` carries a `List` one, so a `Set` field is widened with `EachInstances.setEach()` and a `Collection` field with `EachInstances.collectionEach()`. Each rebuilds a value the component can take back, which is what lets the modified result go home:
+The three JDK collections are recognised by name rather than by the SPI, but they do not share one traversal: a `List` field is widened with `EachInstances.listEach()`, a `Set` field with `EachInstances.setEach()` and a `Collection` field with `EachInstances.collectionEach()`. Each rebuilds a value the component can take back, which is what lets the modified result go home:
 
 <!-- verify -->
 ```java
@@ -183,7 +183,7 @@ Allocation rebalanced =
 ```
 
 ~~~admonish warning title="Raw and wildcard container type arguments"
-Most containers widen by naming an optic **instance**: `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())`. Javac works out that instance's own type arguments from the field's type. A raw container gives it nothing to work from, and a wildcard stands for no one type, so there is nothing to name. Rather than write a call that cannot compile, `@GenerateFocus` rejects the component:
+An SPI container widens by naming the optic **instance** its generator supplies: `.some(Affines.eitherRight())`, `.each(EachInstances.mapValuesEach())`. Javac works out that instance's own type arguments from the field's type. A raw container gives it nothing to work from, and a wildcard stands for no one type, so there is nothing to name. Rather than write a call that cannot compile, `@GenerateFocus` rejects the component. The five built-in containers, `Optional`, `Maybe`, `List`, `Set` and `Collection`, are the exception: the processor names their instance for the element type and casts it to the type the field declares.
 
 <!-- verify:rejects "has a wildcard type argument" -->
 ```java
@@ -203,15 +203,14 @@ Which fields the rule reaches follows from how each one widens:
 
 | Field | Widens by | Raw or wildcard argument |
 |-------|-----------|--------------------------|
-| `Optional`, `List` | `.some()` and `.each()`, which take no argument | ✅ Accepted. `List<? extends Widget>` widens to `TraversalPath<Holder, Widget>` |
-| `Maybe`, `Set`, `Collection` | naming an optic instance: `Affines.just()` or an `Each` | ❌ Rejected, the same as an SPI container |
+| `Optional`, `Maybe`, `List`, `Set`, `Collection` | `FocusPaths.optionalSome()`, `Affines.just()`, or the container's own `Each` from `EachInstances`, cast to the type the field declares | ✅ Accepted. `List<? extends Widget>` widens to `TraversalPath<Holder, Widget>`, and a raw `Set` to `TraversalPath<Holder, Object>` |
 | `Either`, `Try`, `Validated`, `Map`, third-party collections | naming the optic its SPI generator supplies | ❌ Rejected, but only when the field is actually widened |
 | `Kind<W, A>` | the `Traverse` registered for the witness `W` | ✅ Accepted. A wildcard element resolves to its bound, so `Kind<ListKind.Witness, ? extends Widget>` widens to `TraversalPath<Holder, Widget>`; a wildcard *witness* names no `Traverse` at all, so `Kind<?, Widget>` stays a plain `FocusPath` (see [Kind Field Support](kind_field_support.md#convention-based-detection)) |
 | Any container in this table whose element is a generic type it does not step into, such as `List<Box<? extends Widget>>` | the container's own widening, as for any other element | ✅ Accepted under every setting. The element is kept whole, so `List<Box<? extends Widget>>` widens to `TraversalPath<Crate, Box<? extends Widget>>` (see [A wildcard inside the element](#a-wildcard-inside-the-element)) |
 
 Three things narrow the rule further.
 
-**Only the container's own type arguments count**, focused or not. `Either<?, Widget>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Widget>>` widens to `.some(Affines.eitherRight()).each()`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `List<? extends Widget>[]` widens to `TraversalPath<Holder, Widget>`, while `Set<? extends Widget>[]` is rejected.
+**Only the container's own type arguments count**, focused or not. `Either<?, Widget>` is rejected even though the wildcard sits on the side the path never looks at. One level down is fine, because the container itself is still fully named: `Either<String, List<? extends Widget>>` widens to `.some(Affines.eitherRight()).each(EachInstances.listEach())`, with the `Each` cast to one over `List<? extends Widget>`. Once the walk steps into the `List`, its own arguments are the ones that count. An element it does not step into keeps any wildcard it carries, as [A wildcard inside the element](#a-wildcard-inside-the-element) shows. An array has no type arguments of its own, so the array itself is never rejected, and the walk judges its element as any other. Under `widenCollections = true`, `Set<? extends Widget>[]` widens to `TraversalPath<Holder, Widget>`, while `Either<?, Widget>[]` is rejected.
 
 **A `ZERO_OR_MORE` SPI container is only rejected when something widens it**, which means `widenCollections = true`, or `widenFields` naming the field. At the default settings the path stops at the container, no optic is named, and the wildcard costs nothing. That covers wildcards below it too: `Map<String, Either<String, ? extends Widget>>` compiles at the default settings, because the `Map` is never widened and so the `Either` inside it is never asked for an optic.
 

@@ -42,6 +42,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
@@ -265,7 +266,7 @@ class CookbookBookTest {
       assertThat(entry.picked().stock()).containsEntry("LAMP", 2).containsEntry("BULB", 40);
       assertThat(entry.stocked().stock()).containsEntry("DESK", 5).hasSize(3);
 
-      AffinePath<Stockroom, Integer> desks = StockroomFocus.stock().atKey("DESK");
+      AffinePath<Stockroom, Integer> desks = StockroomFocus.stock().via(FocusPaths.mapAt("DESK"));
       assertThat(desks.modify(count -> count - 1, stockroom)).isEqualTo(stockroom);
     }
 
