@@ -443,7 +443,7 @@ error: @GenerateFocus: the navigator for 'Signatory.name' cannot navigate to 'Fu
 
 `X` leaves navigators to the default, and the record `y` holds, `T`, has a field named like one of the path's own methods that take no arguments, the ones the [entry before](#generatefocus-navigator-cannot-navigate) lists. A navigator could not navigate to that field, so `y` gets none, and its method keeps the path it has without one.
 
-**Fix.** Rename the field to give `y` a navigator. To keep the plain path and silence the note, add `y` to `excludeFields` on `X`, as the note says.
+**Fix.** Rename the field to give `y` a navigator. To keep the plain path and silence the note, make the change it names on `X`. Add `y` to `excludeFields` or remove it from `includeFields`; where `includeFields` names only `y`, remove `includeFields` and set `generateNavigators = false`.
 
 ~~~admonish note title="Why" collapsible=true
 A record that leaves the default asked for no navigator in particular, so the field keeps the path it would have with navigators off, rather than failing the build. A record that writes `generateNavigators = true` is refused instead, by the entry before this one.
@@ -468,7 +468,7 @@ Note: @GenerateFocus: record component 'Signatory.name' has no navigator into Fu
 
 `X` writes `generateNavigators = true`, and two of its fields that reach `@GenerateFocus` records have names that differ only in the case of their first letter, such as `pouches` and `Pouches`. A navigator class takes its field's name with the first letter in upper case, so both would be `PouchesNavigator`. The first field in declaration order keeps the navigator, and the message is at the later one.
 
-**Fix.** Rename either field, or keep the later one a plain path, as the message says: add it to `excludeFields`, or remove it from `includeFields`.
+**Fix.** Rename either field, or keep the later one a plain path, as the message says. It names the change that does that on `X`: add the later field to `excludeFields`, or, where `X` writes `includeFields`, remove it from that list, which still names the earlier field.
 
 ~~~admonish note title="Why" collapsible=true
 Both classes would be nested in the record's `Focus` class, which cannot hold two classes of one name, so javac would report the second as already defined, in a file you cannot edit. The first field keeps its navigator, so a field added after it never takes that navigator away. A record that leaves navigators to the default draws [a note](#generatefocus-no-navigator-shared-name) instead.
@@ -493,7 +493,7 @@ error: @GenerateFocus: the navigator for 'Satchel.Pouches' cannot share its clas
 
 `X` leaves navigators to the default, and `z`, declared before `y`, has a name that differs from `y`'s only in the case of its first letter. `z`'s navigator already has the class name `y`'s would take, as the [entry before](#generatefocus-navigator-shares-class-name) explains, so `y` keeps the path it has without one.
 
-**Fix.** Rename either field to give both a navigator. To keep the plain path and silence the note, add `y` to `excludeFields` on `X`, as the note says.
+**Fix.** Rename either field to give both a navigator. To keep the plain path and silence the note, make the change it names on `X`: add `y` to `excludeFields`, or, where `X` writes `includeFields`, remove `y` from it.
 
 ~~~admonish note title="Why" collapsible=true
 A record that leaves the default asked for no navigator in particular, so the later field keeps the path it would have with navigators off, rather than failing the build. A record that writes `generateNavigators = true` is refused instead, by the entry before this one.
