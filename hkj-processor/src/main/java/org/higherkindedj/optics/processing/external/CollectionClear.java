@@ -89,7 +89,7 @@ final class CollectionClear {
                                 ProcessorUtils.capitalise(name.substring(CLEAR.length()))))
                 : Stream.empty();
     return names
-        .map(name -> CallableMembers.accessorNamed(members, name))
+        .map(name -> CallableMembers.accessorNamed(types, builderType, members, name))
         .filter(Objects::nonNull)
         .findFirst()
         .filter(clear -> deprecation(elements, clear) <= deprecation(elements, setter))

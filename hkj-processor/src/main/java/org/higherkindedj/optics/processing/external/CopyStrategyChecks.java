@@ -469,7 +469,8 @@ final class CopyStrategyChecks {
       TypeMirror focusType,
       String targetPackage) {
     ExecutableElement getter =
-        CallableMembers.accessorNamed(members.of(sourceTypeElement, targetPackage), getterName);
+        CallableMembers.accessorNamed(
+            typeUtils, sourceType, members.of(sourceTypeElement, targetPackage), getterName);
     String ownerName = ProcessorUtils.simpleTypeName(sourceType);
     // @ViaCopyAndSet and @ViaConstructor read through the lens method's own name, and carry no
     // attribute that could point anywhere else.
@@ -875,7 +876,9 @@ final class CopyStrategyChecks {
     }
     for (String parameter : written) {
       if (parameter.equals(rebuild.fieldName())
-          || CallableMembers.accessorNamed(rebuild.members(), parameter) != null) {
+          || CallableMembers.accessorNamed(
+                  typeUtils, rebuild.source(), rebuild.members(), parameter)
+              != null) {
         continue;
       }
       members.reportMissingAccessor(
