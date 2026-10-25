@@ -4,6 +4,7 @@ package org.higherkindedj.example.order.service.impl;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +15,7 @@ import org.higherkindedj.example.order.model.value.Money;
 import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.service.PaymentService;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.time.TimeSource;
 
 /** In-memory implementation of PaymentService for testing and examples. */
 public class InMemoryPaymentService implements PaymentService {
@@ -21,9 +23,22 @@ public class InMemoryPaymentService implements PaymentService {
   private final Map<String, PaymentConfirmation> transactions = new ConcurrentHashMap<>();
   private final Set<String> declinedCards = ConcurrentHashMap.newKeySet();
 
+  /** Where this service reads time from; inject a fixed or steppable source in tests. */
+  private final TimeSource timeSource;
+
   public InMemoryPaymentService() {
+    this(TimeSource.system());
+  }
+
+  public InMemoryPaymentService(TimeSource timeSource) {
+    this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
     // Add some test cards that will be declined
     declinedCards.add("4111111111111111");
+  }
+
+  /** Reads the injected clock directly; this service is synchronous and returns Either. */
+  private Instant now() {
+    return timeSource.clock().instant();
   }
 
   public void addDeclinedCard(String cardNumber) {
@@ -50,7 +65,7 @@ public class InMemoryPaymentService implements PaymentService {
     var transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
     var authCode = "AUTH-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
-    var confirmation = new PaymentConfirmation(transactionId, amount, Instant.now(), authCode);
+    var confirmation = new PaymentConfirmation(transactionId, amount, now(), authCode);
 
     transactions.put(transactionId, confirmation);
     return Either.right(confirmation);
@@ -68,8 +83,7 @@ public class InMemoryPaymentService implements PaymentService {
     // Create refund confirmation
     var refundId = "REF-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
     var refundConfirmation =
-        new PaymentConfirmation(
-            refundId, amount, Instant.now(), "REFUND-" + original.authorizationCode());
+        new PaymentConfirmation(refundId, amount, now(), "REFUND-" + original.authorizationCode());
 
     transactions.put(refundId, refundConfirmation);
     return Either.right(refundConfirmation);
