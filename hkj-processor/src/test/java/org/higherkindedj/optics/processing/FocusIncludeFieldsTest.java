@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
@@ -13,14 +14,26 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+/**
+ * An includeFields name whose field has no navigator warns at the name, with a fix line that can be
+ * followed. Most shapes share two compilations: one holds every record as written, where each
+ * warning must land on the name it is about, and one holds every record with its fix line followed,
+ * under {@code -Xlint:all} and {@code -Werror}, where nothing more may be reported. A shape that
+ * compiles against a dependency, runs what it compiles, fails to build, or changes a record the
+ * other shapes share is compiled on its own.
+ */
 @DisplayName("includeFields entries without navigators")
 class FocusIncludeFieldsTest {
 
@@ -29,6 +42,28 @@ class FocusIncludeFieldsTest {
   private static final JavaFileObject PLAIN = source("Plain", "", "String street");
   private static final JavaFileObject GENERIC = source("Box<T>", "@GenerateFocus", "T value");
   private static final JavaFileObject CLASH = source("Clash", "@GenerateFocus", "String last");
+
+  // A record without @GenerateFocus as written, which gains it where a fix line offers that.
+  private static final JavaFileObject STALL = source("Stall", "", "String street");
+  private static final JavaFileObject ANNOTATED_STALL =
+      source("Stall", "@GenerateFocus", "String street");
+
+  // Records without @GenerateFocus that the annotation alone would not let navigate: a wildcard
+  // instantiation has no navigator, and a field named last clashes with a path method.
+  private static final JavaFileObject POUCH = source("Pouch<T>", "", "T value");
+  private static final JavaFileObject DIARY = source("Diary", "", "String last");
+
+  /** An SPI container whose key bound depends on itself, so no concrete alternative is invented. */
+  private static final JavaFileObject KEYED_BOX =
+      JavaFileObjects.forSourceString(
+          "com.example.hkjtest.Box",
+          """
+          package com.example.hkjtest;
+          public record Box<K extends Comparable<K>, V>(V value) {}
+          """);
+
+  /** The line every record's annotation is written on, after the package and the five imports. */
+  private static final long ANNOTATION_LINE = 7;
 
   private static JavaFileObject source(String name, String annotation, String components) {
     return JavaFileObjects.forSourceString(
@@ -46,6 +81,167 @@ class FocusIncludeFieldsTest {
             .formatted(annotation, name, components));
   }
 
+  /**
+   * A record compiled beside the others.
+   *
+   * @param record the record's name, unique among the shapes
+   * @param annotation the annotation, on one line
+   * @param components the record's components
+   */
+  record Shape(String record, String annotation, String components) {
+
+    JavaFileObject source() {
+      return FocusIncludeFieldsTest.source(record, annotation, components);
+    }
+
+    @Override
+    public String toString() {
+      return annotation + " on " + record + "(" + components + ")";
+    }
+  }
+
+  /** A record as written, and as its fix line leads to. */
+  record Row(Shape written, Shape followed) {
+
+    @Override
+    public String toString() {
+      return written.toString();
+    }
+  }
+
+  private static Row row(String record, String annotation, String components, String followed) {
+    return row(record, annotation, components, followed, components);
+  }
+
+  private static Row row(
+      String record, String annotation, String components, String followed, String fixed) {
+    return new Row(new Shape(record, annotation, components), new Shape(record, followed, fixed));
+  }
+
+  /**
+   * The two compilations most tests read: every record as written, and every record with its fix
+   * line followed. Each shape is declared beside the test that reads it, and listed in {@code ROWS}
+   * if it has a followed form, in {@code AS_WRITTEN} if it is checked only as written, or in {@code
+   * QUIET} if it is checked only followed; a shape listed in none fails its test. The holder reads
+   * the test class's lists, so the class's methods may read it, but its static fields must not.
+   */
+  private static final class Shared {
+
+    static final List<Row> ROWS =
+        Stream.of(
+                OFFERS.stream().map(Offer::row),
+                BESIDE_NAVIGATOR.stream().map(Beside::row),
+                BESIDE_ANNOTATION.stream(),
+                UNCORRECTED.stream(),
+                WIDENINGS.stream().map(Widening::row),
+                WILDCARD_CONTAINERS.stream(),
+                REPLACEMENTS.stream().map(Replacement::row),
+                REFUSED.stream(),
+                UNANNOTATABLE.stream(),
+                Stream.of(
+                    MULTIPLE, ANNOTATING, SHELF, DEPENDENT_BOUND, REMOVAL, ELIGIBLE, CLASHING))
+            .flatMap(Function.identity())
+            .toList();
+
+    /** Every record as written: the rows, and the shapes whose message another fix line owns. */
+    static final List<Shape> AS_WRITTEN =
+        Stream.of(
+                ROWS.stream().map(Row::written),
+                WILDCARD_ELEMENTS.stream(),
+                NOTED.stream().map(Noted::shape),
+                Stream.of(RACK, RAW, NAVIGATORS_OFF))
+            .flatMap(Function.identity())
+            .toList();
+
+    static final Compilation WRITTEN =
+        compile(support(STALL), AS_WRITTEN.stream().map(Shape::source));
+
+    /** Every row followed, beside the shapes that draw nothing and the navigations they offer. */
+    static final Compilation FOLLOWED =
+        compile(
+            support(ANNOTATED_STALL),
+            Stream.of(
+                    ROWS.stream().map(Row::followed).map(Shape::source),
+                    QUIET.stream().map(Shape::source),
+                    BESIDE_NAVIGATOR.stream().map(Beside::use))
+                .flatMap(Function.identity()),
+            "-Xlint:all,-processing,-auxiliaryclass",
+            "-Werror");
+
+    /** The records the shapes refer to, with Stall annotated or not. */
+    private static Stream<JavaFileObject> support(JavaFileObject stall) {
+      return Stream.of(ADDRESS, PLAIN, GENERIC, CLASH, stall, POUCH, DIARY, KEYED_BOX);
+    }
+
+    private static Compilation compile(
+        Stream<JavaFileObject> records, Stream<JavaFileObject> shapes, String... options) {
+      return javac()
+          .withProcessors(new FocusProcessor())
+          .withOptions(List.of(options))
+          .compile(Stream.concat(records, shapes).toList());
+    }
+  }
+
+  /**
+   * The diagnostics a compilation reports in a file. It first checks that the compilation holds the
+   * file, so that a shape left out of it fails rather than passing for one that draws nothing.
+   */
+  private static List<Diagnostic<? extends JavaFileObject>> in(
+      Compilation compilation, JavaFileObject file) {
+    String path = file.toUri().getPath();
+    assertThat(compilation.sourceFiles()).extracting(each -> each.toUri().getPath()).contains(path);
+    return compilation.diagnostics().stream()
+        .filter(
+            diagnostic ->
+                diagnostic.getSource() != null
+                    && diagnostic.getSource().toUri().getPath().equals(path))
+        .toList();
+  }
+
+  /** The warnings the records as written draw in a shape's file. */
+  private static List<String> warningsIn(Shape shape) {
+    return messagesIn(shape, Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING);
+  }
+
+  /** The notes the records as written draw in a shape's file. */
+  private static List<String> notesIn(Shape shape) {
+    return messagesIn(shape, Diagnostic.Kind.NOTE);
+  }
+
+  private static List<String> messagesIn(Shape shape, Diagnostic.Kind... kinds) {
+    return in(Shared.WRITTEN, shape.source()).stream()
+        .filter(diagnostic -> List.of(kinds).contains(diagnostic.getKind()))
+        .map(diagnostic -> diagnostic.getMessage(null))
+        .toList();
+  }
+
+  /** Checks that a shape as written draws a warning containing the message. */
+  private static void warns(Shape shape, String message) {
+    assertThat(Shared.WRITTEN).hadWarningContaining(message).inFile(shape.source());
+  }
+
+  /**
+   * Checks that a shape as written draws a warning containing the message, pointing at the text
+   * {@code at} in its annotation.
+   */
+  private static void warnsAt(Shape shape, String at, String message) {
+    assertThat(Shared.WRITTEN)
+        .hadWarningContaining(message)
+        .inFile(shape.source())
+        .onLine(ANNOTATION_LINE)
+        .atColumn(shape.annotation().indexOf(at) + 1);
+  }
+
+  /** Checks that a shape as written draws a note containing the message. */
+  private static void notes(Shape shape, String message) {
+    assertThat(Shared.WRITTEN).hadNoteContaining(message).inFile(shape.source());
+  }
+
+  /** Checks that the followed compilation holds a file and reports nothing in it. */
+  private static void followedCleanly(JavaFileObject file) {
+    assertThat(in(Shared.FOLLOWED, file)).isEmpty();
+  }
+
   private static Compilation compile(JavaFileObject subject, String... options) {
     return javac()
         .withProcessors(new FocusProcessor())
@@ -55,219 +251,294 @@ class FocusIncludeFieldsTest {
 
   private static void clean(Compilation compilation) {
     assertThat(compilation).succeededWithoutWarnings();
-    org.assertj.core.api.Assertions.assertThat(compilation.notes())
-        .noneMatch(note -> note.getMessage(null).contains("@GenerateFocus:"));
+    assertThat(compilation.notes()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("nothing as written is reported outside the shapes' own files")
+  void reportsOnlyInTheRecords() {
+    List<String> files =
+        Shared.AS_WRITTEN.stream().map(shape -> shape.source().toUri().getPath()).toList();
+    assertThat(Shared.WRITTEN).succeeded();
+    assertThat(Stream.concat(Shared.WRITTEN.warnings().stream(), Shared.WRITTEN.notes().stream()))
+        .extracting(
+            diagnostic ->
+                diagnostic.getSource() == null ? "" : diagnostic.getSource().toUri().getPath())
+        .isSubsetOf(files);
+  }
+
+  @Test
+  @DisplayName("each fix line, followed as written, compiles with nothing more to report")
+  void eachFixLineCompiles() {
+    clean(Shared.FOLLOWED);
+  }
+
+  /** A field without a navigator, with the path its method still returns. */
+  record Offer(Row row, String name, String type, String method) {
+
+    @Override
+    public String toString() {
+      return row.toString();
+    }
+  }
+
+  private static final List<Offer> OFFERS =
+      List.of(
+          offer("Passport", "String", "id", "FocusPath<Passport, String> id()"),
+          offer("Article", "List<String>", "tags", "TraversalPath<Article, String> tags()"),
+          offer("Parcel", "Plain", "plain", "FocusPath<Parcel, Plain> plain()"),
+          offer("Counter", "int", "number", "FocusPath<Counter, Integer> number()"),
+          offer("Catalogue", "List<Plain>", "plains", "TraversalPath<Catalogue, Plain> plains()"));
+
+  private static Offer offer(String record, String type, String name, String method) {
+    return new Offer(
+        row(
+            record,
+            "@GenerateFocus(includeFields = \"" + name + "\")",
+            type + " " + name + ", Address address",
+            "@GenerateFocus(includeFields = \"address\")"),
+        name,
+        type,
+        method);
   }
 
   @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-          String id | id | String | FocusPath<Subject, String> id()
-          List<String> tags | tags | List<String> | TraversalPath<Subject, String> tags()
-          Plain plain | plain | Plain | FocusPath<Subject, Plain> plain()
-          int number | number | int | FocusPath<Subject, Integer> number()
-          List<Plain> plains | plains | List<Plain> | TraversalPath<Subject, Plain> plains()
-          """)
+  @FieldSource("OFFERS")
   @DisplayName("a non-navigator field warns at its name and offers an eligible field")
-  void offersANavigatorField(String component, String name, String type, String method) {
-    String annotation = "@GenerateFocus(includeFields = \"" + name + "\")";
-    JavaFileObject subject = source("Subject", annotation, component + ", Address address");
-    Compilation written = compile(subject);
-
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining(
-            "includeFields on Subject names \"" + name + "\", whose field cannot have a navigator.")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    assertThat(written)
-        .hadWarningContaining(
-            "Navigator generation cannot reach a @GenerateFocus record through " + type);
-    assertThat(written)
-        .hadWarningContaining(
-            "Replace \""
-                + name
-                + "\" in includeFields on Subject with a navigator field from [address].");
-    assertGeneratedCodeContains(written, "com.example.SubjectFocus", method);
+  void offersANavigatorField(Offer offer) {
+    Shape written = offer.row().written();
+    String record = written.record();
+    assertThat(warningsIn(written)).hasSize(1);
+    warnsAt(
+        written,
+        "\"",
+        "includeFields on "
+            + record
+            + " names \""
+            + offer.name()
+            + "\", whose field has no navigator.");
+    warns(
+        written,
+        "Navigator generation cannot reach a @GenerateFocus record through " + offer.type());
+    warns(
+        written,
+        "Replace \""
+            + offer.name()
+            + "\" in includeFields on "
+            + record
+            + " with a navigator field from [address].");
+    assertGeneratedCodeContains(Shared.WRITTEN, "com.example." + record + "Focus", offer.method());
     assertGeneratedCodeContains(
-        written, "com.example.SubjectFocus", "FocusPath<Subject, Address> address()");
+        Shared.WRITTEN,
+        "com.example." + record + "Focus",
+        "FocusPath<" + record + ", Address> address()");
 
-    Compilation followed =
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(includeFields = \"address\")",
-                component + ", Address address"),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror");
-    clean(followed);
+    followedCleanly(offer.row().followed().source());
     assertGeneratedCodeContains(
-        followed, "com.example.SubjectFocus", "AddressNavigator<Subject> address()");
+        Shared.FOLLOWED,
+        "com.example." + record + "Focus",
+        "AddressNavigator<" + record + "> address()");
   }
+
+  private static final Row MULTIPLE =
+      row(
+          "Survey",
+          "@GenerateFocus(includeFields = {\"id\", \"tags\"})",
+          "String id, List<String> tags",
+          "@GenerateFocus(generateNavigators = false)");
 
   @Test
   @DisplayName("each entry in an includeFields array warns at that entry")
   void multipleEntries() {
-    String annotation = "@GenerateFocus(includeFields = {\"id\", \"tags\"})";
-    JavaFileObject subject = source("Subject", annotation, "String id, List<String> tags");
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(2);
+    Shape written = MULTIPLE.written();
+    assertThat(warningsIn(written)).hasSize(2);
     for (String name : List.of("id", "tags")) {
-      assertThat(written)
-          .hadWarningContaining("names \"" + name + "\", whose field cannot have a navigator")
-          .inFile(subject)
-          .onLine(7)
-          .atColumn(annotation.indexOf('"' + name + '"') + 1);
+      warnsAt(written, '"' + name + '"', "names \"" + name + "\", whose field has no navigator");
     }
-    assertThat(written)
-        .hadWarningContaining(
-            "Remove includeFields and set generateNavigators = false in @GenerateFocus on Subject.");
-    clean(
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = false)",
-                "String id, List<String> tags"),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror"));
+    warns(
+        written,
+        "Remove includeFields and set generateNavigators = false in @GenerateFocus on Survey.");
+    followedCleanly(MULTIPLE.followed().source());
   }
 
-  @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
+  /**
+   * A name without a navigator beside a field that navigates, or would once its own fix line is
+   * followed: the followed record's method, a navigation through it, and the field's own warnings
+   * and notes as written.
+   */
+  record Beside(
+      Row row,
+      String field,
+      String method,
+      String navigation,
+      List<String> warnings,
+      List<String> notes) {
+
+    JavaFileObject use() {
+      String record = row.written().record();
+      return JavaFileObjects.forSourceString(
+          "com.example.Use" + record,
           """
-      C05 | Address address | address | @GenerateFocus(includeFields = "address") | Address address | AddressNavigator<C05> address() | address().street()
-      C10 | Map<String, Address> sites | sites | @GenerateFocus(includeFields = "sites", widenFields = "sites") | Map<String, Address> sites | SitesNavigator<C10> sites() | sites().street()
-      C11 | Box<?> boxed | boxed | @GenerateFocus(includeFields = "boxed") | Box<Object> boxed | BoxedNavigator<C11, Object> boxed() | boxed().value()
-      C12 | Map<String, Box<?>> boxed | boxed | @GenerateFocus(includeFields = "boxed", widenFields = "boxed") | Map<String, Box<Object>> boxed | BoxedNavigator<C12, Object> boxed() | boxed().value()
-      """)
-  @DisplayName("another included navigator or its correction makes removal the followable fix")
-  void removesNameBesideNavigator(
+          package com.example;
+          class Use%s {
+            Object path() { return %sFocus.%s; }
+          }
+          """
+              .formatted(record, record, navigation));
+    }
+
+    @Override
+    public String toString() {
+      return row.toString();
+    }
+  }
+
+  private static final List<Beside> BESIDE_NAVIGATOR =
+      List.of(
+          beside(
+              "C05",
+              "Address address",
+              "address",
+              "@GenerateFocus(includeFields = \"address\")",
+              "Address address",
+              "AddressNavigator<C05> address()",
+              "address().street()",
+              List.of(),
+              List.of()),
+          beside(
+              "C10",
+              "Map<String, Address> sites",
+              "sites",
+              "@GenerateFocus(includeFields = \"sites\", widenFields = \"sites\")",
+              "Map<String, Address> sites",
+              "SitesNavigator<C10> sites()",
+              "sites().street()",
+              List.of("Add widenFields = \"sites\" to @GenerateFocus on C10."),
+              List.of()),
+          beside(
+              "C11",
+              "Box<?> boxed",
+              "boxed",
+              "@GenerateFocus(includeFields = \"boxed\")",
+              "Box<Object> boxed",
+              "BoxedNavigator<C11, Object> boxed()",
+              "boxed().value()",
+              List.of(),
+              List.of("Write Box<Object>, or another concrete instantiation, in place of Box<?>")),
+          beside(
+              "C12",
+              "Map<String, Box<?>> boxed",
+              "boxed",
+              "@GenerateFocus(includeFields = \"boxed\", widenFields = \"boxed\")",
+              "Map<String, Box<Object>> boxed",
+              "BoxedNavigator<C12, Object> boxed()",
+              "boxed().value()",
+              List.of(
+                  "Add widenFields = \"boxed\" to @GenerateFocus on C12 to step into its Box"
+                      + " elements."),
+              List.of()));
+
+  private static Beside beside(
       String record,
       String component,
       String field,
       String correction,
-      String correctedComponent,
+      String corrected,
       String method,
-      String navigation) {
-    String annotation = "@GenerateFocus(includeFields = {\"id\", \"" + field + "\"})";
-    JavaFileObject subject = source(record, annotation, "String id, " + component);
-    Compilation written = compile(subject, "-Werror");
-    assertThat(written).failed();
-    assertThat(written).hadErrorContaining("warnings found and -Werror specified");
-    assertThat(written).hadWarningCount(record.equals("C10") || record.equals("C12") ? 2 : 1);
-    assertThat(written)
-        .hadWarningContaining("Remove \"id\" from includeFields on " + record + ".")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings())
+      String navigation,
+      List<String> warnings,
+      List<String> notes) {
+    return new Beside(
+        row(
+            record,
+            "@GenerateFocus(includeFields = {\"id\", \"" + field + "\"})",
+            "String id, " + component,
+            correction,
+            "String id, " + corrected),
+        field,
+        method,
+        navigation,
+        warnings,
+        notes);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("BESIDE_NAVIGATOR")
+  @DisplayName("another included navigator or its correction makes removal the followable fix")
+  void removesNameBesideNavigator(Beside beside) {
+    Shape written = beside.row().written();
+    String record = written.record();
+    assertThat(warningsIn(written))
+        .hasSize(1 + beside.warnings().size())
         .allSatisfy(
             warning ->
-                org.assertj.core.api.Assertions.assertThat(warning.getMessage(null))
-                    .doesNotContain("Replace \"id\"", "generateNavigators = false"));
-    if (record.equals("C10")) {
-      assertThat(written)
-          .hadWarningContaining("Add widenFields = \"sites\" to @GenerateFocus on C10.")
-          .inFile(subject)
-          .onLine(7)
-          .atColumn(annotation.indexOf("\"sites\"") + 1);
-    }
-    if (record.equals("C11")) {
-      assertThat(written).hadNoteCount(1);
-      assertThat(written)
-          .hadNoteContaining(
-              "Write Box<Object>, or another concrete instantiation, in place of Box<?>");
-    }
+                assertThat(warning).doesNotContain("Replace \"id\"", "generateNavigators = false"));
+    warnsAt(written, "\"", "Remove \"id\" from includeFields on " + record + ".");
+    beside.warnings().forEach(warning -> warnsAt(written, '"' + beside.field() + '"', warning));
+    assertThat(notesIn(written)).hasSize(beside.notes().size());
+    beside.notes().forEach(note -> notes(written, note));
 
-    Compilation followed =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
-            .compile(
-                ADDRESS,
-                GENERIC,
-                source(record, correction, "String id, " + correctedComponent),
-                JavaFileObjects.forSourceString(
-                    "com.example.UseFixed",
-                    """
-                    package com.example;
-                    class UseFixed {
-                      Object path() { return %sFocus.%s; }
-                    }
-                    """
-                        .formatted(record, navigation)));
-    clean(followed);
-    assertGeneratedCodeContains(followed, "com.example." + record + "Focus", method);
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @ValueSource(strings = {"Plain plain", "List<Plain> plain"})
-  @DisplayName("another included source record can keep navigation through its annotation fix")
-  void removesNameBesideAnnotationSuggestion(String component) {
-    String annotation = "@GenerateFocus(includeFields = {\"id\", \"plain\"})";
-    JavaFileObject subject = source("Subject", annotation, "String id, " + component);
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(2);
-    assertThat(written)
-        .hadWarningContaining("Remove \"id\" from includeFields on Subject.")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    assertThat(written)
-        .hadWarningContaining("Alternatively, annotate record Plain with @GenerateFocus.")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf("\"plain\"") + 1);
-    Compilation followed =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
-            .compile(
-                source("Plain", "@GenerateFocus", "String street"),
-                source(
-                    "Subject",
-                    "@GenerateFocus(includeFields = \"plain\")",
-                    "String id, " + component));
-    clean(followed);
+    followedCleanly(beside.row().followed().source());
+    followedCleanly(beside.use());
     assertGeneratedCodeContains(
-        followed, "com.example.SubjectFocus", "PlainNavigator<Subject> plain()");
+        Shared.FOLLOWED, "com.example." + record + "Focus", beside.method());
   }
 
+  private static final List<Row> BESIDE_ANNOTATION =
+      List.of(
+          row(
+              "Market",
+              "@GenerateFocus(includeFields = {\"id\", \"stall\"})",
+              "String id, Stall stall",
+              "@GenerateFocus(includeFields = \"stall\")"),
+          row(
+              "Bazaar",
+              "@GenerateFocus(includeFields = {\"id\", \"stall\"})",
+              "String id, List<Stall> stall",
+              "@GenerateFocus(includeFields = \"stall\")"));
+
   @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      int other | 2
-      Map<String, Clash> other | 2
-      """)
+  @FieldSource("BESIDE_ANNOTATION")
+  @DisplayName("another included source record can keep navigation through its annotation fix")
+  void removesNameBesideAnnotationSuggestion(Row row) {
+    Shape written = row.written();
+    String record = written.record();
+    assertThat(warningsIn(written)).hasSize(2);
+    warnsAt(written, "\"", "Remove \"id\" from includeFields on " + record + ".");
+    warnsAt(written, "\"stall\"", "Alternatively, annotate record Stall with @GenerateFocus.");
+    followedCleanly(row.followed().source());
+    assertGeneratedCodeContains(
+        Shared.FOLLOWED,
+        "com.example." + record + "Focus",
+        "StallNavigator<" + record + "> stall()");
+  }
+
+  private static final List<Row> UNCORRECTED =
+      List.of(
+          row(
+              "Meter",
+              "@GenerateFocus(includeFields = {\"id\", \"other\"})",
+              "String id, int other",
+              "@GenerateFocus(generateNavigators = false)"),
+          row(
+              "League",
+              "@GenerateFocus(includeFields = {\"id\", \"other\"})",
+              "String id, Map<String, Clash> other",
+              "@GenerateFocus(generateNavigators = false)"));
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("UNCORRECTED")
   @DisplayName("an included field without a usable correction does not keep navigation enabled")
-  void noOtherNavigatorCorrection(String component, int warnings) {
-    String annotation = "@GenerateFocus(includeFields = {\"id\", \"other\"})";
-    JavaFileObject subject = source("Subject", annotation, "String id, " + component);
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(warnings);
-    assertThat(written)
-        .hadWarningContaining(
-            "Remove includeFields and set generateNavigators = false in @GenerateFocus on Subject.")
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    clean(
-        compile(
-            source(
-                "Subject", "@GenerateFocus(generateNavigators = false)", "String id, " + component),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror"));
+  void noOtherNavigatorCorrection(Row row) {
+    Shape written = row.written();
+    assertThat(warningsIn(written)).hasSize(2);
+    warnsAt(
+        written,
+        "\"",
+        "Remove includeFields and set generateNavigators = false in @GenerateFocus on "
+            + written.record()
+            + ".");
+    followedCleanly(row.followed().source());
   }
 
   @Test
@@ -288,12 +559,12 @@ class FocusIncludeFieldsTest {
     assertThat(written)
         .hadWarningContaining("Plain is a record without @GenerateFocus.")
         .inFile(subject)
-        .onLine(7)
+        .onLine(ANNOTATION_LINE)
         .atColumn(annotation.indexOf('"') + 1);
     assertThat(written)
         .hadWarningContaining(
             "Replace \"plain\" in includeFields on Subject with a navigator field from [address].");
-    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
+    assertThat(written.warnings().getFirst().getMessage(null))
         .doesNotContain("Alternatively", "annotate record Plain");
     Compilation followed =
         javac()
@@ -311,171 +582,200 @@ class FocusIncludeFieldsTest {
         followed, "com.example.SubjectFocus", "AddressNavigator<Subject> address()");
   }
 
+  // The fix annotates Stall, which the followed compilation holds annotated; the record itself
+  // stays as written.
+  private static final Row ANNOTATING =
+      row(
+          "Fair",
+          "@GenerateFocus(includeFields = \"stall\")",
+          "Stall stall",
+          "@GenerateFocus(includeFields = \"stall\")");
+
   @Test
   @DisplayName("annotating an unannotated record is a followable alternative")
   void annotatingTheRecord() {
-    JavaFileObject subject =
-        source("Subject", "@GenerateFocus(includeFields = \"plain\")", "Plain plain");
-    Compilation written = compile(subject);
-    assertThat(written).hadWarningCount(1);
-    assertThat(written).hadWarningContaining("Plain is a record without @GenerateFocus.");
-    assertThat(written)
-        .hadWarningContaining("Alternatively, annotate record Plain with @GenerateFocus.");
-    Compilation followed =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
-            .compile(source("Plain", "@GenerateFocus", "String street"), subject);
-    clean(followed);
+    Shape written = ANNOTATING.written();
+    assertThat(warningsIn(written)).hasSize(1);
+    warns(written, "Stall is a record without @GenerateFocus.");
+    warns(written, "Alternatively, annotate record Stall with @GenerateFocus.");
+    followedCleanly(ANNOTATING.followed().source());
     assertGeneratedCodeContains(
-        followed, "com.example.SubjectFocus", "PlainNavigator<Subject> plain()");
+        Shared.FOLLOWED, "com.example.FairFocus", "StallNavigator<Fair> stall()");
+  }
+
+  /** An unwidened container of records, with the words its fix line widens it in. */
+  record Widening(Row row, String fix) {
+
+    @Override
+    public String toString() {
+      return row.toString();
+    }
+  }
+
+  private static final List<Widening> WIDENINGS =
+      List.of(
+          widening(
+              "Atlas",
+              "Map<String, Address> sites",
+              "@GenerateFocus(includeFields = \"sites\")",
+              "Add widenFields = \"sites\"",
+              "@GenerateFocus(includeFields = \"sites\", widenFields = \"sites\")"),
+          widening(
+              "Gazette",
+              "Address[] sites",
+              "@GenerateFocus(generateNavigators = true, includeFields = \"sites\")",
+              "Add widenFields = \"sites\"",
+              "@GenerateFocus(generateNavigators = true, includeFields = \"sites\","
+                  + " widenFields = \"sites\")"),
+          widening(
+              "Registry",
+              "@Nullable Map<String, Address> sites",
+              "@GenerateFocus(includeFields = \"sites\", widenFields = \"other\")",
+              "Add \"sites\" to widenFields",
+              "@GenerateFocus(includeFields = \"sites\", widenFields = {\"other\", \"sites\"})"));
+
+  private static Widening widening(
+      String record, String component, String annotation, String fix, String followed) {
+    return new Widening(
+        row(record, annotation, component + ", Map<String, Address> other", followed), fix);
   }
 
   @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      Map<String, Address> sites | @GenerateFocus(includeFields = "sites") | Add widenFields = "sites" | @GenerateFocus(includeFields = "sites", widenFields = "sites")
-      Address[] sites | @GenerateFocus(generateNavigators = true, includeFields = "sites") | Add widenFields = "sites" | @GenerateFocus(generateNavigators = true, includeFields = "sites", widenFields = "sites")
-      @Nullable Map<String, Address> sites | @GenerateFocus(includeFields = "sites", widenFields = "other") | Add "sites" to widenFields | @GenerateFocus(includeFields = "sites", widenFields = {"other", "sites"})
-      """)
+  @FieldSource("WIDENINGS")
   @DisplayName(
       "an unwidened container warns once, and the offered widening generates its navigator")
-  void wideningIsFollowable(String component, String annotation, String fix, String followed) {
-    String components = component + ", Map<String, Address> other";
-    JavaFileObject subject = source("Subject", annotation, components);
-    Compilation written = compile(subject);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining("Subject does not widen \"sites\". " + fix)
-        .inFile(subject)
-        .onLine(7)
-        .atColumn(annotation.indexOf("\"sites\"") + 1);
-    org.assertj.core.api.Assertions.assertThat(written.notes())
-        .noneMatch(note -> note.getMessage(null).contains("has no navigator over"));
-    Compilation fixed =
-        compile(
-            source("Subject", followed, components),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror");
-    clean(fixed);
+  void wideningIsFollowable(Widening widening) {
+    Shape written = widening.row().written();
+    String record = written.record();
+    assertThat(warningsIn(written)).hasSize(1);
+    warnsAt(written, "\"sites\"", record + " does not widen \"sites\". " + widening.fix());
+    assertThat(notesIn(written)).noneMatch(note -> note.contains("has no navigator over"));
+    followedCleanly(widening.row().followed().source());
     assertGeneratedCodeContains(
-        fixed, "com.example.SubjectFocus", "SitesNavigator<Subject> sites()");
+        Shared.FOLLOWED,
+        "com.example." + record + "Focus",
+        "SitesNavigator<" + record + "> sites()");
   }
+
+  private static final Row SHELF =
+      row(
+          "Shelf",
+          "@GenerateFocus(includeFields = \"boxes\")",
+          "Map<String, Box<?>> boxes, Address address",
+          "@GenerateFocus(includeFields = \"boxes\", widenFields = \"boxes\")",
+          "Map<String, Box<Object>> boxes, Address address");
+
+  /** Shelf with only its widening followed, which leaves the wildcard target's note to follow. */
+  private static final Shape RACK =
+      new Shape(
+          "Rack",
+          "@GenerateFocus(includeFields = \"boxes\", widenFields = \"boxes\")",
+          "Map<String, Box<?>> boxes, Address address");
 
   @Test
   @DisplayName("an unwidened wildcard target warns before its existing wildcard note can apply")
   void unwidenedWildcardTarget() {
-    String annotation = "@GenerateFocus(includeFields = \"boxes\")";
-    JavaFileObject shelf =
-        source("Shelf", annotation, "Map<String, Box<?>> boxes, Address address");
-    Compilation written = compile(shelf);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written).hadNoteCount(0);
-    assertThat(written)
-        .hadWarningContaining(
-            "Add widenFields = \"boxes\" to @GenerateFocus on Shelf to step into its Box elements.")
-        .inFile(shelf)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"') + 1);
-    Compilation widened =
-        compile(
-            source(
-                "Shelf",
-                "@GenerateFocus(includeFields = \"boxes\", widenFields = \"boxes\")",
-                "Map<String, Box<?>> boxes, Address address"),
-            "-Werror");
-    assertThat(widened).succeededWithoutWarnings();
-    assertThat(widened).hadNoteCount(1);
-    assertThat(widened).hadNoteContaining("Write Box<Object>");
-    clean(
-        compile(
-            source(
-                "Shelf",
-                "@GenerateFocus(includeFields = \"boxes\", widenFields = \"boxes\")",
-                "Map<String, Box<Object>> boxes, Address address"),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror"));
-  }
-
-  @ParameterizedTest
-  @ValueSource(strings = {"sites", "id,sites", "sites,id"})
-  @DisplayName("a refused wildcard container offers its concrete type and widening together")
-  void wildcardContainerCorrection(String included) {
-    String names = included.replace(",", "\", \"");
-    String annotation = "@GenerateFocus(includeFields = {\"" + names + "\"})";
-    String components = "String id, Map<String, ? extends Address> sites, Address address";
-    JavaFileObject branches = source("Branches", annotation, components);
-    Compilation written = compile(branches);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(included.contains(",") ? 2 : 1);
-    assertThat(written).hadNoteCount(0);
-    assertThat(written)
-        .hadWarningContaining(
-            "holds Address records, but its wildcard type arguments prevent widening")
-        .inFile(branches)
-        .onLine(7)
-        .atColumn(annotation.indexOf("\"sites\"") + 1);
-    assertThat(written)
-        .hadWarningContaining(
-            "Write Map<String, Address> in place of Map<String, ? extends Address>");
-    assertThat(written)
-        .hadWarningContaining("add widenFields = \"sites\" to @GenerateFocus on Branches");
-    if (included.contains(",")) {
-      assertThat(written).hadWarningContaining("Remove \"id\" from includeFields on Branches.");
-    }
-    Compilation followed =
-        compile(
-            source(
-                "Branches",
-                "@GenerateFocus(includeFields = \"sites\", widenFields = \"sites\")",
-                "String id, Map<String, Address> sites, Address address"),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror");
-    clean(followed);
+    Shape written = SHELF.written();
+    assertThat(warningsIn(written)).hasSize(1);
+    assertThat(notesIn(written)).isEmpty();
+    warnsAt(
+        written,
+        "\"",
+        "Add widenFields = \"boxes\" to @GenerateFocus on Shelf to step into its Box elements.");
+    assertThat(warningsIn(RACK)).isEmpty();
+    assertThat(notesIn(RACK)).hasSize(1);
+    notes(RACK, "Write Box<Object>");
+    followedCleanly(SHELF.followed().source());
     assertGeneratedCodeContains(
-        followed, "com.example.BranchesFocus", "SitesNavigator<Branches> sites()");
+        Shared.FOLLOWED, "com.example.ShelfFocus", "BoxesNavigator<Shelf, Object> boxes()");
   }
 
-  @ParameterizedTest
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      id,tags | id | tags
-      tags,id | tags | id
-      """)
+  private static final List<Row> WILDCARD_CONTAINERS =
+      List.of(
+          wildcardContainer("Branches", "\"sites\""),
+          wildcardContainer("Outlets", "\"id\", \"sites\""),
+          wildcardContainer("Franchise", "\"sites\", \"id\""));
+
+  private static Row wildcardContainer(String record, String included) {
+    return row(
+        record,
+        "@GenerateFocus(includeFields = {" + included + "})",
+        "String id, Map<String, ? extends Address> sites, Address address",
+        "@GenerateFocus(includeFields = \"sites\", widenFields = \"sites\")",
+        "String id, Map<String, Address> sites, Address address");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("WILDCARD_CONTAINERS")
+  @DisplayName("a refused wildcard container offers its concrete type and widening together")
+  void wildcardContainerCorrection(Row row) {
+    Shape written = row.written();
+    String record = written.record();
+    boolean withId = written.annotation().contains("\"id\"");
+    assertThat(warningsIn(written)).hasSize(withId ? 2 : 1);
+    assertThat(notesIn(written)).isEmpty();
+    warnsAt(
+        written,
+        "\"sites\"",
+        "holds Address records, but its wildcard type arguments prevent widening");
+    warns(written, "Write Map<String, Address> in place of Map<String, ? extends Address>");
+    warns(written, "add widenFields = \"sites\" to @GenerateFocus on " + record);
+    if (withId) {
+      warns(written, "Remove \"id\" from includeFields on " + record + ".");
+    }
+    followedCleanly(row.followed().source());
+    assertGeneratedCodeContains(
+        Shared.FOLLOWED,
+        "com.example." + record + "Focus",
+        "SitesNavigator<" + record + "> sites()");
+  }
+
+  /** Two names without navigators, in list order. */
+  record Replacement(Row row, String first, String remaining) {
+
+    @Override
+    public String toString() {
+      return row.toString();
+    }
+  }
+
+  private static final List<Replacement> REPLACEMENTS =
+      List.of(replacement("Ticket", "id", "tags"), replacement("Voucher", "tags", "id"));
+
+  private static Replacement replacement(String record, String first, String remaining) {
+    return new Replacement(
+        row(
+            record,
+            "@GenerateFocus(includeFields = {\"" + first + "\", \"" + remaining + "\"})",
+            "String id, List<String> tags, Address address",
+            "@GenerateFocus(includeFields = \"address\")"),
+        first,
+        remaining);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("REPLACEMENTS")
   @DisplayName("only the first invalid entry in list order receives the navigator replacement")
-  void oneReplacementPerList(String included, String first, String remaining) {
-    String annotation =
-        "@GenerateFocus(includeFields = {\"" + included.replace(",", "\", \"") + "\"})";
-    String fields = "String id, List<String> tags, Address address";
-    JavaFileObject ticket = source("Ticket", annotation, fields);
-    Compilation written = compile(ticket);
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(2);
-    assertThat(written).hadNoteCount(0);
-    assertThat(written)
-        .hadWarningContaining(
-            "Replace \""
-                + first
-                + "\" in includeFields on Ticket with a navigator field from [address].")
-        .inFile(ticket)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"' + first + '"') + 1);
-    assertThat(written)
-        .hadWarningContaining("Remove \"" + remaining + "\" from includeFields on Ticket.")
-        .inFile(ticket)
-        .onLine(7)
-        .atColumn(annotation.indexOf('"' + remaining + '"') + 1);
-    clean(
-        compile(
-            source("Ticket", "@GenerateFocus(includeFields = \"address\")", fields),
-            "-Xlint:all,-processing,-auxiliaryclass",
-            "-Werror"));
+  void oneReplacementPerList(Replacement replacement) {
+    Shape written = replacement.row().written();
+    String record = written.record();
+    String first = replacement.first();
+    String remaining = replacement.remaining();
+    assertThat(warningsIn(written)).hasSize(2);
+    assertThat(notesIn(written)).isEmpty();
+    warnsAt(
+        written,
+        '"' + first + '"',
+        "Replace \""
+            + first
+            + "\" in includeFields on "
+            + record
+            + " with a navigator field from [address].");
+    warnsAt(
+        written,
+        '"' + remaining + '"',
+        "Remove \"" + remaining + "\" from includeFields on " + record + ".");
+    followedCleanly(replacement.row().followed().source());
   }
 
   @ParameterizedTest
@@ -526,42 +826,40 @@ class FocusIncludeFieldsTest {
                 use);
 
     clean(compilation);
-    org.assertj.core.api.Assertions.assertThat(
+    assertThat(
             new RuntimeCompilationHelper.CompiledResult(compilation)
                 .invokeStatic("com.example.Use", "run"))
         .isEqualTo(List.of("High Street"));
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "List<Box<?>>",
-        "List<Box>",
-        "Optional<Box<?>>",
-        "org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, Box<?>>"
-      })
-  @DisplayName("a container of raw or wildcard records draws the element's note, not this warning")
-  void wildcardElementDrawsItsNote(String container) {
-    Compilation written =
-        compile(
-            source(
-                "Subject", "@GenerateFocus(includeFields = \"members\")", container + " members"));
+  private static final List<Shape> WILDCARD_ELEMENTS =
+      List.of(
+          members("Crate", "List<Box<?>>"),
+          members("Hamper", "List<Box>"),
+          members("Basket", "Optional<Box<?>>"),
+          members(
+              "Bundle",
+              "org.higherkindedj.hkt.Kind<org.higherkindedj.hkt.list.ListKind.Witness, Box<?>>"));
 
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(0);
-    assertThat(written).hadNoteContaining("Navigator for field 'members' is not generated");
+  private static Shape members(String record, String container) {
+    return new Shape(record, "@GenerateFocus(includeFields = \"members\")", container + " members");
   }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("WILDCARD_ELEMENTS")
+  @DisplayName("a container of raw or wildcard records draws the element's note, not this warning")
+  void wildcardElementDrawsItsNote(Shape shape) {
+    assertThat(warningsIn(shape)).isEmpty();
+    notes(shape, "Navigator for field 'members' is not generated");
+  }
+
+  private static final Shape RAW = members("Heap", "List");
 
   @Test
   @DisplayName("a raw container warns, since it reaches no record")
   void rawContainerWarns() {
-    Compilation written =
-        compile(source("Subject", "@GenerateFocus(includeFields = \"members\")", "List members"));
-
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining("Navigator generation cannot reach a @GenerateFocus record through");
+    assertThat(warningsIn(RAW)).hasSize(1);
+    warns(RAW, "Navigator generation cannot reach a @GenerateFocus record through");
   }
 
   @Test
@@ -613,7 +911,7 @@ class FocusIncludeFieldsTest {
                 use);
 
     clean(compilation);
-    org.assertj.core.api.Assertions.assertThat(
+    assertThat(
             new RuntimeCompilationHelper.CompiledResult(compilation)
                 .invokeStatic("com.example.Use", "run"))
         .isEqualTo(List.of("High Street"));
@@ -654,92 +952,79 @@ class FocusIncludeFieldsTest {
         compilation, "com.example.SubjectFocus", "MembersNavigator<Subject> members()");
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "Map<String, ?>",
-        "Map",
-        "Map<String, ? extends String>",
-        "Map<?, Box<?>>",
-        "Map<?, Clash>"
-      })
+  private static final List<Row> REFUSED =
+      List.of(
+          refused("Inventory", "Map<String, ?>", ""),
+          // -Xlint:all reports the raw Map in the record itself, which no fix line changes.
+          refused("Manifest", "Map", "@SuppressWarnings(\"rawtypes\") "),
+          refused("Lookup", "Map<String, ? extends String>", ""),
+          refused("Roster", "Map<?, Box<?>>", ""),
+          refused("Census", "Map<?, Clash>", ""));
+
+  private static Row refused(String record, String container, String suppression) {
+    return row(
+        record,
+        "@GenerateFocus(includeFields = \"items\")",
+        container + " items",
+        suppression + "@GenerateFocus(generateNavigators = false)");
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("REFUSED")
   @DisplayName(
       "a refused container without a usable record correction retains a followable plain path")
-  void refusedContainerWithoutCorrection(String container) {
-    Compilation written =
-        compile(
-            source("Subject", "@GenerateFocus(includeFields = \"items\")", container + " items"));
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
+  void refusedContainerWithoutCorrection(Row row) {
+    assertThat(warningsIn(row.written()))
+        .singleElement()
+        .asString()
         .contains("Remove includeFields and set generateNavigators = false")
         .doesNotContain("Write Map", "add widenFields", "Add widenFields", "which composes");
-    clean(
-        compile(
-            source("Subject", "@GenerateFocus(generateNavigators = false)", container + " items"),
-            "-Werror"));
+    followedCleanly(row.followed().source());
   }
+
+  private static final Row DEPENDENT_BOUND =
+      row(
+          "Vault",
+          "@GenerateFocus(includeFields = \"items\")",
+          "com.example.hkjtest.Box<?, Address> items",
+          "@GenerateFocus(generateNavigators = false)");
 
   @Test
   @DisplayName("an SPI container with a dependent bound receives no invented concrete alternative")
   void refusedContainerWithDependentBound() {
-    JavaFileObject container =
-        JavaFileObjects.forSourceString(
-            "com.example.hkjtest.Box",
-            """
-        package com.example.hkjtest;
-        public record Box<K extends Comparable<K>, V>(V value) {}
-        """);
-    String fields = "com.example.hkjtest.Box<?, Address> items";
-    Compilation written =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .compile(
-                ADDRESS,
-                container,
-                source("Subject", "@GenerateFocus(includeFields = \"items\")", fields));
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings().getFirst().getMessage(null))
+    assertThat(warningsIn(DEPENDENT_BOUND.written()))
+        .singleElement()
+        .asString()
         .contains("Remove includeFields and set generateNavigators = false")
         .doesNotContain("Write Box", "widenFields");
-    clean(
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withOptions("-Werror")
-            .compile(
-                ADDRESS,
-                container,
-                source("Subject", "@GenerateFocus(generateNavigators = false)", fields)));
+    followedCleanly(DEPENDENT_BOUND.followed().source());
   }
+
+  private static final Row REMOVAL =
+      row(
+          "Dossier",
+          "@GenerateFocus(includeFields = {\"sites\", \"id\", \"tags\"})",
+          "String id, List<String> tags, Map<String, Clash> sites, Address address",
+          "@GenerateFocus(includeFields = \"address\")");
 
   @Test
   @DisplayName("removing an unwidened clashing field leaves the first replacement for another name")
   void removalDoesNotConsumeReplacement() {
-    String fields = "String id, List<String> tags, Map<String, Clash> sites, Address address";
-    Compilation written =
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(includeFields = {\"sites\", \"id\", \"tags\"})",
-                fields));
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(3);
-    assertThat(written)
-        .hadWarningContaining(
-            "Rename 'Clash.last', then add widenFields = \"sites\" to @GenerateFocus on Subject, or"
-                + " remove \"sites\" from includeFields on Subject to keep its plain path.");
-    assertThat(written)
-        .hadWarningContaining(
-            "Replace \"id\" in includeFields on Subject with a navigator field from [address].");
-    assertThat(written).hadWarningContaining("Remove \"tags\" from includeFields on Subject.");
-    clean(
-        compile(
-            source("Subject", "@GenerateFocus(includeFields = \"address\")", fields), "-Werror"));
+    Shape written = REMOVAL.written();
+    assertThat(warningsIn(written)).hasSize(3);
+    warns(
+        written,
+        "Rename 'Clash.last', then add widenFields = \"sites\" to @GenerateFocus on Dossier, or"
+            + " remove \"sites\" from includeFields on Dossier to keep its plain path.");
+    warns(
+        written,
+        "Replace \"id\" in includeFields on Dossier with a navigator field from [address].");
+    warns(written, "Remove \"tags\" from includeFields on Dossier.");
+    followedCleanly(REMOVAL.followed().source());
   }
 
   @Test
-  @DisplayName("the new warning stops a -Werror build")
+  @DisplayName("the warning stops a -Werror build")
   void warningStopsWerror() {
     Compilation written =
         compile(
@@ -749,56 +1034,68 @@ class FocusIncludeFieldsTest {
     assertThat(written).hadErrorContaining("warnings found and -Werror specified");
   }
 
+  private static final Row ELIGIBLE =
+      row(
+          "Profile",
+          "@GenerateFocus(generateNavigators = true, includeFields = \"id\")",
+          "String id, Address address, Map<String, Address> sites, Clash clash",
+          "@GenerateFocus(generateNavigators = true, includeFields = \"address\")");
+
   @Test
   @DisplayName("candidate fields must widen to a navigator without inherited name clashes")
   void onlyOffersEligibleFields() {
-    String components = "String id, Address address, Map<String, Address> sites, Clash clash";
-    Compilation written =
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = true, includeFields = \"id\")",
-                components));
-    assertThat(written).hadWarningCount(1);
-    assertThat(written).hadWarningContaining("with a navigator field from [address].");
-    clean(
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = true, includeFields = \"address\")",
-                components),
-            "-Werror"));
+    Shape written = ELIGIBLE.written();
+    assertThat(warningsIn(written)).hasSize(1);
+    warns(written, "with a navigator field from [address].");
+    followedCleanly(ELIGIBLE.followed().source());
   }
 
-  @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      @GenerateFocus(includeFields = "address") | Address address
-      @GenerateFocus(includeFields = "sites", widenCollections = true) | Map<String, Address> sites
-      @GenerateFocus(excludeFields = "id") | String id
-      @GenerateFocus(includeFields = {}) | String id
-      """)
-  @DisplayName("valid navigator requests and excludeFields keep their existing behaviour")
-  void quiet(String annotation, String components) {
-    clean(compile(source("Subject", annotation, components), "-Werror"));
-  }
+  // Valid requests, which draw nothing as written, so they are compiled only beside the followed
+  // rows.
+  private static final List<Shape> QUIET =
+      List.of(
+          new Shape("Residence", "@GenerateFocus(includeFields = \"address\")", "Address address"),
+          new Shape(
+              "Agency",
+              "@GenerateFocus(includeFields = \"sites\", widenCollections = true)",
+              "Map<String, Address> sites"),
+          new Shape("Notice", "@GenerateFocus(excludeFields = \"id\")", "String id"),
+          new Shape("Memo", "@GenerateFocus(includeFields = {})", "String id"));
 
   @ParameterizedTest(name = "{0}")
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      @GenerateFocus(includeFields = "box") | Box<?> box | is not generated
-      @GenerateFocus(includeFields = "box") | Box box | is not generated
-      @GenerateFocus(includeFields = "clash") | Clash clash | has no navigator into
-      """)
+  @FieldSource("QUIET")
+  @DisplayName("valid navigator requests and excludeFields draw nothing")
+  void quiet(Shape shape) {
+    followedCleanly(shape.source());
+  }
+
+  /** A target another note explains, with part of that note. */
+  record Noted(Shape shape, String note) {
+
+    @Override
+    public String toString() {
+      return shape.toString();
+    }
+  }
+
+  private static final List<Noted> NOTED =
+      List.of(
+          new Noted(
+              new Shape("Locker", "@GenerateFocus(includeFields = \"box\")", "Box<?> box"),
+              "is not generated"),
+          new Noted(
+              new Shape("Cabinet", "@GenerateFocus(includeFields = \"box\")", "Box box"),
+              "is not generated"),
+          new Noted(
+              new Shape("Duel", "@GenerateFocus(includeFields = \"clash\")", "Clash clash"),
+              "has no navigator into"));
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("NOTED")
   @DisplayName("existing target notes gain no extra includeFields warning")
-  void existingNotes(String annotation, String components, String note) {
-    Compilation written = compile(source("Subject", annotation, components));
-    assertThat(written).succeededWithoutWarnings();
-    assertThat(written).hadNoteContaining(note);
+  void existingNotes(Noted noted) {
+    assertThat(warningsIn(noted.shape())).isEmpty();
+    notes(noted.shape(), noted.note());
   }
 
   @ParameterizedTest(name = "{0}")
@@ -820,17 +1117,17 @@ class FocusIncludeFieldsTest {
     assertThat(written).hadErrorContaining(error);
   }
 
+  private static final Shape NAVIGATORS_OFF =
+      new Shape(
+          "Archive",
+          "@GenerateFocus(generateNavigators = false, includeFields = \"id\")",
+          "String id");
+
   @Test
   @DisplayName("a list with navigators off draws only the existing unread-list warning")
   void navigatorsOff() {
-    Compilation written =
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = false, includeFields = \"id\")",
-                "String id"));
-    assertThat(written).hadWarningCount(1);
-    assertThat(written).hadWarningContaining("generateNavigators = false turns navigators off");
+    assertThat(warningsIn(NAVIGATORS_OFF)).hasSize(1);
+    warns(NAVIGATORS_OFF, "generateNavigators = false turns navigators off");
   }
 
   @ParameterizedTest
@@ -860,64 +1157,50 @@ class FocusIncludeFieldsTest {
     assertThat(written).hadWarningCount(0);
   }
 
-  @ParameterizedTest
-  @CsvSource(
-      delimiter = '|',
-      textBlock =
-          """
-      Plain<T> | T value | Plain<?> plain
-      Plain | String last | Plain plain
-      """)
+  private static final List<Row> UNANNOTATABLE =
+      List.of(
+          row(
+              "Wallet",
+              "@GenerateFocus(includeFields = \"pouch\")",
+              "Pouch<?> pouch",
+              "@GenerateFocus(generateNavigators = false)"),
+          row(
+              "Journal",
+              "@GenerateFocus(includeFields = \"diary\")",
+              "Diary diary",
+              "@GenerateFocus(generateNavigators = false)"));
+
+  @ParameterizedTest(name = "{0}")
+  @FieldSource("UNANNOTATABLE")
   @DisplayName("annotation is not offered alone when a target still could not navigate")
-  void annotationWouldNotSuffice(String record, String fields, String component) {
-    Compilation written =
-        javac()
-            .withProcessors(new FocusProcessor())
-            .compile(
-                source(record, "", fields),
-                source("Subject", "@GenerateFocus(includeFields = \"plain\")", component));
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(written.warnings())
-        .allSatisfy(
-            warning ->
-                org.assertj.core.api.Assertions.assertThat(warning.getMessage(null))
-                    .doesNotContain("Alternatively"));
-    clean(
-        javac()
-            .withProcessors(new FocusProcessor())
-            .withOptions("-Werror")
-            .compile(
-                source(record, "", fields),
-                source("Subject", "@GenerateFocus(generateNavigators = false)", component)));
+  void annotationWouldNotSuffice(Row row) {
+    assertThat(warningsIn(row.written()))
+        .singleElement()
+        .asString()
+        .doesNotContain("Alternatively");
+    followedCleanly(row.followed().source());
   }
+
+  private static final Row CLASHING =
+      row(
+          "Contest",
+          "@GenerateFocus(generateNavigators = true, includeFields = \"sites\")",
+          "Map<String, Clash> sites",
+          "@GenerateFocus(generateNavigators = false)");
 
   @Test
   @DisplayName("widening is not offered alone where the navigator would clash")
   void wideningWouldExposeAClash() {
-    Compilation written =
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = true, includeFields = \"sites\")",
-                "Map<String, Clash> sites"));
-    assertThat(written).succeeded();
-    assertThat(written).hadWarningCount(1);
-    assertThat(written)
-        .hadWarningContaining(
-            "Widened, its navigator would be a TraversalPath, which has its own last(), so it"
-                + " could not navigate to 'Clash.last'. Rename 'Clash.last', then add widenFields ="
-                + " \"sites\" to @GenerateFocus on Subject, or remove includeFields and replace"
-                + " generateNavigators = true with generateNavigators = false on Subject to keep"
-                + " its plain path.");
-    clean(
-        compile(
-            source(
-                "Subject",
-                "@GenerateFocus(generateNavigators = false)",
-                "Map<String, Clash> sites"),
-            "-Werror"));
-    // Following the rename instead gives the field its navigator, and the warning goes.
+    assertThat(warningsIn(CLASHING.written())).hasSize(1);
+    warns(
+        CLASHING.written(),
+        "Widened, its navigator would be a TraversalPath, which has its own last(), so it could not"
+            + " navigate to 'Clash.last'. Rename 'Clash.last', then add widenFields = \"sites\" to"
+            + " @GenerateFocus on Contest, or remove includeFields and replace generateNavigators ="
+            + " true with generateNavigators = false on Contest to keep its plain path.");
+    followedCleanly(CLASHING.followed().source());
+    // Following the rename instead gives the field its navigator, and the warning goes. The rename
+    // changes Clash itself, so it is compiled on its own.
     clean(
         javac()
             .withProcessors(new FocusProcessor())
@@ -925,7 +1208,7 @@ class FocusIncludeFieldsTest {
             .compile(
                 source("Clash", "@GenerateFocus", "String surname"),
                 source(
-                    "Subject",
+                    "Contest",
                     "@GenerateFocus(generateNavigators = true, includeFields = \"sites\","
                         + " widenFields = \"sites\")",
                     "Map<String, Clash> sites")));
@@ -1010,10 +1293,8 @@ class FocusIncludeFieldsTest {
     }
     assertThat(downstream).succeeded();
     assertThat(downstream).hadWarningCount(1);
-    org.assertj.core.api.Assertions.assertThat(downstream.warnings())
+    assertThat(downstream.warnings())
         .allSatisfy(
-            warning ->
-                org.assertj.core.api.Assertions.assertThat(warning.getMessage(null))
-                    .doesNotContain("Alternatively"));
+            warning -> assertThat(warning.getMessage(null)).doesNotContain("Alternatively"));
   }
 }

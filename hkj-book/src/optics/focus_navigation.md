@@ -336,7 +336,7 @@ record Contacts(Address billing, Address delivery, Address returns) {}
 record CustomerReferral(Customer referrer, Customer referred) {}
 ```
 
-Set one list or the other. Beside a non-empty `includeFields`, `excludeFields` is never read, and the processor [warns](compiler_errors.md#generatefocus-field-list-unread). Each name is checked against the record's components, so a typo is [an error](compiler_errors.md#generatefocus-field-list-unknown-name) that offers the name you meant, rather than a navigator quietly missing.
+Set one list or the other. Beside a non-empty `includeFields`, `excludeFields` is never read, and the processor [warns](compiler_errors.md#generatefocus-field-list-unread). Each name is checked against the record's components, so a typo is [an error](compiler_errors.md#generatefocus-field-list-unknown-name) that offers the name you meant, rather than a navigator quietly missing. A name whose field has no navigator, such as a `String`, [warns](compiler_errors.md#generatefocus-includefields-no-navigator) too.
 
 ### A field named like a path method {#a-field-named-like-a-path-method}
 

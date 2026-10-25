@@ -202,9 +202,11 @@ public @interface GenerateFocus {
    *
    * <p>Each name is checked against the record's components, and a name that matches none is an
    * error, offering the component it most likely meant: such a name would turn a navigator off
-   * rather than on. Set this or {@link #excludeFields()}, not both: beside a non-empty {@code
-   * includeFields}, {@code excludeFields} is never read, and draws a warning. With {@code
-   * generateNavigators = false}, neither is read, and each draws a warning.
+   * rather than on. A name whose field has no navigator, such as a {@code String}, an unannotated
+   * record, or a {@code Map} of navigable records that the record does not widen, draws a warning,
+   * unless a note or error already explains why. Set this or {@link #excludeFields()}, not both:
+   * beside a non-empty {@code includeFields}, {@code excludeFields} is never read, and draws a
+   * warning. With {@code generateNavigators = false}, neither is read, and each draws a warning.
    *
    * @return array of field names to include, or empty for all fields
    */
