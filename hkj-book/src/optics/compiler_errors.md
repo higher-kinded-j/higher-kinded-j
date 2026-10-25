@@ -38,7 +38,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`has no AffineForm`, `has no TraversalForm`](#generatefocus-no-form) | **Note.** A record that writes `generateNavigators = true` reaches a record with a field named like a wider path's own method, so a hop from that path returns the plain path |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
-| [`whose field cannot have a navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that cannot return a navigator |
+| [`whose field has no navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that has no navigator |
 | [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
 | [`is widened without it`, `holds no container widenFields widens`](#generatefocus-widenfields-cannot-widen) | **Warning.** A `widenFields` name whose path widening cannot change |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
@@ -606,11 +606,11 @@ error: @GenerateFocus: includeFields on Hawker names "kisok", which is not a com
 ```
 ~~~
 
-### "@GenerateFocus: includeFields on X names \"y\", whose field cannot have a navigator" (a warning) {#generatefocus-includefields-no-navigator}
+### "@GenerateFocus: includeFields on X names \"y\", whose field has no navigator" (a warning) {#generatefocus-includefields-no-navigator}
 
-The name matches a component, but that component cannot return a navigator. A `String`, a `List<String>` and a record without `@GenerateFocus` have no navigator target. A `List`, `Set`, `Collection`, `Optional` or `Maybe` of `@GenerateFocus` records has one, as do such containers nested in one another and a `Kind` the processor traverses. A `Map`, an array of records or another supported container has one only where the declaring record widens it.
+The name matches a component, but that component has no navigator. A `String`, a `List<String>` and a record without `@GenerateFocus` have no navigator target. A `List`, `Set`, `Collection`, `Optional` or `Maybe` of `@GenerateFocus` records has one, as do such containers nested in one another and a `Kind` the processor traverses. A `Map`, an array of records or another supported container has one only where the declaring record widens it.
 
-**Fix.** Name a field that can return a navigator, from those the warning lists. For an unannotated record, annotate its type with `@GenerateFocus`. For an unwidened container, add the field to `widenFields`. Where no field can navigate, remove `includeFields` and set `generateNavigators = false`. Follow the warning's fix line: leaving `includeFields` in place with navigators off draws a different warning.
+**Fix.** Name a field that can return a navigator, from those the warning lists. For an unannotated record compiled alongside it, annotate its type with `@GenerateFocus`. The warning offers this only where the annotation alone gives the field a navigator, never for a record from a library or another module. For an unwidened container, add the field to `widenFields`. Where no field can navigate, remove `includeFields` and set `generateNavigators = false`. Follow the warning's fix line: leaving `includeFields` in place with navigators off draws a different warning.
 
 A non-empty `includeFields` gives navigators only to the fields it names, so naming an ineligible field also takes navigators away from every eligible field it leaves out. The warning points at the offending name and stops a `-Werror` build. A field already explained by a target note or error gets no additional warning. The [unwidened-container note](#generatefocus-no-navigator-over-elements) becomes this warning when `includeFields` names the field.
 
@@ -619,7 +619,7 @@ A non-empty `includeFields` gives navigators only to the fields it names, so nam
 - A `List`, `Optional` or other container the method steps into, holding a record without `@GenerateFocus`, is offered the annotation, as a field of that record is.
 - When several entries need a replacement, the first in list order receives it and the rest are offered removal. If another entry has a navigator or a correction of its own, remove the invalid name instead. Following all fix lines leaves one list without duplicate names.
 
-~~~admonish example title="A valid name that cannot return a navigator"
+~~~admonish example title="A valid name whose field has no navigator"
 <!-- verify:reports "includeFields on Hawker names" -->
 ```java
 @GenerateFocus
@@ -630,7 +630,7 @@ record Hawker(String id, Kiosk kiosk) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "id", whose field cannot have a navigator. Navigator generation cannot reach a @GenerateFocus record through String. It needs a @GenerateFocus record or a supported container of one. Replace "id" in includeFields on Hawker with a navigator field from [kiosk].
+warning: @GenerateFocus: includeFields on Hawker names "id", whose field has no navigator. Navigator generation cannot reach a @GenerateFocus record through String. It needs a @GenerateFocus record or a supported container of one. Replace "id" in includeFields on Hawker with a navigator field from [kiosk].
 ```
 
 The offered field gives a navigator:
@@ -656,7 +656,7 @@ record Hawker(java.util.Map<String, Kiosk> sites) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. A navigator steps into a container only where the record widens it, and Hawker does not widen "sites". Add widenFields = "sites" to @GenerateFocus on Hawker.
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field has no navigator. A navigator steps into a container only where the record widens it, and Hawker does not widen "sites". Add widenFields = "sites" to @GenerateFocus on Hawker.
 ```
 ~~~
 
@@ -671,7 +671,7 @@ record Hawker(java.util.Map<String, ? extends Kiosk> sites, Kiosk kiosk) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Map<String, ? extends Kiosk> holds Kiosk records, but its wildcard type arguments prevent widening as written. Write Map<String, Kiosk> in place of Map<String, ? extends Kiosk> and add widenFields = "sites" to @GenerateFocus on Hawker.
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field has no navigator. Map<String, ? extends Kiosk> holds Kiosk records, but its wildcard type arguments prevent widening as written. Write Map<String, Kiosk> in place of Map<String, ? extends Kiosk> and add widenFields = "sites" to @GenerateFocus on Hawker.
 ```
 
 Write the concrete type and widen the field together:
@@ -698,7 +698,7 @@ record Hawker(java.util.List<Kiosk> sites) {}
 ```
 
 ```
-warning: @GenerateFocus: includeFields on Hawker names "sites", whose field cannot have a navigator. Kiosk is a record without @GenerateFocus. Navigator generation cannot reach a @GenerateFocus record through List<Kiosk>. It needs a @GenerateFocus record or a supported container of one. Remove includeFields and set generateNavigators = false in @GenerateFocus on Hawker. Alternatively, annotate record Kiosk with @GenerateFocus.
+warning: @GenerateFocus: includeFields on Hawker names "sites", whose field has no navigator. Kiosk is a record without @GenerateFocus. Navigator generation cannot reach a @GenerateFocus record through List<Kiosk>. It needs a @GenerateFocus record or a supported container of one. Remove includeFields and set generateNavigators = false in @GenerateFocus on Hawker. Alternatively, annotate record Kiosk with @GenerateFocus.
 ```
 
 Annotate the record, and the list navigates into it:

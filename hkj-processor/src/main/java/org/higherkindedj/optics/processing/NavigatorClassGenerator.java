@@ -2080,7 +2080,7 @@ public class NavigatorClassGenerator {
                             + recordName
                             + " names \""
                             + name
-                            + "\", whose field cannot have a navigator.",
+                            + "\", whose field has no navigator.",
                         explanation,
                         correction));
   }
