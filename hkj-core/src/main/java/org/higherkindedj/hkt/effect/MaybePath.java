@@ -308,7 +308,11 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof MaybePath<?> otherMaybe)) {
-      throw new IllegalArgumentException("Cannot zipWith non-MaybePath: " + other.getClass());
+      throw new IllegalArgumentException(
+          "Type mismatch in zipWith(): expected MaybePath but other was "
+              + other.getClass().getSimpleName()
+              + ". Each Path type can only chain with the same type."
+              + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.");
     }
 
     @SuppressWarnings("unchecked")
@@ -361,7 +365,10 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 
     if (!(result instanceof MaybePath<?> maybePath)) {
       throw new IllegalArgumentException(
-          "via mapper must return MaybePath, got: " + result.getClass());
+          "Type mismatch in via(): expected MaybePath but mapper returned "
+              + result.getClass().getSimpleName()
+              + ". Each Path type can only chain with the same type."
+              + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.");
     }
 
     @SuppressWarnings("unchecked")
@@ -382,7 +389,10 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 
     if (!(result instanceof MaybePath<?> maybePath)) {
       throw new IllegalArgumentException(
-          "then supplier must return MaybePath, got: " + result.getClass());
+          "Type mismatch in then(): expected MaybePath but supplier returned "
+              + result.getClass().getSimpleName()
+              + ". Each Path type can only chain with the same type."
+              + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.");
     }
 
     @SuppressWarnings("unchecked")

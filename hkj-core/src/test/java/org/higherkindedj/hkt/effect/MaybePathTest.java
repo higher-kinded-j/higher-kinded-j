@@ -285,7 +285,8 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(s -> Path.right(s.length())))
-          .withMessageContaining("via mapper must return MaybePath");
+          .withMessageContaining(
+                "Type mismatch in via(): expected MaybePath but mapper returned EitherPath");
     }
 
     @Test
@@ -332,7 +333,8 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(() -> Path.right(42)))
-          .withMessageContaining("then supplier must return MaybePath");
+          .withMessageContaining(
+                "Type mismatch in then(): expected MaybePath but supplier returned EitherPath");
     }
   }
 
@@ -408,7 +410,8 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(eitherPath, (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-MaybePath");
+          .withMessageContaining(
+                "Type mismatch in zipWith(): expected MaybePath but other was EitherPath");
     }
 
     @Test
