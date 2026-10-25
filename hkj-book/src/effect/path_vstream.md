@@ -365,12 +365,12 @@ A null element is left out, since the stream's element type is non-null; a `Trav
 
 | Aspect | VStreamPath | StreamPath | VTaskPath |
 |--------|-------------|------------|-----------|
-| **Values** | Zero or more, lazy | Zero or more, eager | Exactly one, deferred |
-| **Evaluation** | Pull-based (lazy) | Eager (materialised list) | Deferred |
+| **Values** | Zero or more, lazy | Zero or more, factory-dependent | Exactly one, deferred |
+| **Evaluation** | Pull-based (lazy) | Deferred, rebuilt for each terminal operation | Deferred |
 | **Execution** | Virtual threads | Synchronous | Virtual threads |
-| **Infinite sources** | Yes | No | N/A |
+| **Infinite sources** | Yes | Yes, via lazy factories with `take` | N/A |
 | **Terminal result** | VTaskPath | Direct access | Direct access |
-| **Backpressure** | Natural (pull model) | N/A (eager) | N/A (single value) |
+| **Backpressure** | Natural (pull model) | N/A (Java Stream) | N/A (single value) |
 | **Reusability** | Reusable | Reusable | Reusable |
 
 **Choose VStreamPath when:**
@@ -429,7 +429,7 @@ Try<List<String>> result = task.runSafe();
 - [Parallel Operations](../monads/vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
 - [Performance](../monads/vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
 - [VTaskPath](path_vtask.md) - Single-value virtual thread path (terminal operations return this)
-- [StreamPath](../monads/stream_monad.md) - Eager list-based streaming path
+- [StreamPath](../monads/stream_monad.md) - Reusable Java Stream path; `Path.stream` reads its finite source when called, while `Path.streamIterate` builds a fresh stream for each terminal operation.
 - [Effect Path Overview](effect_path_overview.md) - How all path types fit together
 - [Focus-Effect Integration](focus_integration.md) - Optics meet Effect Path
 - [Each Type Class](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)

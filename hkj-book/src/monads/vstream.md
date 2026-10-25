@@ -461,10 +461,10 @@ The counter stays at zero after pipeline construction. It only advances when `to
 
 | Aspect | VStream | Java Stream | StreamPath |
 |--------|---------|-------------|------------|
-| Evaluation | Lazy, pull-based | Lazy, push-based | Eager (materialised list) |
+| Evaluation | Lazy, pull-based | Lazy, push-based | Deferred, rebuilt for each terminal operation |
 | Execution | Virtual threads (VTask) | Platform threads | Synchronous |
 | Reusability | Reusable | Single-use | Reusable |
-| Infinite streams | Yes (take, takeWhile) | Yes (limit) | No |
+| Infinite streams | Yes (take, takeWhile) | Yes (limit) | Yes, from `Path.streamIterate` (`take`, `takeWhile`) |
 | Error handling | recover, recoverWith | Exceptions | Via effect type |
 | HKT integration | Yes (Functor, Monad, Traverse) | No | Yes |
 | Effect composition | VTask per pull | None | Via Path API |
