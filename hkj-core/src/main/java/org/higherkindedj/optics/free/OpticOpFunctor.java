@@ -5,14 +5,15 @@ package org.higherkindedj.optics.free;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
 
 /**
  * Functor instance for {@link OpticOp}.
  *
- * <p>This enables OpticOp to be used with the Free monad. Since OpticOp instructions are immutable
- * descriptions of operations, the Functor implementation doesn't actually modify the instruction
- * itself - the mapping happens during interpretation.
+ * <p>This enables OpticOp to be used with the Free monad. Mapping composes the function onto the
+ * operation's continuation through {@link OpticOp#mapK(Function)}, so the instruction still
+ * describes the same optic operation and its result is passed through the function.
  */
 @NullMarked
 public enum OpticOpFunctor implements Functor<OpticOpKind.Witness> {
@@ -20,12 +21,9 @@ public enum OpticOpFunctor implements Functor<OpticOpKind.Witness> {
   INSTANCE;
 
   @Override
-  @SuppressWarnings("unchecked")
   public <A, B> Kind<OpticOpKind.Witness, B> map(
       Function<? super A, ? extends B> f, Kind<OpticOpKind.Witness, A> fa) {
-    // OpticOp instructions are immutable descriptions
-    // The actual mapping happens during interpretation
-    // So we just preserve the structure here
-    return (Kind<OpticOpKind.Witness, B>) fa;
+    Validation.function().validateMap(f, fa);
+    return OpticOpKindHelper.OP.narrow(fa).mapK(f);
   }
 }

@@ -383,11 +383,17 @@ folds it over the whole program:
 <!-- verify -->
 ```java
 // One OpticOp in, one effect out. foldMap walks the program applying it.
-// answer(kind) is your own code: it carries out one operation and returns its result
+// answer(kind) is your own code: it carries out one operation and hands the result to op.k()
 Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
-    kind -> Id.of(Free.pure(answer(kind)));   // the fold expects the next Free node
+    kind -> Id.of(answer(kind));
 Kind<IdKind.Witness, Saver> resultKind = program.foldMap(transform, Instances.monad(id()));
 ```
+
+Every `OpticOp` record carries a continuation, `k`, the same way an
+[`@EffectAlgebra`](../effect/effect_handlers.md) operation does. A `Get` hands its
+focus to `k`, a `Set` hands it the updated source, and so on. Your interpreter carries
+out the operation and passes what it produced to `op.k()`; whatever comes back is what
+the fold continues with.
 
 Your own interpreter is a class that does the same. It does not extend or implement
 anything from the library.
@@ -411,7 +417,7 @@ public final class ProfilingOpticInterpreter {
                 String opName = getOperationName(op);
                 long startTime = System.nanoTime();
 
-                // Execute the operation
+                // Execute the operation and hand the result to its continuation
                 Object result = executeOperation(op);
 
                 long endTime = System.nanoTime();
@@ -421,7 +427,7 @@ public final class ProfilingOpticInterpreter {
                 executionTimes.merge(opName, duration, Long::sum);
                 executionCounts.merge(opName, 1, Integer::sum);
 
-                return Id.of(Free.pure(result));   // the fold expects the next Free node, not the bare value
+                return Id.of(result);
             };
 
         Kind<IdKind.Witness, A> resultKind =
@@ -440,9 +446,9 @@ public final class ProfilingOpticInterpreter {
 
     private String getOperationName(OpticOp<?, ?> op) {
         return switch (op) {
-            case OpticOp.Get<?, ?> get -> "GET: " + get.optic().getClass().getSimpleName();
-            case OpticOp.Set<?, ?> set -> "SET: " + set.optic().getClass().getSimpleName();
-            case OpticOp.Modify<?, ?> mod -> "MODIFY: " + mod.optic().getClass().getSimpleName();
+            case OpticOp.Get<?, ?, ?> get -> "GET: " + get.optic().getClass().getSimpleName();
+            case OpticOp.Set<?, ?, ?> set -> "SET: " + set.optic().getClass().getSimpleName();
+            case OpticOp.Modify<?, ?, ?> mod -> "MODIFY: " + mod.optic().getClass().getSimpleName();
             // ... other cases
             default -> "UNKNOWN";
         };
@@ -453,23 +459,23 @@ public final class ProfilingOpticInterpreter {
     // Dispatch to a generic helper, which is what every library interpreter does.
     private Object executeOperation(OpticOp<?, ?> op) {
         return switch (op) {
-            case OpticOp.Get<?, ?> get -> executeGet(get);
-            case OpticOp.Set<?, ?> set -> executeSet(set);
-            case OpticOp.Modify<?, ?> mod -> executeModify(mod);
+            case OpticOp.Get<?, ?, ?> get -> executeGet(get);
+            case OpticOp.Set<?, ?, ?> set -> executeSet(set);
+            case OpticOp.Modify<?, ?, ?> mod -> executeModify(mod);
             default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
         };
     }
 
-    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-        return op.optic().get(op.source());
+    private <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
+        return op.k().apply(op.optic().get(op.source()));
     }
 
-    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
-        return op.optic().set(op.newValue(), op.source());
+    private <S, A, R> R executeSet(OpticOp.Set<S, A, R> op) {
+        return op.k().apply(op.optic().set(op.newValue(), op.source()));
     }
 
-    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
-        return op.optic().modify(op.modifier(), op.source());
+    private <S, A, R> R executeModify(OpticOp.Modify<S, A, R> op) {
+        return op.k().apply(op.optic().modify(op.modifier(), op.source()));
     }
 }
 ```
@@ -515,10 +521,11 @@ public final class MockOpticInterpreter {
                     (Kind<OpticOpKind.Witness, Object>) kind
                 );
 
-                // Each operation gets the stub the caller supplied for it.
-                Object result = stubs.apply(op);
+                // Each operation gets the stub the caller supplied for it,
+                // handed to the operation's continuation as if the operation had produced it.
+                Object result = ((Function<Object, ?>) op.k()).apply(stubs.apply(op));
 
-                return Id.of(Free.pure(result));   // the fold expects the next Free node, not the bare value
+                return Id.of(result);
             };
 
         Kind<IdKind.Witness, A> resultKind =

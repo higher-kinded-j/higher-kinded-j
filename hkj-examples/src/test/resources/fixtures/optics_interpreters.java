@@ -127,7 +127,8 @@ final class MockOpticInterpreter {
         kind -> {
           OpticOp<?, ?> op =
               OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
-          return Id.of(Free.pure(stubs.apply(op)));
+          // The stub stands in for what the operation produces, so it goes to the continuation
+          return Id.of(((Function<Object, ?>) op.k()).apply(stubs.apply(op)));
         };
     Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, Instances.monad(id()));
     return IdKindHelper.ID.narrow(resultKind).value();
@@ -164,7 +165,10 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  /** One operation carried out: what the page's interpreter sketch calls its own code. */
+  /**
+   * One operation carried out and its result handed to the operation's continuation: what the
+   * page's interpreter sketch calls its own code.
+   */
   static Object answer(Kind<OpticOpKind.Witness, ?> kind) {
     return sample();
   }

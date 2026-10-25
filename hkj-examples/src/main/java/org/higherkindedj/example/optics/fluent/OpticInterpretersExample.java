@@ -335,11 +335,11 @@ public class OpticInterpretersExample {
             // Execute the operation
             Object result =
                 switch (op) {
-                  case OpticOp.Get<?, ?> get -> executeGet(get);
-                  case OpticOp.Set<?, ?> set -> executeSet(set);
-                  case OpticOp.Modify<?, ?> modify -> executeModify(modify);
-                  case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
-                  case OpticOp.ModifyAll<?, ?> modifyAll -> executeModifyAll(modifyAll);
+                  case OpticOp.Get<?, ?, ?> get -> executeGet(get);
+                  case OpticOp.Set<?, ?, ?> set -> executeSet(set);
+                  case OpticOp.Modify<?, ?, ?> modify -> executeModify(modify);
+                  case OpticOp.GetAll<?, ?, ?> getAll -> executeGetAll(getAll);
+                  case OpticOp.ModifyAll<?, ?, ?> modifyAll -> executeModifyAll(modifyAll);
                   default -> throw new UnsupportedOperationException("Unknown operation type");
                 };
 
@@ -349,7 +349,7 @@ public class OpticInterpretersExample {
                 .addMeasurement(endTime - startTime);
             totalOps++;
 
-            return Id.of(Free.pure(result));
+            return Id.of(result);
           };
 
       // Interpret the program using the Id monad
@@ -359,11 +359,11 @@ public class OpticInterpretersExample {
 
     private String getOperationType(OpticOp<?, ?> op) {
       return switch (op) {
-        case OpticOp.Get<?, ?> ignored -> "GET";
-        case OpticOp.Set<?, ?> ignored -> "SET";
-        case OpticOp.Modify<?, ?> ignored -> "MODIFY";
-        case OpticOp.GetAll<?, ?> ignored -> "GET_ALL";
-        case OpticOp.ModifyAll<?, ?> ignored -> "MODIFY_ALL";
+        case OpticOp.Get<?, ?, ?> ignored -> "GET";
+        case OpticOp.Set<?, ?, ?> ignored -> "SET";
+        case OpticOp.Modify<?, ?, ?> ignored -> "MODIFY";
+        case OpticOp.GetAll<?, ?, ?> ignored -> "GET_ALL";
+        case OpticOp.ModifyAll<?, ?, ?> ignored -> "MODIFY_ALL";
         default -> "UNKNOWN";
       };
     }
@@ -379,24 +379,24 @@ public class OpticInterpretersExample {
     // Note: These execute methods don't need @SuppressWarnings("unchecked") because
     // Java's sealed types + switch expressions correctly infer type parameters.
 
-    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-      return op.optic().get(op.source());
+    private <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
+      return op.k().apply(op.optic().get(op.source()));
     }
 
-    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
-      return op.optic().set(op.newValue(), op.source());
+    private <S, A, R> R executeSet(OpticOp.Set<S, A, R> op) {
+      return op.k().apply(op.optic().set(op.newValue(), op.source()));
     }
 
-    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
-      return op.optic().modify(op.modifier(), op.source());
+    private <S, A, R> R executeModify(OpticOp.Modify<S, A, R> op) {
+      return op.k().apply(op.optic().modify(op.modifier(), op.source()));
     }
 
-    private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
-      return op.optic().getAll(op.source());
+    private <S, A, R> R executeGetAll(OpticOp.GetAll<S, A, R> op) {
+      return op.k().apply(op.optic().getAll(op.source()));
     }
 
-    private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
-      return Traversals.modify(op.optic(), op.modifier(), op.source());
+    private <S, A, R> R executeModifyAll(OpticOp.ModifyAll<S, A, R> op) {
+      return op.k().apply(Traversals.modify(op.optic(), op.modifier(), op.source()));
     }
   }
 
@@ -419,15 +419,15 @@ public class OpticInterpretersExample {
 
             Object result =
                 switch (op) {
-                  case OpticOp.Get<?, ?> get -> executeGet(get);
-                  case OpticOp.Set<?, ?> set -> executeSet(set);
-                  case OpticOp.Modify<?, ?> modify -> executeModify(modify);
-                  case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
-                  case OpticOp.ModifyAll<?, ?> modifyAll -> executeModifyAll(modifyAll);
+                  case OpticOp.Get<?, ?, ?> get -> executeGet(get);
+                  case OpticOp.Set<?, ?, ?> set -> executeSet(set);
+                  case OpticOp.Modify<?, ?, ?> modify -> executeModify(modify);
+                  case OpticOp.GetAll<?, ?, ?> getAll -> executeGetAll(getAll);
+                  case OpticOp.ModifyAll<?, ?, ?> modifyAll -> executeModifyAll(modifyAll);
                   default -> throw new UnsupportedOperationException("Unknown operation type");
                 };
 
-            return Id.of(Free.pure(result));
+            return Id.of(result);
           };
 
       // Interpret the program using the Id monad
@@ -444,35 +444,35 @@ public class OpticInterpretersExample {
     // correctly infer type parameters.
 
     @SuppressWarnings("unchecked")
-    private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+    private <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
       Object mockValue = mockData.get(op.optic());
       if (mockValue != null) {
         log.add("MOCK GET: " + op.optic().getClass().getSimpleName() + " -> " + mockValue);
-        return (A) mockValue; // This cast requires the suppression
+        return op.k().apply((A) mockValue); // This cast requires the suppression
       } else {
         log.add("REAL GET: " + op.optic().getClass().getSimpleName());
-        return op.optic().get(op.source());
+        return op.k().apply(op.optic().get(op.source()));
       }
     }
 
-    private <S, A> S executeSet(OpticOp.Set<S, A> op) {
+    private <S, A, R> R executeSet(OpticOp.Set<S, A, R> op) {
       log.add("MOCK SET: " + op.optic().getClass().getSimpleName() + " -> " + op.newValue());
-      return op.optic().set(op.newValue(), op.source());
+      return op.k().apply(op.optic().set(op.newValue(), op.source()));
     }
 
-    private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
+    private <S, A, R> R executeModify(OpticOp.Modify<S, A, R> op) {
       log.add("MOCK MODIFY: " + op.optic().getClass().getSimpleName());
-      return op.optic().modify(op.modifier(), op.source());
+      return op.k().apply(op.optic().modify(op.modifier(), op.source()));
     }
 
-    private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
+    private <S, A, R> R executeGetAll(OpticOp.GetAll<S, A, R> op) {
       log.add("MOCK GET_ALL: " + op.optic().getClass().getSimpleName());
-      return op.optic().getAll(op.source());
+      return op.k().apply(op.optic().getAll(op.source()));
     }
 
-    private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
+    private <S, A, R> R executeModifyAll(OpticOp.ModifyAll<S, A, R> op) {
       log.add("MOCK MODIFY_ALL: " + op.optic().getClass().getSimpleName());
-      return Traversals.modify(op.optic(), op.modifier(), op.source());
+      return op.k().apply(Traversals.modify(op.optic(), op.modifier(), op.source()));
     }
   }
 
