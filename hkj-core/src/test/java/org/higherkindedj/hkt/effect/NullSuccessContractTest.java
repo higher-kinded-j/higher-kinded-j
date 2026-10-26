@@ -457,7 +457,13 @@ class NullSuccessContractTest {
           .isThrownBy(() -> trampoline.zipWith(trampoline, (a, b) -> null).run())
           .withMessage(combiner);
       assertThatNullPointerException()
+          .isThrownBy(() -> trampoline.zipWith3(trampoline, trampoline, (a, b, c) -> null).run())
+          .withMessage(combiner);
+      assertThatNullPointerException()
           .isThrownBy(() -> free.zipWith(free, (a, b) -> null).foldMap(nat, id))
+          .withMessage(combiner);
+      assertThatNullPointerException()
+          .isThrownBy(() -> free.zipWith3(free, free, (a, b, c) -> null).foldMap(nat, id))
           .withMessage(combiner);
       assertThatNullPointerException()
           .isThrownBy(() -> freeAp.zipWith(freeAp, (a, b) -> null).foldMapKind(nat, id))

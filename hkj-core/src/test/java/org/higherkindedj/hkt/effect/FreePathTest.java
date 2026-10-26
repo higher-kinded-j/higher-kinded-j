@@ -352,6 +352,41 @@ class FreePathTest {
           .isThrownBy(() -> path.zipWith(maybePath, (a, b) -> a + b))
           .withMessageContaining("Cannot zipWith non-FreePath");
     }
+
+    @Test
+    @DisplayName("zipWith3() combines three FreePaths")
+    void zipWith3CombinesThreePaths() {
+      FreePath<MaybeKind.Witness, String> first =
+          FreePath.pure("ab", Instances.monadError(maybe()));
+      FreePath<MaybeKind.Witness, Integer> second = FreePath.pure(2, Instances.monadError(maybe()));
+      FreePath<MaybeKind.Witness, String> third = FreePath.pure("!", Instances.monadError(maybe()));
+
+      FreePath<MaybeKind.Witness, String> result =
+          first.zipWith3(second, third, (s, n, suffix) -> s.repeat(n) + suffix);
+
+      GenericPath<MaybeKind.Witness, String> interpreted =
+          result.foldMap(IDENTITY_NAT, MAYBE_MONAD);
+      assertThat(MAYBE.narrow(interpreted.runKind()).get()).isEqualTo("abab!");
+    }
+
+    @Test
+    @DisplayName("zipWith3() validates null parameters")
+    void zipWith3ValidatesNullParameters() {
+      FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
+      FreePath<MaybeKind.Witness, Integer> other = FreePath.pure(1, Instances.monadError(maybe()));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a + b + c))
+          .withMessageContaining("second must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a + b + c))
+          .withMessageContaining("third must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, other, null))
+          .withMessageContaining("combiner must not be null");
+    }
   }
 
   @Nested

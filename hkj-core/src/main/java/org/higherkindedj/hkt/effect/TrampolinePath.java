@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Deferred;
+import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 
@@ -191,6 +192,39 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
             typedOther.map(
                 b ->
                     Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
+  }
+
+  /**
+   * Combines this TrampolinePath with two others using a ternary function.
+   *
+   * <p>The three computations stay suspended until {@link #run()}, so the combine is stack-safe.
+   *
+   * @param second the second TrampolinePath; must not be null
+   * @param third the third TrampolinePath; must not be null
+   * @param combiner the function to combine the three values; must not be null, and must not return
+   *     null
+   * @param <B> the type of the second value
+   * @param <C> the type of the third value
+   * @param <D> the type of the combined result
+   * @return a TrampolinePath containing the combined result
+   * @throws NullPointerException if any argument is null
+   */
+  public <B, C, D> TrampolinePath<D> zipWith3(
+      TrampolinePath<B> second,
+      TrampolinePath<C> third,
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
+    Objects.requireNonNull(second, "second must not be null");
+    Objects.requireNonNull(third, "third must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+
+    return via(
+        a ->
+            second.via(
+                b ->
+                    third.map(
+                        c ->
+                            Objects.requireNonNull(
+                                combiner.apply(a, b, c), "combiner must not return null"))));
   }
 
   // ===== Chainable Implementation =====

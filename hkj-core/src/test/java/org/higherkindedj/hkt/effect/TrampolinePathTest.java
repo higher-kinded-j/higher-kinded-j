@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -326,6 +327,52 @@ class TrampolinePathTest {
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(maybePath, (a, b) -> a + b))
           .withMessageContaining("Cannot zipWith non-TrampolinePath");
+    }
+
+    @Test
+    @DisplayName("zipWith3() combines three TrampolinePaths")
+    void zipWith3CombinesThreePaths() {
+      TrampolinePath<String> first = TrampolinePath.done("ab");
+      TrampolinePath<Integer> second = TrampolinePath.done(2);
+      TrampolinePath<String> third = TrampolinePath.done("!");
+
+      TrampolinePath<String> result =
+          first.zipWith3(second, third, (s, n, suffix) -> s.repeat(n) + suffix);
+
+      assertThat(result.run()).isEqualTo("abab!");
+    }
+
+    @Test
+    @DisplayName("zipWith3() validates null parameters")
+    void zipWith3ValidatesNullParameters() {
+      TrampolinePath<Integer> path = TrampolinePath.done(42);
+      TrampolinePath<Integer> other = TrampolinePath.done(1);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a + b + c))
+          .withMessageContaining("second must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a + b + c))
+          .withMessageContaining("third must not be null");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.zipWith3(other, other, null))
+          .withMessageContaining("combiner must not be null");
+    }
+
+    @Test
+    @DisplayName("zipWith3() calls the combiner only when run")
+    void zipWith3CallsTheCombinerOnlyWhenRun() {
+      AtomicInteger calls = new AtomicInteger();
+      TrampolinePath<Integer> one = TrampolinePath.done(1);
+
+      TrampolinePath<Integer> result =
+          one.zipWith3(one, one, (a, b, c) -> calls.incrementAndGet() + a + b + c);
+
+      assertThat(calls).hasValue(0);
+      assertThat(result.run()).isEqualTo(4);
+      assertThat(calls).hasValue(1);
     }
   }
 
