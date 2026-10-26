@@ -44,9 +44,9 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 
 ---
 
-## To 0.5.1 {#to-051}
+## To 0.6.0 {#to-060}
 
-This release is not out yet. [Upgrading from 0.5.0](unreleased.md#upgrading) collects what it changes so far.
+This release is not out yet. [Upgrading from 0.5.0](unreleased.md#upgrading) collects what it changes so far, and [Removals in 0.6.0](#removals-in-060) lists the APIs it is due to remove, with the recipe that migrates each.
 
 ---
 
@@ -128,4 +128,4 @@ Besides the deprecations in [Removals in 0.5.0](#removals-in-050), the notes for
 ---
 
 **Previous:** [Release History](../release-history.md)
-**Next:** [Unreleased: 0.5.1](unreleased.md)
+**Next:** [Unreleased: 0.6.0](unreleased.md)

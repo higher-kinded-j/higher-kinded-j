@@ -1,8 +1,8 @@
-# Unreleased: 0.5.1
+# Unreleased: 0.6.0
 
 _Not released yet: these changes are on `main`, and the `latest` book describes them._
 
-To try them, depend on `0.5.1-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
+To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
 ~~~admonish info title="At a glance"
 - **Nothing has changed since 0.5.0 yet.** The [0.5.0 notes](v0_5_0.md) describe the latest release.
@@ -49,7 +49,7 @@ To try them, depend on `0.5.1-SNAPSHOT` from the snapshots repository, as [Gradl
 | Area | Now fails the build | Do this | Issue |
 |---|---|---|---|
 
-### Deprecated for removal in 0.6.0 {#deprecated}
+### Deprecated for removal in 0.7.0 {#deprecated}
 
 | Deprecated | Replacement | Recipe |
 |---|---|---|
