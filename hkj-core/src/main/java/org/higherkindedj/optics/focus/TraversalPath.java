@@ -1103,8 +1103,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
   /**
    * Extracts all non-null focused values and wraps them in a {@link StreamPath}.
    *
-   * <p>This bridges from the optics domain to the effect domain using lazy stream semantics. This
-   * is useful for large collections where eager evaluation would be inefficient.
+   * <p>The non-null focuses are collected into a list when this method is called, then streamed
+   * again for each terminal operation on the returned path.
    *
    * <p>As in {@link #toListPath(Object)}, a null focus reads as absent and is left out.
    *
@@ -1112,9 +1112,9 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * <pre>{@code
    * TraversalPath<Database, Record> recordsPath = DatabaseFocus.records();
-   * Database db = getLargeDatabase();
+   * Database db = getDatabase();
    *
-   * // Lazy stream processing
+   * // Non-null values, streamed again on each run
    * StreamPath<String> ids = recordsPath.toStreamPath(db)
    *     .map(Record::id)
    *     .filter(id -> id.startsWith("A"));

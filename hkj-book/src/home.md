@@ -385,7 +385,7 @@ Twenty-one Path types share one vocabulary. Most applications start with `Either
 | `WriterPath<W, A>` | Logging, audit trails, collecting metrics |
 | `WithStatePath<S, A>` | Stateful computations (parsers, counters) |
 | `ListPath<A>` | Batch processing with positional zipping |
-| `StreamPath<A>` | Lazy sequences, large data processing |
+| `StreamPath<A>` | Sequences you can run more than once, infinite ones from `Path.streamIterate` |
 | `NonDetPath<A>` | Non-deterministic search, combinations |
 | `LazyPath<A>` | Deferred evaluation, memoisation |
 | `IdPath<A>` | Pure computations (testing, generic code) |

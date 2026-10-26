@@ -94,7 +94,7 @@ Additional considerations:
 | `LazyPath<A>` | Deferred, memoised | `Path.lazyDefer(() -> ...)`, `Path.lazyNow(v)` | `.run()` -> `A` |
 | `CompletableFuturePath<A>` | Async | `Path.future(cf)`, `Path.futureAsync(() -> ...)` | `.run()` -> `CompletableFuture<A>` |
 | `ListPath<A>` | Batch (positional zip) | `Path.listPath(list)` | `.run()` -> `List<A>` |
-| `StreamPath<A>` | Lazy sequences | `Path.stream(stream)` | `.run()` -> `Stream<A>` |
+| `StreamPath<A>` | Sequences you can run more than once | `Path.stream(stream)`, `Path.streamIterate(seed, f)` | `.run()` -> `Stream<A>` |
 | `NonDetPath<A>` | Non-deterministic | `Path.list(list)` | `.run()` -> `List<A>` |
 | `IdPath<A>` | Pure values | `Path.id(v)` | `.run()` -> `Id<A>` |
 | `OptionalPath<A>` | Optional bridge | `Path.optional(opt)`, `Path.present(v)` | `.run()` -> `Optional<A>` |
