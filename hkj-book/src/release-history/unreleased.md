@@ -5,7 +5,7 @@ _Not released yet: these changes are on `main`, and the `latest` book describes 
 To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
 ~~~admonish info title="At a glance"
-- **Nothing has changed since 0.5.0 yet.** The [0.5.0 notes](v0_5_0.md) describe the latest release.
+- **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.
 ~~~
 
 ---
@@ -15,6 +15,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ---
 
 ## Optics {#optics}
+
+- **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)). A `witheMail(String)` beside `geteMail()`, as Lombok's `beanspec` capitalisation writes them, gives an `eMail()` lens, as `withEMail` beside `getEMail()` does. The processor says why it refuses a class whose only wither is `with2D(int)`. See [Wither Classes to Lenses](../optics/importing_optics.md#wither-classes-to-lenses).
 
 ---
 
@@ -43,6 +45,10 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ### Before you upgrade {#before-you-upgrade}
 
 ### What a running program can notice {#runtime-changes}
+
+#### Optics {#runtime-optics}
+
+- **Of two withers for one getter, `@ImportOptics` sets through the capitalised spelling** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)): the lens for a class with both `withEMail` and `witheMail` beside `eMail()` set through whichever the class declared first. It now sets through `withEMail`, and a note names `witheMail`, which a spec interface's `@Wither` can choose.
 
 ### What stops a build that compiled {#build-changes}
 

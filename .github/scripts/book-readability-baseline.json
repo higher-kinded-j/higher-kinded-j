@@ -86,7 +86,7 @@
     "optics/folds.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "optics/free_monad_dsl.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/getters.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
-    "optics/importing_optics.md": { "long35": 6, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
+    "optics/importing_optics.md": { "long35": 5, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "optics/indexed_optics.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/interpreters.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/iso.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },

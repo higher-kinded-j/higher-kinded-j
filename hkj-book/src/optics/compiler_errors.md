@@ -2247,12 +2247,12 @@ interface FeeOpticsSpec extends OpticsSpec<Fee> {
 
 ### "@ImportOptics: '...' pairs more than one wither with the field '...'" (a note)
 
-A class imported by class literal spells one field's accessor more than one way, and has a wither for each: `int n()` with `withN(int)`, and `String getN()` with `withN(String)`. Both pair with the field `n`, and a class can carry only one lens of that name.
+A class imported by class literal spells one field's accessor more than one way, and has a wither for each: `int n()` with `withN(int)`, and `String getN()` with `withN(String)`. Both pair with the field `n`, and a class can carry only one lens of that name. A class with both `withEMail` and the JavaBeans `witheMail` draws the note too, since both set the field `eMail`.
 
 **Fix.** Nothing, where the lens you wanted is the one generated: the note says which. Where you wanted the other, import the type through a [spec interface](optics_spec_interfaces.md) and name the pair yourself with `@Wither(value = "withN", getter = "getN")`, importing it there rather than by class literal, or the note stays on every build.
 
 ~~~admonish note title="Why" collapsible=true
-The pairing rule tries the accessor spellings in order, `n()`, then `getN()`, then `isN()`, and the first that matches is the one generated. Reading them in that order rather than in the order the class happens to declare its members means the same class always yields the same lens. A note rather than a warning, because the class is someone else's to spell, and a note does not fail a `-Werror` build.
+The pairing rule tries the accessor spellings in order, `n()`, then `getN()`, then `isN()`, and the first that matches is the one generated. Reading them in that order rather than in the order the class happens to declare its members means the same class always yields the same lens. Where two withers pair with one getter, the processor prefers the capitalised spelling, `withEMail` ahead of `witheMail`, for the same reason. A note rather than a warning, because the class is someone else's to spell, and a note does not fail a `-Werror` build.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
