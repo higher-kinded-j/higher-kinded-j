@@ -17,6 +17,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Optics {#optics}
 
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)). A `witheMail(String)` beside `geteMail()`, as Lombok's `beanspec` capitalisation writes them, gives an `eMail()` lens, as `withEMail` beside `getEMail()` does. The processor says why it refuses a class whose only wither is `with2D(int)`. See [Wither Classes to Lenses](../optics/importing_optics.md#wither-classes-to-lenses).
+- **A spec lens reads a getter inherited from two interfaces as javac does** ([#1136](https://github.com/higher-kinded-j/higher-kinded-j/issues/1136)). An abstract source that inherits `String name()` from one interface and `CharSequence name()` from another is now read as returning `String`, so a `Lens<Src, String>` over it builds. A `@ViaBuilder` chain reads an inherited `toBuilder()` or `build()` the same way. See [Compiler Messages](../optics/compiler_errors.md#-reads--not-the-lenss-focus-).
 
 ---
 
