@@ -367,6 +367,42 @@ var program =
 
 ---
 
+## FreeApPath
+
+**Definition:** A Path over `FreeAp<F, A>`: an applicative program whose structure can be analysed before it runs. It has no `via`, because no step may depend on another's result.
+
+**Factories:** `Path.freeApPure(a, functor)`, `Path.freeApLift(fa, functor)` and `Path.freeAp(freeAp, functor)`.
+
+**Operations:** `map`, `peek`, `zipWith` and `zipWith3`; `foldMap(interpreter, monad)` interprets it into a `GenericPath`, and `toFreeAp()` returns the `FreeAp`.
+
+**Related:** [FreeApPath documentation](../effect/path_freeap.md), [Path](#path), [Free Applicative](type-classes.md#free-applicative), [FreePath](#freepath), [Interpreter (Effect Handler)](#interpreter-effect-handler)
+
+---
+
+## FreePath
+
+**Definition:** A Path over `Free<F, A>`: a program written as data, to be run later by an interpreter. It is the way to build a DSL with the Path API.
+
+**Factories:** `Path.freePure(a, functor)`, `Path.freeLift(fa, functor)` and `Path.free(free, functor)`.
+
+**Operations:** `map`, `via`, `then`, `recover`, `attempt()`; `foldMap(interpreter, monad)` interprets it into a `GenericPath`, and `toFree()` returns the `Free`. `recover` and `attempt()` catch an error only when the target monad is a `MonadError`.
+
+**Related:** [FreePath documentation](../effect/path_free.md), [Path](#path), [Free Monad](#free-monad), [Interpreter (Effect Handler)](#interpreter-effect-handler), [foldMap](#foldmap)
+
+---
+
+## GenericPath
+
+**Definition:** A Path over any monad you supply, as `Kind<F, A>` with its `Monad<F>`. It is the escape hatch for a type that has no Path of its own.
+
+**Factories:** `Path.generic(kind, monad)` and `Path.genericPure(a, monad)`. Both take a plain `Monad`, so `recover` on the result throws. `GenericPath.of(kind, monadError)` builds one that can recover.
+
+**Operations:** `map`, `via`, `recover`, `supportsRecovery()`, `toMaybePath(narrower)`, `toEitherPath(narrower)`; `runKind()` returns the `Kind`.
+
+**Related:** [GenericPath documentation](../effect/path_generic.md), [Path](#path), [Monad](type-classes.md#monad), [MonadError](type-classes.md#monaderror), [mapK](#mapk)
+
+---
+
 ## IdPath
 
 **Definition:** A path for a pure value wrapped in the identity type `Id<A>`. It always contains a non-null value and never fails.
