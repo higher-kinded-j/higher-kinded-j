@@ -20,6 +20,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.free.FreeKind;
 import org.higherkindedj.hkt.free.FreeKindHelper;
+import org.higherkindedj.hkt.function.Function3;
 
 /**
  * A fluent path wrapper for {@link Free} monad computations.
@@ -239,6 +240,40 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
             typedOther.map(
                 b ->
                     Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null")));
+  }
+
+  /**
+   * Combines this FreePath with two others using a ternary function.
+   *
+   * <p>The three computations stay suspended until the program is interpreted, so the combine is
+   * stack-safe.
+   *
+   * @param second the second FreePath; must not be null
+   * @param third the third FreePath; must not be null
+   * @param combiner the function to combine the three values; must not be null, and must not return
+   *     null
+   * @param <B> the type of the second value
+   * @param <C> the type of the third value
+   * @param <D> the type of the combined result
+   * @return a FreePath containing the combined result
+   * @throws NullPointerException if any argument is null
+   */
+  public <B, C, D> FreePath<F, D> zipWith3(
+      FreePath<F, B> second,
+      FreePath<F, C> third,
+      Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
+    Objects.requireNonNull(second, "second must not be null");
+    Objects.requireNonNull(third, "third must not be null");
+    Objects.requireNonNull(combiner, "combiner must not be null");
+
+    return via(
+        a ->
+            second.via(
+                b ->
+                    third.map(
+                        c ->
+                            Objects.requireNonNull(
+                                combiner.apply(a, b, c), "combiner must not return null"))));
   }
 
   // ===== Chainable Implementation =====
