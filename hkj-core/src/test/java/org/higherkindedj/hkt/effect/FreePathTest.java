@@ -376,11 +376,11 @@ class FreePathTest {
       FreePath<MaybeKind.Witness, Integer> other = FreePath.pure(1, Instances.monadError(maybe()));
 
       assertThatNullPointerException()
-          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a + b + c))
+          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a + b + c))
+          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()

@@ -349,11 +349,11 @@ class TrampolinePathTest {
       TrampolinePath<Integer> other = TrampolinePath.done(1);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a + b + c))
+          .isThrownBy(() -> path.zipWith3(null, other, (a, b, c) -> a))
           .withMessageContaining("second must not be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a + b + c))
+          .isThrownBy(() -> path.zipWith3(other, null, (a, b, c) -> a))
           .withMessageContaining("third must not be null");
 
       assertThatNullPointerException()
