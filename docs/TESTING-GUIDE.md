@@ -580,7 +580,8 @@ Conventions that keep this uniform:
 - **Laws block owns laws; contract owns the rest.** Use `verifyOnly(OPERATIONS, VALIDATIONS,
   EXCEPTIONS)` for the contract smoke so laws run once. (Exceptions: **Foldable** has no laws, so use
   `.verify()`; **MonadError** adds no laws beyond Monad, so it has no Laws block and relies on the
-  Monad laws in `XMonadTest`.)
+  Monad laws in `XMonadTest`; a **value that holds a function it has not run** leaves out
+  `EXCEPTIONS`, for the reason the bullet on comparing one gives.)
 - **Shared fixtures, not copy-paste.** Hoist the law fixture streams into `XLawFixtures`
   (referenced by a fully-qualified `@MethodSource`) and the jqwik generators into `XArbitraries`
   (the per-test `@Provide` methods delegate to it). One generator, defined once.
