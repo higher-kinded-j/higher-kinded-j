@@ -1,6 +1,6 @@
 # Upgrading
 
-Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.5.0](#removals-in-050) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.6.0](#removals-in-060) those due in the release after.
+Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.6.0](#removals-in-060) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
 
 ---
 
@@ -24,7 +24,7 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 
 ## Removals in 0.5.0 {#removals-in-050}
 
-Each of these compiles today with javac's `[removal]` warning, which fails a `-Werror` build. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` recipe runs every recipe the table names; see [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration).
+0.5.0 removed each of these. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` recipe runs every recipe the table names, and finds each removed API only while the project is on 0.4.x, so run it before you move. See [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration).
 
 | Deprecated | Since | Use instead | Recipe |
 |---|---|---|---|
@@ -44,9 +44,15 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 
 ---
 
+## To 0.5.1 {#to-051}
+
+This release is not out yet. [Upgrading from 0.5.0](unreleased.md#upgrading) collects what it changes so far.
+
+---
+
 ## To 0.5.0 {#to-050}
 
-This release is not out yet. Every API in [Removals in 0.5.0](#removals-in-050) is due to go in it, so migrate those first: the `MigrateDeprecationsTo0_5_0` recipe does most of the work. Its notes split what changes into what a running program can notice and what stops a build that compiled: read [Upgrading from 0.4.11](unreleased.md#upgrading) before you move.
+The 0.5.0 notes give the details in [Upgrading from 0.4.11](v0_5_0.md#upgrading). Run `MigrateDeprecationsTo0_5_0` first, while the project is still on 0.4.11, since its recipes find the APIs in [Removals in 0.5.0](#removals-in-050) only there. [Before you upgrade](v0_5_0.md#before-you-upgrade) lists that step and the others to take first. Then read [What a running program can notice](v0_5_0.md#runtime-changes), most of it about null values, because the compiler cannot point at those changes. Each entry in [What stops a build that compiled](v0_5_0.md#build-changes) fails at a line the message names, with its fix.
 
 ---
 
@@ -122,4 +128,4 @@ Besides the deprecations in [Removals in 0.5.0](#removals-in-050), the notes for
 ---
 
 **Previous:** [Release History](../release-history.md)
-**Next:** [Unreleased: 0.5.0](unreleased.md)
+**Next:** [Unreleased: 0.5.1](unreleased.md)
