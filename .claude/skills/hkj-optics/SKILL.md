@@ -142,7 +142,9 @@ field gets a note naming the field to rename, if it writes `generateNavigators =
 Two fields whose names differ only in the case of their first letter, such as `items` and `Items`,
 would name one navigator class. Where both would have one, the first in declaration order keeps
 it; the later one keeps its plain path, with a note on the default or an error under
-`generateNavigators = true`. An earlier field with no navigator leaves the name free.
+`generateNavigators = true`. An earlier field with no navigator leaves the name free. A message offering
+a field a navigator, such as a note to widen a container, asks for one of the two to be renamed
+first where its change alone would end there.
 
 The names in `includeFields`, `excludeFields` and `widenFields` are checked against the record's
 components: one that matches none is an error offering the component it meant. A list that changes
