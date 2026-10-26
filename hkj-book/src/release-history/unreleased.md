@@ -41,6 +41,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Documentation {#documentation}
 
+- **StreamPath docs no longer call it lazy where the source is read at once** ([#1290](https://github.com/higher-kinded-j/higher-kinded-j/issues/1290)). The cheat sheet and home page describe sequences you can run more than once, and `toStreamPath` says the non-null focuses are collected into a list when it is called.
+
 ---
 
 ## Upgrading from 0.5.0 {#upgrading}
