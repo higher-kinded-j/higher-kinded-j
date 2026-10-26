@@ -125,7 +125,8 @@ final class BuilderChainChecks {
       TypeMirror focusType,
       String targetPackage) {
     ExecutableElement toBuilder =
-        CallableMembers.accessorNamed(members.of(sourceTypeElement, targetPackage), toBuilderName);
+        CallableMembers.accessorNamed(
+            typeUtils, sourceType, members.of(sourceTypeElement, targetPackage), toBuilderName);
     if (toBuilder == null) {
       members.reportMissingAccessor(
           method,
@@ -203,7 +204,9 @@ final class BuilderChainChecks {
     // A builder that builds the source type, as a self-typed Builder<Dog> does, is no reason to
     // blame the inheritance, and a misspelt setter on it draws the plain message and its offer.
     boolean buildsTheSource =
-        Optional.ofNullable(CallableMembers.accessorNamed(builderMembers, buildName))
+        Optional.ofNullable(
+                CallableMembers.accessorNamed(
+                    typeUtils, (DeclaredType) builderType, builderMembers, buildName))
             .map(
                 build ->
                     typeUtils.isAssignable(
@@ -326,7 +329,8 @@ final class BuilderChainChecks {
       return new BuilderChain.Refused();
     }
     ExecutableElement build =
-        CallableMembers.accessorNamed(members.of(setElement, targetPackage), buildName);
+        CallableMembers.accessorNamed(
+            typeUtils, (DeclaredType) setType, members.of(setElement, targetPackage), buildName);
     if (build == null) {
       members.reportMissingAccessor(
           method,
@@ -406,7 +410,8 @@ final class BuilderChainChecks {
       String setter,
       String targetPackage) {
     return Optional.ofNullable(
-            CallableMembers.accessorNamed(members.of(sourceElement, targetPackage), toBuilder))
+            CallableMembers.accessorNamed(
+                typeUtils, source, members.of(sourceElement, targetPackage), toBuilder))
         .map(
             method ->
                 ProcessorUtils.returnTypeIn(
