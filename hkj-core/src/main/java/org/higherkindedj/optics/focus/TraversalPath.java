@@ -1112,7 +1112,7 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * <pre>{@code
    * TraversalPath<Database, Record> recordsPath = DatabaseFocus.records();
-   * Database db = getLargeDatabase();
+   * Database db = getDatabase();
    *
    * // Non-null values, streamed again on each run
    * StreamPath<String> ids = recordsPath.toStreamPath(db)
