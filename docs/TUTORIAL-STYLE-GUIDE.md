@@ -819,7 +819,7 @@ This tutorial style guide complements the main [STYLE-GUIDE.md](STYLE-GUIDE.md).
 | Em dashes | Avoid as comma replacement | Acceptable in titles, `@DisplayName`, and parenthetical asides |
 | Emojis | Not permitted | Not permitted (except final 🎉) |
 | Java version | Modern Java | Java 25, modern features |
-| Tone | Practical, accessible, "we" voice | Encouraging, hands-on, "we" voice |
+| Tone | Practical, accessible, "you" voice | Encouraging, hands-on, "we" voice |
 | Structure | Documentation pages | Exercise-based test files |
 | Code format | Triple backticks | Inline Java code |
 | Per-exercise teaching | n/a | "Why this is idiomatic / Alternative / Common wrong attempt" in solution files |

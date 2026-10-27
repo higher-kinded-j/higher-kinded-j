@@ -287,4 +287,4 @@ Practise error handling in [Tutorial 05: Monad Error Handling](https://github.co
 ---
 
 **Previous:** [Monad](monad.md)
-**Next:** [Semigroup and Monoid](semigroup_and_monoid.md)
+**Next:** [For Comprehension](for_comprehension.md)

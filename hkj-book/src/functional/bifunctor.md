@@ -430,5 +430,5 @@ Understanding bifunctors empowers you to write generic, reusable transformation 
 
 ---
 
-**Previous:** [Profunctor](profunctor.md)
-**Next:** [Natural Transformation](natural_transformation.md)
+**Previous:** [Choosing Abstraction Levels](abstraction_levels.md)
+**Next:** [Profunctor](profunctor.md)

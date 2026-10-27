@@ -129,5 +129,5 @@ For mechanism rather than philosophy, [Lifting the Hood](lifting_the_hood.md) wa
 
 ---
 
-**Previous:** [Extending the Simulation](extending-simulation.md)
-**Next:** [Type Classes](../functional/ch_intro.md)
+**Previous:** [Functional API](../functional/functional_api.md)
+**Next:** [Basic HKT Examples](hkt_basic_examples.md)

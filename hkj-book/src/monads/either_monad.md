@@ -284,5 +284,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 
 ---
 
-**Previous:** [CompletableFuture](cf_monad.md)
-**Next:** [EitherOrBoth](either_or_both_monad.md)
+**Previous:** [Core Types](ch_intro.md)
+**Next:** [Validated](validated_monad.md)

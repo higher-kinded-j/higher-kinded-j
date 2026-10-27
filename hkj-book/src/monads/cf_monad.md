@@ -273,5 +273,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 
 ---
 
-**Previous:** [Supported Types](supported-types.md)
-**Next:** [Either](either_monad.md)
+**Previous:** [Lazy](lazy_monad.md)
+**Next:** [VTask](vtask_monad.md)

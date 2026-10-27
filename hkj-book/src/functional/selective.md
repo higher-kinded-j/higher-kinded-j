@@ -361,5 +361,5 @@ Higher-Kinded-J provides Selective instances for:
 
 ---
 
-**Previous:** [MonadZero](monad_zero.md)
-**Next:** [Profunctor](profunctor.md)
+**Previous:** [Natural Transformation](natural_transformation.md)
+**Next:** [Alternative](alternative.md)

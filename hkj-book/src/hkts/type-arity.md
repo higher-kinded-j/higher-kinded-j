@@ -305,5 +305,5 @@ The arity system catches these errors at compile time rather than runtime.
 
 ---
 
-**Previous:** [Core Concepts](core-concepts.md)
-**Next:** [Usage Guide](usage-guide.md)
+**Previous:** [HKT Introduction](hkt_introduction.md)
+**Next:** [Lifting the Hood](lifting_the_hood.md)

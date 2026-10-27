@@ -337,5 +337,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details.
 
 ---
 
-**Previous:** [Try](try_monad.md)
+**Previous:** [Either](either_monad.md)
 **Next:** [Accumulating Assembly](validated_assembly.md)

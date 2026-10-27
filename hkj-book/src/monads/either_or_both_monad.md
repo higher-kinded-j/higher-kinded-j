@@ -187,5 +187,5 @@ The combination primitive behind it is `zipWithAccum(other, semigroup, combiner)
 
 ---
 
-**Previous:** [Either](either_monad.md)
-**Next:** [Identity](identity.md)
+**Previous:** [Try](try_monad.md)
+**Next:** [NonEmptyList](nonemptylist_monad.md)

@@ -139,5 +139,5 @@ There is no factory that produces an empty `NonEmptyList`, and therefore **no `M
 
 ---
 
-**Previous:** [List](list_monad.md)
+**Previous:** [EitherOrBoth](either_or_both_monad.md)
 **Next:** [Maybe](maybe_monad.md)

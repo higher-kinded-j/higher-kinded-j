@@ -36,7 +36,6 @@
     "hkts/core-concepts.md": { "long35": 0, "long50": 0, "bullets": 1, "runs": 0, "dashes": 1, "aboveBelow": 1 },
     "hkts/extending-simulation.md": { "long35": 0, "long50": 0, "bullets": 1, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "hkts/faq.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 1, "dashes": 0, "aboveBelow": 0 },
-    "hkts/foundations_intro.md": { "long35": 2, "long50": 1, "bullets": 0, "runs": 0, "dashes": 3, "aboveBelow": 0 },
     "hkts/lifting_the_hood.md": { "long35": 2, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 2 },
     "hkts/one_line_six_layers.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 3 },
     "hkts/order-composition.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 3 },

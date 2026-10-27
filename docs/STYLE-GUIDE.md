@@ -5,12 +5,13 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 ## General Principles
 
 - Use **British English** spelling and punctuation (e.g. "colour", "behaviour", "optimisation") in all non-code text: book pages, docs, skills, READMEs, Javadoc and comments, test display names, diagnostics and example output. Code keeps its own spelling: identifiers, keywords, Javadoc `@param` names, configuration keys, CSS and HTML names, string literals that are data, wire values, and third-party names and text, such as a product, an API, an idiom or an epigraph. `.github/scripts/british-spelling-check.cjs` checks the Markdown, comments, Javadoc and display names in CI (run it with `--fix` to correct what it finds); diagnostics and example output are string literals, so a reviewer checks those. A heading that changes spelling changes its anchor: in the book, pin the old one with an explicit `{#id}`; in a GitHub-rendered doc, update the links to it
-- Do not use em dashes (—); use commas or semicolons instead. The one sanctioned em dash is the attribution line under an epigraph ("— Niklaus Wirth")
+- Do not use em dashes (—); use commas or semicolons instead. The one sanctioned em dash is the attribution line under an epigraph ("— Edsger W. Dijkstra, *The Humble Programmer*"), as [Opening Quote](#opening-quote) describes
 - Avoid double-hyphen separators (` -- `) too, since they render as en-dashes and read like em-dashes. Prefer:
   - A **colon** (`: `) to introduce an expansion after a label (e.g. "`SafeFetch`: Total runner that captures..."). This is the standard form for label-and-description bullets and for "See Also" link descriptions
-  - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("five sub-chapters (Quickstart, Core Paths, ..., Reference)")
+  - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("its sub-chapters (Quickstart, Core Paths, ..., Reference)")
   - A **full stop** when the dash is really separating two complete thoughts, and treating them as two sentences reads more naturally
 - Do not use decorative emojis in documentation. The one exception is the status markers **✅** (correct, supported, "do this") and **❌** (wrong, unsupported, "avoid this"), used sparingly to label good-versus-bad code examples or supported-versus-unsupported rows in a table. Their plain-text equivalents **✓** and **✗** are equally acceptable. Do not use them as decoration or in prose; reserve them for a clear pass/fail signal.
+- Address the reader as "you", and name the maintainers as "Higher-Kinded-J" or "the library". Book pages never use "we", which blurs who is acting. The tutorials keep their own "we", the voice of working through an exercise together: the exercise files, and the journey pages under `hkj-book/src/tutorials/`. A page that still says "we" adopts "you" when it is next reworked
 - Keep explanations practical and focused on Java developers
 - Avoid academic jargon; prefer accessible explanations
 - Describe behaviour, not provenance: no GitHub issue or pull-request references outside the release history (see [No Issue or PR References](#no-issue-or-pr-references))
@@ -36,20 +37,27 @@ Each page should start with a level-1 heading (`#`) that describes the topic.
 # Either: Modelling Success or Failure
 ```
 
-### Opening Quote (Chapter Introductions)
+### Opening Quote
 
-Chapter introduction pages may include an opening quote to set the tone:
+A chapter or group introduction may open with a quote, and so may a page that crosses into a genuinely new idea. The quote sets up the page's question, and the sentence after it answers in the page's own terms:
 
 ```markdown
-# The Type Classes: Building Blocks of Abstraction
+# Foundations
 
-> _"Programs = Algorithms + Data Structures"_
-> — Niklaus Wirth
+<!-- source: Edsger W. Dijkstra, "The Humble Programmer", ACM Turing Lecture 1972, EWD340 -->
+> _"The purpose of abstracting is not to be vague, but to create a new semantic level in which one can be absolutely precise."_
+>
+> — Edsger W. Dijkstra, *The Humble Programmer*
 
-This chapter introduces the foundational type classes...
+Dijkstra's new semantic level, in this chapter, is `Kind<F, A>`...
 ```
 
-Use blockquote formatting with italicised text and an attribution line.
+- **At most one per page, at its head.** Never mid-page, and never on a reference page.
+- **The quotation is italic and keeps its own spelling.** The attribution line is `> — Author, *Work*`, with a chapter, act or poem where it helps. No bold, job titles or commentary; name the translator where the wording is theirs.
+- **A `<!-- source: ... -->` comment above it records the edition**, so the wording can be checked against it.
+- **Quote only what can be sourced.** A line famous mainly as an internet attribution is not.
+- **An author appears at most once in a chapter, and a quotation at most once in the book.**
+- **The sentence after it uses the quotation**, in the page's own terms. A quote with no bridge is decoration.
 
 ### What You'll Learn Section
 
@@ -297,6 +305,10 @@ Where the chapter has a limits or rules reference page, the same absence also ta
 Outside that one sentence, rule prose carries no "for now", "yet", "today", "still" or "has always": they date the page and narrate delivery order, which the [no issue or PR references](#no-issue-or-pr-references) rule already rules out.
 
 **One carve-out: a supported version.** A statement about the JDK, or about a dependency the library tracks, is a fact that legitimately dates, and writing it open-endedly ("Java 25 or later") claims a future nobody has tested. State the release the library is built on and mark it as current ("built on Java 25 today"), so the sentence is true when written and visibly needs revisiting when the library moves.
+
+### Counts in Prose
+
+A count of types, pages, instances or exercises is a claim, and it drifts as the library grows: two pages that each count the same list soon disagree. State a count only where a script or a test derives it, as the tutorial exercise counts are. Otherwise link the list that holds the items, or name the set without a number ("every core type", "the type classes on this page").
 
 ### No Issue or PR References
 
@@ -707,6 +719,7 @@ guides, and the chapter guide links here rather than repeating this guide.
 |---|---|---|
 | Mapping at the Boundary | `hkj-book/src/mapping/` | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
 | Optics | `hkj-book/src/optics/` | [Optics Chapter Guide](OPTICS-CHAPTER-GUIDE.md) |
+| Foundations | `hkj-book/src/hkts/`, `functional/` and `monads/`, as `SUMMARY.md` lists them | [Foundations Chapter Guide](FOUNDATIONS-CHAPTER-GUIDE.md) |
 
 To give a chapter a guide, write `docs/<CHAPTER>-CHAPTER-GUIDE.md` and add its row here. Procedure
 and traps for Claude Code sessions go in the `book-authoring` skill, as a

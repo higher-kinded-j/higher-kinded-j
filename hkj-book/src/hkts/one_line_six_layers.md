@@ -149,4 +149,4 @@ Everything that follows is, in some sense, a footnote on that one line.
 ---
 
 **Previous:** [Foundations](foundations_intro.md)
-**Next:** [Lifting the Hood](lifting_the_hood.md)
+**Next:** [Core Concepts](core-concepts.md)

@@ -176,5 +176,5 @@ public static <F extends WitnessArity<TypeArity.Unary>, A extends Number>
 
 ---
 
-**Previous:** [Foldable and Traverse](foldable_and_traverse.md)
-**Next:** [Selective](selective.md)
+**Previous:** [Alternative](alternative.md)
+**Next:** [Choosing Abstraction Levels](abstraction_levels.md)
