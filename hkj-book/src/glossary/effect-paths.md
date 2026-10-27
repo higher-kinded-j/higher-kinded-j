@@ -665,6 +665,18 @@ EitherPath<AppError, BigDecimal> balance =
 
 ---
 
+## ReaderPath
+
+**Definition:** A path over `Reader<R, A>`: a computation that needs an environment `R` to produce its value. It gives dependency injection without a framework. Nothing runs until `run(env)` supplies the environment.
+
+**Factories:** `Path.reader(reader)`, `Path.readerPure(value)`, `Path.ask()` and `Path.asks(f)`.
+
+**Operations:** `map`, `via`, `local(f)` and `magnify(...)`. `run(env)` returns the value.
+
+**Related:** [ReaderPath documentation](../effect/advanced_effects.md#readerpath-the-environment-you-inherit), [Path](#path), [IdPath](#idpath), [Reader](data-effects.md#reader), [Reader Documentation](../monads/reader_monad.md)
+
+---
+
 ## recover
 
 **Definition:** The error recovery operation on Effect Paths, equivalent to `handleErrorWith` on MonadError. Allows switching from the failure track back to the success track by providing an alternative value or computation.
@@ -706,6 +718,18 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 - Selective error recovery based on error type
 
 **Related:** [Effect Path](#effect-path), [Railway-Oriented Programming](#railway-oriented-programming), [via](#via)
+
+---
+
+## TrampolinePath
+
+**Definition:** A path over `Trampoline<A>`: a stack-safe recursive computation. Deep recursion runs in a loop instead of growing the call stack. `run()` returns the value.
+
+**Factories:** `Path.trampolineDone(value)`, `Path.trampolineDefer(supplier)` and `Path.trampoline(trampoline)`.
+
+**Operations:** `map`, `via` and `toLazyPath()`.
+
+**Related:** [TrampolinePath documentation](../effect/path_trampoline.md), [Path](#path), [LazyPath](#lazypath), [Trampoline Documentation](../monads/trampoline_monad.md)
 
 ---
 
@@ -778,6 +802,30 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execu
 **Operations:** `map`, `via`, `handleError`, `timeout`, `withRetry`, `withCircuitBreaker` and `withBulkhead`.
 
 **Related:** [VTaskPath documentation](../effect/path_vtask.md), [Path](#path), [VResultPath](#vresultpath), [Virtual Thread](concurrency.md#virtual-thread), [Resilience Combinators](concurrency.md#resilience-combinators)
+
+---
+
+## WithStatePath
+
+**Definition:** A path over `State<S, A>`: a computation that threads a state through its steps. Each step can read or replace the state. Nothing runs until it is given an initial state.
+
+**Factories:** `Path.state(state)`, `Path.statePure(value)`, `Path.getState()`, `Path.setState(newState)` and `Path.modifyState(f)`.
+
+**Operations:** `map` and `via`. `run(s0)` returns a `StateTuple`, `evalState(s0)` returns the value and `execState(s0)` returns the final state.
+
+**Related:** [WithStatePath documentation](../effect/advanced_effects.md#withstatepath-computation-with-memory), [Path](#path), [State](data-effects.md#state), [State Documentation](../monads/state_monad.md)
+
+---
+
+## WriterPath
+
+**Definition:** A path over `Writer<W, A>`: a computation that returns a value together with an accumulated log. A `Monoid<W>` combines the log entries as the steps run.
+
+**Factories:** `Path.writer(writer, monoid)`, `Path.writerPure(value, monoid)` and `Path.tell(log, monoid)`.
+
+**Operations:** `map` and `via`; `censor(f)` rewrites the log, and `listen(additionalLog)` appends to it. `value()` and `written()` read the two parts, and `run()` returns the `Writer`.
+
+**Related:** [WriterPath documentation](../effect/advanced_effects.md#writerpath-accumulating-output), [Path](#path), [Writer](data-effects.md#writer), [Monoid](type-classes.md#monoid), [Writer Documentation](../monads/writer_monad.md)
 
 ---
 
