@@ -1696,7 +1696,8 @@ public class MappingProcessor extends AbstractProcessor {
    * the {@code @Unmapped} marker that reads them as no accessors, where one can be followed: not
    * beside a {@code @ReadOnly} marker of the name, which it would contradict, nor for a getter on a
    * bean only read, whose parse must fill every component, nor for a setter beside a getter-only
-   * {@code List}, whose fill through a getter that hands back a copy would lose the value.
+   * {@code List}, whose fill through a getter that hands back a copy would lose the value, nor
+   * where no marker can be declared ({@link #unmappedOffer}).
    */
   private void reportWords(
       TypeElement spec,
@@ -1727,13 +1728,14 @@ public class MappingProcessor extends AbstractProcessor {
                     property.write().orElse(null) instanceof WireShape.WriteSite.CollectionAdd)
             .findFirst()
             .flatMap(WireShape.BeanProperty::getter);
-    boolean offerUnmapped =
+    Optional<String> unmapped =
         sameNamedMember(spec, name)
-                .filter(member -> member.getAnnotation(ReadOnly.class) != null)
-                .isEmpty()
-            && !(reads && bean.direction() == WireShape.Direction.PARSE_ONLY)
-            && filled.isEmpty()
-            && SourceVersion.isName(name);
+                    .filter(member -> member.getAnnotation(ReadOnly.class) != null)
+                    .isEmpty()
+                && !(reads && bean.direction() == WireShape.Direction.PARSE_ONLY)
+                && filled.isEmpty()
+            ? unmappedOffer(spec, component, first)
+            : Optional.empty();
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -1779,14 +1781,16 @@ public class MappingProcessor extends AbstractProcessor {
                 words.stream()
                     .map(word -> word.spelling() + " to " + word.renamedFor(name))
                     .toList())
-            + (offerUnmapped
-                ? ". Or, if "
-                    + methods
-                    + (one ? " is" : " are")
-                    + " not meant to carry "
-                    + target
-                    + unmappedOffer(spec, component, first)
-                : "."));
+            + unmapped
+                .map(
+                    offer ->
+                        ". Or, if "
+                            + methods
+                            + (one ? " is" : " are")
+                            + " not meant to carry "
+                            + target
+                            + offer)
+                .orElse("."));
   }
 
   /**
@@ -2290,12 +2294,13 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The likely misspelling of an unpaired accessor: the nearest method of the other role, by the
-   * name it spells. It is an unpaired accessor at the same type, a builder's {@code
-   * setaway(String)} among them, which spells {@code away} after its {@code set}, or a {@link
-   * WireShape.BeanShape#words word}. A word may differ by boxing alone, as {@code setx(int)} beside
-   * {@code Integer getX()} does, since that is what passed it over, and may share the accessor's
-   * name, which makes it the misspelling itself.
+   * The likely misspelling of an unpaired accessor: the nearest unpaired accessor of the other role
+   * at the same type, or a method of that role that spells the accessor's own name. A {@link
+   * WireShape.BeanShape#words word} such as {@code setx(int)}, and a builder's {@code
+   * setaway(String)}, which spells {@code away} after its {@code set}, make looser candidates,
+   * since {@code setup}, {@code settle} and {@code settings} are words too, so they are taken only
+   * where they spell it exactly. A word may differ by boxing alone, as {@code setx(int)} beside
+   * {@code Integer getX()} does, since that is what passed it over.
    */
   private Optional<WireShape.UnpairedAccessor> nearestPartner(
       WireShape.UnpairedAccessor accessor,
@@ -2305,30 +2310,35 @@ public class MappingProcessor extends AbstractProcessor {
     Types types = processingEnv.getTypeUtils();
     Stream<WireShape.UnpairedAccessor> unpaired =
         bean.unpaired().stream()
-            .filter(other -> !uncarried.containsKey(other.name()))
-            .filter(other -> types.isSameType(other.type(), accessor.type()));
+            .filter(other -> types.isSameType(other.type(), accessor.type()))
+            .filter(
+                other ->
+                    spelledAfterSet(other)
+                        .map(accessor.name()::equals)
+                        .orElseGet(() -> !uncarried.containsKey(other.name())));
     Stream<WireShape.UnpairedAccessor> words =
         bean.words().stream()
-            .filter(
-                word -> word.name().equals(accessor.name()) || !uncarried.containsKey(word.name()))
+            .filter(word -> word.name().equals(accessor.name()))
             .filter(word -> types.isSameType(boxed(word.type()), boxed(accessor.type())));
     return Stream.concat(unpaired, words)
         .filter(other -> other.reads() != accessor.reads())
         .filter(other -> !offered.contains(other.name()))
         .map(
             other ->
-                Map.entry(other, ProcessorUtils.editDistance(accessor.name(), spelledName(other))))
+                Map.entry(
+                    other,
+                    ProcessorUtils.editDistance(
+                        accessor.name(), spelledAfterSet(other).orElse(other.name()))))
         .filter(near -> near.getValue() < ProcessorUtils.NEAR_MISS)
         .min(Map.Entry.comparingByValue())
         .map(Map.Entry::getKey);
   }
 
-  /** The name an accessor spells: a builder's {@code setaway(String)} spells {@code away}. */
-  private static String spelledName(WireShape.UnpairedAccessor accessor) {
+  /** The name a builder's {@code setaway(String)} spells after its {@code set}: {@code away}. */
+  private static Optional<String> spelledAfterSet(WireShape.UnpairedAccessor accessor) {
     return accessor.role() == WireShape.UnpairedAccessor.Role.BUILDER_SETTER
-            && accessor.name().equals(accessor.method())
-        ? BeanPropertyAnalyser.spelledAfterSet(accessor.method()).orElse(accessor.name())
-        : accessor.name();
+        ? BeanPropertyAnalyser.spelledAfterSet(accessor.method())
+        : Optional.empty();
   }
 
   /**
@@ -2369,51 +2379,68 @@ public class MappingProcessor extends AbstractProcessor {
                 .map(other -> partnerRename(accessor, other, sparse))
                 .orElse(
                     // A keyword, as a rename to 'default' gives, can name no marker.
-                    !SourceVersion.isName(name)
-                        ? ""
-                        : (accessor.reads() && readable.getAsBoolean()
-                                ? readOnlyOffer(spec, accessor)
-                                : "")
-                            + (sparse
-                                ? " Or, if clients must not change " + component
-                                : " Or, if "
-                                    + accessor.signature()
-                                    + " is not meant to carry "
-                                    + component)
-                            + unmappedOffer(spec, refusal.component(), accessor)));
+                    (accessor.reads() && readable.getAsBoolean() && SourceVersion.isName(name)
+                            ? readOnlyOffer(spec, accessor)
+                            : "")
+                        + unmappedOffer(spec, refusal.component(), accessor)
+                            .map(
+                                offer ->
+                                    (sparse
+                                            ? " Or, if clients must not change " + component
+                                            : " Or, if "
+                                                + accessor.signature()
+                                                + " is not meant to carry "
+                                                + component)
+                                        + offer)
+                            .orElse("")));
   }
 
   /**
    * The rename that pairs an unpaired accessor with its likely misspelling: after the accessor's
-   * property, and at the type {@link #addPartner} offers where the misspelling declares another, as
-   * a word that differs by boxing alone does.
+   * property, and at the {@link #partnerType} where the misspelling declares another, as a word
+   * that differs by boxing alone does.
    */
   private String partnerRename(
       WireShape.UnpairedAccessor accessor, WireShape.UnpairedAccessor other, boolean sparse) {
     String name = accessor.name();
-    String meant =
-        " Or, if "
-            + other.signature()
-            + " is meant to "
-            + (accessor.reads() ? "write" : "read")
-            + " '"
-            + name
-            + "', ";
-    if (processingEnv.getTypeUtils().isSameType(other.type(), accessor.type())) {
-      return meant + "rename it " + other.renamedFor(name) + ".";
-    }
-    TypeMirror type =
-        sparse && accessor.type().getKind().isPrimitive()
-            ? boxed(accessor.type())
-            : accessor.type();
+    TypeMirror type = partnerType(accessor, sparse);
     WireShape.UnpairedAccessor retyped =
         new WireShape.UnpairedAccessor(
             other.name(), other.method(), type, other.role(), other.inheritedFrom());
-    return meant
-        + "change it to "
-        + (other.reads() ? ProcessorUtils.simpleTypeName(type) + " " : "")
+    return " Or, if "
+        + other.signature()
+        + " is meant to "
+        + (accessor.reads() ? "write" : "read")
+        + " '"
+        + name
+        + "', "
+        + (processingEnv.getTypeUtils().isSameType(other.type(), type)
+            ? "rename it "
+            : "change it to " + (other.reads() ? ProcessorUtils.simpleTypeName(type) + " " : ""))
         + retyped.renamedFor(name)
-        + ".";
+        + boxedToo(accessor, type);
+  }
+
+  /**
+   * The type the accessor pairing {@code accessor} is offered at: its own, or on the sparse tier a
+   * primitive's wrapper, since a PATCH property must be able to be absent.
+   */
+  private TypeMirror partnerType(WireShape.UnpairedAccessor accessor, boolean sparse) {
+    return sparse ? boxed(accessor.type()) : accessor.type();
+  }
+
+  /**
+   * The end of a line offering a partner at {@code type}: where that is a primitive's wrapper, the
+   * accessor is to be declared with it too, or the two would still not pair.
+   */
+  private String boxedToo(WireShape.UnpairedAccessor accessor, TypeMirror type) {
+    return processingEnv.getTypeUtils().isSameType(type, accessor.type())
+        ? "."
+        : ", and declare "
+            + accessor.signature()
+            + " with "
+            + ProcessorUtils.simpleTypeName(type)
+            + " too, since a PATCH property must be able to be absent.";
   }
 
   /**
@@ -2451,41 +2478,50 @@ public class MappingProcessor extends AbstractProcessor {
    * sharing the mix-in converts the component through, so it moves to the specs that use it rather
    * than being replaced in the mix-in. A {@code @MapField} rename the spec declares onto the
    * accessor's name binds or is refused, so the marker that takes its target off the wire replaces
-   * it: beside it, the rename would name nothing on the wire.
+   * it: beside it, the rename would name nothing on the wire. Empty where no marker can be
+   * declared: for a keyword, such as a rename to {@code default} gives, and in place of such a
+   * rename where the spec already has a member under the accessor's name.
    */
-  private String unmappedOffer(
+  private Optional<String> unmappedOffer(
       TypeElement spec, String component, WireShape.UnpairedAccessor accessor) {
+    if (!SourceVersion.isName(accessor.name())) {
+      return Optional.empty();
+    }
+    Optional<ExecutableElement> existing = sameNamedMember(spec, accessor.name());
+    // A rename the spec declares is the one name the component maps under (wireNamesOf), so it is
+    // the accessor's.
     Optional<ExecutableElement> rename =
         sameNamedMember(spec, component)
             .filter(member -> declaredLocally(member, spec))
-            .filter(
-                member ->
-                    member.getAnnotation(MapField.class) != null
-                        && member.getAnnotation(MapField.class).to().equals(accessor.name()));
+            .filter(member -> member.getAnnotation(MapField.class) != null);
     if (rename.isPresent()) {
-      return ", replace "
-          + memberIn(rename.get(), spec)
-          + " with "
-          + unmappedMarker(accessor)
-          + ".";
+      return existing.isPresent()
+          ? Optional.empty()
+          : Optional.of(
+              ", replace "
+                  + memberIn(rename.get(), spec)
+                  + " with "
+                  + unmappedMarker(accessor)
+                  + ".");
     }
-    return sameNamedMember(spec, accessor.name())
-            .map(
-                existing ->
-                    !existing.isDefault()
-                        ? ", annotate " + memberIn(existing, spec) + " with @Unmapped"
-                        : declaredLocally(existing, spec)
-                            ? ", replace "
-                                + memberIn(existing, spec)
-                                + " with "
-                                + unmappedMarker(accessor)
-                            : ", move "
-                                + memberIn(existing, spec)
-                                + " onto the specs that use it, and declare "
-                                + unmappedMarker(accessor)
-                                + " on this spec")
-            .orElse(", declare " + unmappedMarker(accessor) + " on the spec")
-        + ".";
+    return Optional.of(
+        existing
+                .map(
+                    member ->
+                        !member.isDefault()
+                            ? ", annotate " + memberIn(member, spec) + " with @Unmapped"
+                            : declaredLocally(member, spec)
+                                ? ", replace "
+                                    + memberIn(member, spec)
+                                    + " with "
+                                    + unmappedMarker(accessor)
+                                : ", move "
+                                    + memberIn(member, spec)
+                                    + " onto the specs that use it, and declare "
+                                    + unmappedMarker(accessor)
+                                    + " on this spec")
+                .orElse(", declare " + unmappedMarker(accessor) + " on the spec")
+            + ".");
   }
 
   private void reportUnreadSetter(
@@ -2591,15 +2627,8 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape.BeanShape bean, WireShape.UnpairedAccessor accessor, boolean sparse) {
     String owner = "'" + bean.element().getSimpleName() + "'";
     String suffix = BeanPropertyAnalyser.accessorSuffix(accessor.name());
-    boolean boxed = sparse && accessor.type().getKind().isPrimitive();
-    String type =
-        boxed
-            ? processingEnv
-                .getTypeUtils()
-                .boxedClass((PrimitiveType) accessor.type())
-                .getSimpleName()
-                .toString()
-            : ProcessorUtils.simpleTypeName(accessor.type());
+    TypeMirror partnerType = partnerType(accessor, sparse);
+    String type = ProcessorUtils.simpleTypeName(partnerType);
     String add =
         switch (partnerRole(bean, accessor)) {
           case GETTER -> "Add " + type + " get" + suffix + "() to " + owner;
@@ -2612,14 +2641,7 @@ public class MappingProcessor extends AbstractProcessor {
                   + " to the builder of "
                   + owner;
         };
-    return add
-        + (boxed
-            ? ", and declare "
-                + accessor.signature()
-                + " with "
-                + type
-                + " too, since a PATCH property must be able to be absent."
-            : ".");
+    return add + boxedToo(accessor, partnerType);
   }
 
   /**
