@@ -96,7 +96,7 @@ public <F, A, B> Kind<F, B> map(Function<A, B> f, Kind<F, A> fa) { ... }
 
 **Where You'll See It:** Throughout the Higher-Kinded-J library - it's the foundation of the entire HKT simulation.
 
-**Related:** [Core Concepts](../hkts/core-concepts.md)
+**Related:** [How the Encoding Works](../hkts/core-concepts.md)
 
 ---
 
@@ -191,7 +191,7 @@ Optional<String> backToOpt = OPTIONAL.narrow(kindOpt);
 - `EitherKind.Witness<L>` for `Kind<EitherKind.Witness<L>, R>` - used with Functor/Monad (right-biased)
 - `EitherKind2.Witness` for `Kind2<EitherKind2.Witness, L, R>` - used with Bifunctor (both sides)
 
-**Related:** [Core Concepts](../hkts/core-concepts.md)
+**Related:** [How the Encoding Works](../hkts/core-concepts.md)
 
 ---
 
@@ -384,7 +384,7 @@ Bifunctor<EitherKind2.Witness> eitherBifunctor = EitherBifunctor.INSTANCE;
 
 **Think Of It As:** A compile-time tag that identifies which type constructor we're working with and its arity.
 
-**Related:** [WitnessArity](#witnessarity), [TypeArity](#typearity), [Core Concepts](../hkts/core-concepts.md)
+**Related:** [WitnessArity](#witnessarity), [TypeArity](#typearity), [How the Encoding Works](../hkts/core-concepts.md)
 
 ---
 

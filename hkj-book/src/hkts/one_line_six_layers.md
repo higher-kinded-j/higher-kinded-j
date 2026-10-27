@@ -90,9 +90,9 @@ static EitherPath<OrderError, Order> changeEmail(
 The compiler reports `incompatible types: no instance(s) of type variable(s) B exist so that EitherPath<NotFound,B> conforms to EitherPath<OrderError,Order>`. A factory typed as the sealed `OrderError` fixes the error type at the first step, so the chain's type matches what the method declares. Naming the type once works too, as `.<OrderError>toEitherPath(new OrderError.NotFound(id))`, which the [Quickstart](../quickstart.md) uses. [Effect compiler errors](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain) covers the related case the compiler does not catch: a step whose error type differs from the chain's.
 ~~~
 
-The Ship pages that follow take the type-class layers in order. They start beneath them, with how `Kind<F, A>` stands for a container, in [Core Concepts](core-concepts.md).
+The Ship pages that follow take the type-class layers in order. They start beneath them, with how `Kind<F, A>` stands for a container, in [How the Encoding Works](core-concepts.md).
 
 ---
 
 **Previous:** [Foundations](foundations_intro.md)
-**Next:** [Core Concepts](core-concepts.md)
+**Next:** [How the Encoding Works](core-concepts.md)

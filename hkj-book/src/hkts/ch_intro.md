@@ -48,7 +48,7 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 
 ~~~admonish info title="In This Section"
 - **The Analogy** – Just as higher-order functions take functions as arguments, higher-kinded types take types as arguments. Understanding this parallel unlocks the entire abstraction.
-- **Core Concepts** – You'll learn how witness types and the `Kind<F, A>` interface work together to simulate HKTs in Java, and how the widen/narrow pattern bridges between concrete types and their Kind representations.
+- **How the Encoding Works** – You'll learn how witness types and the `Kind<F, A>` interface work together to simulate HKTs in Java, and how the widen/narrow pattern bridges between concrete types and their Kind representations.
 - **Usage Guide** – Practical patterns for working with `Kind` in real code, including how to write generic methods that work across multiple container types.
 - **Basic Examples** – Step-by-step examples showing HKT simulation in action, from simple mappings to complex compositions.
 - **Quick Reference** – A condensed reference of essential patterns you'll use repeatedly when working with the library.
@@ -60,7 +60,7 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 ## Section Contents
 
 1. [HKT Introduction](hkt_introduction.md) - The analogy: higher-kinded types are to types what higher-order functions are to functions
-2. [Core Concepts](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern
+2. [How the Encoding Works](core-concepts.md) - Witness types, Kind interfaces, and the widen/narrow pattern
 3. [Usage Guide](usage-guide.md) - Working with Kind in practice
 4. [Basic HKT Examples](hkt_basic_examples.md) - Seeing HKT simulation in action
 5. [Quick Reference](quick_reference.md) - Essential patterns at a glance
