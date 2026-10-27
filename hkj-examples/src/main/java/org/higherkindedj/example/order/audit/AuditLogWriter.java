@@ -7,9 +7,11 @@ import static java.util.stream.Collectors.joining;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import org.higherkindedj.example.order.audit.AuditLog.AuditEntry;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.WriterPath;
+import org.higherkindedj.hkt.time.TimeSource;
 
 /**
  * Convenience class for creating WriterPath instances with audit logging.
@@ -32,6 +34,10 @@ import org.higherkindedj.hkt.effect.WriterPath;
 public final class AuditLogWriter {
 
   private final String workflowName;
+
+  /** Where this writer reads time from; inject a fixed or steppable source in tests. */
+  private final TimeSource timeSource;
+
   private String currentStep = "unknown";
 
   /**
@@ -40,7 +46,18 @@ public final class AuditLogWriter {
    * @param workflowName the name of the workflow for log context
    */
   public AuditLogWriter(String workflowName) {
+    this(workflowName, TimeSource.system());
+  }
+
+  /**
+   * Creates an audit log writer for a workflow that stamps its entries from a time source.
+   *
+   * @param workflowName the name of the workflow for log context
+   * @param timeSource where each entry's timestamp is read from; must not be null
+   */
+  public AuditLogWriter(String workflowName, TimeSource timeSource) {
     this.workflowName = workflowName;
+    this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
   }
 
   /** Creates a default audit log writer. */
@@ -69,7 +86,7 @@ public final class AuditLogWriter {
    * @return a WriterPath with the log entry and value
    */
   public <A> WriterPath<AuditLog, A> info(String action, String details, A value) {
-    var entry = new AuditEntry(formatAction(action), details, Instant.now());
+    var entry = new AuditEntry(formatAction(action), details, now());
     return WriterPath.writer(value, AuditLog.of(entry), AuditLog.monoid());
   }
 
@@ -112,7 +129,7 @@ public final class AuditLogWriter {
    * @return a WriterPath with the log entry and value
    */
   public <A> WriterPath<AuditLog, A> warn(String action, String details, A value) {
-    var entry = new AuditEntry("[WARN] " + formatAction(action), details, Instant.now());
+    var entry = new AuditEntry("[WARN] " + formatAction(action), details, now());
     return WriterPath.writer(value, AuditLog.of(entry), AuditLog.monoid());
   }
 
@@ -126,7 +143,7 @@ public final class AuditLogWriter {
    * @return a WriterPath with the log entry and value
    */
   public <A> WriterPath<AuditLog, A> error(String action, String details, A value) {
-    var entry = new AuditEntry("[ERROR] " + formatAction(action), details, Instant.now());
+    var entry = new AuditEntry("[ERROR] " + formatAction(action), details, now());
     return WriterPath.writer(value, AuditLog.of(entry), AuditLog.monoid());
   }
 
@@ -168,5 +185,10 @@ public final class AuditLogWriter {
 
   private String formatAction(String action) {
     return "[" + workflowName + ":" + currentStep + "] " + action;
+  }
+
+  /** Reads the current time from the injected source, so tests can control it. */
+  private Instant now() {
+    return timeSource.clock().instant();
   }
 }
