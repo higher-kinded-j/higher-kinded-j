@@ -40,7 +40,7 @@ Functor<MaybeKind.Witness>     functor     = Instances.functor(maybe());
 
 The instance implements the whole `Functor`, `Applicative`, `Monad` chain in one object, so all three calls return that same object.
 
-Three more lookups give a richer capability, for the types whose instance has it. `MonadError` adds raising and recovering from an error; `MonadZero` adds an empty value and `filter`; `Alternative` adds an empty value and `orElse`, which tries a second value when the first is empty.
+Three more lookups give a richer capability, for the types whose instance has it. `MonadError` adds raising and recovering from an error; `MonadZero` adds an empty value and `filter`; `Alternative` adds an empty value and `orElse`. For `Maybe` and `Optional`, `orElse` falls back to a second value when the first is empty; for `List` and `Stream`, it joins the two.
 
 <!-- verify -->
 ```java

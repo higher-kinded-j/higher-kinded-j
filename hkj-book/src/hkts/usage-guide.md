@@ -29,22 +29,6 @@ This page is for code written once for any container. Code for one container, su
 4. **Call a method on the instance, passing the `Kind`**: `map`, `flatMap`, `raiseError` or `handleErrorWith`. A `Kind` has no methods of its own.
 5. **Narrow the result** with the same helper, such as `MAYBE.narrow(...)`.
 
-## Write the method once {#write-the-method-once}
-
-`totalUnlessShipped` totals an order, and refuses one that has already shipped. It never names `Maybe`: it is written over a `MonadError` for any `F`.
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/workflow/WorkingWithKindBook.java:generic}}
-```
-
-- **It asks for a `MonadError`, because refusing an order is a failure.** The introduction's `totals` needed only a `Functor`, since nothing there could fail. A [`MonadError`](../functional/monad_error.md) is a `Monad` that can also raise an error and recover from one.
-- **The bound on `F` says it names a container with one type argument missing.** [The `WitnessArity` bound](core-concepts.md#the-witnessarity-bound) explains it.
-- **`of` and `raiseError` come from the instance**, so the method builds results without knowing the container.
-- **`flatMap` runs its function only when there is an order.** On a `Nothing`, the function never runs, and the `Nothing` comes back.
-- **The caller passes the error.** The method knows nothing about `E`, so it cannot build one: the caller passes `Unit.INSTANCE` for `Maybe`, and a message for an `Either` whose left type is `String`.
-
-## Take it through the steps {#take-it-through-the-steps}
-
 The code on this page uses these imports, with `Order` and `OrderStatus` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
@@ -68,6 +52,22 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
+
+## Write the method once {#write-the-method-once}
+
+`totalUnlessShipped` totals an order, and refuses one that has already shipped. It never names `Maybe`: it is written over a `MonadError` for any `F`.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/workflow/WorkingWithKindBook.java:generic}}
+```
+
+- **It asks for a `MonadError`, because refusing an order is a failure.** The introduction's `totals` needed only a `Functor`, since nothing there could fail. A [`MonadError`](../functional/monad_error.md) is a `Monad` that can also raise an error and recover from one.
+- **The bound on `F` says it names a container with one type argument missing.** [The `WitnessArity` bound](core-concepts.md#the-witnessarity-bound) explains it.
+- **`of` and `raiseError` come from the instance**, so the method builds results without knowing the container.
+- **`flatMap` runs its function only when there is an order.** On a `Nothing`, the function never runs, and the `Nothing` comes back.
+- **The caller passes the error.** The method knows nothing about `E`, so it cannot build one: the caller passes `Unit.INSTANCE` for `Maybe`, and a message for an `Either` whose left type is `String`.
+
+## Take it through the steps {#take-it-through-the-steps}
 
 Here the five steps total an order held in a `Maybe`:
 
