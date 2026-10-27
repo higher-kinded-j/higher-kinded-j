@@ -48,6 +48,7 @@ public final class AuditLogWriter {
   public AuditLogWriter(String workflowName) {
     this(workflowName, TimeSource.system());
   }
+
   /**
    * Creates an audit log writer for a workflow that stamps its entries from a time source.
    *

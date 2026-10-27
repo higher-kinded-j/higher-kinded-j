@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.assertions.SteppableClock;
 import org.higherkindedj.hkt.time.TimeSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
 /**
  * Tests that {@link AuditLogWriter} stamps each entry from an injected {@link TimeSource}, and that
  * its older constructors still stamp one.
