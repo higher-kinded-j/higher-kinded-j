@@ -151,7 +151,7 @@ When an operation can fail with a typed error, use `EitherPath`:
 import org.higherkindedj.hkt.effect.Path;
 
 var user = Path.maybe(repository.findById(userId))
-    .toEitherPath(new AppError.NotFound(userId));     // Nothing becomes Left(error)
+    .<AppError>toEitherPath(new AppError.NotFound(userId)); // Nothing becomes Left(error)
 
 var order = user
     .via(u -> Path.either(orderService.create(u)))    // chain another operation
@@ -159,6 +159,9 @@ var order = user
 
 var result = order.run();                             // Either<AppError, Order>
 ```
+
+`<AppError>` gives the chain its error type; [Chain It Together](#chain-it-together) explains why it
+is needed.
 
 ---
 
