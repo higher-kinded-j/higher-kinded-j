@@ -14,7 +14,7 @@ public final class PairLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code first} field of a {@link Pair<A, B>}.
+   * Creates a {@link Lens} for the {@code first} field of {@link Pair<A, B>}.
    *
    * @return A non-null {@code Lens<Pair<A, B>, A>}.
    */
@@ -23,7 +23,7 @@ public final class PairLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code second} field of a {@link Pair<A, B>}.
+   * Creates a {@link Lens} for the {@code second} field of {@link Pair<A, B>}.
    *
    * @return A non-null {@code Lens<Pair<A, B>, B>}.
    */

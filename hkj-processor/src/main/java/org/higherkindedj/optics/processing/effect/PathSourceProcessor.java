@@ -1055,12 +1055,12 @@ public class PathSourceProcessor extends AbstractProcessor {
             "combiner")
         .addJavadoc(
             "Combines this path with another $L using a binary function.\n\n"
-                + "@param other the other path, which must be a $L; must not be null\n"
+                + "@param other the other path, which must be an instance of $L; must not be null\n"
                 + "@param combiner the combining function; must not be null\n"
                 + "@param <B> the other path's value type\n"
                 + "@param <C> the result type\n"
                 + "@return a new $L with the combined result\n"
-                + "@throws IllegalArgumentException if {@code other} is not a $L\n",
+                + "@throws IllegalArgumentException if {@code other} is not an instance of $L\n",
             pathClassName,
             pathClassName,
             pathClassName,

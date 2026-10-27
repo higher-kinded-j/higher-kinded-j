@@ -146,7 +146,7 @@ public class GetterProcessor extends AbstractProcessor {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Getter<$T, $T>}.",
                 Getter.class,
                 component.getSimpleName(),
@@ -181,7 +181,7 @@ public class GetterProcessor extends AbstractProcessor {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
             .addJavadoc(
-                "Gets the {@code $L} field from a {@link $T}.\n"
+                "Gets the {@code $L} field from {@link $T}.\n"
                     + "<p>This is a convenience method that uses the {@link #$L()} getter.\n\n"
                     + "@param source The {@code $T} instance.\n"
                     + "@return The value of the {@code $L} field.",

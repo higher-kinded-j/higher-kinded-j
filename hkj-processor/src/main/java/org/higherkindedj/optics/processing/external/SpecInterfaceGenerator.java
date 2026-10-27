@@ -139,8 +139,9 @@ public class SpecInterfaceGenerator {
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnType)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} property of a {@link $T}.\n\n"
+                "Creates $L {@link $T} for the {@code $L} property of {@link $T}.\n\n"
                     + "@return A non-null optic instance.",
+                article(opticKind),
                 getOpticClass(opticKind),
                 methodName,
                 TypeName.get(sourceType));
@@ -421,6 +422,23 @@ public class SpecInterfaceGenerator {
       case ISO -> ClassName.get("org.higherkindedj.optics", "Iso");
       case GETTER -> ClassName.get("org.higherkindedj.optics", "Getter");
       case FOLD -> ClassName.get("org.higherkindedj.optics", "Fold");
+    };
+  }
+
+  /**
+   * The article an optic kind's class name takes: {@code "an"} for {@code AFFINE} and {@code ISO},
+   * {@code "a"} for every other kind.
+   *
+   * <p>It stays in this generator, not on {@link OpticKind}, because {@link SpecAnalysis} is held
+   * at full coverage.
+   *
+   * @param opticKind the optic kind
+   * @return the article
+   */
+  private static String article(OpticKind opticKind) {
+    return switch (opticKind) {
+      case AFFINE, ISO -> "an";
+      case LENS, PRISM, TRAVERSAL, GETTER, FOLD -> "a";
     };
   }
 

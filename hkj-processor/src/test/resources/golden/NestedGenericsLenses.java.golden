@@ -28,7 +28,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code index} field of a {@link NestedGenerics}.
+   * Creates a {@link Lens} for the {@code index} field of {@link NestedGenerics}.
    *
    * @return A non-null {@code Lens<NestedGenerics, Map<String, List<Integer>>>}.
    */
@@ -37,7 +37,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code optionalTags} field of a {@link NestedGenerics}.
+   * Creates a {@link Lens} for the {@code optionalTags} field of {@link NestedGenerics}.
    *
    * @return A non-null {@code Lens<NestedGenerics, Optional<List<String>>>}.
    */
@@ -46,7 +46,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code entries} field of a {@link NestedGenerics}.
+   * Creates a {@link Lens} for the {@code entries} field of {@link NestedGenerics}.
    *
    * @return A non-null {@code Lens<NestedGenerics, List<Map<String, Object>>>}.
    */
@@ -94,7 +94,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Traversal} for the {@code index} field of a {@link NestedGenerics}.
+   * Creates a {@link Traversal} for the {@code index} field of {@link NestedGenerics}.
    * <p>This traversal focuses on all items within the {@code index} collection, allowing an effectful function
    * to be applied to each one.
    *
@@ -105,7 +105,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Traversal} for the {@code optionalTags} field of a {@link NestedGenerics}.
+   * Creates a {@link Traversal} for the {@code optionalTags} field of {@link NestedGenerics}.
    * <p>This traversal focuses on all items within the {@code optionalTags} collection, allowing an effectful function
    * to be applied to each one.
    *
@@ -116,7 +116,7 @@ public final class NestedGenericsLenses {
   }
 
   /**
-   * Creates a {@link Traversal} for the {@code entries} field of a {@link NestedGenerics}.
+   * Creates a {@link Traversal} for the {@code entries} field of {@link NestedGenerics}.
    * <p>This traversal focuses on all items within the {@code entries} collection, allowing an effectful function
    * to be applied to each one.
    *

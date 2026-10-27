@@ -624,8 +624,8 @@ class PathSourceAttributesTest {
       assertThat(generated(compile(box()), "BoxPath"))
           .contains(
               "@return a new BoxPath over the same value that performs the action",
-              "@param other the other path, which must be a BoxPath; must not be null",
-              "@throws IllegalArgumentException if {@code other} is not a BoxPath");
+              "@param other the other path, which must be an instance of BoxPath; must not be null",
+              "@throws IllegalArgumentException if {@code other} is not an instance of BoxPath");
     }
   }
 

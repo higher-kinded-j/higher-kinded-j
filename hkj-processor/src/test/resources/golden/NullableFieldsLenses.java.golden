@@ -17,7 +17,7 @@ public final class NullableFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code id} field of a {@link NullableFields}.
+   * Creates a {@link Lens} for the {@code id} field of {@link NullableFields}.
    *
    * @return A non-null {@code Lens<NullableFields, String>}.
    */
@@ -26,7 +26,7 @@ public final class NullableFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code nickname} field of a {@link NullableFields}.
+   * Creates a {@link Lens} for the {@code nickname} field of {@link NullableFields}.
    *
    * @return A non-null {@code Lens<NullableFields, @Nullable String>}.
    */
@@ -35,7 +35,7 @@ public final class NullableFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code bio} field of a {@link NullableFields}.
+   * Creates a {@link Lens} for the {@code bio} field of {@link NullableFields}.
    *
    * @return A non-null {@code Lens<NullableFields, @Nullable String>}.
    */
@@ -44,7 +44,7 @@ public final class NullableFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code score} field of a {@link NullableFields}.
+   * Creates a {@link Lens} for the {@code score} field of {@link NullableFields}.
    *
    * @return A non-null {@code Lens<NullableFields, Integer>}.
    */

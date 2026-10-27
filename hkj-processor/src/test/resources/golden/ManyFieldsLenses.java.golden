@@ -19,7 +19,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field1} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field1} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, String>}.
    */
@@ -28,7 +28,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field2} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field2} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Integer>}.
    */
@@ -37,7 +37,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field3} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field3} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Double>}.
    */
@@ -46,7 +46,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field4} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field4} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Boolean>}.
    */
@@ -55,7 +55,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field5} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field5} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Long>}.
    */
@@ -64,7 +64,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field6} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field6} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, String>}.
    */
@@ -73,7 +73,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field7} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field7} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Integer>}.
    */
@@ -82,7 +82,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field8} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field8} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, String>}.
    */
@@ -91,7 +91,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field9} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field9} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Double>}.
    */
@@ -100,7 +100,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field10} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field10} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, String>}.
    */
@@ -109,7 +109,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field11} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field11} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, Boolean>}.
    */
@@ -118,7 +118,7 @@ public final class ManyFieldsLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code field12} field of a {@link ManyFields}.
+   * Creates a {@link Lens} for the {@code field12} field of {@link ManyFields}.
    *
    * @return A non-null {@code Lens<ManyFields, String>}.
    */

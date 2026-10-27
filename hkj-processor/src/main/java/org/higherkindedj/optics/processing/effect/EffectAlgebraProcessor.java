@@ -703,7 +703,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
         "return $T.liftF($T.$L.widen(op), functor())", FREE, helperClass, singletonName);
 
     builder.addJavadoc(
-        "Lifts a {@code $L} into a Free program.\n\n"
+        "Lifts the {@code $L} operation into a Free program.\n\n"
             + "@param <A> The result type\n"
             + "@return A Free program wrapping the operation\n",
         permit.getSimpleName());
@@ -867,7 +867,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     builder.addStatement("return $T.translate(standalone, inject::inject, functorG)", FREE);
 
     builder.addJavadoc(
-        "Lifts a {@code $L} into the combined effect type.\n\n"
+        "Lifts the {@code $L} operation into the combined effect type.\n\n"
             + "@param <A> The result type\n"
             + "@return A Free program in the combined effect type\n",
         permit.getSimpleName());
@@ -928,7 +928,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
               .addParameter(ParameterizedTypeName.get(permitClass, typeA), "op")
               .returns(ParameterizedTypeName.get(KIND, typeM, typeA))
               .addJavadoc(
-                  "Handles a {@code $L} operation.\n\n"
+                  "Handles the {@code $L} operation.\n\n"
                       + "@param op The operation to handle\n"
                       + "@param <A> The result type\n"
                       + "@return The interpreted result in the target monad\n",

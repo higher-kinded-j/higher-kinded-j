@@ -163,7 +163,7 @@ public class LensProcessor extends AbstractProcessor {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Lens<$T, $T>}.",
                 Lens.class,
                 component.getSimpleName(),
