@@ -88,7 +88,8 @@ final class MockOpticInterpreter {
         kind -> {
           OpticOp<?, ?> op =
               OpticOpKindHelper.OP.narrow((Kind<OpticOpKind.Witness, Object>) kind);
-          return Id.of(Free.pure(stubs.apply(op)));
+          // The stub stands in for what the operation produces, so it goes to the continuation
+          return Id.of(((Function<Object, ?>) op.k()).apply(stubs.apply(op)));
         };
     Kind<IdKind.Witness, A> resultKind = program.foldMap(transform, Instances.monad(id()));
     return IdKindHelper.ID.narrow(resultKind).value();
