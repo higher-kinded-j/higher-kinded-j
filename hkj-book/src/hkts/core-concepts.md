@@ -144,4 +144,4 @@ Practise widening and narrowing in [Tutorial 01: Kind Basics](https://github.com
 ---
 
 **Previous:** [One Line, Six Layers](one_line_six_layers.md)
-**Next:** [Usage Guide](usage-guide.md)
+**Next:** [Working with Kind](usage-guide.md)

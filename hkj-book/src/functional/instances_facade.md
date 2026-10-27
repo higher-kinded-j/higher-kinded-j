@@ -164,5 +164,5 @@ MonadError<EitherTKind.Witness<OptionalKind.Witness, String>, String> et =
 
 ---
 
-**Previous:** [Usage Guide](../hkts/usage-guide.md)
+**Previous:** [Working with Kind](../hkts/usage-guide.md)
 **Next:** [Functor](functor.md)
