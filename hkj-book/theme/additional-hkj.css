@@ -461,6 +461,21 @@ html.mocha .hkj-logo-dark { display: inline; }
 .content .hkj-spotlight .hljs-meta { color: var(--hkj-sp-green); }
 .content .hkj-spotlight .hljs-comment { color: var(--hkj-sp-dim); }
 
+/* The band as main shows it between releases: what the next version brings,
+   in teal, with the lead card dashed because it is not released yet. A
+   re-deployed release copy takes this file too, so keep these class names. */
+.hkj-spotlight-snapshot .hkj-spotlight-eyebrow { color: var(--hkj-sp-teal); }
+
+.hkj-spotlight-snapshot .hkj-spotlight-lead {
+    border-style: dashed;
+    border-color: rgba(47, 191, 163, 0.6);
+    box-shadow: 0 0 0 1px rgba(47, 191, 163, 0.12), 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.hkj-spotlight-snapshot .hkj-spotlight-lead .hkj-spotlight-chip { background: var(--hkj-sp-teal); }
+
+.content .hkj-spotlight-snapshot .hkj-spotlight-head a::after { color: var(--hkj-sp-teal); }
+
 @media screen and (max-width: 480px) {
     .hkj-spotlight { padding: 14px; }
     .hkj-spotlight-card { padding: 12px 14px 14px; }

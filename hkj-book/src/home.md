@@ -16,7 +16,7 @@
   <a href="https://techhub.social/@ultramagnetic"><img src="https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto" alt="Mastodon Follow"></a>
 </div>
 
-<!-- The release pull request rewrites this band for the new version: see "At release" in docs/STYLE-GUIDE.md. -->
+<!-- This band shows the newest release, or what main adds for the next one: see "The Home Page Band" in docs/STYLE-GUIDE.md. -->
 <section class="hkj-spotlight" aria-labelledby="hkj-spotlight-title">
 <div class="hkj-spotlight-head">
 <p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">New in 0.5.0</p>
