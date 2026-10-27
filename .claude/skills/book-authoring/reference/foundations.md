@@ -26,8 +26,15 @@ work in and the traps the chapter has met.
   when a page needs an example of a concrete Path.
 - **On a Path, chain with `via`.** `flatMap` on `EitherPath`, `MaybePath`, `TryPath` and
   `ValidationPath` is `Chainable`'s default, which returns `Chainable<B>` and loses the Path type.
-- **`toEitherPath` takes the error.** `MaybePath.toEitherPath(error)` or
-  `toEitherPath(() -> error)`; there is no zero-argument form.
+- **`toEitherPath` takes the error, and its type.** `MaybePath.toEitherPath(error)` or
+  `toEitherPath(() -> error)`; there is no zero-argument form. Mid-chain there is no target type, so
+  the chain's error type is the argument's: `toEitherPath(new OrderError.NotFound(id))` types it as
+  `NotFound`. Pass a value typed as the sealed error, as `OrderError.notFound(id)` is, or name the
+  type with `.<OrderError>toEitherPath(...)`, as the Quickstart does.
+- **`via` checks the Path, not the error type.** `EitherPath.via` accepts any `Chainable` when it
+  compiles and checks only the Path kind when it runs, so a step with another error type fails
+  later, with a `ClassCastException` when the `Left` is read. `effect/compiler_errors.md` §5
+  documents it. Give a page's chain one error type from its first step.
 - **Every `Instances` method returns a value chosen at run time**, from the witness token passed in;
   the compiler resolves nothing. `Instances.monadError(witness)` adds an unchecked cast: whether the
   instance is a `MonadError` is checked only when it runs, and its error type `E` is never checked,

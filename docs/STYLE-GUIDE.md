@@ -671,6 +671,11 @@ the reader will one day paste into a search box; give them the words.
 truncates, for example, is asserted in the page's test through the real library, never stated from
 memory.
 
+**Code a chapter shows on more than one page is included from one region.** A showcase, such as the
+Foundations chapter's one-liner, is written once in a compiled example, and each page that shows it
+includes that region. A typed copy is checked by nothing, and drifts from the original at its first
+change.
+
 See `hkj-examples/BOOK-SNIPPETS.md`, and run `./gradlew :hkj-examples:test :hkj-examples:bookVerify`.
 
 ### Code Blocks
