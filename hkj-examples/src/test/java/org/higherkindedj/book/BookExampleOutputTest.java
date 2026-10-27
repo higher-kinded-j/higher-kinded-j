@@ -142,6 +142,7 @@ class BookExampleOutputTest {
           Map.entry("ConfigOptics", 6),
           Map.entry("EitherOrBothBook", 1),
           Map.entry("EitherOrBothPathBook", 6),
+          Map.entry("FoundationsIntroBook", 3),
           Map.entry("GenericsBook", 4),
           Map.entry("JsonApiBook", 4),
           Map.entry("MergeBook", 2),

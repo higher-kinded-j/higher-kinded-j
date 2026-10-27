@@ -25,6 +25,8 @@ Take a fact from one only after checking it against the processor or the library
   `reference/mapping.md`.
 - Editing `hkj-book/src/optics/`, or an optic, a Focus path or an annotation the Optics chapter
   documents: load `reference/optics.md`.
+- Editing the Foundations chapter (`hkj-book/src/hkts/`, `functional/` or `monads/`), or a type
+  class, a core type or the `Kind` encoding it documents: load `reference/foundations.md`.
 
 A chapter not listed here has no extra procedure, and its rules are in its chapter guide if it has
 one. When a chapter gains a guide, add its line here and its `reference/<chapter>.md`, as the style
