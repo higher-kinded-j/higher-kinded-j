@@ -309,7 +309,14 @@
     "optics/focus_effects.html#working-with-sum-types-using-instanceof": "optics/focus_navigation.html#working-with-sum-types-using-instanceof",
     "optics/focus_navigation.html#check-navigation-list-hop": "optics/focus_navigation.html#which-fields-get-a-navigator",
     "optics/focus_navigation.html#check-navigation-list-hop-answer": "optics/focus_navigation.html#which-fields-get-a-navigator",
-    "optics/focus_reference.html#cannot-infer-type-arguments-for-traverseover": "optics/focus_reference.html#object-turns-up-after-traverseover"
+    "optics/focus_reference.html#cannot-infer-type-arguments-for-traverseover": "optics/focus_reference.html#object-turns-up-after-traverseover",
+    "hkts/core-concepts.html#1-the-hkt-problem-in-java": "hkts/core-concepts.html#why-java-needs-an-encoding",
+    "hkts/core-concepts.html#2-the-kindf-a-bridge": "hkts/core-concepts.html#the-witness-and-kind",
+    "hkts/core-concepts.html#one-round-trip-step-by-step": "hkts/lifting_the_hood.html#the-expression-we-are-tracing",
+    "hkts/core-concepts.html#3-type-classes-functor-applicative-monad-monaderror": "functional/ch_intro.html#the-hierarchy",
+    "hkts/core-concepts.html#4-defunctionalisation-per-type-constructor": "hkts/core-concepts.html#the-pieces-each-type-provides",
+    "hkts/core-concepts.html#5-the-unit-type": "hkts/core-concepts.html#unit",
+    "hkts/core-concepts.html#6-error-handling-philosophy": "hkts/core-concepts.html#when-narrow-throws"
   };
 
   function target() {

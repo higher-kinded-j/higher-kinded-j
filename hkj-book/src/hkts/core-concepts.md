@@ -1,228 +1,144 @@
-# Core Concepts of Higher-Kinded-J
+<!-- description: How Higher-Kinded-J writes "any container F" in Java: witness types, Kind<F, A>, widen and narrow, WitnessArity, and what each core type does with null. -->
 
-![concepts.png](../images/concepts.png)
+# How the Encoding Works
+
+_Write "any container `F`" in Java: a witness names the container, and `Kind<F, A>` carries the name._
+
+<!-- source: Jonathan Swift, Gulliver's Travels (1726), Part III, Chapter V; text checked against Project Gutenberg eBook #829 -->
+> _"since words are only names for things, it would be more convenient for all men to carry about them such things as were necessary to express a particular business they are to discourse on."_
+>
+> — Jonathan Swift, *Gulliver's Travels* (Part III, Chapter V)
+
+The sages of Lagado gave up words and carried the things themselves. Java cannot carry a type constructor about, so Higher-Kinded-J carries a name for one instead: the witness.
+
+![A head in profile, made of jigsaw pieces printed with gears and sketches, its top pieces lifting away](../images/concepts.png)
 
 ~~~admonish info title="What You'll Learn"
-- How the Kind<F, A> interface simulates higher-kinded types in Java
-- The role of witness types in representing type constructors
-- How WitnessArity enforces type safety at compile time
-- Understanding defunctionalisation and how it enables HKT simulation
-- The difference between internal library types and external Java types
-- How type classes provide generic operations across different container types
+- Read a `Kind<F, A>` and name the container its witness stands for
+- Move a value into the encoding with `widen` and back with `narrow`, and say what each costs
+- Declare the `WitnessArity` bound on a generic method
+- Predict what a core type does with `null`, and return `Unit` or a `Maybe` instead
+- Tell an encoding failure from a domain failure
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial01_KindBasics.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [EncodingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/encoding/EncodingBook.java)**: the page includes it, so the build compiles and runs it. [EncodingBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/encoding/EncodingBookTest.java) holds each claim the page makes.
 ~~~
 
-Higher-Kinded-J employs several key components to emulate Higher-Kinded Types (HKTs) and associated functional type classes in Java. Understanding these is crucial for using and extending the library.
+---
 
-[Feel free to skip ahead to the examples and come back later for the theory](hkt_basic_examples.md)
+## Why Java needs an encoding {#why-java-needs-an-encoding}
 
-## 1. The HKT Problem in Java
+Java can abstract over a type, as `List<T>` does over `T`, but not over a type constructor such as `List` itself. A method for "any container of integers" does not compile:
 
-As we've already discussed, Java's type system lacks native support for Higher-Kinded Types. We can easily parametrise a type by another type (like `List<String>`), but we cannot easily parametrise a type or method by a *type constructor* itself (like `F<_>`). We can't write `void process<F<_>>(F<Integer> data)` to mean "process any container F of Integers".
+<!-- verify:rejects "type parameter F" -->
+```java
+<F> F<Integer> doubleAll(F<Integer> numbers) {
+    return numbers;
+}
+```
 
-~~~ admonish warning
-You'll often see Higher-Kinded Types represented with an underscore, such as `F<_>` (e.g., `List<_>`, `Optional<_>`). This notation, borrowed from languages like Scala, represents a "type constructor": a type that is waiting for a type parameter. It's important to note that this underscore is a conceptual placeholder and is not the same as Java's `?` wildcard, which is used for instantiated types. Our library provides a way to simulate this `F<_>` concept in Java.
+javac answers `unexpected type`, with `found: type parameter F`: a type parameter cannot take type arguments of its own. A language with higher-kinded types can name such a parameter, written `F<_>` in this book: "a container still waiting for its element type". It is not Java's `?` wildcard, which stands for an unknown type rather than a missing one. [Introduction to Higher-Kinded Types](hkt_introduction.md) says what this buys. Higher-Kinded-J gets there with ordinary interfaces. Each container gets a name, and generic code passes the name about in place of the container. The technique is called [defunctionalisation](../glossary/type-system.md#defunctionalisation).
 
-~~~
+## The witness and `Kind<F, A>` {#the-witness-and-kind}
 
-## 2. The `Kind<F, A>` Bridge
+A **witness** is an empty class that stands for one container. `ListKind.Witness` stands for `List`, `MaybeKind.Witness` for `Maybe`, and `EitherKind.Witness<L>` for `Either` with its left type `L` fixed. Its constructor is private, so nothing ever creates one: a witness appears only as a type argument.
 
-At the very centre of the library are the `Kind` interfaces, which make higher-kinded types possible in Java.
+**`Kind<F, A>`** is the interface that generic code works with. It reads "a container named by `F`, holding `A`", so `Kind<ListKind.Witness, String>` is the `Kind` view of a `List<String>`. A type class such as `Monad<F>` is written over `Kind<F, A>`, so one `Monad` interface serves every container that has a witness.
 
-* **`Kind<F extends WitnessArity<?>, A>`**: This is the foundational interface that emulates a higher-kinded type. It represents a type `F` that is generic over a type `A`. For example, `Kind<ListKind.Witness, String>` represents a `List<String>`. You will see this interface used everywhere as the common currency for all our functional abstractions.
-
-* **`Kind2<F extends WitnessArity<?>, A, B>`**: This interface extends the concept to types that take two type parameters, such as `Function<A, B>` or `Either<L, R>`. For example, `Kind2<FunctionKind.Witness, String, Integer>` represents a `Function<String, Integer>`. This is essential for working with profunctors and other dual-parameter abstractions.
-
-### The WitnessArity Bound
-
-The `F extends WitnessArity<?>` bound ensures that only valid witness types can be used with `Kind`. Every witness must declare its *arity* - whether it represents a unary type constructor (like `List<_>`) or a binary type constructor (like `Either<_,_>`):
+Two helpers cross between a value and its `Kind` view: `widen` takes the value into the encoding, and `narrow` brings it back. Here `flatMap` takes a `Kind` and gives one back, and only the `Either` instance behind `monad` looks inside:
 
 ```java
-// Unary: takes one type parameter (* -> *)
-final class Witness implements WitnessArity<TypeArity.Unary> {}
-
-// Binary: takes two type parameters (* -> * -> *)
-final class Witness implements WitnessArity<TypeArity.Binary> {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/encoding/EncodingBook.java:roundtrip}}
 ```
 
-This compile-time constraint prevents accidental misuse of witness types and enables the type system to enforce correct usage of type classes. For a deeper understanding, see [Type Arity](type-arity.md).
+`EITHER` is the helper that `EitherKindHelper` provides for `widen` and `narrow`, and each type has one, such as `MAYBE` or `LIST`. `Instances.monad(either())` is the value that knows how to `flatMap` an `Either`, and [Obtaining Instances](../functional/instances_facade.md) is the page on asking for one. [Lifting the Hood](lifting_the_hood.md) traces the same round trip call by call, with what each step allocates. The [type system glossary](../glossary/type-system.md) defines each of these terms in a line.
 
-![defunctionalisation_internal.svg](../images/puml/defunctionalisation_internal.svg)
+### The `WitnessArity` bound {#the-witnessarity-bound}
 
-* **Purpose:** To simulate the application of a type constructor `F` (like `List`, `Optional`, `IO`) to a type argument `A` (like `String`, `Integer`), representing the concept of `F<A>`.
-* **`F` (Witness Type):** This is the crucial part of the simulation. Since `F<_>` isn't a real Java type parameter, we use a *marker type* (often an empty interface specific to the constructor) as a "witness" or stand-in for `F`. Each witness implements `WitnessArity` to declare its arity. Examples:
-  * `ListKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `List` type constructor.
-  * `OptionalKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `Optional` type constructor.
-  * `EitherKind.Witness<L> implements WitnessArity<TypeArity.Unary>` represents the `Either<L, _>` type constructor (where `L` is fixed).
-  * `IOKind.Witness implements WitnessArity<TypeArity.Unary>` represents the `IO` type constructor.
-* **`A` (Type Argument):** The concrete type contained within or parametrised by the constructor (e.g., `Integer` in `List<Integer>`).
-* **How it Works:** The library provides a seamless bridge between a standard java type, like a `java.util.List<Integer>`and its `Kind` representation `Kind<ListKind.Witness, Integer>`. Instead of requiring us to manually wrap objects, this conversion is handled by static helper methods, typically `widen` and `narrow`.
-  * To treat a `List<Integer>` as a `Kind`, we use a helper function like `LIST.widen()`.
-  * This `Kind` object can then be passed to generic functions (such as `map` or `flatMap` from a `Functor` or `Monad` instance) that expect `Kind<F, A>`.
-* **Reference:** [`Kind.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Kind.java)
+A witness also declares how many type arguments its container still needs: its *arity*. `Kind` asks for that declaration in its bound, `Kind<F extends WitnessArity<?>, A>`, so a class that is not a witness cannot stand in for `F`:
 
-### One Round-Trip, Step by Step
+```java
+// ListKind.Witness: one type argument still missing, like List<_>
+final class Witness implements WitnessArity<TypeArity.Unary> {
+    private Witness() {}
+}
 
-The diagram below traces a single `flatMap` call from user code, through `widen`, into the type-class instance, and back out via `narrow`. It is the runtime picture that the rest of this section describes in prose.
-
-```
-   user code                helper                  type-class instance        underlying type
-
-   Either.right(10)
-        │
-        ▼
-   EITHER.widen(start)  ──▶  null check
-                              │
-                              │ (Either<L,R> already implements EitherKind<L,R>)
-                              │
-                              ▼
-                          typed cast (zero allocation)
-        │
-        ▼
-   Kind<EitherKind.Witness<String>, Integer>
-        │
-        ▼
-   monad.flatMap(f, kind) ──────────────────▶  EitherMonad.flatMap
-                                                    │
-                                                    │ EITHER.narrow(kind)
-                                                    │     │
-                                                    │     ▼
-                                                    │  Either<String, Integer>
-                                                    │
-                                                    │ either.flatMap(f) ──────▶ apply f to Right(10)
-                                                    │                          │
-                                                    │                          ▼
-                                                    │                       new Kind from f
-                                                    ◀──────────────────────
-        │
-        ▼
-   Kind<EitherKind.Witness<String>, String>
-        │
-        ▼
-   EITHER.narrow(result) ──▶  null check
-                              │
-                              │ instanceof Either, cast
-                              │
-                              ▼
-   Either<String, String>      (Right("v=10"))
+// EitherKind2.Witness: two type arguments still missing, like Either<_, _>
+final class Witness implements WitnessArity<TypeArity.Binary> {
+    private Witness() {}
+}
 ```
 
-For a deeper, line-by-line walk-through with allocation costs, see [Lifting the Hood](lifting_the_hood.md).
+Most type classes, `Functor` and `Monad` among them, ask for a unary witness. `Either` has two type arguments, so its `Monad` fixes the left one, and `EitherKind.Witness<L>` is unary. `Bifunctor` and `Profunctor` take a binary witness, over `Kind2`. A generic method puts the same bound on its own `F`, as `totals` does in the [Foundations](foundations_intro.md) introduction: `<F extends WitnessArity<TypeArity.Unary>>`. [Type Arity](type-arity.md) covers the rest.
 
-~~~admonish tip
-For quick definitions of HKT concepts like Kind, Witness Types, and Defunctionalisation, see the [Glossary](../glossary.md).
+## The pieces each type provides {#the-pieces-each-type-provides}
+
+Every container that joins the encoding brings the same pieces. They differ in one respect: whether the container is its own `Kind`, or is held in a small record that is.
+
+| Piece | A type that is its own `Kind`: `Maybe` | A type held in a record: `Optional` |
+|---|---|---|
+| Witness | `MaybeKind.Witness` | `OptionalKind.Witness` |
+| `Kind` interface | `MaybeKind<A>`, which `Maybe` itself extends | `OptionalKind<A>`, which a holder record implements |
+| Helper | `MAYBE`, on `MaybeKindHelper` | `OPTIONAL`, on `OptionalKindHelper` |
+| `widen` | Returns the same object: a `Maybe` already is its `Kind` | Wraps the `Optional` in the holder, one allocation |
+| `narrow` | Checks the type, then casts | Checks for the holder, then returns the `Optional` it holds |
+| Type class instances | `MaybeMonad`, `MaybeTraverse` and others | `OptionalMonad`, `OptionalTraverse` and others |
+
+The JDK's types cannot implement `Kind`, so they are held, and so are two of the library's own: `Lazy` and `Tuple2`. A type that is its own `Kind` crosses into the encoding without an allocation, and a debugger shows the `Maybe` itself, not a holder. [Extending the Simulation](extending-simulation.md) shows how to give a type of your own these pieces.
+
+## Values, never null {#values-never-null}
+
+Higher-Kinded-J's own types hold a value, never `null`. They refuse it at the factory, and a `map` function that returns `null` fails them, so an absent value shows in the type. `Maybe` and `Id` treat `null` differently:
+
+| Type | A `null` value | A `map` function that returns `null` |
+|---|---|---|
+| `Either`, `Try`, `Validated`, `EitherOrBoth`, `NonEmptyList`, `IO`, `VTask`, `Lazy`, `Reader`, `State`, `Writer`, `Free` and `Trampoline` | Refused: `Either.right(null)` and `Instances.monad(either()).of(null)` throw `NullPointerException` | Fails: `Either` throws at once, `Try` gives a `Failure`, and `IO` fails when it runs |
+| `Maybe` | Read as `Nothing` by `Maybe.fromNullable` and by the instance's `of`, though `Maybe.just(null)` throws | Read as `Nothing` |
+| `Id` | Held | Held |
+
+When a step has nothing to return, return [`Unit`](#unit). When a value may be absent, hold it in a `Maybe`. The JDK containers, the transformers and the tuples have rules of their own, in [Where null is read or held](#where-null-is-read-or-held).
+
+## `Unit`: a value for "nothing to return" {#unit}
+
+`void` is not a type, so it cannot fill the `A` in `Kind<F, A>`. Java's own stand-in, `Void`, has only `null` as a value, which the types on this page refuse. `org.higherkindedj.hkt.Unit` has exactly one value, `Unit.INSTANCE`. An action run for its effect gives `Unit`, and a type whose failure carries no detail takes `Unit` as its error type, as `Maybe`'s [`MonadError`](../functional/monad_error.md) does:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/encoding/EncodingBook.java:unit}}
+```
+
+The source is [`Unit.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Unit.java).
+
+~~~admonish tip title="You can ship now"
+You can now run any type class over a value you hold: widen it, call the instance, and narrow the result, returning `Unit` or a `Maybe` where you might have returned `null`. The rest of this page is for when a `null` turns up or `narrow` throws.
 ~~~
 
-## 3. Type Classes (`Functor`, `Applicative`, `Monad`, `MonadError`)
+---
 
-These are interfaces that define standard functional operations that work *generically* over any simulated type constructor `F` (represented by its witness type) for which an instance of the type class exists. They operate on `Kind<F, A>` objects.
+## The fine print {#the-fine-print}
 
-All type classes require that `F` extends `WitnessArity<?>`, ensuring only valid witness types are used. Most type classes work with unary type constructors (`WitnessArity<TypeArity.Unary>`), whilst `Bifunctor` and `Profunctor` work with binary type constructors (`WitnessArity<TypeArity.Binary>`).
+### Where null is read or held {#where-null-is-read-or-held}
 
-![core_typeclasses_high_level.svg](../images/puml/core_typeclasses_high_level.svg)
+Some types read `null` as empty, or hold it, by design:
 
-* **`Functor<F extends WitnessArity<TypeArity.Unary>>`:**
-  * Defines `map(Function<A, B> f, Kind<F, A> fa)`: Applies a function `f: A -> B` to the value(s) inside the context `F` without changing the context's structure, resulting in a `Kind<F, B>`. Think `List.map`, `Optional.map`.
-  * Laws: Identity (`map(id) == id`), Composition (`map(g.compose(f)) == map(g).compose(map(f))`).
-  * Reference: [`Functor.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Functor.java)
-* **`Applicative<F extends WitnessArity<TypeArity.Unary>>`:**
-  * Extends `Functor<F>`.
-  * Adds `of(A value)`: Lifts a pure value `A` into the context `F`, creating a `Kind<F, A>`. (e.g., `1` becomes `Optional.of(1)` wrapped in `Kind`).
-  * Adds `ap(Kind<F, Function<A, B>> ff, Kind<F, A> fa)`: Applies a function wrapped in context `F` to a value wrapped in context `F`, returning a `Kind<F, B>`. This enables combining multiple independent values within the context.
-  * Provides default `mapN` methods (e.g., `map2`, `map3`) built upon `ap` and `map`.
-  * Laws: Identity, Homomorphism, Interchange, Composition.
-  * Reference: [`Applicative.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Applicative.java)
-* **`Monad<F extends WitnessArity<TypeArity.Unary>>`:**
-  * Extends `Applicative<F>`.
-  * Adds `flatMap(Function<A, Kind<F, B>> f, Kind<F, A> ma)`: Sequences operations within the context `F`. Takes a value `A` from context `F`, applies a function `f` that returns a *new context* `Kind<F, B>`, and returns the result flattened into a single `Kind<F, B>`. Essential for chaining dependent computations (e.g., chaining `Optional` calls, sequencing `CompletableFuture`s, combining `IO` actions). Also known in functional languages as `bind` or `>>=`.
-  * Provides default `flatMapN` methods (e.g., `flatMap2`, `flatMap3`, `flatMap4`, `flatMap5`) for combining multiple monadic values with an effectful function. These methods sequence operations where the combining function itself returns a monadic value, unlike `mapN` which uses a pure function.
-  * Laws: Left Identity, Right Identity, Associativity.
-  * Reference: [`Monad.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/Monad.java)
-* **`MonadError<F extends WitnessArity<TypeArity.Unary>, E>`:**
-  * Extends `Monad<F>`.
-  * Adds error handling capabilities for contexts `F` that have a defined error type `E`.
-  * Adds `raiseError(E error)`: Lifts an error `E` into the context `F`, creating a `Kind<F, A>` representing the error state (e.g., `Either.Left`, `Try.Failure` or failed `CompletableFuture`).
-  * Adds `handleErrorWith(Kind<F, A> ma, Function<E, Kind<F, A>> handler)`: Allows recovering from an error state `E` by providing a function that takes the error and returns a *new context* `Kind<F, A>`.
-  * Provides default recovery methods like `handleError`, `recover`, `recoverWith`.
-  * Reference: [`MonadError.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-api/src/main/java/org/higherkindedj/hkt/MonadError.java)
+- **The JDK containers' instances read `null` as empty.** `of(null)` gives an empty `Optional`, `List` or `Stream`, and a `CompletableFuture` completed with `null`.
+- **`MaybeT` and `OptionalT` read `null` as `Maybe` and `Optional` do.** Their `of(null)` gives an empty inner value.
+- **The tuples hold whatever they are given.** `Tuple.of(null, null)` builds a `Tuple2` of two nulls.
+- **`Const` ignores the value.** It never holds one, so `of(null)` gives the monoid's empty value.
 
-## 4. Defunctionalisation (Per Type Constructor)
+So generic code never hands `null` to `of`: what comes back depends on `F`. A `flatMap` function must return a `Kind` in every type, so one that returns `null` throws `KindUnwrapException`.
 
-For each Java type constructor (like `List`, `Optional`, `IO`) we want to simulate as a Higher-Kinded Type, a specific pattern involving several components is used. The exact implementation differs slightly depending on whether the type is defined *within* the Higher-Kinded-J library (e.g., `Id`, `Maybe`, `IO`, monad transformers) or if it's an *external type* (e.g., `java.util.List`, `java.util.Optional`, `java.util.concurrent.CompletableFuture`).
+### When `narrow` throws {#when-narrow-throws}
 
-**Common Components:**
+Two kinds of failure meet in this encoding, and they are handled differently:
 
-* **The `XxxKind` Interface:** A specific marker interface, for example, `OptionalKind<A>`. This interface extends `Kind<F, A>`, where `F` is the witness type representing the type constructor.
-  * **Example:**
-    ```java
-    public interface OptionalKind<A> extends Kind<OptionalKind.Witness, A> {
-        final class Witness implements WitnessArity<TypeArity.Unary> {
-            private Witness() {}
-        }
-    }
-    ```
-  * The `Witness` (e.g., `OptionalKind.Witness`) is a static nested final class that implements `WitnessArity<TypeArity.Unary>` to declare it represents a unary type constructor. This `Witness` type is what's used as the `F` parameter in generic type classes like `Monad<F>`.
-
-* **The `KindHelper` Class (e.g., `OptionalKindHelper`):** A crucial utility `widen` and `narrow` methods:
-  * `widen(...)`: Converts the standard Java type (e.g., `Optional<String>`) into its `Kind<F, A>` representation.
-  * `narrow(Kind<F, A> kind)`: Converts the `Kind<F, A>` representation back to the underlying Java type (e.g., `Optional<String>`).
-    * **Crucially, this method throws `KindUnwrapException` if the input `kind` is structurally invalid** (e.g., `null`, the wrong `Kind` type, or (_for holder-based types_) a `Holder` containing `null` where it shouldn't). This ensures robustness.
-  * May contain other convenience factory methods.
-
-* **Type Class Instance(s):** Concrete classes implementing `Functor<F>`, `Monad<F>`, etc., for the specific witness type `F` (e.g., `OptionalMonad implements Monad<OptionalKind.Witness>`). These instances use the `KindHelper`'s `widen` and `narrow` methods to operate on the underlying Java types.
-
-**External Types:**
-
-![defunctionalisation_external.svg](../images/puml/defunctionalisation_external.svg)
-
-* **For Types Defined Within Higher-Kinded-J (e.g., `Id`, `IO`, `Maybe`, `Either`, Monad Transformers like `EitherT`):**
-    * These types are designed to directly participate in the HKT simulation.
-    * The type itself (e.g., `Id<A>`, `IO<A>`, `Just<T>`, `Either.Right<L,R>`) will directly implement its corresponding `XxxKind` interface (e.g., `Id<A> implements IdKind<A>`, `IO<A> extends IOKind<A>`, `Just<T> implements MaybeKind<T>`, `Either.Right<L,R> implements EitherKind<L,R>`).
-    * In this case, a separate `Holder` record is **not needed** for the primary `widen`/`narrow` mechanism in the `KindHelper`.
-    * `XxxKindHelper.widen(IO<A> io)` would effectively be a type cast (after null checks) to `Kind<IOKind.Witness, A>` because `IO<A>` *is already* an `IOKind<A>`.
-    * `XxxKindHelper.narrow(Kind<IOKind.Witness, A> kind)` would check `instanceof IO` and perform a cast.
-    * This approach provides **zero runtime overhead** for widen/narrow operations (no wrapper object allocation) and improved debugging experience (actual types visible in stack traces).
-
-This distinction is important for understanding how `wrap` and `unwrap` function for different types. However, from the perspective of a user of a type class instance (like `OptionalMonad`), the interaction remains consistent: we provide a `Kind` object, and the type class instance handles the necessary operations.
-
-## 5. The `Unit` Type
-
-In functional programming, it's common to have computations or functions that perform an action (often a side effect) but do not produce a specific, meaningful result value. In Java, methods that don't return a value use the `void` keyword. However, `void` is not a first-class type and cannot be used as a generic type parameter `A` in `Kind<F, A>`.
-
-Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
-
-* **Purpose:** `Unit` is a type that has exactly one value, `Unit.INSTANCE`. It is used to represent the successful completion of an operation that doesn't yield any other specific information. Think of it as a functional equivalent of `void`, but usable as a generic type.
-* **Usage in HKT:**
-    * When a monadic action `Kind<F, A>` completes successfully but has no specific value to return (e.g., an `IO` action that prints to the console), `A` can be `Unit`. The action would then be `Kind<F, Unit>`, and its successful result would conceptually be `Unit.INSTANCE`. For example, `IO<Unit>` for a print operation.
-    * In `MonadError<F, E>`, if the error state `E` simply represents an absence or a failure without specific details (like `Optional.empty()` or `Maybe.Nothing()`), `Unit` can be used as the type for `E`. The `raiseError` method would then be called with `Unit.INSTANCE`. For instance, `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, and `MaybeMonad` implements `MonadError<MaybeKind.Witness, Unit>`.
-* **Example:**
-<!-- verify -->
-    ```java
-    // An IO action that just performs a side effect (printing)
-    Kind<IOKind.Witness, Unit> printAction = IO_OP.delay(() -> {
-        System.out.println("Effect executed!");
-        return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
-    });
-    IO_OP.unsafeRunSync(printAction); // Executes the print
-
-    // Optional treated as MonadError<..., Unit>
-    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
-    Kind<OptionalKind.Witness, String> emptyOptional = optionalMonad.raiseError(Unit.INSTANCE); // Creates Optional.empty()
-    ```
-* **Reference:** [`Unit.java`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/main/java/org/higherkindedj/hkt/unit/Unit.java)
-
-## 6. Error Handling Philosophy
-
-* **Domain Errors:** These are expected business-level errors or alternative outcomes. They are represented *within* the structure of the simulated type (e.g., `Either.Left`, `Maybe.Nothing`, `Try.Failure`, a failed `CompletableFuture`, potentially a specific result type within `IO`). These are handled using the type's specific methods or `MonadError` capabilities (`handleErrorWith`, `recover`, `fold`, `orElse`, etc.) *after* successfully unwrapping the `Kind`.
-* **Simulation Errors (`KindUnwrapException`):** These indicate a problem with the HKT simulation *itself* – usually a programming error. Examples include passing `null` to `unwrap`, passing a `ListKind` to `OptionalKindHelper.unwrap`, or (if it were possible) having a `Holder` record contain a `null` reference to the underlying Java object it's supposed to hold. These are signalled by throwing the unchecked `KindUnwrapException` from `unwrap` methods to clearly distinguish infrastructure issues from domain errors. You typically shouldn't need to catch `KindUnwrapException` unless debugging the simulation usage itself.
+- **A domain failure is a value.** A `Left`, a `Nothing`, a `Try.Failure` or a failed `CompletableFuture` travels inside its container, and the type's own methods or `MonadError`'s `handleErrorWith` recover from it.
+- **An encoding failure is a bug.** `narrow` throws `KindUnwrapException`, an unchecked `IllegalArgumentException`, for `null` or another container's `Kind`, as does a `flatMap` function that returns `null`. Fix the mismatch rather than catch it.
 
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practise Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java) (5 exercises).
+Practise widening and narrowing in [Tutorial 01: Kind Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java) (5 exercises).
 ~~~
 
 ---

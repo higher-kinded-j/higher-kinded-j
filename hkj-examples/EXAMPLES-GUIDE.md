@@ -104,7 +104,7 @@ Examples demonstrating type class abstractions.
 
 | Example | Description | Run Command | Documentation |
 |---------|-------------|-------------|---------------|
-| [GenericExample.java](src/main/java/org/higherkindedj/example/basic/GenericExample.java) | Shows generic programming with type classes | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.GenericExample` | [Core Concepts](https://higher-kinded-j.github.io/latest/hkts/core-concepts.html) |
+| [GenericExample.java](src/main/java/org/higherkindedj/example/basic/GenericExample.java) | Shows generic programming with type classes | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.GenericExample` | [How the Encoding Works](https://higher-kinded-j.github.io/latest/hkts/core-concepts.html) |
 | [BifunctorExample.java](src/main/java/org/higherkindedj/example/basic/bifunctor/BifunctorExample.java) | Demonstrates Bifunctor operations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.bifunctor.BifunctorExample` | [Bifunctor](https://higher-kinded-j.github.io/latest/functional/bifunctor.html) |
 | [ProfunctorExample.java](src/main/java/org/higherkindedj/example/basic/profunctor/ProfunctorExample.java) | Shows Profunctor operations | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.profunctor.ProfunctorExample` | [Profunctor](https://higher-kinded-j.github.io/latest/functional/profunctor.html) |
 | [FoldableExample.java](src/main/java/org/higherkindedj/example/basic/foldable/FoldableExample.java) | Demonstrates Foldable and Traverse | `./gradlew :hkj-examples:run -PmainClass=org.higherkindedj.example.basic.foldable.FoldableExample` | [Foldable and Traverse](https://higher-kinded-j.github.io/latest/functional/foldable_and_traverse.html) |
@@ -450,6 +450,6 @@ Interactive tutorial examples for learning Higher-Kinded-J concepts.
 ## Additional Resources
 
 - [Higher-Kinded-J Documentation](https://higher-kinded-j.github.io/latest/)
-- [Core Concepts](https://higher-kinded-j.github.io/latest/hkts/core-concepts.html)
+- [How the Encoding Works](https://higher-kinded-j.github.io/latest/hkts/core-concepts.html)
 - [Quick Reference](https://higher-kinded-j.github.io/latest/hkts/quick_reference.html)
 - [Troubleshooting](https://higher-kinded-j.github.io/latest/tutorials/troubleshooting.html)

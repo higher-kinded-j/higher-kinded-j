@@ -68,7 +68,7 @@ class BookSnippetVerificationTest {
    * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
-  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 161;
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 162;
 
   /**
    * How many of those snippets must come from the skills root, for the same reason the diagnostic

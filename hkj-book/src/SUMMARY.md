@@ -167,7 +167,7 @@
 
 - [Foundations](hkts/foundations_intro.md)
   - [One Line, Six Layers](hkts/one_line_six_layers.md)
-  - [Core Concepts](hkts/core-concepts.md)
+  - [How the Encoding Works](hkts/core-concepts.md)
   - [Usage Guide](hkts/usage-guide.md)
   - [Obtaining Instances](functional/instances_facade.md)
   - [Functor](functional/functor.md)
