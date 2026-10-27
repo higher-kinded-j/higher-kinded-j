@@ -95,4 +95,4 @@ The Ship pages that follow take the type-class layers in order. They start benea
 ---
 
 **Previous:** [Foundations](foundations_intro.md)
-**Next:** [Core Concepts](core-concepts.md)
+**Next:** [How the Encoding Works](core-concepts.md)

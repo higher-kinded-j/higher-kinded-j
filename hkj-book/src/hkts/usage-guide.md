@@ -234,5 +234,5 @@ public void genericExample() {
 
 ---
 
-**Previous:** [Core Concepts](core-concepts.md)
+**Previous:** [How the Encoding Works](core-concepts.md)
 **Next:** [Obtaining Instances](../functional/instances_facade.md)
