@@ -476,7 +476,7 @@ public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest re
     return Path.maybe(userRepository.findById(userId))
         .<OrderError>toEitherPath(new OrderError.UserNotFound(userId))
         .via(user -> Path.either(validator.validate(request))
-            .mapError(OrderError.ValidationFailed::new)
+            .<OrderError>mapError(OrderError.ValidationFailed::new)
             .via(validated -> Path.tryOf(() -> paymentService.charge(user, validated.amount()))
                 .toEitherPath(OrderError.PaymentFailed::new))
             .map(payment -> createOrder(user, request, payment)));
@@ -486,7 +486,8 @@ public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest re
 `toEitherPath` takes the error **value** here; a `Supplier` overload defers building it to the
 `Nothing` branch, for an error that is not free to construct. The `<OrderError>` witness widens the
 error from the concrete `UserNotFound` to the sealed parent, which is what the rest of the chain is
-typed on.
+typed on. `.<OrderError>mapError` does the same for the inner chain, whose next step fails with
+`PaymentFailed`.
 A step that needs an earlier binding (`user`, here) nests inside the `via` that bound it; when the
 nesting gets deep, reach for `ForPath`, which keeps every binding in scope and stays flat.
 

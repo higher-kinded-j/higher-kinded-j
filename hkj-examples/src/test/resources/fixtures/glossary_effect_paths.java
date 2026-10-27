@@ -245,8 +245,8 @@ class Fixture {
 
   static final OrderRequest req = new OrderRequest("c-1", "221B Baker Street");
 
-  static Either<AppError, Order> validateOrder(OrderRequest request, Customer customer) {
-    return Either.left(new AppError("invalid"));
+  static Either<OrderError, Order> validateOrder(OrderRequest request, Customer customer) {
+    return Either.left(new OrderError.AddressInvalid("invalid"));
   }
 
   static Receipt createReceipt(OrderRequest request, Payment payment) {

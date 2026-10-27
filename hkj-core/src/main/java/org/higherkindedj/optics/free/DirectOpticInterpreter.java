@@ -2,9 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.free;
 
-import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
@@ -48,19 +46,19 @@ public final class DirectOpticInterpreter {
 
           Object result =
               switch (op) {
-                case OpticOp.Get<?, ?> get -> executeGet(get);
-                case OpticOp.Preview<?, ?> preview -> executePreview(preview);
-                case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
-                case OpticOp.Set<?, ?> set -> executeSet(set);
-                case OpticOp.SetAll<?, ?> setAll -> executeSetAll(setAll);
-                case OpticOp.Modify<?, ?> modify -> executeModify(modify);
-                case OpticOp.ModifyAll<?, ?> modifyAll -> executeModifyAll(modifyAll);
-                case OpticOp.Exists<?, ?> exists -> executeExists(exists);
-                case OpticOp.All<?, ?> all -> executeAll(all);
-                case OpticOp.Count<?, ?> count -> executeCount(count);
+                case OpticOp.Get<?, ?, ?> get -> executeGet(get);
+                case OpticOp.Preview<?, ?, ?> preview -> executePreview(preview);
+                case OpticOp.GetAll<?, ?, ?> getAll -> executeGetAll(getAll);
+                case OpticOp.Set<?, ?, ?> set -> executeSet(set);
+                case OpticOp.SetAll<?, ?, ?> setAll -> executeSetAll(setAll);
+                case OpticOp.Modify<?, ?, ?> modify -> executeModify(modify);
+                case OpticOp.ModifyAll<?, ?, ?> modifyAll -> executeModifyAll(modifyAll);
+                case OpticOp.Exists<?, ?, ?> exists -> executeExists(exists);
+                case OpticOp.All<?, ?, ?> all -> executeAll(all);
+                case OpticOp.Count<?, ?, ?> count -> executeCount(count);
               };
 
-          return Id.of(Free.pure(result));
+          return Id.of(result);
         };
 
     // Interpret the program using the Id monad
@@ -70,46 +68,48 @@ public final class DirectOpticInterpreter {
 
   // Note: These execute methods don't need @SuppressWarnings("unchecked") because
   // Java's sealed types + switch expressions correctly infer type parameters from
-  // the pattern-matched OpticOp<?, ?> cases. The type variables S and A are inferred
+  // the pattern-matched OpticOp<?, ?, ?> cases. The type variables S, A and R are inferred
   // from capture variables, and the method bodies contain no explicit casts.
+  // Each one hands what its operation produces to the operation's continuation.
 
-  private <S, A> A executeGet(OpticOp.Get<S, A> op) {
-    return Objects.requireNonNull(op.optic().get(op.source()), OpticPrograms.NULL_GET_FOCUS);
+  private <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
+    return op.k()
+        .apply(Objects.requireNonNull(op.optic().get(op.source()), OpticPrograms.NULL_GET_FOCUS));
   }
 
-  private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {
-    return op.optic().preview(op.source());
+  private <S, A, R> R executePreview(OpticOp.Preview<S, A, R> op) {
+    return op.k().apply(op.optic().preview(op.source()));
   }
 
-  private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
-    return op.optic().getAll(op.source());
+  private <S, A, R> R executeGetAll(OpticOp.GetAll<S, A, R> op) {
+    return op.k().apply(op.optic().getAll(op.source()));
   }
 
-  private <S, A> S executeSet(OpticOp.Set<S, A> op) {
-    return op.optic().set(op.newValue(), op.source());
+  private <S, A, R> R executeSet(OpticOp.Set<S, A, R> op) {
+    return op.k().apply(op.optic().set(op.newValue(), op.source()));
   }
 
-  private <S, A> S executeSetAll(OpticOp.SetAll<S, A> op) {
-    return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
+  private <S, A, R> R executeSetAll(OpticOp.SetAll<S, A, R> op) {
+    return op.k().apply(Traversals.modify(op.optic(), ignored -> op.newValue(), op.source()));
   }
 
-  private <S, A> S executeModify(OpticOp.Modify<S, A> op) {
-    return op.optic().modify(op.modifier(), op.source());
+  private <S, A, R> R executeModify(OpticOp.Modify<S, A, R> op) {
+    return op.k().apply(op.optic().modify(op.modifier(), op.source()));
   }
 
-  private <S, A> S executeModifyAll(OpticOp.ModifyAll<S, A> op) {
-    return Traversals.modify(op.optic(), op.modifier(), op.source());
+  private <S, A, R> R executeModifyAll(OpticOp.ModifyAll<S, A, R> op) {
+    return op.k().apply(Traversals.modify(op.optic(), op.modifier(), op.source()));
   }
 
-  private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
-    return op.optic().exists(op.predicate(), op.source());
+  private <S, A, R> R executeExists(OpticOp.Exists<S, A, R> op) {
+    return op.k().apply(op.optic().exists(op.predicate(), op.source()));
   }
 
-  private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
-    return op.optic().all(op.predicate(), op.source());
+  private <S, A, R> R executeAll(OpticOp.All<S, A, R> op) {
+    return op.k().apply(op.optic().all(op.predicate(), op.source()));
   }
 
-  private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
-    return op.optic().length(op.source());
+  private <S, A, R> R executeCount(OpticOp.Count<S, A, R> op) {
+    return op.k().apply(op.optic().length(op.source()));
   }
 }

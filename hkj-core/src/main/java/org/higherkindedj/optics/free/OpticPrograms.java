@@ -169,7 +169,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
       S source, Getter<S, A> getter) {
-    return liftOp(new OpticOp.Get<>(source, getter));
+    return liftOp(new OpticOp.Get<>(source, getter, Function.identity()));
   }
 
   /**
@@ -193,7 +193,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
       S source, Lens<S, A> lens) {
-    return liftOp(new OpticOp.Get<>(source, lensToGetter(lens)));
+    return liftOp(new OpticOp.Get<>(source, lensToGetter(lens), Function.identity()));
   }
 
   /**
@@ -216,7 +216,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Optional<@NonNull A>> preview(S source, Fold<S, A> fold) {
-    return liftOp(new OpticOp.Preview<>(source, fold));
+    return liftOp(new OpticOp.Preview<>(source, fold, Function.identity()));
   }
 
   /**
@@ -239,7 +239,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Optional<@NonNull A>> preview(S source, Traversal<S, A> traversal) {
-    return liftOp(new OpticOp.Preview<>(source, traversalToFold(traversal)));
+    return liftOp(new OpticOp.Preview<>(source, traversalToFold(traversal), Function.identity()));
   }
 
   /**
@@ -260,7 +260,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, List<A>> getAll(S source, Fold<S, A> fold) {
-    return liftOp(new OpticOp.GetAll<>(source, fold));
+    return liftOp(new OpticOp.GetAll<>(source, fold, Function.identity()));
   }
 
   /**
@@ -281,7 +281,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, List<A>> getAll(S source, Traversal<S, A> traversal) {
-    return liftOp(new OpticOp.GetAll<>(source, traversalToFold(traversal)));
+    return liftOp(new OpticOp.GetAll<>(source, traversalToFold(traversal), Function.identity()));
   }
 
   // ============================================================================
@@ -307,7 +307,7 @@ public final class OpticPrograms {
    */
   public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> set(
       S source, Lens<S, A> lens, A value) {
-    return liftOp(new OpticOp.Set<>(source, lens, value));
+    return liftOp(new OpticOp.Set<>(source, lens, value, Function.identity()));
   }
 
   /**
@@ -329,7 +329,7 @@ public final class OpticPrograms {
    */
   public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> setAll(
       S source, Traversal<S, A> traversal, A value) {
-    return liftOp(new OpticOp.SetAll<>(source, traversal, value));
+    return liftOp(new OpticOp.SetAll<>(source, traversal, value, Function.identity()));
   }
 
   // ============================================================================
@@ -355,7 +355,7 @@ public final class OpticPrograms {
    */
   public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modify(
       S source, Lens<S, A> lens, Function<A, A> modifier) {
-    return liftOp(new OpticOp.Modify<>(source, lens, modifier));
+    return liftOp(new OpticOp.Modify<>(source, lens, modifier, Function.identity()));
   }
 
   /**
@@ -377,7 +377,7 @@ public final class OpticPrograms {
    */
   public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modifyAll(
       S source, Traversal<S, A> traversal, Function<A, A> modifier) {
-    return liftOp(new OpticOp.ModifyAll<>(source, traversal, modifier));
+    return liftOp(new OpticOp.ModifyAll<>(source, traversal, modifier, Function.identity()));
   }
 
   // ============================================================================
@@ -403,7 +403,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Boolean> exists(S source, Fold<S, A> fold, Predicate<A> predicate) {
-    return liftOp(new OpticOp.Exists<>(source, fold, predicate));
+    return liftOp(new OpticOp.Exists<>(source, fold, predicate, Function.identity()));
   }
 
   /**
@@ -426,7 +426,8 @@ public final class OpticPrograms {
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Boolean> exists(
           S source, Traversal<S, A> traversal, Predicate<A> predicate) {
-    return liftOp(new OpticOp.Exists<>(source, traversalToFold(traversal), predicate));
+    return liftOp(
+        new OpticOp.Exists<>(source, traversalToFold(traversal), predicate, Function.identity()));
   }
 
   /**
@@ -448,7 +449,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Boolean> all(S source, Fold<S, A> fold, Predicate<A> predicate) {
-    return liftOp(new OpticOp.All<>(source, fold, predicate));
+    return liftOp(new OpticOp.All<>(source, fold, predicate, Function.identity()));
   }
 
   /**
@@ -471,7 +472,8 @@ public final class OpticPrograms {
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Boolean> all(
           S source, Traversal<S, A> traversal, Predicate<A> predicate) {
-    return liftOp(new OpticOp.All<>(source, traversalToFold(traversal), predicate));
+    return liftOp(
+        new OpticOp.All<>(source, traversalToFold(traversal), predicate, Function.identity()));
   }
 
   /**
@@ -492,7 +494,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Integer> count(S source, Fold<S, A> fold) {
-    return liftOp(new OpticOp.Count<>(source, fold));
+    return liftOp(new OpticOp.Count<>(source, fold, Function.identity()));
   }
 
   /**
@@ -513,7 +515,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Free<OpticOpKind.Witness, Integer> count(S source, Traversal<S, A> traversal) {
-    return liftOp(new OpticOp.Count<>(source, traversalToFold(traversal)));
+    return liftOp(new OpticOp.Count<>(source, traversalToFold(traversal), Function.identity()));
   }
 
   // ============================================================================

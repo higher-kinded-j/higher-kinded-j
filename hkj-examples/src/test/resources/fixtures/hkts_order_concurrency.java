@@ -397,12 +397,12 @@ class Fixture {
     return sample();
   }
 
-  static EitherPath<OrderError, ValidatedOrder> buildValidatedOrder(
+  VResultPath<OrderError, ValidatedOrder> buildValidatedOrder(
       OrderId orderId,
       OrderRequest request,
       Customer customer,
       ValidatedShippingAddress validAddress) {
-    return Path.left(sample());
+    return sample();
   }
 
   Either<OrderError, InventoryReservation> reserveInventory(
