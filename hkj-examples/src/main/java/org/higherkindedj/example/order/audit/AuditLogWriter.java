@@ -34,8 +34,11 @@ import org.higherkindedj.hkt.time.TimeSource;
 public final class AuditLogWriter {
 
   private final String workflowName;
-  private String currentStep = "unknown";
+
+  /** Where this writer reads time from; inject a fixed or steppable source in tests. */
   private final TimeSource timeSource;
+
+  private String currentStep = "unknown";
 
   /**
    * Creates an audit log writer for a workflow.
@@ -45,15 +48,15 @@ public final class AuditLogWriter {
   public AuditLogWriter(String workflowName) {
     this(workflowName, TimeSource.system());
   }
-
+  /**
+   * Creates an audit log writer for a workflow that stamps its entries from a time source.
+   *
+   * @param workflowName the name of the workflow for log context
+   * @param timeSource where each entry's timestamp is read from; must not be null
+   */
   public AuditLogWriter(String workflowName, TimeSource timeSource) {
     this.workflowName = workflowName;
     this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
-  }
-
-  /** Reads the current time from the injected source, so tests can control it. */
-  private Instant now() {
-    return timeSource.clock().instant();
   }
 
   /** Creates a default audit log writer. */
@@ -181,5 +184,10 @@ public final class AuditLogWriter {
 
   private String formatAction(String action) {
     return "[" + workflowName + ":" + currentStep + "] " + action;
+  }
+
+  /** Reads the current time from the injected source, so tests can control it. */
+  private Instant now() {
+    return timeSource.clock().instant();
   }
 }

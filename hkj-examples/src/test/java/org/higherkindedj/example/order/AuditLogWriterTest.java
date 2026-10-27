@@ -11,7 +11,11 @@ import org.higherkindedj.hkt.assertions.SteppableClock;
 import org.higherkindedj.hkt.time.TimeSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
+/**
+ * Tests that {@link AuditLogWriter} stamps each entry from an injected {@link TimeSource}, and that
+ * its older constructors still stamp one.
+ */
+@DisplayName("AuditLogWriter")
 class AuditLogWriterTest {
 
   private static final Instant START = Instant.parse("2026-07-07T00:00:00Z");
