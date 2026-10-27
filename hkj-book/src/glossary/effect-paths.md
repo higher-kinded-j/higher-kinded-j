@@ -823,7 +823,7 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execu
 
 **Factories:** `Path.writer(writer, monoid)`, `Path.writerPure(value, monoid)` and `Path.tell(log, monoid)`.
 
-**Operations:** `map`, `via`, `censor(f)` and `listen(additionalLog)`. `value()` and `written()` read the two parts, and `run()` returns the `Writer`.
+**Operations:** `map` and `via`; `censor(f)` rewrites the log, and `listen(additionalLog)` appends to it. `value()` and `written()` read the two parts, and `run()` returns the `Writer`.
 
 **Related:** [WriterPath documentation](../effect/advanced_effects.md#writerpath-accumulating-output), [Path](#path), [Writer](data-effects.md#writer), [Monoid](type-classes.md#monoid), [Writer Documentation](../monads/writer_monad.md)
 
