@@ -1602,9 +1602,9 @@ class MappingFixLineTest {
    * A line that spells a bean accessor or a marker spells the one the mapping then reads: the
    * setter of a property whose second letter is a capital, no marker a keyword or a taken name
    * would name, a marker that replaces the rename it would otherwise strand, and the near miss that
-   * was meant to pair, at the wrapper a PATCH property takes. A getter-only {@code List} of a
-   * wildcard is followed both ways, each against the domain it fits: its setter where the domain
-   * declares the wildcard too, and the element type where the domain names it.
+   * was meant to pair, or the word, at the wrapper a PATCH property takes. A getter-only {@code
+   * List} of a wildcard is followed both ways, each against the domain it fits: its setter where
+   * the domain declares the wildcard too, and the element type where the domain names it.
    */
   @Nested
   @DisplayName("an accessor or marker a refusal spells for a bean property")
@@ -1827,9 +1827,51 @@ class MappingFixLineTest {
                 @MapField(to = "default")
                 String defaultValue();
               }
+
+              record Timer(String name, Integer timeout) {}
+              class TimerPatch {
+                private @Nullable String name;
+                private @Nullable Integer timeoutMs;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable Integer getTimeoutMs() { return timeoutMs; }
+                public void setTimeoutMs(@Nullable Integer timeoutMs) { this.timeoutMs = timeoutMs; }
+                public void setTimeout(@Nullable Integer seconds) {
+                  this.timeoutMs = seconds == null ? null : seconds * 1000;
+                }
+              }
+              @GenerateMapping
+              interface TimerPatchMapping extends UpdateSpec<Timer, TimerPatch> {
+                @MapField(to = "timeoutMs")
+                Integer timeout();
+              }
+
+              record Pixel(Integer x, Integer y) {}
+              class PixelPatch {
+                private int x;
+                private @Nullable Integer y;
+                public int getx() { return x; }
+                public void setx(int x) { this.x = x; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PixelPatchMapping extends UpdateSpec<Pixel, PixelPatch> {}
+
+              record Grid(Integer x, Integer y) {}
+              class GridPatch {
+                private int x;
+                private @Nullable Integer y;
+                public int getx() { return x; }
+                public void setX(int x) { this.x = x; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface GridPatchMapping extends UpdateSpec<Grid, GridPatch> {}
               """);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorCount(15);
+      assertThat(compilation).hadErrorCount(18);
       assertThat(compilation).hadErrorContaining("Give 'eMails' a seteMails setter, and let");
       assertThat(compilation)
           .hadErrorContaining(
@@ -1881,12 +1923,25 @@ class MappingFixLineTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Rename getdefault() to getDefault() and setdefault(String) to setDefault(String).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the update reads it under that name. Remove setTimeout(Integer) from 'TimerPatch'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Change getx() to Integer getX() and setx(int) to setX(Integer), since a PATCH"
+                  + " property must be able to be absent. Or, if getx() and setx(int) are not"
+                  + " meant to carry 'Pixel.x', declare '@Unmapped int x();' on the spec.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Change getx() to Integer getX(), and declare setX(int) with Integer too, since a"
+                  + " PATCH property must be able to be absent.");
       Assertions.assertThat(compilation.errors().toString())
           .doesNotContain("setEMails")
           .doesNotContain("default();")
           .doesNotContain("setup(String) is meant")
           .doesNotContain("String late();")
-          .doesNotContain("tings");
+          .doesNotContain("tings")
+          .doesNotContain("Integer timeout();");
     }
 
     @Test
@@ -2114,6 +2169,45 @@ class MappingFixLineTest {
                 String defaultValue();
               }
 
+              record Timer(String name, Integer timeout) {}
+              class TimerPatch {
+                private @Nullable String name;
+                private @Nullable Integer timeoutMs;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable Integer getTimeoutMs() { return timeoutMs; }
+                public void setTimeoutMs(@Nullable Integer timeoutMs) { this.timeoutMs = timeoutMs; }
+              }
+              @GenerateMapping
+              interface TimerPatchMapping extends UpdateSpec<Timer, TimerPatch> {
+                @MapField(to = "timeoutMs")
+                Integer timeout();
+              }
+
+              record Pixel(Integer x, Integer y) {}
+              class PixelPatch {
+                private @Nullable Integer x;
+                private @Nullable Integer y;
+                public @Nullable Integer getX() { return x; }
+                public void setX(@Nullable Integer x) { this.x = x; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PixelPatchMapping extends UpdateSpec<Pixel, PixelPatch> {}
+
+              record Grid(Integer x, Integer y) {}
+              class GridPatch {
+                private @Nullable Integer x;
+                private @Nullable Integer y;
+                public @Nullable Integer getX() { return x; }
+                public void setX(@Nullable Integer x) { this.x = x; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface GridPatchMapping extends UpdateSpec<Grid, GridPatch> {}
+
               final class Probe {
                 static Object contact() {
                   ContactPatch patch = new ContactPatch();
@@ -2200,6 +2294,26 @@ class MappingFixLineTest {
                   return Validated.validNel(
                       OptionMappingImpl.INSTANCE.build(new Option("flags", "on")).getDefault());
                 }
+
+                static Object timer() {
+                  TimerPatch patch = new TimerPatch();
+                  patch.setTimeoutMs(5000);
+                  return TimerPatchMappingImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Timer("poll", 1000));
+                }
+
+                static Object pixel() {
+                  PixelPatch patch = new PixelPatch();
+                  patch.setX(3);
+                  return PixelPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Pixel(1, 2));
+                }
+
+                static Object grid() {
+                  GridPatch patch = new GridPatch();
+                  patch.setX(3);
+                  return GridPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Grid(1, 2));
+                }
               }
               """);
       assertThatValidated(probe(result, "contact"))
@@ -2247,6 +2361,16 @@ class MappingFixLineTest {
               shift -> shift.toString().equals("Shift[early=six, late=ten]"),
               "the shift, through both renames");
       assertThatValidated(probe(result, "option")).hasValue("on");
+      assertThatValidated(probe(result, "timer"))
+          .hasValueSatisfying(
+              timer -> timer.toString().equals("Timer[name=poll, timeout=5000]"),
+              "the timer, through the rename alone");
+      assertThatValidated(probe(result, "pixel"))
+          .hasValueSatisfying(
+              pixel -> pixel.toString().equals("Pixel[x=3, y=2]"), "the pixel, its x updated");
+      assertThatValidated(probe(result, "grid"))
+          .hasValueSatisfying(
+              grid -> grid.toString().equals("Grid[x=3, y=2]"), "the grid, its x updated");
     }
   }
 

@@ -270,12 +270,13 @@ class MappingProcessorUnpairedAccessorTest {
                   + " rename it after the component it should update and give it a getter. Or"
                   + " declare '@Unmapped String nickname();' on the spec, to leave it out"
                   + " deliberately.");
+      // The rename is declared under 'email', so no marker of that name can go beside it.
       assertThat(compilation)
           .hadErrorContaining(
               "would be ignored without a word: 'Contact.email' is renamed by @MapField, and the"
-                  + " update reads it under that name. Remove setEmail(String) from 'AliasPatch'."
-                  + " Or declare '@Unmapped String email();' on the spec, to leave it out"
-                  + " deliberately.");
+                  + " update reads it under that name. Remove setEmail(String) from 'AliasPatch'.");
+      Assertions.assertThat(errors(compilation))
+          .noneMatch(error -> error.contains("@Unmapped String email()"));
       assertThat(compilation)
           .hadErrorContaining(
               "Add setActive(Boolean) to 'FlagPatch', and declare isActive() with Boolean too,"
