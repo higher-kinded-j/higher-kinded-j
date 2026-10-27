@@ -47,3 +47,8 @@ work in and the traps the chapter has met.
   `Alternative`, `Traverse` extends both `Functor` and `Foldable`, and there is no `Apply`.
 - **`Path` clashes with `java.nio.file.Path`** under a module import of `java.base`. Import the
   library's `Path` by name.
+- **`import module org.higherkindedj.core;` needs the library resolved as a module**: required in
+  the application's `module-info.java`, or added with `--add-modules`. On the classpath, where most
+  applications put it, javac reports "imported module not found", and on the module path alone,
+  "unnamed module does not read". Show single-type imports, as the Style Guide's Code Blocks rule
+  says.
