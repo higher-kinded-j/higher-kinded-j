@@ -438,6 +438,7 @@ At release:
 4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, and the legacy-anchor entry for the old unreleased heading.
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
+7. **Rewrite the home page's "New in" band for the version.** It sits under the badges in `home.md`. Give it the new version in its eyebrow and its "All changes" link, and up to three headlines from the release's At a glance, each linked to the page that teaches it. Keep the lead card's code under `<!-- verify -->`.
 
 ### Headings and Subtitles
 
