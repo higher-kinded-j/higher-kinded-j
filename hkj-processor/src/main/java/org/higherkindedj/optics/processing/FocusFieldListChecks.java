@@ -3,10 +3,12 @@
 package org.higherkindedj.optics.processing;
 
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -29,10 +31,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>The lists are read by name, so a name that matches no component would change nothing without a
  * word, and in {@code includeFields} would leave every field without a navigator. Such a name is an
- * error at the value, offering the component it most likely meant. A list the record's other
- * settings leave unread, and a {@code widenFields} name whose method widening cannot change, draw a
- * warning instead: the generated class is the one the record would have without them, so only the
- * annotation misleads.
+ * error at the value, offering the component it most likely meant. Repeated names warn at each
+ * later occurrence. A list the record's other settings leave unread, and a {@code widenFields} name
+ * whose method widening cannot change, draw a warning instead: the generated class is the one the
+ * record would have without them, so only the annotation misleads.
  *
  * <p>Every message points at the value written, and its fix line can be followed as written. A
  * record can draw more than one, as an unknown name in a list the record never reads does, and
@@ -74,21 +76,25 @@ final class FocusFieldListChecks {
 
   private final Messager messager;
   private final WideningAnalysis analysis;
+  private final NavigatorClassGenerator navigatorGenerator;
 
   /**
    * Creates the checks for one record's Focus companion.
    *
    * @param messager the messager each finding is reported through
    * @param analysis the analysis that says what each component's Focus method widens to
+   * @param navigatorGenerator the generator used to check navigator namesakes
    */
-  FocusFieldListChecks(Messager messager, WideningAnalysis analysis) {
+  FocusFieldListChecks(
+      Messager messager, WideningAnalysis analysis, NavigatorClassGenerator navigatorGenerator) {
     this.messager = messager;
     this.analysis = analysis;
+    this.navigatorGenerator = navigatorGenerator;
   }
 
   /**
-   * Reports each name in the record's field lists that matches no component, each list its other
-   * settings leave unread, and each {@code widenFields} name whose method widening cannot change.
+   * Reports unknown and repeated names in the record's field lists, each list its other settings
+   * leave unread, and each {@code widenFields} name whose method widening cannot change.
    *
    * <p>Asked only of a record whose annotation reads as written (see {@link
    * NavigatorClassGenerator#unreadable}): a value javac could not resolve is no array of names.
@@ -105,14 +111,18 @@ final class FocusFieldListChecks {
       AnnotationValue value = ProcessorUtils.getAnnotationValue(annotation, list.attribute);
       if (value != null && !entries(value).isEmpty()) {
         written.put(list, value);
+        reportDuplicates(record, annotation, list, value);
       }
     }
     written.forEach(
-        (list, value) ->
-            entries(value).stream()
-                .filter(entry -> !components.containsKey(nameIn(entry)))
-                .forEach(
-                    entry -> reportUnknown(record, annotation, list, value, entry, components)));
+        (list, value) -> {
+          Set<String> reportedUnknown = new HashSet<>();
+          entries(value).stream()
+              .filter(entry -> !components.containsKey(nameIn(entry)))
+              .filter(entry -> reportedUnknown.add(nameIn(entry)))
+              .forEach(
+                  entry -> reportUnknown(record, annotation, list, value, entry, components));
+        });
 
     GenerateFocus settings = record.getAnnotation(GenerateFocus.class);
     if (!settings.generateNavigators()) {
@@ -165,6 +175,63 @@ final class FocusFieldListChecks {
     return (String) entry.getValue();
   }
 
+
+  /** Reports each repeated name after its first occurrence in one field list. */
+  private void reportDuplicates(
+      TypeElement record, AnnotationMirror annotation, FieldList list, AnnotationValue value) {
+    Set<String> seen = new HashSet<>();
+    for (AnnotationValue entry : entries(value)) {
+      String name = nameIn(entry);
+      if (!seen.add(name)) {
+        Diagnostics.reportAt(
+            messager,
+            Diagnostic.Kind.WARNING,
+            record,
+            annotation,
+            entry,
+            TAG,
+            list.attribute
+                + " on "
+                + record.getSimpleName()
+                + " names \""
+                + name
+                + "\" again.",
+            "The first \"" + name + "\" already names it, so this changes nothing.",
+            "Remove the repeated \""
+                + name
+                + "\" from "
+                + list.attribute
+                + " on "
+                + record.getSimpleName()
+                + ".");
+      }
+    }
+  }
+
+  /**
+   * Whether a component is a safe suggestion for a field-list name.
+   *
+   * <p>Widening suggestions must change the path, and an include suggestion must not reserve a
+   * navigator class name already taken by another included field.
+   */
+  /**
+   * Whether a component can usefully be suggested for a field-list correction.
+   *
+   * @param list the field list being corrected
+   * @param component the component being considered
+   * @return whether naming it changes widening, or the list does not test widening
+   */
+  private boolean usableSuggestion(FieldList list, RecordComponentElement component) {
+    return list != FieldList.WIDEN || widenFieldsChanges(component);
+  }
+
+  /** Whether naming a component in {@code widenFields} changes its generated path. */
+  private boolean widenFieldsChanges(RecordComponentElement component) {
+    Widening unnamed = analysis.analyse(component, false);
+    Widening named = analysis.analyse(component, true);
+    return named.steps().size() != unnamed.steps().size() || named.declined() != null;
+  }
+
   /**
    * Refuses a name that matches no component, offering the component it most likely meant: a near
    * misspelling, a different case, or the accessor spelling of the component's name.
@@ -179,7 +246,61 @@ final class FocusFieldListChecks {
     String recordName = record.getSimpleName().toString();
     String name = nameIn(entry);
     List<String> names = List.copyOf(components.keySet());
-    Optional<String> near = NamingConvention.ACCESSOR.nearest(name, names);
+    List<String> alreadyNamed = entries(value).stream().map(FocusFieldListChecks::nameIn).toList();
+    Optional<String> near =
+        NamingConvention.ACCESSOR.nearest(
+            name,
+            names.stream()
+                .filter(candidate -> !alreadyNamed.contains(candidate))
+                .filter(candidate -> usableSuggestion(list, components.get(candidate)))
+                .toList());
+    Optional<RecordComponentElement> namesake =
+        list == FieldList.INCLUDE && near.isPresent()
+            ? navigatorGenerator.namesake(record, components.get(near.get()), other -> false)
+            : Optional.empty();
+    String namesakeExplanation =
+        namesake
+            .map(
+                other ->
+                    navigatorGenerator.suggestedNamesakeSentence(
+                        record, components.get(near.orElseThrow()), other))
+            .orElse("");
+    String explanation =
+        list.attribute
+            + " "
+            + list.effect
+            + "."
+            + near.map(meant -> " Did you mean '" + meant + "'?").orElse("")
+            + (names.isEmpty()
+                ? " " + recordName + " has no components."
+                : " Found on " + recordName + ": " + names + ".")
+            + namesakeExplanation;
+    String fix =
+        near.map(
+                meant ->
+                    namesake.isPresent()
+                        ? navigatorGenerator.suggestedNamesakeFixLine(
+                            record, components.get(meant), namesake.get(), name, list.attribute)
+                        : "Replace \""
+                            + name
+                            + "\" with \""
+                            + meant
+                            + "\" in "
+                            + list.attribute
+                            + " on "
+                            + recordName
+                            + ".")
+            .orElseGet(
+                () ->
+                    names.isEmpty()
+                        ? ProcessorUtils.capitalise(removal(record, list, value, name)) + "."
+                        : "Write a component of "
+                            + recordName
+                            + " in place of \""
+                            + name
+                            + "\", or "
+                            + removal(record, list, value, name)
+                            + ".");
     Diagnostics.reportAt(
         messager,
         Diagnostic.Kind.ERROR,
@@ -195,36 +316,8 @@ final class FocusFieldListChecks {
             + "\", which is not a component of "
             + recordName
             + ".",
-        list.attribute
-            + " "
-            + list.effect
-            + "."
-            + near.map(meant -> " Did you mean '" + meant + "'?").orElse("")
-            + (names.isEmpty()
-                ? " " + recordName + " has no components."
-                : " Found on " + recordName + ": " + names + "."),
-        near.map(
-                meant ->
-                    "Replace \""
-                        + name
-                        + "\" with \""
-                        + meant
-                        + "\" in "
-                        + list.attribute
-                        + " on "
-                        + recordName
-                        + ".")
-            .orElseGet(
-                () ->
-                    names.isEmpty()
-                        ? ProcessorUtils.capitalise(removal(record, list, value, name)) + "."
-                        : "Write a component of "
-                            + recordName
-                            + " in place of \""
-                            + name
-                            + "\", or "
-                            + removal(record, list, value, name)
-                            + "."));
+        explanation,
+        fix);
   }
 
   /**
@@ -326,8 +419,7 @@ final class FocusFieldListChecks {
       AnnotationValue entry,
       RecordComponentElement component) {
     Widening unnamed = analysis.analyse(component, false);
-    Widening named = analysis.analyse(component, true);
-    if (named.steps().size() != unnamed.steps().size() || named.declined() != null) {
+    if (widenFieldsChanges(component)) {
       return;
     }
     String recordName = record.getSimpleName().toString();

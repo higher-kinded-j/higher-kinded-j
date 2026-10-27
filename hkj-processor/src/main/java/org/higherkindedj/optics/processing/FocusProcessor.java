@@ -219,17 +219,16 @@ public class FocusProcessor extends AbstractProcessor {
     WideningAnalysis analysis =
         new WideningAnalysis(processingEnv, traversableGenerators, packageName);
 
+    // Create the generator before field-list checks so suggestions use the same navigator
+    // target and class-name rules as generation.
+    NavigatorClassGenerator navigatorGenerator =
+        new NavigatorClassGenerator(processingEnv, navigableTypes, maxNavigatorDepth, analysis);
+
     // A name in a field list that matches no component is an error, but the companion is still
     // written, as it is for a container refused at a component, so that code using its paths does
     // not fail on a missing class as well.
-    new FocusFieldListChecks(processingEnv.getMessager(), analysis).check(recordElement);
-
-    // Create navigator generator if enabled
-    NavigatorClassGenerator navigatorGenerator = null;
-    if (generateNavigators) {
-      navigatorGenerator =
-          new NavigatorClassGenerator(processingEnv, navigableTypes, maxNavigatorDepth, analysis);
-    }
+    new FocusFieldListChecks(processingEnv.getMessager(), analysis, navigatorGenerator)
+        .check(recordElement);
 
     // Generate FocusPath methods for each component
     for (RecordComponentElement component : components) {
@@ -240,7 +239,7 @@ public class FocusProcessor extends AbstractProcessor {
       MethodSpec method = null;
 
       // Try to create a navigator method if navigators are enabled
-      if (navigatorGenerator != null) {
+      if (generateNavigators) {
         method = navigatorGenerator.createNavigatorMethod(component, recordElement, recordTypeName);
       }
 
@@ -265,7 +264,7 @@ public class FocusProcessor extends AbstractProcessor {
     }
 
     // Generate navigator inner classes if enabled
-    if (navigatorGenerator != null) {
+    if (generateNavigators) {
       navigatorGenerator.generateNavigators(focusClassBuilder, recordElement, 0);
     }
 

@@ -37,6 +37,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`has its class name`](#generatefocus-no-navigator-shared-name) | **Note.** The same clash, on a record that leaves navigators to the default: the later field keeps its plain path |
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`has no AffineForm`, `has no TraversalForm`](#generatefocus-no-form) | **Note.** A record that writes `generateNavigators = true` reaches a record with a field named like a wider path's own method, so a hop from that path returns the plain path |
+| [`names "y" again`](#generatefocus-field-list-duplicate-name) | **Warning.** A field list repeats a component name |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
 | [`whose field has no navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that has no navigator |
 | [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
@@ -596,6 +597,27 @@ Note: @GenerateFocus: the navigator for 'Channel.feed' has no TraversalForm. A T
 ```
 ~~~
 
+### "@GenerateFocus: includeFields on X names "y" again" (a warning) {#generatefocus-field-list-duplicate-name}
+
+A field list repeats a name. Only the first occurrence can affect generated paths; each later occurrence warns at its value.
+
+**Fix.** Remove the repeated occurrence named in the message. Following the fix leaves the first name in the list.
+
+~~~admonish example title="A declaration that draws it"
+<!-- verify:reports "includeFields on Bin names "items" again" -->
+```java
+@GenerateFocus
+record Item(String sku) {}
+
+@GenerateFocus(includeFields = {"items", "items"})
+record Bin(Item items) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Bin names "items" again. The first "items" already names it, so this changes nothing. Remove the repeated "items" from includeFields on Bin.
+```
+~~~
+
 ### "@GenerateFocus: includeFields on X names "y", which is not a component of X" {#generatefocus-field-list-unknown-name}
 
 `includeFields`, `excludeFields` or `widenFields` names a field the record does not have: a typo, or a name a rename left behind. In `includeFields` it costs the most, since a non-empty list gives navigators only to the fields it names, so a list whose only name is a typo leaves every field without one.
@@ -603,7 +625,7 @@ Note: @GenerateFocus: the navigator for 'Channel.feed' has no TraversalForm. A T
 **Fix.** Write the component's name. Where one is close, the message offers it: a near misspelling, a different case such as `"Positions"`, or an accessor spelling such as `"getAddress"`. Take out a name that is no longer wanted.
 
 ~~~admonish note title="Why" collapsible=true
-The lists hold strings, which javac cannot check against the record, so the processor does. A name that matched nothing would otherwise change nothing, and say nothing about it. The message lists the components it found, so a name with no near miss can be put right from the message alone.
+The lists hold strings, which javac cannot check against the record, so the processor does. A name that matched nothing would otherwise change nothing, and say nothing about it. The message lists the components it found, so a name with no near miss can be put right from the message alone. Suggestions omit fields already named in the list and fields whose proposed change cannot widen them. Where an included field has a namesake, the fix asks for a rename first.
 ~~~
 
 ~~~admonish example title="A declaration that produces it"

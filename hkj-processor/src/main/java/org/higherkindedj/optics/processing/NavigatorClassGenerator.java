@@ -361,6 +361,62 @@ public class NavigatorClassGenerator {
   }
 
   /**
+   * The rename-first explanation and correction for a suggested include field that would share a
+   * navigator class name with another field already in the record.
+   *
+   * @param record the record whose includeFields list is being checked
+   * @param component the field the suggestion would add
+   * @param namesake the field whose navigator would share the class name
+   * @return the explanation and fix-line wording
+   */
+  String suggestedNamesakeSentence(
+      TypeElement record, RecordComponentElement component, RecordComponentElement namesake) {
+    return sharedNameSentence(record, component, Optional.of(namesake));
+  }
+
+  /**
+   * The fix line that asks for both namesakes to be renamed before replacing the suggested name.
+   *
+   * @param record the record whose field list is being checked
+   * @param component the suggested component
+   * @param namesake the component whose navigator shares the class name
+   * @param mistakenName the misspelled field-list name
+   * @param listName the field-list attribute
+   * @return a fix line that can be followed without producing another diagnostic
+   */
+  String suggestedNamesakeFixLine(
+      TypeElement record,
+      RecordComponentElement component,
+      RecordComponentElement namesake,
+      String mistakenName,
+      String listName) {
+    return renamedFirst(record, component, "", List.of(), Optional.of(namesake))
+        .map(
+            renames ->
+                "Rename "
+                    + renames
+                    + " first, then replace \""
+                    + mistakenName
+                    + "\" with \""
+                    + component.getSimpleName()
+                    + "\" in "
+                    + listName
+                    + " on "
+                    + record.getSimpleName()
+                    + ".")
+        .orElse(
+            "Replace \""
+                + mistakenName
+                + "\" with \""
+                + component.getSimpleName()
+                + "\" in "
+                + listName
+                + " on "
+                + record.getSimpleName()
+                + ".");
+  }
+
+  /**
    * The sentence, after a space, saying why a fix line asks for one of two fields to be renamed
    * first: the navigator it offers one would share its class name with the other's, which has a
    * navigator or would gain one from the same change. Empty where there is no such field.

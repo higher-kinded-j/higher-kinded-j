@@ -84,6 +84,89 @@ class FocusFieldListChecksTest {
               "@GenerateFocus(widenFields = \"positions\")",
               null),
           new Row(
+              "CaseBin",
+              "Addr items, Addr featured",
+              "@GenerateFocus(includeFields = {\"items\", \"Items\"})",
+              Diagnostic.Kind.ERROR,
+              "\"Items\"",
+              "includeFields gives navigators only to the components it names, so a name that matches none gives no component a navigator. Found on CaseBin: [items, featured]. Write a component of CaseBin in place of \"Items\", or remove \"Items\" from includeFields on CaseBin.",
+              "@GenerateFocus(includeFields = {\"items\"})",
+              null),
+          new Row(
+              "NearWiden",
+              "String title, Map<String, Integer> stock",
+              "@GenerateFocus(widenFields = \"stck\")",
+              Diagnostic.Kind.ERROR,
+              "\"stck\"",
+              "widenFields widens the containers of the components it names, so a name that matches none widens nothing. Did you mean 'stock'? Found on NearWiden: [title, stock]. Replace \"stck\" with \"stock\" in widenFields on NearWiden.",
+              "@GenerateFocus(widenFields = \"stock\")",
+              null),
+          new Row(
+              "NoWidenSuggestion",
+              "String name, String stock",
+              "@GenerateFocus(widenFields = \"stak\")",
+              Diagnostic.Kind.ERROR,
+              "\"stak\"",
+              "widenFields widens the containers of the components it names, so a name that matches none widens nothing. Found on NoWidenSuggestion: [name, stock]. Write a component of NoWidenSuggestion in place of \"stak\", or remove widenFields from @GenerateFocus on NoWidenSuggestion.",
+              "@GenerateFocus",
+              null),
+          new Row(
+              "CollisionBin",
+              "Addr items, Addr Items",
+              "@GenerateFocus(includeFields = {\"Items\", \"itemz\"})",
+              Diagnostic.Kind.ERROR,
+              "\"itemz\"",
+              "includeFields gives navigators only to the components it names, so a name that"
+                  + " matches none gives no component a navigator. Did you mean 'items'? Found on"
+                  + " CollisionBin: [items, Items]. A navigator for 'items' would share its class"
+                  + " name, ItemsNavigator, with the navigator for 'CollisionBin.Items', since a"
+                  + " navigator class takes its field's name with the first letter in upper case.",
+              "Rename 'CollisionBin.items' or 'CollisionBin.Items' first, then replace"
+                  + " \"itemz\" with \"items\" in includeFields on CollisionBin.",
+              null),
+          new Row(
+              "CollisionBinStrict",
+              "Addr items, Addr Items",
+              "@GenerateFocus(generateNavigators = true, includeFields = {\"Items\", \"itemz\"})",
+              Diagnostic.Kind.ERROR,
+              "\"itemz\"",
+              "includeFields gives navigators only to the components it names, so a name that"
+                  + " matches none gives no component a navigator. Did you mean 'items'? Found on"
+                  + " CollisionBinStrict: [items, Items]. A navigator for 'items' would share its"
+                  + " class name, ItemsNavigator, with the navigator for 'CollisionBinStrict.Items',"
+                  + " since a navigator class takes its field's name with the first letter in"
+                  + " upper case.",
+              "Rename 'CollisionBinStrict.items' or 'CollisionBinStrict.Items' first, then replace"
+                  + " \"itemz\" with \"items\" in includeFields on CollisionBinStrict.",
+              null),
+          new Row(
+              "DuplicateInclude",
+              "Addr items",
+              "@GenerateFocus(includeFields = {\"items\", \"items\"})",
+              Diagnostic.Kind.WARNING,
+              "\"items\"}",
+              "@GenerateFocus: includeFields on DuplicateInclude names \"items\" again. The first \"items\" already names it, so this changes nothing. Remove the repeated \"items\" from includeFields on DuplicateInclude.",
+              "@GenerateFocus(includeFields = \"items\")",
+              null),
+          new Row(
+              "DuplicateExclude",
+              "Addr items",
+              "@GenerateFocus(excludeFields = {\"items\", \"items\"})",
+              Diagnostic.Kind.WARNING,
+              "\"items\"}",
+              "@GenerateFocus: excludeFields on DuplicateExclude names \"items\" again. The first \"items\" already names it, so this changes nothing. Remove the repeated \"items\" from excludeFields on DuplicateExclude.",
+              "@GenerateFocus(excludeFields = \"items\")",
+              null),
+          new Row(
+              "DuplicateWiden",
+              "Map<String, Integer> stock",
+              "@GenerateFocus(widenFields = {\"stock\", \"stock\"})",
+              Diagnostic.Kind.WARNING,
+              "\"stock\"}",
+              "@GenerateFocus: widenFields on DuplicateWiden names \"stock\" again. The first \"stock\" already names it, so this changes nothing. Remove the repeated \"stock\" from widenFields on DuplicateWiden.",
+              "@GenerateFocus(widenFields = \"stock\")",
+              null),
+          new Row(
               "Person",
               "Addr home, Addr work",
               "@GenerateFocus(excludeFields = \"hmoe\")",
@@ -486,4 +569,33 @@ class FocusFieldListChecksTest {
     assertThat(compilation).hadErrorCount(1);
     assertThat(compilation).hadErrorContaining("cannot find symbol");
   }
+  @Test
+  @DisplayName("a repeated unknown name is refused at its first copy and warned at the second")
+  void aRepeatedUnknownName() {
+    Row repeated =
+        quiet(
+            "RepeatedUnknown",
+            "Addr items",
+            "@GenerateFocus(includeFields = {\"itemz\", \"itemz\"})");
+    JavaFileObject source = source(repeated, repeated.annotation());
+    Compilation written = compile(Row::annotation, Stream.of(repeated));
+    Compilation followed =
+        compile(row -> "@GenerateFocus(includeFields = \"items\")", Stream.of(repeated));
+
+    assertThat(written).hadErrorCount(1);
+    assertThat(written)
+        .hadErrorContaining("Replace \"itemz\" with \"items\" in includeFields on RepeatedUnknown.")
+        .inFile(source)
+        .onLine(ANNOTATION_LINE)
+        .atColumn(33);
+    assertThat(written).hadWarningCount(1);
+    assertThat(written)
+        .hadWarningContaining(
+            "Remove the repeated \"itemz\" from includeFields on RepeatedUnknown.")
+        .inFile(source)
+        .onLine(ANNOTATION_LINE)
+        .atColumn(42);
+    assertThat(followed).succeededWithoutWarnings();
+  }
+
 }
