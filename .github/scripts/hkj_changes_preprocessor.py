@@ -111,29 +111,33 @@ def _fence_marker(line):
     return None
 
 
-def _ends_in_comment(line, in_comment):
-    """Whether an HTML comment is still open at the end of `line`.
+def _uncommented(line, in_comment):
+    """The text of `line` outside HTML comments, and whether one is still open
+    at its end, given whether one was open at its start.
 
     Code spans are blanked first, so a `<!--` quoted in prose opens nothing.
     """
     text = re.sub(r"`[^`]*`", "", line)
+    kept = []
     pos = 0
     while True:
         token = "-->" if in_comment else "<!--"
         found = text.find(token, pos)
         if found < 0:
-            return in_comment
+            if not in_comment:
+                kept.append(text[pos:])
+            return " ".join(kept), in_comment
+        if not in_comment:
+            kept.append(text[pos:found])
         in_comment = not in_comment
         pos = found + len(token)
 
 
-def _container_depth(line, depth):
-    """The number of HTML containers still open at the end of `line`.
-
-    Code spans and comments are blanked first, so a `<div>` quoted in prose
-    opens nothing.
+def _container_depth(text, depth):
+    """The number of HTML containers still open after `text`, a line with its
+    code spans and comments removed, so a `<div>` quoted in prose or
+    commented out opens nothing.
     """
-    text = COMMENT_RE.sub("", re.sub(r"`[^`]*`", "", line))
     opened = len(CONTAINER_OPEN_RE.findall(text))
     closed = len(CONTAINER_CLOSE_RE.findall(text))
     return max(0, depth + opened - closed)
@@ -178,7 +182,8 @@ def split_blocks(text):
                 # A comment runs on, blank and fence-like lines included, until
                 # it closes, so a comment-only block is never split in two.
                 current.append(line)
-                in_comment = _ends_in_comment(line, True)
+                visible, in_comment = _uncommented(line, True)
+                depth = _container_depth(visible, depth)
                 continue
             if marker is not None:
                 # Opening a fence: flush any preceding text first so the fence
@@ -200,8 +205,8 @@ def split_blocks(text):
                 if not current:
                     start = i
                 current.append(line)
-                in_comment = _ends_in_comment(line, False)
-                depth = _container_depth(line, depth)
+                visible, in_comment = _uncommented(line, False)
+                depth = _container_depth(visible, depth)
         else:
             current.append(line)
             # A closing fence uses the same char and at least the same length.
