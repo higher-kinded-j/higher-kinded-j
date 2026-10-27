@@ -242,7 +242,7 @@ The validation interpreter checks for:
 A `modify` whose modifier returns `null` produces a *warning*; a modifier that throws produces an error, and for a `modify` that error is recorded twice, once from the check and once from the execution.
 
 ~~~admonish warning title="Only modifier failures are caught"
-The interpreter wraps the function you pass to `set`, `modify` and their `All` variants. A throw from inside a `flatMap` *continuation* runs outside that guard and propagates out of `validate`, so a loop that expects to collect failures will die on the first one instead. Put the check in a modifier if you want it reported rather than thrown.
+The interpreter wraps the function you pass to `set`, `modify` and their `All` variants. A throw from inside a `flatMap` *continuation* runs outside that guard and propagates out of `validate`, so a loop that expects to collect failures will die on the first one instead. So does a throw from a function mapped onto an operation, which runs inside `op.k()` after the guarded step. Put the check in a modifier if you want it reported rather than thrown.
 ~~~
 
 Anything beyond those two belongs in an interpreter of your own. `ValidationOpticInterpreter`
@@ -378,16 +378,7 @@ report instead of the result.
 
 What they have in common is the shape inside them. Each supplies a natural
 transformation, a function taking one `OpticOp` to a value in some effect type, and
-folds it over the whole program:
-
-<!-- verify -->
-```java
-// One OpticOp in, one effect out. foldMap walks the program applying it.
-// answer(kind) is your own code: it carries out one operation and hands the result to op.k()
-Function<Kind<OpticOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
-    kind -> Id.of(answer(kind));
-Kind<IdKind.Witness, Saver> resultKind = program.foldMap(transform, Instances.monad(id()));
-```
+folds it over the whole program.
 
 Every `OpticOp` record carries a continuation, `k`, the same way an
 [`@EffectAlgebra`](../effect/effect_handlers.md) operation does. A `Get` hands its
@@ -395,7 +386,41 @@ focus to `k`, a `Set` hands it the updated source, and so on. Your interpreter c
 out the operation and passes what it produced to `op.k()`; whatever comes back is what
 the fold continues with.
 
-Your own interpreter is a class that does the same. It does not extend or implement
+Write each operation as a helper typed by its record, as the library's interpreters do.
+The helper returns `R`, what the continuation gives, so one that returns the focus and
+skips `op.k()` does not compile:
+
+<!-- verify -->
+```java
+public final class TypedOpticInterpreter {
+
+    public <A> A run(Free<OpticOpKind.Witness, A> program) {
+        // One OpticOp in, one effect out. foldMap walks the program applying it.
+        Natural<OpticOpKind.Witness, IdKind.Witness> transform = new Natural<>() {
+            @Override
+            public <B> Kind<IdKind.Witness, B> apply(Kind<OpticOpKind.Witness, B> kind) {
+                return switch (OpticOpKindHelper.OP.narrow(kind)) {
+                    case OpticOp.Get<?, ?, B> get -> Id.of(executeGet(get));
+                    case OpticOp.Set<?, ?, B> set -> Id.of(executeSet(set));
+                    // ... a case for each operation your programs use
+                    default -> throw new UnsupportedOperationException(kind.getClass().getSimpleName());
+                };
+            }
+        };
+        return IdKindHelper.ID.narrow(program.foldMap(transform, Instances.monad(id()))).value();
+    }
+
+    private static <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
+        return op.k().apply(op.optic().get(op.source()));
+    }
+
+    private static <S, A, R> R executeSet(OpticOp.Set<S, A, R> op) {
+        return op.k().apply(op.optic().set(op.newValue(), op.source()));
+    }
+}
+```
+
+Your own interpreter is a class like this one. It does not extend or implement
 anything from the library.
 
 ### Example 1: Performance Profiling Interpreter
@@ -521,8 +546,9 @@ public final class MockOpticInterpreter {
                     (Kind<OpticOpKind.Witness, Object>) kind
                 );
 
-                // Each operation gets the stub the caller supplied for it,
-                // handed to the operation's continuation as if the operation had produced it.
+                // Each operation gets the stub the caller supplied for it, handed to the
+                // operation's continuation as if the operation had produced it, so the stub
+                // must have exactly the type that operation produces.
                 Object result = ((Function<Object, ?>) op.k()).apply(stubs.apply(op));
 
                 return Id.of(result);

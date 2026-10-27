@@ -5,8 +5,12 @@ package org.higherkindedj.optics.free;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.optics.free.OpticOpKindHelper.OP;
+import static org.higherkindedj.optics.free.OpticOpLawFixtures.ALICE;
+import static org.higherkindedj.optics.free.OpticOpLawFixtures.NAME;
+import static org.higherkindedj.optics.free.OpticOpLawFixtures.getName;
 
 import java.util.function.Function;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.Free;
@@ -14,86 +18,85 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.id.IdMonad;
-import org.higherkindedj.optics.Lens;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.test.contract.Category;
+import org.higherkindedj.hkt.test.contract.TypeClassContract;
+import org.higherkindedj.optics.free.OpticOpLawFixtures.Person;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-/** Tests for {@link OpticOpFunctor} and the continuation each {@link OpticOp} carries. */
+/**
+ * Test suite for {@link OpticOpFunctor} and the continuation each {@link OpticOp} carries.
+ *
+ * <p>The laws are driven by the shipped {@link FunctorLaws} over one operation of each kind in
+ * {@link OpticOpLawFixtures}.
+ */
 @DisplayName("OpticOpFunctor Tests")
 class OpticOpFunctorTest {
 
-  record Person(String name, int age) {}
-
-  static final Lens<Person, String> NAME_LENS =
-      Lens.of(Person::name, (person, name) -> new Person(name, person.age()));
-
-  static final Person ALICE = new Person("Alice", 25);
-
   private static final OpticOpFunctor FUNCTOR = OpticOpFunctor.INSTANCE;
 
-  private static Kind<OpticOpKind.Witness, String> getName() {
-    return OP.widen(new OpticOp.Get<>(ALICE, NAME_LENS::get, Function.identity()));
+  @Nested
+  @DisplayName("Functor Laws")
+  class FunctorLawTests {
+    final Function<Object, String> f = Object::toString;
+    final Function<String, String> g = s -> s + "!";
+
+    @ParameterizedTest(name = "identity holds on {0}")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#kinds")
+    void identity(String label, Kind<OpticOpKind.Witness, Object> fa) {
+      FunctorLaws.assertIdentity(FUNCTOR, fa, OpticOpLawFixtures.EQ);
+    }
+
+    @ParameterizedTest(name = "composition holds on {0}")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#kinds")
+    void composition(String label, Kind<OpticOpKind.Witness, Object> fa) {
+      FunctorLaws.assertComposition(FUNCTOR, fa, f, g, OpticOpLawFixtures.EQ);
+    }
   }
 
-  /** Runs a single operation and returns what its continuation gives. */
-  @SuppressWarnings("migration-nudge") // lifts one instruction by hand to test the functor
-  private static <A> A runOne(Kind<OpticOpKind.Witness, A> op) {
-    return OpticInterpreters.direct().run(Free.liftF(op, FUNCTOR));
+  /**
+   * {@code map} only composes onto the continuation, so a throwing function does not surface until
+   * the operation runs, and {@link Category#EXCEPTIONS} is left out. The Functor laws are verified
+   * in the {@code FunctorLawTests} block above.
+   */
+  @Test
+  @DisplayName("Functor contract: operations and validations")
+  void functorContract() {
+    TypeClassContract.<OpticOpKind.Witness>functor(OpticOpFunctor.class)
+        .<String>instance(FUNCTOR)
+        .<Integer>withKind(getName())
+        .withMapper(String::length)
+        .verifyOnly(Category.OPERATIONS, Category.VALIDATIONS);
   }
 
   @Nested
-  @DisplayName("map")
-  class MapTests {
+  @DisplayName("Continuation")
+  class ContinuationTests {
 
     @Test
-    @DisplayName("map applies the function to the operation's result")
+    @DisplayName("map applies the function to what the operation produces")
     void mapAppliesTheFunction() {
-      Kind<OpticOpKind.Witness, Integer> mapped = FUNCTOR.map(String::length, getName());
-
-      assertThat(runOne(mapped)).isEqualTo(5);
+      assertThat(OpticOpLawFixtures.run(FUNCTOR.map(String::length, getName()))).isEqualTo(5);
     }
 
     @Test
-    @DisplayName("map keeps the operation and composes onto its continuation")
-    @SuppressWarnings("unchecked") // the get's continuation takes the name, a String
-    void mapKeepsTheOperation() {
-      Kind<OpticOpKind.Witness, Integer> mapped = FUNCTOR.map(String::length, getName());
+    @DisplayName("a null from the mapped function fails when the operation runs, as in Free.map")
+    void nullResultFailsWhenRun() {
+      Kind<OpticOpKind.Witness, String> mapped = FUNCTOR.map(name -> null, getName());
 
-      OpticOp<?, Integer> op = OP.narrow(mapped);
-      assertThat(op).isInstanceOf(OpticOp.Get.class);
-      assertThat(((OpticOp.Get<?, ?, ?>) op).source()).isEqualTo(ALICE);
-      assertThat(((Function<Object, ?>) op.k()).apply("Bob")).isEqualTo(3);
+      assertThatNullPointerException()
+          .isThrownBy(() -> OpticOpLawFixtures.run(mapped))
+          .withMessage("f must not return null");
     }
 
-    @Test
-    @DisplayName("map with identity gives the same result")
-    void mapIdentity() {
-      assertThat(runOne(FUNCTOR.map(Function.identity(), getName()))).isEqualTo(runOne(getName()));
-    }
-
-    @Test
-    @DisplayName("map composes")
-    void mapComposes() {
-      Function<String, Integer> length = String::length;
-      Function<Integer, String> describe = n -> n + " letters";
-
-      String twice = runOne(FUNCTOR.map(describe, FUNCTOR.map(length, getName())));
-      String once = runOne(FUNCTOR.map(length.andThen(describe), getName()));
-
-      assertThat(twice).isEqualTo(once).isEqualTo("5 letters");
-    }
-
-    @Test
-    @DisplayName("map rejects a null function")
-    void mapRejectsNullFunction() {
-      assertThatNullPointerException().isThrownBy(() -> FUNCTOR.map(null, getName()));
-    }
-
-    @Test
-    @DisplayName("map rejects a null instruction")
-    void mapRejectsNullKind() {
-      assertThatNullPointerException().isThrownBy(() -> FUNCTOR.map(String::length, null));
+    @ParameterizedTest(name = "{0} rejects a null continuation")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#withoutContinuation")
+    void recordRejectsNullContinuation(String label, ThrowingCallable construct) {
+      assertThatNullPointerException().isThrownBy(construct).withMessageContaining("k");
     }
   }
 
@@ -130,8 +133,8 @@ class OpticOpFunctorTest {
     @DisplayName("an interpreter that hands each result to the continuation runs a program")
     void continuationInterpreterRunsAProgram() {
       Free<OpticOpKind.Witness, Person> program =
-          OpticPrograms.get(ALICE, NAME_LENS)
-              .flatMap(name -> OpticPrograms.set(ALICE, NAME_LENS, name.toUpperCase()));
+          OpticPrograms.get(ALICE, NAME)
+              .flatMap(name -> OpticPrograms.set(ALICE, NAME, name.toUpperCase()));
 
       assertThat(run(program)).isEqualTo(new Person("ALICE", 25));
     }
@@ -150,8 +153,8 @@ class OpticOpFunctorTest {
     @DisplayName("a translated program runs through the same interpreter")
     void translatedProgramRuns() {
       Free<OpticOpKind.Witness, Person> program =
-          OpticPrograms.get(ALICE, NAME_LENS)
-              .flatMap(name -> OpticPrograms.set(ALICE, NAME_LENS, name + "!"));
+          OpticPrograms.get(ALICE, NAME)
+              .flatMap(name -> OpticPrograms.set(ALICE, NAME, name + "!"));
 
       Free<OpticOpKind.Witness, Person> translated =
           Free.translate(program, Natural.identity(), FUNCTOR);

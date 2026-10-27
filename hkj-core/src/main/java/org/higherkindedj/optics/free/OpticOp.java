@@ -2,10 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.free;
 
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -53,8 +56,12 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    * The continuation from what this operation produces to the result type.
    *
    * <p>Each record narrows the input type: a {@link Get} takes the focus, a {@link Set} takes the
-   * updated source. An interpreter that handles every operation the same way, such as a mock that
-   * looks up a stub, can hand its value to this.
+   * updated source. It is meant for a handler that knows what its operation produces, as a helper
+   * typed by the record does through the record's own {@code k()}. A handler that treats every
+   * operation alike, such as a mock that looks up a stub, can only call it through an unchecked
+   * cast, and must pass a value of exactly the type the operation produces. A value of another type
+   * fails with {@code ClassCastException} inside whatever was mapped onto {@code k}, not in the
+   * handler.
    *
    * @return The continuation
    */
@@ -78,6 +85,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record Get<S extends @Nullable Object, A, R>(S source, Getter<S, A> optic, Function<A, R> k)
       implements OpticOp<S, R> {
+    public Get {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Get<>(source, optic, k.andThen(f));
@@ -93,6 +104,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record Preview<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<Optional<@NonNull A>, R> k) implements OpticOp<S, R> {
+    public Preview {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Preview<>(source, optic, k.andThen(f));
@@ -108,6 +123,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record GetAll<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<List<A>, R> k) implements OpticOp<S, R> {
+    public GetAll {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new GetAll<>(source, optic, k.andThen(f));
@@ -123,6 +142,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record Set<S, A extends @Nullable Object, R>(
       S source, Lens<S, A> optic, A newValue, Function<S, R> k) implements OpticOp<S, R> {
+    public Set {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Set<>(source, optic, newValue, k.andThen(f));
@@ -138,6 +161,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record SetAll<S, A extends @Nullable Object, R>(
       S source, Traversal<S, A> optic, A newValue, Function<S, R> k) implements OpticOp<S, R> {
+    public SetAll {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new SetAll<>(source, optic, newValue, k.andThen(f));
@@ -154,6 +181,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Modify<S, A extends @Nullable Object, R>(
       S source, Lens<S, A> optic, Function<A, A> modifier, Function<S, R> k)
       implements OpticOp<S, R> {
+    public Modify {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Modify<>(source, optic, modifier, k.andThen(f));
@@ -170,6 +201,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record ModifyAll<S, A extends @Nullable Object, R>(
       S source, Traversal<S, A> optic, Function<A, A> modifier, Function<S, R> k)
       implements OpticOp<S, R> {
+    public ModifyAll {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new ModifyAll<>(source, optic, modifier, k.andThen(f));
@@ -186,6 +221,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Exists<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Predicate<A> predicate, Function<Boolean, R> k)
       implements OpticOp<S, R> {
+    public Exists {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Exists<>(source, optic, predicate, k.andThen(f));
@@ -202,6 +241,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record All<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Predicate<A> predicate, Function<Boolean, R> k)
       implements OpticOp<S, R> {
+    public All {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new All<>(source, optic, predicate, k.andThen(f));
@@ -217,6 +260,10 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
    */
   record Count<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<Integer, R> k) implements OpticOp<S, R> {
+    public Count {
+      Validation.function().require(k, "k", CONSTRUCTION);
+    }
+
     @Override
     public <B> OpticOp<S, B> mapK(Function<? super R, ? extends B> f) {
       return new Count<>(source, optic, k.andThen(f));

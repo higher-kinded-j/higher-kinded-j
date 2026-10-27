@@ -24,6 +24,7 @@ import java.util.function.Function;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
@@ -163,14 +164,6 @@ class Fixture {
    */
   static <A> A sample() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
-  }
-
-  /**
-   * One operation carried out and its result handed to the operation's continuation: what the
-   * page's interpreter sketch calls its own code.
-   */
-  static Object answer(Kind<OpticOpKind.Witness, ?> kind) {
-    return sample();
   }
 
   static final Log log = new Log();
