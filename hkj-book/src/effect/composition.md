@@ -570,7 +570,7 @@ IOPath<User> saved =
 ```
 
 A step must return the same kind of Path as the chain it extends. On `userPath`, an `EitherPath`, a
-step that returns an `IOPath` compiles, then throws when it runs; see
+step that returns an `IOPath` compiles, then throws when the chain reaches it with a `Right`; see
 [A step that returns the wrong kind of Path](compiler_errors.md#2-a-step-that-returns-the-wrong-kind-of-path).
 
 ### Mistake 3: _Forgetting to Run_

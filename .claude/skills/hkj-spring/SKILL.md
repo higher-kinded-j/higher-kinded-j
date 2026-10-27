@@ -461,13 +461,16 @@ public class UserService {
 public Either<DomainError, OrderResult> processOrder(String userId, OrderRequest req) {
     return findUser(userId)
         .via(user -> validateOrder(req)
-            .mapError(DomainError.Validation::new)
+            .<DomainError>mapError(DomainError.Validation::new)
             .via(order -> chargePayment(user, order)      // nested: `user` is still in scope
                 .mapError(DomainError.PaymentFailed::new)))
         .map(payment -> new OrderResult(payment.id()))
         .run();
 }
 ```
+
+`.<DomainError>mapError` types the inner chain by `DomainError`, not `DomainError.Validation`, so the
+payment step's `PaymentFailed` fits it.
 
 ---
 
