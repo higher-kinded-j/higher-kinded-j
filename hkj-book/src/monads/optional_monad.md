@@ -262,4 +262,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details.
 ---
 
 **Previous:** [Maybe](maybe_monad.md)
-**Next:** [Reader](reader_monad.md)
+**Next:** [IO](io_monad.md)

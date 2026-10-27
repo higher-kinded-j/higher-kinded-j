@@ -308,4 +308,4 @@ Practise Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/
 ---
 
 **Previous:** [EitherF](eitherf.md)
-**Next:** [Try](try_monad.md)
+**Next:** [Const](const_type.md)

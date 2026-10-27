@@ -302,5 +302,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, expected rati
 
 ---
 
-**Previous:** [Coyoneda](coyoneda.md)
-**Next:** [Validated](validated_monad.md)
+**Previous:** [Accumulating Assembly](validated_assembly.md)
+**Next:** [EitherOrBoth](either_or_both_monad.md)

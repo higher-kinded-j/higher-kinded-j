@@ -355,5 +355,5 @@ Practise Monad chaining in [Tutorial 04: Monad Chaining](https://github.com/high
 
 ---
 
-**Previous:** [Alternative](alternative.md)
+**Previous:** [Applicative](applicative.md)
 **Next:** [MonadError](monad_error.md)

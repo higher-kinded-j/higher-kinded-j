@@ -134,5 +134,5 @@ The old accessors (`MaybeMonad.INSTANCE`, `EitherMonad.instance()`, …) remain 
 
 ---
 
-**Previous:** [Functional API](functional_api.md)
+**Previous:** [Usage Guide](../hkts/usage-guide.md)
 **Next:** [Functor](functor.md)

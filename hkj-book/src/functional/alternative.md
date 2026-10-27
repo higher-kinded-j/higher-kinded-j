@@ -341,5 +341,5 @@ This example demonstrates:
 
 ---
 
-**Previous:** [Applicative](applicative.md)
-**Next:** [Monad](monad.md)
+**Previous:** [Selective](selective.md)
+**Next:** [MonadZero](monad_zero.md)

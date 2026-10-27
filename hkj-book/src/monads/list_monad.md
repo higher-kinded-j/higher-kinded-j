@@ -215,5 +215,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details.
 
 ---
 
-**Previous:** [Lazy](lazy_monad.md)
-**Next:** [NonEmptyList](nonemptylist_monad.md)
+**Previous:** [Writer](writer_monad.md)
+**Next:** [Stream](stream_monad.md)

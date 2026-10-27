@@ -240,5 +240,5 @@ The library is built so that the *abstraction* lives in the type system and the 
 
 ---
 
-**Previous:** [One Line, Six Layers](one_line_six_layers.md)
-**Next:** [Higher-Kinded Types](ch_intro.md)
+**Previous:** [Type Arity](type-arity.md)
+**Next:** [Extending the Simulation](extending-simulation.md)

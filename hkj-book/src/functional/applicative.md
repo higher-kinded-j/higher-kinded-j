@@ -171,4 +171,4 @@ Practise Applicative combining in [Tutorial 03: Applicative Combining](https://g
 ---
 
 **Previous:** [Functor](functor.md)
-**Next:** [Alternative](alternative.md)
+**Next:** [Monad](monad.md)

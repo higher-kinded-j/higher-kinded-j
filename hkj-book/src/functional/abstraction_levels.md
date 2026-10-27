@@ -322,5 +322,5 @@ Full monadic power when needed:
 
 ---
 
-**Previous:** [ForState Comprehension](forstate_comprehension.md)
-**Next:** [Core Types](../monads/ch_intro.md)
+**Previous:** [MonadZero](monad_zero.md)
+**Next:** [Bifunctor](bifunctor.md)

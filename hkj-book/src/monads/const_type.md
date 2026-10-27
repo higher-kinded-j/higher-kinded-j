@@ -375,4 +375,5 @@ Understanding `Const` empowers you to write efficient, compositional code for da
 
 ---
 
-**Previous:** [Writer](writer_monad.md)
+**Previous:** [Coyoneda](coyoneda.md)
+**Next:** [Supported Types](supported-types.md)
