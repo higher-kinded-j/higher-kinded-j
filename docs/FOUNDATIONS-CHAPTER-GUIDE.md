@@ -82,7 +82,10 @@ reader came for.
   `org.higherkindedj.example.book.optics.cast`: `Order`, `Customer`, `EmailAddress`, `LineItem` and
   `OrderStatus`, among others. A name keeps one shape across the three chapters. A type this chapter
   needs and the cast lacks is named for its role beside the cast, and the Style Guide's
-  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) says when a page may add one.
+  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) says when a page may add one. Those
+  role types, such as `OrderRepository` and `OrderError`, live in
+  `org.higherkindedj.example.book.foundations`, the parent of the page packages, so every page shares
+  them.
 - **A width proof keeps placeholder types**, such as the arity examples, with a comment saying why.
 
 ## Diagrams

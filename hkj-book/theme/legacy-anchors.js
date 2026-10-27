@@ -32,6 +32,8 @@
     "mapping/codecs.html#admonition-the-inheritance-edge-cases-precisely": "mapping/rules.html#inheriting-one-member-twice",
     "mapping/generics.html#admonition-boundaries": "mapping/rules.html#generic-boundaries",
     "mapping/basics.html#optional-bridge": "mapping/absence.html#optional-bridge",
+    "hkts/one_line_six_layers.html#how-to-read-the-rest-of-this-chapter": "hkts/foundations_intro.html#how-to-read-this-chapter",
+    "hkts/one_line_six_layers.html#what-foundations-is-and-is-not": "hkts/foundations_intro.html#how-to-read-this-chapter",
     "mapping/basics.html#constructor-invariants": "mapping/absence.html#constructor-invariants",
     "mapping/basics.html#the-fine-print": "mapping/basics.html#bind-in-the-caller",
     "mapping/codecs.html#your-own-canon-validatedprismcanonical": "mapping/codecs.html#your-own-canon",
