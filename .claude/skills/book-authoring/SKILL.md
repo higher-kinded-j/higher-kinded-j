@@ -63,7 +63,8 @@ guide's "Chapter Guides" section says.
    request says which findings were declined, and why.
 9. **Add the release-notes entry** to `hkj-book/src/release-history/unreleased.md` when users can
    see the change, as the style guide's Release Notes section says. Never edit a released
-   version's page.
+   version's page. A headline for the next release may also earn a card in the home page's band,
+   as the style guide's Home Page Band section says.
 10. **In the pull request**, fill in the template's "Book changes" section.
 
 ## Traps

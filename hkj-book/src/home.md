@@ -16,6 +16,43 @@
   <a href="https://techhub.social/@ultramagnetic"><img src="https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto" alt="Mastodon Follow"></a>
 </div>
 
+<!-- This band shows the newest release, or what main adds for the next one: see "The Home Page Band" in docs/STYLE-GUIDE.md. -->
+<section class="hkj-spotlight" aria-labelledby="hkj-spotlight-title">
+<div class="hkj-spotlight-head">
+<p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">New in 0.5.0</p>
+
+[All changes in 0.5.0](release-history/v0_5_0.md)
+
+</div>
+<div class="hkj-spotlight-card hkj-spotlight-lead">
+<span class="hkj-spotlight-chip">Navigators</span>
+
+**[Records that navigate themselves](optics/focus_navigation.md#fluent-navigation-with-generated-navigators)**
+
+<!-- verify -->
+```java
+User moved = UserFocus.address().street().name().set("Grey Street", user);
+```
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Core types</span>
+
+**[Values that are never null](monads/either_monad.md#creating-instances)**
+
+`Either`, `Try`, `IO` and `VTask` refuse a null, so it fails on the line that made it.
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Nullness</span>
+
+**[Optics that pass a nullness checker](optics/focus_effects.md#a-focus-that-may-be-null)**
+
+Every optic and Focus path type takes a `@Nullable` focus.
+
+</div>
+</section>
+
 ---
 
 Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **[Effect Path API](effect/ch_intro.md)**, and type-safe immutable data navigation through the **[Focus DSL](optics/focus_dsl.md)**. Each is powerful alone. Together they form one approach to building robust applications, where effects and structure compose in the same vocabulary. At the edge of a service, **[Mapping at the Boundary](mapping/ch_intro.md)** turns the DTO-to-domain mapper into compile-time codegen that never loses an error, and for services that need several execution modes, **[Effect Handlers](effect/effect_handlers_intro.md)** let you define domain operations as data and interpret them differently for production, testing, or audit.

@@ -435,9 +435,27 @@ At release:
 1. **Finish every edit in `unreleased.md` first.** Once it is renamed, the readability and spelling checks stop reading it, so the cut is a rename and a new title only.
 2. **Rename it to the version's page**, `vX_Y_Z.md`. Its title becomes `# vX.Y.Z (D Month YYYY) {#vXYZ-d-month-yyyy}`, as in `# v0.4.11 (5 October 2026) {#v0411-5-october-2026}`. Put the `[vX.Y.Z on GitHub](...)` line under it, in place of the not-released line.
 3. **Start a fresh `unreleased.md` for the next version.** Keep the skeleton: the title, the not-released line, At a glance, the area headings, and the Upgrading section's headings and tables, emptied.
-4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, and the legacy-anchor entry for the old unreleased heading.
+4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, the legacy-anchor entry for the old unreleased heading, and the home page band's head link while the band shows the coming version.
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
+7. **Turn the home page's band into the version's "New in" band**, as [The Home Page Band](#the-home-page-band) says. If it shows the coming version, drop `hkj-spotlight-snapshot` from its classes, write "New in X.Y.Z" in its eyebrow, and make its head link "All changes in X.Y.Z", pointing at the version's page. Then hold its cards to the release's At a glance: up to three headlines, each linked to the page that teaches it.
+
+### The Home Page Band
+
+The band under the badges in `home.md` shows what a version brings, in up to three cards. It takes one of two forms:
+
+- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book. `/latest/` keeps showing it until `main` gains a headline of its own.
+- **"Coming in X.Y.Z"** shows what `main` adds for the next release, so only `/latest/` ever shows it. A second class on the section, `hkj-spotlight-snapshot`, turns the band's accent teal and dashes the lead card. Its head link reads "All changes so far" and points at `release-history/unreleased.md`.
+
+A headline is a change a reader would upgrade for, rather than a fix or a refinement. When `main` gains one, the pull request that adds it, or one soon after, updates the band:
+
+1. **Switch to "Coming in" the first time.** Add `hkj-spotlight-snapshot` to the section's classes, write "Coming in X.Y.Z" in the eyebrow, and make the head link `[All changes so far](release-history/unreleased.md)`. The last release's cards go, and that release's copy of the book keeps them.
+2. **Keep three cards at most.** A new headline replaces the weakest card. The lead card spans the band, and holds the headline whose one line of code shows the most.
+3. **Give every card a page and an entry.** Link the card's title to the page that teaches it, and give its change an entry in `unreleased.md`.
+
+Each card is HTML around Markdown. Keep a blank line on each side of the Markdown, or mdBook passes it through as raw text. Write links in Markdown, not `<a href>`, so that mdBook rewrites `.md` to `.html` and the anchor check sees them. Keep the lead card's code under `<!-- verify -->`: the snippet gate compiles it against `main`, with names from `hkj-examples/src/test/resources/fixtures/home.java`.
+
+Keep the `hkj-spotlight` class names. A re-deploy of an old tag builds its pages with the current theme, so a renamed class breaks the band in every release's copy.
 
 ### Headings and Subtitles
 

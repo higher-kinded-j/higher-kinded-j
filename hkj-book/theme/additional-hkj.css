@@ -299,6 +299,192 @@ html.macchiato .hkj-logo-dark { display: inline; }
 html.mocha .hkj-logo-light { display: none; }
 html.mocha .hkj-logo-dark { display: inline; }
 
+/* ===== Home Page Spotlight =====
+   The "New in" band under the home page badges, in the palette of the
+   project's release cards. It stays dark in every theme, so it reads as one
+   panel rather than as part of the page. Sizes are in px because the book's
+   root font size is 10px. */
+
+.hkj-spotlight {
+    --hkj-sp-bg: #0c1411;
+    --hkj-sp-panel: #121d19;
+    --hkj-sp-panel-lead: #10211b;
+    --hkj-sp-border: #22342d;
+    --hkj-sp-chip: #23332d;
+    --hkj-sp-text: #dbe7e0;
+    --hkj-sp-dim: #8a9b94;
+    --hkj-sp-chip-text: #a3b3ac;
+    --hkj-sp-green: #5ec24a;
+    --hkj-sp-teal: #2fbfa3;
+    --hkj-sp-yellow: #e0d936;
+    --hkj-sp-string: #8bdc6f;
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 12px;
+    margin: 24px 0 8px;
+    padding: 18px 20px 20px;
+    border: 1px solid var(--hkj-sp-border);
+    border-radius: 16px;
+    background:
+        radial-gradient(560px 320px at 100% 0%, rgba(24, 155, 133, 0.16), transparent 70%),
+        radial-gradient(440px 260px at 0% 100%, rgba(94, 194, 74, 0.08), transparent 70%),
+        var(--hkj-sp-bg);
+    color: var(--hkj-sp-text);
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.hkj-spotlight p { margin: 0; }
+
+.hkj-spotlight-head {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+}
+
+.hkj-spotlight-eyebrow {
+    color: var(--hkj-sp-yellow);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.hkj-spotlight-card {
+    min-width: 0;
+    padding: 14px 16px 16px;
+    border: 1px solid var(--hkj-sp-border);
+    border-radius: 12px;
+    background: var(--hkj-sp-panel);
+    color: var(--hkj-sp-dim);
+    font-size: 14px;
+}
+
+.hkj-spotlight .hkj-spotlight-card > * + * { margin-top: 8px; }
+
+/* The one card the band is about, as the cards' emphasised panel. */
+.hkj-spotlight-lead {
+    grid-column: 1 / -1;
+    border-color: rgba(94, 194, 74, 0.55);
+    background: var(--hkj-sp-panel-lead);
+    box-shadow: 0 0 0 1px rgba(94, 194, 74, 0.15), 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.hkj-spotlight-chip {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--hkj-sp-chip);
+    color: var(--hkj-sp-chip-text);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.hkj-spotlight-lead .hkj-spotlight-chip {
+    background: var(--hkj-sp-green);
+    color: var(--hkj-sp-bg);
+}
+
+/* A card's title is its bold link. */
+.hkj-spotlight-card strong {
+    display: block;
+    color: var(--hkj-sp-text);
+    font-size: 17px;
+    line-height: 1.3;
+}
+
+.content .hkj-spotlight a {
+    color: var(--hkj-sp-text);
+    text-decoration: none;
+}
+
+.content .hkj-spotlight a:hover {
+    color: var(--hkj-sp-green);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.content .hkj-spotlight a:focus-visible {
+    outline: 2px solid var(--hkj-sp-green);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+.content .hkj-spotlight-head a {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.content .hkj-spotlight-head a::after {
+    content: " \2192";
+    content: " \2192" / "";
+    color: var(--hkj-sp-green);
+}
+
+.content .hkj-spotlight code {
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--hkj-sp-chip);
+    color: var(--hkj-sp-text);
+    font-size: 13px;
+}
+
+.content .hkj-spotlight pre {
+    margin-bottom: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.content .hkj-spotlight pre > code {
+    padding: 0;
+    background: transparent;
+    color: var(--hkj-sp-text);
+    font-size: 14px;
+    line-height: 1.5;
+    font-variant-ligatures: none;
+}
+
+.content .hkj-spotlight .hljs-keyword,
+.content .hkj-spotlight .hljs-literal,
+.content .hkj-spotlight .hljs-number { color: var(--hkj-sp-teal); }
+.content .hkj-spotlight .hljs-type,
+.content .hkj-spotlight .hljs-title { color: var(--hkj-sp-yellow); }
+.content .hkj-spotlight .hljs-string { color: var(--hkj-sp-string); font-weight: 700; }
+.content .hkj-spotlight .hljs-meta { color: var(--hkj-sp-green); }
+.content .hkj-spotlight .hljs-comment { color: var(--hkj-sp-dim); }
+
+/* The band as main shows it between releases: what the next version brings,
+   in teal, with the lead card dashed because it is not released yet. A
+   re-deployed release copy takes this file too, so keep these class names. */
+.hkj-spotlight-snapshot .hkj-spotlight-eyebrow { color: var(--hkj-sp-teal); }
+
+.hkj-spotlight-snapshot .hkj-spotlight-lead {
+    border-style: dashed;
+    border-color: rgba(47, 191, 163, 0.6);
+    box-shadow: 0 0 0 1px rgba(47, 191, 163, 0.12), 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.hkj-spotlight-snapshot .hkj-spotlight-lead .hkj-spotlight-chip { background: var(--hkj-sp-teal); }
+
+.content .hkj-spotlight-snapshot .hkj-spotlight-head a::after { color: var(--hkj-sp-teal); }
+
+@media screen and (max-width: 480px) {
+    .hkj-spotlight { padding: 14px; }
+    .hkj-spotlight-card { padding: 12px 14px 14px; }
+}
+
+@media print {
+    .hkj-spotlight { display: none; }
+}
+
 /* ===== Pipeline Diagram Styles ===== */
 
 .pipeline-diagram {
