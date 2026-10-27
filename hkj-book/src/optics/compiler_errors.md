@@ -441,9 +441,9 @@ error: @GenerateFocus: the navigator for 'Signatory.name' cannot navigate to 'Fu
 
 ### "@GenerateFocus: record component 'X.y' has no navigator into T" (a note) {#generatefocus-no-navigator-into}
 
-`X` leaves navigators to the default, and the record `y` holds, `T`, has a field named like one of the path's own methods that take no arguments, the ones the [entry before](#generatefocus-navigator-cannot-navigate) lists. A navigator could not navigate to that field, so `y` gets none, and its method keeps the path it has without one.
+`X` leaves navigators to the default, and the record `y` holds, `T`, has a field named like one of the path's own methods that take no arguments, the ones the [entry before](#generatefocus-navigator-cannot-navigate) lists. A navigator could not navigate to that field, so `y` gets none, and its method keeps the path it has without one. Another field of `X` may have a name that differs from `y`'s only in the case of its first letter. Where it has a navigator, or is declared before `y` and the rename would give it one, the note names both, since their navigators would [share a class name](#generatefocus-no-navigator-shared-name).
 
-**Fix.** Rename the field to give `y` a navigator. To keep the plain path and silence the note, make the change it names on `X`. Add `y` to `excludeFields` or remove it from `includeFields`; where `includeFields` names only `y`, remove `includeFields` and set `generateNavigators = false`.
+**Fix.** Rename the field to give `y` a navigator. Where the note also names two fields of `X`, rename either of them too. To keep the plain path and silence the note, make the change it names on `X`. Add `y` to `excludeFields` or remove it from `includeFields`; where `includeFields` names only `y`, remove `includeFields` and set `generateNavigators = false`.
 
 ~~~admonish note title="Why" collapsible=true
 A record that leaves the default asked for no navigator in particular, so the field keeps the path it would have with navigators off, rather than failing the build. A record that writes `generateNavigators = true` is refused instead, by the entry before this one.
@@ -468,10 +468,10 @@ Note: @GenerateFocus: record component 'Signatory.name' has no navigator into Fu
 
 `X` writes `generateNavigators = true`, and two of its fields that reach `@GenerateFocus` records have names that differ only in the case of their first letter, such as `pouches` and `Pouches`. A navigator class takes its field's name with the first letter in upper case, so both would be `PouchesNavigator`. The first field in declaration order keeps the navigator, and the message is at the later one.
 
-**Fix.** Rename either field, or keep the later one a plain path, as the message says. It names the change that does that on `X`: add the later field to `excludeFields`, or, where `X` writes `includeFields`, remove it from that list, which still names the earlier field.
+**Fix.** Rename either field, or keep the later one a plain path, as the message says. It names the change that does that on `X`: add the later field to `excludeFields`, or, where `X` writes `includeFields`, remove it from that list, which still names the earlier field. Where the record the later field reaches has a field named like a path method, the message names it too, since a rename alone would draw [the cannot-navigate error](#generatefocus-navigator-cannot-navigate).
 
 ~~~admonish note title="Why" collapsible=true
-Both classes would be nested in the record's `Focus` class, which cannot hold two classes of one name, so javac would report the second as already defined, in a file you cannot edit. The first field keeps its navigator, so a field added after it never takes that navigator away. A record that leaves navigators to the default draws [a note](#generatefocus-no-navigator-shared-name) instead.
+Both classes would be nested in the record's `Focus` class, which cannot hold two classes of one name, so javac would report the second as already defined, in a file you cannot edit. The first field keeps its navigator, so a field added after it never takes that navigator away. A record that leaves navigators to the default draws [a note](#generatefocus-no-navigator-shared-name) instead. A message that offers a field a navigator, such as one asking for a container to be widened, asks for the rename first where its change alone would lead here.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -516,9 +516,9 @@ Note: @GenerateFocus: record component 'Satchel.Pouches' has no navigator, becau
 
 ### "@GenerateFocus: record component 'X.y' has no navigator over its T elements" (a note) {#generatefocus-no-navigator-over-elements}
 
-`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen, or a container holding one, such as `List<Map<String, Item>>`. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead. Where `T` has a field named like a method of the widened path, such as `last`, the note names that field too, since widening `y` alone would draw [the cannot-navigate error](#generatefocus-navigator-cannot-navigate).
+`X` writes `generateNavigators = true`, and `y` is a `Map`, an array or a third-party collection of `@GenerateFocus` records that `X` does not widen, or a container holding one, such as `List<Map<String, Item>>`. A navigator steps into a container only where the record widens it, so `y`'s method keeps a path to the whole container. If `includeFields` names `y`, it draws the [includeFields warning](#generatefocus-includefields-no-navigator) instead. Where `T` has a field named like a method of the widened path, such as `last`, the note names that field too, since widening `y` alone would draw [the cannot-navigate error](#generatefocus-navigator-cannot-navigate). Another field of `X` may have a name that differs from `y`'s only in the case of its first letter. Where it has a navigator, the note names both, since widening `y` alone would draw [the shared-class-name error](#generatefocus-navigator-shares-class-name).
 
-**Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. Where the note names a field of `T`, rename it first, or add `y` to `excludeFields` to keep the container whole. `widenCollections = true` widens every such container instead. To keep the container whole otherwise, drop `generateNavigators = true`, which is the default, and the note goes with it. Whichever you choose, find each call through a field the note names, such as `byTicker().last()`, by hand: it compiles against the path's own `last()`, so the compiler cannot point at it.
+**Fix.** Add `y` to `widenFields` on `X`, as the note says, and the method returns a navigator over the elements. Where the note names a field of `T`, rename it first. Where it names two fields of `X`, rename either first, and write the new name in `widenFields` if you renamed `y`. Or add `y` to `excludeFields` to keep the container whole. `widenCollections = true` widens every such container instead. To keep the container whole otherwise, drop `generateNavigators = true`, which is the default, and the note goes with it. Whichever you choose, find each call through a field of `T` the note names, such as `byTicker().last()`, by hand: it compiles against the path's own `last()`, so the compiler cannot point at it.
 
 ~~~admonish note title="Why" collapsible=true
 Widening decides what a field's method focuses on, and a navigator only adds methods to that path, so turning navigators on never changes it. A record that writes `generateNavigators = true` out may still expect a navigator over a container's elements, so it is told which `widenFields` value gives one. A record that leaves navigators to the default asked for nothing, and is told nothing.
@@ -553,6 +553,21 @@ record Book(Map<String, Quote> byTicker) {}
 
 ```
 Note: @GenerateFocus: record component 'Book.byTicker' has no navigator over its Quote elements. A navigator steps into a container only where the record widens it, and Book does not widen 'byTicker'. Widened, its navigator would be a TraversalPath, which has its own last(), so it could not navigate to 'Quote.last'. Rename 'Quote.last', then add widenFields = "byTicker" to @GenerateFocus on Book to navigate into its elements, or add excludeFields = "byTicker" to @GenerateFocus on Book to go without this note.
+```
+~~~
+
+~~~admonish example title="A declaration that draws it with two fields to choose between" collapsible=true
+<!-- verify:reports "Rename 'Satchel.pouches' or 'Satchel.Pouches', then add widenFields" -->
+```java
+@GenerateFocus
+record Pouch(String label, int grams) {}
+
+@GenerateFocus(generateNavigators = true)
+record Satchel(Map<String, Pouch> pouches, List<Pouch> Pouches) {}
+```
+
+```
+Note: @GenerateFocus: record component 'Satchel.pouches' has no navigator over its Pouch elements. A navigator steps into a container only where the record widens it, and Satchel does not widen 'pouches'. A navigator for 'pouches' would share its class name, PouchesNavigator, with the navigator for 'Satchel.Pouches', since a navigator class takes its field's name with the first letter in upper case. Rename 'Satchel.pouches' or 'Satchel.Pouches', then add widenFields = "pouches", or its new name, to @GenerateFocus on Satchel to navigate into its elements, or add excludeFields = "pouches" to @GenerateFocus on Satchel to go without this note.
 ```
 ~~~
 
@@ -617,6 +632,7 @@ A non-empty `includeFields` gives navigators only to the fields it names, so nam
 - An unwidened `Map<String, Box<?>>`, with `Box<T>` annotated, is offered `widenFields` to step into its `Box` elements. That alone gives no navigator: the existing wildcard-target note then offers a concrete `Box<Object>`.
 - A `Map<String, ? extends Kiosk>` holds `Kiosk` records, but its wildcard prevents widening. Write `Map<String, Kiosk>` and add the field to `widenFields`, as the warning says.
 - A `List`, `Optional` or other container the method steps into, holding a record without `@GenerateFocus`, is offered the annotation, as a field of that record is.
+- Another field's name may differ from this one's only in the case of its first letter. If that field has a navigator, or would gain one from the same fix, the fix asks for one of the two to be [renamed first](#generatefocus-navigator-shares-class-name). A later field that would only gain one counts under `generateNavigators = true`, where the clash is an error.
 - When several entries need a replacement, the first in list order receives it and the rest are offered removal. If another entry has a navigator or a correction of its own, remove the invalid name instead. Following all fix lines leaves one list without duplicate names.
 
 ~~~admonish example title="A valid name whose field has no navigator"
@@ -2247,12 +2263,12 @@ interface FeeOpticsSpec extends OpticsSpec<Fee> {
 
 ### "@ImportOptics: '...' pairs more than one wither with the field '...'" (a note)
 
-A class imported by class literal spells one field's accessor more than one way, and has a wither for each: `int n()` with `withN(int)`, and `String getN()` with `withN(String)`. Both pair with the field `n`, and a class can carry only one lens of that name.
+A class imported by class literal spells one field's accessor more than one way, and has a wither for each: `int n()` with `withN(int)`, and `String getN()` with `withN(String)`. Both pair with the field `n`, and a class can carry only one lens of that name. A class with both `withEMail` and the JavaBeans `witheMail` draws the note too, since both set the field `eMail`.
 
 **Fix.** Nothing, where the lens you wanted is the one generated: the note says which. Where you wanted the other, import the type through a [spec interface](optics_spec_interfaces.md) and name the pair yourself with `@Wither(value = "withN", getter = "getN")`, importing it there rather than by class literal, or the note stays on every build.
 
 ~~~admonish note title="Why" collapsible=true
-The pairing rule tries the accessor spellings in order, `n()`, then `getN()`, then `isN()`, and the first that matches is the one generated. Reading them in that order rather than in the order the class happens to declare its members means the same class always yields the same lens. A note rather than a warning, because the class is someone else's to spell, and a note does not fail a `-Werror` build.
+The pairing rule tries the accessor spellings in order, `n()`, then `getN()`, then `isN()`, and the first that matches is the one generated. Reading them in that order rather than in the order the class happens to declare its members means the same class always yields the same lens. Where two withers pair with one getter, the processor prefers the capitalised spelling, `withEMail` ahead of `witheMail`, for the same reason. A note rather than a warning, because the class is someone else's to spell, and a note does not fail a `-Werror` build.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true

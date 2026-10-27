@@ -234,5 +234,5 @@ public void genericExample() {
 
 ---
 
-**Previous:** [Type Arity](type-arity.md)
-**Next:** [Basic HKT Examples](hkt_basic_examples.md)
+**Previous:** [Core Concepts](core-concepts.md)
+**Next:** [Obtaining Instances](../functional/instances_facade.md)

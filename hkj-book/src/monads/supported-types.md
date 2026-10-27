@@ -161,5 +161,5 @@ Practise with concrete types in [Tutorial 06: Concrete Types](https://github.com
 
 ---
 
-**Previous:** [Core Types](ch_intro.md)
-**Next:** [CompletableFuture](cf_monad.md)
+**Previous:** [Const](const_type.md)
+**Next:** [Quick Reference](../hkts/quick_reference.md)

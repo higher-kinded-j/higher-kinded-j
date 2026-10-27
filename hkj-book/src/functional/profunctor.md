@@ -234,5 +234,5 @@ The next time you find yourself writing similar functions that differ only in th
 
 ---
 
-**Previous:** [Selective](selective.md)
-**Next:** [Bifunctor](bifunctor.md)
+**Previous:** [Bifunctor](bifunctor.md)
+**Next:** [Optics Integration](for_optics.md)

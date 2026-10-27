@@ -2459,6 +2459,127 @@ class SpecCopyStrategyChecksTest {
     }
 
     @Test
+    @DisplayName("a getter inherited from two interfaces is read as the one javac calls")
+    void getterInheritedFromTwoInterfacesIsReadAsTheOneJavacCalls() {
+      // Each source inherits name() from Named, returning String, and from Labelled or Titled,
+      // returning CharSequence, and declares none of its own. Of two abstract methods of one
+      // signature, javac calls the one whose return is most specific (JLS 15.12.2.5), so each
+      // lens reads a String, whichever strategy reads it. A type's members list the interfaces
+      // by their names, not as the source writes them, so Labelled and Titled each put the other
+      // method first.
+      var compilation =
+          compile(
+              external("Named", "public interface Named { String name(); }"),
+              external("Labelled", "public interface Labelled { CharSequence name(); }"),
+              external("Titled", "public interface Titled { CharSequence name(); }"),
+              external(
+                  "Pet",
+                  """
+                  public abstract class Pet implements Named, Labelled {
+                      public abstract Pet withName(String name);
+                  }
+                  """),
+              external(
+                  "Toy",
+                  """
+                  public abstract class Toy implements Titled, Named {
+                      public abstract Toy withName(String name);
+                  }
+                  """),
+              external(
+                  "Shape",
+                  """
+                  public interface Shape extends Titled, Named {
+                      Shape withName(String name);
+                  }
+                  """),
+              external(
+                  "Card",
+                  """
+                  public abstract class Card implements Titled, Named {
+                      public abstract Builder toBuilder();
+
+                      public static final class Builder {
+                          public Builder name(String name) { return this; }
+                          public Card build() { return null; }
+                      }
+                  }
+                  """),
+              spec(
+                  "PetOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PetOpticsSpec extends OpticsSpec<Pet> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Pet, String> name();
+                  }
+                  """),
+              spec(
+                  "ToyOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface ToyOpticsSpec extends OpticsSpec<Toy> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Toy, String> name();
+                  }
+                  """),
+              spec(
+                  "ShapeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface ShapeOpticsSpec extends OpticsSpec<Shape> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Shape, String> name();
+                  }
+                  """),
+              spec(
+                  "CardOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CardOpticsSpec extends OpticsSpec<Card> {
+                      @ViaBuilder(getter = "name")
+                      Lens<Card, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a getter inherited with unrelated returns is left to javac's error at the type")
+    void getterInheritedWithUnrelatedReturnsIsLeftToJavac() {
+      // Neither return is more specific than the other, so Src cannot inherit both. The lens is
+      // read through the first of them Src's members list, Named's here, which the focus fits,
+      // so the spec is not refused, and javac's own error at Src is the one reported.
+      var compilation =
+          compile(
+              external("Named", "public interface Named { String name(); }"),
+              external("Counted", "public interface Counted { Integer name(); }"),
+              external(
+                  "Src",
+                  """
+                  public abstract class Src implements Named, Counted {
+                      public abstract Src withName(String name);
+                  }
+                  """),
+              spec(
+                  "SrcOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SrcOpticsSpec extends OpticsSpec<Src> {
+                      @Wither(value = "withName", getter = "name")
+                      Lens<Src, String> name();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("both define name(), but with unrelated return types");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
+    }
+
+    @Test
     @DisplayName("each step of a builder chain is held to what the step before it hands back")
     void eachStepOfABuilderChainIsHeldToWhatTheStepBeforeItHandsBack() {
       var compilation =
@@ -4140,6 +4261,77 @@ class SpecCopyStrategyChecksTest {
           accepted, "com.myapp.NodeOptics", "source.toBuilder().name(newValue).build()");
       assertGeneratedCodeContains(
           accepted, "com.myapp.NodeOptics", "source.toBuilder().count((int) newValue).build()");
+    }
+
+    @Test
+    @DisplayName("toBuilder() and build() inherited from two interfaces are the ones javac calls")
+    void toBuilderAndBuildInheritedFromTwoInterfacesAreTheOnesJavacCalls() {
+      // Pen inherits toBuilder() handing back an Object from one interface and its Builder from
+      // another, and Ink's Builder inherits build() handing back an Object and an Ink alike. Of
+      // each pair javac calls the one whose return is most specific, so Pen's chain sets through
+      // its Builder, whose count(int) takes the getter's int unboxed, and Ink's builds an Ink.
+      var compilation =
+          compile(
+              external("Rebuilt", "public interface Rebuilt { Object toBuilder(); }"),
+              external("PenRebuilt", "public interface PenRebuilt { Pen.Builder toBuilder(); }"),
+              external(
+                  "Pen",
+                  """
+                  public abstract class Pen implements Rebuilt, PenRebuilt {
+                      public abstract String getInk();
+                      public abstract int getCount();
+
+                      public static final class Builder {
+                          public Builder ink(String ink) { return this; }
+                          public Builder count(int count) { return this; }
+                          public Builder count(Object count) { return this; }
+                          public Pen build() { return null; }
+                      }
+                  }
+                  """),
+              external("Built", "public interface Built { Object build(); }"),
+              external("BuildsInk", "public interface BuildsInk { Ink build(); }"),
+              external(
+                  "Ink",
+                  """
+                  public abstract class Ink {
+                      public abstract String getColour();
+                      public abstract Builder toBuilder();
+
+                      public abstract static class Builder implements Built, BuildsInk {
+                          public abstract Builder colour(String colour);
+                      }
+                  }
+                  """),
+              spec(
+                  "PenOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PenOpticsSpec extends OpticsSpec<Pen> {
+                      @ViaBuilder(getter = "getInk")
+                      Lens<Pen, String> ink();
+
+                      @ViaBuilder(getter = "getCount")
+                      Lens<Pen, Integer> count();
+                  }
+                  """),
+              spec(
+                  "InkOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface InkOpticsSpec extends OpticsSpec<Ink> {
+                      @ViaBuilder(getter = "getColour")
+                      Lens<Ink, String> colour();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.PenOptics", "source.toBuilder().ink(newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.PenOptics", "source.toBuilder().count((int) newValue).build()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.InkOptics", "source.toBuilder().colour(newValue).build()");
     }
 
     @Test

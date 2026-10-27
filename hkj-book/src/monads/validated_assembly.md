@@ -170,4 +170,4 @@ A component whose type is itself annotated accepts its sub-companion's result di
 ---
 
 **Previous:** [Validated](validated_monad.md)
-**Next:** [VTask](vtask_monad.md)
+**Next:** [Try](try_monad.md)

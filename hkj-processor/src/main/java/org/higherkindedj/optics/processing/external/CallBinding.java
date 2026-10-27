@@ -20,7 +20,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * builder, and {@code new S(source.a(), newValue)} for a {@code @ViaConstructor}. javac chooses
  * among the candidates the call could mean by the types of its arguments, and the generated lens
  * rebuilds through the one <em>that</em> choice makes. So a check has to read the candidate the
- * call binds, not any that carries the name. This repeats javac's choice, phase by phase:
+ * call binds, not any that carries the name. The lens reads through calls too, {@code
+ * source.getX()} among them, and {@link CallableMembers#accessorNamed} asks here which accessor
+ * each binds. This repeats javac's choice, phase by phase:
  *
  * <ol>
  *   <li>a candidate of the call's arity that every argument reaches without boxing or unboxing;

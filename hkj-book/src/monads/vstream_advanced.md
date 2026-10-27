@@ -308,4 +308,4 @@ VStreamPath<Integer> path = ctx.toPath();
 ---
 
 **Previous:** [Resource-Safe Streaming](vstream_resources.md)
-**Next:** [Writer](writer_monad.md)
+**Next:** [Reader](reader_monad.md)

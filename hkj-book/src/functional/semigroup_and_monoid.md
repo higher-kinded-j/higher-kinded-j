@@ -587,5 +587,5 @@ In functional-programming literature this is the `Endo` monoid (for *endomorphis
 
 ---
 
-**Previous:** [MonadError](monad_error.md)
+**Previous:** [Type Classes](ch_intro.md)
 **Next:** [Foldable and Traverse](foldable_and_traverse.md)

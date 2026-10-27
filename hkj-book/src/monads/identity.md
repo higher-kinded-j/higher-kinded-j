@@ -187,5 +187,5 @@ See [Effect Path Overview](../effect/effect_path_overview.md) for the complete g
 
 ---
 
-**Previous:** [EitherOrBoth](either_or_both_monad.md)
-**Next:** [IO](io_monad.md)
+**Previous:** [Stream](stream_monad.md)
+**Next:** [Trampoline](trampoline_monad.md)

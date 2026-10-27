@@ -336,5 +336,5 @@ For deeper exploration of the Reader monad and dependency injection patterns:
 
 ---
 
-**Previous:** [Optional](optional_monad.md)
+**Previous:** [Advanced Features](vstream_advanced.md)
 **Next:** [Context](context_scoped.md)

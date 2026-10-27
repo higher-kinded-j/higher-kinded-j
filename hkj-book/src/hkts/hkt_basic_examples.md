@@ -449,5 +449,4 @@ For more advanced patterns combining State with other monads, see the [Order Pro
 
 ---
 
-**Previous:** [Usage Guide](usage-guide.md)
-**Next:** [Quick Reference](quick_reference.md)
+**Previous:** [Foundations FAQ](faq.md)

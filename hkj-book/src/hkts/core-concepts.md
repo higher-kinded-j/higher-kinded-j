@@ -227,5 +227,5 @@ Practise Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kin
 
 ---
 
-**Previous:** [HKT Introduction](hkt_introduction.md)
-**Next:** [Type Arity](type-arity.md)
+**Previous:** [One Line, Six Layers](one_line_six_layers.md)
+**Next:** [Usage Guide](usage-guide.md)

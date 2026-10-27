@@ -192,4 +192,4 @@ While Higher-Kinded-J introduces some boilerplate compared to languages with nat
 ---
 
 **Previous:** [Higher-Kinded Types](ch_intro.md)
-**Next:** [Core Concepts](core-concepts.md)
+**Next:** [Type Arity](type-arity.md)

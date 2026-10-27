@@ -25,6 +25,8 @@ Take a fact from one only after checking it against the processor or the library
   `reference/mapping.md`.
 - Editing `hkj-book/src/optics/`, or an optic, a Focus path or an annotation the Optics chapter
   documents: load `reference/optics.md`.
+- Editing the Foundations chapter (`hkj-book/src/hkts/`, `functional/` or `monads/`), or a type
+  class, a core type or the `Kind` encoding it documents: load `reference/foundations.md`.
 
 A chapter not listed here has no extra procedure, and its rules are in its chapter guide if it has
 one. When a chapter gains a guide, add its line here and its `reference/<chapter>.md`, as the style
@@ -63,7 +65,8 @@ guide's "Chapter Guides" section says.
    request says which findings were declined, and why.
 9. **Add the release-notes entry** to `hkj-book/src/release-history/unreleased.md` when users can
    see the change, as the style guide's Release Notes section says. Never edit a released
-   version's page.
+   version's page. A headline for the next release may also earn a card in the home page's band,
+   as the style guide's Home Page Band section says.
 10. **In the pull request**, fill in the template's "Book changes" section.
 
 ## Traps

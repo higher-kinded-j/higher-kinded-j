@@ -276,6 +276,13 @@ private <T> void assertTryEquals(Try<T> actual, Try<T> expected) throws Throwabl
 
 Typeclasses must satisfy mathematical laws. We test these laws systematically.
 
+A new type-class test follows the
+[canonical per-type-class test layout](#canonical-per-type-class-test-layout): a Laws block over
+the shipped `hkj-test` `*Laws`, and a `TypeClassContract` check for what the laws cannot reach. The
+hand-written `@TestFactory` pattern below is how the cross-instance suites in
+`org.higherkindedj.hkt.typeclass`, such as `FunctorLawsTestFactory` and `MonadLawsTestFactory`, are
+built.
+
 ### Functor Laws
 
 A Functor must satisfy:
@@ -480,10 +487,10 @@ FunctorLaws.assertComposition(MaybeFunctor.INSTANCE, fa, Object::toString, Strin
 
 #### `TypeClassContract` — the fluent contract harness
 
-`org.higherkindedj.hkt.test.contract.TypeClassContract` is the in-core successor to the legacy
-`TypeClassTest` API. Each algebra has a small contract that describes its checks as values and runs
-them through a shared engine, delegating the law category to the `hkj-test` `*Laws`. Checks are
-grouped into a `Category` enum — `OPERATIONS`, `VALIDATIONS`, `EXCEPTIONS`, `LAWS`:
+`org.higherkindedj.hkt.test.contract.TypeClassContract` is the in-core contract harness. Each
+algebra has a small contract that describes its checks as values and runs them through a shared
+engine, delegating the law category to the `hkj-test` `*Laws`. Checks are grouped into a `Category`
+enum — `OPERATIONS`, `VALIDATIONS`, `EXCEPTIONS`, `LAWS`:
 
 ```java
 TypeClassContract.functor(MaybeFunctor.class)
@@ -573,10 +580,18 @@ Conventions that keep this uniform:
 - **Laws block owns laws; contract owns the rest.** Use `verifyOnly(OPERATIONS, VALIDATIONS,
   EXCEPTIONS)` for the contract smoke so laws run once. (Exceptions: **Foldable** has no laws, so use
   `.verify()`; **MonadError** adds no laws beyond Monad, so it has no Laws block and relies on the
-  Monad laws in `XMonadTest`.)
+  Monad laws in `XMonadTest`; a **value that holds a function it has not run** leaves out
+  `EXCEPTIONS`, for the reason the bullet on comparing one gives.)
 - **Shared fixtures, not copy-paste.** Hoist the law fixture streams into `XLawFixtures`
   (referenced by a fully-qualified `@MethodSource`) and the jqwik generators into `XArbitraries`
   (the per-test `@Provide` methods delegate to it). One generator, defined once.
+- **A value that holds a function it has not run compares by running it.** `Coyoneda` and
+  `Context` defer their work this way, and so does an instruction set whose records carry a
+  continuation, such as `StateOp`. Two such values can only be compared by what they produce, so
+  `XLawFixtures.EQ` runs or lowers both sides and compares the results: `CoyonedaLawFixtures`
+  lowers through `MaybeFunctor`, and `ContextLawFixtures` runs both under the same binding. The
+  contract leaves out `Category.EXCEPTIONS`, since a throwing mapper surfaces when the value runs,
+  not at the `map` (see `CoyonedaFunctorTest`).
 - **Assert on the `Kind`.** The `assertThatX(...)` helpers accept a `Kind` and narrow internally —
   pass the result straight in rather than `assertThatX(HELPER.narrow(result))`.
 - **No redundant contract variants.** A single contract call covers every category; do not add a

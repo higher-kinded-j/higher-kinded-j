@@ -101,5 +101,5 @@ Write once. Use everywhere the capability exists.
 
 ---
 
-**Previous:** [Foundations FAQ](../hkts/faq.md)
-**Next:** [Functional API](functional_api.md)
+**Previous:** [Extending the Simulation](../hkts/extending-simulation.md)
+**Next:** [Semigroup and Monoid](semigroup_and_monoid.md)

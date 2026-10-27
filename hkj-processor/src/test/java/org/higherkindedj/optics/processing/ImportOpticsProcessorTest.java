@@ -1345,6 +1345,85 @@ class ImportOpticsProcessorTest {
           compilation, "com.myapp.optics.CreditLineLenses", "withdraw");
       assertGeneratedCodeDoesNotContain(compilation, "com.myapp.optics.CreditLineLenses", "2D");
     }
+
+    @Test
+    @DisplayName("a wither spelt as JavaBeans spells it pairs with a getter spelt the same way")
+    void javaBeansSpeltPairGeneratesALens() throws Exception {
+      // The pair Lombok's beanspec capitalisation writes for a field 'eMail'.
+      final var contact =
+          JavaFileObjects.forSourceString(
+              "com.external.Contact",
+              """
+              package com.external;
+
+              public final class Contact {
+                  private final String eMail;
+                  private final String name;
+
+                  public Contact(String eMail, String name) {
+                      this.eMail = eMail;
+                      this.name = name;
+                  }
+
+                  public String geteMail() { return eMail; }
+                  public Contact witheMail(String eMail) { return new Contact(eMail, name); }
+                  public String getName() { return name; }
+                  public Contact withName(String name) { return new Contact(eMail, name); }
+              }
+              """);
+
+      var compiled =
+          RuntimeCompilationHelper.compile(
+              contact,
+              RuntimeCompilationHelper.packageInfo("com.myapp.optics", "com.external.Contact"));
+
+      final Object lens = compiled.invokeStatic("com.myapp.optics.ContactLenses", "eMail");
+      final Object source = compiled.newInstance("com.external.Contact", "a@x", "Ada");
+      final Object updated = compiled.invokeLensSet(lens, "b@x", source);
+
+      Assertions.assertThat(compiled.invokeLensGet(lens, source)).isEqualTo("a@x");
+      Assertions.assertThat(compiled.invokeLensGet(lens, updated)).isEqualTo("b@x");
+      Assertions.assertThat(RuntimeCompilationHelper.invoke(updated, "getName")).isEqualTo("Ada");
+    }
+
+    @Test
+    @DisplayName("two withers for one getter generate the one spelt as the field is capitalised")
+    void twoWithersForOneGetterGenerateTheConventionalSpelling() {
+      // witheMail is declared first, and withEMail is still the one generated: the rule, not the
+      // declaration order, chooses between two withers that pair with the same getter.
+      final var mail =
+          JavaFileObjects.forSourceString(
+              "com.external.Mail",
+              """
+              package com.external;
+
+              public final class Mail {
+                  private final String eMail;
+                  public Mail(String eMail) { this.eMail = eMail; }
+                  public String eMail() { return eMail; }
+                  public Mail witheMail(String e) { return new Mail(e); }
+                  public Mail withEMail(String e) { return new Mail(e); }
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  mail,
+                  RuntimeCompilationHelper.packageInfo("com.myapp.optics", "com.external.Mail"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.MailLenses",
+          "Lens.of(Mail::eMail, (source, newValue) -> source.withEMail(newValue))");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "@ImportOptics: 'Mail' pairs more than one wither with the field 'eMail', and only"
+                  + " one lens can carry that name. 'withEMail(String)' pairs with 'eMail()' and is"
+                  + " generated; 'witheMail(String)' pairs with 'eMail()' and is left out.");
+    }
   }
 
   @Nested
@@ -1658,6 +1737,40 @@ class ImportOpticsProcessorTest {
       assertThat(compilation)
           .hadErrorContaining("not a record, sealed interface, enum, or class with wither methods")
           .inFile(packageInfo);
+    }
+
+    @Test
+    @DisplayName("a class whose only wither no lens can be named after is told why")
+    void classWhoseOnlyWitherNoLensCanBeNamedAfterIsToldWhy() {
+      final var plate =
+          JavaFileObjects.forSourceString(
+              "com.external.Plate",
+              """
+              package com.external;
+
+              public final class Plate {
+                  private final int d;
+                  public Plate(int d) { this.d = d; }
+                  public int get2D() { return d; }
+                  public Plate with2D(int d) { return new Plate(d); }
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  plate,
+                  RuntimeCompilationHelper.packageInfo("com.myapp.optics", "com.external.Plate"));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "type 'com.external.Plate' is not a record, sealed interface, enum, or class with"
+                  + " wither methods");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'with2D' pairs nothing, since its lens would be named '2D', which no method can be.");
     }
   }
 

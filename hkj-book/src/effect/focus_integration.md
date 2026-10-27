@@ -124,7 +124,7 @@ Company company = new Company("TechCorp", List.of(alice, bob, charlie));
 // ListPath: the non-null values as a list
 ListPath<User> allEmployees = employeesPath.toListPath(company);
 
-// StreamPath: lazy stream
+// StreamPath: the non-null values, streamed again on each run
 StreamPath<User> employeeStream = employeesPath.toStreamPath(company);
 
 // MaybePath: first value (or Nothing)
@@ -148,7 +148,7 @@ MaybePath<User> firstEmployee = employeesPath.toMaybePath(company);
 | `AffinePath<S, A>` | `toTryPath(S, Supplier)` | `Success(a)` or `Failure` |
 | `AffinePath<S, A>` | `toOptionalPath(S)` | `Optional.of(a)` or `Optional.empty()` |
 | `TraversalPath<S, A>` | `toListPath(S)` | The non-null values as a list |
-| `TraversalPath<S, A>` | `toStreamPath(S)` | Lazy stream of the non-null values |
+| `TraversalPath<S, A>` | `toStreamPath(S)` | The non-null values, streamed again on each run |
 | `TraversalPath<S, A>` | `toMaybePath(S)` | First value, or `Nothing` if there is none or it is null |
 
 An Effect Path's value type is non-null, so a bridge from a focus that may be null says what the null becomes, as [A focus that may be null](../optics/focus_effects.md#a-focus-that-may-be-null) shows.

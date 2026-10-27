@@ -427,5 +427,5 @@ Each operation addresses a different concern (validation, transformation, unit c
 
 ---
 
-**Previous:** [Traverse Within Comprehensions](for_traverse.md)
+**Previous:** [Profunctor](profunctor.md)
 **Next:** [MTL & ForState Bridge](for_mtl.md)

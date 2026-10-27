@@ -86,5 +86,5 @@ The `hkj-api` module contains the heart of the Higher-Kinded-J library: a set of
 
 ---
 
-**Previous:** [Type Classes](ch_intro.md)
-**Next:** [Obtaining Instances](instances_facade.md)
+**Previous:** [Quick Reference](../hkts/quick_reference.md)
+**Next:** [Foundations FAQ](../hkts/faq.md)

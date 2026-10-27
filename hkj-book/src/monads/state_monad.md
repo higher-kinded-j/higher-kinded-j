@@ -401,4 +401,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 ---
 
 **Previous:** [Context](context_scoped.md)
-**Next:** [Stream](stream_monad.md)
+**Next:** [Writer](writer_monad.md)

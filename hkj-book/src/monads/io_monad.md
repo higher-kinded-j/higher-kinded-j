@@ -324,5 +324,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details, comparison be
 
 ---
 
-**Previous:** [Identity](identity.md)
+**Previous:** [Optional](optional_monad.md)
 **Next:** [Lazy](lazy_monad.md)

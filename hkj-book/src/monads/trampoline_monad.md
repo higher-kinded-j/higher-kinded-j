@@ -286,5 +286,5 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 
 ---
 
-**Previous:** [Stream](stream_monad.md)
+**Previous:** [Identity](identity.md)
 **Next:** [Free](free_monad.md)

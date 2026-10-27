@@ -331,13 +331,13 @@ final class SetterChecks {
    * several methods. The generated lens is {@code Lens.of(source -> source.getter(), (source,
    * newValue) -> ...)}, and javac infers a focus written as {@code ?} or {@code ? extends T} from
    * the getter alone, the leftmost lambda, since nothing else bounds it from below (JLS 18.5.2.2):
-   * as what the getter reads, boxed. The getter is the method a call with no argument binds, as
-   * javac chooses among methods of its name, and the call binds as one passing what it reads. Empty
-   * where javac weighs more than the getter, or cannot infer the focus from it: a wildcard bounded
-   * from below, a getter with type parameters of its own, whose read javac infers from the focus
-   * rather than the other way about, a read the wildcard's bound does not admit, or a call that
-   * rests on inference or binds nothing. javac settles or reports each of those at the generated
-   * call.
+   * as what the getter reads, boxed. The getter is the one {@link CallableMembers#accessorNamed}
+   * chooses, as for every read the lens makes, and the one-argument call binds as one passing what
+   * it reads. Empty where javac weighs more than the getter, or cannot infer the focus from it: a
+   * wildcard bounded from below, a getter with type parameters of its own, whose read javac infers
+   * from the focus rather than the other way about, a read the wildcard's bound does not admit, or
+   * a call that rests on inference or binds nothing. javac settles or reports each of those at the
+   * generated call.
    *
    * @param focusType the lens's focus
    * @param owner the type the call is made on
@@ -360,13 +360,12 @@ final class SetterChecks {
     TypeMirror bound =
         Objects.requireNonNullElse(
             focusType.getExtendsBound(), elementUtils.getTypeElement("java.lang.Object").asType());
-    List<ExecutableElement> getters =
-        members.of((TypeElement) source.asElement(), targetPackage).stream()
-            .filter(member -> member.getSimpleName().contentEquals(getterName))
-            .toList();
-    return Optional.of(CallBinding.resolve(typeUtils, source, List.of(), getters))
-        .filter(CallBinding.Binds.class::isInstance)
-        .map(binding -> ((CallBinding.Binds) binding).candidate())
+    return Optional.ofNullable(
+            CallableMembers.accessorNamed(
+                typeUtils,
+                source,
+                members.of((TypeElement) source.asElement(), targetPackage),
+                getterName))
         .filter(getter -> getter.getTypeParameters().isEmpty())
         .map(
             getter ->
