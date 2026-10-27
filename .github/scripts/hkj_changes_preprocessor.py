@@ -59,6 +59,11 @@ MARK_CLASS = "hkj-ct-mark"
 
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
+# Block-level HTML elements a page may open and fill with Markdown, closing
+# them only after blank lines (the home page's spotlight band does).
+CONTAINER_OPEN_RE = re.compile(r"<(?:section|div|aside|figure|details)\b", re.IGNORECASE)
+CONTAINER_CLOSE_RE = re.compile(r"</(?:section|div|aside|figure|details)\s*>", re.IGNORECASE)
+
 
 def enabled():
     return bool(BASELINE_DIR or BASELINE_REF)
@@ -122,12 +127,27 @@ def _ends_in_comment(line, in_comment):
         pos = found + len(token)
 
 
+def _container_depth(line, depth):
+    """The number of HTML containers still open at the end of `line`.
+
+    Code spans and comments are blanked first, so a `<div>` quoted in prose
+    opens nothing.
+    """
+    text = COMMENT_RE.sub("", re.sub(r"`[^`]*`", "", line))
+    opened = len(CONTAINER_OPEN_RE.findall(text))
+    closed = len(CONTAINER_CLOSE_RE.findall(text))
+    return max(0, depth + opened - closed)
+
+
 def split_blocks(text):
     """Split markdown into top-level blocks.
 
     Blank lines separate blocks, except inside fenced regions (``` code ```
-    and ~~~admonish ... ~~~) and HTML comments, which are kept atomic. Returns
-    a list of dicts with the block text and its 0-based start/end line indices.
+    and ~~~admonish ... ~~~), HTML comments and HTML containers, which are
+    kept atomic. A container holding Markdown spans blank lines, and a marker
+    inside it would split it, so it is one block from its opening tag to its
+    closing one. Returns a list of dicts with the block text and its 0-based
+    start/end line indices.
     """
     lines = text.splitlines()
     blocks = []
@@ -135,6 +155,7 @@ def split_blocks(text):
     start = 0
     fence = None  # (char, length) when inside a fence.
     in_comment = False  # inside an HTML comment that has not closed yet.
+    depth = 0  # HTML containers opened and not yet closed.
 
     def flush(end_idx):
         nonlocal current, start
@@ -161,14 +182,18 @@ def split_blocks(text):
                 continue
             if marker is not None:
                 # Opening a fence: flush any preceding text first so the fence
-                # is its own block even when no blank line separates them.
-                if current:
-                    flush(i)
-                start = i
+                # is its own block even when no blank line separates them. A
+                # fence inside a container stays part of the container.
+                if depth == 0:
+                    if current:
+                        flush(i)
+                    start = i
+                elif not current:
+                    start = i
                 fence = marker
                 current.append(line)
                 continue
-            if line.strip() == "":
+            if line.strip() == "" and depth == 0:
                 flush(i)
                 start = i + 1
             else:
@@ -176,6 +201,7 @@ def split_blocks(text):
                     start = i
                 current.append(line)
                 in_comment = _ends_in_comment(line, False)
+                depth = _container_depth(line, depth)
         else:
             current.append(line)
             # A closing fence uses the same char and at least the same length.
@@ -183,8 +209,9 @@ def split_blocks(text):
                 fence = None
                 # Flush the fenced block so following text (with no blank line)
                 # becomes a separate block.
-                flush(i + 1)
-                start = i + 1
+                if depth == 0:
+                    flush(i + 1)
+                    start = i + 1
     flush(len(lines))
     return blocks
 
