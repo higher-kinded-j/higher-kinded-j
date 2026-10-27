@@ -25,7 +25,7 @@ public final class NestedLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code name} field of a {@link Nested}.
+   * Creates a {@link Lens} for the {@code name} field of {@link Nested}.
    *
    * @return A non-null {@code Lens<Nested, String>}.
    */
@@ -34,7 +34,7 @@ public final class NestedLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code description} field of a {@link Nested}.
+   * Creates a {@link Lens} for the {@code description} field of {@link Nested}.
    *
    * @return A non-null {@code Lens<Nested, Optional<String>>}.
    */
@@ -43,7 +43,7 @@ public final class NestedLenses {
   }
 
   /**
-   * Creates a {@link Lens} for the {@code tags} field of a {@link Nested}.
+   * Creates a {@link Lens} for the {@code tags} field of {@link Nested}.
    *
    * @return A non-null {@code Lens<Nested, List<String>>}.
    */
@@ -88,7 +88,7 @@ public final class NestedLenses {
   }
 
   /**
-   * Creates a {@link Traversal} for the {@code description} field of a {@link Nested}.
+   * Creates a {@link Traversal} for the {@code description} field of {@link Nested}.
    * <p>This traversal focuses on all items within the {@code description} collection, allowing an effectful function
    * to be applied to each one.
    *
@@ -99,7 +99,7 @@ public final class NestedLenses {
   }
 
   /**
-   * Creates a {@link Traversal} for the {@code tags} field of a {@link Nested}.
+   * Creates a {@link Traversal} for the {@code tags} field of {@link Nested}.
    * <p>This traversal focuses on all items within the {@code tags} collection, allowing an effectful function
    * to be applied to each one.
    *

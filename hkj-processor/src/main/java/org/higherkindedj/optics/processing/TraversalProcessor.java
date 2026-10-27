@@ -307,7 +307,7 @@ public class TraversalProcessor extends AbstractProcessor {
             .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n"
                     + "<p>This traversal focuses on all items within the {@code $L} collection,"
                     + " allowing an effectful function\n"
                     + "to be applied to each one.\n\n"

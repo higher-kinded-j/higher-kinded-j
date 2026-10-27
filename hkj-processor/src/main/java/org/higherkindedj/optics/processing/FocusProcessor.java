@@ -311,7 +311,7 @@ public class FocusProcessor extends AbstractProcessor {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates $L {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "<p>The returned path can be composed with other optics for deep navigation:\n"
                     + "<pre>{@code\n"
                     + "$L.$L().$L(instance);  // Get the $L value\n"
@@ -319,6 +319,7 @@ public class FocusProcessor extends AbstractProcessor {
                     + "$L.$L().modify(fn, instance);  // Transform the $L value\n"
                     + "}</pre>\n\n"
                     + "@return A non-null {@code $L<$T, $T>}.",
+                widening.tier().article(),
                 pathClass,
                 componentName,
                 recordTypeName,

@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
@@ -125,6 +126,7 @@ class SpecInterfaceCoverageTest {
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
           compilation, "com.myapp.DataOptics", "UnsupportedOperationException");
+      assertGeneratedCodeContainsRaw(compilation, "com.myapp.DataOptics", "Creates an {@link");
     }
 
     @Test
@@ -198,6 +200,7 @@ class SpecInterfaceCoverageTest {
               .compile(externalRecord, specInterface);
 
       assertThat(compilation).succeeded();
+      assertGeneratedCodeContainsRaw(compilation, "com.myapp.WrapperOptics", "Creates an {@link");
     }
 
     @Test

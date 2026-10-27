@@ -237,7 +237,7 @@ public class ExternalLensGenerator {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(ProcessorUtils.escapeKeyword(field.name()))
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Lens<$T, $T>}.",
                 Lens.class,
                 field.name(),
@@ -282,7 +282,7 @@ public class ExternalLensGenerator {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(ProcessorUtils.escapeKeyword(field.name()))
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Lens<$T, $T>}.",
                 Lens.class,
                 field.name(),
@@ -465,7 +465,7 @@ public class ExternalLensGenerator {
             .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n"
                     + "<p>This traversal focuses on all items within the {@code $L} collection,"
                     + " allowing an effectful function\n"
                     + "to be applied to each one.\n\n"

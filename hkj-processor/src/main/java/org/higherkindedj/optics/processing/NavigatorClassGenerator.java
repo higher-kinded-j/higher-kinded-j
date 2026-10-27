@@ -2622,7 +2622,7 @@ public class NavigatorClassGenerator {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a navigator for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a navigator for the {@code $L} field of {@link $T}.\n\n"
                     + "<p>The returned navigator enables fluent navigation into the fields of\n"
                     + "{@link $T}. For example:\n"
                     + "<pre>{@code\n"
