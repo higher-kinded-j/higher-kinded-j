@@ -33,12 +33,12 @@ import org.higherkindedj.hkt.maybe.Maybe;
  * <h2>Important</h2>
  *
  * <p>Each terminal operation gets a fresh stream from the supplier. Intermediate operations,
- * including side effects, run again for each terminal operation. A supplier passed to
- * {@link #fromSupplier(Supplier)} must return a fresh, unused stream each time.
+ * including side effects, run again for each terminal operation. A supplier passed to {@link
+ * #fromSupplier(Supplier)} must return a fresh, unused stream each time.
  *
- * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight} and
- * {@code toNonDetPath}. They use memory proportional to the input and cannot finish on an infinite
- * source. Use them only with finite streams, even when the source came from a lazy factory.
+ * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight} and {@code
+ * toNonDetPath}. They use memory proportional to the input and cannot finish on an infinite source.
+ * Use them only with finite streams, even when the source came from a lazy factory.
  *
  * <p>The factory determines when source elements are read: {@link #of(Stream)} reads its entire
  * source when called. For very large or infinite sources, use {@link #iterate(Object,
@@ -49,9 +49,9 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * <ul>
  *   <li>Large data processing from a lazy source factory
- *   <li>Infinite sequences from {@link #iterate(Object, UnaryOperator)},
- *       {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)}, limited with
- *       {@link #take(long)} or {@link #takeWhile(Predicate)}
+ *   <li>Infinite sequences from {@link #iterate(Object, UnaryOperator)}, {@link
+ *       #generate(Supplier)} or {@link #fromSupplier(Supplier)}, limited with {@link #take(long)}
+ *       or {@link #takeWhile(Predicate)}
  *   <li>Pipeline transformations
  *   <li>Memory-efficient processing when the source is incremental and the pipeline avoids
  *       operations that materialise the input
@@ -102,8 +102,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a stream.
    *
-   * <p>The stream is read completely when this method is called, before any terminal operation.
-   * The source must be finite. For very large or infinite sources, use {@link #iterate(Object,
+   * <p>The stream is read completely when this method is called, before any terminal operation. The
+   * source must be finite. For very large or infinite sources, use {@link #iterate(Object,
    * UnaryOperator)}, {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)} and limit the
    * result with {@link #take(long)} or {@link #takeWhile(Predicate)}.
    *
@@ -123,8 +123,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a supplier that produces streams.
    *
-   * <p>The supplier is called for each terminal operation and must return a fresh, unused
-   * stream each time. Reusing a consumed stream will fail.
+   * <p>The supplier is called for each terminal operation and must return a fresh, unused stream
+   * each time. Reusing a consumed stream will fail.
    *
    * <p>A null element fails the stream when it is consumed.
    *
