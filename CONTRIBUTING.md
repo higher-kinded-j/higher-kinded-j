@@ -51,6 +51,18 @@ A pull request's commits are squashed into one when it is merged, and its title 
 
 Leave out a conventional-commit prefix such as `feat:`, `fix:` or `docs(book):`, and the issue number. GitHub adds the pull request's number to the commit, and "Closes #123" in the description links the issue.
 
+### Keeping Your Branch Up to Date
+
+To bring your branch up to date, merge `main` into it, with the pull request's **Update branch** button or from the command line:
+
+```bash
+git remote add upstream https://github.com/higher-kinded-j/higher-kinded-j.git   # once
+git fetch upstream
+git merge upstream/main
+```
+
+The pull request is squash-merged, so the merge commit never reaches `main`. Once a review has started, avoid rebasing and force-pushing, which hides what changed since the review. After updating, check that the pull request's Files tab shows only your own changes.
+
 ## Development Setup
 
 * You need a Java Development Kit (JDK), version **25**. The build uses preview features, which tie it to that release.
