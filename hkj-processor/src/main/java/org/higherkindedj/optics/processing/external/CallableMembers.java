@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -30,8 +29,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>A generated class calls only what it can reach from the package it is generated into, so the
  * copy strategies' checks read a type's methods through {@link #of}, or hold each to {@link
- * #callable}. A refusal names a method as the type it is called on reads it, {@link #signatureOn},
- * and offers neither a static method, nor one of {@code Object}'s, nor one whose call would warn,
+ * #callable}, and read through the accessor a call binds, {@link #accessorNamed}, as javac chooses
+ * it. A refusal names a method as the type it is called on reads it, {@link #signatureOn}, and
+ * offers neither a static method, nor one of {@code Object}'s, nor one whose call would warn,
  * {@link #offerable}; a missing accessor is reported here, {@link #reportMissingAccessor}. {@link
  * #constructorUnwritable} says where no constructor call can rebuild a type at all.
  *
@@ -93,28 +93,43 @@ final class CallableMembers {
   }
 
   /**
-   * The zero-parameter instance method of that name, which an accessor call needs, or null. Where
-   * the type inherits one concrete method of the name beside an interface's declaration of it, as a
-   * class's {@code String name()} beside a {@code CharSequence name()} it implements, the concrete
-   * one is what the call runs, and what it reads is what the call passes on.
+   * The zero-parameter instance method named {@code name} that a call made on {@code receiver}
+   * binds, or null where the type has none. It is the one javac calls, as {@link CallBinding}
+   * repeats the choice: a concrete method beside the interface declarations it implements, as a
+   * class's {@code String name()} beside a {@code CharSequence name()}; and among abstract or
+   * default ones alone, as an abstract class inherits both of those from two interfaces, the one
+   * whose return is most specific. What it reads is what the call passes on.
    */
-  static ExecutableElement accessorNamed(List<ExecutableElement> members, String name) {
-    return members.stream()
-        .filter(
-            member ->
-                member.getSimpleName().contentEquals(name)
-                    && member.getParameters().isEmpty()
-                    && !member.getModifiers().contains(Modifier.STATIC))
-        .min(
-            Comparator.comparing(
-                member -> member.getModifiers().contains(Modifier.ABSTRACT) || member.isDefault()))
-        .orElse(null);
+  static ExecutableElement accessorNamed(
+      Types types, DeclaredType receiver, List<ExecutableElement> members, String name) {
+    // Only these can bind a call that passes nothing while there is one: javac weighs a
+    // variable-arity method only where none is, and a static one cannot share their signature.
+    List<ExecutableElement> named =
+        members.stream()
+            .filter(
+                member ->
+                    member.getSimpleName().contentEquals(name)
+                        && member.getParameters().isEmpty()
+                        && !member.getModifiers().contains(Modifier.STATIC))
+            .toList();
+    if (named.isEmpty()) {
+      return null;
+    }
+    // Where no return is a subtype of every other's, the first is read: returns that are
+    // unrelated, which javac reports at the type's declaration, or that only an unchecked
+    // conversion or their own type parameters order, which are not compared here.
+    return CallBinding.resolve(types, receiver, List.of(), named)
+            instanceof CallBinding.Binds(ExecutableElement bound)
+        ? bound
+        : named.getFirst();
   }
 
   /**
    * The type the zero-argument method {@code named} hands back, read on {@code receiver}, whether
    * or not the generated class can call it: what it reads decides only how a focus is passed or a
-   * remedy is worded, and a getter out of reach is refused on its own.
+   * remedy is worded, and a getter out of reach is refused on its own. Only a primitive read is
+   * kept, and a primitive return cannot sit beside another for one signature, so the first is the
+   * one {@link #accessorNamed} would choose.
    */
   Optional<TypeMirror> zeroArgumentReturn(
       DeclaredType receiver, TypeElement receiverElement, String named) {

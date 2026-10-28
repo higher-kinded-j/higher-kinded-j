@@ -215,7 +215,7 @@ EitherPath<String, String> nickname =
 |--------|-------------|-------------|
 | `toListPath(S)` | `ListPath<A>` | The non-null focused values as a list |
 | `toNonDetPath(S)` | `NonDetPath<A>` | The non-null values, combined as a Cartesian product |
-| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of the non-null values |
+| `toStreamPath(S)` | `StreamPath<A>` | The non-null values, streamed again on each run |
 | `toVStreamPath(S)` | `VStreamPath<A>` | Virtual-thread stream of the non-null values |
 | `toMaybePath(S)` | `MaybePath<A>` | The first value, or `Nothing` if there is none or it is null |
 

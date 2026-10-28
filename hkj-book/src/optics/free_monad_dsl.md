@@ -516,7 +516,7 @@ ValidationOpticInterpreter.ValidationResult validation = validator.validate(prog
 // while a `get` would yield the focus type; see Interpreters for the class itself.
 ClubMember mockPerson = new ClubMember("Mock", 99, "ACTIVE");
 MockOpticInterpreter mock = new MockOpticInterpreter(op -> switch (op) {
-    case OpticOp.Modify<?, ?> ignored -> mockPerson;   // this program is a single modify
+    case OpticOp.Modify<?, ?, ?> ignored -> mockPerson;   // this program is a single modify
     default -> throw new UnsupportedOperationException(op.getClass().getSimpleName());
 });
 ClubMember mockResult = mock.run(program);

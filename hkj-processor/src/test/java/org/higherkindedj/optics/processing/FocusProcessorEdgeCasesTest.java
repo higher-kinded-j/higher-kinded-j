@@ -191,9 +191,11 @@ class FocusProcessorEdgeCasesTest {
           compilation, "com.example.ConfigFocus", "FocusPath<Config, Integer> count()");
       assertGeneratedCodeContains(
           compilation, "com.example.ConfigFocus", "FocusPath<Config, Boolean> active()");
-      // Optional widened
+      // Optional widened. AffinePath is a type the processor chose, so its article is "an".
       assertGeneratedCodeContains(
           compilation, "com.example.ConfigFocus", "AffinePath<Config, String> description()");
+      assertGeneratedCodeContainsRaw(
+          compilation, "com.example.ConfigFocus", "Creates an {@link AffinePath}");
       // Collection widened
       assertGeneratedCodeContains(
           compilation, "com.example.ConfigFocus", "TraversalPath<Config, String> tags()");

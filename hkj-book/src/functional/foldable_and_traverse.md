@@ -214,4 +214,4 @@ String joined = ListPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
 ---
 
 **Previous:** [Semigroup and Monoid](semigroup_and_monoid.md)
-**Next:** [MonadZero](monad_zero.md)
+**Next:** [Natural Transformation](natural_transformation.md)

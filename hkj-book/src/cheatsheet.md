@@ -29,7 +29,7 @@
 | `LazyPath<A>` | Deferred, memoised | `Path.lazyDefer(() -> ...)`, `Path.lazyNow(v)` | `.get()` → `A` |
 | `CompletableFuturePath<A>` | Async | `Path.future(cf)`, `Path.futureAsync(() -> ...)` | `.run()` → `CompletableFuture<A>` |
 | `ListPath<A>` | Batch processing with positional zipping | `Path.listPath(list)` | `.run()` → `List<A>` |
-| `StreamPath<A>` | Lazy sequences | `Path.stream(stream)` | `.run()` → `Stream<A>` |
+| `StreamPath<A>` | Sequences you can run more than once | `Path.stream(stream)`, `Path.streamIterate(seed, f)` | `.run()` → `Stream<A>` |
 | `NonDetPath<A>` | Non-deterministic search, combinations | `Path.list(list)` | `.run()` → `List<A>` |
 | `IdPath<A>` | Pure values | `Path.id(v)` | `.run()` → `Id<A>` |
 | `OptionalPath<A>` | java.util.Optional bridge | `Path.optional(opt)`, `Path.present(v)` | `.run()` → `Optional<A>` |

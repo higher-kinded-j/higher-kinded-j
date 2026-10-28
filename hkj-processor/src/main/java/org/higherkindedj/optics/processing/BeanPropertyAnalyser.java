@@ -1717,6 +1717,25 @@ final class BeanPropertyAnalyser {
     return decapitalise(capitalised).equals(property) ? capitalised : property;
   }
 
+  /**
+   * The setter a bean reads as writing {@code property}: {@code setEmail} for {@code email}, and
+   * {@code seteMails} for {@code eMails}, since {@code setEMails} writes {@code EMails}.
+   */
+  static String setterName(String property) {
+    return SET + accessorSuffix(property);
+  }
+
+  /**
+   * The property a builder's property-named method spells after a {@code set} it runs on from in
+   * lower case, as {@code setaway} spells {@code away}: a builder writes the property {@code
+   * setaway}, so it is most likely a misspelling of {@code away(...)}. Empty for any other name.
+   */
+  static Optional<String> spelledAfterSet(String methodName) {
+    return isWord(methodName, SET)
+        ? Optional.of(decapitalise(methodName.substring(SET.length())))
+        : Optional.empty();
+  }
+
   /** The JavaBeans {@code Introspector.decapitalize} rule: {@code getURL} -> {@code URL}. */
   static String decapitalise(String name) {
     if (name.isEmpty()) {

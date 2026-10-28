@@ -5,12 +5,13 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 ## General Principles
 
 - Use **British English** spelling and punctuation (e.g. "colour", "behaviour", "optimisation") in all non-code text: book pages, docs, skills, READMEs, Javadoc and comments, test display names, diagnostics and example output. Code keeps its own spelling: identifiers, keywords, Javadoc `@param` names, configuration keys, CSS and HTML names, string literals that are data, wire values, and third-party names and text, such as a product, an API, an idiom or an epigraph. `.github/scripts/british-spelling-check.cjs` checks the Markdown, comments, Javadoc and display names in CI (run it with `--fix` to correct what it finds); diagnostics and example output are string literals, so a reviewer checks those. A heading that changes spelling changes its anchor: in the book, pin the old one with an explicit `{#id}`; in a GitHub-rendered doc, update the links to it
-- Do not use em dashes (—); use commas or semicolons instead. The one sanctioned em dash is the attribution line under an epigraph ("— Niklaus Wirth")
+- Do not use em dashes (—); use commas or semicolons instead. The one sanctioned em dash is the attribution line under an epigraph ("— Edsger W. Dijkstra, *The Humble Programmer*"), as [Opening Quote](#opening-quote) describes
 - Avoid double-hyphen separators (` -- `) too, since they render as en-dashes and read like em-dashes. Prefer:
   - A **colon** (`: `) to introduce an expansion after a label (e.g. "`SafeFetch`: Total runner that captures..."). This is the standard form for label-and-description bullets and for "See Also" link descriptions
-  - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("five sub-chapters (Quickstart, Core Paths, ..., Reference)")
+  - **Parentheses** for asides and dates after a heading (e.g. "`### v0.4.5 (22 May 2026)`", "`### v0.4.6-SNAPSHOT (unreleased)`"). Also for short parenthetical lists inside prose ("its sub-chapters (Quickstart, Core Paths, ..., Reference)")
   - A **full stop** when the dash is really separating two complete thoughts, and treating them as two sentences reads more naturally
 - Do not use decorative emojis in documentation. The one exception is the status markers **✅** (correct, supported, "do this") and **❌** (wrong, unsupported, "avoid this"), used sparingly to label good-versus-bad code examples or supported-versus-unsupported rows in a table. Their plain-text equivalents **✓** and **✗** are equally acceptable. Do not use them as decoration or in prose; reserve them for a clear pass/fail signal.
+- Address the reader as "you", and name the maintainers as "Higher-Kinded-J" or "the library". Book pages never use "we", which blurs who is acting. The tutorials keep their own "we", the voice of working through an exercise together: the exercise files, and the journey pages under `hkj-book/src/tutorials/`. A page that still says "we" adopts "you" when it is next reworked
 - Keep explanations practical and focused on Java developers
 - Avoid academic jargon; prefer accessible explanations
 - Describe behaviour, not provenance: no GitHub issue or pull-request references outside the release history (see [No Issue or PR References](#no-issue-or-pr-references))
@@ -36,20 +37,27 @@ Each page should start with a level-1 heading (`#`) that describes the topic.
 # Either: Modelling Success or Failure
 ```
 
-### Opening Quote (Chapter Introductions)
+### Opening Quote
 
-Chapter introduction pages may include an opening quote to set the tone:
+A chapter or group introduction may open with a quote, and so may a page that crosses into a genuinely new idea. The quote sets up the page's question, and the sentence after it answers in the page's own terms:
 
 ```markdown
-# The Type Classes: Building Blocks of Abstraction
+# Foundations
 
-> _"Programs = Algorithms + Data Structures"_
-> — Niklaus Wirth
+<!-- source: Edsger W. Dijkstra, "The Humble Programmer", ACM Turing Lecture 1972, EWD340 -->
+> _"The purpose of abstracting is not to be vague, but to create a new semantic level in which one can be absolutely precise."_
+>
+> — Edsger W. Dijkstra, *The Humble Programmer*
 
-This chapter introduces the foundational type classes...
+Dijkstra's new semantic level, in this chapter, is `Kind<F, A>`...
 ```
 
-Use blockquote formatting with italicised text and an attribution line.
+- **At most one per page, at its head.** Never mid-page, and never on a reference page.
+- **The quotation is italic and keeps its own spelling.** The attribution line is `> — Author, *Work*`, with a chapter, act or poem where it helps. No bold, job titles or commentary; name the translator where the wording is theirs.
+- **A `<!-- source: ... -->` comment above it records the edition**, so the wording can be checked against it.
+- **Quote only what can be sourced.** A line famous mainly as an internet attribution is not.
+- **An author appears at most once in a chapter, and a quotation at most once in the book.**
+- **The sentence after it uses the quotation**, in the page's own terms. A quote with no bridge is decoration.
 
 ### What You'll Learn Section
 
@@ -298,6 +306,10 @@ Outside that one sentence, rule prose carries no "for now", "yet", "today", "sti
 
 **One carve-out: a supported version.** A statement about the JDK, or about a dependency the library tracks, is a fact that legitimately dates, and writing it open-endedly ("Java 25 or later") claims a future nobody has tested. State the release the library is built on and mark it as current ("built on Java 25 today"), so the sentence is true when written and visibly needs revisiting when the library moves.
 
+### Counts in Prose
+
+A count of types, pages, instances or exercises is a claim, and it drifts as the library grows: two pages that each count the same list soon disagree. State a count only where a script or a test derives it, as the tutorial exercise counts are. Otherwise link the list that holds the items, or name the set without a number ("every core type", "the type classes on this page").
+
 ### No Issue or PR References
 
 Book pages, skills, javadoc, code comments, diagnostics and test names describe behaviour and the reason for it, not where it came from. Do not link or cite GitHub issues or pull requests (no "([#654](...))", "the #653 doctrine" or "since #660"), and do not narrate delivery order ("the first slice", "a follow-up", "until the next release"). Name the concept instead: "the collision sweep", not "the #654 sweep".
@@ -435,9 +447,27 @@ At release:
 1. **Finish every edit in `unreleased.md` first.** Once it is renamed, the readability and spelling checks stop reading it, so the cut is a rename and a new title only.
 2. **Rename it to the version's page**, `vX_Y_Z.md`. Its title becomes `# vX.Y.Z (D Month YYYY) {#vXYZ-d-month-yyyy}`, as in `# v0.4.11 (5 October 2026) {#v0411-5-october-2026}`. Put the `[vX.Y.Z on GitHub](...)` line under it, in place of the not-released line.
 3. **Start a fresh `unreleased.md` for the next version.** Keep the skeleton: the title, the not-released line, At a glance, the area headings, and the Upgrading section's headings and tables, emptied.
-4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, and the legacy-anchor entry for the old unreleased heading.
+4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, the legacy-anchor entry for the old unreleased heading, and the home page band's head link while the band shows the coming version.
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
+7. **Turn the home page's band into the version's "New in" band**, as [The Home Page Band](#the-home-page-band) says. If it shows the coming version, drop `hkj-spotlight-snapshot` from its classes, write "New in X.Y.Z" in its eyebrow, and make its head link "All changes in X.Y.Z", pointing at the version's page. Then hold its cards to the release's At a glance: up to three headlines, each linked to the page that teaches it.
+
+### The Home Page Band
+
+The band under the badges in `home.md` shows what a version brings, in up to three cards. It takes one of two forms:
+
+- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book. `/latest/` keeps showing it until `main` gains a headline of its own.
+- **"Coming in X.Y.Z"** shows what `main` adds for the next release, so only `/latest/` ever shows it. A second class on the section, `hkj-spotlight-snapshot`, turns the band's accent teal and dashes the lead card. Its head link reads "All changes so far" and points at `release-history/unreleased.md`.
+
+A headline is a change a reader would upgrade for, rather than a fix or a refinement. When `main` gains one, the pull request that adds it, or one soon after, updates the band:
+
+1. **Switch to "Coming in" the first time.** Add `hkj-spotlight-snapshot` to the section's classes, write "Coming in X.Y.Z" in the eyebrow, and make the head link `[All changes so far](release-history/unreleased.md)`. The last release's cards go, and that release's copy of the book keeps them.
+2. **Keep three cards at most.** A new headline replaces the weakest card. The lead card spans the band, and holds the headline whose one line of code shows the most.
+3. **Give every card a page and an entry.** Link the card's title to the page that teaches it, and give its change an entry in `unreleased.md`.
+
+Each card is HTML around Markdown. Keep a blank line on each side of the Markdown, or mdBook passes it through as raw text. Write links in Markdown, not `<a href>`, so that mdBook rewrites `.md` to `.html` and the anchor check sees them. Keep the lead card's code under `<!-- verify -->`: the snippet gate compiles it against `main`, with names from `hkj-examples/src/test/resources/fixtures/home.java`.
+
+Keep the `hkj-spotlight` class names. A re-deploy of an old tag builds its pages with the current theme, so a renamed class breaks the band in every release's copy.
 
 ### Headings and Subtitles
 
@@ -641,6 +671,11 @@ the reader will one day paste into a search box; give them the words.
 truncates, for example, is asserted in the page's test through the real library, never stated from
 memory.
 
+**Code a chapter shows on more than one page is included from one region.** A showcase, such as the
+Foundations chapter's one-liner, is written once in a compiled example, and each page that shows it
+includes that region. A typed copy is checked by nothing, and drifts from the original at its first
+change.
+
 See `hkj-examples/BOOK-SNIPPETS.md`, and run `./gradlew :hkj-examples:test :hkj-examples:bookVerify`.
 
 ### Code Blocks
@@ -689,6 +724,7 @@ guides, and the chapter guide links here rather than repeating this guide.
 |---|---|---|
 | Mapping at the Boundary | `hkj-book/src/mapping/` | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
 | Optics | `hkj-book/src/optics/` | [Optics Chapter Guide](OPTICS-CHAPTER-GUIDE.md) |
+| Foundations | `hkj-book/src/hkts/`, `functional/` and `monads/`, as `SUMMARY.md` lists them | [Foundations Chapter Guide](FOUNDATIONS-CHAPTER-GUIDE.md) |
 
 To give a chapter a guide, write `docs/<CHAPTER>-CHAPTER-GUIDE.md` and add its row here. Procedure
 and traps for Claude Code sessions go in the `book-authoring` skill, as a

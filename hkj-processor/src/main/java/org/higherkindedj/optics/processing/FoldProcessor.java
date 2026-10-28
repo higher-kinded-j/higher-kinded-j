@@ -198,7 +198,7 @@ public class FoldProcessor extends AbstractProcessor {
     MethodSpec.Builder factory =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Fold<$T, $T>}.",
                 Fold.class,
                 component.getSimpleName(),

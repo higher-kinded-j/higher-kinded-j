@@ -84,7 +84,7 @@ String city = Path.maybe(Maybe.fromOptional(findUser(id)))
 ```java
 // MaybePath -> EitherPath upgrade
 Path.maybe(Maybe.fromOptional(findUser(id)))
-    .toEitherPath(new AppError.UserNotFound(id))
+    .<AppError>toEitherPath(new AppError.UserNotFound(id))  // the chain's error type is AppError
     .via(user -> Path.maybe(Maybe.fromOptional(findAddress(user)))
         .toEitherPath(new AppError.NoAddress(user.id())))
     .map(Address::city)

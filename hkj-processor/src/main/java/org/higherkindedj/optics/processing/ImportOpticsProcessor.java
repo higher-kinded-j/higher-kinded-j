@@ -80,7 +80,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       "A class has wither methods when a public 'withX' hands back the class, under its own type"
           + " arguments, as a subtype, or as a retag the call infers back to it, beside a public"
           + " 'x()', 'getX()' or 'isX()' returning exactly what 'withX' takes. A name that runs on"
-          + " in lower case after 'with', such as 'withdraw', is a word rather than a wither.";
+          + " in lower case after 'with', such as 'withdraw', is a word rather than a wither, and"
+          + " 'with2D' pairs nothing, since its lens would be named '2D', which no method can be.";
 
   @Override
   public SourceVersion getSupportedSourceVersion() {

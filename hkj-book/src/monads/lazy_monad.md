@@ -245,4 +245,4 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 ---
 
 **Previous:** [IO](io_monad.md)
-**Next:** [List](list_monad.md)
+**Next:** [CompletableFuture](cf_monad.md)

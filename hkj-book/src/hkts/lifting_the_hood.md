@@ -233,12 +233,12 @@ The library is built so that the *abstraction* lives in the type system and the 
 ---
 
 ~~~admonish tip title="See Also"
-- [Core Concepts](core-concepts.md) - the components introduced here, in slower depth
+- [How the Encoding Works](core-concepts.md) - the components introduced here, in slower depth
 - [Foundations FAQ](faq.md) - the design questions that this trace will prompt
 - [Benchmarks & Performance](../benchmarks.md) - the actual numbers
 ~~~
 
 ---
 
-**Previous:** [One Line, Six Layers](one_line_six_layers.md)
-**Next:** [Higher-Kinded Types](ch_intro.md)
+**Previous:** [Type Arity](type-arity.md)
+**Next:** [Extending the Simulation](extending-simulation.md)

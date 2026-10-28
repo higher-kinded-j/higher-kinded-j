@@ -480,7 +480,7 @@ Kind<OptionalKind.Witness, String> empty =
 - Effects that don't return a value (logging, printing, etc.)
 - Error types for contexts where absence is the only error (Optional, Maybe)
 
-**Related:** [Core Concepts](../hkts/core-concepts.md)
+**Related:** [How the Encoding Works](../hkts/core-concepts.md)
 
 ---
 

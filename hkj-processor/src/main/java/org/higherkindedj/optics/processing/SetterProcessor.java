@@ -146,7 +146,7 @@ public class SetterProcessor extends AbstractProcessor {
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(componentName)
             .addJavadoc(
-                "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
+                "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n\n"
                     + "@return A non-null {@code Setter<$T, $T>}.",
                 Setter.class,
                 component.getSimpleName(),

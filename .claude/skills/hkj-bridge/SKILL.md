@@ -78,7 +78,7 @@ emailPath.toTryPath(user, () -> new MissingEmailException()); // Success or Fail
 TraversalPath<Company, User> employees = CompanyFocus.employees();
 
 ListPath<User> all    = employees.toListPath(company);    // Non-null values as list
-StreamPath<User> lazy = employees.toStreamPath(company);  // Lazy stream
+StreamPath<User> stream = employees.toStreamPath(company); // Non-null values, streamed again on each run
 MaybePath<User> first = employees.toMaybePath(company);   // First value or Nothing
 ```
 
@@ -99,7 +99,7 @@ MaybePath<User> first = employees.toMaybePath(company);   // First value or Noth
 | `AffinePath<S, A>` | `.toTryPath(S, Supplier)` | `Success(a)` or `Failure` |
 | `AffinePath<S, A>` | `.toOptionalPath(S)` | `Optional.of(a)` or empty |
 | `TraversalPath<S, A>` | `.toListPath(S)` | Non-null values as list |
-| `TraversalPath<S, A>` | `.toStreamPath(S)` | Lazy stream of non-null values |
+| `TraversalPath<S, A>` | `.toStreamPath(S)` | The non-null values, streamed again on each run |
 | `TraversalPath<S, A>` | `.toMaybePath(S)` | First value, or `Nothing` if none or null |
 
 ---

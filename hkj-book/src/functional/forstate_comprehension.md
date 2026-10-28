@@ -515,4 +515,4 @@ Kind<M, String> receipt = ForState.withState(monad, ...)
 ---
 
 **Previous:** [MTL & ForState Bridge](for_mtl.md)
-**Next:** [Choosing Abstraction Levels](abstraction_levels.md)
+**Next:** [Core Types](../monads/ch_intro.md)

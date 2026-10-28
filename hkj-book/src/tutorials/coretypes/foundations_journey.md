@@ -75,7 +75,7 @@ Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Ja
 
 **Java idiom anchor**: same shape as `Stream<Order>`, `CompletableFuture<Response>`, `Optional<User>` (except `F` is now a type parameter we can pass around).
 
-**Links to documentation**: [HKT Introduction](../../hkts/hkt_introduction.md) | [Core Concepts](../../hkts/core-concepts.md) | [Lifting the Hood](../../hkts/lifting_the_hood.md)
+**Links to documentation**: [HKT Introduction](../../hkts/hkt_introduction.md) | [How the Encoding Works](../../hkts/core-concepts.md) | [Lifting the Hood](../../hkts/lifting_the_hood.md)
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java)
 

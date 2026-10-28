@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -1594,6 +1595,658 @@ class MappingFixLineTest {
               "the card, its id unchanged");
       assertThatValidated(probe(result, "keeper"))
           .hasValueSatisfying(pet -> pet.toString().equals("Pet[id=7, name=Rex]"), "the pet");
+    }
+  }
+
+  /**
+   * A line that spells a bean accessor or a marker spells the one the mapping then reads: the
+   * setter of a property whose second letter is a capital, no marker a keyword or a taken name
+   * would name, a marker that replaces the rename it would otherwise strand, and the near miss that
+   * was meant to pair, at the wrapper a PATCH property takes. A getter-only {@code List} of a
+   * wildcard is followed both ways, each against the domain it fits: its setter where the domain
+   * declares the wildcard too, and the element type where the domain names it.
+   */
+  @Nested
+  @DisplayName("an accessor or marker a refusal spells for a bean property")
+  class SpeltForTheProperty {
+
+    @Test
+    @DisplayName("is spelt as the mapping reads it, and names the method it passed over")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              import org.jspecify.annotations.Nullable;
+
+              record Contact(String name, List<String> eMails) {}
+              class ContactPatch {
+                private @Nullable String name;
+                private @Nullable List<String> eMails;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public List<String> geteMails() {
+                  if (eMails == null) { eMails = new ArrayList<>(); }
+                  return eMails;
+                }
+              }
+              @GenerateMapping
+              interface ContactPatchMapping extends UpdateSpec<Contact, ContactPatch> {}
+
+              class ContactModel {
+                private String name;
+                private List<? extends String> eMails = new ArrayList<>();
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<? extends String> geteMails() { return eMails; }
+              }
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactModel> {}
+
+              record Config(String name, String defaultValue) {}
+              class ConfigPatch {
+                private @Nullable String name;
+                private @Nullable String dflt;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public void setDefault(@Nullable String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigPatchMapping extends UpdateSpec<Config, ConfigPatch> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              class ConfigModel {
+                private String name;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getDefault() { return "on"; }
+              }
+              @GenerateMapping
+              interface ConfigMapping extends MappingSpec<Config, ConfigModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Trip(String away, String up) {}
+              class TripModel {
+                private String holiday;
+                private String up;
+                public void setHoliday(String holiday) { this.holiday = holiday; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface TripMapping extends MappingSpec<Trip, TripModel> {
+                @MapField(to = "holiday")
+                String away();
+              }
+
+              record Tour(String away, String up) {}
+              final class TourModel {
+                private final String away;
+                private final String up;
+                private TourModel(Builder builder) {
+                  this.away = builder.away;
+                  this.up = builder.up;
+                }
+                public String getAway() { return away; }
+                public String getUp() { return up; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String away;
+                  private String up;
+                  public Builder setaway(String away) { this.away = away; return this; }
+                  public Builder up(String up) { this.up = up; return this; }
+                  public Builder settings(String settings) { return this; }
+                  public TourModel build() { return new TourModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface TourMapping extends MappingSpec<Tour, TourModel> {}
+
+              record Point(Integer x, Integer y) {}
+              class PointPatch {
+                private Integer x;
+                private Integer y;
+                public Integer getX() { return x; }
+                public void setx(int x) { this.x = x; }
+                public Integer getY() { return y; }
+                public void setY(Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
+
+              record Roster(String name, List<? extends String> eMails) {}
+              class RosterModel {
+                private String name;
+                private List<? extends String> eMails = new ArrayList<>();
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<? extends String> geteMails() { return eMails; }
+              }
+              @GenerateMapping
+              interface RosterMapping extends MappingSpec<Roster, RosterModel> {}
+
+              record Spot(Integer x, Integer y) {}
+              class SpotPatch {
+                private @Nullable Integer y;
+                public int getX() { return 0; }
+                public void setx(@Nullable Integer x) {}
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface SpotPatchMapping extends UpdateSpec<Spot, SpotPatch> {}
+
+              record Tally(Integer count, Integer y) {}
+              class TallyPatch {
+                private @Nullable Integer y;
+                public int getCount() { return 0; }
+                public void setCont(int count) {}
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface TallyPatchMapping extends UpdateSpec<Tally, TallyPatch> {}
+
+              record Mark(int x, int y) {}
+              class MarkModel {
+                private int x;
+                private int y;
+                public void setX(int x) { this.x = x; }
+                public Integer getx() { return x; }
+                public int getY() { return y; }
+                public void setY(int y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface MarkMapping extends MappingSpec<Mark, MarkModel> {}
+
+              record Badge(String id, String name) {}
+              class BadgeModel {
+                private String name;
+                public String getId() { return "b-1"; }
+                public void setup(String hook) {}
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              @GenerateMapping
+              interface BadgeMapping extends MappingSpec<Badge, BadgeModel> {}
+
+              record Setting(String name, String defaultValue) {}
+              final class SettingModel {
+                private final String name;
+                private final String dflt;
+                private SettingModel(Builder builder) {
+                  this.name = builder.name;
+                  this.dflt = builder.dflt;
+                }
+                public String getName() { return name; }
+                public String getDefault() { return dflt; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String name;
+                  private String dflt;
+                  public Builder name(String name) { this.name = name; return this; }
+                  public Builder setdefault(String dflt) { this.dflt = dflt; return this; }
+                  public SettingModel build() { return new SettingModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface SettingMapping extends MappingSpec<Setting, SettingModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Shift(String early, String late) {}
+              class ShiftModel {
+                private String late;
+                private String night;
+                public void setLate(String late) { this.late = late; }
+                public String getNight() { return night; }
+                public void setNight(String night) { this.night = night; }
+              }
+              @GenerateMapping
+              interface ShiftMapping extends MappingSpec<Shift, ShiftModel> {
+                @MapField(to = "late")
+                String early();
+                @MapField(to = "night")
+                String late();
+              }
+
+              record Option(String name, String defaultValue) {}
+              class OptionModel {
+                private String name;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getdefault() { return null; }
+                public void setdefault(String dflt) {}
+              }
+              @GenerateMapping
+              interface OptionMapping extends MappingSpec<Option, OptionModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(15);
+      assertThat(compilation).hadErrorContaining("Give 'eMails' a seteMails setter, and let");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "give 'eMails' a seteMails setter, which takes the property as declared.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "would never reach 'Config.defaultValue' (renamed to 'default'), and nothing would"
+                  + " say so. Add String getDefault() to 'ConfigPatch'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "build would never write it. Add setDefault(String) to 'ConfigModel'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add String getHoliday() to 'TripModel'. Or, if setHoliday(String) is not meant to"
+                  + " carry 'Trip.away', replace 'away()' with '@Unmapped String holiday();'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add a setter for 'away' taking String to the builder of 'TourModel'. Or, if"
+                  + " setaway(String) is meant to write 'away', rename it away(String).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setX(Integer) to 'PointPatch'. Or, if setx(int) is meant to write 'x', change"
+                  + " it to setX(Integer).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setX(Integer) to 'SpotPatch', and declare getX() with Integer too, since a PATCH"
+                  + " property must be able to be absent. Or, if setx(Integer) is meant to write"
+                  + " 'x', rename it setX(Integer), and declare getX() with Integer too, since a"
+                  + " PATCH property must be able to be absent.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Or, if setCont(int) is meant to write 'count', change it to setCount(Integer), and"
+                  + " declare getCount() with Integer too, since a PATCH property must be able to"
+                  + " be absent.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add int getX() to 'MarkModel'. Or, if getx() is meant to read 'x', change it to int"
+                  + " getX().");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setId(String) to 'BadgeModel'. Or, if 'id' is read-only, declare '@ReadOnly"
+                  + " String id();' on the spec");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Or, if setdefault(String) is meant to write 'default', rename it"
+                  + " setDefault(String).");
+      assertThat(compilation)
+          .hadErrorContaining("build would never write it. Add String getLate() to 'ShiftModel'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Rename getdefault() to getDefault() and setdefault(String) to setDefault(String).");
+      Assertions.assertThat(compilation.errors().toString())
+          .doesNotContain("setEMails")
+          .doesNotContain("default();")
+          .doesNotContain("setup(String) is meant")
+          .doesNotContain("String late();")
+          .doesNotContain("tings");
+    }
+
+    @Test
+    @DisplayName("each line it offers maps the property once followed")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              import org.jspecify.annotations.Nullable;
+
+              record Contact(String name, List<String> eMails) {}
+              class ContactPatch {
+                private @Nullable String name;
+                private @Nullable List<String> eMails;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable List<String> geteMails() { return eMails; }
+                public void seteMails(@Nullable List<String> eMails) { this.eMails = eMails; }
+              }
+              @GenerateMapping
+              interface ContactPatchMapping extends UpdateSpec<Contact, ContactPatch> {}
+
+              record Config(String name, String defaultValue) {}
+              class ConfigPatch {
+                private @Nullable String name;
+                private @Nullable String dflt;
+                public @Nullable String getName() { return name; }
+                public void setName(@Nullable String name) { this.name = name; }
+                public @Nullable String getDefault() { return dflt; }
+                public void setDefault(@Nullable String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigPatchMapping extends UpdateSpec<Config, ConfigPatch> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              class ConfigModel {
+                private String name;
+                private String dflt;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getDefault() { return dflt; }
+                public void setDefault(String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface ConfigMapping extends MappingSpec<Config, ConfigModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Trip(String away, String up) {}
+              class TripModel {
+                private String holiday;
+                private String up;
+                public void setHoliday(String holiday) { this.holiday = holiday; }
+                public String getUp() { return up; }
+                public void setUp(String up) { this.up = up; }
+              }
+              @GenerateMapping
+              interface TripMapping extends MappingSpec<Trip, TripModel> {
+                @Unmapped String holiday();
+              }
+
+              record Tour(String away, String up) {}
+              final class TourModel {
+                private final String away;
+                private final String up;
+                private TourModel(Builder builder) {
+                  this.away = builder.away;
+                  this.up = builder.up;
+                }
+                public String getAway() { return away; }
+                public String getUp() { return up; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String away;
+                  private String up;
+                  public Builder away(String away) { this.away = away; return this; }
+                  public Builder up(String up) { this.up = up; return this; }
+                  public Builder settings(String settings) { return this; }
+                  public TourModel build() { return new TourModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface TourMapping extends MappingSpec<Tour, TourModel> {}
+
+              record Point(Integer x, Integer y) {}
+              class PointPatch {
+                private Integer x;
+                private Integer y;
+                public Integer getX() { return x; }
+                public void setX(Integer x) { this.x = x; }
+                public Integer getY() { return y; }
+                public void setY(Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
+
+              class ContactModel {
+                private String name;
+                private List<String> eMails = new ArrayList<>();
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<String> geteMails() { return eMails; }
+              }
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactModel> {}
+
+              record Roster(String name, List<? extends String> eMails) {}
+              class RosterModel {
+                private String name;
+                private List<? extends String> eMails = new ArrayList<>();
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<? extends String> geteMails() { return eMails; }
+                public void seteMails(List<? extends String> eMails) { this.eMails = eMails; }
+              }
+              @GenerateMapping
+              interface RosterMapping extends MappingSpec<Roster, RosterModel> {}
+
+              record Spot(Integer x, Integer y) {}
+              class SpotPatch {
+                private @Nullable Integer x;
+                private @Nullable Integer y;
+                public @Nullable Integer getX() { return x; }
+                public void setX(@Nullable Integer x) { this.x = x; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface SpotPatchMapping extends UpdateSpec<Spot, SpotPatch> {}
+
+              record Tally(Integer count, Integer y) {}
+              class TallyPatch {
+                private @Nullable Integer count;
+                private @Nullable Integer y;
+                public @Nullable Integer getCount() { return count; }
+                public void setCount(@Nullable Integer count) { this.count = count; }
+                public @Nullable Integer getY() { return y; }
+                public void setY(@Nullable Integer y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface TallyPatchMapping extends UpdateSpec<Tally, TallyPatch> {}
+
+              record Mark(int x, int y) {}
+              class MarkModel {
+                private int x;
+                private int y;
+                public void setX(int x) { this.x = x; }
+                public int getX() { return x; }
+                public int getY() { return y; }
+                public void setY(int y) { this.y = y; }
+              }
+              @GenerateMapping
+              interface MarkMapping extends MappingSpec<Mark, MarkModel> {}
+
+              record Badge(String id, String name) {}
+              class BadgeModel {
+                private String name;
+                public String getId() { return "b-1"; }
+                public void setup(String hook) {}
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              @GenerateMapping
+              interface BadgeMapping extends MappingSpec<Badge, BadgeModel> {
+                @ReadOnly String id();
+              }
+
+              record Setting(String name, String defaultValue) {}
+              final class SettingModel {
+                private final String name;
+                private final String dflt;
+                private SettingModel(Builder builder) {
+                  this.name = builder.name;
+                  this.dflt = builder.dflt;
+                }
+                public String getName() { return name; }
+                public String getDefault() { return dflt; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String name;
+                  private String dflt;
+                  public Builder name(String name) { this.name = name; return this; }
+                  public Builder setDefault(String dflt) { this.dflt = dflt; return this; }
+                  public SettingModel build() { return new SettingModel(this); }
+                }
+              }
+              @GenerateMapping
+              interface SettingMapping extends MappingSpec<Setting, SettingModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              record Shift(String early, String late) {}
+              class ShiftModel {
+                private String late;
+                private String night;
+                public String getLate() { return late; }
+                public void setLate(String late) { this.late = late; }
+                public String getNight() { return night; }
+                public void setNight(String night) { this.night = night; }
+              }
+              @GenerateMapping
+              interface ShiftMapping extends MappingSpec<Shift, ShiftModel> {
+                @MapField(to = "late")
+                String early();
+                @MapField(to = "night")
+                String late();
+              }
+
+              record Option(String name, String defaultValue) {}
+              class OptionModel {
+                private String name;
+                private String dflt;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getDefault() { return dflt; }
+                public void setDefault(String dflt) { this.dflt = dflt; }
+              }
+              @GenerateMapping
+              interface OptionMapping extends MappingSpec<Option, OptionModel> {
+                @MapField(to = "default")
+                String defaultValue();
+              }
+
+              final class Probe {
+                static Object contact() {
+                  ContactPatch patch = new ContactPatch();
+                  patch.setName("Ada");
+                  return ContactPatchMappingImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Contact("Bo", List.of("bo@example.com")));
+                }
+
+                static Object config() {
+                  ConfigPatch patch = new ConfigPatch();
+                  patch.setDefault("off");
+                  return ConfigPatchMappingImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Config("flags", "on"));
+                }
+
+                static Object configBuilt() {
+                  return Validated.validNel(
+                      ConfigMappingImpl.INSTANCE.build(new Config("flags", "on")).getDefault());
+                }
+
+                static Object trip() {
+                  return Validated.validNel(
+                      TripMappingImpl.INSTANCE.build(new Trip("Lisbon", "north")).getUp());
+                }
+
+                static Object tour() {
+                  return TourMappingImpl.INSTANCE.parse(
+                      TourMappingImpl.INSTANCE.build(new Tour("Lisbon", "north")));
+                }
+
+                static Object point() {
+                  PointPatch patch = new PointPatch();
+                  patch.setX(3);
+                  return PointPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Point(1, 2));
+                }
+
+                static Object contactBuilt() {
+                  return Validated.validNel(
+                      ContactMappingImpl.INSTANCE
+                          .build(new Contact("Bo", List.of("bo@example.com")))
+                          .geteMails());
+                }
+
+                static Object roster() {
+                  return RosterMappingImpl.INSTANCE.parse(
+                      RosterMappingImpl.INSTANCE.build(new Roster("Bo", List.of("bo@example.com"))));
+                }
+
+                static Object spot() {
+                  SpotPatch patch = new SpotPatch();
+                  patch.setX(3);
+                  return SpotPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Spot(1, 2));
+                }
+
+                static Object tally() {
+                  TallyPatch patch = new TallyPatch();
+                  patch.setCount(3);
+                  return TallyPatchMappingImpl.INSTANCE.updateFrom(patch).apply(new Tally(1, 2));
+                }
+
+                static Object mark() {
+                  return MarkMappingImpl.INSTANCE.parse(MarkMappingImpl.INSTANCE.build(new Mark(3, 4)));
+                }
+
+                static Object badge() {
+                  BadgeModel model = new BadgeModel();
+                  model.setName("Rex");
+                  return BadgeMappingImpl.INSTANCE.parse(model);
+                }
+
+                static Object setting() {
+                  return SettingMappingImpl.INSTANCE.parse(
+                      SettingMappingImpl.INSTANCE.build(new Setting("flags", "on")));
+                }
+
+                static Object shift() {
+                  return ShiftMappingImpl.INSTANCE.parse(
+                      ShiftMappingImpl.INSTANCE.build(new Shift("six", "ten")));
+                }
+
+                static Object option() {
+                  return Validated.validNel(
+                      OptionMappingImpl.INSTANCE.build(new Option("flags", "on")).getDefault());
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "contact"))
+          .hasValueSatisfying(
+              contact -> contact.toString().equals("Contact[name=Ada, eMails=[bo@example.com]]"),
+              "the contact, its e-mails unchanged");
+      assertThatValidated(probe(result, "config"))
+          .hasValueSatisfying(
+              config -> config.toString().equals("Config[name=flags, defaultValue=off]"),
+              "the config, its default updated");
+      assertThatValidated(probe(result, "configBuilt")).hasValue("on");
+      assertThatValidated(probe(result, "trip")).hasValue("north");
+      assertThatValidated(probe(result, "tour"))
+          .hasValueSatisfying(
+              tour -> tour.toString().equals("Tour[away=Lisbon, up=north]"),
+              "the tour, through the renamed builder setter");
+      assertThatValidated(probe(result, "point"))
+          .hasValueSatisfying(
+              point -> point.toString().equals("Point[x=3, y=2]"), "the point, its x updated");
+      assertThatValidated(probe(result, "contactBuilt")).hasValue(List.of("bo@example.com"));
+      assertThatValidated(probe(result, "roster"))
+          .hasValueSatisfying(
+              roster -> roster.toString().equals("Roster[name=Bo, eMails=[bo@example.com]]"),
+              "the roster, through the setter of its wildcard list");
+      assertThatValidated(probe(result, "spot"))
+          .hasValueSatisfying(
+              spot -> spot.toString().equals("Spot[x=3, y=2]"), "the spot, its x updated");
+      assertThatValidated(probe(result, "tally"))
+          .hasValueSatisfying(
+              tally -> tally.toString().equals("Tally[count=3, y=2]"),
+              "the tally, its count updated");
+      assertThatValidated(probe(result, "mark"))
+          .hasValueSatisfying(
+              mark -> mark.toString().equals("Mark[x=3, y=4]"), "the mark, through the getter");
+      assertThatValidated(probe(result, "badge"))
+          .hasValueSatisfying(
+              badge -> badge.toString().equals("Badge[id=b-1, name=Rex]"),
+              "the badge, its id read");
+      assertThatValidated(probe(result, "setting"))
+          .hasValueSatisfying(
+              setting -> setting.toString().equals("Setting[name=flags, defaultValue=on]"),
+              "the setting, through the builder's setDefault");
+      assertThatValidated(probe(result, "shift"))
+          .hasValueSatisfying(
+              shift -> shift.toString().equals("Shift[early=six, late=ten]"),
+              "the shift, through both renames");
+      assertThatValidated(probe(result, "option")).hasValue("on");
     }
   }
 

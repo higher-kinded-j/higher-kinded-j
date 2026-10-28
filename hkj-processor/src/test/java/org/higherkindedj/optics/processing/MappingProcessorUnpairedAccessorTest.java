@@ -774,8 +774,8 @@ class MappingProcessorUnpairedAccessorTest {
               "With nothing else on 'ItemDto' to read or write it, the mapping would leave"
                   + " 'Item.label' (renamed to 'tag') out, and nothing would say so. Rename gettag()"
                   + " to getTag() and settag(String) to setTag(String). Or, if gettag() and settag(String) are not"
-                  + " meant to carry 'Item.label' (renamed to 'tag'), declare '@Unmapped String"
-                  + " tag();' on the spec.");
+                  + " meant to carry 'Item.label' (renamed to 'tag'), replace 'label()' with"
+                  + " '@Unmapped String tag();'.");
       assertThat(compilation)
           .hadErrorContaining(
               "'HolidayDto' declares getaway(), which is not read as the getter of 'away'.");

@@ -128,5 +128,5 @@ Practise real-world monad patterns in [Tutorial 07: Real World](https://github.c
 
 ---
 
-**Previous:** [Choosing Abstraction Levels](../functional/abstraction_levels.md)
-**Next:** [Supported Types](supported-types.md)
+**Previous:** [ForState Comprehension](../functional/forstate_comprehension.md)
+**Next:** [Either](either_monad.md)

@@ -627,12 +627,15 @@ final class ConstructorOrderChecks {
    * passing the one written: the focus written as a wildcard, or the read of an accessor that
    * declares type variables of its own.
    */
-  private static boolean inferredArgument(Rebuild rebuild, String name, TypeMirror argument) {
+  private boolean inferredArgument(Rebuild rebuild, String name, TypeMirror argument) {
     return argument.getKind() == TypeKind.WILDCARD
         || !name.equals(rebuild.fieldName())
-            && !CallableMembers.accessorNamed(rebuild.members(), name)
-                .getTypeParameters()
-                .isEmpty();
+            && !accessorOf(rebuild, name).getTypeParameters().isEmpty();
+  }
+
+  /** The accessor {@code name} the call reads through on the source, or null where it has none. */
+  private ExecutableElement accessorOf(Rebuild rebuild, String name) {
+    return CallableMembers.accessorNamed(typeUtils, rebuild.source(), rebuild.members(), name);
   }
 
   /** Reports a constructor that takes the argument read through {@code name} only unchecked. */
@@ -1028,9 +1031,7 @@ final class ConstructorOrderChecks {
     return LensFocus.asFocus(
         typeUtils,
         ProcessorUtils.returnTypeIn(
-            typeUtils,
-            rebuild.source(),
-            CallableMembers.accessorNamed(rebuild.members(), rebuild.fieldName())));
+            typeUtils, rebuild.source(), accessorOf(rebuild, rebuild.fieldName())));
   }
 
   /** The fix that turns to another strategy: a whole fix line. */
@@ -1155,15 +1156,11 @@ final class ConstructorOrderChecks {
    * Whether the call for an order rests on inference: a focus written as a wildcard, unless the
    * call passes it cast to a primitive, or an accessor that declares type variables of its own.
    */
-  private static boolean choosesByInference(Rebuild rebuild, List<String> order) {
+  private boolean choosesByInference(Rebuild rebuild, List<String> order) {
     return rebuild.focus().getKind() == TypeKind.WILDCARD && rebuild.unboxed(order) == null
         || order.stream()
             .filter(name -> !name.equals(rebuild.fieldName()))
-            .anyMatch(
-                name ->
-                    !CallableMembers.accessorNamed(rebuild.members(), name)
-                        .getTypeParameters()
-                        .isEmpty());
+            .anyMatch(name -> !accessorOf(rebuild, name).getTypeParameters().isEmpty());
   }
 
   /**
@@ -1192,9 +1189,7 @@ final class ConstructorOrderChecks {
                 name.equals(rebuild.fieldName())
                     ? passed
                     : ProcessorUtils.returnTypeIn(
-                        typeUtils,
-                        rebuild.source(),
-                        CallableMembers.accessorNamed(rebuild.members(), name)))
+                        typeUtils, rebuild.source(), accessorOf(rebuild, name)))
         .toList();
   }
 
@@ -1269,8 +1264,7 @@ final class ConstructorOrderChecks {
                 NamingConvention.ACCESSOR.of(parameterName(constructor, at)).stream()
                     .filter(
                         spelling ->
-                            Optional.ofNullable(
-                                    CallableMembers.accessorNamed(rebuild.members(), spelling))
+                            Optional.ofNullable(accessorOf(rebuild, spelling))
                                 .filter(
                                     accessor ->
                                         fitsParameter(

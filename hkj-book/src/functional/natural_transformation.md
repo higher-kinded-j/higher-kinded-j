@@ -321,5 +321,5 @@ Practise natural transformations in [Tutorial 08: Natural Transformation](https:
 
 ---
 
-**Previous:** [Bifunctor](bifunctor.md)
-**Next:** [For Comprehension](for_comprehension.md)
+**Previous:** [Foldable and Traverse](foldable_and_traverse.md)
+**Next:** [Selective](selective.md)

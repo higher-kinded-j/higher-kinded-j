@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -381,14 +382,17 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     /**
      * This accessor as a diagnostic spells it, renamed to speak for {@code property}: the prefix it
      * was declared with ({@code get}, {@code is}, {@code set}, or none for a property-named builder
-     * method) is kept.
+     * method) is kept. A keyword, such as {@code default}, can name no method, so a builder method
+     * is renamed to the {@code setDefault} a builder also reads as writing it.
      */
     String renamedFor(String property) {
       int prefix = method.length() - name.length();
       return spelt(
-          prefix == 0
-              ? property
-              : method.substring(0, prefix) + BeanPropertyAnalyser.accessorSuffix(property));
+          prefix > 0
+              ? method.substring(0, prefix) + BeanPropertyAnalyser.accessorSuffix(property)
+              : SourceVersion.isName(property)
+                  ? property
+                  : BeanPropertyAnalyser.setterName(property));
     }
 
     private String spelt(String methodName) {

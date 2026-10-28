@@ -5,7 +5,6 @@ package org.higherkindedj.optics.free;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
@@ -75,28 +74,28 @@ public final class ValidationOpticInterpreter {
           // If execution fails, return the source unchanged to allow chaining to continue
           Object result =
               switch (op) {
-                case OpticOp.Get<?, ?> get -> executeGet(get);
-                case OpticOp.Preview<?, ?> preview -> executePreview(preview);
-                case OpticOp.GetAll<?, ?> getAll -> executeGetAll(getAll);
-                case OpticOp.Set<?, ?> set -> {
+                case OpticOp.Get<?, ?, ?> get -> executeGet(get);
+                case OpticOp.Preview<?, ?, ?> preview -> executePreview(preview);
+                case OpticOp.GetAll<?, ?, ?> getAll -> executeGetAll(getAll);
+                case OpticOp.Set<?, ?, ?> set -> {
                   validateSet(set);
                   yield safeExecuteSet(set);
                 }
-                case OpticOp.SetAll<?, ?> setAll -> {
+                case OpticOp.SetAll<?, ?, ?> setAll -> {
                   validateSetAll(setAll);
                   yield safeExecuteSetAll(setAll);
                 }
-                case OpticOp.Modify<?, ?> modify -> {
+                case OpticOp.Modify<?, ?, ?> modify -> {
                   validateModify(modify);
                   yield safeExecuteModify(modify);
                 }
-                case OpticOp.ModifyAll<?, ?> modifyAll -> safeExecuteModifyAll(modifyAll);
-                case OpticOp.Exists<?, ?> exists -> executeExists(exists);
-                case OpticOp.All<?, ?> all -> executeAll(all);
-                case OpticOp.Count<?, ?> count -> executeCount(count);
+                case OpticOp.ModifyAll<?, ?, ?> modifyAll -> safeExecuteModifyAll(modifyAll);
+                case OpticOp.Exists<?, ?, ?> exists -> executeExists(exists);
+                case OpticOp.All<?, ?, ?> all -> executeAll(all);
+                case OpticOp.Count<?, ?, ?> count -> executeCount(count);
               };
 
-          return Id.of(Free.pure(result));
+          return Id.of(result);
         };
 
     // Execute the program with validation; a get that reads a null focus ends it with an error
@@ -113,22 +112,22 @@ public final class ValidationOpticInterpreter {
 
   // Note: These validate methods don't need @SuppressWarnings("unchecked") because
   // Java's sealed types + switch expressions correctly infer type parameters from
-  // the pattern-matched OpticOp<?, ?> cases.
+  // the pattern-matched OpticOp<?, ?, ?> cases.
 
-  private <S, A> void validateSet(OpticOp.Set<S, A> op) {
+  private <S, A, R> void validateSet(OpticOp.Set<S, A, R> op) {
     // Example validation: could check if value is null, out of range, etc.
     if (op.newValue() == null) {
       warnings.add("SET operation with null value: " + op.optic());
     }
   }
 
-  private <S, A> void validateSetAll(OpticOp.SetAll<S, A> op) {
+  private <S, A, R> void validateSetAll(OpticOp.SetAll<S, A, R> op) {
     if (op.newValue() == null) {
       warnings.add("SET_ALL operation with null value: " + op.optic());
     }
   }
 
-  private <S, A> void validateModify(OpticOp.Modify<S, A> op) {
+  private <S, A, R> void validateModify(OpticOp.Modify<S, A, R> op) {
     // Could validate that modifier doesn't return null
     try {
       A currentValue = op.optic().get(op.source());
@@ -141,71 +140,80 @@ public final class ValidationOpticInterpreter {
     }
   }
 
-  // Execute methods - these perform the actual operations to enable proper flatMap chaining
+  // Execute methods - these perform the actual operations to enable proper flatMap chaining,
+  // handing what each operation produces to its continuation
 
-  private <S, A> A executeGet(OpticOp.Get<S, A> op) {
+  private <S, A, R> R executeGet(OpticOp.Get<S, A, R> op) {
     A value = op.optic().get(op.source());
     if (value == null) {
       // No later step can run without the value, so validation stops here
       throw new NullFocus();
     }
-    return value;
+    return op.k().apply(value);
   }
 
-  private <S, A> Optional<A> executePreview(OpticOp.Preview<S, A> op) {
-    return op.optic().preview(op.source());
+  private <S, A, R> R executePreview(OpticOp.Preview<S, A, R> op) {
+    return op.k().apply(op.optic().preview(op.source()));
   }
 
-  private <S, A> List<A> executeGetAll(OpticOp.GetAll<S, A> op) {
-    return op.optic().getAll(op.source());
+  private <S, A, R> R executeGetAll(OpticOp.GetAll<S, A, R> op) {
+    return op.k().apply(op.optic().getAll(op.source()));
   }
 
-  private <S, A> S safeExecuteSet(OpticOp.Set<S, A> op) {
+  private <S, A, R> R safeExecuteSet(OpticOp.Set<S, A, R> op) {
+    S updated;
     try {
-      return op.optic().set(op.newValue(), op.source());
+      updated = op.optic().set(op.newValue(), op.source());
     } catch (Exception e) {
       errors.add("SET operation failed: " + op.optic() + " - " + e.getMessage());
-      return op.source();
+      updated = op.source();
     }
+    return op.k().apply(updated);
   }
 
-  private <S, A> S safeExecuteSetAll(OpticOp.SetAll<S, A> op) {
+  private <S, A, R> R safeExecuteSetAll(OpticOp.SetAll<S, A, R> op) {
+    S updated;
     try {
-      return Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
+      updated = Traversals.modify(op.optic(), ignored -> op.newValue(), op.source());
     } catch (Exception e) {
       errors.add("SET_ALL operation failed: " + op.optic() + " - " + e.getMessage());
-      return op.source();
+      updated = op.source();
     }
+    return op.k().apply(updated);
   }
 
-  private <S, A> S safeExecuteModify(OpticOp.Modify<S, A> op) {
+  private <S, A, R> R safeExecuteModify(OpticOp.Modify<S, A, R> op) {
+    S updated;
     try {
-      return op.optic().modify(op.modifier(), op.source());
+      updated = op.optic().modify(op.modifier(), op.source());
     } catch (Exception e) {
       errors.add("MODIFY operation failed: " + op.optic() + " - " + e.getMessage());
-      return op.source();
+      updated = op.source();
     }
+    return op.k().apply(updated);
   }
 
-  private <S, A> S safeExecuteModifyAll(OpticOp.ModifyAll<S, A> op) {
+  private <S, A, R> R safeExecuteModifyAll(OpticOp.ModifyAll<S, A, R> op) {
+    S updated;
     try {
-      return Traversals.modify(op.optic(), op.modifier(), op.source());
+      updated = Traversals.modify(op.optic(), op.modifier(), op.source());
     } catch (Exception e) {
       errors.add("MODIFY_ALL operation failed: " + op.optic() + " - " + e.getMessage());
-      return op.source();
+      updated = op.source();
     }
+    return op.k().apply(updated);
   }
 
-  private <S, A> Boolean executeExists(OpticOp.Exists<S, A> op) {
-    return op.optic().exists(op.predicate(), op.source());
+  private <S, A, R> R executeExists(OpticOp.Exists<S, A, R> op) {
+    return op.k().apply(op.optic().exists(op.predicate(), op.source()));
   }
 
-  private <S, A> Boolean executeAll(OpticOp.All<S, A> op) {
-    return op.optic().all(op.predicate(), op.source());
+  private <S, A, R> R executeAll(OpticOp.All<S, A, R> op) {
+    return op.k().apply(op.optic().all(op.predicate(), op.source()));
   }
 
-  private <S, A> Integer executeCount(OpticOp.Count<S, A> op) {
-    return op.optic().length(op.source());
+  private <S, A, R> R executeCount(OpticOp.Count<S, A, R> op) {
+    return op.k().apply(op.optic().length(op.source()));
   }
 
   /** Ends a validation whose get read a null focus, which no Free program can hold. */

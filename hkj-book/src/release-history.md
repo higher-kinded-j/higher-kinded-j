@@ -2,8 +2,8 @@
 
 What changed in each version of Higher-Kinded-J, and what to do when you move to it. Each release has notes, most with a link from each change to the issue or pull request behind it.
 
-- **Upgrading?** [Upgrading](release-history/upgrading.md) lists, release by release, what can stop a build that compiled or change what a program does. It also lists every API due for removal in 0.5.0.
-- **Following `main`?** [Unreleased: 0.5.0](release-history/unreleased.md) collects the changes since 0.4.11.
+- **Upgrading?** [Upgrading](release-history/upgrading.md) lists, release by release, what can stop a build that compiled or change what a program does. It also lists every API due for removal in 0.6.0.
+- **Following `main`?** [Unreleased: 0.6.0](release-history/unreleased.md) collects the changes since 0.5.0.
 - **Looking for a feature?** [Since which version?](#since-which-version) names the release that first shipped it.
 - **Searching every release at once?** The book's search reads every page of this chapter.
 
@@ -13,6 +13,7 @@ What changed in each version of Higher-Kinded-J, and what to do when you move to
 
 | Version | Released | Headline | Upgrade notes |
 |---|---|---|---|
+| [0.5.0](release-history/v0_5_0.md) | 26 October 2026 | Navigators by default, optics that pass a nullness checker, and core types that never hold null | [To 0.5.0](release-history/upgrading.md#to-050) |
 | [0.4.11](release-history/v0_4_11.md) | 3 October 2026 | Generated client models map as generated, and the processor stops more shapes at the declaration | [To 0.4.11](release-history/upgrading.md#to-0411) |
 | [0.4.10](release-history/v0_4_10.md) | 30 August 2026 | Standard codecs, generic optics that compile, one answer from the Focus DSL | [To 0.4.10](release-history/upgrading.md#to-0410) |
 | [0.4.9](release-history/v0_4_9.md) | 31 July 2026 | The record mapper: every wire shape, both PATCH styles, one rule for null | [To 0.4.9](release-history/upgrading.md#to-049) |
@@ -55,6 +56,7 @@ The release that first shipped each feature, with the page that teaches it.
 | The `Instances` facade | [0.4.5](release-history/v0_4_5.md) | [Obtaining Instances](functional/instances_facade.md) |
 | `VResultPath` | [0.4.8](release-history/v0_4_8.md) | [VResultPath](effect/path_vresult.md) |
 | `NonEmptyList` and `EitherOrBoth` | [0.4.8](release-history/v0_4_8.md) | [NonEmptyList](monads/nonemptylist_monad.md), [EitherOrBoth](monads/either_or_both_monad.md) |
+| Values that are never null, and `Unit` for a step with nothing to return | [0.5.0](release-history/v0_5_0.md) | [Creating Instances](monads/either_monad.md#creating-instances), [A Task Always Gives a Value](monads/vtask_monad.md#a-task-always-gives-a-value) |
 
 ### Optics {#since-optics}
 
@@ -67,6 +69,9 @@ The release that first shipped each feature, with the page that teaches it.
 | Traversal generator plugins | [0.1.6](release-history/earlier.md#v016-14-july-2025) | [Generator Plugins](tooling/generator_plugins.md) |
 | SPI path widening, and generators for Guava, Vavr, Eclipse Collections and Apache Commons | [0.4.0](release-history/v0_4_0.md) | [Generator Plugins](tooling/generator_plugins.md) |
 | Optic-driven request batching | [0.4.6](release-history/v0_4_6.md) | [Optic-Driven Batching](optics/optic_batching.md) |
+| Navigators on by default, through containers of records | [0.5.0](release-history/v0_5_0.md) | [Fluent navigation with generated navigators](optics/focus_navigation.md#fluent-navigation-with-generated-navigators) |
+| Optics over a `@Nullable` focus that pass a nullness checker | [0.5.0](release-history/v0_5_0.md) | [A focus that may be null](optics/focus_effects.md#a-focus-that-may-be-null) |
+| Direct `andThen` between any two of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` | [0.5.0](release-history/v0_5_0.md) | [Composition Rules Table](optics/composition_rules.md#composition-rules-table) |
 
 ### Validation and mapping {#since-validation-and-mapping}
 
@@ -92,6 +97,7 @@ The release that first shipped each feature, with the page that teaches it.
 | Retry policies | [0.2.6](release-history/earlier.md#v026-19-december-2025) | [Retry](resilience/retry.md) |
 | Circuit breaker, bulkhead and saga | [0.3.6](release-history/v0_3.md#v036-6-march-2026) | [Resilience](resilience/ch_intro.md) |
 | One `with*` resilience vocabulary across every Path | [0.4.8](release-history/v0_4_8.md) | [Resilience](resilience/ch_intro.md) |
+| A `Scope` that can run again, be retried or run on several threads | [0.5.0](release-history/v0_5_0.md) | [Running a Scope Again](monads/vtask_scope.md#running-a-scope-again) |
 
 ### Spring {#since-spring}
 

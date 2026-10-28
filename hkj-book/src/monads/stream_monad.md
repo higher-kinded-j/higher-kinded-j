@@ -517,5 +517,5 @@ public class StreamUsageExample {
 
 ---
 
-**Previous:** [State](state_monad.md)
-**Next:** [Trampoline](trampoline_monad.md)
+**Previous:** [List](list_monad.md)
+**Next:** [Identity](identity.md)

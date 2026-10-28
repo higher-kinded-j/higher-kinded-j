@@ -16,6 +16,43 @@
   <a href="https://techhub.social/@ultramagnetic"><img src="https://img.shields.io/mastodon/follow/109367467120571209?domain=techhub.social&style=plastic&logoSize=auto" alt="Mastodon Follow"></a>
 </div>
 
+<!-- This band shows the newest release, or what main adds for the next one: see "The Home Page Band" in docs/STYLE-GUIDE.md. -->
+<section class="hkj-spotlight" aria-labelledby="hkj-spotlight-title">
+<div class="hkj-spotlight-head">
+<p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">New in 0.5.0</p>
+
+[All changes in 0.5.0](release-history/v0_5_0.md)
+
+</div>
+<div class="hkj-spotlight-card hkj-spotlight-lead">
+<span class="hkj-spotlight-chip">Navigators</span>
+
+**[Records that navigate themselves](optics/focus_navigation.md#fluent-navigation-with-generated-navigators)**
+
+<!-- verify -->
+```java
+User moved = UserFocus.address().street().name().set("Grey Street", user);
+```
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Core types</span>
+
+**[Values that are never null](monads/either_monad.md#creating-instances)**
+
+`Either`, `Try`, `IO` and `VTask` refuse a null, so it fails on the line that made it.
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Nullness</span>
+
+**[Optics that pass a nullness checker](optics/focus_effects.md#a-focus-that-may-be-null)**
+
+Every optic and Focus path type takes a `@Nullable` focus.
+
+</div>
+</section>
+
 ---
 
 Higher-Kinded-J brings two capabilities that Java has long needed: composable error handling through the **[Effect Path API](effect/ch_intro.md)**, and type-safe immutable data navigation through the **[Focus DSL](optics/focus_dsl.md)**. Each is powerful alone. Together they form one approach to building robust applications, where effects and structure compose in the same vocabulary. At the edge of a service, **[Mapping at the Boundary](mapping/ch_intro.md)** turns the DTO-to-domain mapper into compile-time codegen that never loses an error, and for services that need several execution modes, **[Effect Handlers](effect/effect_handlers_intro.md)** let you define domain operations as data and interpret them differently for production, testing, or audit.
@@ -217,7 +254,7 @@ Only a `SystemError` is retried; a business `Left` such as an out-of-stock decis
 
 ### [Optics](optics/ch_intro.md)
 
-The most comprehensive optics implementation available for Java: lenses, prisms, isos, affines, traversals, folds and setters, all composable, generated from annotations on records, sealed interfaces, collections and [types you don't own](optics/importing_optics.md) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers). Filtered and indexed traversals, and [31 container types](optics/focus_containers.md) across the JDK and five third-party collection libraries widening to the right path type automatically.
+The most comprehensive optics implementation available for Java: lenses, prisms, isos, affines, traversals, folds and setters, all composable, generated from annotations on records, sealed interfaces, collections and [types you don't own](optics/importing_optics.md) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers). Generated paths chain one method call per hop, through nested records and the lists and optionals that hold them, and each step is itself a path. Filtered and indexed traversals, and [31 container types](optics/focus_containers.md) across the JDK, the library's own types and five third-party collection libraries widening to the right path type automatically. Every optic type takes a `@Nullable` focus, so optics over nullable fields pass a nullness checker.
 
 ~~~admonish example title="Quick example" collapsible=true
 ``` java
@@ -291,7 +328,7 @@ public sealed interface PaymentGatewayOp<A>
 }
 ```
 
-`@EffectAlgebra` generates the functor, the smart constructors and an interpreter skeleton, so a program is written once against `PaymentGatewayOps` and a production interpreter, a fake, a dry-run and an audit log are four small classes. The [Payment Processing](examples/payment_processing.md) example runs one program through all four.
+`@EffectAlgebra` generates the functor, the smart constructors and an interpreter skeleton, so a program is written once against `PaymentGatewayOpOps` and a production interpreter, a fake, a dry-run and an audit log are four small classes. The [Payment Processing](examples/payment_processing.md) example runs one program through all four.
 ~~~
 
 **[Explore Effect Handlers →](effect/effect_handlers_intro.md)**
@@ -340,7 +377,7 @@ Auto-configuration handles the conversions; `Right` is a 200 and a typed `Left` 
 
 ### [Testing With hkj-test](tooling/test_assertions.md)
 
-Fluent AssertJ assertions for every type in the library, the optic laws (`LensLaws`, `PrismLaws`, `TraversalLaws`, `ValidatedPrismLaws`) and the `MappingLaws` every generated mapping is checked against, and a `SteppableClock` for deterministic time. Tests read in the same vocabulary as the code under test.
+Fluent AssertJ assertions for every type in the library, the optic laws (`IsoLaws`, `LensLaws`, `PrismLaws`, `AffineLaws`, `TraversalLaws`, `ValidatedPrismLaws`) and the `MappingLaws` every generated mapping is checked against, and a `SteppableClock` for deterministic time. Tests read in the same vocabulary as the code under test.
 
 ~~~admonish example title="Quick example" collapsible=true
 <!-- verify -->
@@ -361,7 +398,7 @@ Coverage spans the discriminated unions, the effect types (`IO`, `VTask`, `VStre
 
 ### [Foundations](hkts/foundations_intro.md)
 
-Underneath it all: a simulation of higher-kinded types by defunctionalisation, so `Functor`, `Applicative`, `Monad`, `Traverse` and friends can be written once and applied across `Optional`, `List`, `CompletableFuture`, `VTask` and your own types; the core types (`Either`, `Maybe`, `Try`, `Validated`, `IO`, `Reader`, `Writer`, `State`, `Free`); and the [monad transformers and MTL capabilities](transformers/ch_intro.md) for the cases the Path API does not fit: a different outer monad, or polymorphic library code. Most applications start with Effect Paths and never need to look down here; the [triage page](transformers/when_to_drop_to_transformers.md) says when you do.
+Underneath it all: a simulation of higher-kinded types by defunctionalisation, so `Functor`, `Applicative`, `Monad`, `Traverse` and friends can be written once and applied across `Optional`, `List`, `CompletableFuture`, `VTask` and your own types; the core types (`Either`, `Maybe`, `Try`, `Validated`, `IO`, `Reader`, `Writer`, `State`, `Free`); and the [monad transformers and MTL capabilities](transformers/ch_intro.md) for the cases the Path API does not fit: a different outer monad, or polymorphic library code. `Either`, `Try`, `Validated`, the lazy types and every Path over them refuse a `null` value or error. `Unit` stands for a step with nothing to return. Most applications start with Effect Paths and never need to look down here; the [triage page](transformers/when_to_drop_to_transformers.md) says when you do.
 
 ---
 
@@ -385,7 +422,7 @@ Twenty-one Path types share one vocabulary. Most applications start with `Either
 | `WriterPath<W, A>` | Logging, audit trails, collecting metrics |
 | `WithStatePath<S, A>` | Stateful computations (parsers, counters) |
 | `ListPath<A>` | Batch processing with positional zipping |
-| `StreamPath<A>` | Lazy sequences, large data processing |
+| `StreamPath<A>` | Sequences you can run more than once, infinite ones from `Path.streamIterate` |
 | `NonDetPath<A>` | Non-deterministic search, combinations |
 | `LazyPath<A>` | Deferred evaluation, memoisation |
 | `IdPath<A>` | Pure computations (testing, generic code) |
@@ -394,7 +431,7 @@ Twenty-one Path types share one vocabulary. Most applications start with `Either
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
 | `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
 
-Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover`, and integration with the Focus DSL. See [Core Paths](effect/effect_path_overview.md) for the railway model behind them.
+Each Path wraps its underlying effect and shares the railway vocabulary its effect supports, from `map` and `via` to recovery and the bridge to the Focus DSL. See [Core Paths](effect/effect_path_overview.md) for the railway model behind them.
 ~~~
 
 ---
@@ -439,7 +476,7 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 
 ~~~admonish note title="Effect Path API (start here)" collapsible=true
 1. **[Quickstart](effect/quickstart.md):** Three runnable examples showing MaybePath, EitherPath, and ForPath in about 150 lines
-2. **[Core Paths](effect/effect_path_overview.md):** The railway model, the six core path types, composition, and basic ForPath comprehensions
+2. **[Core Paths](effect/effect_path_overview.md):** The railway model, the seven core path types, composition, and basic ForPath comprehensions
 3. **[Optics Integration](effect/focus_integration.md):** Bridging Effect Paths with the Focus DSL
 4. **[Advanced Paths](effect/advanced_topics.md):** Free monads, effect handlers, contexts, ForPath parallelism, and resilience
 5. **[Reference](effect/capabilities.md):** Capability type classes, type conversions, compiler errors, and production readiness
@@ -470,7 +507,7 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 
 **Look it up**, when you hold a question:
 
-17. **[Look It Up](optics/ch7_intro.md):** Production readiness, annotations, decision trees, the cookbook and reference tables
+17. **[Look It Up](optics/ch7_intro.md):** Production readiness, annotations, decision trees, the cookbook, reference tables, and translations from Lombok, Streams, Monocle and Haskell lens
 ~~~
 
 ~~~admonish note title="Mapping at the Boundary" collapsible=true

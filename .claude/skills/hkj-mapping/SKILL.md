@@ -588,8 +588,9 @@ matter: it maps build-only whatever its width, derived fields included.
   collection is written whole through its collection setter, and its adder is left alone, never
   refused. Any other unpaired accessor is left out, which is fine for a computed getter, but one
   named after a domain component the bean carries under no other name (its own, or a `@MapField`
-  rename's) is refused on both tiers, with a near accessor of the other kind named as the likely
-  misspelling. An `UpdateSpec` also refuses any `setX` setter with no getter, since the client's
+  rename's) is refused on both tiers, with a near accessor or word of the other kind named as the
+  likely misspelling (`setx(int)` beside `Integer getX()`, or a builder's `setaway(String)`). An
+  `UpdateSpec` also refuses any `setX` setter with no getter, since the client's
   value would arrive and be ignored. Where the accessor is meant to stay out, `@Unmapped` on an
   abstract marker named after its property says so, and the mapping is generated exactly as it was
   before the marker. Where a getter with no setter is meant to be read (an OpenAPI `readOnly`
