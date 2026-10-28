@@ -349,7 +349,14 @@
     "functional/monad.html#combining-several-monadic-values-flatmapn": "functional/monad.html#flatmap2-to-flatmap5",
     "functional/monad.html#flatmap2": "functional/monad.html#flatmap2-to-flatmap5",
     "functional/monad.html#flatmap3-and-higher-arities": "functional/monad.html#flatmap2-to-flatmap5",
-    "functional/monad.html#flatmapn-vs-mapn": "functional/monad.html#flatmap2-to-flatmap5"
+    "functional/monad.html#flatmapn-vs-mapn": "functional/monad.html#flatmap2-to-flatmap5",
+    "functional/monad_error.html#the-problem-scattered-try-catch": "functional/monad_error.html#when-an-exception-is-not-enough",
+    "functional/monad_error.html#admonition-interface-signature": "functional/monad_error.html#the-solution-raiseerror-and-handleerrorwith",
+    "functional/monad_error.html#recovery-patterns": "functional/monad_error.html#recovering",
+    "functional/monad_error.html#value-level-recovery-with-handleerror": "functional/monad_error.html#recovering",
+    "functional/monad_error.html#effect-level-recovery-with-handleerrorwith": "functional/monad_error.html#recovering",
+    "functional/monad_error.html#chained-recovery": "functional/monad_error.html#recovering",
+    "functional/monad_error.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#two-encodings-one-algebra"
   };
 
   function target() {
