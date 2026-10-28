@@ -187,7 +187,7 @@ You can now write a method that maps inside any container, as `totals` does, and
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Scott Logic**, [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html): a practical guide to functors and monads in Java
+- **Magnus Smith**, [Functors and Monads with Java and Scala](https://blog.scottlogic.com/2025/03/31/functors-monads-with-java-and-scala.html): a practical guide to functors and monads in Java
 - **Bartosz Milewski**, [Functors](https://bartoszmilewski.com/2015/01/20/functors/): functors from category theory to code
 - **Mark Seemann**, [Functors](https://blog.ploeh.dk/2018/03/22/functors/): a practical introduction, with examples in languages close to Java
 ~~~
