@@ -16,8 +16,10 @@ name: Book Checks
 # The prose of the book's pages is also measured against the style guide's
 # readability limits and compared with a committed baseline, so a pull request
 # that raises a page's count of long sentences fails and says where.
-# No branches filter on pull_request: stacked PRs are checked too.
+# No branches filter on pull_request: stacked PRs are checked too. workflow_dispatch lets a
+# contributor run every check on a branch of their fork, from the fork's Actions tab.
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'hkj-book/src/**'

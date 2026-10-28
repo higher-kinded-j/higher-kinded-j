@@ -30,16 +30,16 @@ Unsure where to begin contributing? You can start by looking through `good first
 1.  **Fork the repository** on GitHub.
 2.  **Clone your fork** locally: `git clone git@github.com:<your-username>/higher-kinded-j.git`
 3.  **Create a new branch** for your changes: `git checkout -b name-of-your-feature-or-fix`
-4.  **Make your changes.** Ensure you adhere to standard Java coding conventions.
-5.  **Add tests** for your changes. This is important!
+4.  **Make your changes,** keeping to what the issue asks, in the shape of the code around them (see [Matching the Code Around It](#matching-the-code-around-it)). If you find another problem on the way, say so in the pull request description, and it can have an issue of its own.
+5.  **Add tests** for your changes, and check that they would catch the problem. For a bug fix, keep the new tests, undo the fix under `src/main`, run them, and note which fail and with what message; then restore the fix. For a feature, break the new code instead, for example by returning the wrong value. The pull request template asks for what failed.
 6.  **Format the code:** run `./gradlew spotlessApply`, or set up the git hook under [Coding Style](#coding-style) once so that every push checks it. The build, and so CI, fails on Java that Spotless would reformat.
-7.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`. If you changed the book, or a rule the book documents, see [Documentation](#documentation) too.
+7.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`. If a test or check fails, check out the `main` branch and run the same command there. If it fails on `main` as well, your change did not cause it, so name the check and its message in the pull request description. If you changed the book, or a rule the book documents, see [Documentation](#documentation) too.
 8.  **Build the project:** Ensure the project builds without errors using `./gradlew build`.
-9.  **Commit your changes:** Use clear and descriptive commit messages. `git commit -am 'Add some feature'`
+9.  **Commit your changes:** Use clear and descriptive commit messages. `git add` the files you changed or created, including new tests, then `git commit -m 'Add some feature'`.
 10. **Push to your fork:** `git push origin name-of-your-feature-or-fix`
 11. **Open a Pull Request** against the `main` branch of the original repository, with a title as described in [Pull Request Titles](#pull-request-titles).
-12. **Describe your changes** in the Pull Request description. Link to any relevant issues (e.g., "Closes #123").
-13. Ensure the **GitHub Actions CI checks pass**.
+12. **Describe your changes** in the Pull Request description, and link the issue as described in [Linking the Issue](#linking-the-issue).
+13. Ensure the **GitHub Actions CI checks pass**. [Running CI on Your Fork](#running-ci-on-your-fork) says how to see them before you open the pull request.
 
 ### Pull Request Titles
 
@@ -49,7 +49,22 @@ A pull request's commits are squashed into one when it is merged, and its title 
 * Read payment confirmation time from an injected TimeSource
 * Add zipWith3 to TrampolinePath and FreePath, rather than `feat(effect): add zipWith3 to TrampolinePath and FreePath`
 
-Leave out a conventional-commit prefix such as `feat:`, `fix:` or `docs(book):`, and the issue number. GitHub adds the pull request's number to the commit, and "Closes #123" in the description links the issue.
+Leave out a conventional-commit prefix such as `feat:`, `fix:` or `docs(book):`, and the issue number. GitHub adds the pull request's number to the commit, and "Closes #123" in the description links the issue, as [Linking the Issue](#linking-the-issue) describes.
+
+### Linking the Issue
+
+Put "Closes #123" in the description for the issue the pull request finishes. GitHub then closes that issue when the pull request merges. For an issue it does only part of, write "Part of #123" instead, so the issue stays open.
+
+GitHub treats "close", "fix" or "resolve", in any form such as "closes" or "fixed", just before an issue number as a request to close that issue. It does so even inside a sentence such as "this does not close #123", so keep those words away from an issue that should stay open. The sidebar's Development section lists the issues a merge will close; check it once the pull request is open.
+
+### Running CI on Your Fork
+
+CI runs on each pull request against `main`. A maintainer approves the runs only when the account is new to GitHub and has had nothing merged here before. To see the results before you open the pull request, run the same workflows in your fork:
+
+1. On your fork's **Actions** tab, enable workflows. A new fork has them turned off.
+2. Choose **Java CI with Gradle, JaCoCo, and Codecov**, and **Book Checks** as well if you changed the book, then **Run workflow** on your branch.
+
+If **Run workflow** is missing, bring your fork's `main` up to date with the **Sync fork** button on its home page. GitHub offers it only for a workflow on the fork's default branch. Then merge `main` into your branch, as [Keeping Your Branch Up to Date](#keeping-your-branch-up-to-date) shows, because the run uses the workflow as your branch has it.
 
 ### Keeping Your Branch Up to Date
 
@@ -100,9 +115,23 @@ Please follow the [**Google Java Style Guide**](https://google.github.io/stylegu
 * **By hand.** `./gradlew spotlessApply` reformats every module, and `./gradlew :hkj-core:spotlessApply` just one. `./gradlew spotlessCheck` shows what it would change, without changing anything.
 * **With a git hook, set up once.** `./gradlew spotlessInstallGitPrePushHook` installs a hook that runs `spotlessCheck` before each push. If the formatting is off, the hook runs `spotlessApply` and stops the push, so you commit the reformatted files and push again.
 
+### Matching the Code Around It
+
+Spotless sets the layout; the rest comes from the code next to yours. Before you write a class, method or test, open its nearest sibling, or the model the issue names, and follow its shape. Reviews most often ask for these:
+
+* **Javadoc on every public class, constructor and method,** as the Google Java Style Guide asks.
+* **Imports, not fully qualified names,** unless two types share a simple name.
+* **Fields and helpers where the siblings put them:** `final` fields together, before any that change, and private helpers after the methods that use them.
+* **Package-private test classes,** each with a class-level `@DisplayName`. [TESTING-GUIDE.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/TESTING-GUIDE.md) says how the tests are laid out and which shared harnesses to use.
+* **No test that repeats one already there.** Look through the class you add to before writing a new case.
+
 ## Documentation
 
 Changes to the book in `hkj-book/src` follow the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md). Some chapters add rules of their own, listed in its [Chapter Guides](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md#chapter-guides) table. The [Mapping Chapter Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/MAPPING-CHAPTER-GUIDE.md) is one: it says where a new mapping rule or refusal belongs, so a feature that adds one updates those pages in the same pull request. [BOOK-SNIPPETS.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/BOOK-SNIPPETS.md) explains how the build compiles the book's Java.
+
+### The Claude Code skills
+
+The `hkj-*` skills under `.claude/skills` repeat parts of the book, such as the cheat-sheet rows, the Path tables and their code. They ship inside the Gradle and Maven plugins, and a user installs them into their own project with `./gradlew hkjInstallSkills` or `mvn hkj:install-skills`, as [Claude Code Skills](https://higher-kinded-j.github.io/latest/tooling/claude_code_skills.html) describes. So when you change what the book says about an API, search the skills for the same text, for example `grep -rn "StreamPath" .claude/skills`, and change it there too. `./gradlew :hkj-examples:bookVerify` compiles the snippets the skills mark for checking, as it does the book's.
 
 ### Previewing the book
 

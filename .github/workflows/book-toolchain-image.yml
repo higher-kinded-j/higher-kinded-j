@@ -29,6 +29,8 @@ permissions:
 
 jobs:
   image:
+    # Only here: a contributor's fork, with workflows enabled, has none of the secrets this needs.
+    if: github.repository == 'higher-kinded-j/higher-kinded-j'
     runs-on: ubuntu-latest
     permissions:
       contents: read
