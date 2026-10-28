@@ -32,12 +32,18 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * <h2>Important</h2>
  *
- * <p>Each terminal operation gets a fresh stream from the supplier. Intermediate operations run
- * when the stream is consumed and run again for each terminal operation. The factory determines
- * when source elements are read: {@link #of(Stream)} reads its entire stream when called. For very
- * large or infinite sources, use {@link #iterate(Object, UnaryOperator)},
- * {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)}, then limit them with
- * {@link #take(long)} or {@link #takeWhile(Predicate)}.
+ * <p>Each terminal operation gets a fresh stream from the supplier. Intermediate operations,
+ * including side effects, run again for each terminal operation. A supplier passed to
+ * {@link #fromSupplier(Supplier)} must return a fresh, unused stream each time.
+ *
+ * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight} and
+ * {@code toNonDetPath}. They use memory proportional to the input and cannot finish on an infinite
+ * source. Use them only with finite streams, even when the source came from a lazy factory.
+ *
+ * <p>The factory determines when source elements are read: {@link #of(Stream)} reads its entire
+ * source when called. For very large or infinite sources, use {@link #iterate(Object,
+ * UnaryOperator)}, {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)}, then limit the
+ * result with {@link #take(long)} or {@link #takeWhile(Predicate)}.
  *
  * <h2>Use Cases</h2>
  *
@@ -47,7 +53,8 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *       {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)}, limited with
  *       {@link #take(long)} or {@link #takeWhile(Predicate)}
  *   <li>Pipeline transformations
- *   <li>Memory-efficient processing when elements are produced incrementally
+ *   <li>Memory-efficient processing when the source is incremental and the pipeline avoids
+ *       operations that materialise the input
  * </ul>
  *
  * <h2>Creating StreamPath instances</h2>
@@ -116,7 +123,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a supplier that produces streams.
    *
-   * <p>The supplier is called fresh each time a terminal operation is performed.
+   * <p>The supplier is called for each terminal operation and must return a fresh, unused
+   * stream each time. Reusing a consumed stream will fail.
    *
    * <p>A null element fails the stream when it is consumed.
    *
