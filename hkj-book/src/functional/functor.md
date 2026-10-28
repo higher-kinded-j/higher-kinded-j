@@ -104,7 +104,7 @@ A `Functor` keeps two laws, and you have assumed both whenever you called `map`.
 
 Two containers are equal when they hold equal values in the same shape. For a deferred container such as `IO`, they are equal when running both gives equal results. Both laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
 
-`FunctorLaws`, in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks both laws on any instance, your own included. You pass it the equality to use. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds one from a function that unwraps the `Kind`, and compares the two results with `equals`. A test of `Maybe` and `IO` uses these imports, with JUnit's:
+`FunctorLaws`, in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks both laws on any instance, your own included. You pass it the equality to use. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds one from a function it applies to both sides, and compares the two results with `equals`: `MAYBE::narrow` unwraps a `Maybe`, and for an `IO` the function also runs it. A test of `Maybe` and `IO` uses these imports, with JUnit's:
 
 <!-- verify -->
 ```java

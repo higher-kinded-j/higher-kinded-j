@@ -14,7 +14,7 @@ _Combine values that do not depend on one another, and let each container's inst
 ~~~admonish info title="What You'll Learn"
 - Build one value from several independent ones with `map2` to `map5`
 - Say what `of` and `ap` add to `Functor`
-- Predict what each instance's `map2` does: report every error, keep the first, or give every combination
+- Predict what each instance's `map2` does: combine the errors, keep the first, or give every combination
 - Choose between `map3` and `flatMap` by whether a step needs another's result
 - Check an instance against the four applicative laws with `hkj-test`'s `ApplicativeLaws`
 ~~~
@@ -99,7 +99,7 @@ Run it with `Validated`'s `Applicative`, then with `Either`'s, on a blank SKU an
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java:instances}}
 ```
 
-The call is the same both times. `Instances.validated` builds `Validated`'s instance from a [semigroup](semigroup_and_monoid.md), here one that joins two lists, so it reports both errors. `Either`'s instance keeps the first. `toEither()` turns each check's `Validated` into an `Either` holding the same errors, so only the instance differs.
+The call is the same both times. `Instances.validated` builds `Validated`'s instance from a [semigroup](semigroup_and_monoid.md), here one that joins two lists, so it reports both errors. With `Semigroups.first()` it would report only the first. `Either`'s instance always keeps the first. `toEither()` turns each check's `Validated` into an `Either` holding the same errors, so only the instance differs.
 
 ## What each instance does {#what-each-instance-does}
 
@@ -108,7 +108,7 @@ The call is the same both times. `Instances.validated` builds `Validated`'s inst
 ```mermaid
 flowchart LR
     accTitle: The instance decides what map3 gives
-    accDescr: Three independent checks, of the SKU, the quantity and the price, each feed map3. With Validated's Applicative, map3 gives every error the checks found. With Either's, it gives only the first.
+    accDescr: Three independent checks, of the SKU, the quantity and the price, each feed map3. With Validated's Applicative and a semigroup that joins lists, map3 gives every error the checks found. With Either's, it gives only the first.
     S["checkSku"] --> M["map3"]
     Q["checkQuantity"] --> M
     P["checkPrice"] --> M
@@ -124,12 +124,12 @@ The diagram shows three checks that never see one another's results, meeting onl
 
 | Instance | What `map2` does with its two inputs |
 |---|---|
-| `Validated`, from `Instances.validated(semigroup)` | Gives the combined value if both are valid; otherwise every error, joined by the semigroup in the order of the inputs |
+| `Validated`, from `Instances.validated(semigroup)` | Gives the combined value if both are valid; otherwise the invalid inputs' errors, combined by the semigroup in the order of the inputs. `Semigroups.list()` keeps every error |
 | `Either`, `Try` | Gives the first failure, and drops the second |
 | `Maybe`, `Optional` | Is empty if either input is empty |
 | `List`, `NonEmptyList` | Gives every combination: two lists of two give four values |
 | [`IO`](../monads/io_monad.md), `VTask` | Builds a new deferred value that, when it runs, runs the first input and then the second. If the first fails, the second never runs |
-| `CompletableFuture` | Completes when both inputs have. Any overlap comes from each future having started when it was created, not from `map2` |
+| `CompletableFuture` | Completes when both inputs have. `map2` starts neither future, so whether their work overlaps depends on what completes each one |
 | `Writer`, from `Instances.writer(monoid)` | Gives the combined value, with both logs joined by the monoid |
 
 So `Applicative` promises neither that errors accumulate nor that inputs run at the same time. Its promise is smaller: the inputs do not depend on one another. An instance can use that, as `Validated`'s does, or not, as `Either`'s does. To run two `VTask`s at the same time, use [`Par.map2`](../monads/vtask_monad.md#parallel-composition-with-par).
@@ -139,7 +139,7 @@ So `Applicative` promises neither that errors accumulate nor that inputs run at 
 - **Use `flatMap` when a step needs the previous result.** Finding an order's customer needs the order first. `flatMap` is [Monad](monad.md)'s. On a failure that holds no value, such as a `Left`, it stops, because the next step has nothing to run on.
 - **Use `map2` to `map5` when the steps are independent.** The instance can then do more with the failures, as `Validated`'s does.
 
-The two can differ on one instance. `Instances.validated` returns a single instance with both methods: its `map3` reports every error, and its `flatMap` stops at the first. [Choosing Your Abstraction Level](abstraction_levels.md) walks through the choice, `Selective` included.
+The two can differ on one instance. `Instances.validated` returns a single instance with both methods: its `map3` combines the errors of every invalid input, and its `flatMap` stops at the first. [Choosing Your Abstraction Level](abstraction_levels.md) walks through the choice, `Selective` included.
 
 ## Four laws {#four-laws}
 
@@ -151,9 +151,9 @@ An `Applicative` keeps four laws. Together they say that `of` adds nothing of it
 - **Interchange: lifting the value instead of the function changes nothing.** `ap(ff, of(x))` equals `ap(of(f -> f.apply(x)), ff)`.
 - **Composition: grouping the applications differently changes nothing.** `ap(ap(ap(of(compose), u), v), w)` equals `ap(u, ap(v, w))`, where `compose` is `f -> g -> x -> f.apply(g.apply(x))`.
 
-Two containers are equal when they hold equal values, or equal errors, in the same shape. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+Two containers are equal when they hold equal values, or equal errors, in the same shape. For a deferred container such as `IO`, they are equal when running both gives equal results. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
 
-`ApplicativeLaws`, beside `FunctorLaws` in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks each law on any instance. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds the equality from a function that unwraps the `Kind`. The test checks `Validated`'s instance twice, once with every value valid and once with every value invalid. In the invalid case, Composition must join the three errors in the same order on both sides. `ORDER` is any `Order`, and the test uses these imports, with JUnit's:
+`ApplicativeLaws`, beside `FunctorLaws` in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks each law on any instance. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds the equality from a function it applies to both sides before comparing them with `equals`. Here `VALIDATED::narrow` unwraps the `Kind`. Two `IO`s that give the same result are different objects, so for `IO` the function must also run it, as [Functor's laws test](functor.md#two-laws) does. The test checks `Validated`'s instance twice, once with every value valid and once with every value invalid. In the invalid case, Composition must join the three errors in the same order on both sides. `ORDER` is any `Order`, and the test uses these imports, with JUnit's:
 
 <!-- verify -->
 ```java
@@ -182,7 +182,7 @@ import org.higherkindedj.hkt.validated.ValidatedKind;
 
 ~~~admonish warning title="Common Misunderstandings"
 - **"`Applicative` accumulates errors."** `Validated`'s instance does. `Either`'s keeps the first error, and both are `Applicative`s.
-- **"`Applicative` runs its inputs at the same time."** No instance on this page starts its inputs together: `IO` and `VTask` run them in order, and futures run from when they were created. For `VTask`s that run at once, use `Par.map2`.
+- **"`Applicative` runs its inputs at the same time."** No instance on this page starts its inputs together: `IO` and `VTask` run them in order, and `CompletableFuture`'s waits for two futures it never started. For `VTask`s that run at once, use `Par.map2`.
 - **"`Applicative` is `Monad` without `flatMap`."** Every `Monad` has an `ap`, but an instance's `ap` can do what its `flatMap` cannot, as `Validated`'s does.
 - **"`map2` is only for two values."** `map3`, `map4` and `map5` take more, and stop at five. For a record with more fields, `Validated.fields()` in [Accumulating Assembly](../monads/validated_assembly.md) takes more.
 ~~~
@@ -207,13 +207,13 @@ You can now build one value from several independent ones, in a method written o
 
 ### Where `Validated` bends a rule {#where-validated-bends-a-rule}
 
-A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `flatMap(f -> map(f, fa), ff)`. `Validated`'s instance breaks this on purpose, as its javadoc says, so that `map2` to `map5` can report every error. `hkj-test`'s `MonadLaws` checks the three monad laws, not this one. [Validated](../monads/validated_monad.md) says when you want each behaviour.
+A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `flatMap(f -> map(f, fa), ff)`. `Validated`'s instance breaks this on purpose, as its javadoc says, so that `map2` to `map5` can combine the errors of every input. `hkj-test`'s `MonadLaws` checks the three monad laws, not this one. [Validated](../monads/validated_monad.md) says when you want each behaviour.
 
 ### What builds on `Applicative` {#what-builds-on-applicative}
 
 - **`Monad` extends `Applicative`.** Every monad on the next pages has `of`, `ap` and `map2`.
 - **`Selective` and `Alternative` extend it too.** [Selective](selective.md) adds steps that run only when a condition holds, and [Alternative](alternative.md) adds a fallback.
-- **`Traverse` takes an `Applicative`.** `traverse` runs a function on every element and combines the results with the instance it is given, so `Validated`'s reports every element's errors, as [Foldable and Traverse](foldable_and_traverse.md) shows.
+- **`Traverse` takes an `Applicative`.** `traverse` runs a function on every element and combines the results with the instance it is given, so `Validated`'s combines every element's errors, as [Foldable and Traverse](foldable_and_traverse.md) shows.
 
 ---
 
