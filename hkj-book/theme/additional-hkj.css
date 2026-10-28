@@ -100,6 +100,88 @@ h1 + h2 {
     color: #9a3412;
 }
 
+/* Site Announcement: one line from /announcement.json just above each page's main content, added
+   by announcement.js. It sits outside main, so it takes main's width itself. Its colours are the
+   flavour's own theme variables, so it follows the reader's choice. The link stays the text colour,
+   with a link-coloured underline, even on hover, since Latte's link colour reaches only 4.04:1 on
+   the bar. mdBook's rem is 10px. */
+.hkj-announcement {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    box-sizing: border-box;
+    max-width: var(--content-max-width);
+    margin: 0 auto 1.6rem;
+    padding: 0.6rem 0.6rem 0.6rem 1.2rem;
+    background: var(--quote-bg);
+    border: 1px solid var(--table-border-color);
+    border-left: 4px solid var(--links);
+    border-radius: 6px;
+    color: var(--fg);
+}
+
+.hkj-announcement .fa {
+    flex: none;
+    color: var(--links);
+}
+
+/* min-width and overflow-wrap let a long name, such as a qualified class name, wrap on a phone
+   rather than push the close button off the screen. */
+.hkj-announcement p {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.content .hkj-announcement a:link,
+.content .hkj-announcement a:visited {
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-color: var(--links);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
+.content .hkj-announcement a:hover {
+    text-decoration-thickness: 3px;
+}
+
+/* At least 24px square, the smallest target WCAG 2.2 asks for. */
+.hkj-announcement-dismiss {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4rem;
+    min-height: 2.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--fg);
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.hkj-announcement-dismiss:hover {
+    color: var(--links);
+}
+
+.hkj-announcement-dismiss:focus-visible {
+    outline: 2px solid var(--links);
+    outline-offset: 1px;
+}
+
+@media print {
+    .hkj-announcement {
+        display: none;
+    }
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 1080px) {
     .version-selector-container {
