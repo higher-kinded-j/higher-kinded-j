@@ -473,7 +473,8 @@ The counter stays at zero after pipeline construction. It only advances when `to
 element production (e.g., paginated API calls), or infinite stream support with
 backpressure through pull-based consumption.
 
-**Use StreamPath when** you have an already-materialised list and want fluent Path API
+**Use StreamPath when** you have an already-materialised list or a pure generator such as
+`Path.streamIterate` (which you can limit with `take` and `takeWhile`), and want fluent Path API
 composition with optics integration.
 
 **Use Java Stream when** you need standard library compatibility and do not require
