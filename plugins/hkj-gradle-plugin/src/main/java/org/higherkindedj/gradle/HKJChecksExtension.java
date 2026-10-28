@@ -11,9 +11,10 @@ public abstract class HKJChecksExtension {
   public HKJChecksExtension() {}
 
   /**
-   * Enable Path type mismatch detection. Defaults to true.
+   * Adds the HKJ compile-time checker to the build. Its checks explain a rejected chain step and
+   * report mistakes javac accepts. Defaults to true.
    *
-   * @return the path type mismatch check property
+   * @return the property that adds the checker
    */
   public abstract Property<Boolean> getPathTypeMismatch();
 }

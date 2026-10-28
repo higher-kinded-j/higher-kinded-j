@@ -21,18 +21,22 @@ import org.junit.jupiter.api.Test;
 @DisplayName("CheckerConfig (integration)")
 class CheckerConfigIntegrationTest {
 
-  /** A source that triggers the path-type-mismatch check (MaybePath receiver, IOPath in via). */
+  /**
+   * A source that triggers the path-type-mismatch check (MaybePath receiver, IOPath in via). The
+   * receiver is raw, so javac accepts the call and the checker's diagnostic is the only one.
+   */
   private static JavaFileObject mismatchSource() {
     return JavaFileObjects.forSourceString(
         "test.MismatchVia",
         """
         package test;
 
+        import org.higherkindedj.hkt.effect.MaybePath;
         import org.higherkindedj.hkt.effect.Path;
 
         public class MismatchVia {
             public void mismatchedVia() {
-                Path.just(1).via(_ -> Path.io(() -> 2));
+                ((MaybePath) Path.just(1)).via(_ -> Path.io(() -> 2));
             }
         }
         """);

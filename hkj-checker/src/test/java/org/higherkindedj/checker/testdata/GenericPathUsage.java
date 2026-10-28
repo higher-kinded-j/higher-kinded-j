@@ -29,9 +29,9 @@ public class GenericPathUsage {
     Path.just(1).then(() -> Path.just(2));
   }
 
-  public <A> void genericReceiver(Chainable<A> path) {
+  public <P, A> void genericReceiver(Chainable<P, A> path, Chainable<P, A> next) {
     // Generic receiver: checker cannot resolve type, should skip silently
-    path.via(_ -> Path.just(1));
+    path.via(_ -> next);
   }
 
   public void multipleCorrectChains() {

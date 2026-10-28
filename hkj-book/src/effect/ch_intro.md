@@ -55,9 +55,10 @@ If you've used the Focus DSL from the optics chapters, the patterns will feel fa
 ~~~
 
 ~~~admonish note title="Compile-Time Safety"
-The HKJ Gradle plugin can detect Path type mismatches at compile time,
-catching errors that would otherwise surface as runtime exceptions.
-See [Compile-Time Checks](../tooling/compile_checks.md) for setup.
+javac rejects a chained step that returns another kind of Path, or fails
+with an error the chain does not carry. The HKJ Gradle plugin adds a line
+beside javac's message that names the fix, and reports mistakes javac
+accepts. See [Compile-Time Checks](../tooling/compile_checks.md) for setup.
 ~~~
 
 ~~~admonish example title="See Example Code"

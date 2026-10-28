@@ -24,11 +24,15 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
  * <pre>{@code
  * // Automatic path creation from any registered type
  * Kind<ApiResultKind.Witness, User> kind = apiService.getUser(id);
- * Optional<Chainable<User>> path = PathRegistry.createPath(kind, ApiResultKind.Witness.class);
+ * Optional<Chainable<?, User>> path = PathRegistry.createPath(kind, ApiResultKind.Witness.class);
  *
  * // Or with the Path factory
- * Chainable<User> path = Path.from(kind, ApiResultKind.Witness.class);
+ * Optional<Chainable<?, User>> same = Path.from(kind, ApiResultKind.Witness.class);
  * }</pre>
+ *
+ * <p>The registry knows only that a provider returns a {@link Chainable}, so the result's family is
+ * open: it can be mapped, but not chained or combined. Where the effect type is known, build its
+ * Path directly, as in {@code GenericPath.of(kind, monad)}, to keep the family and chain.
  *
  * <h2>Thread Safety</h2>
  *
@@ -52,7 +56,7 @@ public final class PathRegistry {
    * @param <A> the value type
    * @return an Optional containing the path if a provider is found
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A> Optional<Chainable<A>> createPath(
+  public static <F extends WitnessArity<TypeArity.Unary>, A> Optional<Chainable<?, A>> createPath(
       Kind<F, A> value, Class<?> witnessType) {
     ensureLoaded();
     @SuppressWarnings("unchecked")

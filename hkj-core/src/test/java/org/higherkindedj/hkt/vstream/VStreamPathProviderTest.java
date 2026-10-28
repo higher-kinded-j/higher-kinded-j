@@ -108,7 +108,7 @@ class VStreamPathProviderTest {
       VStream<String> stream = VStream.of("a", "b", "c");
       Kind<VStreamKind.Witness, String> kind = VSTREAM.widen(stream);
 
-      Chainable<String> result = provider.createPath(kind);
+      Chainable<?, String> result = provider.createPath(kind);
 
       assertThat(result).isInstanceOf(DefaultVStreamPath.class);
     }
@@ -120,7 +120,8 @@ class VStreamPathProviderTest {
       VStream<Integer> stream = VStream.of(1, 2, 3);
       Kind<VStreamKind.Witness, Integer> kind = VSTREAM.widen(stream);
 
-      Chainable<Integer> result = provider.createPath(kind);
+      Chainable<?, Integer> result = provider.createPath(kind);
+      @SuppressWarnings("unchecked") // the SPI returns Chainable<?, A>, whose family is unknown
       VStreamPath<Integer> vstreamPath = (VStreamPath<Integer>) result;
 
       assertThat(vstreamPath.run().toList().run()).containsExactly(1, 2, 3);
@@ -133,7 +134,8 @@ class VStreamPathProviderTest {
       VStream<String> stream = VStream.empty();
       Kind<VStreamKind.Witness, String> kind = VSTREAM.widen(stream);
 
-      Chainable<String> result = provider.createPath(kind);
+      Chainable<?, String> result = provider.createPath(kind);
+      @SuppressWarnings("unchecked") // the SPI returns Chainable<?, A>, whose family is unknown
       VStreamPath<String> vstreamPath = (VStreamPath<String>) result;
 
       assertThat(vstreamPath.run().toList().run()).isEmpty();
@@ -171,7 +173,8 @@ class VStreamPathProviderTest {
       VStream<String> stream = VStream.of("hello", "world");
       Kind<VStreamKind.Witness, String> kind = VSTREAM.widen(stream);
 
-      Optional<Chainable<String>> result = PathRegistry.createPath(kind, VStreamKind.Witness.class);
+      Optional<Chainable<?, String>> result =
+          PathRegistry.createPath(kind, VStreamKind.Witness.class);
 
       assertThat(result).isPresent();
       assertThat(result.get()).isInstanceOf(DefaultVStreamPath.class);
@@ -209,9 +212,11 @@ class VStreamPathProviderTest {
       VStream<String> stream = VStream.of("x", "y", "z");
       Kind<VStreamKind.Witness, String> kind = VSTREAM.widen(stream);
 
-      Optional<Chainable<String>> result = PathRegistry.createPath(kind, VStreamKind.Witness.class);
+      Optional<Chainable<?, String>> result =
+          PathRegistry.createPath(kind, VStreamKind.Witness.class);
 
       assertThat(result).isPresent();
+      @SuppressWarnings("unchecked") // the SPI returns Chainable<?, A>, whose family is unknown
       VStreamPath<String> vstreamPath = (VStreamPath<String>) result.get();
       assertThat(vstreamPath.run().toList().run()).containsExactly("x", "y", "z");
     }
@@ -269,7 +274,7 @@ class VStreamPathProviderTest {
       VStream<String> stream = VStream.of("a", "b");
       Kind<VStreamKind.Witness, String> kind = VSTREAM.widen(stream);
 
-      Optional<Chainable<String>> result = Path.from(kind, VStreamKind.Witness.class);
+      Optional<Chainable<?, String>> result = Path.from(kind, VStreamKind.Witness.class);
 
       assertThat(result).isPresent();
       assertThat(result.get()).isInstanceOf(DefaultVStreamPath.class);
@@ -281,7 +286,7 @@ class VStreamPathProviderTest {
       // Use MaybeKind.Witness which has no ServiceLoader provider
       Kind<MaybeKind.Witness, String> kind = MAYBE.widen(Maybe.just("a"));
 
-      Optional<Chainable<String>> result = Path.from(kind, MaybeKind.Witness.class);
+      Optional<Chainable<?, String>> result = Path.from(kind, MaybeKind.Witness.class);
 
       assertThat(result).isEmpty();
     }

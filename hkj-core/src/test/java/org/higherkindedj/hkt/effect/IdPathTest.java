@@ -174,7 +174,7 @@ class IdPathTest {
       IdPath<String> path = Path.id(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.right(s.length())))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.right(s.length()))))
           .withMessageContaining("via mapper must return IdPath");
     }
 
@@ -209,7 +209,7 @@ class IdPathTest {
       IdPath<String> path = Path.id(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.then(() -> Path.right(42)))
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.right(42))))
           .withMessageContaining("then supplier must return IdPath");
     }
   }
@@ -251,7 +251,7 @@ class IdPathTest {
       EitherPath<String, Integer> eitherPath = Path.right(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(eitherPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(eitherPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-IdPath");
     }
 

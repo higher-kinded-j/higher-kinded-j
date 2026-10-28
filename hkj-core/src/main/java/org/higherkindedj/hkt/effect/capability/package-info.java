@@ -35,7 +35,18 @@
  *       recover}, {@code recoverWith}, and {@code mapError}
  *   <li>{@link org.higherkindedj.hkt.effect.capability.Effectful} - Execute side effects with
  *       {@code unsafeRun}
+ *   <li>{@link org.higherkindedj.hkt.effect.capability.Accumulating} - Combine independent
+ *       computations, collecting every error, with {@code zipWithAccum}
  * </ul>
+ *
+ * <h2>The Family Parameter</h2>
+ *
+ * <p>Every interface from {@code Combinable} down, and {@code Accumulating}, takes the implementing
+ * Path's family as its first type parameter: its own class with the value type left open, such as
+ * {@code MaybePath<?>} or {@code EitherPath<? extends E, ?>}. A step passed to {@code via}, {@code
+ * then}, {@code zipWith}, {@code recoverWith}, {@code orElse} or an accumulating method must belong
+ * to that family, so the compiler checks what a step returns. See {@link
+ * org.higherkindedj.hkt.effect.capability.Chainable} for how each Path's family may vary.
  *
  * @see org.higherkindedj.hkt.effect.Path
  */

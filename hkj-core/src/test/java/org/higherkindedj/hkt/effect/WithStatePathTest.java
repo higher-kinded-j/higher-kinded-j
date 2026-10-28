@@ -261,7 +261,7 @@ class WithStatePathTest {
       WithStatePath<Integer, String> path = WithStatePath.pure(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)).run(0))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).run(0))
           .withMessageContaining("via mapper must return WithStatePath");
     }
 
@@ -298,7 +298,7 @@ class WithStatePathTest {
       WithStatePath<Integer, String> path = WithStatePath.pure(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.then(() -> Path.id(42)).run(0))
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.id(42))).run(0))
           .withMessageContaining("then supplier must return WithStatePath");
     }
   }
@@ -344,7 +344,7 @@ class WithStatePathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-WithStatePath");
     }
 

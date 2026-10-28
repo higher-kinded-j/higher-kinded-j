@@ -283,8 +283,130 @@ class PathTypeMismatchCheckerTest {
   }
 
   @Nested
+  @DisplayName("steps javac's own message does not name")
+  class StepsResolvedFromSource {
+
+    @Test
+    @DisplayName("a method-reference step is read from the referenced method's return type")
+    void methodReference() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.MethodRefStep",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.IOPath;
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class MethodRefStep {
+                  IOPath<Integer> load(Integer id) { return Path.io(() -> id); }
+
+                  public Object run() {
+                      return Path.just(1).via(this::load);
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Path type mismatch in via(): expected MaybePath but received IOPath");
+    }
+
+    @Test
+    @DisplayName("an accumulating method's other path is checked")
+    void accumulating() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.AccumulatingKinds",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.Semigroup;
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class AccumulatingKinds {
+                  static final Semigroup<String> JOIN = (a, b) -> a + b;
+
+                  public Object run() {
+                      return Path.valid(1, JOIN).zipWithAccum(Path.right(2, JOIN), Integer::sum);
+                  }
+
+                  public Object alongside() {
+                      return Path.valid(1, JOIN).andAlso(Path.right(2, JOIN));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Path type mismatch in zipWithAccum(): expected ValidationPath but received"
+                  + " EitherOrBothPath");
+      assertThat(compilation).hadErrorContaining("Path type mismatch in andAlso()");
+    }
+
+    @Test
+    @DisplayName("a VResultPath chain is checked")
+    void vresultPath() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.VResultStep",
+              """
+              package test;
+
+              import org.higherkindedj.hkt.effect.Path;
+              import org.higherkindedj.hkt.effect.VResultPath;
+
+              public class VResultStep {
+                  public Object run(VResultPath<String, Integer> found) {
+                      return found.via(n -> Path.<String, Integer>right(n));
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Path type mismatch in via(): expected VResultPath but received EitherPath");
+    }
+  }
+
+  @Nested
   @DisplayName("no false positives")
   class NoFalsePositiveTests {
+
+    @Test
+    @DisplayName("a return inside a nested lambda is not read as the step's own")
+    void noFalsePositive_nestedLambdaReturn_compiles() {
+      JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "test.NestedReturn",
+              """
+              package test;
+
+              import java.util.function.Supplier;
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.hkt.effect.MaybePath;
+              import org.higherkindedj.hkt.effect.Path;
+
+              public class NestedReturn {
+                  public EitherPath<String, Integer> run(EitherPath<String, Integer> chain) {
+                      return chain.via(x -> {
+                          Supplier<MaybePath<Integer>> inner = () -> { return Path.just(1); };
+                          inner.get();
+                          return Path.right(x);
+                      });
+                  }
+              }
+              """);
+
+      Compilation compilation = compileWithChecker(source);
+      assertThat(compilation).succeeded();
+    }
 
     @Test
     @DisplayName("does not report error for generic Chainable receiver")
@@ -295,12 +417,11 @@ class PathTypeMismatchCheckerTest {
               """
               package test;
 
-              import org.higherkindedj.hkt.effect.Path;
               import org.higherkindedj.hkt.effect.capability.Chainable;
 
               public class GenericReceiver {
-                  public <A> void genericReceiver(Chainable<A> path) {
-                      path.via(_ -> Path.just(1));
+                  public <P, A> void genericReceiver(Chainable<P, A> path, Chainable<P, A> next) {
+                      path.via(_ -> next);
                   }
               }
               """);

@@ -70,7 +70,7 @@ import org.higherkindedj.hkt.writer.Writer;
  * @param <W> the output/log type (must have Monoid)
  * @param <A> the type of the computed value
  */
-public final class WriterPath<W, A> implements Chainable<A> {
+public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
 
   private final Writer<W, A> writer;
   private final Monoid<W> monoid;
@@ -196,7 +196,8 @@ public final class WriterPath<W, A> implements Chainable<A> {
 
   @Override
   public <B, C> WriterPath<W, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends WriterPath<W, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -247,11 +248,18 @@ public final class WriterPath<W, A> implements Chainable<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code WriterPath} over the same log type {@code W}; another kind
+   * of Path or log type does not compile.
+   */
   @Override
-  public <B> WriterPath<W, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> WriterPath<W, B> via(
+      Function<? super A, ? extends Chainable<? extends WriterPath<W, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
-    Chainable<B> result = mapper.apply(writer.value());
+    Chainable<? extends WriterPath<W, ?>, B> result = mapper.apply(writer.value());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof WriterPath<?, ?> writerPath)) {
@@ -267,10 +275,11 @@ public final class WriterPath<W, A> implements Chainable<A> {
   }
 
   @Override
-  public <B> WriterPath<W, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> WriterPath<W, B> then(
+      Supplier<? extends Chainable<? extends WriterPath<W, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends WriterPath<W, ?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof WriterPath<?, ?> writerPath)) {

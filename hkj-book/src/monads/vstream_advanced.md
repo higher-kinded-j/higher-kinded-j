@@ -217,10 +217,14 @@ creation via `Path.from()`:
 Kind<VStreamKind.Witness, String> kind =
     VSTREAM.widen(VStream.of("a", "b"));
 
-Optional<Chainable<String>> path =
+Optional<Chainable<?, String>> path =
     Path.from(kind, VStreamKind.Witness.class);
 // Returns a VStreamPath wrapping the VStream
 ```
+
+The registry cannot know which Path a provider builds, so the result's
+[family](../effect/capabilities.md#the-family-parameter) is open: it can be mapped, but not
+chained or combined. To chain, build the Path directly with `Path.vstream(...)`.
 
 The provider is registered in `META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider` and in the `provides` clause of `hkj-core`'s `module-info`, so `Path.from()` finds it whether `hkj-core` is on the classpath or the module path. When a `PathProvider` of your own lives in a module with a `module-info`, register it both ways: in the services file, which is read when the jar is on the classpath, and with `provides org.higherkindedj.hkt.effect.spi.PathProvider with ...;` in `module-info.java`, which is all `ServiceLoader` reads when the jar is on the module path.
 

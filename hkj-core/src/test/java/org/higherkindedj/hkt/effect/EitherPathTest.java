@@ -318,7 +318,7 @@ class EitherPathTest {
       EitherPath<String, String> path = Path.right(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s.length())))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s.length()))))
           .withMessageContaining("via mapper must return EitherPath");
     }
 
@@ -352,7 +352,7 @@ class EitherPathTest {
       EitherPath<String, String> path = Path.right(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.then(() -> Path.just(42)))
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.just(42))))
           .withMessageContaining("then supplier must return EitherPath");
     }
   }
@@ -429,7 +429,7 @@ class EitherPathTest {
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-EitherPath");
     }
 

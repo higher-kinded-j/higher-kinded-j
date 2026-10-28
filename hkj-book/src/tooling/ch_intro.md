@@ -1,13 +1,13 @@
-<!-- description: Add Higher-Kinded-J with the Gradle or Maven plugin, catch Path type mismatches at compile time, migrate with OpenRewrite recipes, and test with hkj-test. -->
+<!-- description: Add Higher-Kinded-J with the Gradle or Maven plugin, catch Path mistakes at compile time with the HKJ checker, migrate with OpenRewrite recipes, and test with hkj-test. -->
 
 # Tooling
 ## _Build-Time Safety for Higher-Kinded-J_
 > _"Make illegal states unrepresentable."_
 > — Yaron Minsky
 
-Every Path type in Higher-Kinded-J can only chain with the same type. Mix a `MaybePath` into an `EitherPath` chain, and you get an `IllegalArgumentException` at runtime. The code compiles; the tests pass (until someone hits that branch); production breaks at 2 AM.
+Some Higher-Kinded-J mistakes compile. Build an `IOPath` and drop it, and nothing runs: the tests pass (until someone notices the missing write), and production quietly skips the work. Others javac rejects, such as a `MaybePath` step in an `EitherPath` chain, with a message that names the library's capability types rather than the fix.
 
-The HKJ tooling catches these mistakes before your code ever runs. Both Gradle and Maven are supported with dedicated build plugins.
+The HKJ tooling reports the first kind before your code ever runs, and names the fix for the second. Both Gradle and Maven are supported with dedicated build plugins.
 
 ---
 
@@ -16,9 +16,9 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Manual Gradle and Maven Setup](manual_setup.md)**: Full `build.gradle.kts` and `pom.xml` configuration for the projects that cannot use the build plugin (constrained environments, in-house build frameworks, or a conflicting plugin). The fallback, not the starting point.
 
-- **[Compile-Time Checks](compile_checks.md)**: A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
+- **[Compile-Time Checks](compile_checks.md)**: A javac plugin that reports Path mistakes javac accepts, and adds a line naming the fix beside the errors it reports. Follows a strict no-false-positives policy.
 
-- **[Migration Recipes](openrewrite.md)**: The `hkj-openrewrite` recipe catalogue for upgrading between Higher-Kinded-J releases. Covers the 0.2.x to 0.3.0 arity migration, detection-only effect-algebra helpers, and the 0.5.0 deprecation migration; runnable from Gradle or Maven.
+- **[Migration Recipes](openrewrite.md)**: The `hkj-openrewrite` recipe catalogue for upgrading between Higher-Kinded-J releases. Covers the 0.2.x to 0.3.0 arity migration, detection-only effect-algebra helpers, the 0.5.0 and 0.6.0 deprecation migrations and the 0.6.0 Path family; runnable from Gradle or Maven.
 
 - **[Diagnostics](diagnostics.md)**: The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 

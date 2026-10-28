@@ -69,7 +69,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * @param <A> the element type
  */
-public final class NonDetPath<A> implements Chainable<A> {
+public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
 
   private final List<A> list;
 
@@ -202,7 +202,8 @@ public final class NonDetPath<A> implements Chainable<A> {
 
   @Override
   public <B, C> NonDetPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends NonDetPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -257,15 +258,22 @@ public final class NonDetPath<A> implements Chainable<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code NonDetPath}; a step of another kind, a {@code ListPath}
+   * included, does not compile.
+   */
   @Override
-  public <B> NonDetPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> NonDetPath<B> via(
+      Function<? super A, ? extends Chainable<? extends NonDetPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     List<B> flatMapped =
         list.stream()
             .flatMap(
                 a -> {
-                  Chainable<B> result = mapper.apply(a);
+                  Chainable<? extends NonDetPath<?>, B> result = mapper.apply(a);
                   Objects.requireNonNull(result, "mapper must not return null");
 
                   if (!(result instanceof NonDetPath<?> listPath)) {
@@ -283,7 +291,8 @@ public final class NonDetPath<A> implements Chainable<A> {
   }
 
   @Override
-  public <B> NonDetPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> NonDetPath<B> then(
+      Supplier<? extends Chainable<? extends NonDetPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(ignored -> supplier.get());
   }

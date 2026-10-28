@@ -50,12 +50,22 @@ import org.higherkindedj.hkt.function.Function3;
  *   <li>Consistent with the separate capability responsibilities pattern
  * </ul>
  *
+ * <h2>The Family Parameter</h2>
+ *
+ * <p>{@code P} is the implementing Path's family, as on {@link Chainable}: {@code ValidationPath<?
+ * extends E, ?>} or {@code EitherOrBothPath<? extends L, ?>}. The other path in each operation must
+ * belong to the same family, so a {@code ValidationPath} accumulates only with another {@code
+ * ValidationPath}, and its error type may be a subtype of this path's. The result accumulates with
+ * this path's {@link org.higherkindedj.hkt.Semigroup}.
+ *
+ * @param <P> the family of the implementing Path: its own class with the value type left open, such
+ *     as {@code ValidationPath<? extends E, ?>}; see {@link Chainable}
  * @param <E> the error type
  * @param <A> the value type
  * @see Combinable
  * @see org.higherkindedj.hkt.Semigroup
  */
-public sealed interface Accumulating<E, A> extends Composable<A>
+public sealed interface Accumulating<P, E, A> extends Composable<A>
     permits ValidationPath, EitherOrBothPath {
 
   /**
@@ -85,8 +95,9 @@ public sealed interface Accumulating<E, A> extends Composable<A>
    * @return a new accumulating value with combined result or accumulated errors
    * @throws NullPointerException if other or combiner is null
    */
-  <B, C> Accumulating<E, C> zipWithAccum(
-      Accumulating<E, B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+  <B, C> Accumulating<P, E, C> zipWithAccum(
+      Accumulating<? extends P, ? extends E, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner);
 
   /**
    * Combines this accumulating value with two others, collecting errors from all.
@@ -118,9 +129,9 @@ public sealed interface Accumulating<E, A> extends Composable<A>
    * @return a new accumulating value with combined result or accumulated errors
    * @throws NullPointerException if any argument is null
    */
-  <B, C, D> Accumulating<E, D> zipWith3Accum(
-      Accumulating<E, B> second,
-      Accumulating<E, C> third,
+  <B, C, D> Accumulating<P, E, D> zipWith3Accum(
+      Accumulating<? extends P, ? extends E, B> second,
+      Accumulating<? extends P, ? extends E, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner);
 
   /**
@@ -143,7 +154,7 @@ public sealed interface Accumulating<E, A> extends Composable<A>
    * @return this value if both valid, or accumulated errors
    * @throws NullPointerException if other is null
    */
-  Accumulating<E, A> andAlso(Accumulating<E, ?> other);
+  Accumulating<P, E, A> andAlso(Accumulating<? extends P, ? extends E, ?> other);
 
   /**
    * Runs both validations, accumulating errors, keeping the other value if both are valid.
@@ -166,5 +177,5 @@ public sealed interface Accumulating<E, A> extends Composable<A>
    * @return the other value if both valid, or accumulated errors
    * @throws NullPointerException if other is null
    */
-  <B> Accumulating<E, B> andThen(Accumulating<E, B> other);
+  <B> Accumulating<P, E, B> andThen(Accumulating<? extends P, ? extends E, B> other);
 }

@@ -301,7 +301,7 @@ class ListPathTest {
       ListPath<Integer> path = ListPath.of(1, 2, 3);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(NonDetPath.of(4, 5, 6), (a, b) -> a + b))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(NonDetPath.of(4, 5, 6)), (a, b) -> a + b))
           .withMessageContaining("Cannot zipWith non-ListPath");
     }
 
@@ -371,7 +371,7 @@ class ListPathTest {
       ListPath<Integer> path = ListPath.of(1, 2, 3);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(n -> NonDetPath.of(n)))
+          .isThrownBy(() -> path.via(Mismatched.step(n -> NonDetPath.of(n))))
           .withMessageContaining("via mapper must return ListPath");
     }
 

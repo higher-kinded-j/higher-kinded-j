@@ -308,7 +308,7 @@ class ValidationPathLawsTest {
                 ValidationPath<String, Integer> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
 
                 ValidationPath<String, String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to ValidationPath
+                // flatMap returns the Chainable interface type, cast to ValidationPath
                 ValidationPath<String, String> flatMapResult =
                     (ValidationPath<String, String>) path.flatMap(f);
 
@@ -320,7 +320,7 @@ class ValidationPathLawsTest {
                 ValidationPath<String, Integer> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
 
                 ValidationPath<String, String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to ValidationPath
+                // flatMap returns the Chainable interface type, cast to ValidationPath
                 ValidationPath<String, String> flatMapResult =
                     (ValidationPath<String, String>) path.flatMap(f);
 

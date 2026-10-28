@@ -278,7 +278,7 @@ class IOPathTest {
     void viaValidatesResultType() {
       IOPath<String> path = Path.ioPure(TEST_VALUE);
 
-      IOPath<Integer> result = path.via(s -> Path.just(s.length()));
+      IOPath<Integer> result = path.via(Mismatched.step(s -> Path.just(s.length())));
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::unsafeRun)
@@ -345,7 +345,7 @@ class IOPathTest {
     void thenThrowsWhenSupplierReturnsWrongType() {
       IOPath<String> path = Path.ioPure(TEST_VALUE);
 
-      IOPath<Integer> result = path.then(() -> Path.just(42));
+      IOPath<Integer> result = path.then(Mismatched.supplier(() -> Path.just(42)));
 
       // Exception thrown when executed
       assertThatIllegalArgumentException()
@@ -433,7 +433,7 @@ class IOPathTest {
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-IOPath");
     }
   }

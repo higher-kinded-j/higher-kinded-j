@@ -399,7 +399,7 @@ class CompletableFuturePathTest {
     void viaThrowsForIncompatibleType() {
       CompletableFuturePath<String> path = CompletableFuturePath.completed("hello");
 
-      CompletableFuturePath<Integer> result = path.via(s -> Path.id(s.length()));
+      CompletableFuturePath<Integer> result = path.via(Mismatched.step(s -> Path.id(s.length())));
 
       assertThatThrownBy(result::join)
           .isInstanceOf(CompletionException.class)
@@ -413,7 +413,7 @@ class CompletableFuturePathTest {
     void thenThrowsForIncompatibleType() {
       CompletableFuturePath<String> path = CompletableFuturePath.completed("hello");
 
-      CompletableFuturePath<Integer> result = path.then(() -> Path.id(42));
+      CompletableFuturePath<Integer> result = path.then(Mismatched.supplier(() -> Path.id(42)));
 
       assertThatThrownBy(result::join)
           .isInstanceOf(CompletionException.class)
@@ -471,7 +471,7 @@ class CompletableFuturePathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, n) -> s + n))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, n) -> s + n))
           .withMessageContaining("Cannot zipWith non-CompletableFuturePath");
     }
   }
@@ -1075,7 +1075,9 @@ class CompletableFuturePathTest {
 
       // Return an EitherPath (which is a Recoverable) instead of CompletableFuturePath
       // EitherPath<Exception, String> implements Recoverable<Exception, String>
-      assertThatThrownBy(() -> failedPath.recoverWith(ex -> Path.right("recovered")).join())
+      assertThatThrownBy(
+              () ->
+                  failedPath.recoverWith(Mismatched.recovery(ex -> Path.right("recovered"))).join())
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("recoverWith must return CompletableFuturePath");

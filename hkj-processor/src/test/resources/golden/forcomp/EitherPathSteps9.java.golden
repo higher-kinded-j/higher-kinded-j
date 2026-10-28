@@ -36,13 +36,13 @@ public final class EitherPathSteps9<E, A, B, C, D, F, G, H, I, J> {
   }
 
   public <K> EitherPathSteps10<E, A, B, C, D, F, G, H, I, J, K> from(
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, K>> next) {
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, K>> next) {
     EitherMonad<E> m = monad();
     Kind<EitherKind.Witness<E>, Tuple10<A, B, C, D, F, G, H, I, J, K>> newComp =
         m.flatMap(
             t -> m.map(
                 k -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), k),
-                EitherKindHelper.EITHER.widen(next.apply(t).run())),
+                ForPath.eitherStep(next.apply(t))),
             computation);
     return new EitherPathSteps10<>(newComp);
   }
@@ -64,30 +64,30 @@ public final class EitherPathSteps9<E, A, B, C, D, F, G, H, I, J> {
   }
 
   public <K, L> EitherPathSteps11<E, A, B, C, D, F, G, H, I, J, K, L> par(
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, K>> f1,
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, L>> f2) {
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, K>> f1,
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, L>> f2) {
     EitherMonad<E> m = monad();
     Kind<EitherKind.Witness<E>, Tuple11<A, B, C, D, F, G, H, I, J, K, L>> next =
         m.flatMap(
             t -> m.map2(
-                EitherKindHelper.EITHER.widen(f1.apply(t).run()),
-                EitherKindHelper.EITHER.widen(f2.apply(t).run()),
+                ForPath.eitherStep(f1.apply(t)),
+                ForPath.eitherStep(f2.apply(t)),
                 (r1, r2) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2)),
             this.computation);
     return new EitherPathSteps11<>(next);
   }
 
   public <K, L, N> EitherPathSteps12<E, A, B, C, D, F, G, H, I, J, K, L, N> par(
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, K>> f1,
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, L>> f2,
-      Function<Tuple9<A, B, C, D, F, G, H, I, J>, EitherPath<E, N>> f3) {
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, K>> f1,
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, L>> f2,
+      Function<Tuple9<A, B, C, D, F, G, H, I, J>, ? extends EitherPath<? extends E, N>> f3) {
     EitherMonad<E> m = monad();
     Kind<EitherKind.Witness<E>, Tuple12<A, B, C, D, F, G, H, I, J, K, L, N>> next =
         m.flatMap(
             t -> m.map3(
-                EitherKindHelper.EITHER.widen(f1.apply(t).run()),
-                EitherKindHelper.EITHER.widen(f2.apply(t).run()),
-                EitherKindHelper.EITHER.widen(f3.apply(t).run()),
+                ForPath.eitherStep(f1.apply(t)),
+                ForPath.eitherStep(f2.apply(t)),
+                ForPath.eitherStep(f3.apply(t)),
                 (r1, r2, r3) -> Tuple.of(t._1(), t._2(), t._3(), t._4(), t._5(), t._6(), t._7(), t._8(), t._9(), r1, r2, r3)),
             this.computation);
     return new EitherPathSteps12<>(next);

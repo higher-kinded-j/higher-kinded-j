@@ -8,7 +8,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.higherkindedj.annotation.Generated;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.effect.capability.Accumulating;
 import org.higherkindedj.hkt.effect.capability.Chainable;
@@ -86,7 +85,9 @@ import org.jspecify.annotations.Nullable;
  * @param <A> the type of the success value
  */
 public final class ValidationPath<E, A>
-    implements Chainable<A>, Accumulating<E, A>, Recoverable<E, A> {
+    implements Chainable<ValidationPath<? extends E, ?>, A>,
+        Accumulating<ValidationPath<? extends E, ?>, E, A>,
+        Recoverable<ValidationPath<? extends E, ?>, E, A> {
 
   private final Validated<E, A> value;
   private final Semigroup<E> semigroup;
@@ -259,7 +260,8 @@ public final class ValidationPath<E, A>
 
   @Override
   public <B, C> ValidationPath<E, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends ValidationPath<? extends E, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -267,7 +269,7 @@ public final class ValidationPath<E, A>
       throw new IllegalArgumentException("Cannot zipWith non-ValidationPath: " + other.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     ValidationPath<E, B> typedOther = (ValidationPath<E, B>) otherValidated;
 
     // Short-circuit: return first error encountered
@@ -291,8 +293,8 @@ public final class ValidationPath<E, A>
    * @return a new path containing the combined result, or the first error encountered
    */
   public <B, C, D> ValidationPath<E, D> zipWith3(
-      ValidationPath<E, B> second,
-      ValidationPath<E, C> third,
+      ValidationPath<? extends E, B> second,
+      ValidationPath<? extends E, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -316,7 +318,8 @@ public final class ValidationPath<E, A>
 
   @Override
   public <B, C> ValidationPath<E, C> zipWithAccum(
-      Accumulating<E, B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -341,8 +344,8 @@ public final class ValidationPath<E, A>
 
   @Override
   public <B, C, D> ValidationPath<E, D> zipWith3Accum(
-      Accumulating<E, B> second,
-      Accumulating<E, C> third,
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> second,
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -354,7 +357,8 @@ public final class ValidationPath<E, A>
   }
 
   @Override
-  public ValidationPath<E, A> andAlso(Accumulating<E, ?> other) {
+  public ValidationPath<E, A> andAlso(
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, ?> other) {
     Objects.requireNonNull(other, "other must not be null");
 
     ValidationPath<E, ?> typedOther = castAccumulatingForAndAlso(other);
@@ -363,7 +367,8 @@ public final class ValidationPath<E, A>
   }
 
   @Override
-  public <B> ValidationPath<E, B> andThen(Accumulating<E, B> other) {
+  public <B> ValidationPath<E, B> andThen(
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
     Objects.requireNonNull(other, "other must not be null");
 
     ValidationPath<E, B> typedOther = castAccumulatingForAndThen(other);
@@ -373,17 +378,26 @@ public final class ValidationPath<E, A>
 
   // ===== Chainable implementation (short-circuits) =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code ValidationPath} whose error type is {@code E} or a subtype
+   * of it; another kind of Path or an unrelated error type does not compile. The result keeps this
+   * path's semigroup.
+   */
   @Override
-  public <B> ValidationPath<E, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> ValidationPath<E, B> via(
+      Function<? super A, ? extends Chainable<? extends ValidationPath<? extends E, ?>, B>>
+          mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     if (value.isInvalid()) {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a failed path holds no value of either type
       ValidationPath<E, B> result = (ValidationPath<E, B>) this;
       return result;
     }
 
-    Chainable<B> result = mapper.apply(value.get());
+    Chainable<? extends ValidationPath<? extends E, ?>, B> result = mapper.apply(value.get());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
@@ -391,22 +405,21 @@ public final class ValidationPath<E, A>
           "via mapper must return ValidationPath, got: " + result.getClass());
     }
 
-    @SuppressWarnings("unchecked")
-    ValidationPath<E, B> typedResult = (ValidationPath<E, B>) validatedPath;
-    return typedResult;
+    return onThisSemigroup(validatedPath);
   }
 
   @Override
-  public <B> ValidationPath<E, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> ValidationPath<E, B> then(
+      Supplier<? extends Chainable<? extends ValidationPath<? extends E, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     if (value.isInvalid()) {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a failed path holds no value of either type
       ValidationPath<E, B> result = (ValidationPath<E, B>) this;
       return result;
     }
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends ValidationPath<? extends E, ?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
@@ -414,9 +427,7 @@ public final class ValidationPath<E, A>
           "then supplier must return ValidationPath, got: " + result.getClass());
     }
 
-    @SuppressWarnings("unchecked")
-    ValidationPath<E, B> typedResult = (ValidationPath<E, B>) validatedPath;
-    return typedResult;
+    return onThisSemigroup(validatedPath);
   }
 
   // ===== Recoverable implementation =====
@@ -432,37 +443,40 @@ public final class ValidationPath<E, A>
 
   @Override
   public ValidationPath<E, A> recoverWith(
-      Function<? super E, ? extends Recoverable<E, A>> recovery) {
+      Function<
+              ? super E,
+              ? extends Recoverable<? extends ValidationPath<? extends E, ?>, ? extends E, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     if (value.isValid()) {
       return this;
     }
-    Recoverable<E, A> result = recovery.apply(value.getError());
+    Recoverable<? extends ValidationPath<? extends E, ?>, ? extends E, A> result =
+        recovery.apply(value.getError());
     Objects.requireNonNull(result, "recovery must not return null");
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
       throw new IllegalArgumentException(
           "recovery must return ValidationPath, got: " + result.getClass());
     }
-    @SuppressWarnings("unchecked")
-    ValidationPath<E, A> typedResult = (ValidationPath<E, A>) validatedPath;
-    return typedResult;
+    return onThisSemigroup(validatedPath);
   }
 
   @Override
-  public ValidationPath<E, A> orElse(Supplier<? extends Recoverable<E, A>> alternative) {
+  public ValidationPath<E, A> orElse(
+      Supplier<? extends Recoverable<? extends ValidationPath<? extends E, ?>, ? extends E, A>>
+          alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     if (value.isValid()) {
       return this;
     }
-    Recoverable<E, A> result = alternative.get();
+    Recoverable<? extends ValidationPath<? extends E, ?>, ? extends E, A> result =
+        alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
       throw new IllegalArgumentException(
           "alternative must return ValidationPath, got: " + result.getClass());
     }
-    @SuppressWarnings("unchecked")
-    ValidationPath<E, A> typedResult = (ValidationPath<E, A>) validatedPath;
-    return typedResult;
+    return onThisSemigroup(validatedPath);
   }
 
   /**
@@ -489,7 +503,9 @@ public final class ValidationPath<E, A>
    *
    * <p>For valid values, this method returns a ValidationPath with a placeholder Semigroup that
    * will throw if accumulation is attempted. This allows the value to flow through pipelines where
-   * no accumulation occurs.
+   * no accumulation occurs. The placeholder stays with the chain through {@code via}, {@code then},
+   * {@code recoverWith} and {@code orElse}, which keep this path's semigroup, so a later
+   * accumulation throws even after a step that carried a semigroup of its own.
    *
    * @param mapper the function to transform the error; must not be null
    * @param <E2> the new error type
@@ -618,15 +634,25 @@ public final class ValidationPath<E, A>
     return "ValidationPath(" + value + ")";
   }
 
-  // ===== Defensive checks for sealed interface (excluded from coverage) =====
-  // These methods contain instanceof checks that are always true in normal usage because
-  // Accumulating is a sealed interface that only permits ValidationPath. The checks exist
-  // as defensive measures and are excluded from coverage via @Generated annotation.
+  /**
+   * Rebuilds a step's path on this path's semigroup. A step's error type may be a subtype of {@code
+   * E}, and its own semigroup combines only that subtype, so the chain keeps accumulating with this
+   * path's.
+   */
+  private <B> ValidationPath<E, B> onThisSemigroup(ValidationPath<?, ?> step) {
+    @SuppressWarnings("unchecked") // the family bounds the step's error by E
+    Validated<E, B> stepValue = (Validated<E, B>) step.value;
+    return new ValidationPath<>(stepValue, semigroup);
+  }
 
-  @Generated("sealed-interface-defensive-check")
-  @SuppressWarnings("unchecked")
+  // ===== Run-time kind checks for the accumulating methods =====
+  // These instanceof checks always pass for code compiled against these signatures, because
+  // the family parameter admits only a ValidationPath. They remain for raw types and code
+  // compiled against an older version.
+
+  @SuppressWarnings("unchecked") // the family bounds its error by E
   private static <E, B> ValidationPath<E, B> castAccumulatingForZipWithAccum(
-      Accumulating<E, B> other) {
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
     if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
       throw new IllegalArgumentException(
           "Cannot zipWithAccum non-ValidationPath: " + other.getClass());
@@ -634,18 +660,18 @@ public final class ValidationPath<E, A>
     return (ValidationPath<E, B>) otherValidated;
   }
 
-  @Generated("sealed-interface-defensive-check")
-  @SuppressWarnings("unchecked")
-  private static <E> ValidationPath<E, ?> castAccumulatingForAndAlso(Accumulating<E, ?> other) {
+  @SuppressWarnings("unchecked") // the family bounds its error by E
+  private static <E> ValidationPath<E, ?> castAccumulatingForAndAlso(
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, ?> other) {
     if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
       throw new IllegalArgumentException("Cannot andAlso non-ValidationPath: " + other.getClass());
     }
     return (ValidationPath<E, ?>) otherValidated;
   }
 
-  @Generated("sealed-interface-defensive-check")
-  @SuppressWarnings("unchecked")
-  private static <E, B> ValidationPath<E, B> castAccumulatingForAndThen(Accumulating<E, B> other) {
+  @SuppressWarnings("unchecked") // the family bounds its error by E
+  private static <E, B> ValidationPath<E, B> castAccumulatingForAndThen(
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
     if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
       throw new IllegalArgumentException("Cannot andThen non-ValidationPath: " + other.getClass());
     }

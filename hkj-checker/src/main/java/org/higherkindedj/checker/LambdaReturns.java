@@ -58,14 +58,28 @@ final class LambdaReturns {
    */
   static List<TypeMirror> lambdaReturnTypes(Trees trees, TreePath context, ExpressionTree arg) {
     List<TypeMirror> result = new ArrayList<>();
-    if (!(arg instanceof LambdaExpressionTree lambda)) {
-      return result; // method reference / other: deliberately unresolved
-    }
-    if (lambda.getBodyKind() == LambdaExpressionTree.BodyKind.EXPRESSION) {
-      TypeMirror t = typeOf(trees, context, (ExpressionTree) lambda.getBody());
+    for (TreePath returned : lambdaReturnPaths(context, arg)) {
+      TypeMirror t = typeOf(trees, returned.getParentPath(), returned.getLeaf());
       if (t != null) {
         result.add(t);
       }
+    }
+    return result;
+  }
+
+  /**
+   * The path to every expression a lambda/supplier argument returns, in source order: the body of
+   * an expression-bodied lambda, or each value-returning {@code return} in a block body's own
+   * scope. Empty for a method reference or any other argument.
+   */
+  static List<TreePath> lambdaReturnPaths(TreePath context, ExpressionTree arg) {
+    List<TreePath> result = new ArrayList<>();
+    if (!(arg instanceof LambdaExpressionTree lambda)) {
+      return result; // method reference / other: deliberately unresolved
+    }
+    TreePath lambdaPath = new TreePath(context, lambda);
+    if (lambda.getBodyKind() == LambdaExpressionTree.BodyKind.EXPRESSION) {
+      result.add(new TreePath(lambdaPath, lambda.getBody()));
       return result;
     }
     new TreePathScanner<Void, Void>() {
@@ -74,10 +88,7 @@ final class LambdaReturns {
         if (r.getExpression() != null) {
           // getCurrentPath() is a contiguous path down to this return, so the resolved
           // expression's scope is correct (its parent is a real, complete chain).
-          TypeMirror t = typeOf(trees, getCurrentPath(), r.getExpression());
-          if (t != null) {
-            result.add(t);
-          }
+          result.add(new TreePath(getCurrentPath(), r.getExpression()));
         }
         return super.visitReturn(r, u);
       }
@@ -93,7 +104,7 @@ final class LambdaReturns {
       public Void visitClass(ClassTree c, Void u) {
         return null;
       }
-    }.scan(new TreePath(context, lambda.getBody()), null);
+    }.scan(new TreePath(lambdaPath, lambda.getBody()), null);
     return result;
   }
 }

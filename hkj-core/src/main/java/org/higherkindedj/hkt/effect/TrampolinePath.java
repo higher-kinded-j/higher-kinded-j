@@ -47,7 +47,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
  *
  * @param <A> the result type
  */
-public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
+public final class TrampolinePath<A> implements Chainable<TrampolinePath<?>, A>, Deferred<A> {
 
   private final Trampoline<A> trampoline;
 
@@ -178,7 +178,8 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
   @Override
   @SuppressWarnings("unchecked")
   public <B, C> TrampolinePath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends TrampolinePath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -229,14 +230,21 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
 
   // ===== Chainable Implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code TrampolinePath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
   @SuppressWarnings("unchecked")
-  public <B> TrampolinePath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> TrampolinePath<B> via(
+      Function<? super A, ? extends Chainable<? extends TrampolinePath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Trampoline<B> flatMapped =
         trampoline.flatMap(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends TrampolinePath<?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof TrampolinePath<?> tp)) {
@@ -249,7 +257,8 @@ public final class TrampolinePath<A> implements Chainable<A>, Deferred<A> {
   }
 
   @Override
-  public <B> TrampolinePath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> TrampolinePath<B> then(
+      Supplier<? extends Chainable<? extends TrampolinePath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(_ -> supplier.get());
   }

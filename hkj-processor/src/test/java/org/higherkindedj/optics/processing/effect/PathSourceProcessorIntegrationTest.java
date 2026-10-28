@@ -101,8 +101,10 @@ class PathSourceProcessorIntegrationTest {
       final String generatedClassName = "com.example.ApiResultPath";
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public final class ApiResultPath<A>");
-      // Note: Generated classes implement Combinable (not Chainable) because Chainable is sealed
-      assertGeneratedCodeContains(compilation, generatedClassName, "implements Combinable<A>");
+      // Note: Generated classes implement Combinable (not Chainable) because Chainable is sealed,
+      // and name their own class as the family
+      assertGeneratedCodeContains(
+          compilation, generatedClassName, "implements Combinable<ApiResultPath<?>, A>");
       assertGeneratedCodeContains(compilation, generatedClassName, "private final Kind<");
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public <B> ApiResultPath<B> map(");
@@ -192,7 +194,8 @@ class PathSourceProcessorIntegrationTest {
       // Note: Generated classes implement Combinable (not Chainable/Recoverable) because those are
       // sealed
       // but still provide recover/recoverWith/mapError methods
-      assertGeneratedCodeContains(compilation, generatedClassName, "implements Combinable<A>");
+      assertGeneratedCodeContains(
+          compilation, generatedClassName, "implements Combinable<ErrResultPath<?>, A>");
       assertGeneratedCodeContains(compilation, generatedClassName, "private final MonadError<");
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public ErrResultPath<A> recover(");
@@ -543,7 +546,8 @@ class PathSourceProcessorIntegrationTest {
       assertThat(compilation).succeeded();
 
       final String generatedClassName = "com.example.PairPath";
-      assertGeneratedCodeContains(compilation, generatedClassName, "implements Combinable<A>");
+      assertGeneratedCodeContains(
+          compilation, generatedClassName, "implements Combinable<PairPath<?>, A>");
       assertGeneratedCodeContains(
           compilation, generatedClassName, "public <B, C> PairPath<C> zipWith(");
       // COMBINABLE should NOT have via/flatMap

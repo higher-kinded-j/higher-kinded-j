@@ -278,7 +278,7 @@ class MaybePathLawsTest {
                 MaybePath<Integer> path = Path.just(TEST_VALUE);
 
                 MaybePath<String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to MaybePath
+                // flatMap returns the Chainable interface type, cast to MaybePath
                 MaybePath<String> flatMapResult = (MaybePath<String>) path.flatMap(f);
 
                 assertThat(viaResult.run()).isEqualTo(flatMapResult.run());
@@ -289,7 +289,7 @@ class MaybePathLawsTest {
                 MaybePath<Integer> path = Path.nothing();
 
                 MaybePath<String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to MaybePath
+                // flatMap returns the Chainable interface type, cast to MaybePath
                 MaybePath<String> flatMapResult = (MaybePath<String>) path.flatMap(f);
 
                 assertThat(viaResult.run()).isEqualTo(flatMapResult.run());

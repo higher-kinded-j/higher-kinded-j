@@ -48,7 +48,9 @@ import org.jspecify.annotations.Nullable;
  * @param <A> the type of the success value
  */
 public final class EitherOrBothPath<L, A>
-    implements Chainable<A>, Accumulating<L, A>, Recoverable<L, A> {
+    implements Chainable<EitherOrBothPath<? extends L, ?>, A>,
+        Accumulating<EitherOrBothPath<? extends L, ?>, L, A>,
+        Recoverable<EitherOrBothPath<? extends L, ?>, L, A> {
 
   private final EitherOrBoth<L, A> value;
   private final Semigroup<L> semigroup;
@@ -269,7 +271,8 @@ public final class EitherOrBothPath<L, A>
 
   @Override
   public <B, C> EitherOrBothPath<L, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends EitherOrBothPath<? extends L, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -277,7 +280,7 @@ public final class EitherOrBothPath<L, A>
       throw new IllegalArgumentException(
           "Cannot zipWith non-EitherOrBothPath: " + other.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typedOther = (EitherOrBothPath<L, B>) otherPath;
 
     EitherOrBoth<L, C> result =
@@ -298,8 +301,8 @@ public final class EitherOrBothPath<L, A>
    * @throws NullPointerException if any argument is null
    */
   public <B, C, D> EitherOrBothPath<L, D> zipWith3(
-      EitherOrBothPath<L, B> second,
-      EitherOrBothPath<L, C> third,
+      EitherOrBothPath<? extends L, B> second,
+      EitherOrBothPath<? extends L, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -312,7 +315,8 @@ public final class EitherOrBothPath<L, A>
 
   @Override
   public <B, C> EitherOrBothPath<L, C> zipWithAccum(
-      Accumulating<L, B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
     EitherOrBothPath<L, B> typedOther = narrowAccumulating(other);
@@ -322,8 +326,8 @@ public final class EitherOrBothPath<L, A>
 
   @Override
   public <B, C, D> EitherOrBothPath<L, D> zipWith3Accum(
-      Accumulating<L, B> second,
-      Accumulating<L, C> third,
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> second,
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -333,27 +337,38 @@ public final class EitherOrBothPath<L, A>
   }
 
   @Override
-  public EitherOrBothPath<L, A> andAlso(Accumulating<L, ?> other) {
+  public EitherOrBothPath<L, A> andAlso(
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, ?> other) {
     Objects.requireNonNull(other, "other must not be null");
     return zipWithAccum(other, (a, ignored) -> a);
   }
 
   @Override
-  public <B> EitherOrBothPath<L, B> andThen(Accumulating<L, B> other) {
+  public <B> EitherOrBothPath<L, B> andThen(
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other) {
     Objects.requireNonNull(other, "other must not be null");
     return zipWithAccum(other, (ignored, b) -> b);
   }
 
   // ===== Chainable (short-circuit, accumulating Both) =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return an {@code EitherOrBothPath} whose warning type is {@code L} or a
+   * subtype of it; another kind of Path or an unrelated warning type does not compile. Warnings
+   * accumulate with this path's semigroup.
+   */
   @Override
-  public <B> EitherOrBothPath<L, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> EitherOrBothPath<L, B> via(
+      Function<? super A, ? extends Chainable<? extends EitherOrBothPath<? extends L, ?>, B>>
+          mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     EitherOrBoth<L, B> result =
         value.flatMap(
             semigroup,
             a -> {
-              Chainable<B> r = mapper.apply(a);
+              Chainable<? extends EitherOrBothPath<? extends L, ?>, B> r = mapper.apply(a);
               Objects.requireNonNull(r, "mapper must not return null");
               return EitherOrBothPath.<L, B>narrowChainable(r, "via mapper").value;
             });
@@ -361,13 +376,14 @@ public final class EitherOrBothPath<L, A>
   }
 
   @Override
-  public <B> EitherOrBothPath<L, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> EitherOrBothPath<L, B> then(
+      Supplier<? extends Chainable<? extends EitherOrBothPath<? extends L, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     EitherOrBoth<L, B> result =
         value.flatMap(
             semigroup,
             ignored -> {
-              Chainable<B> r = supplier.get();
+              Chainable<? extends EitherOrBothPath<? extends L, ?>, B> r = supplier.get();
               Objects.requireNonNull(r, "supplier must not return null");
               return EitherOrBothPath.<L, B>narrowChainable(r, "then supplier").value;
             });
@@ -387,26 +403,33 @@ public final class EitherOrBothPath<L, A>
 
   @Override
   public EitherOrBothPath<L, A> recoverWith(
-      Function<? super L, ? extends Recoverable<L, A>> recovery) {
+      Function<
+              ? super L,
+              ? extends Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return value.fold(
         l -> {
-          Recoverable<L, A> r = recovery.apply(l);
+          Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r =
+              recovery.apply(l);
           Objects.requireNonNull(r, "recovery must not return null");
-          return EitherOrBothPath.<L, A>narrowRecoverable(r, "recovery");
+          return onThisSemigroup(EitherOrBothPath.<L, A>narrowRecoverable(r, "recovery"));
         },
         r -> this,
         (l, r) -> this);
   }
 
   @Override
-  public EitherOrBothPath<L, A> orElse(Supplier<? extends Recoverable<L, A>> alternative) {
+  public EitherOrBothPath<L, A> orElse(
+      Supplier<? extends Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A>>
+          alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     return value.fold(
         l -> {
-          Recoverable<L, A> r = alternative.get();
+          Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r =
+              alternative.get();
           Objects.requireNonNull(r, "alternative must not return null");
-          return EitherOrBothPath.<L, A>narrowRecoverable(r, "alternative");
+          return onThisSemigroup(EitherOrBothPath.<L, A>narrowRecoverable(r, "alternative"));
         },
         r -> this,
         (l, r) -> this);
@@ -532,32 +555,44 @@ public final class EitherOrBothPath<L, A>
 
   // ===== Helpers =====
 
-  private static <L, B> EitherOrBothPath<L, B> narrowChainable(Chainable<B> c, String op) {
+  /**
+   * Rebuilds a recovery's path on this path's semigroup. The recovery's warning type may be a
+   * subtype of {@code L}, and its own semigroup combines only that subtype, so the result keeps
+   * accumulating with this path's.
+   */
+  private <B> EitherOrBothPath<L, B> onThisSemigroup(EitherOrBothPath<L, B> recovered) {
+    return new EitherOrBothPath<>(recovered.value, semigroup);
+  }
+
+  private static <L, B> EitherOrBothPath<L, B> narrowChainable(
+      Chainable<? extends EitherOrBothPath<? extends L, ?>, B> c, String op) {
     if (!(c instanceof EitherOrBothPath<?, ?> path)) {
       throw new IllegalArgumentException(
           op + " must return EitherOrBothPath, got: " + c.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typed = (EitherOrBothPath<L, B>) path;
     return typed;
   }
 
-  private static <L, A> EitherOrBothPath<L, A> narrowRecoverable(Recoverable<L, A> r, String op) {
+  private static <L, A> EitherOrBothPath<L, A> narrowRecoverable(
+      Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r, String op) {
     if (!(r instanceof EitherOrBothPath<?, ?> path)) {
       throw new IllegalArgumentException(
           op + " must return EitherOrBothPath, got: " + r.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, A> typed = (EitherOrBothPath<L, A>) path;
     return typed;
   }
 
-  private static <L, B> EitherOrBothPath<L, B> narrowAccumulating(Accumulating<L, B> other) {
+  private static <L, B> EitherOrBothPath<L, B> narrowAccumulating(
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other) {
     if (!(other instanceof EitherOrBothPath<?, ?> path)) {
       throw new IllegalArgumentException(
           "Cannot accumulate with non-EitherOrBothPath: " + other.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typed = (EitherOrBothPath<L, B>) path;
     return typed;
   }

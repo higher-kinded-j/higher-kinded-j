@@ -213,7 +213,8 @@ class MaybePathPropertyTest {
       @ForAll("intToMaybeStringFunctions") Function<Integer, MaybePath<String>> f) {
 
     MaybePath<String> viaResult = path.via(f);
-    // flatMap returns Chainable<B>, cast to MaybePath since we know the implementation
+    // flatMap returns the Chainable interface type, cast to MaybePath since we know the
+    // implementation
     MaybePath<String> flatMapResult = (MaybePath<String>) path.flatMap(f);
 
     assertThat(viaResult.run()).isEqualTo(flatMapResult.run());

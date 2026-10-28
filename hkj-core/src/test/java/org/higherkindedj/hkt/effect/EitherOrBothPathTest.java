@@ -230,7 +230,7 @@ class EitherOrBothPathTest {
     @Test
     @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void viaRejectsNonEitherOrBothPathResult() {
-      assertThatThrownBy(() -> right().via(a -> Path.just(a)))
+      assertThatThrownBy(() -> right().via(Mismatched.step(a -> Path.just(a))))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("via");
     }
@@ -268,7 +268,7 @@ class EitherOrBothPathTest {
     @Test
     @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void zipWithRejectsNonEitherOrBothPath() {
-      assertThatThrownBy(() -> right().zipWith(Path.just(1), Integer::sum))
+      assertThatThrownBy(() -> right().zipWith(Mismatched.other(Path.just(1)), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("zipWith");
     }
@@ -338,7 +338,10 @@ class EitherOrBothPathTest {
     @Test
     void zipWithAccumRejectsNonEitherOrBothPath() {
       // ValidationPath is the other Accumulating implementation: a usage error here.
-      assertThatThrownBy(() -> right().zipWithAccum(Path.valid(1, CONCAT), Integer::sum))
+      assertThatThrownBy(
+              () ->
+                  right()
+                      .zipWithAccum(Mismatched.accumulating(Path.valid(1, CONCAT)), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("non-EitherOrBothPath");
     }
@@ -388,7 +391,10 @@ class EitherOrBothPathTest {
     @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void recoverWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(
-              () -> left().recoverWith(l -> Path.<String, Integer>either(Either.right(0))))
+              () ->
+                  left()
+                      .recoverWith(
+                          Mismatched.recovery(l -> Path.<String, Integer>either(Either.right(0)))))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("recovery");
     }
@@ -484,6 +490,60 @@ class EitherOrBothPathTest {
           .hasSameHashCodeAs(Path.both("w", 5, CONCAT));
       assertThat(p).isNotEqualTo(right()).isNotEqualTo("x");
       assertThat(p).hasToString("EitherOrBothPath(Both(w, 5))");
+    }
+  }
+
+  /** A warning hierarchy whose variants carry their own, narrower semigroup. */
+  sealed interface Warning permits Stale, Partial, Combined {}
+
+  record Stale(String key) implements Warning {}
+
+  record Partial(String key) implements Warning {}
+
+  record Combined(Warning first, Warning second) implements Warning {}
+
+  private static final Semigroup<Warning> WARNINGS = Combined::new;
+
+  private static final Semigroup<Stale> STALES = (a, b) -> new Stale(a.key() + "+" + b.key());
+
+  @Nested
+  @DisplayName("A step typed on a subtype of the warning keeps the receiver's semigroup")
+  class StepOnSubtypeOfWarning {
+
+    private final EitherOrBothPath<Warning, Integer> right = Path.right(1, WARNINGS);
+    private final EitherOrBothPath<Warning, Integer> left = Path.left(new Partial("a"), WARNINGS);
+    private final EitherOrBothPath<Stale, Integer> stale = Path.both(new Stale("x"), 2, STALES);
+
+    /** Accumulating with a sibling variant would throw ClassCastException on the step's own. */
+    private void assertAccumulatesWithReceiversSemigroup(
+        EitherOrBothPath<Warning, Integer> result) {
+      assertThat(result.semigroup()).isSameAs(WARNINGS);
+      assertThat(result.via(n -> Path.both(new Partial("next"), n, WARNINGS)).run())
+          .isEqualTo(EitherOrBoth.both(new Combined(new Stale("x"), new Partial("next")), 2));
+    }
+
+    @Test
+    @DisplayName("via()")
+    void via() {
+      assertAccumulatesWithReceiversSemigroup(right.via(n -> stale));
+    }
+
+    @Test
+    @DisplayName("then()")
+    void then() {
+      assertAccumulatesWithReceiversSemigroup(right.then(() -> stale));
+    }
+
+    @Test
+    @DisplayName("recoverWith()")
+    void recoverWith() {
+      assertAccumulatesWithReceiversSemigroup(left.recoverWith(w -> stale));
+    }
+
+    @Test
+    @DisplayName("orElse()")
+    void orElse() {
+      assertAccumulatesWithReceiversSemigroup(left.orElse(() -> stale));
     }
   }
 }

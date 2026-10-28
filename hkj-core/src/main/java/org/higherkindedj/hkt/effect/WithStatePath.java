@@ -74,7 +74,7 @@ import org.higherkindedj.hkt.state.StateTuple;
  * @param <S> the state type
  * @param <A> the type of the computed value
  */
-public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
+public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>, A>, Deferred<A> {
 
   private final State<S, A> state;
 
@@ -225,7 +225,8 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
 
   @Override
   public <B, C> WithStatePath<S, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends WithStatePath<S, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -284,14 +285,21 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code WithStatePath} over the same state type {@code S}; another
+   * kind of Path or state type does not compile.
+   */
   @Override
-  public <B> WithStatePath<S, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> WithStatePath<S, B> via(
+      Function<? super A, ? extends Chainable<? extends WithStatePath<S, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new WithStatePath<>(
         state.flatMap(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends WithStatePath<S, ?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof WithStatePath<?, ?> statePath)) {
@@ -306,7 +314,8 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
   }
 
   @Override
-  public <B> WithStatePath<S, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> WithStatePath<S, B> then(
+      Supplier<? extends Chainable<? extends WithStatePath<S, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new WithStatePath<>(
@@ -315,7 +324,7 @@ public final class WithStatePath<S, A> implements Chainable<A>, Deferred<A> {
               // Run this state computation to get the new state
               StateTuple<S, A> result = this.state.run(s);
 
-              Chainable<B> next = supplier.get();
+              Chainable<? extends WithStatePath<S, ?>, B> next = supplier.get();
               Objects.requireNonNull(next, "supplier must not return null");
 
               if (!(next instanceof WithStatePath<?, ?> statePath)) {

@@ -285,7 +285,7 @@ class FreePathTest {
     void viaThrowsWhenMapperReturnsNonFreePath() {
       FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
 
-      FreePath<MaybeKind.Witness, Integer> result = path.via(_ -> Path.just(100));
+      FreePath<MaybeKind.Witness, Integer> result = path.via(Mismatched.step(_ -> Path.just(100)));
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> result.foldMap(IDENTITY_NAT, MAYBE_MONAD))
@@ -349,7 +349,7 @@ class FreePathTest {
       MaybePath<Integer> maybePath = Path.just(10);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (a, b) -> a + b))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
           .withMessageContaining("Cannot zipWith non-FreePath");
     }
 

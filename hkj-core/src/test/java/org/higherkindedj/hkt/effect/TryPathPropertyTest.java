@@ -249,7 +249,8 @@ class TryPathPropertyTest {
       @ForAll("intToTryStringFunctions") Function<Integer, TryPath<String>> f) {
 
     TryPath<String> viaResult = path.via(f);
-    // flatMap returns Chainable<B>, cast to TryPath since we know the implementation
+    // flatMap returns the Chainable interface type, cast to TryPath since we know the
+    // implementation
     TryPath<String> flatMapResult = (TryPath<String>) path.flatMap(f);
 
     assertThat(viaResult.run().isSuccess()).isEqualTo(flatMapResult.run().isSuccess());

@@ -37,9 +37,12 @@ class PathSourceBookTest {
   class TracedPathTest {
 
     @Test
-    @DisplayName("zipWith takes any Combinable, and refuses one of another class at the call")
+    @DisplayName("zipWith refuses another class of path at the call, past the compile-time check")
     void zipWithRefusesAnotherPathClass() {
-      assertThatThrownBy(() -> priced().zipWith(Path.just(350), Integer::sum))
+      @SuppressWarnings("unchecked") // widened to reach the run-time check
+      Combinable<TracedPath<?>, Integer> other =
+          (Combinable<TracedPath<?>, Integer>) (Combinable<?, Integer>) Path.just(350);
+      assertThatThrownBy(() -> priced().zipWith(other, Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageStartingWith("Cannot zipWith non-TracedPath");
     }

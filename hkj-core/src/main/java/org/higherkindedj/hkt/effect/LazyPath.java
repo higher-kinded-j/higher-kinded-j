@@ -68,7 +68,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *
  * @param <A> the type of the computed value
  */
-public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
+public final class LazyPath<A> implements Chainable<LazyPath<?>, A>, Deferred<A> {
 
   private final Lazy<A> lazy;
 
@@ -219,7 +219,8 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
 
   @Override
   public <B, C> LazyPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends LazyPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -273,14 +274,21 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code LazyPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> LazyPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> LazyPath<B> via(
+      Function<? super A, ? extends Chainable<? extends LazyPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new LazyPath<>(
         lazy.flatMap(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends LazyPath<?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof LazyPath<?> lazyPath)) {
@@ -295,7 +303,7 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
   }
 
   @Override
-  public <B> LazyPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> LazyPath<B> then(Supplier<? extends Chainable<? extends LazyPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new LazyPath<>(
@@ -304,7 +312,7 @@ public final class LazyPath<A> implements Chainable<A>, Deferred<A> {
               // Force this lazy for sequencing
               this.lazy.force();
 
-              Chainable<B> result = supplier.get();
+              Chainable<? extends LazyPath<?>, B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof LazyPath<?> lazyPath)) {

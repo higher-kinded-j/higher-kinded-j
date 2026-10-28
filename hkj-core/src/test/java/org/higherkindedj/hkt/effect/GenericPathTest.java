@@ -277,10 +277,10 @@ class GenericPathTest {
     @DisplayName("zipWith() throws when other is not a GenericPath")
     void zipWithThrowsOnNonGenericPath() {
       GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
-      Combinable<Integer> other = Path.maybe(3);
+      Combinable<?, Integer> other = Path.maybe(3);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(other, Integer::sum))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(other), Integer::sum))
           .withMessageContaining("GenericPath can only zipWith another GenericPath");
     }
 
@@ -427,7 +427,7 @@ class GenericPathTest {
       GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(n -> Path.maybe("test")))
+          .isThrownBy(() -> path.via(Mismatched.step(n -> Path.maybe("test"))))
           .withMessageContaining("GenericPath.via must return GenericPath");
     }
 
@@ -456,7 +456,7 @@ class GenericPathTest {
     void flatMapIsAliasForVia() {
       GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
 
-      Chainable<String> result = path.flatMap(n -> GenericPath.pure("Number: " + n, MONAD));
+      Chainable<?, String> result = path.flatMap(n -> GenericPath.pure("Number: " + n, MONAD));
 
       assertThat(result).isInstanceOf(GenericPath.class);
       @SuppressWarnings("unchecked")

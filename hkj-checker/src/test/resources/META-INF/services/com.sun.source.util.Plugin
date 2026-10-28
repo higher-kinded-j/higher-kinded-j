@@ -1,4 +1,3 @@
 org.higherkindedj.checker.PathRightInferenceSpikeProbe
-org.higherkindedj.checker.ErrorTypeMismatchDetectorSpikeProbe
 org.higherkindedj.checker.WitnessArityDetectorSpikeProbe
 org.higherkindedj.checker.MapReturnsPathDetectorSpikeProbe

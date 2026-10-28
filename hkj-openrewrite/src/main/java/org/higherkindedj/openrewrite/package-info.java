@@ -79,6 +79,19 @@
  *       {@code each(EachInstances.listEach())} and {@code some(FocusPaths.optionalSome())}
  * </ul>
  *
+ * <h2>0.6.0 Path Family</h2>
+ *
+ * <p>Adds the Path family that 0.6.0's capability interfaces take as their first type parameter to
+ * code that names one. Run it from this module's 0.6.0 release, before or after the project moves
+ * to 0.6.0.
+ *
+ * <ul>
+ *   <li>{@code org.higherkindedj.openrewrite.AddPathFamily} - Runs the recipe below
+ *   <li>{@code org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe} - {@code
+ *       Chainable<A>} to {@code Chainable<?, A>}, and likewise {@code Combinable}, {@code
+ *       Effectful}, {@code Recoverable} and {@code Accumulating}
+ * </ul>
+ *
  * <h2>Usage</h2>
  *
  * <pre>{@code

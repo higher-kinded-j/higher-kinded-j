@@ -38,10 +38,12 @@ import org.higherkindedj.hkt.effect.ValidationPath;
  *   <li>{@code VResultPath<E, A>} uses {@code E} (the left type of its async carrier)
  * </ul>
  *
+ * @param <P> the family of the implementing Path: its own class with the value type left open, such
+ *     as {@code MaybePath<?>}; see {@link Chainable}
  * @param <E> the type of error this path can contain
  * @param <A> the type of the contained value
  */
-public sealed interface Recoverable<E, A> extends Chainable<A>
+public sealed interface Recoverable<P, E, A> extends Chainable<P, A>
     permits MaybePath,
         EitherPath,
         TryPath,
@@ -69,13 +71,14 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    * @return a path containing either the original value or the recovered value
    * @throws NullPointerException if recovery is null
    */
-  Recoverable<E, A> recover(Function<? super E, ? extends A> recovery);
+  Recoverable<P, E, A> recover(Function<? super E, ? extends A> recovery);
 
   /**
    * Recovers from an error by providing a fallback path.
    *
    * <p>If this path contains an error, the recovery function is applied to produce an alternative
-   * path. If this path already contains a value, it is returned unchanged.
+   * path. If this path already contains a value, it is returned unchanged. The alternative must be
+   * a path of this path's family {@code P}.
    *
    * <p>Example:
    *
@@ -89,13 +92,15 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    * @return either this path (if successful) or the fallback path
    * @throws NullPointerException if recovery is null or returns null
    */
-  Recoverable<E, A> recoverWith(Function<? super E, ? extends Recoverable<E, A>> recovery);
+  Recoverable<P, E, A> recoverWith(
+      Function<? super E, ? extends Recoverable<? extends P, ? extends E, A>> recovery);
 
   /**
    * Provides an alternative path if this one represents an error.
    *
    * <p>This is a convenience method that ignores the specific error and provides a fallback. It is
-   * equivalent to {@code recoverWith(ignored -> alternative.get())}.
+   * equivalent to {@code recoverWith(ignored -> alternative.get())}, and the alternative must
+   * likewise be a path of this path's family {@code P}.
    *
    * <p>Example:
    *
@@ -108,7 +113,8 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    * @return either this path (if successful) or the alternative
    * @throws NullPointerException if alternative is null or returns null
    */
-  Recoverable<E, A> orElse(Supplier<? extends Recoverable<E, A>> alternative);
+  Recoverable<P, E, A> orElse(
+      Supplier<? extends Recoverable<? extends P, ? extends E, A>> alternative);
 
   /**
    * Transforms the error type without affecting success values.
@@ -133,10 +139,14 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    * NullPointerException}: an eager path throws where the call is written, and a deferred one fails
    * when it runs.
    *
+   * <p>The family of the result depends on {@code E2}, so this interface leaves it open. Each Path
+   * returns its own type, such as {@code EitherPath<E2, A>}, and code that chains after the call
+   * uses that type.
+   *
    * @param mapper the function to transform the error; must not be null, and must not return null
    * @param <E2> the new error type
    * @return a path with the transformed error type
    * @throws NullPointerException if mapper is null
    */
-  <E2> Recoverable<E2, A> mapError(Function<? super E, ? extends E2> mapper);
+  <E2> Recoverable<?, E2, A> mapError(Function<? super E, ? extends E2> mapper);
 }

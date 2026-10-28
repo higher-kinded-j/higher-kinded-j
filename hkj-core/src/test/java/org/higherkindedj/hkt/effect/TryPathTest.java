@@ -357,7 +357,7 @@ class TryPathTest {
       TryPath<String> path = Path.success(TEST_VALUE);
 
       // via() catches the exception and returns it as a failure
-      TryPath<Integer> result = path.via(s -> Path.just(s.length()));
+      TryPath<Integer> result = path.via(Mismatched.step(s -> Path.just(s.length())));
 
       assertThat(result.run().isFailure()).isTrue();
       result
@@ -415,7 +415,7 @@ class TryPathTest {
       TryPath<String> path = Path.success(TEST_VALUE);
 
       // then() catches the exception and returns it as a failure
-      TryPath<Integer> result = path.then(() -> Path.just(42));
+      TryPath<Integer> result = path.then(Mismatched.supplier(() -> Path.just(42)));
 
       assertThat(result.run().isFailure()).isTrue();
       result
@@ -518,7 +518,7 @@ class TryPathTest {
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-TryPath");
     }
 

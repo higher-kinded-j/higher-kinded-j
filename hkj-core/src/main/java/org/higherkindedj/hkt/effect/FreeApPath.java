@@ -66,7 +66,7 @@ import org.higherkindedj.hkt.function.Function3;
  * @param <A> the result type
  */
 public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
-    implements Composable<A>, Combinable<A> {
+    implements Composable<A>, Combinable<FreeApPath<F, ?>, A> {
 
   private final FreeAp<F, A> freeAp;
   private final Functor<F> functor;
@@ -233,7 +233,8 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
   @Override
   @SuppressWarnings("unchecked")
   public <B, C> FreeApPath<F, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends FreeApPath<F, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 

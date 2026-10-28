@@ -143,6 +143,30 @@ class ForPathParTest {
               .yield((a, b, c) -> a + b + c);
       assertThat(result.run()).isEqualTo(Either.right(6));
     }
+
+    sealed interface AppError permits NotFound, Denied {}
+
+    record NotFound(String id) implements AppError {}
+
+    record Denied(String reason) implements AppError {}
+
+    @Test
+    @DisplayName("par(2) and par(3): accept computations that fail with subtypes of the error")
+    void parAcceptsSubtypesOfTheError() {
+      EitherPath<AppError, Integer> two =
+          ForPath.<AppError, Integer, Integer>par(
+                  Path.<NotFound, Integer>right(1), Path.<Denied, Integer>left(new Denied("no")))
+              .yield(Integer::sum);
+      EitherPath<AppError, Integer> three =
+          ForPath.<AppError, Integer, Integer, Integer>par(
+                  Path.<NotFound, Integer>right(1),
+                  Path.<Denied, Integer>right(2),
+                  Path.<AppError, Integer>right(3))
+              .yield((a, b, c) -> a + b + c);
+
+      assertThat(two.run()).isEqualTo(Either.left(new Denied("no")));
+      assertThat(three.run()).isEqualTo(Either.right(6));
+    }
   }
 
   @Nested

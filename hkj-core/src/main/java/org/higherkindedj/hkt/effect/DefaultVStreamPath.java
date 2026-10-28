@@ -75,12 +75,13 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   // ===== Chainable implementation =====
 
   @Override
-  public <B> VStreamPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> VStreamPath<B> via(
+      Function<? super A, ? extends Chainable<? extends VStreamPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     return new DefaultVStreamPath<>(
         stream.flatMap(
             a -> {
-              Chainable<B> chainable = mapper.apply(a);
+              Chainable<? extends VStreamPath<?>, B> chainable = mapper.apply(a);
               Objects.requireNonNull(chainable, "mapper must not return null");
 
               if (!(chainable instanceof VStreamPath<?> vsp)) {
@@ -95,7 +96,8 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   }
 
   @Override
-  public <B> VStreamPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> VStreamPath<B> then(
+      Supplier<? extends Chainable<? extends VStreamPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(ignored -> supplier.get());
   }
@@ -104,7 +106,8 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
 
   @Override
   public <B, C> VStreamPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends VStreamPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 

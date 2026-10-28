@@ -95,7 +95,7 @@ The project is organised into several modules:
 * **hkj-api** -- Public API interfaces
 * **hkj-annotations** -- Annotations for code generation
 * **hkj-processor / hkj-processor-plugins** -- Annotation processor and extensible plugins
-* **hkj-checker** -- Javac compiler plugin for compile-time Path type mismatch detection
+* **hkj-checker** -- Javac compiler plugin that explains rejected Path chain steps and reports mistakes javac accepts
 * **hkj-bom** -- Bill of Materials that aligns the versions of the core library, `hkj-test` and the Spring starter
 * **hkj-test** -- AssertJ assertion helpers for HKJ types (test-scope dependency)
 * **plugins/hkj-gradle-plugin** -- Gradle plugin for one-line project setup
@@ -124,6 +124,25 @@ Spotless sets the layout; the rest comes from the code next to yours. Before you
 * **Fields and helpers where the siblings put them:** `final` fields together, before any that change, and private helpers after the methods that use them.
 * **Package-private test classes,** each with a class-level `@DisplayName`. [TESTING-GUIDE.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/TESTING-GUIDE.md) says how the tests are laid out and which shared harnesses to use.
 * **No test that repeats one already there.** Look through the class you add to before writing a new case.
+
+## Adding a Path type
+
+A Path names its *family* in the capability interfaces it implements: its own class with the value type left open, as in `MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A>`. The family is what lets javac check that a step passed to `via` is the same kind of Path, so choose it with the class, because changing it later breaks every caller.
+
+Choose the variance of each fixed type parameter by how the Path uses it:
+
+| The parameter is | Variance | Family | As in |
+|---|---|---|---|
+| Only produced, such as an error | Covariant | `XPath<? extends E, ?>` | `EitherPath`, `VResultPath` |
+| Only consumed, such as an environment | Contravariant | `XPath<? super R, ?>` | `ReaderPath` |
+| Both produced and consumed, such as a state, a log or a witness | Invariant | `XPath<S, ?>` | `WithStatePath`, `WriterPath`, `GenericPath` |
+| Absent: the Path has only its value type | None | `XPath<?>` | `MaybePath`, `IOPath` |
+
+Three rules keep the choice sound:
+
+* **Rebuild a step's Path when the Path holds an instance typed on the parameter.** A covariant `ValidationPath` holds a `Semigroup<E>`, and a step typed on a subtype carries a semigroup for that subtype only. So `via`, `then`, `recoverWith` and `orElse` rebuild the result with the receiver's semigroup, and a regression test accumulates a sibling variant after each. Where that is not possible, make the parameter invariant.
+* **Use the family in every chaining and combining method.** That is `via`, `then`, `zipWith`, `zipWith3`, `recoverWith`, `orElse`, the accumulating methods and `ForPath`'s steps, so that one rule holds for all of them. Static helpers over a collection of paths, such as `PathOps.sequenceEither`, infer one error type and keep it.
+* **Keep the run-time kind check in each of those methods.** Raw types and code compiled against an older release can still pass another kind. Tests reach the check through the `Mismatched` helper in `hkj-core`'s tests.
 
 ## Documentation
 

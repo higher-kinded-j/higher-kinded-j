@@ -320,7 +320,7 @@ class GenericPathLawsTest {
                 GenericPath<MaybeKind.Witness, Integer> path = just(TEST_VALUE);
 
                 GenericPath<MaybeKind.Witness, String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to GenericPath
+                // flatMap returns the Chainable interface type, cast to GenericPath
                 GenericPath<MaybeKind.Witness, String> flatMapResult =
                     (GenericPath<MaybeKind.Witness, String>) path.flatMap(f);
 
@@ -332,7 +332,7 @@ class GenericPathLawsTest {
                 GenericPath<MaybeKind.Witness, Integer> path = nothing();
 
                 GenericPath<MaybeKind.Witness, String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to GenericPath
+                // flatMap returns the Chainable interface type, cast to GenericPath
                 GenericPath<MaybeKind.Witness, String> flatMapResult =
                     (GenericPath<MaybeKind.Witness, String>) path.flatMap(f);
 

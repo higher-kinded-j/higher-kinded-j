@@ -10,7 +10,7 @@ Transformer code is generic-heavy by nature: a typical signature like `Kind<Eith
 ~~~
 
 ~~~admonish tip title="Four of these five are javac errors"
-The compiler is mostly on your side here, and that is not an accident. A transformer stack encodes the error type inside the witness itself (`EitherTKind.Witness<F, L>`), so a step with the wrong `L` is a genuinely different type rather than an erased one. The Effect Path API pays for its lighter syntax with exactly that guarantee: compare [Effect §5](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain), where the same mistake compiles.
+The compiler is mostly on your side here, and that is not an accident. A transformer stack encodes the error type inside the witness itself (`EitherTKind.Witness<F, L>`), so a step with the wrong `L` is a genuinely different type. The Effect Path API gets the same guarantee from the [family parameter](../effect/capabilities.md#the-family-parameter) on its capability interfaces: compare [Effect §5](../effect/compiler_errors.md#5-a-step-that-fails-with-another-error-type).
 
 - **§1, §2, §4 and §5 are javac errors.** The build stops, and the message is quoted in the section.
 - **§1 and §4 also carry an HKJ checker companion**, which adds an actionable message beside javac's own. §2 and §5 javac catches on its own. See [Compile-Time Checks](../tooling/compile_checks.md).
@@ -153,10 +153,10 @@ EitherT<CompletableFutureKind.Witness, DomainError, User> liftLookup(String id) 
 
 Option 1 is preferred for new code. Option 2 is useful when integrating with code you cannot change.
 
-~~~admonish note title="Why this one is caught, and the Path equivalent is not" collapsible=true
-Contrast with [Effect §5](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain), where the error type is *silently erased*. Here it is not.
+~~~admonish note title="Why this one is caught" collapsible=true
+The transformer stack encodes `L` inside the witness itself (`EitherTKind.Witness<F, L>`), so a step with a different `L` is a genuinely different `Kind<…>` type, and `For.from(...).from(...)` fails to type-check.
 
-The transformer stack encodes `L` inside the witness itself (`EitherTKind.Witness<F, L>`), so a step with a different `L` is a genuinely different `Kind<…>` type, and `For.from(...).from(...)` fails to type-check. The Path API's `Chainable<B>` carries no error type, which is what makes the same mistake compile there.
+An Effect Path chain is checked the same way, through the family its capability interfaces carry, as [Effect §5](../effect/compiler_errors.md#5-a-step-that-fails-with-another-error-type) shows. One difference: an `EitherPath` step may fail with a subtype of the chain's error, while a transformer's `L` must match exactly.
 ~~~
 
 ---

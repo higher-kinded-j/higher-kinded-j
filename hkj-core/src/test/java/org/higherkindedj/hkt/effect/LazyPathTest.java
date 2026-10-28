@@ -321,7 +321,7 @@ class LazyPathTest {
       LazyPath<String> path = Path.lazyNow(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)).get())
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).get())
           .withMessageContaining("via mapper must return LazyPath");
     }
 
@@ -363,7 +363,7 @@ class LazyPathTest {
     void thenThrowsForIncompatibleType() {
       LazyPath<String> path = Path.lazyNow(TEST_VALUE);
 
-      LazyPath<Integer> result = path.then(() -> Path.id(42));
+      LazyPath<Integer> result = path.then(Mismatched.supplier(() -> Path.id(42)));
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::get)
@@ -422,7 +422,7 @@ class LazyPathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-LazyPath");
     }
 

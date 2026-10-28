@@ -93,7 +93,7 @@ import org.jspecify.annotations.Nullable;
  * @see IOPath
  * @see org.higherkindedj.hkt.vtask.Par
  */
-public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferred<A>
+public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?>, A>, Deferred<A>
     permits DefaultVTaskPath {
 
   /**
@@ -141,7 +141,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
 
   @Override
   <B, C> VTaskPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+      Combinable<? extends VTaskPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner);
 
   /**
    * Combines this path with two others using a ternary function.
@@ -161,11 +162,17 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code VTaskPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  <B> VTaskPath<B> via(Function<? super A, ? extends Chainable<B>> mapper);
+  <B> VTaskPath<B> via(Function<? super A, ? extends Chainable<? extends VTaskPath<?>, B>> mapper);
 
   @Override
-  <B> VTaskPath<B> then(Supplier<? extends Chainable<B>> supplier);
+  <B> VTaskPath<B> then(Supplier<? extends Chainable<? extends VTaskPath<?>, B>> supplier);
 
   /**
    * Alias for {@link #via(Function)} for those who prefer "flatMap" naming.
@@ -175,7 +182,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * @return the result of applying the function
    */
   @Override
-  <B> VTaskPath<B> flatMap(Function<? super A, ? extends Chainable<B>> mapper);
+  <B> VTaskPath<B> flatMap(
+      Function<? super A, ? extends Chainable<? extends VTaskPath<?>, B>> mapper);
 
   // ===== Error handling =====
 
@@ -198,7 +206,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    *
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
    * alternative {@link Effectful} computation whose result is used instead. The recovery function
-   * may return any {@code Effectful<A>} (for example an {@code IOPath<A>} or another {@code
+   * may return any {@code Effectful<?, A>} (for example an {@code IOPath<A>} or another {@code
    * VTaskPath<A>}); the returned value is always a {@code VTaskPath<A>}.
    *
    * @param recovery the function to apply if an exception occurs; must not be null and must not
@@ -207,7 +215,7 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * @throws NullPointerException if recovery is null
    */
   @Override
-  VTaskPath<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
+  VTaskPath<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<?, A>> recovery);
 
   // ===== Timeout =====
 

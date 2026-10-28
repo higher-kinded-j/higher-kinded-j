@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.Semigroup;
-import org.higherkindedj.hkt.effect.capability.Accumulating;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -381,7 +380,7 @@ class ValidationPathTest {
       ValidationPath<String, String> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.right(s.length())))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.right(s.length()))))
           .withMessageContaining("via mapper must return ValidationPath");
     }
 
@@ -416,7 +415,7 @@ class ValidationPathTest {
       ValidationPath<String, String> path = Path.valid(TEST_VALUE, STRING_SEMIGROUP);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.then(() -> Path.right(42)))
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.right(42))))
           .withMessageContaining("then supplier must return ValidationPath");
     }
   }
@@ -505,9 +504,9 @@ class ValidationPathTest {
       ValidationPath<String, String> first = Path.valid("keep", STRING_SEMIGROUP);
       ValidationPath<String, Integer> second = Path.valid(42, STRING_SEMIGROUP);
 
-      Accumulating<String, String> result = first.andAlso(second);
+      ValidationPath<String, String> result = first.andAlso(second);
 
-      assertThat(((ValidationPath<String, String>) result).run().get()).isEqualTo("keep");
+      assertThat(result.run().get()).isEqualTo("keep");
     }
 
     @Test
@@ -516,9 +515,9 @@ class ValidationPathTest {
       ValidationPath<String, String> first = Path.invalid("e1", STRING_SEMIGROUP);
       ValidationPath<String, Integer> second = Path.invalid("e2", STRING_SEMIGROUP);
 
-      Accumulating<String, String> result = first.andAlso(second);
+      ValidationPath<String, String> result = first.andAlso(second);
 
-      assertThat(((ValidationPath<String, String>) result).run().getError()).isEqualTo("e1, e2");
+      assertThat(result.run().getError()).isEqualTo("e1, e2");
     }
 
     @Test
@@ -527,9 +526,9 @@ class ValidationPathTest {
       ValidationPath<String, String> first = Path.valid("discard", STRING_SEMIGROUP);
       ValidationPath<String, Integer> second = Path.valid(42, STRING_SEMIGROUP);
 
-      Accumulating<String, Integer> result = first.andThen(second);
+      ValidationPath<String, Integer> result = first.andThen(second);
 
-      assertThat(((ValidationPath<String, Integer>) result).run().get()).isEqualTo(42);
+      assertThat(result.run().get()).isEqualTo(42);
     }
 
     @Test
@@ -538,9 +537,9 @@ class ValidationPathTest {
       ValidationPath<String, String> first = Path.invalid("e1", STRING_SEMIGROUP);
       ValidationPath<String, Integer> second = Path.invalid("e2", STRING_SEMIGROUP);
 
-      Accumulating<String, Integer> result = first.andThen(second);
+      ValidationPath<String, Integer> result = first.andThen(second);
 
-      assertThat(((ValidationPath<String, Integer>) result).run().getError()).isEqualTo("e1, e2");
+      assertThat(result.run().getError()).isEqualTo("e1, e2");
     }
 
     @Test
@@ -557,10 +556,22 @@ class ValidationPathTest {
       assertThat(result.run().getError()).containsExactly("error1", "error2", "error3");
     }
 
-    // Note: Tests for "non-ValidationPath" error cases are not possible because
-    // Accumulating is a sealed interface that only permits ValidationPath.
-    // The defensive error handling in ValidationPath for non-ValidationPath inputs
-    // exists as a safety measure but cannot be triggered in normal usage.
+    @Test
+    @DisplayName("zipWithAccum(), andAlso() and andThen() reject another kind of Accumulating")
+    void accumulatingRejectsAnotherKind() {
+      ValidationPath<String, Integer> valid = Path.valid(1, STRING_SEMIGROUP);
+      EitherOrBothPath<String, Integer> other = Path.right(2, STRING_SEMIGROUP);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> valid.zipWithAccum(Mismatched.accumulating(other), Integer::sum))
+          .withMessageContaining("non-ValidationPath");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> valid.andAlso(Mismatched.accumulating(other)))
+          .withMessageContaining("non-ValidationPath");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> valid.andThen(Mismatched.accumulating(other)))
+          .withMessageContaining("non-ValidationPath");
+    }
   }
 
   @Nested
@@ -613,7 +624,7 @@ class ValidationPathTest {
       EitherPath<String, Integer> eitherPath = Path.right(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(eitherPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(eitherPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-ValidationPath");
     }
 
@@ -832,7 +843,7 @@ class ValidationPathTest {
       ValidationPath<String, String> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.recoverWith(e -> Path.right("fallback")))
+          .isThrownBy(() -> path.recoverWith(Mismatched.recovery(e -> Path.right("fallback"))))
           .withMessageContaining("recovery must return ValidationPath");
     }
 
@@ -843,7 +854,7 @@ class ValidationPathTest {
       ValidationPath<String, String> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.orElse(() -> Path.right("alternative")))
+          .isThrownBy(() -> path.orElse(Mismatched.alternative(() -> Path.right("alternative"))))
           .withMessageContaining("alternative must return ValidationPath");
     }
 
@@ -1117,6 +1128,66 @@ class ValidationPathTest {
       // Accumulated errors from first step
       assertThat(result.run().isInvalid()).isTrue();
       assertThat(result.run().getError()).isEqualTo("name error, email error");
+    }
+  }
+
+  /** An error hierarchy whose variants carry their own, narrower semigroup. */
+  sealed interface AppError permits NotFound, Denied, Combined {}
+
+  record NotFound(String id) implements AppError {}
+
+  record Denied(String reason) implements AppError {}
+
+  record Combined(AppError first, AppError second) implements AppError {}
+
+  private static final Semigroup<AppError> APP_ERRORS = Combined::new;
+
+  private static final Semigroup<NotFound> NOT_FOUNDS =
+      (a, b) -> new NotFound(a.id() + "+" + b.id());
+
+  @Nested
+  @DisplayName("A step typed on a subtype of the error keeps the receiver's semigroup")
+  class StepOnSubtypeOfError {
+
+    private final ValidationPath<AppError, Integer> valid = Path.valid(1, APP_ERRORS);
+    private final ValidationPath<AppError, Integer> invalid =
+        Path.invalid(new Denied("first"), APP_ERRORS);
+    private final ValidationPath<NotFound, Integer> notFound =
+        Path.invalid(new NotFound("x"), NOT_FOUNDS);
+
+    /** Accumulating with a sibling variant would throw ClassCastException on the step's own. */
+    private void assertAccumulatesWithReceiversSemigroup(ValidationPath<AppError, Integer> result) {
+      assertThat(result.semigroup()).isSameAs(APP_ERRORS);
+      assertThat(
+              result
+                  .zipWithAccum(Path.invalid(new Denied("next"), APP_ERRORS), Integer::sum)
+                  .run()
+                  .getError())
+          .isEqualTo(new Combined(new NotFound("x"), new Denied("next")));
+    }
+
+    @Test
+    @DisplayName("via()")
+    void via() {
+      assertAccumulatesWithReceiversSemigroup(valid.via(n -> notFound));
+    }
+
+    @Test
+    @DisplayName("then()")
+    void then() {
+      assertAccumulatesWithReceiversSemigroup(valid.then(() -> notFound));
+    }
+
+    @Test
+    @DisplayName("recoverWith()")
+    void recoverWith() {
+      assertAccumulatesWithReceiversSemigroup(invalid.recoverWith(e -> notFound));
+    }
+
+    @Test
+    @DisplayName("orElse()")
+    void orElse() {
+      assertAccumulatesWithReceiversSemigroup(invalid.orElse(() -> notFound));
     }
   }
 }

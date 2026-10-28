@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.effect.OptionalPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -314,6 +315,25 @@ class ForPathTest {
 
       assertTrue(result.run().isRight());
       assertEquals(6, result.run().getRight());
+    }
+
+    sealed interface AppError permits NotFound, Denied {}
+
+    record NotFound(String id) implements AppError {}
+
+    record Denied(String reason) implements AppError {}
+
+    @Test
+    @DisplayName("should accept generators that fail with a subtype of the error")
+    void acceptsGeneratorsOnSubtypesOfTheError() {
+      EitherPath<AppError, Integer> result =
+          ForPath.from(Path.<AppError, Integer>right(1))
+              .from(_ -> Path.<NotFound, Integer>right(2))
+              .par(_ -> Path.<Denied, Integer>right(3), _ -> Path.<NotFound, Integer>right(4))
+              .from(_ -> Path.<Denied, Integer>left(new Denied("no")))
+              .yield(t -> t._1() + t._2() + t._3() + t._4() + t._5());
+
+      assertEquals(Either.left(new Denied("no")), result.run());
     }
   }
 

@@ -27,7 +27,8 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
  *     }
  *
  *     @Override
- *     public <A> Chainable<A> createPath(Kind<ApiResultKind.Witness, A> kind) {
+ *     public <A> GenericPath<ApiResultKind.Witness, A> createPath(
+ *             Kind<ApiResultKind.Witness, A> kind) {
  *         return GenericPath.of(kind, ApiResultMonad.INSTANCE);
  *     }
  *
@@ -37,6 +38,10 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
  *     }
  * }
  * }</pre>
+ *
+ * <p>Declare the concrete Path type as the return type of {@link #createPath(Kind)}, as the example
+ * does. Code that holds the provider can then chain the result, which a {@code Chainable<?, A>}
+ * does not allow, because its family is open.
  *
  * <h2>Registration</h2>
  *
@@ -70,9 +75,9 @@ public interface PathProvider<F extends WitnessArity<TypeArity.Unary>> {
    *
    * @param kind the Kind value to wrap; must not be null
    * @param <A> the value type
-   * @return a Chainable path wrapping the Kind value
+   * @return a path wrapping the Kind value; an implementation declares its concrete Path type
    */
-  <A> Chainable<A> createPath(Kind<F, A> kind);
+  <A> Chainable<?, A> createPath(Kind<F, A> kind);
 
   /**
    * Returns the Monad instance for this effect type.

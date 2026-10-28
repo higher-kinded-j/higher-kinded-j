@@ -294,7 +294,7 @@ public class PathSourceProcessor extends AbstractProcessor {
             .addOriginatingElement(sourceElement);
 
     // Add the interface implementation for the capability
-    classBuilder.addSuperinterface(capabilityInterface(capability, typeA));
+    classBuilder.addSuperinterface(capabilityInterface(capability, typeA, pathClassName));
 
     // Add the wrapped value field
     ParameterizedTypeName kindType = ParameterizedTypeName.get(KIND, witnessType, typeA);
@@ -724,9 +724,17 @@ public class PathSourceProcessor extends AbstractProcessor {
    * recover/recoverWith/mapError) itself.
    */
   private static TypeName capabilityInterface(
-      PathSource.Capability capability, TypeVariableName typeA) {
+      PathSource.Capability capability, TypeVariableName typeA, String pathClassName) {
+    if (capability == PathSource.Capability.COMPOSABLE) {
+      return ParameterizedTypeName.get(COMPOSABLE, typeA);
+    }
+    return ParameterizedTypeName.get(COMBINABLE, family(pathClassName), typeA);
+  }
+
+  /** The Path family a generated class names in Combinable: itself, with its value unknown. */
+  private static TypeName family(String pathClassName) {
     return ParameterizedTypeName.get(
-        capability == PathSource.Capability.COMPOSABLE ? COMPOSABLE : COMBINABLE, typeA);
+        ClassName.get("", pathClassName), WildcardTypeName.subtypeOf(Object.class));
   }
 
   private boolean isChainable(PathSource.Capability capability) {
@@ -1045,7 +1053,10 @@ public class PathSourceProcessor extends AbstractProcessor {
         .addTypeVariable(typeB)
         .addTypeVariable(typeC)
         .returns(ParameterizedTypeName.get(pathClass, typeC))
-        .addParameter(ParameterizedTypeName.get(COMBINABLE, typeB), "other")
+        .addParameter(
+            ParameterizedTypeName.get(
+                COMBINABLE, WildcardTypeName.subtypeOf(family(pathClassName)), typeB),
+            "other")
         .addParameter(
             ParameterizedTypeName.get(
                 BI_FUNCTION,
