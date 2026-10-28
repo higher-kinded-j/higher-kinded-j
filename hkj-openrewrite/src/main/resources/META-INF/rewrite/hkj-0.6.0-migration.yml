@@ -1,7 +1,9 @@
 # Higher-Kinded-J 0.6.0 Migration Recipes
-# Rewrites usages of APIs deprecated in 0.5.0 for removal in 0.6.0 to their
-# replacements: a Focus path's untyped shortcuts, such as each() and some(),
-# become their typed forms, such as each(EachInstances.listEach()).
+# Two groups. MigrateDeprecationsTo0_6_0 rewrites usages of APIs deprecated in
+# 0.5.0 for removal in 0.6.0 to their replacements: a Focus path's untyped
+# shortcuts, such as each() and some(), become their typed forms, such as
+# each(EachInstances.listEach()). AddPathFamily, described further on, adds the
+# Path family to capability types.
 #
 # Run these with hkj-openrewrite 0.5.x before the project moves to 0.6.0:
 # they match the deprecated signatures, which 0.6.0 removes. The typed forms
@@ -10,6 +12,16 @@
 # Usage:
 #   rewrite {
 #     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0")
+#   }
+#
+# AddPathFamily adds the Path family that 0.6.0's capability interfaces take
+# to code that names one, such as Chainable<A>, which becomes Chainable<?, A>.
+# Run it with hkj-openrewrite 0.6.0, before or after the project moves to
+# 0.6.0.
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.AddPathFamily")
 #   }
 
 ---
@@ -37,3 +49,23 @@ tags:
   - deprecation
 recipeList:
   - org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.AddPathFamily
+displayName: Add the Path family to capability types (0.6.0)
+description: >-
+  From 0.6.0 the Effect Path capability interfaces take the implementing
+  Path's family as their first type parameter, so that the compiler checks
+  what a chained step returns. This rewrites Chainable<A> to Chainable<?, A>,
+  and likewise Combinable<A>, Effectful<A>, Recoverable<E, A> and
+  Accumulating<E, A>, wherever code names one, a PathProvider's createPath
+  included. Code that calls via through a capability type needs a type
+  parameter for the family instead, as in <P, A> Chainable<P, A>, which is
+  left to the author, as is a class that implements Combinable.
+tags:
+  - higher-kinded-j
+  - migration
+  - effect-path
+recipeList:
+  - org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe

@@ -4,7 +4,7 @@ Automated refactoring recipes for [Higher-Kinded-J](https://higher-kinded-j.gith
 to perform version migrations and to surface code that should adopt newer, safer APIs — without
 hand-editing every call site.
 
-The module ships four recipe groups:
+The module ships five recipe groups:
 
 | Group | Composite recipe | What it does |
 |-------|------------------|--------------|
@@ -12,6 +12,7 @@ The module ships four recipe groups:
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | Flags raw `Free` / manual `Inject` usage and incomplete `Free` switches |
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal or changed in 0.5.0 |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | Migrates APIs deprecated in 0.5.0 for removal in 0.6.0 |
+| 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | Adds the Path family to code that names a capability interface, such as `Chainable<A>` |
 
 ## Quick Start
 
@@ -231,6 +232,28 @@ assigned to, and a method reference to a shortcut. Each mark says how to replace
 ```kotlin
 rewrite {
     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0")
+}
+```
+
+### 0.6.0 Path family
+
+From 0.6.0 each Effect Path capability interface takes the implementing Path's family as its first
+type parameter, so the compiler checks what a chained step returns. Code that names a capability
+type with the old arguments, such as a helper taking an `Effectful<A>` or a `PathProvider` returning
+`Chainable<A>`, no longer compiles. The recipe opens the family with `?`, which keeps code that
+maps, recovers with `recover` or `handleError`, or runs the path it is given. Code that calls `via`,
+`then`, `zipWith`, `recoverWith` or `orElse` through a capability type needs a type parameter for
+the family instead, as in `<P, A> Chainable<P, A>`, and a class that implements `Combinable` names
+its own class as the family; the recipe leaves both to the author. Run it with `hkj-openrewrite` 0.6.0, before or after the project moves to 0.6.0.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.AddPathFamily` | **Composite** — runs the recipe below |
+| `org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe` | `Chainable<A>` → `Chainable<?, A>`, `Combinable<A>` → `Combinable<?, A>`, `Effectful<A>` → `Effectful<?, A>`, `Recoverable<E, A>` → `Recoverable<?, E, A>` and `Accumulating<E, A>` → `Accumulating<?, E, A>`, in variables, fields, parameters, return types, type arguments and `instanceof`. A raw type, and one already written with the family, are left as they are |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.AddPathFamily")
 }
 ```
 

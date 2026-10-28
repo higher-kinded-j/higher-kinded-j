@@ -31,6 +31,7 @@ class RecipeCatalogTest {
         "org.higherkindedj.openrewrite.EffectAlgebraMigration",
         "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0",
         "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0",
+        "org.higherkindedj.openrewrite.AddPathFamily",
       })
   void compositeRecipeLoadsAndValidates(String recipeName) {
     Recipe recipe = env().activateRecipes(recipeName);
@@ -56,6 +57,7 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.EffectAlgebraMigration",
             "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0",
             "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0",
+            "org.higherkindedj.openrewrite.AddPathFamily",
             "org.higherkindedj.openrewrite.RenameStateTKindNarrowK",
             "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern",
             "org.higherkindedj.openrewrite.RemovePathConfig",
@@ -71,6 +73,7 @@ class RecipeCatalogTest {
     assertThat(names)
         .contains(
             "org.higherkindedj.openrewrite.AddArityBoundsToTypeParametersRecipe",
+            "org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe",
             "org.higherkindedj.openrewrite.AddWitnessArityToWitnessClass",
             "org.higherkindedj.openrewrite.AddHandleErrorCaseRecipe",
             "org.higherkindedj.openrewrite.ConvertRawFreeToFreePathRecipe",
