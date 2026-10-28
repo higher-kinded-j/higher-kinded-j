@@ -242,9 +242,10 @@ type parameter, so the compiler checks what a chained step returns. Code that na
 type with the old arguments, such as a helper taking an `Effectful<A>` or a `PathProvider` returning
 `Chainable<A>`, no longer compiles. The recipe opens the family with `?`, which keeps code that
 maps, recovers with `recover` or `handleError`, or runs the path it is given. Code that calls `via`,
-`then`, `zipWith`, `recoverWith` or `orElse` through a capability type needs a type parameter for
-the family instead, as in `<P, A> Chainable<P, A>`, and a class that implements `Combinable` names
-its own class as the family; the recipe leaves both to the author. Run it with `hkj-openrewrite` 0.6.0, before or after the project moves to 0.6.0.
+`then`, `zipWith`, `recoverWith`, `orElse` or an accumulating method such as `zipWithAccum` through
+a capability type needs a type parameter for the family instead, as in `<P, A> Chainable<P, A>`, and
+a class that implements `Combinable` names its own class as the family in its supertype and its
+`zipWith`; the recipe leaves both to the author. Run it with `hkj-openrewrite` 0.6.0, before or after the project moves to 0.6.0.
 
 | Recipe | Change |
 |--------|--------|

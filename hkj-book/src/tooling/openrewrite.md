@@ -228,8 +228,8 @@ rewrite {
 
 Two shapes are left to you:
 
-- **Code that calls `via`, `then`, `zipWith`, `recoverWith` or `orElse` through a capability type.** A step must belong to the same family, so declare it as a type parameter, as in `<P, A> Chainable<P, A>`.
-- **A class that implements `Combinable`, members included.** Name its own class as the family, as a generated `@PathSource` Path does: `Combinable<MyPath<?>, A>`, with `zipWith` taking a `Combinable<? extends MyPath<?>, B>`.
+- **Code that chains or combines through a capability type.** A step passed to `via`, `then`, `zipWith`, `recoverWith` or `orElse`, or the other path passed to `zipWithAccum`, `zipWith3Accum`, `andAlso` or `andThen`, must belong to the same family. Declare the family as a type parameter shared by both, as in `<P, E, A> Accumulating<P, E, A>`.
+- **The supertype and `zipWith` of a class that implements `Combinable`.** Name its own class as the family, as a generated `@PathSource` Path does: `Combinable<MyPath<?>, A>`, with `zipWith` taking a `Combinable<? extends MyPath<?>, B>`. The recipe rewrites the class's other members.
 
 ---
 

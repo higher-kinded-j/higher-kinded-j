@@ -202,19 +202,46 @@ class AddPathFamilyToCapabilityTypesRecipeTest implements RewriteTest {
   }
 
   @Test
-  void leavesAClassThatImplementsCombinableAlone() {
+  void leavesAnImplementationsFamilyToItsAuthorAndRewritesItsOtherMembers() {
     rewriteRun(
         java(
             """
             package com.example;
 
+            import org.higherkindedj.hkt.effect.capability.Chainable;
             import org.higherkindedj.hkt.effect.capability.Combinable;
 
             class OwnPath<A> implements Combinable<A> {
+                Chainable<A> pending;
                 Object anonymous = new Combinable<String>() {};
 
                 <B> OwnPath<B> zipWith(Combinable<B> other) {
+                    Chainable<B> local = null;
                     return null;
+                }
+
+                static class Helper {
+                    Combinable<String> held;
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.capability.Chainable;
+            import org.higherkindedj.hkt.effect.capability.Combinable;
+
+            class OwnPath<A> implements Combinable<A> {
+                Chainable<?, A> pending;
+                Object anonymous = new Combinable<String>() {};
+
+                <B> OwnPath<B> zipWith(Combinable<B> other) {
+                    Chainable<?, B> local = null;
+                    return null;
+                }
+
+                static class Helper {
+                    Combinable<?, String> held;
                 }
             }
             """));

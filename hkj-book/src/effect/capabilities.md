@@ -130,7 +130,8 @@ two ways:
 - **Leave it open to map, recover and run.** `Effectful<?, A>` accepts either
   effect, and `map`, `handleError`, `handleErrorWith`, `guarantee` and
   `unsafeRun` are available on it. No step fits an open family, so `via`,
-  `then`, `zipWith`, `recoverWith` and `orElse` are not.
+  `then`, `zipWith`, `recoverWith`, `orElse` and the accumulating methods are
+  not.
 - **Declare it as a type parameter to chain and combine.** A step must be of
   the same family, so a helper that chains names it:
 

@@ -28,6 +28,7 @@ class PathTypeRegistryTest {
         Arguments.of("org.higherkindedj.hkt.effect.DefaultVTaskPath", "DefaultVTaskPath"),
         Arguments.of("org.higherkindedj.hkt.effect.ValidationPath", "ValidationPath"),
         Arguments.of("org.higherkindedj.hkt.effect.EitherOrBothPath", "EitherOrBothPath"),
+        Arguments.of("org.higherkindedj.hkt.effect.VResultPath", "VResultPath"),
         Arguments.of("org.higherkindedj.hkt.effect.IdPath", "IdPath"),
         Arguments.of("org.higherkindedj.hkt.effect.OptionalPath", "OptionalPath"),
         Arguments.of("org.higherkindedj.hkt.effect.GenericPath", "GenericPath"),
