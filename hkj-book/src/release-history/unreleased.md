@@ -67,6 +67,11 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ### What a running program can notice {#runtime-changes}
 
+#### Core types {#runtime-core-types}
+
+- **`Validated.map` throws `NullPointerException` when its function returns null** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). It threw `KindUnwrapException`. Catching that around the call no longer catches it. See [Values, never null](../hkts/core-concepts.md#values-never-null).
+- **`FunctionKindHelper.narrow` throws `KindUnwrapException`** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). A null `Kind` used to throw `NullPointerException`, and another type's `Kind` threw `IllegalArgumentException`. The other kind helpers already throw `KindUnwrapException` for both. See [When `narrow` throws](../hkts/core-concepts.md#when-narrow-throws).
+
 #### Optics {#runtime-optics}
 
 - **Of two withers for one getter, `@ImportOptics` sets through the capitalised spelling** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)): the lens for a class with both `withEMail` and `witheMail` beside `eMail()` set through whichever the class declared first. It now sets through `withEMail`, and a note names `witheMail`, which a spec interface's `@Wither` can choose.

@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.func;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 
@@ -11,6 +10,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,22 +37,23 @@ class FunctionKindHelperTest {
   class NarrowValidationTests {
 
     @Test
-    @DisplayName("narrow(null) should throw NullPointerException")
-    void narrow_null_shouldThrowNullPointerException() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> FUNCTION.<String, Integer>narrow(null))
-          .withMessageContaining("Cannot narrow null Kind2 to FunctionKind");
+    @DisplayName("narrow(null) should throw KindUnwrapException")
+    void narrow_null_shouldThrowKindUnwrapException() {
+      assertThatThrownBy(() -> FUNCTION.<String, Integer>narrow(null))
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessage("Cannot narrow null Kind2 for FunctionKind");
     }
 
     @Test
-    @DisplayName("narrow(wrong type) should throw IllegalArgumentException")
+    @DisplayName("narrow(wrong type) should throw KindUnwrapException")
     @SuppressWarnings("unchecked")
-    void narrow_wrongType_shouldThrowIllegalArgumentException() {
+    void narrow_wrongType_shouldThrowKindUnwrapException() {
       Kind2<FunctionKind.Witness, String, Integer> fakeKind =
           (Kind2<FunctionKind.Witness, String, Integer>) (Kind2<?, ?, ?>) new FakeKind2<>();
       assertThatThrownBy(() -> FUNCTION.narrow(fakeKind))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Expected FunctionKind but got");
+          .isInstanceOf(KindUnwrapException.class)
+          .hasMessageContaining("Kind2 instance cannot be narrowed to FunctionKind")
+          .hasMessageContaining("received:");
     }
   }
 

@@ -543,8 +543,8 @@ class ValidatedTest extends ValidatedTestBase {
       Function<Integer, String> nullReturningMapper = _ -> null;
 
       assertThatThrownBy(() -> validInstance.map(nullReturningMapper))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function fn in map returned null, which is not allowed");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("fn must not return null");
     }
   }
 
