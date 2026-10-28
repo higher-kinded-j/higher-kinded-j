@@ -63,10 +63,12 @@ jobs:
       #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
       #    and generate the XML report needed by Codecov. --continue runs every task that does
       #    not depend on a failed one, so a formatting failure does not hide the test results.
+      #    javadoc builds every module's Javadoc, as the snapshot publish on main does, so a
+      #    comment javadoc refuses fails the pull request rather than the publish.
       - name: Build with Gradle & Generate JaCoCo Report
         id: build
         if: ${{ !cancelled() }}
-        run: ./gradlew build --continue -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
+        run: ./gradlew build javadoc --continue -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
 
       # 7. Upload the generated JaCoCo XML report to Codecov, whenever the build passed, even if
       #    the spelling or golden file check failed. A run hosted in a contributor's fork has no
