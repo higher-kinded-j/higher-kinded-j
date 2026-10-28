@@ -365,12 +365,12 @@ A null element is left out, since the stream's element type is non-null; a `Trav
 
 | Aspect | VStreamPath | StreamPath | VTaskPath |
 |--------|-------------|------------|-----------|
-| **Values** | Zero or more, lazy | Zero or more, eager | Exactly one, deferred |
-| **Evaluation** | Pull-based (lazy) | Eager (materialised list) | Deferred |
+| **Values** | Zero or more, lazy | Zero or more; eager via `Path.stream`; per run via `Path.streamIterate`, `StreamPath.fromSupplier`, `StreamPath.iterate`, and `StreamPath.generate` | Exactly one, deferred |
+| **Evaluation** | Pull-based (lazy) | Deferred, rebuilt for each terminal operation | Deferred |
 | **Execution** | Virtual threads | Synchronous | Virtual threads |
-| **Infinite sources** | Yes | No | N/A |
+| **Infinite sources** | Yes | Yes, from `Path.streamIterate` (`take`, `takeWhile`) | N/A |
 | **Terminal result** | VTaskPath | Direct access | Direct access |
-| **Backpressure** | Natural (pull model) | N/A (eager) | N/A (single value) |
+| **Backpressure** | Natural (pull model) | N/A (synchronous) | N/A (single value) |
 | **Reusability** | Reusable | Reusable | Reusable |
 
 **Choose VStreamPath when:**
@@ -380,7 +380,7 @@ A null element is left out, since the stream's element type is non-null; a `Trav
 - You want natural backpressure through pull-based consumption
 
 **Choose StreamPath when:**
-- You have an already-materialised list
+- You have an already-materialised list or a pure generator such as `Path.streamIterate`
 - You want fluent Path API composition over a known collection
 - No I/O or effectful element production is needed
 
@@ -429,7 +429,7 @@ Try<List<String>> result = task.runSafe();
 - [Parallel Operations](../monads/vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
 - [Performance](../monads/vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
 - [VTaskPath](path_vtask.md) - Single-value virtual thread path (terminal operations return this)
-- [StreamPath](../monads/stream_monad.md) - Eager list-based streaming path
+- [StreamPath](../monads/stream_monad.md) - Reusable Java Stream path, rebuilt for each terminal operation
 - [Effect Path Overview](effect_path_overview.md) - How all path types fit together
 - [Focus-Effect Integration](focus_integration.md) - Optics meet Effect Path
 - [Each Type Class](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)

@@ -32,16 +32,30 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * <h2>Important</h2>
  *
- * <p>StreamPath materialises the stream supplier into a list for reusability. For very large or
- * infinite streams, use terminal operations carefully or use {@link #take(long)} first.
+ * <p>Each terminal operation gets a fresh stream from the supplier. Intermediate operations,
+ * including side effects, run again for each terminal operation. A supplier passed to {@link
+ * #fromSupplier(Supplier)} must return a fresh, unused stream each time.
+ *
+ * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight}, {@code sorted}
+ * and {@code toNonDetPath}. They use memory proportional to the input and cannot finish on an
+ * infinite source. Use them only with finite streams, even when the source came from a lazy
+ * factory.
+ *
+ * <p>The factory determines when source elements are read: {@link #of(Stream)} reads its entire
+ * source when called. For very large or infinite sources, use {@link #iterate(Object,
+ * UnaryOperator)}, {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)}, then limit the
+ * result with {@link #take(long)} or {@link #takeWhile(Predicate)}.
  *
  * <h2>Use Cases</h2>
  *
  * <ul>
- *   <li>Large data processing
- *   <li>Infinite sequences (with limit)
+ *   <li>Large data processing from a lazy source factory
+ *   <li>Infinite sequences from {@link #iterate(Object, UnaryOperator)}, {@link
+ *       #generate(Supplier)} or {@link #fromSupplier(Supplier)}, limited with {@link #take(long)}
+ *       or {@link #takeWhile(Predicate)}
  *   <li>Pipeline transformations
- *   <li>Memory-efficient processing
+ *   <li>Memory-efficient processing when the source is incremental and the pipeline avoids
+ *       operations that materialise the input
  * </ul>
  *
  * <h2>Creating StreamPath instances</h2>
@@ -89,7 +103,10 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a stream.
    *
-   * <p>Note: The stream is materialised to a list to allow multiple terminal operations.
+   * <p>The stream is read completely when this method is called, before any terminal operation. The
+   * source must be finite. For very large or infinite sources, use {@link #iterate(Object,
+   * UnaryOperator)}, {@link #generate(Supplier)} or {@link #fromSupplier(Supplier)} and limit the
+   * result with {@link #take(long)} or {@link #takeWhile(Predicate)}.
    *
    * @param stream the stream to wrap; must not be null, and must not contain null
    * @param <A> the element type
@@ -107,7 +124,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a supplier that produces streams.
    *
-   * <p>The supplier is called fresh each time a terminal operation is performed.
+   * <p>The supplier is called for each terminal operation and must return a fresh, unused stream
+   * each time. Reusing a consumed stream will fail.
    *
    * <p>A null element fails the stream when it is consumed.
    *

@@ -461,10 +461,10 @@ The counter stays at zero after pipeline construction. It only advances when `to
 
 | Aspect | VStream | Java Stream | StreamPath |
 |--------|---------|-------------|------------|
-| Evaluation | Lazy, pull-based | Lazy, push-based | Eager (materialised list) |
+| Evaluation | Lazy, pull-based | Lazy, push-based | `Path.stream` reads at construction; `Path.streamIterate`, `StreamPath.fromSupplier`, `StreamPath.iterate`, and `StreamPath.generate` read per run; pipeline rebuilt per terminal operation |
 | Execution | Virtual threads (VTask) | Platform threads | Synchronous |
 | Reusability | Reusable | Single-use | Reusable |
-| Infinite streams | Yes (take, takeWhile) | Yes (limit) | No |
+| Infinite streams | Yes (take, takeWhile) | Yes (limit) | Yes, from `Path.streamIterate` (`take`, `takeWhile`) |
 | Error handling | recover, recoverWith | Exceptions | Via effect type |
 | HKT integration | Yes (Functor, Monad, Traverse) | No | Yes |
 | Effect composition | VTask per pull | None | Via Path API |
@@ -473,7 +473,8 @@ The counter stays at zero after pipeline construction. It only advances when `to
 element production (e.g., paginated API calls), or infinite stream support with
 backpressure through pull-based consumption.
 
-**Use StreamPath when** you have an already-materialised list and want fluent Path API
+**Use StreamPath when** you have an already-materialised list or a pure generator such as
+`Path.streamIterate` (which you can limit with `take` and `takeWhile`), and want fluent Path API
 composition with optics integration.
 
 **Use Java Stream when** you need standard library compatibility and do not require
