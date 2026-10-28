@@ -337,7 +337,19 @@
     "functional/applicative.html#what-an-applicative-provides": "functional/applicative.html#what-an-applicative-adds",
     "functional/applicative.html#admonition-interface-signature": "functional/applicative.html#what-an-applicative-adds",
     "functional/applicative.html#the-reason-we-care-error-accumulation": "functional/applicative.html#what-each-instance-does",
-    "functional/applicative.html#when-to-use-applicative-instead-of-monad": "functional/applicative.html#map3-or-flatmap"
+    "functional/applicative.html#when-to-use-applicative-instead-of-monad": "functional/applicative.html#map3-or-flatmap",
+    "functional/monad.html#why-flatmap-earns-its-keep": "functional/monad.html#when-the-next-step-needs-the-last-result",
+    "functional/monad.html#the-solution-flatmap": "functional/monad.html#what-a-monad-adds",
+    "functional/monad.html#admonition-interface-signature": "functional/monad.html#what-a-monad-adds",
+    "functional/monad.html#when-should-we-reach-for-monad-instead-of-applicative": "functional/monad.html#what-a-monad-adds",
+    "functional/monad.html#utility-methods-worth-knowing": "functional/monad.html#helpers",
+    "functional/monad.html#flatmapiforelse": "functional/monad.html#helpers",
+    "functional/monad.html#as": "functional/monad.html#helpers",
+    "functional/monad.html#peek": "functional/monad.html#helpers",
+    "functional/monad.html#combining-several-monadic-values-flatmapn": "functional/monad.html#flatmap2-to-flatmap5",
+    "functional/monad.html#flatmap2": "functional/monad.html#flatmap2-to-flatmap5",
+    "functional/monad.html#flatmap3-and-higher-arities": "functional/monad.html#flatmap2-to-flatmap5",
+    "functional/monad.html#flatmapn-vs-mapn": "functional/monad.html#flatmap2-to-flatmap5"
   };
 
   function target() {

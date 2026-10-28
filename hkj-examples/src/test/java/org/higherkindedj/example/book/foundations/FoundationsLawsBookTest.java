@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.foundations;
 
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
@@ -24,13 +26,17 @@ import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.validated.Validated;
@@ -122,4 +128,28 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: applicative_laws
+
+  // ANCHOR: monad_laws
+  static Stream<Kind<EitherKind.Witness<String>, Order>> eitherOrders() {
+    return Stream.of(
+        EITHER.widen(Either.right(ORDER)), EITHER.widen(Either.left("order not found")));
+  }
+
+  @ParameterizedTest
+  @MethodSource("eitherOrders")
+  @DisplayName("Either's Monad keeps all three laws, on a Right and on a Left")
+  void eitherMonadLaws(Kind<EitherKind.Witness<String>, Order> fa) {
+    Monad<EitherKind.Witness<String>> monad = Instances.monad(either());
+    var same = KindEquivalence.<EitherKind.Witness<String>>byEqualsAfter(EITHER::narrow);
+    Function<Order, Kind<EitherKind.Witness<String>, Customer>> findCustomer =
+        order -> EITHER.widen(Either.right(order.customer()));
+    Function<Customer, Kind<EitherKind.Witness<String>, EmailAddress>> verifyEmail =
+        customer -> EITHER.widen(Either.left("email not verified"));
+    MonadLaws.assertLeftIdentity(monad, ORDER, findCustomer, same);
+    MonadLaws.assertLeftIdentity(monad, ORDER.customer(), verifyEmail, same);
+    MonadLaws.assertRightIdentity(monad, fa, same);
+    MonadLaws.assertAssociativity(monad, fa, findCustomer, verifyEmail, same);
+  }
+
+  // ANCHOR_END: monad_laws
 }
