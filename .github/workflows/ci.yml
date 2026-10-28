@@ -46,12 +46,16 @@ jobs:
       #    Regenerates golden files and fails if any differs from what's committed, or is new
       #    and not committed at all, which the build's own tests would not notice. This ensures
       #    code generator changes are always accompanied by updated golden files. The release
-      #    gate (releaseReadiness) runs the same task.
+      #    gate (releaseReadiness) runs the same task. A failure leaves the regenerated files in
+      #    the working tree, and the build's golden tests read those, so the step puts the
+      #    committed copies back before the build compares against them.
       - name: Verify golden files are up to date
         if: ${{ !cancelled() }}
         run: |
           if ! ./gradlew :hkj-processor:verifyGoldenFiles; then
             echo "::error::Golden file check failed (see the log). If the golden files are out of date, run ./gradlew :hkj-processor:updateGoldenFiles and commit them."
+            git checkout HEAD -- hkj-processor/src/test/resources/golden
+            git clean -fdq -- hkj-processor/src/test/resources/golden
             exit 1
           fi
 
