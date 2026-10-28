@@ -1261,9 +1261,9 @@ public final class Path {
    *
    * <p>The stream is read completely when this method is called, before any terminal operation.
    * The source must be finite. For very large or infinite sources, use
-   * {@link StreamPath#iterate(Object, UnaryOperator)}, {@link StreamPath#generate(Supplier)} or
+   * {@link Path#streamIterate(Object, UnaryOperator)}, {@link StreamPath#generate(Supplier)} or
    * {@link StreamPath#fromSupplier(Supplier)} and limit the result with
-   * {@link StreamPath#take(long)} or {@link StreamPath#takeWhile(Predicate)}.
+   * {@link StreamPath#take(long)} or {@link StreamPath#takeWhile(java.util.function.Predicate)}.
    *
    * @param stream the stream to wrap; must not be null, and must not contain null
    * @param <A> the element type
