@@ -38,8 +38,13 @@ const file = path.join(__dirname, "announcement.json");
 const shown = path.relative(path.resolve(__dirname, "..", ".."), file);
 const FIELDS = ["id", "text", "showUntil", "link", "linkText"];
 const SITE = "https://higher-kinded-j.github.io";
-// Lower-case tag names only, so that a Java type such as Kind<F, A> or List<String> is not taken for HTML
-const HTML_TAG = /<\/?(a|abbr|b|br|code|div|em|i|img|kbd|p|pre|s|small|span|strong|sub|sup|u)(\s[^>]*)?\/?>/;
+// Tags that read as HTML. A one-letter tag counts only in lower case, so that a Java type such as
+// List<A> or Kind<F, A> is not taken for HTML; a longer tag name counts in either case.
+const ONE_LETTER_TAG = /<\/?[abipsu](\s[^>]*)?\/?>/;
+const NAMED_TAG =
+  /<\/?(abbr|br|code|div|em|h[1-6]|iframe|img|kbd|li|ol|pre|script|small|span|strong|style|sub|sup|table|td|tr|ul)(\s[^>]*)?\/?>/i;
+// Markdown a maintainer may expect the bar to format: bold, a code span or a link
+const MARKDOWN = /\*\*[^*\s][^*]*\*\*|`[^`]+`|\[[^\]]*\]\([^)]*\)/;
 
 function problems(announcement) {
   if (announcement === null || typeof announcement !== "object" || Array.isArray(announcement)) {
@@ -61,8 +66,10 @@ function problems(announcement) {
   }
   const { text, showUntil, link, linkText } = announcement;
   if (typeof text === "string") {
-    if (HTML_TAG.test(text)) found.push(`"text" shows as text, so its HTML would show as tags`);
-    if (/\[[^\]]*\]\([^)]*\)/.test(text)) found.push(`"text" shows as text; put a link in "link" and "linkText"`);
+    if (ONE_LETTER_TAG.test(text) || NAMED_TAG.test(text)) found.push(`"text" shows as text, so its HTML would show as tags`);
+    if (MARKDOWN.test(text)) {
+      found.push(`"text" shows as text, so Markdown such as **bold**, a \`code\` span or a [link](url) would show as written; put a link in "link" and "linkText"`);
+    }
     if (/\n/.test(text)) found.push(`"text" must be one line`);
     if (text.length > 160) found.push(`"text" is ${text.length} characters; keep it to one sentence of at most 160`);
   }

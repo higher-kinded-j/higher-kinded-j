@@ -245,6 +245,7 @@ If you migrated from the old (non-versioned) documentation system, old files may
 The cleanup workflow removes all root-level files except:
 - `index.html` (redirect page)
 - `versions.json` (version metadata)
+- `404.html`, `robots.txt`, `llms.txt`, `llms-full.txt`, `preview.png` and `announcement.json` (written to the root by the deploy)
 - `latest/` (snapshot directory)
 - `v*/` (versioned release directories)
 - `.nojekyll` and `CNAME` (GitHub Pages config)
