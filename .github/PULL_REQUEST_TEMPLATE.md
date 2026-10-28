@@ -4,31 +4,27 @@ Title: a sentence that says what the change does, starting with a verb, such as
 See https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#pull-request-titles
 -->
 
-## Description
+## What and why
 
-Please include a summary of the change and which issue is fixed or feature is added. Please also include relevant motivation and context. List any dependencies that are required for this change.
+<!-- What does this change, and why? Say if it adds a dependency or changes a public API, what a reviewer should look at first, and anything you found on the way that is not part of this change. -->
 
-Fixes # (issue number) / Relates to # (issue number)
+Closes #
 
-## Type of change
+<!--
+"Closes #" and the issue number closes that issue when this pull request merges. For an issue this does only part of, write "Part of #" and the number instead, so the issue stays open. If there is no issue, delete the line.
+GitHub treats "close", "fix" or "resolve", in any form such as "closes" or "fixed", just before an issue number as closing it, even in "this does not close" followed by the number. Keep those words away from an issue that should stay open.
+See https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#linking-the-issue
+-->
 
-Please delete options that are not relevant.
+## How it was tested
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Refactoring/Code cleanup
-- [ ] Test addition/update
-
-## How Has This Been Tested?
-
-Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration.
-
-- [ ] `./gradlew test` passes locally
-- [ ] New unit tests added/updated
-- [ ] Relevant examples in `MonadSimulation.java` or `OrderWorkflowRunner.java` updated/tested (if applicable)
-
+<!--
+Name the tests you added. Then show they would catch the problem:
+- for a bug fix, keep the new tests, undo the fix under src/main, run them, and paste which fail and with what message; then restore the fix;
+- for a feature, break the new code instead, for example by returning the wrong value, and paste what fails.
+For a change to the docs only, say which checks you ran.
+If a check fails for you on the `main` branch too, name it and its message here.
+-->
 
 ## Book changes
 
@@ -39,20 +35,12 @@ Delete this section if the pull request changes neither the book nor a rule, ref
 - [ ] Each new rule or refusal is where the chapter's guide says it lives; a generated page, such as Compiler Messages, is regenerated rather than edited
 - [ ] The readability counts this lowered are quoted here, and so is whether a war story or dialogue was used and why, or why a candidate site went without
 
-## Checklist:
+## Checklist
 
-- [ ] My code follows the style guidelines of this project (Standard Google Java Conventions)[**See Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html)
+- [ ] `./gradlew build` passes locally; it runs the tests, the coverage checks and Spotless
 - [ ] `./gradlew spotlessCheck` passes, after `./gradlew spotlessApply` or through the pre-push hook (see [Coding Style](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#coding-style))
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation (e.g., README.md, Javadoc)
-- [ ] I have added an entry to `hkj-book/src/release-history/unreleased.md` for a change a user can see, with its upgrade impact in that page's Upgrading section
-- [ ] My changes generate no new warnings
+- [ ] New code follows its siblings (see [Matching the Code Around It](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#matching-the-code-around-it))
 - [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes (`./gradlew test`)
-- [ ] Any dependent changes have been merged and published in downstream modules (if applicable)
-- [ ] I have checked that the GitHub Actions CI build passes with my changes
-
-## Additional Comments (Optional)
-
-Add any other comments here.
+- [ ] The Javadoc, README, book and [Claude Code skills](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#the-claude-code-skills) that describe what I changed now match it
+- [ ] I have added an entry to `hkj-book/src/release-history/unreleased.md` for a change a user can see, with its upgrade impact in that page's Upgrading section
+- [ ] The GitHub Actions CI checks pass
