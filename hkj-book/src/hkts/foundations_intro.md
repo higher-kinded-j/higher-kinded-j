@@ -87,7 +87,7 @@ The [Foundations journey](../tutorials/coretypes/foundations_journey.md) practis
 
 1. [One Line, Six Layers](one_line_six_layers.md): The whole stack in one expression
 2. [How the Encoding Works](core-concepts.md): Witness types, `Kind`, and widen and narrow
-3. [Usage Guide](usage-guide.md): Writing generic code over `Kind`
+3. [Working with Kind](usage-guide.md): Writing generic code over `Kind`
 4. [Obtaining Instances](../functional/instances_facade.md): Where a type class instance comes from
 5. [Functor](../functional/functor.md): Mapping inside any container
 6. [Applicative](../functional/applicative.md): Combining independent values
