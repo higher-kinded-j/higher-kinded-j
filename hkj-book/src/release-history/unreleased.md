@@ -154,7 +154,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Documentation {#documentation}
 
-- **StreamPath now distinguishes eager and lazy sources** ([#1278](https://github.com/higher-kinded-j/higher-kinded-j/issues/1278)): its Javadoc and streaming chapters explain when source elements are read. See [StreamPath](../monads/stream_monad.md).
+- **StreamPath docs explain when source elements are read** ([#1278](https://github.com/higher-kinded-j/higher-kinded-j/issues/1278)): its Javadoc and streaming chapters explain when source elements are read. See [StreamPath factory timing](../monads/vstream.md#choosing-the-right-streaming-tool).
 - **MaybePath now has a glossary entry** ([#1264](https://github.com/higher-kinded-j/higher-kinded-j/issues/1264)): it explains absence, the main factories, and where to read more. See [MaybePath](../glossary/effect-paths.md#maybepath).
 - **EitherPath now has a glossary entry** ([#1237](https://github.com/higher-kinded-j/higher-kinded-j/issues/1237)): it explains typed failures, the main factories, and where to read more. See [EitherPath](../glossary/effect-paths.md#eitherpath).
 - **Reader, State and Writer now have glossary entries** ([#1235](https://github.com/higher-kinded-j/higher-kinded-j/issues/1235)): each names its core operations and Effect Path equivalent. See [Data & Core Effect Types](../glossary/data-effects.md#reader).
