@@ -1,3 +1,9 @@
+<!--
+Title: a sentence that says what the change does, starting with a verb, such as
+"Make OpticOpFunctor.map apply its function". No `feat:` or `docs:` prefix, and no issue number.
+See https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#pull-request-titles
+-->
+
 ## Description
 
 Please include a summary of the change and which issue is fixed or feature is added. Please also include relevant motivation and context. List any dependencies that are required for this change.
@@ -36,6 +42,7 @@ Delete this section if the pull request changes neither the book nor a rule, ref
 ## Checklist:
 
 - [ ] My code follows the style guidelines of this project (Standard Google Java Conventions)[**See Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html)
+- [ ] `./gradlew spotlessCheck` passes, after `./gradlew spotlessApply` or through the pre-push hook (see [Coding Style](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#coding-style))
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation (e.g., README.md, Javadoc)

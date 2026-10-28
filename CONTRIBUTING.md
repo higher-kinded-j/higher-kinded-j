@@ -37,9 +37,19 @@ Unsure where to begin contributing? You can start by looking through `good first
 8.  **Build the project:** Ensure the project builds without errors using `./gradlew build`.
 9.  **Commit your changes:** Use clear and descriptive commit messages. `git commit -am 'Add some feature'`
 10. **Push to your fork:** `git push origin name-of-your-feature-or-fix`
-11. **Open a Pull Request** against the `main` branch of the original repository.
+11. **Open a Pull Request** against the `main` branch of the original repository, with a title as described in [Pull Request Titles](#pull-request-titles).
 12. **Describe your changes** in the Pull Request description. Link to any relevant issues (e.g., "Closes #123").
 13. Ensure the **GitHub Actions CI checks pass**.
+
+### Pull Request Titles
+
+A pull request's commits are squashed into one when it is merged, and its title becomes that commit's subject on `main`. Write the title as a sentence that says what the change does, starting with a verb, in British English:
+
+* Make OpticOpFunctor.map apply its function
+* Read payment confirmation time from an injected TimeSource
+* Add zipWith3 to TrampolinePath and FreePath, rather than `feat(effect): add zipWith3 to TrampolinePath and FreePath`
+
+Leave out a conventional-commit prefix such as `feat:`, `fix:` or `docs(book):`, and the issue number. GitHub adds the pull request's number to the commit, and "Closes #123" in the description links the issue.
 
 ## Development Setup
 
