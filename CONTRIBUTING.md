@@ -32,13 +32,14 @@ Unsure where to begin contributing? You can start by looking through `good first
 3.  **Create a new branch** for your changes: `git checkout -b name-of-your-feature-or-fix`
 4.  **Make your changes.** Ensure you adhere to standard Java coding conventions.
 5.  **Add tests** for your changes. This is important!
-6.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`. If you changed the book, or a rule the book documents, see [Documentation](#documentation) too.
-7.  **Build the project:** Ensure the project builds without errors using `./gradlew build`.
-8.  **Commit your changes:** Use clear and descriptive commit messages. `git commit -am 'Add some feature'`
-9.  **Push to your fork:** `git push origin name-of-your-feature-or-fix`
-10. **Open a Pull Request** against the `main` branch of the original repository.
-11. **Describe your changes** in the Pull Request description. Link to any relevant issues (e.g., "Closes #123").
-12. Ensure the **GitHub Actions CI checks pass**.
+6.  **Format the code:** run `./gradlew spotlessApply`, or set up the git hook under [Coding Style](#coding-style) once so that every push checks it. The build, and so CI, fails on Java that Spotless would reformat.
+7.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`. If you changed the book, or a rule the book documents, see [Documentation](#documentation) too.
+8.  **Build the project:** Ensure the project builds without errors using `./gradlew build`.
+9.  **Commit your changes:** Use clear and descriptive commit messages. `git commit -am 'Add some feature'`
+10. **Push to your fork:** `git push origin name-of-your-feature-or-fix`
+11. **Open a Pull Request** against the `main` branch of the original repository.
+12. **Describe your changes** in the Pull Request description. Link to any relevant issues (e.g., "Closes #123").
+13. Ensure the **GitHub Actions CI checks pass**.
 
 ## Development Setup
 
@@ -70,7 +71,12 @@ The project is organised into several modules:
 
 ## Coding Style
 
-Please follow the [**Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html). Keep code simple, readable, and well-tested. Consistent formatting is encouraged.
+Please follow the [**Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html). Keep code simple, readable, and well-tested.
+
+[Spotless](https://github.com/diffplug/spotless) formats the Java to that style. It also rewraps Javadoc comments to fit the line length and adds the licence header to a new file. `./gradlew build` checks the formatting, so CI fails a pull request with a file Spotless would change. There are two ways to run it before you push:
+
+* **By hand.** `./gradlew spotlessApply` reformats every module, and `./gradlew :hkj-core:spotlessApply` just one. `./gradlew spotlessCheck` shows what it would change, without changing anything.
+* **With a git hook, set up once.** `./gradlew spotlessInstallGitPrePushHook` installs a hook that runs `spotlessCheck` before each push. If the formatting is off, the hook runs `spotlessApply` and stops the push, so you commit the reformatted files and push again.
 
 ## Documentation
 
