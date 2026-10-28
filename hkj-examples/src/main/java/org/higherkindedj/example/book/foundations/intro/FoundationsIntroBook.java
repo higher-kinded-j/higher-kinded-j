@@ -47,7 +47,7 @@ public final class FoundationsIntroBook {
 
   // ANCHOR: generic
   // One method for any container F: the Functor passed in knows how to map inside F
-  static <F extends WitnessArity<TypeArity.Unary>> Kind<F, BigDecimal> totals(
+  public static <F extends WitnessArity<TypeArity.Unary>> Kind<F, BigDecimal> totals(
       Functor<F> functor, Kind<F, Order> orders) {
     return functor.map(FoundationsIntroBook::total, orders);
   }
