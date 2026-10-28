@@ -268,7 +268,7 @@ class WriterPathTest {
       WriterPath<String, String> path = WriterPath.pure(TEST_VALUE, STRING_MONOID);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))))
           .withMessageContaining("via mapper must return WriterPath");
     }
 
@@ -311,7 +311,7 @@ class WriterPathTest {
       WriterPath<String, String> path = WriterPath.pure(TEST_VALUE, STRING_MONOID);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.then(() -> Path.id(42)))
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.id(42))))
           .withMessageContaining("then supplier must return WriterPath");
     }
   }
@@ -356,7 +356,7 @@ class WriterPathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-WriterPath");
     }
 

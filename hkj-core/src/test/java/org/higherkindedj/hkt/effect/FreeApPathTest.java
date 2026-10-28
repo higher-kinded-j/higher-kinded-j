@@ -338,7 +338,7 @@ class FreeApPathTest {
       MaybePath<Integer> maybePath = Path.just(10);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (a, b) -> a + b))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
           .withMessageContaining("FreeApPath.zipWith requires FreeApPath");
     }
 

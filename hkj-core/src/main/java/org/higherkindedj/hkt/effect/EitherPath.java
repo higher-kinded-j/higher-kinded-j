@@ -89,7 +89,7 @@ import org.jspecify.annotations.Nullable;
  * @param <E> the type of the error (left value)
  * @param <A> the type of the success value (right value)
  */
-public final class EitherPath<E, A> implements Recoverable<E, A> {
+public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends E, ?>, E, A> {
 
   private final Either<E, A> value;
 
@@ -245,7 +245,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
 
   @Override
   public <B, C> EitherPath<E, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends EitherPath<? extends E, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -253,7 +254,7 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
       throw new IllegalArgumentException("Cannot zipWith non-EitherPath: " + other.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     EitherPath<E, B> typedOther = (EitherPath<E, B>) otherEither;
 
     return this.value.fold(
@@ -280,8 +281,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * @return a new path containing the combined result, or the first error encountered
    */
   public <B, C, D> EitherPath<E, D> zipWith3(
-      EitherPath<E, B> second,
-      EitherPath<E, C> third,
+      EitherPath<? extends E, B> second,
+      EitherPath<? extends E, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -305,17 +306,25 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return an {@code EitherPath} whose error type is {@code E} or a subtype of
+   * it, such as one variant of a sealed error; another kind of Path or an unrelated error type does
+   * not compile.
+   */
   @Override
-  public <B> EitherPath<E, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> EitherPath<E, B> via(
+      Function<? super A, ? extends Chainable<? extends EitherPath<? extends E, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     if (value.isLeft()) {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a failed path holds no value of either type
       EitherPath<E, B> result = (EitherPath<E, B>) this;
       return result;
     }
 
-    Chainable<B> result = mapper.apply(value.getRight());
+    Chainable<? extends EitherPath<? extends E, ?>, B> result = mapper.apply(value.getRight());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof EitherPath<?, ?> eitherPath)) {
@@ -323,22 +332,23 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
           "via mapper must return EitherPath, got: " + result.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     EitherPath<E, B> typedResult = (EitherPath<E, B>) eitherPath;
     return typedResult;
   }
 
   @Override
-  public <B> EitherPath<E, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> EitherPath<E, B> then(
+      Supplier<? extends Chainable<? extends EitherPath<? extends E, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     if (value.isLeft()) {
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings("unchecked") // a failed path holds no value of either type
       EitherPath<E, B> result = (EitherPath<E, B>) this;
       return result;
     }
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends EitherPath<? extends E, ?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof EitherPath<?, ?> eitherPath)) {
@@ -346,7 +356,7 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
           "then supplier must return EitherPath, got: " + result.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     EitherPath<E, B> typedResult = (EitherPath<E, B>) eitherPath;
     return typedResult;
   }
@@ -366,35 +376,42 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   }
 
   @Override
-  public EitherPath<E, A> recoverWith(Function<? super E, ? extends Recoverable<E, A>> recovery) {
+  public EitherPath<E, A> recoverWith(
+      Function<
+              ? super E,
+              ? extends Recoverable<? extends EitherPath<? extends E, ?>, ? extends E, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     if (value.isRight()) {
       return this;
     }
-    Recoverable<E, A> result = recovery.apply(value.getLeft());
+    Recoverable<? extends EitherPath<? extends E, ?>, ? extends E, A> result =
+        recovery.apply(value.getLeft());
     Objects.requireNonNull(result, "recovery must not return null");
     if (!(result instanceof EitherPath<?, ?> eitherPath)) {
       throw new IllegalArgumentException(
           "recovery must return EitherPath, got: " + result.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     EitherPath<E, A> typedResult = (EitherPath<E, A>) eitherPath;
     return typedResult;
   }
 
   @Override
-  public EitherPath<E, A> orElse(Supplier<? extends Recoverable<E, A>> alternative) {
+  public EitherPath<E, A> orElse(
+      Supplier<? extends Recoverable<? extends EitherPath<? extends E, ?>, ? extends E, A>>
+          alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     if (value.isRight()) {
       return this;
     }
-    Recoverable<E, A> result = alternative.get();
+    Recoverable<? extends EitherPath<? extends E, ?>, ? extends E, A> result = alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof EitherPath<?, ?> eitherPath)) {
       throw new IllegalArgumentException(
           "alternative must return EitherPath, got: " + result.getClass());
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     EitherPath<E, A> typedResult = (EitherPath<E, A>) eitherPath;
     return typedResult;
   }

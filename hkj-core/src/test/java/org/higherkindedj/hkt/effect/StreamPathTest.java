@@ -280,7 +280,7 @@ class StreamPathTest {
       StreamPath<String> path = StreamPath.pure(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)).toList())
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).toList())
           .withMessageContaining("via mapper must return StreamPath");
     }
 
@@ -345,7 +345,7 @@ class StreamPathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-StreamPath");
     }
   }

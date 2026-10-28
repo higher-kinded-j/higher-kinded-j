@@ -282,7 +282,7 @@ class OptionalPathLawsTest {
                 OptionalPath<Integer> path = Path.present(TEST_VALUE);
 
                 OptionalPath<String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to OptionalPath
+                // flatMap returns the Chainable interface type, cast to OptionalPath
                 OptionalPath<String> flatMapResult = (OptionalPath<String>) path.flatMap(f);
 
                 assertThat(viaResult.run()).isEqualTo(flatMapResult.run());
@@ -293,7 +293,7 @@ class OptionalPathLawsTest {
                 OptionalPath<Integer> path = Path.absent();
 
                 OptionalPath<String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to OptionalPath
+                // flatMap returns the Chainable interface type, cast to OptionalPath
                 OptionalPath<String> flatMapResult = (OptionalPath<String>) path.flatMap(f);
 
                 assertThat(viaResult.run()).isEqualTo(flatMapResult.run());

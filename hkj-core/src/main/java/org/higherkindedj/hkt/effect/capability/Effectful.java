@@ -38,9 +38,11 @@ import org.higherkindedj.hkt.trymonad.Try;
  * <p>Prefer {@link #runSafe()} when exception handling is needed, or when composing with other
  * effect types.
  *
+ * @param <P> the family of the implementing Path: its own class with the value type left open, such
+ *     as {@code IOPath<?>}; see {@link Chainable}
  * @param <A> the type of the value produced by the effect
  */
-public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskPath {
+public sealed interface Effectful<P, A> extends Chainable<P, A> permits IOPath, VTaskPath {
 
   /**
    * Executes the deferred effect synchronously and returns the result.
@@ -105,7 +107,7 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * <p>Example:
    *
    * <pre>{@code
-   * Effectful<String> greeting = Path.io(() -> riskyGreet())
+   * IOPath<String> greeting = Path.io(() -> riskyGreet())
    *     .handleError(t -> "hello, stranger");
    * }</pre>
    *
@@ -114,21 +116,21 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * @return an effect that yields either the original result or the recovery value
    * @throws NullPointerException if {@code recovery} is {@code null}
    */
-  Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
+  Effectful<P, A> handleError(Function<? super Throwable, ? extends A> recovery);
 
   /**
    * Recovers from any exception thrown while running this effect by substituting another effect.
-   * Unlike {@link #handleError(Function)}, the recovery function returns an {@code Effectful<A>},
-   * allowing the fallback to itself perform side effects.
+   * Unlike {@link #handleError(Function)}, the recovery function returns another effect, allowing
+   * the fallback to itself perform side effects.
    *
-   * <p>The parameter is widened to {@code Function<? super Throwable, ? extends Effectful<A>>} so
-   * the recovery can return any concrete effect type (an {@link IOPath} recovering into a {@link
-   * VTaskPath} or vice versa). The returned effect has the same concrete type as this one.
+   * <p>Unlike {@link #via(Function)}, the recovery is not held to this path's family: it can return
+   * either effect type, so an {@link IOPath} can recover into a {@link VTaskPath} and the other way
+   * round. The returned effect has the same concrete type as this one.
    *
    * <p>Example:
    *
    * <pre>{@code
-   * Effectful<Config> config = Path.io(() -> loadFromFile())
+   * IOPath<Config> config = Path.io(() -> loadFromFile())
    *     .handleErrorWith(t -> Path.io(() -> loadFromEnv()));
    * }</pre>
    *
@@ -137,7 +139,7 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * @return an effect that yields either the original result or the recovery effect's result
    * @throws NullPointerException if {@code recovery} is {@code null}
    */
-  Effectful<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
+  Effectful<P, A> handleErrorWith(Function<? super Throwable, ? extends Effectful<?, A>> recovery);
 
   /**
    * Runs a finaliser after this effect completes, regardless of whether it succeeded or threw. A
@@ -150,7 +152,7 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * <p>Example:
    *
    * <pre>{@code
-   * Effectful<Data> withCleanup = Path.io(() -> process(resource))
+   * IOPath<Data> withCleanup = Path.io(() -> process(resource))
    *     .guarantee(() -> resource.close());
    * }</pre>
    *
@@ -158,5 +160,5 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * @return an effect that runs the finaliser after this effect
    * @throws NullPointerException if {@code finalizer} is {@code null}
    */
-  Effectful<A> guarantee(Runnable finalizer);
+  Effectful<P, A> guarantee(Runnable finalizer);
 }

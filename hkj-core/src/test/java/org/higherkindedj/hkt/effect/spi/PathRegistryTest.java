@@ -53,9 +53,9 @@ class PathRegistryTest {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <A> Chainable<A> createPath(Kind<MaybeKind.Witness, A> kind) {
+    public <A> Chainable<?, A> createPath(Kind<MaybeKind.Witness, A> kind) {
       Maybe<A> maybe = MAYBE.narrow(kind);
-      return (Chainable<A>) Path.maybe(maybe);
+      return (Chainable<?, A>) Path.maybe(maybe);
     }
 
     @Override
@@ -173,10 +173,12 @@ class PathRegistryTest {
       PathRegistry.register(new MaybePathProvider());
       Kind<MaybeKind.Witness, String> kind = MAYBE.just("hello");
 
-      Optional<Chainable<String>> result = PathRegistry.createPath(kind, MaybeKind.Witness.class);
+      Optional<Chainable<?, String>> result =
+          PathRegistry.createPath(kind, MaybeKind.Witness.class);
 
       assertThat(result).isPresent();
       assertThat(result.get()).isInstanceOf(MaybePath.class);
+      @SuppressWarnings("unchecked") // the SPI returns Chainable<?, A>, whose family is unknown
       MaybePath<String> maybePath = (MaybePath<String>) result.get();
       assertThat(maybePath.run().get()).isEqualTo("hello");
     }
@@ -186,7 +188,8 @@ class PathRegistryTest {
     void createPathReturnsEmptyForUnregisteredType() {
       Kind<MaybeKind.Witness, String> kind = MAYBE.just("hello");
 
-      Optional<Chainable<String>> result = PathRegistry.createPath(kind, MaybeKind.Witness.class);
+      Optional<Chainable<?, String>> result =
+          PathRegistry.createPath(kind, MaybeKind.Witness.class);
 
       assertThat(result).isEmpty();
     }
@@ -202,7 +205,7 @@ class PathRegistryTest {
       PathRegistry.register(new MaybePathProvider());
       Kind<MaybeKind.Witness, String> kind = MAYBE.just("hello");
 
-      Optional<Chainable<String>> result = Path.from(kind, MaybeKind.Witness.class);
+      Optional<Chainable<?, String>> result = Path.from(kind, MaybeKind.Witness.class);
 
       assertThat(result).isPresent();
       assertThat(result.get()).isInstanceOf(MaybePath.class);
@@ -213,7 +216,7 @@ class PathRegistryTest {
     void pathFromReturnsEmptyForUnregisteredType() {
       Kind<MaybeKind.Witness, String> kind = MAYBE.just("hello");
 
-      Optional<Chainable<String>> result = Path.from(kind, MaybeKind.Witness.class);
+      Optional<Chainable<?, String>> result = Path.from(kind, MaybeKind.Witness.class);
 
       assertThat(result).isEmpty();
     }
@@ -278,9 +281,9 @@ class PathRegistryTest {
 
             @Override
             @SuppressWarnings("unchecked")
-            public <A> Chainable<A> createPath(Kind<MaybeKind.Witness, A> kind) {
+            public <A> Chainable<?, A> createPath(Kind<MaybeKind.Witness, A> kind) {
               Maybe<A> maybe = MAYBE.narrow(kind);
-              return (Chainable<A>) Path.maybe(maybe);
+              return (Chainable<?, A>) Path.maybe(maybe);
             }
 
             @Override
@@ -349,11 +352,12 @@ class PathRegistryTest {
 
       // Create a path using the SPI-discovered provider
       Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(Optional.of("hello"));
-      Optional<Chainable<String>> result =
+      Optional<Chainable<?, String>> result =
           PathRegistry.createPath(kind, OptionalKind.Witness.class);
 
       assertThat(result).isPresent();
       assertThat(result.get()).isInstanceOf(OptionalPath.class);
+      @SuppressWarnings("unchecked") // the SPI returns Chainable<?, A>, whose family is unknown
       OptionalPath<String> optionalPath = (OptionalPath<String>) result.get();
       assertThat(optionalPath.run()).hasValue("hello");
     }
@@ -464,7 +468,7 @@ class PathRegistryTest {
       CountDownLatch startLatch = new CountDownLatch(1);
       CountDownLatch doneLatch = new CountDownLatch(threadCount);
 
-      List<Future<Optional<Chainable<String>>>> futures = new ArrayList<>();
+      List<Future<Optional<Chainable<?, String>>>> futures = new ArrayList<>();
       Kind<OptionalKind.Witness, String> kind = OPTIONAL.widen(Optional.of("test"));
 
       for (int i = 0; i < threadCount; i++) {
@@ -485,8 +489,8 @@ class PathRegistryTest {
       assertThat(completed).isTrue();
 
       // All threads should successfully create paths
-      for (Future<Optional<Chainable<String>>> future : futures) {
-        Optional<Chainable<String>> result = future.get();
+      for (Future<Optional<Chainable<?, String>>> future : futures) {
+        Optional<Chainable<?, String>> result = future.get();
         assertThat(result).isPresent();
         assertThat(result.get()).isInstanceOf(OptionalPath.class);
       }

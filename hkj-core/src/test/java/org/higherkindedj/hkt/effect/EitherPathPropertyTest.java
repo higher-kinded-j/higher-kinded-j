@@ -224,7 +224,8 @@ class EitherPathPropertyTest {
       @ForAll("intToEitherStringFunctions") Function<Integer, EitherPath<String, String>> f) {
 
     EitherPath<String, String> viaResult = path.via(f);
-    // flatMap returns Chainable<B>, cast to EitherPath since we know the implementation
+    // flatMap returns the Chainable interface type, cast to EitherPath since we know the
+    // implementation
     EitherPath<String, String> flatMapResult = (EitherPath<String, String>) path.flatMap(f);
 
     assertThat(viaResult.run()).isEqualTo(flatMapResult.run());

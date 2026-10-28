@@ -197,7 +197,7 @@ class ReaderPathTest {
       ReaderPath<Config, String> path = Path.readerPure(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)).run(TEST_CONFIG))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).run(TEST_CONFIG))
           .withMessageContaining("via mapper must return ReaderPath");
     }
 
@@ -230,7 +230,7 @@ class ReaderPathTest {
     void thenThrowsForIncompatibleType() {
       ReaderPath<Config, String> path = Path.asks(Config::host);
 
-      ReaderPath<Config, Integer> result = path.then(() -> Path.id(42));
+      ReaderPath<Config, Integer> result = path.then(Mismatched.supplier(() -> Path.id(42)));
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> result.run(TEST_CONFIG))
@@ -275,7 +275,7 @@ class ReaderPathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-ReaderPath");
     }
 

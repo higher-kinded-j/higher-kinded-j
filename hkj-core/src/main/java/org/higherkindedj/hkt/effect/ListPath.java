@@ -78,7 +78,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * @param <A> the element type
  */
-public final class ListPath<A> implements Chainable<A> {
+public final class ListPath<A> implements Chainable<ListPath<?>, A> {
 
   private final List<A> list;
 
@@ -257,7 +257,8 @@ public final class ListPath<A> implements Chainable<A> {
    */
   @Override
   public <B, C> ListPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends ListPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -308,15 +309,22 @@ public final class ListPath<A> implements Chainable<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code ListPath}; a step of another kind, a {@code NonDetPath}
+   * included, does not compile.
+   */
   @Override
-  public <B> ListPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> ListPath<B> via(
+      Function<? super A, ? extends Chainable<? extends ListPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     List<B> flatMapped =
         list.stream()
             .flatMap(
                 a -> {
-                  Chainable<B> result = mapper.apply(a);
+                  Chainable<? extends ListPath<?>, B> result = mapper.apply(a);
                   Objects.requireNonNull(result, "mapper must not return null");
 
                   if (!(result instanceof ListPath<?> listPath)) {
@@ -334,7 +342,7 @@ public final class ListPath<A> implements Chainable<A> {
   }
 
   @Override
-  public <B> ListPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> ListPath<B> then(Supplier<? extends Chainable<? extends ListPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(ignored -> supplier.get());
   }

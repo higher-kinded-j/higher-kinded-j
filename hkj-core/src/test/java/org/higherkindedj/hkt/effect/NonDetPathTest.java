@@ -231,7 +231,7 @@ class NonDetPathTest {
       NonDetPath<String> path = NonDetPath.pure(TEST_VALUE);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.via(s -> Path.just(s)))
+          .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))))
           .withMessageContaining("via mapper must return NonDetPath");
     }
 
@@ -306,7 +306,7 @@ class NonDetPathTest {
       IdPath<Integer> idPath = Path.id(42);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-NonDetPath");
     }
 

@@ -61,7 +61,7 @@ import org.higherkindedj.hkt.function.Function3;
  * @param <A> the result type
  */
 public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
-    implements Chainable<A>, Deferred<A> {
+    implements Chainable<FreePath<F, ?>, A>, Deferred<A> {
 
   private final Free<F, A> free;
   private final Functor<F> functor;
@@ -226,7 +226,8 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   @Override
   @SuppressWarnings("unchecked")
   public <B, C> FreePath<F, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends FreePath<F, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -278,14 +279,21 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
 
   // ===== Chainable Implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code FreePath} over the same functor {@code F}; another kind of
+   * Path or functor does not compile.
+   */
   @Override
   @SuppressWarnings("unchecked")
-  public <B> FreePath<F, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> FreePath<F, B> via(
+      Function<? super A, ? extends Chainable<? extends FreePath<F, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Free<F, B> flatMapped =
         free.flatMap(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends FreePath<F, ?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof FreePath<?, ?> fp)) {
@@ -298,7 +306,8 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   }
 
   @Override
-  public <B> FreePath<F, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> FreePath<F, B> then(
+      Supplier<? extends Chainable<? extends FreePath<F, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(_ -> supplier.get());
   }

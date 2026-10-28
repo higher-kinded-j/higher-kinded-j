@@ -302,7 +302,7 @@ class VStreamPathTest {
     void viaRejectsNonVStreamPath() {
       VStreamPath<Integer> path = Path.vstreamPure(1);
 
-      VStreamPath<Integer> result = path.via(n -> Path.listPath(n));
+      VStreamPath<Integer> result = path.via(Mismatched.step(n -> Path.listPath(n)));
 
       assertThatThrownBy(() -> result.toList().unsafeRun())
           .isInstanceOf(IllegalArgumentException.class)
@@ -386,7 +386,7 @@ class VStreamPathTest {
       VStreamPath<Integer> path = Path.vstreamPure(1);
       StreamPath<Integer> other = StreamPath.pure(2);
 
-      assertThatThrownBy(() -> path.zipWith(other, (a, b) -> a + b))
+      assertThatThrownBy(() -> path.zipWith(Mismatched.other(other), (a, b) -> a + b))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Cannot zipWith non-VStreamPath");
     }

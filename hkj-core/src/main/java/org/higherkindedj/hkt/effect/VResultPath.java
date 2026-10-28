@@ -108,7 +108,8 @@ import org.higherkindedj.hkt.vtask.VTask;
  * @see VTaskPath
  * @see CompletableFuturePath
  */
-public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
+public final class VResultPath<E, A>
+    implements Recoverable<VResultPath<? extends E, ?>, E, A>, Deferred<A> {
 
   private final VTask<Either<E, A>> task;
 
@@ -299,7 +300,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
 
   @Override
   public <B, C> VResultPath<E, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends VResultPath<? extends E, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -307,7 +309,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
       throw new IllegalArgumentException("Cannot zipWith non-VResultPath: " + other.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // the family bounds its error by E
     VResultPath<E, B> typedOther = (VResultPath<E, B>) otherPath;
 
     return new VResultPath<>(
@@ -341,8 +343,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * @throws NullPointerException if second, third or combiner is null
    */
   public <B, C, D> VResultPath<E, D> zipWith3(
-      VResultPath<E, B> second,
-      VResultPath<E, C> third,
+      VResultPath<? extends E, B> second,
+      VResultPath<? extends E, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -370,8 +372,16 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code VResultPath} whose error type is {@code E} or a subtype of
+   * it, such as one variant of a sealed error; another kind of Path or an unrelated error type does
+   * not compile.
+   */
   @Override
-  public <B> VResultPath<E, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> VResultPath<E, B> via(
+      Function<? super A, ? extends Chainable<? extends VResultPath<? extends E, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     VTask<Either<E, B>> composed =
@@ -380,7 +390,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                 either.fold(
                     e -> VTask.<Either<E, B>>succeed(Either.left(e)),
                     a -> {
-                      Chainable<B> result = mapper.apply(a);
+                      Chainable<? extends VResultPath<? extends E, ?>, B> result = mapper.apply(a);
                       Objects.requireNonNull(result, "mapper must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
@@ -388,7 +398,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                             "via mapper must return VResultPath, got: " + result.getClass());
                       }
 
-                      @SuppressWarnings("unchecked")
+                      @SuppressWarnings("unchecked") // the family bounds its error by E
                       VResultPath<E, B> typedResult = (VResultPath<E, B>) vResultPath;
                       return typedResult.task;
                     }));
@@ -397,7 +407,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   }
 
   @Override
-  public <B> VResultPath<E, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> VResultPath<E, B> then(
+      Supplier<? extends Chainable<? extends VResultPath<? extends E, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     VTask<Either<E, B>> sequenced =
@@ -406,7 +417,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                 either.fold(
                     e -> VTask.<Either<E, B>>succeed(Either.left(e)),
                     _ -> {
-                      Chainable<B> result = supplier.get();
+                      Chainable<? extends VResultPath<? extends E, ?>, B> result = supplier.get();
                       Objects.requireNonNull(result, "supplier must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
@@ -414,7 +425,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                             "then supplier must return VResultPath, got: " + result.getClass());
                       }
 
-                      @SuppressWarnings("unchecked")
+                      @SuppressWarnings("unchecked") // the family bounds its error by E
                       VResultPath<E, B> typedResult = (VResultPath<E, B>) vResultPath;
                       return typedResult.task;
                     }));
@@ -446,7 +457,11 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * pred.test(e) ? handler.apply(e) : VResultPath.raiseError(e))}.
    */
   @Override
-  public VResultPath<E, A> recoverWith(Function<? super E, ? extends Recoverable<E, A>> recovery) {
+  public VResultPath<E, A> recoverWith(
+      Function<
+              ? super E,
+              ? extends Recoverable<? extends VResultPath<? extends E, ?>, ? extends E, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
 
     VTask<Either<E, A>> recovered =
@@ -454,7 +469,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
             either ->
                 either.fold(
                     e -> {
-                      Recoverable<E, A> result = recovery.apply(e);
+                      Recoverable<? extends VResultPath<? extends E, ?>, ? extends E, A> result =
+                          recovery.apply(e);
                       Objects.requireNonNull(result, "recovery must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
@@ -462,7 +478,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                             "recoverWith must return VResultPath, got: " + result.getClass());
                       }
 
-                      @SuppressWarnings("unchecked")
+                      @SuppressWarnings("unchecked") // the family bounds its error by E
                       VResultPath<E, A> typedResult = (VResultPath<E, A>) vResultPath;
                       return typedResult.task;
                     },
@@ -472,7 +488,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   }
 
   @Override
-  public VResultPath<E, A> orElse(Supplier<? extends Recoverable<E, A>> alternative) {
+  public VResultPath<E, A> orElse(
+      Supplier<? extends Recoverable<? extends VResultPath<? extends E, ?>, ? extends E, A>>
+          alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     return recoverWith(_ -> alternative.get());
   }

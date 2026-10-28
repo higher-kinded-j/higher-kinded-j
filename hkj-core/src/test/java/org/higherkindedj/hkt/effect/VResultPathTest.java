@@ -485,7 +485,7 @@ class VResultPathTest {
     void viaThrowsForIncompatibleType() {
       VResultPath<String, String> path = Path.vresultRight("hello");
 
-      VResultPath<String, Integer> result = path.via(s -> Path.id(s.length()));
+      VResultPath<String, Integer> result = path.via(Mismatched.step(s -> Path.id(s.length())));
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))
@@ -559,7 +559,7 @@ class VResultPathTest {
     void thenThrowsForIncompatibleType() {
       VResultPath<String, String> path = Path.vresultRight("hello");
 
-      VResultPath<String, Integer> result = path.then(() -> Path.id(TEST_INT));
+      VResultPath<String, Integer> result = path.then(Mismatched.supplier(() -> Path.id(TEST_INT)));
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))
@@ -632,7 +632,7 @@ class VResultPathTest {
       IdPath<Integer> idPath = Path.id(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(idPath, (s, n) -> s + n))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, n) -> s + n))
           .withMessageContaining("Cannot zipWith non-VResultPath");
     }
 
@@ -816,7 +816,8 @@ class VResultPathTest {
     void recoverWithThrowsForNonVResultPath() {
       VResultPath<String, String> path = Path.vresultLeft(TEST_ERROR);
 
-      VResultPath<String, String> result = path.recoverWith(_ -> Path.right("recovered"));
+      VResultPath<String, String> result =
+          path.recoverWith(Mismatched.recovery(_ -> Path.right("recovered")));
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))

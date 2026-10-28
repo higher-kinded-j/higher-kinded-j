@@ -67,7 +67,8 @@ import org.higherkindedj.hkt.tuple.Tuple2;
  *
  * @param <A> the type of the computed value
  */
-public final class CompletableFuturePath<A> implements Recoverable<Exception, A> {
+public final class CompletableFuturePath<A>
+    implements Recoverable<CompletableFuturePath<?>, Exception, A> {
 
   private final CompletableFuture<A> future;
 
@@ -275,7 +276,8 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
 
   @Override
   public <B, C> CompletableFuturePath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends CompletableFuturePath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -329,14 +331,21 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code CompletableFuturePath}; a step of another kind does not
+   * compile, so convert it first.
+   */
   @Override
-  public <B> CompletableFuturePath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> CompletableFuturePath<B> via(
+      Function<? super A, ? extends Chainable<? extends CompletableFuturePath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     CompletableFuture<B> composed =
         future.thenCompose(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends CompletableFuturePath<?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
@@ -353,13 +362,14 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
   }
 
   @Override
-  public <B> CompletableFuturePath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> CompletableFuturePath<B> then(
+      Supplier<? extends Chainable<? extends CompletableFuturePath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     CompletableFuture<B> sequenced =
         future.thenCompose(
             ignored -> {
-              Chainable<B> result = supplier.get();
+              Chainable<? extends CompletableFuturePath<?>, B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
@@ -391,14 +401,18 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
 
   @Override
   public CompletableFuturePath<A> recoverWith(
-      Function<? super Exception, ? extends Recoverable<Exception, A>> recovery) {
+      Function<
+              ? super Exception,
+              ? extends Recoverable<? extends CompletableFuturePath<?>, ? extends Exception, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
 
     CompletableFuture<A> recovered =
         future.exceptionallyCompose(
             ex -> {
               Exception exception = unwrapException(ex);
-              Recoverable<Exception, A> result = recovery.apply(exception);
+              Recoverable<? extends CompletableFuturePath<?>, ? extends Exception, A> result =
+                  recovery.apply(exception);
               Objects.requireNonNull(result, "recovery must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
@@ -416,20 +430,22 @@ public final class CompletableFuturePath<A> implements Recoverable<Exception, A>
 
   @Override
   public CompletableFuturePath<A> orElse(
-      Supplier<? extends Recoverable<Exception, A>> alternative) {
+      Supplier<? extends Recoverable<? extends CompletableFuturePath<?>, ? extends Exception, A>>
+          alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     return recoverWith(ignored -> alternative.get());
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public <E2> Recoverable<E2, A> mapError(Function<? super Exception, ? extends E2> mapper) {
+  public <E2> Recoverable<CompletableFuturePath<?>, E2, A> mapError(
+      Function<? super Exception, ? extends E2> mapper) {
     // CompletableFuturePath uses Exception as a fixed error type. mapError transforms the error
     // type,
     // but for CompletableFuturePath we can't actually change the underlying Exception.
     // We return this cast to the new error type, which is a limitation of the type system.
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<E2, A>) this;
+    return (Recoverable<CompletableFuturePath<?>, E2, A>) this;
   }
 
   // ===== Async-Specific Operations =====

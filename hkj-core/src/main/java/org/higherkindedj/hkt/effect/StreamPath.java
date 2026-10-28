@@ -85,7 +85,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * @param <A> the element type
  */
-public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
+public final class StreamPath<A> implements Chainable<StreamPath<?>, A>, Deferred<A> {
 
   private final Supplier<Stream<A>> streamSupplier;
 
@@ -298,7 +298,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
 
   @Override
   public <B, C> StreamPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends StreamPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -327,8 +328,15 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code StreamPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> StreamPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> StreamPath<B> via(
+      Function<? super A, ? extends Chainable<? extends StreamPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new StreamPath<>(
@@ -337,7 +345,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
                 .get()
                 .flatMap(
                     a -> {
-                      Chainable<B> result = mapper.apply(a);
+                      Chainable<? extends StreamPath<?>, B> result = mapper.apply(a);
                       Objects.requireNonNull(result, "mapper must not return null");
 
                       if (!(result instanceof StreamPath<?> streamPath)) {
@@ -352,7 +360,8 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   }
 
   @Override
-  public <B> StreamPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> StreamPath<B> then(
+      Supplier<? extends Chainable<? extends StreamPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(ignored -> supplier.get());
   }

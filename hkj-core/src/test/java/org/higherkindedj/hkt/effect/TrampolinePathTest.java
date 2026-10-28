@@ -252,7 +252,7 @@ class TrampolinePathTest {
     void viaThrowsWhenMapperReturnsWrongType() {
       TrampolinePath<Integer> path = TrampolinePath.done(42);
 
-      TrampolinePath<Integer> result = path.via(_ -> Path.just(100));
+      TrampolinePath<Integer> result = path.via(Mismatched.step(_ -> Path.just(100)));
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::run)
@@ -325,7 +325,7 @@ class TrampolinePathTest {
       MaybePath<Integer> maybePath = Path.just(10);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (a, b) -> a + b))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
           .withMessageContaining("Cannot zipWith non-TrampolinePath");
     }
 

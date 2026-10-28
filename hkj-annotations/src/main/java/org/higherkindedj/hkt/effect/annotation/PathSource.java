@@ -51,7 +51,9 @@ import java.lang.annotation.Target;
  *
  * <p>The capability interfaces above {@code Combinable} are sealed to the library's own Path types,
  * so a generated Path implements {@code Composable<A>} for {@link Capability#COMPOSABLE} and {@code
- * Combinable<A>} for every other level, and declares the further methods itself.
+ * Combinable<ApiResultPath<?>, A>}, naming its own class as the family, for every other level, and
+ * declares the further methods itself. Its {@code via}, {@code then} and {@code recoverWith} take
+ * its own class, so a step of another kind does not compile.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

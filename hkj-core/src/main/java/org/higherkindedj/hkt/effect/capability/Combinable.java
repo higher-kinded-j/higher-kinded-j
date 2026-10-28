@@ -22,16 +22,18 @@ import java.util.function.BiFunction;
  * on the first's result, {@code zipWith} combines <em>independent</em> computations. This
  * distinction enables certain optimisations (like parallel execution) in some implementations.
  *
+ * @param <P> the family of the implementing Path: its own class with the value type left open, such
+ *     as {@code MaybePath<?>}; see {@link Chainable}
  * @param <A> the type of the contained value
  */
-public interface Combinable<A> extends Composable<A> {
+public interface Combinable<P, A> extends Composable<A> {
 
   /**
    * Combines this path with another using the provided function.
    *
    * <p>If both paths contain values, the function is applied to combine them. If either path
    * represents an error or absence, the result reflects that error/absence (the exact behaviour
-   * depends on the specific path type).
+   * depends on the specific path type). The other path must belong to this path's family {@code P}.
    *
    * <p>Example:
    *
@@ -47,6 +49,6 @@ public interface Combinable<A> extends Composable<A> {
    * @return a new path containing the combined result
    * @throws NullPointerException if other or combiner is null
    */
-  <B, C> Combinable<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+  <B, C> Combinable<P, C> zipWith(
+      Combinable<? extends P, B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
 }

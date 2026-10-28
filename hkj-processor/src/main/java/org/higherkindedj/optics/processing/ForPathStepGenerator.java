@@ -627,6 +627,8 @@ final class ForPathStepGenerator {
     sb.append("                ");
     if (desc.isGeneric || desc.isFree) {
       sb.append("next.apply(t).runKind()");
+    } else if (needsLocalMonad(desc)) {
+      sb.append("ForPath.eitherStep(next.apply(t))");
     } else {
       sb.append(desc.kindHelperField).append(".widen(next.apply(t).run())");
     }
@@ -859,6 +861,8 @@ final class ForPathStepGenerator {
       sb.append("                ");
       if (desc.isGeneric || desc.isFree) {
         sb.append("f").append(i + 1).append(".apply(t).runKind()");
+      } else if (needsLocalMonad(desc)) {
+        sb.append("ForPath.eitherStep(f").append(i + 1).append(".apply(t))");
       } else {
         sb.append(desc.kindHelperField).append(".widen(f").append(i + 1).append(".apply(t).run())");
       }
@@ -1173,14 +1177,24 @@ final class ForPathStepGenerator {
     }
   }
 
-  /** Gets the path type for from() parameter, e.g. "MaybePath<G>" or "EitherPath<E, G>". */
+  /**
+   * Gets the path type a from() or par() step returns, e.g. "MaybePath<G>". An EitherPath step may
+   * fail with a subtype of the comprehension's error type, as in {@code EitherPath.via}, so its
+   * type is "? extends EitherPath<? extends E, G>".
+   */
   private static String fromReturnPathType(PathTypeDescriptor desc, String nextType) {
     if (desc.isFree) {
       return "FreePath<F, " + nextType + ">";
     } else if (desc.isGeneric) {
       return "GenericPath<F, " + nextType + ">";
     } else if (desc.hasExtraTypeParam) {
-      return desc.pathTypeName + "<" + desc.extraTypeParamName + ", " + nextType + ">";
+      return "? extends "
+          + desc.pathTypeName
+          + "<? extends "
+          + desc.extraTypeParamName
+          + ", "
+          + nextType
+          + ">";
     } else {
       return desc.pathTypeName + "<" + nextType + ">";
     }

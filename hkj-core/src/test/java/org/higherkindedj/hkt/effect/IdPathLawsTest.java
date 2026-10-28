@@ -270,7 +270,7 @@ class IdPathLawsTest {
                 IdPath<Integer> path = Path.id(TEST_VALUE);
 
                 IdPath<String> viaResult = path.via(f);
-                // flatMap returns Chainable<B>, cast to IdPath
+                // flatMap returns the Chainable interface type, cast to IdPath
                 IdPath<String> flatMapResult = (IdPath<String>) path.flatMap(f);
 
                 assertThat(viaResult.run()).isEqualTo(flatMapResult.run());

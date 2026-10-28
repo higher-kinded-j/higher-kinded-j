@@ -368,7 +368,7 @@ class VTaskPathTest {
     void viaValidatesResultType() {
       VTaskPath<String> path = Path.vtaskPure(TEST_VALUE);
 
-      VTaskPath<Integer> result = path.via(s -> Path.just(s.length()));
+      VTaskPath<Integer> result = path.via(Mismatched.step(s -> Path.just(s.length())));
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::unsafeRun)
@@ -538,7 +538,7 @@ class VTaskPathTest {
       MaybePath<Integer> maybePath = Path.just(TEST_INT);
 
       assertThatIllegalArgumentException()
-          .isThrownBy(() -> path.zipWith(maybePath, (s, i) -> s + i))
+          .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
           .withMessageContaining("Cannot zipWith non-VTaskPath");
     }
   }
@@ -968,9 +968,9 @@ class VTaskPathTest {
       VTaskPath<String> path = Path.vtaskPure("hello");
 
       // Use IdPath which is a Chainable but not a VTaskPath
-      Chainable<Integer> nonVTaskPath = Path.id(42);
+      Chainable<?, Integer> nonVTaskPath = Path.id(42);
 
-      assertThatThrownBy(() -> path.zipWith(nonVTaskPath, (s, i) -> s + i))
+      assertThatThrownBy(() -> path.zipWith(Mismatched.other(nonVTaskPath), (s, i) -> s + i))
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessageContaining("Cannot zipWith non-VTaskPath");
     }
@@ -982,7 +982,7 @@ class VTaskPathTest {
       VTaskPath<String> path = Path.vtaskPure("hello");
 
       // Create a mapper that returns a non-VTaskPath Chainable (IdPath)
-      VTaskPath<Integer> result = path.via(s -> Path.id(42));
+      VTaskPath<Integer> result = path.via(Mismatched.step(s -> Path.id(42)));
 
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(IllegalArgumentException.class)
@@ -1008,7 +1008,7 @@ class VTaskPathTest {
       VTaskPath<String> path = Path.vtaskPure("hello");
 
       // Create a supplier that returns a non-VTaskPath Chainable (IdPath)
-      VTaskPath<Integer> result = path.then(() -> Path.id(42));
+      VTaskPath<Integer> result = path.then(Mismatched.supplier(() -> Path.id(42)));
 
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(IllegalArgumentException.class)

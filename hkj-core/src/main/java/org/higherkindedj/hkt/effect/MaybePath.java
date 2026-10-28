@@ -63,7 +63,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the type of the contained value
  */
-public final class MaybePath<A> implements Recoverable<Unit, A> {
+public final class MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A> {
 
   private final Maybe<A> value;
 
@@ -303,7 +303,8 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 
   @Override
   public <B, C> MaybePath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends MaybePath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -348,15 +349,22 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code MaybePath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> MaybePath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> MaybePath<B> via(
+      Function<? super A, ? extends Chainable<? extends MaybePath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     if (value.isNothing()) {
       return new MaybePath<>(Maybe.nothing());
     }
 
-    Chainable<B> result = mapper.apply(value.get());
+    Chainable<? extends MaybePath<?>, B> result = mapper.apply(value.get());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof MaybePath<?> maybePath)) {
@@ -369,14 +377,14 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   }
 
   @Override
-  public <B> MaybePath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> MaybePath<B> then(Supplier<? extends Chainable<? extends MaybePath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     if (value.isNothing()) {
       return new MaybePath<>(Maybe.nothing());
     }
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends MaybePath<?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof MaybePath<?> maybePath)) {
@@ -400,12 +408,14 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   }
 
   @Override
-  public MaybePath<A> recoverWith(Function<? super Unit, ? extends Recoverable<Unit, A>> recovery) {
+  public MaybePath<A> recoverWith(
+      Function<? super Unit, ? extends Recoverable<? extends MaybePath<?>, ? extends Unit, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     if (value.isJust()) {
       return this;
     }
-    Recoverable<Unit, A> result = recovery.apply(Unit.INSTANCE);
+    Recoverable<? extends MaybePath<?>, ? extends Unit, A> result = recovery.apply(Unit.INSTANCE);
     Objects.requireNonNull(result, "recovery must not return null");
     if (!(result instanceof MaybePath<?> maybePath)) {
       throw new IllegalArgumentException(
@@ -417,12 +427,13 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
   }
 
   @Override
-  public MaybePath<A> orElse(Supplier<? extends Recoverable<Unit, A>> alternative) {
+  public MaybePath<A> orElse(
+      Supplier<? extends Recoverable<? extends MaybePath<?>, ? extends Unit, A>> alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     if (value.isJust()) {
       return this;
     }
-    Recoverable<Unit, A> result = alternative.get();
+    Recoverable<? extends MaybePath<?>, ? extends Unit, A> result = alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof MaybePath<?> maybePath)) {
       throw new IllegalArgumentException(
@@ -435,12 +446,13 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <E2> Recoverable<E2, A> mapError(Function<? super Unit, ? extends E2> mapper) {
+  public <E2> Recoverable<MaybePath<?>, E2, A> mapError(
+      Function<? super Unit, ? extends E2> mapper) {
     // For MaybePath, mapError is effectively a no-op since Unit is the only error type.
     // We return this cast to the new error type, which is safe because MaybePath
     // doesn't actually store errors (Nothing has no error value).
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<E2, A>) this;
+    return (Recoverable<MaybePath<?>, E2, A>) this;
   }
 
   // ===== FocusPath Bridge Methods =====

@@ -95,7 +95,7 @@ import org.jspecify.annotations.Nullable;
  * @see VTaskPath
  * @see StreamPath
  */
-public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
+public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Deferred<A>
     permits DefaultVStreamPath {
 
   // ===== Core access =====
@@ -130,22 +130,31 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
 
   // ===== Chainable operations (Monad) =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code VStreamPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  <B> VStreamPath<B> via(Function<? super A, ? extends Chainable<B>> mapper);
+  <B> VStreamPath<B> via(
+      Function<? super A, ? extends Chainable<? extends VStreamPath<?>, B>> mapper);
 
   @Override
-  default <B> VStreamPath<B> flatMap(Function<? super A, ? extends Chainable<B>> mapper) {
+  default <B> VStreamPath<B> flatMap(
+      Function<? super A, ? extends Chainable<? extends VStreamPath<?>, B>> mapper) {
     return via(mapper);
   }
 
   @Override
-  <B> VStreamPath<B> then(Supplier<? extends Chainable<B>> supplier);
+  <B> VStreamPath<B> then(Supplier<? extends Chainable<? extends VStreamPath<?>, B>> supplier);
 
   // ===== Combinable operations (Applicative) =====
 
   @Override
   <B, C> VStreamPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
+      Combinable<? extends VStreamPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner);
 
   /**
    * Combines this path with two others using a ternary function. Elements are paired positionally;

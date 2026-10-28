@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.hkt.effect.VTaskPath;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.either.EitherMonad;
@@ -390,7 +391,10 @@ public final class ForPath {
   // ===== EitherPath Parallel Entry Points =====
 
   /**
-   * Combines two independent EitherPath computations using applicative semantics.
+   * Combines two independent EitherPath computations using applicative semantics. Either may fail
+   * with a subtype of {@code E}. When they fail with two different variants of a sealed error, name
+   * it, as in {@code ForPath.<AppError, A, B>par(a, b)}, since javac otherwise infers an
+   * intersection of the two.
    *
    * @param a the first computation
    * @param b the second computation
@@ -399,18 +403,18 @@ public final class ForPath {
    * @param <B> the second value type
    * @return step 2 of the builder
    */
-  public static <E, A, B> EitherPathSteps2<E, A, B> par(EitherPath<E, A> a, EitherPath<E, B> b) {
+  public static <E, A, B> EitherPathSteps2<E, A, B> par(
+      EitherPath<? extends E, A> a, EitherPath<? extends E, B> b) {
     EitherMonad<E> m = EitherMonad.instance();
     Kind<EitherKind.Witness<E>, Tuple2<A, B>> combined =
-        m.map2(
-            EitherKindHelper.EITHER.widen(a.run()),
-            EitherKindHelper.EITHER.widen(b.run()),
-            Tuple::of);
+        m.map2(eitherStep(a), eitherStep(b), Tuple::of);
     return new EitherPathSteps2<>(combined);
   }
 
   /**
-   * Combines three independent EitherPath computations using applicative semantics.
+   * Combines three independent EitherPath computations using applicative semantics. Each may fail
+   * with a subtype of {@code E}; name {@code E} with a witness when they fail with different
+   * variants, as for {@link #par(EitherPath, EitherPath)}.
    *
    * @param a the first computation
    * @param b the second computation
@@ -422,15 +426,26 @@ public final class ForPath {
    * @return step 3 of the builder
    */
   public static <E, A, B, C> EitherPathSteps3<E, A, B, C> par(
-      EitherPath<E, A> a, EitherPath<E, B> b, EitherPath<E, C> c) {
+      EitherPath<? extends E, A> a, EitherPath<? extends E, B> b, EitherPath<? extends E, C> c) {
     EitherMonad<E> m = EitherMonad.instance();
     Kind<EitherKind.Witness<E>, Tuple3<A, B, C>> combined =
-        m.map3(
-            EitherKindHelper.EITHER.widen(a.run()),
-            EitherKindHelper.EITHER.widen(b.run()),
-            EitherKindHelper.EITHER.widen(c.run()),
-            Tuple::of);
+        m.map3(eitherStep(a), eitherStep(b), eitherStep(c), Tuple::of);
     return new EitherPathSteps3<>(combined);
+  }
+
+  /**
+   * Reads an EitherPath step as a {@code Kind} on the comprehension's error type. A step may fail
+   * with a subtype of {@code E}, as in {@link EitherPath#via}.
+   *
+   * @param step the step's path
+   * @param <E> the comprehension's error type
+   * @param <B> the step's value type
+   * @return the step's Either, typed on {@code E}
+   */
+  static <E, B> Kind<EitherKind.Witness<E>, B> eitherStep(EitherPath<? extends E, B> step) {
+    @SuppressWarnings("unchecked") // Either is immutable, so a subtype's Left reads as an E
+    Either<E, B> either = (Either<E, B>) step.run();
+    return EitherKindHelper.EITHER.widen(either);
   }
 
   // ===== TryPath Parallel Entry Points =====
@@ -1056,12 +1071,11 @@ public final class ForPath {
       this.computation = EitherKindHelper.EITHER.widen(source.run());
     }
 
-    public <B> EitherPathSteps2<E, A, B> from(Function<A, EitherPath<E, B>> next) {
+    public <B> EitherPathSteps2<E, A, B> from(
+        Function<A, ? extends EitherPath<? extends E, B>> next) {
       EitherMonad<E> m = monad();
       Kind<EitherKind.Witness<E>, Tuple2<A, B>> newComp =
-          m.flatMap(
-              a -> m.map(b -> Tuple.of(a, b), EitherKindHelper.EITHER.widen(next.apply(a).run())),
-              computation);
+          m.flatMap(a -> m.map(b -> Tuple.of(a, b), eitherStep(next.apply(a))), computation);
       return new EitherPathSteps2<>(newComp);
     }
 

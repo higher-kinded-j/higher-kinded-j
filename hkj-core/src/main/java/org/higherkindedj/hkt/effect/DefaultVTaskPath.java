@@ -93,7 +93,8 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public <B, C> VTaskPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends VTaskPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -131,14 +132,15 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   // ===== Chainable implementation =====
 
   @Override
-  public <B> VTaskPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> VTaskPath<B> via(
+      Function<? super A, ? extends Chainable<? extends VTaskPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new DefaultVTaskPath<>(
         VTask.delay(
             () -> {
               A a = this.unsafeRun();
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends VTaskPath<?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof VTaskPath<?> vtaskPath)) {
@@ -153,12 +155,13 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   }
 
   @Override
-  public <B> VTaskPath<B> flatMap(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> VTaskPath<B> flatMap(
+      Function<? super A, ? extends Chainable<? extends VTaskPath<?>, B>> mapper) {
     return via(mapper);
   }
 
   @Override
-  public <B> VTaskPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> VTaskPath<B> then(Supplier<? extends Chainable<? extends VTaskPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new DefaultVTaskPath<>(
@@ -167,7 +170,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
               // Execute this VTask for its side effects
               this.unsafeRun();
 
-              Chainable<B> result = supplier.get();
+              Chainable<? extends VTaskPath<?>, B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof VTaskPath<?> vtaskPath)) {
@@ -193,18 +196,20 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
 
   @Override
   public VTaskPath<A> handleErrorWith(
-      Function<? super Throwable, ? extends Effectful<A>> recovery) {
+      Function<? super Throwable, ? extends Effectful<?, A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new DefaultVTaskPath<>(
         value.recoverWith(
             t -> {
-              Effectful<A> fallback = recovery.apply(t);
+              Effectful<?, A> fallback = recovery.apply(t);
               Objects.requireNonNull(fallback, "recovery must not return null");
               // If the fallback is itself a VTaskPath, use its VTask directly so we
               // preserve virtual-thread execution semantics; otherwise adapt the
-              // arbitrary Effectful<A> by delegating to unsafeRun inside a VTask.
-              if (fallback instanceof VTaskPath<A> vtaskFallback) {
-                return vtaskFallback.run();
+              // arbitrary Effectful<?, A> by delegating to unsafeRun inside a VTask.
+              if (fallback instanceof VTaskPath<?> vtaskFallback) {
+                @SuppressWarnings("unchecked") // its value type is A
+                VTaskPath<A> same = (VTaskPath<A>) vtaskFallback;
+                return same.run();
               }
               return VTask.of(fallback::unsafeRun);
             }));

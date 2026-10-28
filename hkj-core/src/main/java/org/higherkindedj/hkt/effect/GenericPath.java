@@ -66,7 +66,8 @@ import org.higherkindedj.hkt.maybe.Maybe;
  * @see Monad
  * @see Kind
  */
-public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> implements Chainable<A> {
+public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
+    implements Chainable<GenericPath<F, ?>, A> {
 
   private final Kind<F, A> value;
   private final Monad<F> monad;
@@ -407,7 +408,8 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
   @Override
   @SuppressWarnings("unchecked")
   public <B, C> GenericPath<F, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends GenericPath<F, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -453,15 +455,22 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code GenericPath} over the same witness {@code F}; another kind
+   * of Path or witness does not compile.
+   */
   @Override
   @SuppressWarnings("unchecked")
-  public <B> GenericPath<F, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> GenericPath<F, B> via(
+      Function<? super A, ? extends Chainable<? extends GenericPath<F, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     Kind<F, B> result =
         monad.flatMap(
             a -> {
-              Chainable<B> chainResult = mapper.apply(a);
+              Chainable<? extends GenericPath<F, ?>, B> chainResult = mapper.apply(a);
               Objects.requireNonNull(chainResult, "mapper must not return null");
 
               if (!(chainResult instanceof GenericPath<?, ?> gp)) {
@@ -477,7 +486,8 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
   }
 
   @Override
-  public <B> GenericPath<F, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> GenericPath<F, B> then(
+      Supplier<? extends Chainable<? extends GenericPath<F, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
     return via(_ -> supplier.get());
   }

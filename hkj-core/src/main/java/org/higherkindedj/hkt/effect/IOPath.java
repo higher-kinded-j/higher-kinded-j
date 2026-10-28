@@ -79,7 +79,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the type of the value produced by the computation
  */
-public final class IOPath<A> implements Effectful<A>, Deferred<A> {
+public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
 
   private final IO<A> value;
 
@@ -163,7 +163,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
 
   @Override
   public <B, C> IOPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends IOPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -215,15 +216,22 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return an {@code IOPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> IOPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> IOPath<B> via(
+      Function<? super A, ? extends Chainable<? extends IOPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new IOPath<>(
         IO.delay(
             () -> {
               A a = this.unsafeRun();
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends IOPath<?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof IOPath<?> ioPath)) {
@@ -238,12 +246,13 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   }
 
   @Override
-  public <B> IOPath<B> flatMap(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> IOPath<B> flatMap(
+      Function<? super A, ? extends Chainable<? extends IOPath<?>, B>> mapper) {
     return via(mapper);
   }
 
   @Override
-  public <B> IOPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> IOPath<B> then(Supplier<? extends Chainable<? extends IOPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new IOPath<>(
@@ -252,7 +261,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
               // Execute this IO for its side effects
               this.unsafeRun();
 
-              Chainable<B> result = supplier.get();
+              Chainable<? extends IOPath<?>, B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof IOPath<?> ioPath)) {
@@ -296,7 +305,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    *
    * <p>If an exception is thrown during execution, the recovery function is applied to produce an
    * alternative {@link Effectful} computation whose result is used instead. The recovery function
-   * may return any {@code Effectful<A>} (for example an {@code IOPath<A>} or a {@code
+   * may return any {@code Effectful<?, A>} (for example an {@code IOPath<A>} or a {@code
    * VTaskPath<A>}); the returned value is always an {@code IOPath<A>}.
    *
    * @param recovery the function to apply if an exception occurs; must not be null and must not
@@ -305,7 +314,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * @throws NullPointerException if recovery is null
    */
   @Override
-  public IOPath<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery) {
+  public IOPath<A> handleErrorWith(
+      Function<? super Throwable, ? extends Effectful<?, A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return new IOPath<>(
         IO.delay(
@@ -313,7 +323,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
               try {
                 return this.unsafeRun();
               } catch (Throwable t) {
-                Effectful<A> fallback = recovery.apply(t);
+                Effectful<?, A> fallback = recovery.apply(t);
                 Objects.requireNonNull(fallback, "recovery must not return null");
                 return fallback.unsafeRun();
               }

@@ -56,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the type of the contained value
  */
-public final class IdPath<A> implements Chainable<A> {
+public final class IdPath<A> implements Chainable<IdPath<?>, A> {
 
   private final Id<A> value;
 
@@ -133,7 +133,8 @@ public final class IdPath<A> implements Chainable<A> {
 
   @Override
   public <B, C> IdPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends IdPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -179,11 +180,18 @@ public final class IdPath<A> implements Chainable<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return an {@code IdPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> IdPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> IdPath<B> via(
+      Function<? super A, ? extends Chainable<? extends IdPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
-    Chainable<B> result = mapper.apply(value.value());
+    Chainable<? extends IdPath<?>, B> result = mapper.apply(value.value());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof IdPath<?> idPath)) {
@@ -197,10 +205,10 @@ public final class IdPath<A> implements Chainable<A> {
   }
 
   @Override
-  public <B> IdPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> IdPath<B> then(Supplier<? extends Chainable<? extends IdPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends IdPath<?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof IdPath<?> idPath)) {

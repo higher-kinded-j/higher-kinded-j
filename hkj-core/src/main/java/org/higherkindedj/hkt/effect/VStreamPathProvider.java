@@ -33,7 +33,7 @@ import org.higherkindedj.hkt.vstream.VStreamMonad;
  * Kind<VStreamKind.Witness, String> kind = VStreamKindHelper.VSTREAM.widen(stream);
  *
  * // Discover and create path via SPI
- * Optional<Chainable<String>> path = Path.from(kind, VStreamKind.Witness.class);
+ * Optional<Chainable<?, String>> path = Path.from(kind, VStreamKind.Witness.class);
  * }</pre>
  *
  * @see PathProvider
@@ -48,7 +48,7 @@ public class VStreamPathProvider implements PathProvider<VStreamKind.Witness> {
   }
 
   @Override
-  public <A> Chainable<A> createPath(Kind<VStreamKind.Witness, A> kind) {
+  public <A> Chainable<?, A> createPath(Kind<VStreamKind.Witness, A> kind) {
     VStream<A> stream = VStreamKindHelper.VSTREAM.narrow(kind);
     return new DefaultVStreamPath<>(stream);
   }

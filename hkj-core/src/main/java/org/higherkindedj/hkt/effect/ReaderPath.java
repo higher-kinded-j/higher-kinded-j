@@ -68,7 +68,7 @@ import org.higherkindedj.optics.focus.FocusPath;
  * @param <R> the environment type
  * @param <A> the type of the computed value
  */
-public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
+public final class ReaderPath<R, A> implements Chainable<ReaderPath<? super R, ?>, A>, Deferred<A> {
 
   private final Reader<R, A> reader;
 
@@ -172,7 +172,8 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
 
   @Override
   public <B, C> ReaderPath<R, C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends ReaderPath<? super R, ?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -180,7 +181,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
       throw new IllegalArgumentException("Cannot zipWith non-ReaderPath: " + other.getClass());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // a Reader only reads its environment
     ReaderPath<R, B> typedOther = (ReaderPath<R, B>) otherReader;
 
     return new ReaderPath<>(
@@ -204,8 +205,8 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
    * @return a new path containing the combined result
    */
   public <B, C, D> ReaderPath<R, D> zipWith3(
-      ReaderPath<R, B> second,
-      ReaderPath<R, C> third,
+      ReaderPath<? super R, B> second,
+      ReaderPath<? super R, C> third,
       Function3<? super A, ? super B, ? super C, ? extends D> combiner) {
     Objects.requireNonNull(second, "second must not be null");
     Objects.requireNonNull(third, "third must not be null");
@@ -224,14 +225,22 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code ReaderPath} whose environment is {@code R} or a supertype of
+   * it, a step that needs no more than this path's environment; another kind of Path does not
+   * compile.
+   */
   @Override
-  public <B> ReaderPath<R, B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> ReaderPath<R, B> via(
+      Function<? super A, ? extends Chainable<? extends ReaderPath<? super R, ?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     return new ReaderPath<>(
         reader.flatMap(
             a -> {
-              Chainable<B> result = mapper.apply(a);
+              Chainable<? extends ReaderPath<? super R, ?>, B> result = mapper.apply(a);
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof ReaderPath<?, ?> readerPath)) {
@@ -239,14 +248,15 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
                     "via mapper must return ReaderPath, got: " + result.getClass());
               }
 
-              @SuppressWarnings("unchecked")
+              @SuppressWarnings("unchecked") // a Reader only reads its environment
               ReaderPath<R, B> typedResult = (ReaderPath<R, B>) readerPath;
               return typedResult.reader;
             }));
   }
 
   @Override
-  public <B> ReaderPath<R, B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> ReaderPath<R, B> then(
+      Supplier<? extends Chainable<? extends ReaderPath<? super R, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new ReaderPath<>(
@@ -256,7 +266,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
               // consistency)
               this.reader.run(env);
 
-              Chainable<B> result = supplier.get();
+              Chainable<? extends ReaderPath<? super R, ?>, B> result = supplier.get();
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof ReaderPath<?, ?> readerPath)) {
@@ -264,7 +274,7 @@ public final class ReaderPath<R, A> implements Chainable<A>, Deferred<A> {
                     "then supplier must return ReaderPath, got: " + result.getClass());
               }
 
-              @SuppressWarnings("unchecked")
+              @SuppressWarnings("unchecked") // a Reader only reads its environment
               ReaderPath<R, B> typedResult = (ReaderPath<R, B>) readerPath;
               return typedResult.reader.run(env);
             }));

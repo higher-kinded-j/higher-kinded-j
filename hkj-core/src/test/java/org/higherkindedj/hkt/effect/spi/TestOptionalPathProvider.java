@@ -28,9 +28,9 @@ public class TestOptionalPathProvider implements PathProvider<OptionalKind.Witne
 
   @Override
   @SuppressWarnings("unchecked")
-  public <A> Chainable<A> createPath(Kind<OptionalKind.Witness, A> kind) {
+  public <A> Chainable<?, A> createPath(Kind<OptionalKind.Witness, A> kind) {
     Optional<A> optional = OptionalKindHelper.OPTIONAL.narrow(kind);
-    return (Chainable<A>) Path.optional(optional);
+    return (Chainable<?, A>) Path.optional(optional);
   }
 
   @Override

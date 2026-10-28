@@ -57,7 +57,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the type of the success value
  */
-public final class TryPath<A> implements Recoverable<Throwable, A> {
+public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
 
   private final Try<A> value;
 
@@ -239,7 +239,8 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
 
   @Override
   public <B, C> TryPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends TryPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -301,8 +302,15 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return a {@code TryPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> TryPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> TryPath<B> via(
+      Function<? super A, ? extends Chainable<? extends TryPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     if (value.isFailure()) {
@@ -313,7 +321,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
 
     try {
       A successValue = value.get();
-      Chainable<B> result = mapper.apply(successValue);
+      Chainable<? extends TryPath<?>, B> result = mapper.apply(successValue);
       Objects.requireNonNull(result, "mapper must not return null");
 
       if (!(result instanceof TryPath<?> tryPath)) {
@@ -330,7 +338,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   }
 
   @Override
-  public <B> TryPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> TryPath<B> then(Supplier<? extends Chainable<? extends TryPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     if (value.isFailure()) {
@@ -340,7 +348,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
     }
 
     try {
-      Chainable<B> result = supplier.get();
+      Chainable<? extends TryPath<?>, B> result = supplier.get();
       Objects.requireNonNull(result, "supplier must not return null");
 
       if (!(result instanceof TryPath<?> tryPath)) {
@@ -368,11 +376,14 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
 
   @Override
   public TryPath<A> recoverWith(
-      Function<? super Throwable, ? extends Recoverable<Throwable, A>> recovery) {
+      Function<
+              ? super Throwable,
+              ? extends Recoverable<? extends TryPath<?>, ? extends Throwable, A>>
+          recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
     return value.foldFailureFirst(
         ex -> {
-          Recoverable<Throwable, A> result = recovery.apply(ex);
+          Recoverable<? extends TryPath<?>, ? extends Throwable, A> result = recovery.apply(ex);
           Objects.requireNonNull(result, "recovery must not return null");
           if (!(result instanceof TryPath<?> tryPath)) {
             throw new IllegalArgumentException(
@@ -386,12 +397,13 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   }
 
   @Override
-  public TryPath<A> orElse(Supplier<? extends Recoverable<Throwable, A>> alternative) {
+  public TryPath<A> orElse(
+      Supplier<? extends Recoverable<? extends TryPath<?>, ? extends Throwable, A>> alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     if (value.isSuccess()) {
       return this;
     }
-    Recoverable<Throwable, A> result = alternative.get();
+    Recoverable<? extends TryPath<?>, ? extends Throwable, A> result = alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof TryPath<?> tryPath)) {
       throw new IllegalArgumentException(
@@ -404,12 +416,13 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <E2> Recoverable<E2, A> mapError(Function<? super Throwable, ? extends E2> mapper) {
+  public <E2> Recoverable<TryPath<?>, E2, A> mapError(
+      Function<? super Throwable, ? extends E2> mapper) {
     // TryPath uses Throwable as a fixed error type. mapError transforms the error type,
     // but for TryPath we can't actually change the underlying Throwable.
     // We return this cast to the new error type, which is a limitation of the type system.
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<E2, A>) this;
+    return (Recoverable<TryPath<?>, E2, A>) this;
   }
 
   /**

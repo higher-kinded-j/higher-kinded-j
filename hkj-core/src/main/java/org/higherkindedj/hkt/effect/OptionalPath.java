@@ -67,7 +67,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @param <A> the type of the contained value
  */
-public final class OptionalPath<A> implements Chainable<A> {
+public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
 
   private final Optional<A> value;
 
@@ -280,7 +280,8 @@ public final class OptionalPath<A> implements Chainable<A> {
 
   @Override
   public <B, C> OptionalPath<C> zipWith(
-      Combinable<B> other, BiFunction<? super A, ? super B, ? extends C> combiner) {
+      Combinable<? extends OptionalPath<?>, B> other,
+      BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
@@ -328,15 +329,22 @@ public final class OptionalPath<A> implements Chainable<A> {
 
   // ===== Chainable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * <p>The mapper must return an {@code OptionalPath}; a step of another kind does not compile, so
+   * convert it first.
+   */
   @Override
-  public <B> OptionalPath<B> via(Function<? super A, ? extends Chainable<B>> mapper) {
+  public <B> OptionalPath<B> via(
+      Function<? super A, ? extends Chainable<? extends OptionalPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
     if (value.isEmpty()) {
       return new OptionalPath<>(Optional.empty());
     }
 
-    Chainable<B> result = mapper.apply(value.get());
+    Chainable<? extends OptionalPath<?>, B> result = mapper.apply(value.get());
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof OptionalPath<?> optionalPath)) {
@@ -350,14 +358,15 @@ public final class OptionalPath<A> implements Chainable<A> {
   }
 
   @Override
-  public <B> OptionalPath<B> then(Supplier<? extends Chainable<B>> supplier) {
+  public <B> OptionalPath<B> then(
+      Supplier<? extends Chainable<? extends OptionalPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     if (value.isEmpty()) {
       return new OptionalPath<>(Optional.empty());
     }
 
-    Chainable<B> result = supplier.get();
+    Chainable<? extends OptionalPath<?>, B> result = supplier.get();
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof OptionalPath<?> optionalPath)) {
