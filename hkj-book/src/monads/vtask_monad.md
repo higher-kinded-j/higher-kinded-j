@@ -313,7 +313,7 @@ try {
 
 ---
 
-## Parallel Composition with Par
+## Parallel Composition with Par {#parallel-composition-with-par}
 
 The `Par` utility class provides combinators for executing VTasks concurrently:
 

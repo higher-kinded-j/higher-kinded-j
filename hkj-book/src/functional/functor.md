@@ -128,7 +128,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
 
-The test checks both laws on a `Just`, a `Nothing` and an `IO`:
+The test checks both laws on a `Just`, a `Nothing` and an `IO`, where `ORDER` is any `Order`:
 
 ```java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:functor_laws}}
@@ -166,7 +166,8 @@ You can now write a method that maps inside any container, as `totals` does, and
 |---|---|
 | Every token in `Witnesses` | Their `Monad`, so [`Instances.functor(token)` always succeeds](instances_facade.md#what-the-compiler-checks) |
 | `Validated`, `Writer`, `EitherOrBoth` and the transformers | Their `Monad`, from `Instances` with its argument, such as `Instances.validated(semigroup)` |
-| `Const` and `FreeAp` | An `Applicative`, with no `Monad` |
+| `Free` | Its `Monad`, built with `new FreeMonad<>()` |
+| `Const`, `FreeAp` and `Fetch` | An `Applicative`, with no `Monad` |
 | `EitherF` | `EitherFFunctor` alone |
 | `Coyoneda` | `CoyonedaFunctor`, which gives a `Functor` to a type that has none, as [Coyoneda](../monads/coyoneda.md) shows |
 

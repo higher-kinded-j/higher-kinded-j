@@ -332,7 +332,11 @@
     "functional/functor.html#admonition-interface-signature": "functional/functor.html#what-map-promises",
     "functional/functor.html#two-laws-that-keep-us-honest": "functional/functor.html#two-laws",
     "functional/functor.html#a-single-map-five-different-containers": "functional/functor.html#one-method-for-any-container",
-    "functional/functor.html#generic-code-for-free": "functional/functor.html#one-method-for-any-container"
+    "functional/functor.html#generic-code-for-free": "functional/functor.html#one-method-for-any-container",
+    "functional/applicative.html#what-an-applicative-provides": "functional/applicative.html#what-an-applicative-adds",
+    "functional/applicative.html#admonition-interface-signature": "functional/applicative.html#what-an-applicative-adds",
+    "functional/applicative.html#the-reason-we-care-error-accumulation": "functional/applicative.html#what-each-instance-does",
+    "functional/applicative.html#when-to-use-applicative-instead-of-monad": "functional/applicative.html#map3-or-flatmap"
   };
 
   function target() {
