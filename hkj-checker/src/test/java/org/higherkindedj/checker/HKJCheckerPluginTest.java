@@ -74,7 +74,8 @@ class HKJCheckerPluginTest {
    * The gate that keeps every check off annotation-processor output.
    *
    * <p>The fixture is a path-type mismatch, the checker's most severe diagnostic (a build-failing
-   * error), so a generated unit escaping the gate would be impossible to miss.
+   * error), so a generated unit escaping the gate would be impossible to miss. Its receiver is raw,
+   * so javac accepts the call and the checker's error is the only one.
    */
   @Nested
   @DisplayName("generated-source gate")
@@ -87,13 +88,14 @@ class HKJCheckerPluginTest {
           """
           package test;
 
+          import org.higherkindedj.hkt.effect.MaybePath;
           import org.higherkindedj.hkt.effect.Path;
           %s
 
           %s
           public class MismatchVia {
               public void mismatchedVia() {
-                  Path.just(1).via(_ -> Path.io(() -> 2));
+                  ((MaybePath) Path.just(1)).via(_ -> Path.io(() -> 2));
               }
           }
           """
@@ -145,19 +147,21 @@ class HKJCheckerPluginTest {
                   """
                   package test;
 
+                  import org.higherkindedj.hkt.effect.MaybePath;
                   import org.higherkindedj.hkt.effect.Path;
+                  import org.higherkindedj.hkt.effect.IOPath;
                   import org.higherkindedj.optics.annotations.Generated;
 
                   public class HandWritten {
                       public void mine() {
-                          Path.just(1).via(_ -> Path.io(() -> 2));
+                          ((MaybePath) Path.just(1)).via(_ -> Path.io(() -> 2));
                       }
                   }
 
                   @Generated
                   class GeneratedSibling {
                       public void theirs() {
-                          Path.io(() -> 1).via(_ -> Path.just(2));
+                          ((IOPath) Path.io(() -> 1)).via(_ -> Path.just(2));
                       }
                   }
                   """));
@@ -195,20 +199,24 @@ class HKJCheckerPluginTest {
   @DisplayName("@SuppressWarnings gate")
   class SuppressWarningsGate {
 
-    /** The same mismatched {@code via()}, with annotations placed on class and method. */
+    /**
+     * The same mismatched {@code via()} on a raw receiver, which javac accepts, with annotations
+     * placed on class and method.
+     */
     private JavaFileObject mismatchSource(String onClass, String onMethod) {
       return JavaFileObjects.forSourceString(
           "test.MismatchVia",
           """
           package test;
 
+          import org.higherkindedj.hkt.effect.IOPath;
           import org.higherkindedj.hkt.effect.Path;
 
           %s
           public class MismatchVia {
               %s
               public void mismatchedVia() {
-                  Path.io(() -> 1).via(_ -> Path.just(2));
+                  ((IOPath) Path.io(() -> 1)).via(_ -> Path.just(2));
               }
           }
           """
@@ -266,12 +274,13 @@ class HKJCheckerPluginTest {
               """
               package test;
 
+              import org.higherkindedj.hkt.effect.MaybePath;
               import org.higherkindedj.hkt.effect.Path;
 
               @SuppressWarnings("hkj-checker")
               public class Suppressed {
                   public void mismatched() {
-                      Path.just(1).via(_ -> Path.io(() -> 2));
+                      ((MaybePath) Path.just(1)).via(_ -> Path.io(() -> 2));
                   }
               }
               """);
@@ -281,11 +290,12 @@ class HKJCheckerPluginTest {
               """
               package test;
 
+              import org.higherkindedj.hkt.effect.MaybePath;
               import org.higherkindedj.hkt.effect.Path;
 
               public class Plain {
                   public void mismatched() {
-                      Path.just(1).via(_ -> Path.io(() -> 2));
+                      ((MaybePath) Path.just(1)).via(_ -> Path.io(() -> 2));
                   }
               }
               """);
@@ -314,16 +324,17 @@ class HKJCheckerPluginTest {
                   """
                   package test;
 
+                  import org.higherkindedj.hkt.effect.IOPath;
                   import org.higherkindedj.hkt.effect.Path;
 
                   public class MismatchVia {
                       @SuppressWarnings("hkj-checker")
                       public void suppressed() {
-                          Path.io(() -> 1).via(_ -> Path.just(2));
+                          ((IOPath) Path.io(() -> 1)).via(_ -> Path.just(2));
                       }
 
                       public void notSuppressed() {
-                          Path.io(() -> 1).via(_ -> Path.just(2));
+                          ((IOPath) Path.io(() -> 1)).via(_ -> Path.just(2));
                       }
                   }
                   """));

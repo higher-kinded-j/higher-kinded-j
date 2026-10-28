@@ -55,9 +55,9 @@ class PathTypeRegistryTest {
   class RegisteredTypeCount {
 
     @Test
-    @DisplayName("returns 28 for all registered Path types")
+    @DisplayName("returns 29 for all registered Path types")
     void registeredTypeCount_returnsExpectedCount() {
-      assertThat(PathTypeRegistry.registeredTypeCount()).isEqualTo(28);
+      assertThat(PathTypeRegistry.registeredTypeCount()).isEqualTo(29);
     }
   }
 

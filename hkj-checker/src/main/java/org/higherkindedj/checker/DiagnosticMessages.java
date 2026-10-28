@@ -138,31 +138,77 @@ public final class DiagnosticMessages {
   }
 
   /**
-   * Formats the diagnostic for a silently-erased error-type mismatch in an error-typed Path chain.
-   *
-   * <p>{@code via}/{@code flatMap}/{@code then}/{@code zipWith} bind the next step to {@code
-   * Chainable<B>}, which does not carry the error type. A step whose error type {@code E} differs
-   * from the receiver's therefore compiles, and the wrong {@code E} is carried at runtime (latent
-   * {@code ClassCastException} when the error is consumed). There is no javac error here — without
-   * this check the mismatch is entirely silent.
+   * Formats the note for a step whose error shares a supertype with a chain typed too narrowly: the
+   * fix is to type the chain on the supertype where it is typed.
    *
    * @param methodName the chain method (e.g. "via")
-   * @param receiverE the receiver's error type, simple name
-   * @param stepE the offending step's error type, simple name
+   * @param chainE the chain's error type, simple name
+   * @param stepE the step's error type, simple name
+   * @param supertype the most specific supertype of both, simple name
+   * @param witness what to write where the chain is typed (e.g. ".<OrderError>mapError(...)")
    * @return a formatted message
    */
-  public static String errorTypeMismatch(String methodName, String receiverE, String stepE) {
+  public static String errorTypeNarrowChain(
+      String methodName, String chainE, String stepE, String supertype, String witness) {
     String body =
         String.format(
             Locale.ROOT,
-            "Error type is silently mismatched in %s(): the chain carries E=%s but this step yields "
-                + "E=%s, which is not assignable to %s. The chain erases E through Chainable<B>, so "
-                + "the wrong error type is carried at runtime (latent ClassCastException). Use the "
-                + "same error type across the chain, or mapError at the boundary.",
+            "Error type mismatch in %s(): the chain is typed on %s, and this step fails with %s. "
+                + "Type the chain on %s where it is typed: write %s.",
             methodName,
-            receiverE,
+            chainE,
             stepE,
-            receiverE);
+            supertype,
+            witness);
+    return withDocLink(body, "effect/compiler_errors.html");
+  }
+
+  /**
+   * Formats the note for a step typed on a catch-all such as {@code Object}, because nothing gave
+   * its own chain an error type: the fix is to type it on the chain's error where it starts.
+   *
+   * @param methodName the chain method (e.g. "via")
+   * @param stepE the step's error type, simple name
+   * @param chainE the chain's error type, simple name
+   * @param witness what to write where the step's chain starts (e.g. "Path.<OrderError,
+   *     Order>right(...)"), or {@code null} when the start cannot be named
+   * @return a formatted message
+   */
+  public static String errorTypeUntypedStep(
+      String methodName, String stepE, String chainE, String witness) {
+    String body =
+        String.format(
+            Locale.ROOT,
+            "Error type mismatch in %s(): this step is typed on %s, because nothing gave its "
+                + "chain an error type. Type it on %s where it starts%s.",
+            methodName,
+            stepE,
+            chainE,
+            witness == null ? "" : ": write " + witness);
+    return withDocLink(body, "effect/compiler_errors.html");
+  }
+
+  /**
+   * Formats the note for a step whose error type is unrelated to the chain's: the fix is to map the
+   * step's error into the chain's.
+   *
+   * @param methodName the chain method (e.g. "via")
+   * @param stepE the step's error type, simple name
+   * @param chainE the chain's error type, simple name
+   * @param mapping the method that maps the step's error (e.g. ".mapError(...)")
+   * @return a formatted message
+   */
+  public static String errorTypeUnrelatedStep(
+      String methodName, String stepE, String chainE, String mapping) {
+    String body =
+        String.format(
+            Locale.ROOT,
+            "Error type mismatch in %s(): this step fails with %s, which does not extend %s. "
+                + "Map it into the chain's error type inside the step, with %s.",
+            methodName,
+            stepE,
+            chainE,
+            mapping);
     return withDocLink(body, "effect/compiler_errors.html");
   }
 

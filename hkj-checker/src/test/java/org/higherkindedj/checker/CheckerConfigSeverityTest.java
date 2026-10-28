@@ -148,35 +148,30 @@ class CheckerConfigSeverityTest {
                   "test.Promote",
                   """
                   package test;
-                  import org.higherkindedj.hkt.effect.Path;
                   import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.higherkindedj.hkt.effect.Path;
                   public class Promote {
-                      static final class AppError {}
-                      static final class User {}
-                      EitherPath<String, User> lookupUser(String id) {
-                          return Path.<String, User>right(new User());
-                      }
-                      EitherPath<AppError, User> run(EitherPath<AppError, String> v) {
-                          return v.via(id -> lookupUser(id));
+                      EitherPath<String, EitherPath<String, Integer>> run(EitherPath<String, Integer> p) {
+                          return p.map(x -> Path.<String, Integer>right(x));
                       }
                   }
                   """));
     }
 
     @Test
-    @DisplayName("default: error-type-mismatch is a warning, build passes")
+    @DisplayName("default: map-nests-effect is a warning, build passes")
     void defaultWarn() {
       Compilation c = compileWith("");
       CompilationSubject.assertThat(c).succeeded();
-      CompilationSubject.assertThat(c).hadWarningContaining("Error type is silently mismatched");
+      CompilationSubject.assertThat(c).hadWarningContaining("map() here nests the effect");
     }
 
     @Test
-    @DisplayName("severity:error-type-mismatch=error promotes it; build now fails")
+    @DisplayName("severity:map-nests-effect=error promotes it; build now fails")
     void promotedToError() {
-      Compilation c = compileWith("severity:error-type-mismatch=error");
+      Compilation c = compileWith("severity:map-nests-effect=error");
       CompilationSubject.assertThat(c).failed();
-      CompilationSubject.assertThat(c).hadErrorContaining("Error type is silently mismatched");
+      CompilationSubject.assertThat(c).hadErrorContaining("map() here nests the effect");
     }
   }
 }
