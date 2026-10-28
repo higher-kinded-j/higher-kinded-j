@@ -20,6 +20,7 @@ The documentation is deployed to `higher-kinded-j.github.io` with the following 
 higher-kinded-j.github.io/
 ├── index.html              # Root redirect page (redirects to stable version)
 ├── versions.json           # Metadata about all versions
+├── announcement.json       # The site announcement, or {} for none
 ├── latest/                 # Snapshot from main branch
 │   ├── index.html
 │   ├── home.html
@@ -55,9 +56,17 @@ higher-kinded-j.github.io/
    - Shows version badges
    - Displays outdated version warnings
 
-4. **Scripts**
+4. **Site Announcement**
+   - **Data**: `.github/scripts/announcement.json`, checked and copied to the root by each `/latest/` deploy
+   - **JavaScript**: `hkj-book/theme/announcement.js`, in every copy from 0.6.0, and in an older copy re-deployed with the current theme
+   - **CSS**: `hkj-book/theme/additional-hkj.css`
+   - Shows one line of news above every page, until its last day or until the reader closes it
+   - `docs/STYLE-GUIDE.md`, "Site Announcements", says how to post one
+
+5. **Scripts**
    - `update_versions.py`: Updates versions.json metadata
    - `root-index.html`: Landing page with version selection
+   - `announcement-check.cjs`: Checks `announcement.json` in Book Checks and before the deploy copies it
 
 ## Usage
 
@@ -236,6 +245,7 @@ If you migrated from the old (non-versioned) documentation system, old files may
 The cleanup workflow removes all root-level files except:
 - `index.html` (redirect page)
 - `versions.json` (version metadata)
+- `404.html`, `robots.txt`, `llms.txt`, `llms-full.txt`, `preview.png` and `announcement.json` (written to the root by the deploy)
 - `latest/` (snapshot directory)
 - `v*/` (versioned release directories)
 - `.nojekyll` and `CNAME` (GitHub Pages config)
@@ -254,5 +264,5 @@ Potential improvements to consider:
 ## References
 
 - Workflow: `.github/workflows/deploy-mdbook-versioned.yml`
-- Scripts: `.github/scripts/update_versions.py`, `.github/scripts/root-index.html`
-- Theme files: `hkj-book/theme/index.hbs`, `hkj-book/theme/version-switcher.js`, `hkj-book/theme/additional-hkj.css`
+- Scripts: `.github/scripts/update_versions.py`, `.github/scripts/root-index.html`, `.github/scripts/announcement.json`, `.github/scripts/announcement-check.cjs`
+- Theme files: `hkj-book/theme/index.hbs`, `hkj-book/theme/version-switcher.js`, `hkj-book/theme/announcement.js`, `hkj-book/theme/additional-hkj.css`

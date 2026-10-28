@@ -447,7 +447,7 @@ At release:
 1. **Finish every edit in `unreleased.md` first.** Once it is renamed, the readability and spelling checks stop reading it, so the cut is a rename and a new title only.
 2. **Rename it to the version's page**, `vX_Y_Z.md`. Its title becomes `# vX.Y.Z (D Month YYYY) {#vXYZ-d-month-yyyy}`, as in `# v0.4.11 (5 October 2026) {#v0411-5-october-2026}`. Put the `[vX.Y.Z on GitHub](...)` line under it, in place of the not-released line.
 3. **Start a fresh `unreleased.md` for the next version.** Keep the skeleton: the title, the not-released line, At a glance, the area headings, and the Upgrading section's headings and tables, emptied.
-4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, the legacy-anchor entry for the old unreleased heading, and the home page band's head link while the band shows the coming version.
+4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme .github/scripts/announcement.json` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, the legacy-anchor entry for the old unreleased heading, the home page band's head link while the band shows the coming version, and a site announcement's link.
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
 7. **Turn the home page's band into the version's "New in" band**, as [The Home Page Band](#the-home-page-band) says. If it shows the coming version, drop `hkj-spotlight-snapshot` from its classes, write "New in X.Y.Z" in its eyebrow, and make its head link "All changes in X.Y.Z", pointing at the version's page. Then hold its cards to the release's At a glance: up to three headlines, each linked to the page that teaches it.
@@ -468,6 +468,38 @@ A headline is a change a reader would upgrade for, rather than a fix or a refine
 Each card is HTML around Markdown. Keep a blank line on each side of the Markdown, or mdBook passes it through as raw text. Write links in Markdown, not `<a href>`, so that mdBook rewrites `.md` to `.html` and the anchor check sees them. Keep the lead card's code under `<!-- verify -->`: the snippet gate compiles it against `main`, with names from `hkj-examples/src/test/resources/fixtures/home.java`.
 
 Keep the `hkj-spotlight` class names. A re-deploy of an old tag builds its pages with the current theme, so a renamed class breaks the band in every release's copy.
+
+### Site Announcements
+
+A site announcement is one line of news above every page of the book: an event, a survey, a release candidate to try, or the date a deprecation takes effect. What a release brings belongs in the home page band instead.
+
+It lives in `.github/scripts/announcement.json`, which holds `{}` when there is none. Each deploy of `/latest/` checks the file and copies it to the site root, where `hkj-book/theme/announcement.js` reads it. The bar shows on `/latest/` and on every release's copy from 0.6.0. A copy built before 0.6.0 shows none, unless a re-deploy rebuilds it with the current theme.
+
+Merging the pull request starts that deploy, since it runs on any change under `.github/scripts/`. The bar appears or goes once the deploy and the GitHub Pages build finish, and a browser may keep the old file for ten minutes more.
+
+```json
+{
+  "id": "survey-2026",
+  "text": "The 2026 user survey is open until 30 November.",
+  "showUntil": "2026-11-30",
+  "link": "https://example.org/hkj-survey-2026",
+  "linkText": "Take the survey"
+}
+```
+
+- **Show one at a time, in one sentence.** The check holds `text` to 160 characters and `linkText` to 40, so the bar stays a line or two on a phone.
+- **Write plain text.** The bar shows the text as written, so HTML or Markdown in it shows as tags and brackets.
+- **Spell it the British way.** The spelling check does not read JSON, so the review must.
+- **Always give a last day.** `showUntil` is the last day it shows, by the reader's own calendar, and the bar hides itself after that without a deploy. Replace the file's contents with `{}` once it has passed.
+- **Give new news a new `id`.** A reader who closes the bar does not see that `id` again. A reworded announcement keeps its `id`, but a correction every reader must see takes a new one.
+- **Link to an https URL or a path under `/latest/`.** A path such as `/latest/release-history.html` names the same page from every copy, where a relative link would not. `link` and `linkText` go together.
+- **Keep the file.** `{}` removes an announcement, and a missing file stops the `/latest/` deploy.
+
+Book Checks and the deploy run `.github/scripts/announcement-check.cjs` on the file. It fails on a field it does not know, a missing field, a date it cannot read, HTML or Markdown in the text, or a link the bar would not show.
+
+To see the bar locally, run `hkj-book/serve.sh`, then copy the file into `hkj-book/book/`. mdBook clears that folder on its next rebuild. A `/latest/` link has no page on the local server, and a closed bar stays closed until the `hkj-announcement-dismissed` entry is cleared from the browser's local storage.
+
+Keep the file readable by the 0.6.0 script, since every copy reads it with the script it was built with. Add optional fields only; never rename, remove, loosen or change the meaning of one. Keep the `/announcement.json` path and the `hkj-announcement-dismissed` key too.
 
 ### Headings and Subtitles
 

@@ -137,7 +137,7 @@ jobs:
         run: |
           .github/scripts/fetch_mermaid.sh
 
-      - name: Set up Node for the mermaid parse check
+      - name: Set up Node for the mermaid parse check and the announcement check
         uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -146,6 +146,12 @@ jobs:
         run: |
           npm ci --no-audit --no-fund --prefix .github/scripts/mermaid-check
           node .github/scripts/mermaid-check/check.cjs
+
+      # Only /latest/ publishes the announcement, and a tag cut from a release
+      # branch may predate the file, so only a /latest/ build checks it.
+      - name: Check the site announcement
+        if: steps.version.outputs.version == 'latest'
+        run: node .github/scripts/announcement-check.cjs
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -269,7 +275,7 @@ jobs:
           ls -la "$DEPLOY_PATH"
         shell: bash
 
-      - name: Create/update root index.html, 404.html, robots.txt, llms.txt, and social preview image
+      - name: Create/update root index.html, 404.html, robots.txt, llms.txt, announcement.json, and social preview image
         env:
           DEPLOY_VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -295,6 +301,15 @@ jobs:
                 echo "$f copied to root"
               fi
             done
+          fi
+
+          # Copy the site announcement, checked above, to the root, where
+          # announcement.js in every copy of the book from 0.6.0 reads it. Only a
+          # /latest/ build does: a tag cut from a release branch, such as a 0.5.x
+          # patch, carries that branch's file, or none.
+          if [ "$DEPLOY_VERSION" = "latest" ]; then
+            cp .github/scripts/announcement.json gh-pages-repo/announcement.json
+            echo "announcement.json copied to root"
           fi
 
           # Copy social preview image to root for Open Graph meta tags

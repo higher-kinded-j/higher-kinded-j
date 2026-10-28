@@ -7,6 +7,8 @@ name: Cleanup Old Root Documentation
 # EXCEPT:
 # - index.html (the redirect page)
 # - versions.json (version metadata)
+# - the other files deploy-mdbook-versioned.yml writes to the root: 404.html,
+#   robots.txt, llms.txt, llms-full.txt, preview.png and announcement.json
 # - latest/ directory
 # - v*/ version directories
 # - .nojekyll file
@@ -48,6 +50,7 @@ jobs:
           echo "=== Files and directories that will be KEPT ==="
           echo "- index.html (redirect page)"
           echo "- versions.json (version metadata)"
+          echo "- 404.html, robots.txt, llms.txt, llms-full.txt, preview.png, announcement.json (written to the root by the deploy)"
           echo "- latest/ (latest snapshot)"
           echo "- v*/ (versioned releases)"
           echo "- .nojekyll (GitHub Pages config)"
@@ -61,7 +64,7 @@ jobs:
           for item in *; do
             # Skip items we want to keep
             case "$item" in
-              index.html|versions.json|.nojekyll|CNAME|.git)
+              index.html|versions.json|404.html|robots.txt|llms.txt|llms-full.txt|preview.png|announcement.json|.nojekyll|CNAME|.git)
                 echo "KEEP: $item"
                 ;;
               latest)
@@ -103,7 +106,7 @@ jobs:
 
           for item in *; do
             case "$item" in
-              index.html|versions.json|.nojekyll|CNAME|.git|latest)
+              index.html|versions.json|404.html|robots.txt|llms.txt|llms-full.txt|preview.png|announcement.json|.nojekyll|CNAME|.git|latest)
                 ;;
               v[0-9]*)
                 ;;
@@ -134,7 +137,7 @@ jobs:
 
           for item in *; do
             case "$item" in
-              index.html|versions.json|.nojekyll|CNAME|.git|latest)
+              index.html|versions.json|404.html|robots.txt|llms.txt|llms-full.txt|preview.png|announcement.json|.nojekyll|CNAME|.git|latest)
                 echo "Keeping: $item"
                 ;;
               v[0-9]*)

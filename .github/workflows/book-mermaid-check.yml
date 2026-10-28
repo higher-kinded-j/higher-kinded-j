@@ -1,6 +1,6 @@
 name: Book Checks
 
-# Four things the published book cannot tell you are broken until a reader
+# Five things the published book cannot tell you are broken until a reader
 # sees them, so they fail the PR instead:
 #   - every ```mermaid fence in hkj-book/src is parsed against the pinned
 #     browser-side mermaid library, catching a diagram syntax error before it
@@ -10,7 +10,9 @@ name: Book Checks
 #   - every cross-reference is resolved, because a link into a heading that has
 #     been reworded lands the reader at the top of the page and says nothing;
 #   - every chapter's Previous and Next links are checked against SUMMARY.md,
-#     because a page added or moved there leaves its neighbours linking past it.
+#     because a page added or moved there leaves its neighbours linking past it;
+#   - the site announcement is checked against its format, because the book
+#     shows nothing for one it cannot read and says nothing about why.
 # The prose of the book's pages is also measured against the style guide's
 # readability limits and compared with a committed baseline, so a pull request
 # that raises a page's count of long sentences fails and says where.
@@ -23,6 +25,8 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/announcement.json'
+      - '.github/scripts/announcement-check.cjs'
       - '.github/scripts/book-prose.cjs'
       - '.github/scripts/book-readability-check.cjs'
       - '.github/scripts/book-readability-baseline.json'
@@ -37,6 +41,8 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/announcement.json'
+      - '.github/scripts/announcement-check.cjs'
       - '.github/scripts/book-prose.cjs'
       - '.github/scripts/book-readability-check.cjs'
       - '.github/scripts/book-readability-baseline.json'
@@ -67,6 +73,9 @@ jobs:
 
       - name: Check cross-reference anchors
         run: node .github/scripts/book-anchor-check.cjs
+
+      - name: Check the site announcement
+        run: node .github/scripts/announcement-check.cjs
 
       - name: Fetch pinned mermaid library
         run: .github/scripts/fetch_mermaid.sh
