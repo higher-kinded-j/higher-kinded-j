@@ -23,12 +23,15 @@ jobs:
         uses: actions/checkout@v4
 
       # 2. Check that the repository's prose uses British spelling, as docs/STYLE-GUIDE.md asks.
-      #    It reads only non-code text, and fails fast, before any build.
+      #    It reads only non-code text and needs no build, so it runs first. The steps after it
+      #    run even when a step before them fails (!cancelled()), so one push reports every
+      #    failure: a misspelling or a stale golden file does not hide the build's results.
       - name: Check British spelling in prose
         run: node .github/scripts/british-spelling-check.cjs
 
       # 3. Set up the specified JDK version (Java 25, which the build requires)
       - name: Set up JDK 25
+        if: ${{ !cancelled() }}
         uses: actions/setup-java@v5
         with:
           java-version: '25'
@@ -36,6 +39,7 @@ jobs:
 
       # 4. Grant execute permissions to the Gradle wrapper script
       - name: Grant execute permission for gradlew
+        if: ${{ !cancelled() }}
         run: chmod +x gradlew
 
       # 5. Verify golden files are up to date.
@@ -44,6 +48,7 @@ jobs:
       #    code generator changes are always accompanied by updated golden files. The release
       #    gate (releaseReadiness) runs the same task.
       - name: Verify golden files are up to date
+        if: ${{ !cancelled() }}
         run: |
           if ! ./gradlew :hkj-processor:verifyGoldenFiles; then
             echo "::error::Golden file check failed (see the log). If the golden files are out of date, run ./gradlew :hkj-processor:updateGoldenFiles and commit them."
@@ -55,13 +60,16 @@ jobs:
       #    and generate the XML report needed by Codecov. --continue runs every task that does
       #    not depend on a failed one, so a formatting failure does not hide the test results.
       - name: Build with Gradle & Generate JaCoCo Report
+        id: build
+        if: ${{ !cancelled() }}
         run: ./gradlew build --continue -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
 
-      # 7. Upload the generated JaCoCo XML report to Codecov. A run hosted in a contributor's
-      #    fork has no Codecov token, so it skips the upload; a pull request from a fork runs
-      #    here, and uploads as before.
+      # 7. Upload the generated JaCoCo XML report to Codecov, whenever the build passed, even if
+      #    the spelling or golden file check failed. A run hosted in a contributor's fork has no
+      #    Codecov token, so it skips the upload; a pull request from a fork runs here, and
+      #    uploads as before.
       - name: Upload coverage reports to Codecov
-        if: github.repository == 'higher-kinded-j/higher-kinded-j'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && github.repository == 'higher-kinded-j/higher-kinded-j' }}
         uses: codecov/codecov-action@v4 # Use the official Codecov action
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # Read the token from GitHub secrets
