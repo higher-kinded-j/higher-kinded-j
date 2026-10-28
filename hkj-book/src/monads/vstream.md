@@ -461,7 +461,7 @@ The counter stays at zero after pipeline construction. It only advances when `to
 
 | Aspect | VStream | Java Stream | StreamPath |
 |--------|---------|-------------|------------|
-| Evaluation | Lazy, pull-based | Lazy, push-based | Deferred, rebuilt for each terminal operation |
+| Evaluation | Lazy, pull-based | Lazy, push-based | Source read by `Path.stream` at construction or per run by lazy factories; pipeline rebuilt each terminal operation |
 | Execution | Virtual threads (VTask) | Platform threads | Synchronous |
 | Reusability | Reusable | Single-use | Reusable |
 | Infinite streams | Yes (take, takeWhile) | Yes (limit) | Yes, from `Path.streamIterate` (`take`, `takeWhile`) |
