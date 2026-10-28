@@ -1,11 +1,13 @@
 name: Java CI with Gradle, JaCoCo, and Codecov
 
-# Trigger workflow on pushes to the main branch and any pull request
+# Trigger workflow on pushes to the main branch and any pull request. workflow_dispatch lets a
+# contributor run it on a branch of their fork, from the fork's Actions tab, before opening a PR.
 on:
   push:
     branches: [ "main" ] # Adjust if your main branch is named differently
   pull_request:
     branches: [ "main" ] # Adjust if your main branch is named differently
+  workflow_dispatch:
 
 # Set default permissions for the GITHUB_TOKEN
 permissions:
@@ -50,12 +52,16 @@ jobs:
 
       # 6. Run the Gradle build task.
       #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
-      #    and generate the XML report needed by Codecov.
+      #    and generate the XML report needed by Codecov. --continue runs every task that does
+      #    not depend on a failed one, so a formatting failure does not hide the test results.
       - name: Build with Gradle & Generate JaCoCo Report
-        run: ./gradlew build -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
+        run: ./gradlew build --continue -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
 
-      # 7. Upload the generated JaCoCo XML report to Codecov
+      # 7. Upload the generated JaCoCo XML report to Codecov. A run hosted in a contributor's
+      #    fork has no Codecov token, so it skips the upload; a pull request from a fork runs
+      #    here, and uploads as before.
       - name: Upload coverage reports to Codecov
+        if: github.repository == 'higher-kinded-j/higher-kinded-j'
         uses: codecov/codecov-action@v4 # Use the official Codecov action
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }} # Read the token from GitHub secrets
