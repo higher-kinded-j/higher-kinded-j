@@ -365,7 +365,7 @@ A null element is left out, since the stream's element type is non-null; a `Trav
 
 | Aspect | VStreamPath | StreamPath | VTaskPath |
 |--------|-------------|------------|-----------|
-| **Values** | Zero or more, lazy | Zero or more, factory-dependent | Exactly one, deferred |
+| **Values** | Zero or more, lazy | Zero or more; eager via `Path.stream`; lazy per terminal run via `Path.streamIterate`, `fromSupplier`, `iterate`, and `generate` | Exactly one, deferred |
 | **Evaluation** | Pull-based (lazy) | Deferred, rebuilt for each terminal operation | Deferred |
 | **Execution** | Virtual threads | Synchronous | Virtual threads |
 | **Infinite sources** | Yes | Yes, via lazy factories with `take` | N/A |
