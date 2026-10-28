@@ -68,5 +68,5 @@ The `Functor<F>` parameter carries the implementation; `Kind<F, A>` carries the 
 
 ---
 
-**Previous:** [Traverse Within Comprehensions](../functional/for_traverse.md)
+**Previous:** [For Comprehension](../functional/for_comprehension.md)
 **Next:** [HKT Introduction](hkt_introduction.md)

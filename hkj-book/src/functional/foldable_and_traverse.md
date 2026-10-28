@@ -174,7 +174,7 @@ String joined = ListPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
 ```
 
 ~~~admonish tip title="See Also"
-- [Traverse Within Comprehensions](for_traverse.md) - the full API with `traverse`, `sequence`, and `flatTraverse`
+- [Traversing inside a chain](for_comprehension.md#traversing-inside-a-chain) - the full API with `traverse`, `sequence`, and `flatTraverse`
 - [ForPath Traverse](../effect/forpath_traverse.md) - the same operations through the Effect Path API
 - [Effect Path Cheatsheet](../cheatsheet.md) - the full fold family on `ListPath`, `StreamPath`, and `VStreamPath`
 ~~~
