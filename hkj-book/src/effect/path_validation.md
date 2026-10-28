@@ -69,7 +69,7 @@ ValidationPath<List<String>, String> upper =
 
 ---
 
-## Error Accumulation: The Point of It All
+## Error Accumulation: The Point of It All {#error-accumulation-the-point-of-it-all}
 
 The key operation is `zipWithAccum`, which collects **all** errors:
 

@@ -11,7 +11,7 @@
 
 ---
 
-## Adding the Dependency
+## Adding the Dependency {#adding-the-dependency}
 
 `hkj-test` is published alongside the rest of Higher-Kinded-J on Maven Central.
 

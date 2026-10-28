@@ -1,167 +1,232 @@
+<!-- description: Combine independent values with Applicative: build one value from several with map2 to map5, see what each instance does, and check the four laws with hkj-test. -->
+
 # Applicative: Combining Independent Computations
 
-~~~admonish info title="What We'll Learn"
-- How `ap` lets us apply a wrapped function to a wrapped value
-- Why `map2`, `map3`, and friends are the practical workhorses we will reach for
-- Why `Applicative` is the right tool when we want to *accumulate* errors rather than stop at the first
-- Where `Applicative` sits between `Functor` and `Monad`, and when each one earns its keep
+_Combine values that do not depend on one another, and let each container's instance decide what a failure does._
+
+<!-- source: John Locke, An Essay Concerning Human Understanding, Book II, Chapter XII, section 1, a passage added in the fourth edition (1700); text checked against A. C. Fraser's edition (Clarendon Press, 1894), vol. I, p. 213 -->
+> _"The acts of the mind, wherein it exerts its power over its simple ideas, are chiefly these three: (1) Combining several simple ideas into one compound one; and thus all complex ideas are made."_
+>
+> — John Locke, *An Essay Concerning Human Understanding* (Book II, Chapter XII)
+
+`map3` performs Locke's first act: it combines three checked values into one line item.
+
+~~~admonish info title="What You'll Learn"
+- Build one value from several independent ones with `map2` to `map5`
+- Say what `of` and `ap` add to `Functor`
+- Predict what each instance's `map2` does: combine the errors, keep the first, or give every combination
+- Choose between `map3` and `flatMap` by whether a step needs another's result
+- Check an instance against the four applicative laws with `hkj-test`'s `ApplicativeLaws`
 ~~~
 
-~~~admonish example title="Hands-On Practice"
-[Tutorial03_ApplicativeCombining.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial03_ApplicativeCombining.java)
-~~~
-
-## When `map` Is Not Enough
-
-`Functor` lets us run a function over a single container. Most real code reaches for two or three containers at once.
-
-A registration form has a username, a password, and an email. Each one is validated independently. We want to combine the three results into a `User` if everything is fine, or return *every* error we found if anything is wrong. `Functor.map` cannot help here; it only knows how to lift one input.
-
-```
-   Applicative: independent paths, combined at the end
-
-   validateName("")       ────┐
-   validateEmail("bad")   ────┼──> map3 ──>  Validated<User>
-   validatePassword("?")  ────┘
-   (all three run, errors accumulate)
-```
-
-`Applicative` is the type class that names this pattern. It adds two operations to `Functor` and gets a fistful of useful combinators in return.
-
----
-
-## What an `Applicative` Provides
-
-An `Applicative<F>` is a `Functor<F>` plus two methods:
-
-1. **`of`** (sometimes called `pure`): lift a plain value into the container. `of(42)` becomes `Optional.of(42)`, `Either.right(42)`, `Just(42)`, depending on the instance.
-2. **`ap`**: apply a function that *lives inside the container* to a value that also lives inside the container. `ap(Optional<Function<A, B>>, Optional<A>) -> Optional<B>`.
-
-`ap` is the part that surprises new readers, because we rarely write `Optional<Function<A, B>>` ourselves. We do not need to. The library uses `ap` and `map` together to build `map2`, `map3`, `map4`, and so on, and those are what we actually call.
-
-~~~admonish note title="Interface Signature"
-```java
-@NullMarked
-public interface Applicative<F extends WitnessArity<TypeArity.Unary>> extends Functor<F> {
-
-  <A> @NonNull Kind<F, A> of(@Nullable A value);
-
-  <A, B> @NonNull Kind<F, B> ap(
-      Kind<F, ? extends Function<A, B>> ff,
-      Kind<F, A> fa);
-
-  default <A, B, C> @NonNull Kind<F, C> map2(
-      Kind<F, A> fa,
-      Kind<F, B> fb,
-      BiFunction<? super A, ? super B, ? extends C> f) {
-    return ap(map(a -> b -> f.apply(a, b), fa), fb);
-  }
-
-  // map3, map4, map5 build similarly on top of ap and map
-}
-```
+~~~admonish example title="See Example Code"
+**The code on this page is [ApplicativeBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java)**: the page includes it, so the build compiles and runs it. [ApplicativeBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBookTest.java) holds what the page says each instance does, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws.
 ~~~
 
 ---
 
-## The Reason We Care: Error Accumulation
+## When `map` is not enough {#when-map-is-not-enough}
 
-`Monad.flatMap` short-circuits on the first failure. That is exactly what we want for sequencing dependent steps, and exactly the wrong thing when we want to validate a form. A user who submits a bad username, a bad password, and a bad email expects to see all three errors at once, not have to fix one and resubmit three times.
+[Functor](functor.md)'s `map` changes the value inside one container, and cannot reach a second. A line item needs three values: a SKU, a quantity and a price, each checked on its own. None of the checks needs another's result, so a line item that fails two checks could report both.
 
-`Applicative` does not short-circuit. Every input runs, and the results combine through whatever rule the container defines. For `Validated` paired with a `Semigroup`, that rule is "concatenate the errors".
+For one container, an [Effect Path](../effect/ch_intro.md) combines values with `zipWith`, and `ValidationPath`'s `zipWithAccum` keeps every error, as [Error Accumulation](../effect/path_validation.md#error-accumulation-the-point-of-it-all) shows. `ListPath`'s `zipWith` pairs by position, where `List`'s `Applicative` and `NonDetPath` give every combination. Application code stays on the Paths. This page is for a method written once for any container.
+
+The code on this page uses these imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedMonad;
-import org.higherkindedj.hkt.Semigroups;
-
-import java.util.List;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-record User(String username, String password) {}
-
-public Validated<List<String>, String> validateUsername(String username) {
-    if (username.length() < 3) {
-        return Validated.invalid(List.of("Username must be at least 3 characters"));
-    }
-    return Validated.valid(username);
-}
-
-public Validated<List<String>, String> validatePassword(String password) {
-    if (!password.matches(".*\\d.*")) {
-        return Validated.invalid(List.of("Password must contain a number"));
-    }
-    return Validated.valid(password);
-}
-
-// An Applicative for Validated, with a Semigroup that concatenates error lists
-Applicative<ValidatedKind.Witness<List<String>>> applicative =
-    Instances.validated(Semigroups.list());
-
-// All checks pass
-Kind<ValidatedKind.Witness<List<String>>, User> ok =
-    applicative.map2(
-        VALIDATED.widen(validateUsername("test_user")),
-        VALIDATED.widen(validatePassword("password123")),
-        User::new);
-// Valid(User[username=test_user, password=password123])
-
-// Both checks fail; both errors land in the result
-Kind<ValidatedKind.Witness<List<String>>, User> bad =
-    applicative.map2(
-        VALIDATED.widen(validateUsername("no")),
-        VALIDATED.widen(validatePassword("bad")),
-        User::new);
-// Invalid([Username must be at least 3 characters, Password must contain a number])
+import java.math.BigDecimal;
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 ```
 
-A `Monad` cannot do this. After the first `Invalid`, `flatMap` would stop. The user would fix one error, resubmit, find another, and silently learn to dread our forms. `Applicative` is the polite choice.
+Each check returns a [`Validated`](../monads/validated_monad.md): a `Valid` holding the value, or an `Invalid` holding a list of errors.
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java:checks}}
+```
 
-## When to Use `Applicative` Instead of `Monad`
+## What an `Applicative` adds {#what-an-applicative-adds}
 
-The rule of thumb is mechanical:
+`Applicative<F>` extends `Functor<F>` with two methods, and builds `map2` to `map5` from `map` and `ap`:
 
-- If the next step needs to *look at* the previous result before it can run, we need `Monad.flatMap`.
-- If the steps are independent, `Applicative.mapN` is enough, and we get richer error semantics for free.
+<!-- verify -->
+```java
+public interface Applicative<F extends WitnessArity<TypeArity.Unary>> extends Functor<F> {
 
-`Applicative` is also the layer that allows parallel evaluation, since the inputs do not depend on each other. `Monad` cannot promise parallelism in general, because step *n+1* might be a function of step *n*'s value.
+  <A> Kind<F, A> of(@Nullable A value);
 
-For a longer treatment with a decision flow, see [Choosing Your Abstraction Level](abstraction_levels.md).
+  <A, B> Kind<F, B> ap(Kind<F, ? extends Function<A, B>> ff, Kind<F, A> fa);
 
----
+  // abridged: the null checks and a curried overload are left out,
+  // and map3, map4 and map5 follow the same pattern
+  default <A, B, C> Kind<F, C> map2(
+      Kind<F, A> fa, Kind<F, B> fb, BiFunction<? super A, ? super B, ? extends C> f) {
+    return ap(map(a -> b -> f.apply(a, b), fa), fb);
+  }
+}
+```
 
-## Things People Get Wrong
+`of` lifts a plain value into the container: `Validated`'s gives a `Valid`, and `Maybe`'s a `Just`. `ap` applies a function held in a container to a value held in another.
+
+You will rarely call `ap` yourself. `map(a -> b -> f.apply(a, b), fa)` gives a `Kind<F, Function<B, C>>`: the first value inside a function that waits for the second. `ap` applies that function to `fb`. `map3` to `map5` add an input each the same way, and they are what you call.
+
+## One method for any container {#one-method-for-any-container}
+
+`lineItem` is written over `Applicative`. It takes the `Applicative` for `F` and calls `map3` on it:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java:generic}}
+```
+
+Run it with `Validated`'s `Applicative`, then with `Either`'s, on a blank SKU and a quantity of zero:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java:instances}}
+```
+
+The call is the same both times. `Instances.validated` builds `Validated`'s instance from a [semigroup](semigroup_and_monoid.md), here one that joins two lists, so it reports both errors. With `Semigroups.first()` it would report only the first. `Either`'s instance always keeps the first. `toEither()` turns each check's `Validated` into an `Either` holding the same errors, so only the instance differs.
+
+## What each instance does {#what-each-instance-does}
+
+`Applicative` promises that `map3` combines the three values when all are there. What it does otherwise is each instance's own:
+
+```mermaid
+flowchart LR
+    accTitle: The instance decides what map3 gives
+    accDescr: Three independent checks, of the SKU, the quantity and the price, each feed map3. With Validated's Applicative and a semigroup that joins lists, map3 gives every error the checks found. With Either's, it gives only the first.
+    S["checkSku"] --> M["map3"]
+    Q["checkQuantity"] --> M
+    P["checkPrice"] --> M
+    M -->|"Validated's instance"| V["Invalid: every error"]
+    M -->|"Either's instance"| E["Left: the first error"]
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    class S,Q,P,M step
+    class V,E error
+```
+
+The diagram shows three checks that never see one another's results, meeting only at `map3`, where the instance decides what comes out. With two inputs, the instances you will meet most behave like this, and `map3` to `map5` do the same with more:
+
+| Instance | What `map2` does with its two inputs |
+|---|---|
+| `Validated`, from `Instances.validated(semigroup)` | Gives the combined value if both are valid; otherwise the invalid inputs' errors, combined by the semigroup in the order of the inputs. `Semigroups.list()` keeps every error |
+| `Either`, `Try` | Gives the first failure, and drops the second |
+| `Maybe`, `Optional` | Is empty if either input is empty |
+| `List`, `NonEmptyList` | Gives every combination: two lists of two give four values |
+| [`IO`](../monads/io_monad.md), `VTask` | Builds a new deferred value that, when it runs, runs the first input and then the second. If the first fails, the second never runs |
+| `CompletableFuture` | Completes when both inputs have. `map2` starts neither future, so whether their work overlaps depends on what completes each one |
+| `Writer`, from `Instances.writer(monoid)` | Gives the combined value, with both logs joined by the monoid |
+
+So `Applicative` promises neither that errors accumulate nor that inputs run at the same time. Its promise is smaller: the inputs do not depend on one another. An instance can use that, as `Validated`'s does, or not, as `Either`'s does. To run two `VTask`s at the same time, use [`Par.map2`](../monads/vtask_monad.md#parallel-composition-with-par).
+
+## Should you use `map3` or `flatMap`? {#map3-or-flatmap}
+
+- **Use `flatMap` when a step needs the previous result.** Finding an order's customer needs the order first. `flatMap` is [Monad](monad.md)'s. On a failure that holds no value, such as a `Left`, it stops, because the next step has nothing to run on.
+- **Use `map2` to `map5` when the steps are independent.** The instance can then do more with the failures, as `Validated`'s does.
+
+The two can differ on one instance. `Instances.validated` returns a single instance with both methods: its `map3` combines the errors of every invalid input, and its `flatMap` stops at the first. [Choosing Your Abstraction Level](abstraction_levels.md) walks through the choice, `Selective` included.
+
+## Four laws {#four-laws}
+
+An `Applicative` keeps four laws. Together they say that `of` adds nothing of its own, and that `ap` gives the same result however you group the calls.
+
+~~~admonish note title="Laws"
+- **Identity: applying a lifted `a -> a` changes nothing.** `ap(of(a -> a), fa)` equals `fa`.
+- **Homomorphism: a lifted function on a lifted value lifts the result.** `ap(of(f), of(x))` equals `of(f.apply(x))`.
+- **Interchange: lifting the value instead of the function changes nothing.** `ap(ff, of(x))` equals `ap(of(f -> f.apply(x)), ff)`.
+- **Composition: grouping the applications differently changes nothing.** `ap(ap(ap(of(compose), u), v), w)` equals `ap(u, ap(v, w))`, where `compose` is `f -> g -> x -> f.apply(g.apply(x))`.
+
+Two containers are equal when they hold equal values, or equal errors, in the same shape. For a deferred container such as `IO`, they are equal when running both gives equal results. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+
+`ApplicativeLaws`, beside `FunctorLaws` in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks each law on any instance. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds the equality from a function it applies to both sides before comparing them with `equals`. Here `VALIDATED::narrow` unwraps the `Kind`. Two `IO`s that give the same result are different objects, so for `IO` the function must also run it, as [Functor's laws test](functor.md#two-laws) does. The test checks `Validated`'s instance twice, once with every value valid and once with every value invalid. In the invalid case, Composition must join the three errors in the same order on both sides. `ORDER` is any `Order`, and the test uses these imports, with JUnit's:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
+import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:applicative_laws}}
+```
+~~~
+
+## Things people get wrong {#things-people-get-wrong}
 
 ~~~admonish warning title="Common Misunderstandings"
-- **"`Applicative` is just `Monad` minus `flatMap`."** That is true mechanically and misses the point. The reason `Applicative` exists is precisely because some types (like `Validated` with a `Semigroup`) have a useful `Applicative` instance with *different* behaviour from their `Monad` instance. `Validated`'s `flatMap` is fail-fast; its `ap` is fail-slow. Same type, two different stories, depending on which type class we ask.
-- **"`map2` is only useful with two arguments."** It is the entry point. Most real code reaches for `map3`, `map4`, or `map5` to combine four or five validated fields. The names get tedious past five; for those cases, [For comprehensions](for_comprehension.md) read better, and for assembling a record from many validated fields the [accumulating assembly builder](../monads/validated_assembly.md) (`Validated.fields()`) removes the arity wall entirely.
-- **"`ap` is the operation I will call directly."** Almost never. `ap` is the primitive that `mapN` is built on. We define new `Applicative` instances by implementing `ap` and `of`, but we use them through `map2` and friends.
-- **"Error accumulation only works with `Validated`."** It works with any `Applicative` whose instance defines an accumulating combine rule. `Validated` is the most common, but the same machinery applies to other accumulating types we might define ourselves.
+- **"`Applicative` accumulates errors."** `Validated`'s instance does. `Either`'s keeps the first error, and both are `Applicative`s.
+- **"`Applicative` runs its inputs at the same time."** No instance on this page starts its inputs together: `IO` and `VTask` run them in order, and `CompletableFuture`'s waits for two futures it never started. For `VTask`s that run at once, use `Par.map2`.
+- **"`Applicative` is `Monad` without `flatMap`."** Every `Monad` has an `ap`, but an instance's `ap` can do what its `flatMap` cannot, as `Validated`'s does.
+- **"`map2` is only for two values."** `map3`, `map4` and `map5` take more, and stop at five. For a record with more fields, `Validated.fields()` in [Accumulating Assembly](../monads/validated_assembly.md) takes more.
+~~~
+
+~~~admonish tip title="You can ship now"
+You can now build one value from several independent ones, in a method written once for any container, as `lineItem` is. You can say what each instance does with a failure, and check an instance against the four laws. The rest of this page is for which types have an `Applicative`, where `Validated` bends a rule, and what builds on `Applicative`.
 ~~~
 
 ---
 
-~~~admonish info title="Key Takeaways"
-* `Applicative` combines independent computations, where `Monad` sequences dependent ones
-* `map2`, `map3`, and friends are the everyday surface; `ap` and `of` are the primitives that build them
-* Error accumulation with `Validated` is the canonical reason to reach for `Applicative` rather than `Monad`
-* Same type, different type-class instance, different story; `Validated`'s `flatMap` and `ap` deliberately disagree
-~~~
+## The fine print {#the-fine-print}
+
+### Which types have an `Applicative` {#which-types-have-an-applicative}
+
+| Types | Their `Applicative` comes from |
+|---|---|
+| Every token in `Witnesses` | Their `Monad`, so [`Instances.applicative(token)` always succeeds](instances_facade.md#what-the-compiler-checks) |
+| `Validated`, `Writer`, `EitherOrBoth` and the transformers | Their `Monad`, from `Instances` with its argument, such as `Instances.validated(semigroup)` |
+| `Free` | Its `Monad`, built with `new FreeMonad<>()` |
+| `Const`, `FreeAp` and `Fetch` | An `Applicative`, with no `Monad` |
+| `EitherF` and `Coyoneda` | Nowhere: they have a `Functor` only |
+
+### Where `Validated` bends a rule {#where-validated-bends-a-rule}
+
+A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `flatMap(f -> map(f, fa), ff)`. `Validated`'s instance breaks this on purpose, as its javadoc says, so that `map2` to `map5` can combine the errors of every input. `hkj-test`'s `MonadLaws` checks the three monad laws, not this one. [Validated](../monads/validated_monad.md) says when you want each behaviour.
+
+### What builds on `Applicative` {#what-builds-on-applicative}
+
+- **`Monad` extends `Applicative`.** Every monad on the next pages has `of`, `ap` and `map2`.
+- **`Selective` and `Alternative` extend it too.** [Selective](selective.md) adds steps that run only when a condition holds, and [Alternative](alternative.md) adds a fallback.
+- **`Traverse` takes an `Applicative`.** `traverse` runs a function on every element and combines the results with the instance it is given, so `Validated`'s combines every element's errors, as [Foldable and Traverse](foldable_and_traverse.md) shows.
+
+---
 
 ~~~admonish tip title="See Also"
-- [Functor](functor.md) - The simpler foundation that Applicative extends
-- [Monad](monad.md) - For dependent computations, but with short-circuiting, not accumulation
-- [Choosing Your Abstraction Level](abstraction_levels.md) - When to reach for which one
-- [Validated](../monads/validated_monad.md) - The type designed for error accumulation
+- [Functor](functor.md): the `map` that `Applicative` extends
+- [Monad](monad.md): sequencing dependent computations with `flatMap`
+- [Choosing Your Abstraction Level](abstraction_levels.md): `Applicative`, `Selective` or `Monad`
+- [Validated](../monads/validated_monad.md): the type built to report every error
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Baeldung**: [Functional Programming in Java](https://www.baeldung.com/java-functional-programming) - Practical functional patterns for Java developers
-- **Mark Seemann**: [Applicative Functors](https://blog.ploeh.dk/2018/10/01/applicative-functors/) - Accessible introduction with practical examples
+- **Conor McBride and Ross Paterson**, [Applicative Programming with Effects](https://www.staff.city.ac.uk/~ross/papers/Applicative.html): the paper that introduced applicative functors
+- **Mark Seemann**, [Applicative Functors](https://blog.ploeh.dk/2018/10/01/applicative-functors/): a practical introduction, with examples in languages close to Java
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

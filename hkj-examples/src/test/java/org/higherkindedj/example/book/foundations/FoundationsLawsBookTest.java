@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,21 +14,27 @@ import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,4 +84,42 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: functor_laws
+
+  // ANCHOR: applicative_laws
+  void assertApplicativeLaws(
+      Validated<List<String>, Order> order,
+      Validated<List<String>, Function<Order, Customer>> customer,
+      Validated<List<String>, Function<Customer, EmailAddress>> email) {
+    Applicative<ValidatedKind.Witness<List<String>>> applicative =
+        Instances.validated(Semigroups.list());
+    var same =
+        KindEquivalence.<ValidatedKind.Witness<List<String>>>byEqualsAfter(VALIDATED::narrow);
+    ApplicativeLaws.assertIdentity(applicative, VALIDATED.widen(order), same);
+    ApplicativeLaws.assertHomomorphism(applicative, ORDER, Order::customer, same);
+    ApplicativeLaws.assertInterchange(applicative, VALIDATED.widen(customer), ORDER, same);
+    ApplicativeLaws.assertComposition(
+        applicative,
+        VALIDATED.widen(email),
+        VALIDATED.widen(customer),
+        VALIDATED.widen(order),
+        same);
+  }
+
+  @Test
+  @DisplayName("Validated's Applicative keeps all four laws when every value is Valid")
+  void validatedApplicativeLawsWhenValid() {
+    assertApplicativeLaws(
+        Validated.valid(ORDER), Validated.valid(Order::customer), Validated.valid(Customer::email));
+  }
+
+  @Test
+  @DisplayName("Validated's Applicative keeps all four laws when every value is Invalid")
+  void validatedApplicativeLawsWhenInvalid() {
+    assertApplicativeLaws(
+        Validated.invalid(List.of("order not found")),
+        Validated.invalid(List.of("no customer")),
+        Validated.invalid(List.of("no email")));
+  }
+
+  // ANCHOR_END: applicative_laws
 }
