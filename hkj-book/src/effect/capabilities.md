@@ -30,6 +30,7 @@ The **Reference** sub-chapter is lookup material rather than narrative: the type
 - How each capability maps to functional programming concepts (Functor, Applicative, Monad, MonadError)
 - Which operations each capability provides
 - Which Path types implement which capabilities
+- How the family parameter lets the compiler check what each chained step returns
 - Why the layering matters for code that composes correctly
 ~~~
 
@@ -79,6 +80,80 @@ only some types possess.
 This isn't arbitrary taxonomy. It's how you avoid calling `recover()` on a
 type that never fails, or `unsafeRun()` on a type that doesn't defer execution.
 The compiler catches category errors before they become runtime surprises.
+
+---
+
+## The Family Parameter {#the-family-parameter}
+
+Every capability from `Combinable` down takes the implementing Path's
+**family** as its first type parameter, `P`. The family is the Path's own
+class with its value type left open: `MaybePath<?>`, or
+`EitherPath<? extends E, ?>`. It works like `String implements Comparable<String>`,
+where the interface names its implementer so that `compareTo` accepts only
+another `String`. Here it means a step passed to `via`, `then`, `zipWith`,
+`recoverWith` or `orElse` must be a Path of the same family, while its value
+type is free to change.
+
+So a step that returns another kind of Path, or the same Path with another
+error type, does not compile. [Common Compiler Errors](compiler_errors.md)
+shows the messages and how to read them.
+
+Each Path chooses how its fixed type parameter may vary in a step:
+
+| Path | Its family | A step may |
+|------|------------|------------|
+| `EitherPath<E, A>`, `ValidationPath<E, A>`, `VResultPath<E, A>` | `XPath<? extends E, ?>` | fail with `E` or a subtype, such as one variant of a sealed error |
+| `EitherOrBothPath<L, A>` | `EitherOrBothPath<? extends L, ?>` | warn with `L` or a subtype |
+| `ReaderPath<R, A>` | `ReaderPath<? super R, ?>` | need `R` or a supertype, that is, less of the environment |
+| `WithStatePath<S, A>`, `WriterPath<W, A>` | the same `S` or `W` | use exactly the same state or log type |
+| `FreePath<F, A>`, `FreeApPath<F, A>`, `GenericPath<F, A>` | the same witness `F` | use exactly the same witness |
+| Any other Path, such as `MaybePath<A>` | `MaybePath<?>` | be the same kind of Path |
+
+`ValidationPath` and `EitherOrBothPath` accumulate with a `Semigroup`. A step
+typed on a subtype carries a semigroup for that subtype only, so the result of
+`via`, `then`, `recoverWith` and `orElse` keeps the receiver's semigroup.
+
+The variant rule applies to the error type itself. A chain typed on a container
+of errors, such as `NonEmptyList<AppError>`, does not accept a step typed on
+`NonEmptyList<NotFound>`, because a `NonEmptyList<NotFound>` is not a
+`NonEmptyList<AppError>`.
+
+`Effectful.handleErrorWith` is the one operation that leaves the family open:
+an `IOPath` may recover into a `VTaskPath`, and the other way round.
+
+### Code written over several Paths
+
+Most code names a concrete Path, such as `EitherPath<AppError, User>`, and
+never writes `P`. Code that names a capability type writes the family in one of
+two ways:
+
+- **Leave it open to map, recover and run.** `Effectful<?, A>` accepts either
+  effect, and `map`, `handleError`, `handleErrorWith`, `guarantee` and
+  `unsafeRun` are available on it. No step fits an open family, so `via`,
+  `then`, `zipWith`, `recoverWith` and `orElse` are not.
+- **Declare it as a type parameter to chain and combine.** A step must be of
+  the same family, so a helper that chains names it:
+
+<!-- verify -->
+```java
+// Runs a step twice, for any Path whose step has the same family
+static <P, A> Chainable<P, A> twice(
+        Chainable<P, A> path, Function<? super A, ? extends Chainable<? extends P, A>> step) {
+    return path.via(step).via(step);
+}
+```
+
+A `PathProvider` returns `Chainable<?, A>`, so the caller of `Path.from` can map
+the result but not chain or combine it. A provider should declare its concrete
+Path type as the return type of `createPath`, so that code holding the provider
+can chain. An `instanceof` pattern to a concrete Path, such as
+`case MaybePath<String> m`, does not compile from a `Chainable<?, String>`;
+match from `Composable<String>` instead.
+
+The `org.higherkindedj.openrewrite.AddPathFamily` recipe rewrites
+`Chainable<A>` to `Chainable<?, A>`, and likewise for the other capability
+types, in code written for an earlier release. See the
+[OpenRewrite recipes](../tooling/openrewrite.md).
 
 ---
 
@@ -132,9 +207,9 @@ guidelines; they're guarantees the implementation must honour.
 are combined at the end. If someone fails to deliver, there's nothing to combine.
 
 ```java
-public interface Combinable<A> extends Composable<A> {
-    <B, C> Combinable<C> zipWith(
-        Combinable<B> other,
+public interface Combinable<P, A> extends Composable<A> {
+    <B, C> Combinable<P, C> zipWith(
+        Combinable<? extends P, B> other,
         BiFunction<? super A, ? super B, ? extends C> f
     );
 }
@@ -186,10 +261,10 @@ the previous result.
 and decides what to do next. If someone drops the baton, the race ends there.
 
 ```java
-public interface Chainable<A> extends Combinable<A> {
-    <B> Chainable<B> via(Function<? super A, ? extends Chainable<B>> f);
-    <B> Chainable<B> flatMap(Function<? super A, ? extends Chainable<B>> f);
-    <B> Chainable<B> then(Supplier<? extends Chainable<B>> next);
+public interface Chainable<P, A> extends Combinable<P, A> {
+    <B> Chainable<P, B> via(Function<? super A, ? extends Chainable<? extends P, B>> f);
+    <B> Chainable<P, B> flatMap(Function<? super A, ? extends Chainable<? extends P, B>> f);
+    <B> Chainable<P, B> then(Supplier<? extends Chainable<? extends P, B>> next);
 }
 ```
 
@@ -240,13 +315,14 @@ success track.
 climb back up, or you might stay down, but the fall doesn't have to be fatal.
 
 ```java
-public interface Recoverable<E, A> extends Chainable<A> {
-    Recoverable<E, A> recover(Function<? super E, ? extends A> handler);
-    Recoverable<E, A> recoverWith(
-        Function<? super E, ? extends Recoverable<E, A>> handler
+public interface Recoverable<P, E, A> extends Chainable<P, A> {
+    Recoverable<P, E, A> recover(Function<? super E, ? extends A> handler);
+    Recoverable<P, E, A> recoverWith(
+        Function<? super E, ? extends Recoverable<? extends P, ? extends E, A>> handler
     );
-    Recoverable<E, A> orElse(Supplier<? extends Recoverable<E, A>> alternative);
-    <F> Recoverable<F, A> mapError(Function<? super E, ? extends F> f);
+    Recoverable<P, E, A> orElse(
+        Supplier<? extends Recoverable<? extends P, ? extends E, A>> alternative);
+    <F> Recoverable<?, F, A> mapError(Function<? super E, ? extends F> f);
 }
 ```
 
@@ -281,16 +357,16 @@ which tells you something about the general state of affairs in software.
 happens until someone signs and executes it.
 
 ```java
-public interface Effectful<A> extends Chainable<A> {  // sealed, permits IOPath, VTaskPath
+public interface Effectful<P, A> extends Chainable<P, A> {  // sealed, permits IOPath, VTaskPath
     A unsafeRun();
     default Try<A> runSafe() {
         return Try.of(this::unsafeRun);
     }
 
-    Effectful<A> handleError(Function<? super Throwable, ? extends A> recovery);
-    Effectful<A> handleErrorWith(
-        Function<? super Throwable, ? extends Effectful<A>> recovery);
-    Effectful<A> guarantee(Runnable finalizer);
+    Effectful<P, A> handleError(Function<? super Throwable, ? extends A> recovery);
+    Effectful<P, A> handleErrorWith(
+        Function<? super Throwable, ? extends Effectful<?, A>> recovery);
+    Effectful<P, A> guarantee(Runnable finalizer);
 }
 ```
 
@@ -313,13 +389,13 @@ Integer count = lineCount.unsafeRun();  // "Reading file..." printed
 ```
 
 All five methods are defined at the capability level, so code written against
-`Effectful<A>` can recover from errors and run cleanup regardless of which
+`Effectful<?, A>` can recover from errors and run cleanup regardless of which
 concrete implementation it holds:
 
 <!-- verify -->
 ```java
 // Works whether `effect` is an IOPath or a VTaskPath
-public static <A> Effectful<A> safeOrDefault(Effectful<A> effect, A fallback) {
+public static <A> Effectful<?, A> safeOrDefault(Effectful<?, A> effect, A fallback) {
     return effect.handleError(t -> fallback);
 }
 
@@ -328,7 +404,7 @@ IOPath<Data> withCleanup = Path.io(() -> acquireResource())
     .guarantee(() -> releaseResource());
 ```
 
-`handleErrorWith` accepts any `Effectful<A>` from its recovery function, so an
+`handleErrorWith` accepts any `Effectful<?, A>` from its recovery function, so an
 `IOPath` can recover into a `VTaskPath` fallback (or vice versa); the returned
 value keeps the concrete type of the receiver. The concrete `IOPath` /
 `VTaskPath` classes still narrow the return type to their own type, so direct
@@ -350,25 +426,26 @@ back the full list. They don't stop at the first issue and declare the review
 complete.
 
 ```java
-public interface Accumulating<E, A> extends Composable<A> {
-    <B, C> Accumulating<E, C> zipWithAccum(
-        Accumulating<E, B> other,
+public interface Accumulating<P, E, A> extends Composable<A> {
+    <B, C> Accumulating<P, E, C> zipWithAccum(
+        Accumulating<? extends P, ? extends E, B> other,
         BiFunction<? super A, ? super B, ? extends C> combiner
     );
 
-    <B, C, D> Accumulating<E, D> zipWith3Accum(
-        Accumulating<E, B> second,
-        Accumulating<E, C> third,
+    <B, C, D> Accumulating<P, E, D> zipWith3Accum(
+        Accumulating<? extends P, ? extends E, B> second,
+        Accumulating<? extends P, ? extends E, C> third,
         Function3<? super A, ? super B, ? super C, ? extends D> combiner
     );
 
-    Accumulating<E, A> andAlso(Accumulating<E, ?> other);
+    Accumulating<P, E, A> andAlso(Accumulating<? extends P, ? extends E, ?> other);
 
-    <B> Accumulating<E, B> andThen(Accumulating<E, B> other);
+    <B> Accumulating<P, E, B> andThen(Accumulating<? extends P, ? extends E, B> other);
 }
 ```
 
-Only `ValidationPath` implements `Accumulating`. The key difference from
+`ValidationPath` and `EitherOrBothPath` implement `Accumulating`, each
+accumulating only with its own kind. The key difference from
 `Combinable.zipWith`:
 
 | Operation | On Multiple Failures |

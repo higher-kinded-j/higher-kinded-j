@@ -75,7 +75,7 @@ The discount uses a traversal, `OrderFocus.lines().price()`, which reaches every
 ~~~admonish note title="Why `OrderError.notFound(id)`, and not `new OrderError.NotFound(id)`?"
 Mid-chain, `toEitherPath` has no target type to infer from, so it takes its error type from its argument. Given a `NotFound`, the whole chain's error type becomes `NotFound`, and the method no longer returns what it declares:
 
-<!-- verify:rejects "NotFound,B> conforms to" -->
+<!-- verify:rejects "NotFound,?>,B>" -->
 ```java
 static EitherPath<OrderError, Order> changeEmail(
     OrderRepository orders, UUID id, String newEmail) {
@@ -87,7 +87,7 @@ static EitherPath<OrderError, Order> changeEmail(
 }
 ```
 
-The compiler reports `incompatible types: no instance(s) of type variable(s) B exist so that EitherPath<NotFound,B> conforms to EitherPath<OrderError,Order>`. A factory typed as the sealed `OrderError` fixes the error type at the first step, so the chain's type matches what the method declares. Naming the type once works too, as `.<OrderError>toEitherPath(new OrderError.NotFound(id))`, which the [Quickstart](../quickstart.md) uses. [Effect compiler errors](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain) covers the related case the compiler does not catch: a step whose error type differs from the chain's.
+The compiler rejects the `via`: `EitherPath<OrderError,Order> cannot be converted to Chainable<? extends EitherPath<? extends NotFound,?>,B>`. The chain is typed on `NotFound`, and `save` can fail with any `OrderError`. A factory typed as the sealed `OrderError` fixes the error type at the first step, so every later step fits. Naming the type once works too, as `.<OrderError>toEitherPath(new OrderError.NotFound(id))`, which the [Quickstart](../quickstart.md) uses. [Effect compiler errors](../effect/compiler_errors.md#a-chain-typed-on-one-variant) shows how to read the message, and the other places a chain takes its error type.
 ~~~
 
 The Ship pages that follow take the type-class layers in order. They start beneath them, with how `Kind<F, A>` stands for a container, in [How the Encoding Works](core-concepts.md).

@@ -73,7 +73,7 @@ mvn rewrite:run      # apply changes
 
 ## Recipe Catalogue
 
-Four recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
+Five recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
 
 | Group | Composite | Mode |
 |-------|-----------|------|
@@ -81,6 +81,7 @@ Four recipe groups are shipped; each one has a composite that runs every recipe 
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers whose elements have a field named like a path method |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | rewrites source, and marks calls a typed form does not fit |
+| 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | rewrites source |
 
 ### Arity migration (0.2.x to 0.3.0)
 
@@ -208,10 +209,32 @@ TraversalPath<Basket, CharSequence> labels =
         .each(EachInstances.fromTraverse(ListTraverse.INSTANCE));
 ```
 
+### 0.6.0 Path family {#060-path-family}
+
+From 0.6.0 each capability interface takes the implementing Path's family as its first type parameter, as [The Family Parameter](../effect/capabilities.md#the-family-parameter) explains. Code that names a capability type with the old arguments, such as a helper taking an `Effectful<A>` or a `PathProvider` returning `Chainable<A>`, no longer compiles. The recipe writes the family as `?`, which keeps code that maps, recovers with `recover` or `handleError`, or runs the path it is given.
+
+Run it with `hkj-openrewrite` 0.6.0 on the rewrite classpath, before or after your build moves to 0.6.0. A type already written with the family is left as it is, so a second run changes nothing.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.AddPathFamily` | Composite; runs the recipe below |
+| `org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe` | `Chainable<A>` becomes `Chainable<?, A>`, and likewise `Combinable<A>` and `Effectful<A>`. `Recoverable<E, A>` becomes `Recoverable<?, E, A>`, and `Accumulating<E, A>` becomes `Accumulating<?, E, A>`. It rewrites variables, fields, parameters, return types, type arguments and `instanceof`, a provider's `createPath` included. A raw type is left as it is |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.AddPathFamily")
+}
+```
+
+Two shapes are left to you:
+
+- **Code that calls `via`, `then`, `zipWith`, `recoverWith` or `orElse` through a capability type.** A step must belong to the same family, so declare it as a type parameter, as in `<P, A> Chainable<P, A>`.
+- **A class that implements `Combinable`, members included.** Name its own class as the family, as a generated `@PathSource` Path does: `Combinable<MyPath<?>, A>`, with `zipWith` taking a `Combinable<? extends MyPath<?>, B>`.
+
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Four groups, three modes.** Arity migration and the 0.5.0 and 0.6.0 deprecations rewrite source, apart from the marks the two deprecation groups leave for you. The effect algebra helpers only flag call sites, because their targets are user-specific generated code.
+* **Five groups, three modes.** Arity migration, the 0.5.0 and 0.6.0 deprecations and the Path family rewrite source, apart from the marks the two deprecation groups leave for you. The effect algebra helpers only flag call sites, because their targets are user-specific generated code.
 * **Always dry-run first.** `rewriteDryRun` (Gradle) or `mvn rewrite:dryRun` (Maven) shows the diff; `rewriteRun` applies it.
 * **Use the composite recipe.** Activating a group's composite runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
 * **Recipe coverage tracks the library.** The same migrations also surface as compile-time checks in `hkj-checker`; pick whichever feedback loop fits the team.

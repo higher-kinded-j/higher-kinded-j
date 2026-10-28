@@ -74,7 +74,7 @@ hkj {
     spring = false           // add the starter and the @HkjHttpClient processor (default: false)
     skills = false           // install Claude Code skills (default: false)
     checks {
-        pathTypeMismatch = true   // enable compile-time Path type checking (default: true)
+        pathTypeMismatch = true   // add the HKJ compile-time checker (default: true)
     }
 }
 ```
@@ -87,7 +87,7 @@ hkj {
 | `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks |
 | `spring` | `false` | Adds `hkj-spring-boot-starter` to `implementation`, and the `@HkjHttpClient` processor to every annotation processor configuration |
 | `skills` | `false` | Installs Claude Code skills into `.claude/skills/` during build |
-| `checks.pathTypeMismatch` | `true` | Enables compile-time Path type mismatch detection |
+| `checks.pathTypeMismatch` | `true` | Adds the HKJ compile-time checker, whose [checks](compile_checks.md) explain a rejected chain step and report mistakes javac accepts |
 
 With default settings, the plugin adds:
 
@@ -174,7 +174,7 @@ With `preview = false` the plugin adds no `--enable-preview` flags, so code that
 
 ### Disable Compile-Time Checks
 
-To skip Path type mismatch detection:
+To leave the HKJ checker out of the build:
 
 ```gradle
 hkj {
@@ -227,7 +227,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
     <spring>false</spring>               <!-- add hkj-spring-boot-starter and the @HkjHttpClient processor (default: false) -->
     <skills>false</skills>               <!-- install Claude Code skills (default: false) -->
-    <pathTypeMismatch>true</pathTypeMismatch>  <!-- enable compile-time checks (default: true) -->
+    <pathTypeMismatch>true</pathTypeMismatch>  <!-- add the HKJ compile-time checker (default: true) -->
 </configuration>
 ```
 

@@ -162,14 +162,15 @@ its methods, and does not check that the witness is the type's own.
 `capability` decides which methods the class gets. Each level adds to the one before it, and the
 default is `CHAINABLE`. `Chainable` and the [capability interfaces](capabilities.md) that extend it
 are sealed to the library's own Paths, so from `COMBINABLE` up the class implements `Combinable`,
-and declares the rest of its methods itself.
+and declares the rest of its methods itself. It names its own class as the
+[family](capabilities.md#the-family-parameter), so each method takes only another `TracedPath`.
 
 | `capability` | Implements | Adds | Choose it when |
 |---|---|---|---|
 | `COMPOSABLE` | `Composable<A>` | `map`, `peek` | Callers should only transform values |
-| `COMBINABLE` | `Combinable<A>` | `zipWith` | Callers combine results that do not depend on each other |
-| `CHAINABLE` (default) | `Combinable<A>` | `via`, `then`, `flatMap` | Callers run one step after another |
-| `RECOVERABLE` | `Combinable<A>` | `recover`, `recoverWith`, `mapError` | Your effect has an error type: see [Recovery](#recovery-with-errortype) |
+| `COMBINABLE` | `Combinable<TracedPath<?>, A>` | `zipWith` | Callers combine results that do not depend on each other |
+| `CHAINABLE` (default) | `Combinable<TracedPath<?>, A>` | `via`, `then`, `flatMap` | Callers run one step after another |
+| `RECOVERABLE` | `Combinable<TracedPath<?>, A>` | `recover`, `recoverWith`, `mapError` | Your effect has an error type: see [Recovery](#recovery-with-errortype) |
 
 **Every level takes a `Monad` in `of` and `pure`.** A lower level hides methods from your callers,
 but still needs the full `Monad`. The generated `zipWith` combines through the `Monad`'s
@@ -179,15 +180,25 @@ but still needs the full `Monad`. The generated `zipWith` combines through the `
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/pathsource/PathSourceBook.java:zip_with}}
 ```
 
-~~~admonish warning title="zipWith combines only with another TracedPath"
-`zipWith` takes any `Combinable`, as the interface declares it, so javac accepts another Path
-there. The generated `zipWith` then throws `IllegalArgumentException` at the call, with a message
-beginning `Cannot zipWith non-TracedPath`:
+~~~admonish note title="zipWith combines only with another TracedPath"
+`zipWith` takes a `Combinable` of the `TracedPath` family, so javac rejects another kind of Path:
 
-<!-- verify -->
+<!-- verify:rejects "TracedPath<?>,B>" -->
 ```java
 TracedPath<Integer> mixed = priced.zipWith(Path.just(350), Integer::sum);
 ```
+
+```
+error: method zipWith in class TracedPath<A> cannot be applied to given types;
+  required: Combinable<? extends TracedPath<?>,B>,BiFunction<? super Integer,? super B,? extends C>
+  found:    MaybePath<Integer>,Integer::sum
+  reason: cannot infer type-variable(s) B,C
+    (argument mismatch; no instance(s) of type variable(s) A exist so that MaybePath<A> conforms to Combinable<? extends TracedPath<?>,B>)
+```
+
+Code that reaches `zipWith` through a raw type, or was compiled against an older release, gets
+the run-time check instead: an `IllegalArgumentException` with a message beginning
+`Cannot zipWith non-TracedPath`.
 ~~~
 
 `peek` maps its action over the value, so the action runs when the effect produces the value. For

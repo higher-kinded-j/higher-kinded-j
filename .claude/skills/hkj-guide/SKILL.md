@@ -433,9 +433,10 @@ return Path.right(user);
 return Path.<AppError, User>right(user);
 ```
 
-### 2. "MaybePath cannot be converted to EitherPath"
+### 2. "MaybePath<User> cannot be converted to Chainable<? extends EitherPath<…>,B>"
 
-**Cause**: `via` requires the same Path kind throughout a chain.
+**Cause**: A step must be the chain's own kind of Path. The capability interfaces carry the Path's
+family, so javac rejects a step of another kind; the HKJ checker adds `Path type mismatch in via()`.
 **Fix**: Convert at the boundary.
 ```java
 .via(id -> Path.maybe(findUser(id))
@@ -456,14 +457,31 @@ return Path.<AppError, User>right(user);
 **Cause**: Lambda has branches with different return types or missing return.
 **Fix**: Ensure all branches return the same type, or extract to a named method.
 
-### 5. "Type argument E is not within bounds" (error type mismatch)
+### 5. "EitherPath<DbError,User> cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>"
 
-**Cause**: Different steps in a chain use different error types.
-**Fix**: Standardise on one error type using `.mapError()`.
+**Cause**: A step fails with an error the chain does not carry. Read the `Chainable<…>` as "the
+chain is typed on `AppError`". A step may fail with a subtype of the chain's error, such as one
+variant of a sealed error, but not with an unrelated type or a wider one.
+**Fix** for an unrelated error: map it into the chain's inside the step.
 ```java
 .via(id -> lookupUser(id)
     .mapError(dbError -> new AppError.DatabaseError(dbError)))
 ```
+**Fix** for a chain typed on one variant, such as `UserNotFound`, or for `inference variable E has
+incompatible bounds`: write the wider type where the chain is typed. The HKJ checker's note names
+the place.
+- `.<AppError>toEitherPath(...)`, `.<AppError>mapError(Variant::new)` or `Path.<AppError, User>right(...)`
+- `.<AppError>mapError(e -> e)` after a helper that returns `EitherPath<UserNotFound, User>`
+- `.mapErrorWith(e -> e, semigroup)` on a `ValidationPath` or `EitherOrBothPath`; for `NonEmptyList`
+  errors, map the list: `.mapErrorWith(errors -> errors.<AppError>map(e -> e), NonEmptyList.semigroup())`
+
+### 6. "wrong number of type arguments; required 2" on `Chainable<A>` (3 on `Recoverable<E, A>`)
+
+**Cause**: Code names a capability type with the arguments of a release before 0.6.0. Each capability
+interface now takes the Path's family first.
+**Fix**: Write `Chainable<?, A>`, `Effectful<?, A>` or `Recoverable<?, E, A>` to map, recover and run;
+declare the family as a type parameter, `<P, A> Chainable<P, A>`, to chain. The OpenRewrite recipe
+`org.higherkindedj.openrewrite.AddPathFamily` does the first for you.
 
 ---
 

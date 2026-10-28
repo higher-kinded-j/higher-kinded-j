@@ -16,16 +16,32 @@ Errors* chapters cross-link here.
 
 ## Why a checker
 
-Many HKJ mistakes are *silent*: the code type-checks (generics erasure
-hides the problem) and only fails at runtime (or, worse, carries the
-wrong value silently). A representative example:
+Some HKJ mistakes are *silent*: the code type-checks, then does nothing
+or the wrong thing. A representative example:
 
 ```java
-MaybePath<Integer> r = Path.just(1).via(n -> Path.io(() -> n + 1)); // IOPath, not MaybePath
+Path.io(() -> save(order));   // an IOPath built, and never run
 ```
 
-This compiles, then throws `IllegalArgumentException` at runtime. The
-checker turns this class of bug into a compile-time diagnostic.
+This compiles, and the order is never saved. The checker turns this
+class of bug into a compile-time diagnostic.
+
+Other mistakes javac rejects, with a message that names the library's
+capability types rather than the fix. A step that returns another kind
+of Path is one:
+
+```
+error: incompatible types: cannot infer type-variable(s) B
+        .via(id -> findUser(id))
+            ^
+    (argument mismatch; bad return type in lambda expression
+      MaybePath<User> cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>)
+error: Path type mismatch in via(): expected EitherPath but received MaybePath. Each Path type can only chain with the same type. Use conversion methods like toEitherPath() to convert.
+```
+
+The second error is the checker's. It names the fix beside javac's
+message, and [Common Compiler Errors](../effect/compiler_errors.md)
+explains both.
 
 ~~~admonish warning title="javac-plugin-only boundary"
 The checker runs inside `javac`, driven by the HKJ Gradle/Maven plugin
@@ -41,18 +57,18 @@ what the checker adds on top in a plugin-driven build/CI.
 ## What the checker detects
 
 Each check has an id (used for configuration). **Default** is the
-severity when nothing is configured; *warn-default* checks are the
-"sole signal over javac-accepted code" ones, kept at warning during
-soak.
+severity when nothing is configured. Most *warn-default* checks are the
+only signal over code javac accepts. `error-type-mismatch` explains an
+error javac reports, so its severity only labels the line.
 
 | Check id | Detects | Default | Companion to a javac error? |
 |---|---|---|---|
-| `path-type-mismatch` | Different Path types mixed in `via`/`then`/`zipWith`/`zipWith3`/`recoverWith`/`orElse` | error | No: sole signal (else runtime `IllegalArgumentException`) |
+| `path-type-mismatch` | A step of another kind of Path in `via`/`flatMap`/`then`/`zipWith`/`zipWith3`/`recoverWith`/`orElse` or an accumulating method, naming the conversion | error | Companion; the only signal through a raw type, where the code compiles and throws `IllegalArgumentException` |
 | `effect-composition` | `Interpreters.combine()` called with an unsupported arity | error | Companion |
 | `transformer-missing-monad` | Zero-arg construction of `EitherT`/`OptionalT`/`MaybeT`/`ReaderT`/`StateT`/`WriterTMonad` (the outer `Monad<F>`, and `Monoid<W>` for WriterT, is required) | error | Companion |
 | `free-switch-exhaustive` | A `switch` over `Free` matching `Pure`/`Suspend`/`FlatMapped` but missing `HandleError`/`Ap` | error | Companion |
 | `discarded-effect` | A **deferred** path (`IOPath`/`VTaskPath`/`LazyPath`/`FreePath` — the `Deferred` capability) built then dropped as a bare statement, a silent no-op. Eager paths are out of scope: their work has already happened | error | No: sole signal |
-| `error-type-mismatch` | An Either chain step whose error type `E` differs from the chain's and is silently erased through `Chainable<B>` (latent `ClassCastException`) | **warn** | No: sole signal |
+| `error-type-mismatch` | A step of an `EitherPath`, `ValidationPath`, `VResultPath` or `EitherOrBothPath` chain that fails with an error the chain does not carry. It names the supertype to type the chain on and where, or says to map the step's error | **warn** | Companion |
 | `kind-value-narrow` | `.value()` on a bare `Kind` (it is on the concrete transformer; narrow first) | error | Companion |
 | `witness-arity` | A higher-kinded witness (type parameter or class) not `WitnessArity`-bounded, used as `Kind`/`Kind2`/`Monad`/`Functor`/`Applicative` | error | Companion |
 | `via-non-path` | `via`/`flatMap`/`then` given a function that returns a plain value instead of a Path (use `map`) | error | Companion |
@@ -151,8 +167,8 @@ available:
 
 <!-- verify -->
 ```java
-@SuppressWarnings("path-type-mismatch") // deliberate: converted downstream
-var mixed = Path.just(1).via(_ -> Path.io(() -> 2));
+@SuppressWarnings("map-nests-effect") // deliberate: the inner path is run later
+var nested = Path.just(1).map(n -> Path.just(n + 1));
 ```
 
 Suppression is per check and accumulates outward-in: a token on a class
@@ -234,9 +250,9 @@ part of normal compilation, with no separate build step.
 
 The checker follows a strict **no-false-positives policy**: it is
 better to miss a real mistake than to report a false one. When a type
-cannot be resolved (type variables, wildcards, method references,
-indirect construction, runtime polymorphism) the check is **skipped
-silently**. The library's runtime checks remain the safety net for
+cannot be resolved (type variables, wildcards, a method reference
+the check does not read, indirect construction, runtime polymorphism)
+the check is **skipped silently**. The library's runtime checks remain the safety net for
 anything the compiler cannot see.
 
 ~~~admonish info title="Key Takeaways"

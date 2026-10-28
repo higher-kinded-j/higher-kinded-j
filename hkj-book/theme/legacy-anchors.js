@@ -19,6 +19,7 @@
   "use strict";
 
   var MOVED = {
+    "effect/compiler_errors.html#5-the-error-type-is-silently-erased-across-a-chain": "effect/compiler_errors.html#5-a-step-that-fails-with-another-error-type",
     "optics/compiler_errors.html#instanceof--names--which-carries-type-parameters-of-its-own-and-is-a-member-of-a-generic-type": "optics/optics_spec_interfaces.html#parameterised-targets",
     "transformers/common_errors.html#3-method-mapt-cannot-be-applied-on-statet": "transformers/statet_transformer.html#transforming-the-outer-monad-with-mapt",
     "transformers/common_errors.html#4-the-phantom-l-on-eithertfromeither--eitherright": "transformers/common_errors.html#3-the-phantom-l-on-eithertfromeither--eitherright",

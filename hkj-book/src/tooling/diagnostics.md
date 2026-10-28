@@ -83,7 +83,7 @@ repositories {
 
 ### Checker Not Running
 
-**Symptom:** Path type mismatches are not caught at compile time.
+**Symptom:** The HKJ checker's lines, such as `Path type mismatch in via()`, never appear beside javac's errors.
 
 **Check:** Run `hkjDiagnostics` and verify:
 - "Path type mismatch: enabled" appears under Compile-time checks

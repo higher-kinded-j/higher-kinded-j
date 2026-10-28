@@ -1,8 +1,8 @@
 // Fixture for hkj-book/src/effect/capabilities.md
 //
 // The page quotes each capability interface and then shows a path type using it. The interface
-// quotations declare their own types, which shadow the real ones - so this fixture deliberately
-// does NOT import `Composable`, `Combinable`, `Chainable` or `Recoverable`.
+// quotations are not compiled, so this fixture imports the real `Chainable` and `Effectful` that
+// the compiled snippets name.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -24,6 +24,7 @@ import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Effectful;
 import org.higherkindedj.hkt.trymonad.Try;
 

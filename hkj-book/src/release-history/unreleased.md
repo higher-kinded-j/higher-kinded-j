@@ -5,6 +5,7 @@ _Not released yet: these changes are on `main`, and the `latest` book describes 
 To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
 ~~~admonish info title="At a glance"
+- **javac checks what each step of a Path chain returns.** A step of another kind of Path, or one that fails with an error the chain does not carry, is a compile error in the IDE as well as the build.
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.
 - **A `@GenerateFocus` message that offers a navigator asks first for the renames it needs.** Following its fix line no longer leads into another note or error.
 - **A `@GenerateMapping` bean refusal's fix line compiles once followed**, and names the near miss it passed over, such as `setx(int)` beside `Integer getX()`.
@@ -29,6 +30,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Effect Paths {#effect-paths}
 
+- **javac checks each chain step's kind of Path and error type** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). A step passed to `via` or another chaining method must be the chain's own kind of Path, so a mismatch is a compile error rather than an exception at run time. A step may still fail with a variant of the chain's error. See [The Family Parameter](../effect/capabilities.md#the-family-parameter).
 - **`TrampolinePath` and `FreePath` combine three paths with `zipWith3`** ([#1302](https://github.com/higher-kinded-j/higher-kinded-j/issues/1302)): both already combined two paths with `zipWith`. The three-way combine stays lazy until `run()` or `foldMap`, so a deep chain stays stack-safe. See [Combinable (Applicative)](../effect/capabilities.md#combinable-applicative).
 
 ---
@@ -42,6 +44,9 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ---
 
 ## Build and tooling {#build-and-tooling}
+
+- **The HKJ checker names the fix beside javac's error for a mismatched step** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). `error-type-mismatch` says where to type the chain, as in `write .<OrderError>mapError(...)`, or that the step's error needs mapping. `path-type-mismatch` now reads method-reference steps, `VResultPath` and the accumulating methods. See [Compile-Time Checks](../tooling/compile_checks.md).
+- **An OpenRewrite recipe adds the Path family to capability types** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). `org.higherkindedj.openrewrite.AddPathFamily` rewrites `Chainable<A>` to `Chainable<?, A>`, and likewise the other capability types, a `PathProvider`'s `createPath` included. See [0.6.0 Path family](../tooling/openrewrite.md#060-path-family).
 
 ---
 
@@ -67,10 +72,19 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **Of two withers for one getter, `@ImportOptics` sets through the capitalised spelling** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)): the lens for a class with both `withEMail` and `witheMail` beside `eMail()` set through whichever the class declared first. It now sets through `withEMail`, and a note names `witheMail`, which a spec interface's `@Wither` can choose.
 - **An optic interpreter that wraps each result in `Free.pure` skips the operation's continuation** ([#1154](https://github.com/higher-kinded-j/higher-kinded-j/issues/1154)): a program from `OpticPrograms` runs as before, but a function mapped onto an `OpticOp`, through `OpticOpFunctor` or `Free.translate`, is not applied. Hand the result to `op.k()` and return what it gives.
 
+#### Effect Paths {#runtime-effect-paths}
+
+- **A `ValidationPath` keeps its own semigroup through a step** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)): the result of `via`, `then`, `recoverWith` and `orElse` accumulated with the step's semigroup, and now accumulates with the receiver's. After `mapError`, whose placeholder semigroup throws, a later accumulation now throws even past a step that had a semigroup; use `mapErrorWith` instead.
+- **An `EitherOrBothPath` keeps its own semigroup through a recovery** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)): the result of `recoverWith` and `orElse` accumulated with the recovery's semigroup, and now accumulates with the receiver's, as `via` and `then` already did.
+
 ### What stops a build that compiled {#build-changes}
 
 | Area | Now fails the build | Do this | Issue |
 |---|---|---|---|
+| Effect Paths | A chain step of another kind of Path, or with an error, environment, state, log or witness type the chain does not carry | Convert the step, map its error, or type the chain on the wider error where it starts, as [Common Compiler Errors](../effect/compiler_errors.md) shows | [#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314) |
+| Effect Paths | Code that names a capability type with its old arguments, such as `Effectful<A>`, or a `PathProvider` returning `Chainable<A>` | Write `Effectful<?, A>`, or `<P, A> Effectful<P, A>` in a helper that chains. The `AddPathFamily` recipe writes the first | [#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314) |
+| Effect Paths | A chain whose receiver is typed with a wildcard error, such as `EitherPath<? extends AppError, String>` | Widen it first, as in `p.<AppError>mapError(e -> e).via(...)`, or declare it as `EitherPath<AppError, String>` | [#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314) |
+| Effect Paths | A pattern or cast from a capability type to a concrete Path, such as `case MaybePath<String> m` on a `Chainable<?, String>`; a cast is unchecked, so it fails under `-Werror` | Match from `Composable<String>`, or build the concrete Path directly | [#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314) |
 | Optics | An optic interpreter or other code of your own that names an `OpticOp` record: a pattern or type such as `OpticOp.Get<?, ?>` or `OpticOp.Set<S, A>`, or a constructor call such as `new OpticOp.Get<>(source, getter)` | Add the third type argument, as in `OpticOp.Get<?, ?, ?>`, and pass a continuation, `Function.identity()`, to a constructor. Hand each result to `op.k()` and return what it gives, in place of `Free.pure(result)` | [#1154](https://github.com/higher-kinded-j/higher-kinded-j/issues/1154) |
 
 ### Deprecated for removal in 0.7.0 {#deprecated}

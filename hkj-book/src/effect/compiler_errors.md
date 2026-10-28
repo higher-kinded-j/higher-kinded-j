@@ -1,22 +1,20 @@
 # Common Compiler Errors
 
-Java's type inference works well for most Effect Path usage, but generic-heavy code occasionally produces confusing messages. This page covers the five things that most often go wrong. Find your symptom in the table below and follow it to its section.
+Java's type inference works well for most Effect Path usage, but generic-heavy code occasionally produces confusing messages. This page covers the five things that most often go wrong. Find your symptom in the [Find your message](#find-your-message) table and follow it to its section.
 
 ~~~admonish info title="What You'll Learn"
-- Which Path mistakes javac catches, which the HKJ checker catches, and which nothing catches
+- Which Path mistakes javac catches, and the one nothing catches
+- How to read a message that names `Chainable<? extends EitherPath<? extends AppError,?>,B>`
 - How to pin the error type `E` so it never silently becomes `Object`
 - How to convert at the boundary when a step returns the wrong kind of Path
 - When to reach for `map` rather than `via`, and how to unblock a lambda javac cannot infer
 ~~~
 
-~~~admonish warning title="Three of these five compile cleanly"
-The compiler is not your safety net on this page.
+~~~admonish warning title="Four of these five are javac errors"
+- **§2 to §5 stop the build.** The message is quoted in each section. With the build plugin, the HKJ checker adds a line beside javac's for §2 and §5, and for a lambda in §3, that names the fix. See [Compile-Time Checks](../tooling/compile_checks.md).
+- **§1 compiles, and nothing reports it.** `E` becomes `Object` and stays there, until a chain typed on a real error rejects it.
 
-- **§3 and §4 are javac errors.** The build stops, and the message is quoted in the section.
-- **§2 and §5 compile.** The HKJ compile-time checker reports them if you use the build plugin: `path-type-mismatch` as an error, `error-type-mismatch` as a warning. Without the plugin the first sign is an `IllegalArgumentException` or a `ClassCastException` in production. See [Compile-Time Checks](../tooling/compile_checks.md) for setup and the full catalogue.
-- **§1 compiles, and nothing reports it.** `E` becomes `Object` and stays there.
-
-Each silent case carries a snippet the book's build compiles, asserting that it still compiles. A change that makes one of them loud again fails that build rather than passing in silence.
+The silent case carries a snippet the book's build compiles, asserting that it still compiles. A change that makes it loud fails that build rather than passing in silence.
 ~~~
 
 ---
@@ -26,35 +24,35 @@ Each silent case carries a snippet the book's build compiles, asserting that it 
 | The symptom | What it is | Caught by |
 |-------------|------------|-----------|
 | [`Path.right`/`left` silently gets `E = Object`](#1-the-phantom-error-type-e-on-pathright) | `E` is unconstrained, so javac defaults it | Nothing. Add the witness yourself |
-| [`IllegalArgumentException` from `via`, with no compile error](#2-a-step-that-returns-the-wrong-kind-of-path) | A step returns a different Path kind | The `path-type-mismatch` check |
-| [`method via is not applicable`](#3-method-via-is-not-applicable-for-the-arguments) | The function returns a plain value, not a Path | javac |
+| [`MaybePath<User> cannot be converted to Chainable<? extends EitherPath<…>,B>`](#2-a-step-that-returns-the-wrong-kind-of-path) | A step returns another kind of Path | javac, and the `path-type-mismatch` note |
+| [`via mapper must return EitherPath`, an `IllegalArgumentException`](#2-a-step-that-returns-the-wrong-kind-of-path) | The same mistake, through a raw type or an older build | The run-time check |
+| [`Chainable<? extends ReaderPath<? super Config,?>,B>`, or a `WithStatePath`, `WriterPath` or witness](#2-a-step-that-returns-the-wrong-kind-of-path) | A step with another environment, state, log or witness type | javac |
+| [`method via is not applicable`](#3-method-via-is-not-applicable-for-the-arguments) | The function returns a plain value, not a Path | javac, and the `via-non-path` note for a lambda |
 | [`lambda body is neither value nor void compatible`](#4-lambda-body-is-neither-value-nor-void-compatible) | A lambda's branches return different types | javac |
-| [Wrong error type at runtime, with no compile error](#5-the-error-type-is-silently-erased-across-a-chain) | `E` is erased across a chain step | The `error-type-mismatch` check, as a warning |
+| [`EitherPath<String,User> cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>`](#5-a-step-that-fails-with-another-error-type) | A step fails with an error the chain does not carry | javac, and the `error-type-mismatch` note |
+| [`Chainable<? extends EitherPath<? extends UserNotFound,?>,B>`, naming one variant](#a-chain-typed-on-one-variant) | The chain is typed on one variant of the error | javac, and the `error-type-mismatch` note |
+| [`inference variable E has incompatible bounds`](#a-chain-typed-on-one-variant) | The same, where the step's error is inferred too | javac, and the `error-type-mismatch` note |
 
-Which line of defence answers depends on the mistake:
+Who speaks depends on the mistake:
 
 ```mermaid
 flowchart TD
     C["Your Path chain"]
     J{"Does javac<br/>reject it?"}
-    JE["Build stops<br/>§3, §4"]
-    K{"Does the HKJ<br/>checker report it?"}
-    KE["Reported at compile time<br/>§2 as an error, §5 as a warning"]
-    N["Nothing says a word<br/>§1, and §2 or §5 without the plugin"]
+    JE["Build stops: §2 to §5<br/>the HKJ checker adds the fix"]
+    N["Nothing says a word: §1"]
 
     C --> J
     J -->|yes| JE
-    J -->|no| K
-    K -->|yes| KE
-    K -->|no| N
+    J -->|no| N
 
     classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef caught fill:#a6d189,stroke:#40a02b,color:#232634
     classDef missed fill:#e78284,stroke:#d20f39,color:#232634
     class C step
-    class J,K decision
-    class JE,KE caught
+    class J decision
+    class JE caught
     class N missed
 ```
 
@@ -115,20 +113,32 @@ error: cannot infer type arguments for right(A)
 
 On the supported compiler, the modern `javac` the HKJ build plugin targets, this does not happen. The code compiles. That is the more dangerous outcome, because the mistake is now silent rather than loud.
 
-When `E` defaults to `Object`, later code expecting a specific error type either fails to type-check at the *consumer*, as an ordinary incompatible-types error somewhere else, or has its real error type erased inside a chain. See [§5](#5-the-error-type-is-silently-erased-across-a-chain).
+When `E` defaults to `Object`, later code expecting a specific error type fails to type-check. At a *consumer* it is an ordinary incompatible-types error somewhere else. As a step of a chain typed on a real error, javac rejects it, as [§5](#5-a-step-that-fails-with-another-error-type) shows, and the HKJ checker's note names the witness to add.
 
-The HKJ compile-time checker does not flag the bare `E = Object` default, because it is not reliably distinguishable from code that means `EitherPath<Object, …>`. It does flag the related hazard in §5, through the `error-type-mismatch` check.
+The HKJ compile-time checker does not flag the bare `E = Object` default, because it is not reliably distinguishable from code that means `EitherPath<Object, …>`.
 ~~~
 
 ---
 
 ## 2. A step that returns the wrong kind of Path
 
-**This compiles, and throws at runtime.** `via` takes a `Function<? super A, ? extends Chainable<B>>`, and every Path type is a `Chainable`, so *which* Path a step returns is not part of the signature. `via` checks the kind at runtime and throws `IllegalArgumentException`.
+**A javac error.** A step passed to `via`, `then`, `zipWith`, `recoverWith` or `orElse` must be a Path of the chain's own kind, so a step that returns another kind does not compile.
+
+**The error:**
+
+```
+error: incompatible types: cannot infer type-variable(s) B
+        .via(id -> findUser(id))
+            ^
+    (argument mismatch; bad return type in lambda expression
+      MaybePath<User> cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>)
+```
+
+Read the last line as "this step is a `MaybePath`, and the chain needs an `EitherPath` step that fails with an `AppError`". With the build plugin, the HKJ checker adds a line that names the conversion: `Path type mismatch in via(): expected EitherPath but received MaybePath`.
 
 **The trigger:**
 
-<!-- verify -->
+<!-- verify:rejects "User> cannot be converted to" -->
 ```java
 MaybePath<User> findUser(String id) {
     return Path.maybe(loadUser(id));
@@ -140,14 +150,14 @@ EitherPath<AppError, String> result =
         .map(User::name);
 ```
 
-**The fix:** convert at the boundary with `toEitherPath`, which turns `Nothing` into a `Left`. A lambda selects the deferred overload, so the error is built only on the branch that uses it, and the `<AppError>` witness names the error type, since nothing downstream settles it here.
+**The fix:** convert at the boundary with `toEitherPath`, which turns `Nothing` into a `Left`. A lambda selects the deferred overload, so the error is built only on the branch that uses it.
 
 <!-- verify -->
 ```java
 EitherPath<AppError, String> result =
     Path.<AppError, String>right(userId)
         .via(id -> Path.maybe(loadUser(id))
-            .<AppError>toEitherPath(() -> new AppError.UserNotFound(id)))  // MaybePath -> EitherPath
+            .toEitherPath(() -> new AppError.UserNotFound(id)))  // MaybePath -> EitherPath
         .map(User::name);
 ```
 
@@ -160,20 +170,12 @@ EitherPath<AppError, String> result =
 | `EitherPath<E, A>` | `MaybePath<A>` | `.toMaybePath()` |
 | `ValidationPath<E, A>` | `EitherPath<E, A>` | `.toEitherPath()` |
 
-~~~admonish tip title="The HKJ checker catches this"
-With the build plugin, the `path-type-mismatch` check reports it at compile time, with an actionable message at the call site. See [Compile-Time Checks](../tooling/compile_checks.md).
-~~~
+~~~admonish note title="Why the message names Chainable" collapsible=true
+`via` is declared once, on the `Chainable` capability interface, for every Path. Its type parameters say what a step may return: a `Chainable` of the receiver's *family*, the Path's own class with its value left open. An `EitherPath<AppError, A>` belongs to the family `EitherPath<? extends AppError, ?>`, so its steps must be `Chainable<? extends EitherPath<? extends AppError,?>,B>`. See [Capability Interfaces](capabilities.md#the-family-parameter).
 
-~~~admonish note title="What older write-ups said" collapsible=true
-Older write-ups described javac rejecting this:
+The same message names the environment of a `ReaderPath`, the state of a `WithStatePath`, the log of a `WriterPath` and the witness of a `FreePath` or `GenericPath`. A `ReaderPath` step may need less of the environment, a supertype of the chain's; the others must match exactly.
 
-```
-error: incompatible types: MaybePath<User> cannot be converted to EitherPath<AppError,User>
-    .via(id -> Path.maybe(findUser(id)))
-                   ^
-```
-
-It does not. An `EitherPath` chain does expect `via` to return an `EitherPath`, but nothing in the signature says so, which is why the mistake reaches runtime.
+Each Path still checks a step's kind when the chain runs, for code that reaches `via` through a raw type or was compiled against an older release. There the mistake throws `IllegalArgumentException: via mapper must return EitherPath, got: …`, and the fix is the same conversion.
 ~~~
 
 ---
@@ -186,10 +188,13 @@ It does not. An `EitherPath` chain does expect `via` to return an `EitherPath`, 
 
 ```
 error: method via in class EitherPath<E,A> cannot be applied to given types;
-    .via(this::processOrder)
-         ^
-  required: Function<? super Order, ? extends Chainable<B>>
-  found: method reference this::processOrder
+            .via(this::processOrder);
+            ^
+  required: Function<? super Order,? extends Chainable<? extends EitherPath<? extends AppError,?>,B>>
+  found:    this::processOrder
+  reason: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in method reference
+      String cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>)
 ```
 
 **The trigger:**
@@ -226,8 +231,8 @@ EitherPath<AppError, Order> chained =
 - `map`: your function takes `A` and returns `B`
 - `via`: your function takes `A` and returns a `Path<B>`, of any Path type that matches the chain
 
-~~~admonish tip title="The HKJ checker catches this too"
-The `via-non-path` check is the companion to javac's own error, and carries the actionable "use `map` for a plain transformation" message. See [Compile-Time Checks](../tooling/compile_checks.md).
+~~~admonish tip title="The HKJ checker explains a lambda step"
+For a lambda that returns a plain value, the `via-non-path` check adds a line beside javac's error, with the actionable "use `map` for a plain transformation" message. It does not read a method reference such as `this::processOrder`. See [Compile-Time Checks](../tooling/compile_checks.md).
 ~~~
 
 ---
@@ -299,13 +304,25 @@ EitherPath<AppError, Double> total =
 
 ---
 
-## 5. The error type is silently erased across a chain
+## 5. A step that fails with another error type {#5-a-step-that-fails-with-another-error-type}
 
-**This compiles, and that is the bug.** `via`, `flatMap` and `then` accept a `Function` or `Supplier` of `? extends Chainable<B>`, and `zipWith` a `Combinable<B>`. None of those carries the error type. A step whose `E` differs from the chain's compiles cleanly, and the wrong error type is carried at runtime, surfacing as a `ClassCastException` when the error is consumed.
+**A javac error.** A step must fail with the chain's error type, or a subtype of it such as one variant of a sealed error. A step whose error the chain does not carry does not compile.
+
+**The error:**
+
+```
+error: incompatible types: cannot infer type-variable(s) B
+    EitherPath<AppError, User> wrong = validated.via(id -> lookupUser(id));
+                                                    ^
+    (argument mismatch; bad return type in lambda expression
+      EitherPath<String,User> cannot be converted to Chainable<? extends EitherPath<? extends AppError,?>,B>)
+```
+
+Read `Chainable<? extends EitherPath<? extends AppError,?>,B>` as "your chain is typed on `AppError`". The type before it is the step, which fails with `String`.
 
 **The trigger:**
 
-<!-- verify -->
+<!-- verify:rejects "User> cannot be converted to" -->
 ```java
 // lookupUser returns EitherPath<String, User>, which is the wrong error type
 EitherPath<String, User> lookupUser(String id) {
@@ -316,11 +333,18 @@ EitherPath<String, User> lookupUser(String id) {
 
 EitherPath<AppError, String> validated = validateInput(input);
 
-// String erased; the result is typed AppError, and is not
 EitherPath<AppError, User> wrong = validated.via(id -> lookupUser(id));
 ```
 
-**The fix:** unify the error type, or convert it with `mapError`.
+**The fix** depends on how the two error types are related. With the build plugin, the HKJ checker's note beside javac's error says which applies, and names what to write.
+
+| The step fails with | The note says | The fix |
+|---|---|---|
+| An unrelated type, such as `String` | `which does not extend AppError` | Map the step's error into the chain's, with `mapError` inside the step |
+| A type sharing a supertype with the chain's, such as a sibling variant | `the chain is typed on UserNotFound` | Type the chain on the supertype where it is typed |
+| `Object`, because nothing typed its chain | `this step is typed on Object` | Pin the step's error where its chain starts, as in [§1](#1-the-phantom-error-type-e-on-pathright) |
+
+For an unrelated type, unify the error type or convert it at the boundary:
 
 <!-- verify -->
 ```java
@@ -345,33 +369,87 @@ EitherPath<AppError, User> converted =
 
 Option 1 is preferred for new code. Option 2 is useful when integrating with existing methods you cannot change.
 
-~~~admonish info title="Tooling catches this"
-The `error-type-mismatch` check reports the silent mismatch, as a **warning** by default, since the compiler itself accepts the code. It fires when the receiver and the step are the same error-typed Path category and the step's `E` is not assignable to the chain's. See [Compile-Time Checks](../tooling/compile_checks.md).
-~~~
+### A chain typed on one variant {#a-chain-typed-on-one-variant}
 
-~~~admonish note title="What older write-ups said" collapsible=true
-This case was previously documented as a compile error:
+A step may fail with a subtype of the chain's error, but not with a supertype or a sibling. A chain that starts from a path typed on one variant stays on it, so a later step that fails with another variant is rejected:
+
+<!-- verify:rejects "UserNotFound,?>,B>" -->
+```java
+EitherPath<AppError, Order> placeOrder(User user) {
+    return Path.<AppError, Order>right(order);
+}
+
+EitherPath<AppError, Order> placed =
+    Path.maybe(loadUser(userId))
+        .toEitherPath(new AppError.UserNotFound(userId))   // typed on UserNotFound
+        .via(found -> placeOrder(found));                  // fails with any AppError
+```
+
+javac names the chain's error inside the `Chainable`, here `UserNotFound`:
 
 ```
-error: incompatible types: EitherPath<String,User> cannot be converted to
-    EitherPath<AppError,User>
+error: incompatible types: cannot infer type-variable(s) B
+        .via(found -> placeOrder(found));
+            ^
+    (argument mismatch; bad return type in lambda expression
+      EitherPath<AppError,Order> cannot be converted to Chainable<? extends EitherPath<? extends UserNotFound,?>,B>)
 ```
 
-On the supported compiler it is not an error. Every step in an `EitherPath` chain is *meant* to share one error type `E`, but the chain signatures erase it through `Chainable<B>`, so the compiler will not enforce it for you.
+Where the step's own error type is inferred too, javac reports the two bounds it could not reconcile instead. The upper bound is the chain's error, and the lower bound the step's:
+
+<!-- verify:rejects "has incompatible bounds" -->
+```java
+EitherPath<AppError, User> found =
+    Path.<String, String>left("bad id")
+        .mapError(AppError.NotFound::new)                  // typed on NotFound
+        .via(id -> Path.tryOf(() -> loadUser(id))
+            .toEitherPath(e -> new AppError.UserNotFound(id)));
+```
+
+```
+error: incompatible types: inference variable E has incompatible bounds
+    upper bounds: NotFound,Object
+    lower bounds: UserNotFound
+```
+
+Write the wider type where the chain is typed. The HKJ checker's note names the place: `Type the chain on AppError where it is typed: write .<AppError>toEitherPath(...)`.
+
+<!-- verify -->
+```java
+EitherPath<AppError, Order> placed =
+    Path.maybe(loadUser(userId))
+        .<AppError>toEitherPath(new AppError.UserNotFound(userId))
+        .via(found -> placeOrder(found));
+```
+
+The same witness fixes the other places a chain is typed:
+
+| The chain starts with | Write |
+|---|---|
+| `mapError(UserNotFound::new)`, opening an inner chain | `.<AppError>mapError(UserNotFound::new)` |
+| `toEitherPath(...)` | `.<AppError>toEitherPath(...)` |
+| `Path.right(...)` or `Path.left(...)` | `Path.<AppError, User>right(...)` |
+| A helper that returns `EitherPath<UserNotFound, User>` | `.<AppError>mapError(e -> e)` after the call, or declare the helper on `AppError` |
+
+A `ValidationPath` or an `EitherOrBothPath` changes its error type only with a semigroup for the new one, so it widens with `mapErrorWith(e -> e, semigroup)`. A chain typed on a container of errors, such as `NonEmptyList<UserNotFound>`, is not widened by the variant rule, because `NonEmptyList<UserNotFound>` is not a `NonEmptyList<AppError>`. Map the container instead, as in `mapErrorWith(errors -> errors.<AppError>map(e -> e), NonEmptyList.semigroup())`.
+
+~~~admonish note title="Why a variant is accepted and a supertype is not" collapsible=true
+A step's error must be assignable to the chain's, because the chain hands that error on as its own. A `UserNotFound` is an `AppError`, so an `AppError` chain accepts a step typed on `UserNotFound`. The reverse would let an `AppError` that is not a `UserNotFound` travel as one, and fail with a `ClassCastException` wherever it is read.
 ~~~
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Only two of the five are javac errors.** For the rest, the build plugin's compile-time checks are what stands between you and a production exception.
-* **Pin `E` at the source.** `Path.<E, A>right(...)` costs nothing at runtime and stops `Object` leaking into an error type nothing will notice.
-* **`via` does not check which Path you hand back.** Every Path is a `Chainable`, so convert at the boundary with `toEitherPath` or `toMaybePath` rather than trusting the signature.
+* **Four of the five are javac errors.** The build plugin's checker adds a line beside javac's that names the fix.
+* **Pin `E` at the source.** `Path.<E, A>right(...)` costs nothing at runtime and stops `Object` leaking into an error type.
+* **A step must be the chain's own kind of Path.** Convert at the boundary with `toEitherPath` or `toMaybePath`.
 * **`map` transforms, `via` chains.** A function returning a plain value belongs in `map`; one returning a Path belongs in `via`.
-* **A chain's error type is a convention, not a constraint.** Unify `E` across steps, or convert with `mapError` where you cannot.
+* **A step may fail with a variant of the chain's error, not a wider one.** Type the chain on the wider error where it starts, or map the step's error into the chain's.
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Compile-Time Checks](../tooling/compile_checks.md): the checks that report the silent cases, with setup and configuration
+- [Compile-Time Checks](../tooling/compile_checks.md): the checker's notes beside these errors, with setup and configuration
+- [Capability Interfaces](capabilities.md#the-family-parameter): the family parameter that makes javac check each step
 - [Optics Compiler Errors](../optics/compiler_errors.md#generatepathbridge-and-pathvia): what `@GeneratePathBridge` and `@PathVia` report, and why
 - [Type Conversions](conversions.md): full reference for converting between Path types
 - [Troubleshooting](../tutorials/troubleshooting.md): tutorial-specific issues (Kind types, annotation processors, IDE setup)

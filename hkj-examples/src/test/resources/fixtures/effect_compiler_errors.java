@@ -68,6 +68,12 @@ class Fixture {
     return Path.right(order);
   }
 
+  // The trigger in "A chain typed on one variant" declares this with the same signature, so its
+  // declaration overrides this one, and the fix after it calls this one.
+  EitherPath<AppError, Order> placeOrder(User user) {
+    return Path.right(order);
+  }
+
   static EitherPath<AppError, String> validateInput(String input) {
     return Path.right(input);
   }

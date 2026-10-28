@@ -36,7 +36,7 @@ multi-value world back to single-value effects.
 
 ## Where VStreamPath Fits
 
-VStreamPath implements `Chainable<A>`, the monadic composition capability in the
+VStreamPath implements `Chainable<VStreamPath<?>, A>`, the monadic composition capability in the
 Effect Path hierarchy. It does not implement `Effectful` (no side-effect execution
 model) or `Recoverable` (error handling is on the underlying VStream).
 
@@ -48,7 +48,7 @@ model) or `Recoverable` (error handling is on the underlying VStream).
               ┌─────────────┼─────────────┐
               │             │             │
    ┌──────────▼──────┐  ┌──▼───────┐  ┌───▼──────────┐
-   │  Combinable<A>  │  │Chainable │  │ Effectful<A> │
+   │  Combinable     │  │Chainable │  │ Effectful    │
    │  zipWith        │  │ via,then │  │ run, runSafe │
    └─────────────────┘  └──┬───────┘  └──────────────┘
                             │
