@@ -145,7 +145,7 @@ public final class DiagnosticMessages {
    * @param chainE the chain's error type, simple name
    * @param stepE the step's error type, simple name
    * @param supertype the most specific supertype of both, simple name
-   * @param witness what to write where the chain is typed (e.g. ".<OrderError>mapError(...)")
+   * @param witness what to write where the chain is typed (e.g. {@code .<OrderError>mapError(...)})
    * @return a formatted message
    */
   public static String errorTypeNarrowChain(
@@ -170,8 +170,8 @@ public final class DiagnosticMessages {
    * @param methodName the chain method (e.g. "via")
    * @param stepE the step's error type, simple name
    * @param chainE the chain's error type, simple name
-   * @param witness what to write where the step's chain starts (e.g. "Path.<OrderError,
-   *     Order>right(...)"), or {@code null} when the start cannot be named
+   * @param witness what to write where the step's chain starts (e.g. {@code Path.<OrderError,
+   *     Order>right(...)}), or {@code null} when the start cannot be named
    * @return a formatted message
    */
   public static String errorTypeUntypedStep(
