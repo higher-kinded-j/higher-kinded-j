@@ -316,7 +316,18 @@
     "hkts/core-concepts.html#3-type-classes-functor-applicative-monad-monaderror": "functional/ch_intro.html#the-hierarchy",
     "hkts/core-concepts.html#4-defunctionalisation-per-type-constructor": "hkts/core-concepts.html#the-pieces-each-type-provides",
     "hkts/core-concepts.html#5-the-unit-type": "hkts/core-concepts.html#unit",
-    "hkts/core-concepts.html#6-error-handling-philosophy": "hkts/core-concepts.html#when-narrow-throws"
+    "hkts/core-concepts.html#6-error-handling-philosophy": "hkts/core-concepts.html#when-narrow-throws",
+    "hkts/usage-guide.html#usage-guide-working-with-higher-kinded-j": "hkts/usage-guide.html#working-with-kind-widen-call-narrow",
+    "hkts/usage-guide.html#core-workflow": "hkts/usage-guide.html#the-five-steps",
+    "functional/instances_facade.html#design-constraints": "functional/instances_facade.html#what-the-compiler-checks",
+    "hkts/usage-guide.html#admonition-step-1-identify-the-context-_f_witness_": "hkts/usage-guide.html#the-five-steps",
+    "hkts/usage-guide.html#admonition-step-2-find-the-type-class-instance": "hkts/usage-guide.html#the-five-steps",
+    "hkts/usage-guide.html#admonition-step-3-wrap-your-value-_javatype_---_kind_": "hkts/usage-guide.html#the-five-steps",
+    "hkts/usage-guide.html#admonition-step-4-apply-type-class-methods": "hkts/usage-guide.html#the-five-steps",
+    "hkts/usage-guide.html#admonition-step-5-unwrapnarrow-the-result-_kind---javatype_": "hkts/usage-guide.html#the-five-steps",
+    "hkts/usage-guide.html#admonition-handling-_kindunwrapexception_": "hkts/core-concepts.html#when-narrow-throws",
+    "hkts/usage-guide.html#admonition-example-generic-function": "hkts/usage-guide.html#write-the-method-once",
+    "functional/instances_facade.html#admonition-compile-time-safety-is-preserved": "functional/instances_facade.html#what-the-compiler-checks"
   };
 
   function target() {

@@ -688,6 +688,8 @@ Use triple backticks with language specifier:
 ```
 ````
 
+**A page shows its imports.** Its first snippet shows the import lines a reader would type, static imports such as `MAYBE` or `maybe()` included, as single-type imports. A page that uses `import module org.higherkindedj.core;` says the library must be resolved as a module: required in `module-info.java`, or added with `--add-modules`.
+
 ### Inline Code
 
 Use backticks for:
