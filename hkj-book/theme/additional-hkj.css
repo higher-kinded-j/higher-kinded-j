@@ -304,9 +304,9 @@ html.mocha .hkj-logo-dark { display: inline; }
    the Catppuccin flavour the reader picked: the band is the flavour's mantle,
    its cards are the page's base, and its code is highlighted as the book's
    is. Latte's accents are too light to read as small text, so in Latte the
-   band writes its labels and chips in "ink", each accent mixed into Latte's
-   text until it reaches 4.5:1. Sizes are in px because the book's root font
-   size is 10px. */
+   band writes its labels, chips and hovered links in "ink", each accent mixed
+   into Latte's text until it reaches 4.5:1. Sizes are in px because the
+   book's root font size is 10px. */
 
 /* Latte, the book's default flavour, sets the tokens. */
 .hkj-spotlight {
@@ -323,6 +323,7 @@ html.mocha .hkj-logo-dark { display: inline; }
     --hkj-sp-green-ink: color-mix(in srgb, var(--hkj-sp-green) 45%, var(--hkj-sp-text));
     --hkj-sp-teal-ink: color-mix(in srgb, var(--hkj-sp-teal) 45%, var(--hkj-sp-text));
     --hkj-sp-eyebrow: var(--hkj-sp-green-ink);
+    --hkj-sp-link-hover: color-mix(in srgb, var(--links) 75%, var(--hkj-sp-text));
     --hkj-sp-shadow: rgba(76, 79, 105, 0.12);
 
     display: grid;
@@ -343,12 +344,14 @@ html.mocha .hkj-logo-dark { display: inline; }
 }
 
 /* The dark flavours' accents read as text on their own, so their ink is the
-   accent itself, and their eyebrow is yellow, as on the release cards. */
+   accent itself, a hovered link takes the book's link colour, and their
+   eyebrow is yellow, as on the release cards. */
 html.frappe .hkj-spotlight,
 html.macchiato .hkj-spotlight,
 html.mocha .hkj-spotlight {
     --hkj-sp-green-ink: var(--hkj-sp-green);
     --hkj-sp-teal-ink: var(--hkj-sp-teal);
+    --hkj-sp-link-hover: var(--links);
     --hkj-sp-shadow: rgba(0, 0, 0, 0.35);
 }
 
@@ -466,7 +469,7 @@ html.mocha .hkj-spotlight {
 }
 
 .content .hkj-spotlight a:hover {
-    color: var(--links);
+    color: var(--hkj-sp-link-hover);
     text-decoration: underline;
     text-underline-offset: 3px;
 }
