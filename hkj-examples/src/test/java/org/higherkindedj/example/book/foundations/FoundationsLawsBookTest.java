@@ -2,12 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.foundations;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.math.BigDecimal;
@@ -27,7 +30,11 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -39,6 +46,7 @@ import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
@@ -48,9 +56,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Checks the laws that the book's Foundations type class pages state, with {@code hkj-test}'s law
- * helpers. Each page {@code {{#include}}}s the region for its own type class.
+ * helpers where it has one, and by hand where it has none. Each page {@code {{#include}}}s the
+ * region for its own type class.
  */
-@DisplayName("Foundations: the type class laws, checked with hkj-test")
+@DisplayName("Foundations: the type class laws each page states")
 class FoundationsLawsBookTest {
 
   private static final Order ORDER =
@@ -152,4 +161,53 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: monad_laws
+
+  // ANCHOR: monad_error_laws
+  <F extends WitnessArity<TypeArity.Unary>, E> void assertMonadErrorLaws(
+      MonadError<F, E> monadError, E error, BiPredicate<Kind<F, ?>, Kind<F, ?>> same) {
+    Function<E, Kind<F, E>> giveBackTheError = monadError::of;
+    Function<E, Kind<F, String>> handled = raised -> monadError.of("handled");
+    Function<Order, Kind<F, Customer>> findCustomer = order -> monadError.of(order.customer());
+
+    // handling a raised error is the handler, given that same error
+    assertThat(
+            same.test(
+                monadError.handleErrorWith(monadError.<E>raiseError(error), giveBackTheError),
+                giveBackTheError.apply(error)))
+        .isTrue();
+    // a success is never handled
+    assertThat(
+            same.test(
+                monadError.handleErrorWith(monadError.of("kept"), handled), monadError.of("kept")))
+        .isTrue();
+    // a raised error skips every step
+    assertThat(
+            same.test(
+                monadError.flatMap(findCustomer, monadError.<Order>raiseError(error)),
+                monadError.raiseError(error)))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("Either's, Try's and Maybe's MonadError keep the laws that tie raising to handling")
+  void monadErrorLaws() {
+    MonadError<EitherKind.Witness<String>, String> eitherErrors = Instances.monadError(either());
+    MonadError<TryKind.Witness, Throwable> tryErrors = Instances.monadError(try_());
+    MonadError<MaybeKind.Witness, Unit> maybeErrors = Instances.monadError(maybe());
+
+    assertMonadErrorLaws(
+        eitherErrors,
+        "order not found",
+        KindEquivalence.<EitherKind.Witness<String>>byEqualsAfter(EITHER::narrow));
+    assertMonadErrorLaws(
+        tryErrors,
+        new IllegalStateException("order not found"),
+        KindEquivalence.<TryKind.Witness>byEqualsAfter(TRY::narrow));
+    assertMonadErrorLaws(
+        maybeErrors,
+        Unit.INSTANCE,
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+  }
+
+  // ANCHOR_END: monad_error_laws
 }
