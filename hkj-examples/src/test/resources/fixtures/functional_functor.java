@@ -1,30 +1,22 @@
 // Fixture for hkj-book/src/functional/functor.md
 //
-// The page maps one function over four containers. The JDK values it opens with are declared here.
+// The page opens with one function mapped over four containers. The values it maps are declared
+// here, with the types Functor's signature names. The page's other code is included from compiled
+// examples.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
-import static org.higherkindedj.hkt.instances.Witnesses.list;
-import static org.higherkindedj.hkt.instances.Witnesses.optional;
-import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
-import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
-import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.optional.OptionalFunctor;
-import org.higherkindedj.hkt.optional.OptionalKind;
 
 class Fixture {
 

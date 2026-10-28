@@ -327,7 +327,12 @@
     "hkts/usage-guide.html#admonition-step-5-unwrapnarrow-the-result-_kind---javatype_": "hkts/usage-guide.html#the-five-steps",
     "hkts/usage-guide.html#admonition-handling-_kindunwrapexception_": "hkts/core-concepts.html#when-narrow-throws",
     "hkts/usage-guide.html#admonition-example-generic-function": "hkts/usage-guide.html#write-the-method-once",
-    "functional/instances_facade.html#admonition-compile-time-safety-is-preserved": "functional/instances_facade.html#what-the-compiler-checks"
+    "functional/instances_facade.html#admonition-compile-time-safety-is-preserved": "functional/instances_facade.html#what-the-compiler-checks",
+    "functional/functor.html#what-functor-lets-us-do": "functional/functor.html#what-map-promises",
+    "functional/functor.html#admonition-interface-signature": "functional/functor.html#what-map-promises",
+    "functional/functor.html#two-laws-that-keep-us-honest": "functional/functor.html#two-laws",
+    "functional/functor.html#a-single-map-five-different-containers": "functional/functor.html#one-method-for-any-container",
+    "functional/functor.html#generic-code-for-free": "functional/functor.html#one-method-for-any-container"
   };
 
   function target() {

@@ -609,6 +609,11 @@ Pages documenting type classes or monadic types should follow this structure:
 11. **Further Reading** (external links)
 12. **Navigation** (Previous/Next)
 
+A type class page also follows two rules:
+
+- **A type class page names the Path equivalent first.** Before its first `Kind` example, one sentence names the Path method that does the same job for one container, such as `MaybePath.map`, and links Effect Paths.
+- **A type class page states its laws in a `Laws` note.** The note states each law pointwise, for functions that never return `null`, and includes a test region that checks the laws with `hkj-test`'s helpers, such as `FunctorLaws`. Where `hkj-test` has no helper for a law, the note says its check is not supported yet.
+
 ## Diagrams
 
 Two diagram media are in use, each with its ground:
