@@ -7,11 +7,11 @@ _How many type arguments a container still needs, and which type classes accept 
 <!-- source: Euclid, Elements, Book I, Definitions 1-2, trans. T. L. Heath (1908); checked against D. E. Joyce's online edition -->
 > _"A point is that which has no part. A line is breadthless length."_
 >
-> — Euclid, *Elements* (Book I, Definitions 1 and 2)
+> — Euclid, *Elements* (Book I, Definitions 1 and 2, trans. T. L. Heath)
 
 ---
 
-Euclid defines a figure by how many dimensions it has. Arity defines a type constructor the same way, by how many types it still needs: `String` none, `List` one, `Either` two. Higher-Kinded-J writes that number into every witness, so javac can refuse a container whose shape a type class cannot use.
+Euclid defines a point and a line by what each lacks. Arity defines a type constructor by what it still lacks: `String` nothing, `List` one type, `Either` two. Higher-Kinded-J writes that number into every witness, so javac can refuse a container whose shape a type class cannot use.
 
 ~~~admonish info title="What You'll Learn"
 - Tell a witness, which names a container, from its arity, which counts the type arguments the container still needs
@@ -46,9 +46,11 @@ public record MyType<A>(A value) implements MyTypeKind<A> {}
 
 ## Unary and binary {#unary-and-binary}
 
+The kind column uses the notation from [Why Higher-Kinded Types?](hkt_introduction.md#types-type-constructors-and-higher-kinds): `*` is a complete type, and each arrow takes one more type argument.
+
 | Arity | What is missing | Example witnesses | Type classes that accept it |
 |---|---|---|---|
-| `Unary`, kind `* -> *` | One type argument, as in `List<_>` | `ListKind.Witness`, `MaybeKind.Witness`, `IOKind.Witness`, `EitherKind.Witness<L>` | `Functor`, `Applicative`, `Monad`, `MonadError`, `Traverse`, and every other type class over `Kind` but the two below |
+| `Unary`, kind `* -> *` | One type argument, as in `List<_>` | `ListKind.Witness`, `MaybeKind.Witness`, `IOKind.Witness`, `EitherKind.Witness<L>` | `Functor`, `Applicative`, `Monad`, `MonadError`, `Traverse`, and every other type class over `Kind` but `Bifunctor` and `Profunctor` |
 | `Binary`, kind `* -> * -> *` | Two type arguments, as in `Either<_, _>` | `EitherKind2.Witness`, `ValidatedKind2.Witness`, `Tuple2Kind2.Witness`, `FunctionKind.Witness` | `Bifunctor` and `Profunctor` |
 
 `Either` has a witness of each arity. `EitherKind.Witness<L>` fixes the left type, which leaves one type argument missing, so `Functor`, `Monad` and `MonadError` take it. `EitherKind2.Witness` leaves both missing, for `Bifunctor`. [The Hierarchy](../functional/ch_intro.md#the-hierarchy) shows which type class extends which.
@@ -74,12 +76,8 @@ flowchart BT
     B -->|fits| K
     B -->|fits| K2
     B -->|fits| TC2
-    classDef witness fill:#8caaee,stroke:#1e66f5,color:#232634
-    classDef arity fill:#e5c890,stroke:#df8e1d,color:#232634
-    classDef bound fill:#a6d189,stroke:#40a02b,color:#232634
-    class UW,BW witness
-    class U,B arity
-    class TC1,K,K2,TC2 bound
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    class UW,BW,U,B,TC1,K,K2,TC2 step
 ```
 
 In words: `Kind<F, A>` accepts a witness of either arity, and `Kind2<F, A, B>` only a binary one. Each type class narrows the bound further, as `Functor<F extends WitnessArity<TypeArity.Unary>>` and `Bifunctor<F extends WitnessArity<TypeArity.Binary>>` do. A class that implements no `WitnessArity` meets none of these bounds, so it cannot stand in for `F` at all.
@@ -91,10 +89,14 @@ A binary witness where a unary one is needed does not compile, and nor does a cl
 <!-- verify:rejects "is not within bounds of type-variable" -->
 ```java
 Functor<EitherKind2.Witness> functor;
+```
+
+<!-- verify:rejects "is not within bounds of type-variable" -->
+```java
 Kind<String, Integer> notAWitness;
 ```
 
-javac answers each line with the same message: the type argument `is not within bounds of type-variable F`. The check happens at compile time, and nothing at run time looks at a witness's arity.
+javac answers each with the same message: the type argument `is not within bounds of type-variable F`. The check happens at compile time, and nothing at run time looks at a witness's arity.
 
 The cure for `Either` is its other witness. Fix the left type, and the unary witness fits every unary type class, while the binary one serves `Bifunctor`:
 
@@ -106,9 +108,10 @@ Kind<EitherKind.Witness<String>, Integer> result =
     eitherMonad.flatMap(x -> eitherMonad.of(x + 1), eitherMonad.of(42));
 
 // As a Bifunctor: binary, mapping both sides
+Either<String, Integer> parsed = Either.right(42);
 Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
 Kind2<EitherKind2.Witness, Integer, String> mapped =
-    bifunctor.bimap(String::length, Object::toString, EITHER.widen2(either));
+    bifunctor.bimap(String::length, Object::toString, EITHER.widen2(parsed));
 ```
 
 ---
