@@ -44,15 +44,13 @@ public enum KindValidator {
       Class<T> targetType,
       Function<? super Kind<F, A>, ? extends T> narrower) {
 
-    var context = new KindContext(targetType, NARROW.toString());
-
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         try {
           yield narrower.apply(kind);
         } catch (Exception e) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind), e);
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind), e);
         }
       }
     };
@@ -75,13 +73,11 @@ public enum KindValidator {
   public <F extends WitnessArity<?>, A, T> T narrowWithTypeCheck(
       @Nullable Kind<F, A> kind, Class<T> targetType) {
 
-    var context = new KindContext(targetType, NARROW.toString());
-
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         if (!targetType.isInstance(kind)) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind));
         }
         yield targetType.cast(kind);
       }
@@ -119,17 +115,20 @@ public enum KindValidator {
       Class<H> holderType,
       Function<? super H, ? extends T> accessor) {
 
-    var context = new KindContext(targetType, NARROW.toString());
-
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         if (!holderType.isInstance(kind)) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind));
         }
         yield accessor.apply(holderType.cast(kind));
       }
     };
+  }
+
+  // Built only when a narrow fails, so a successful narrow allocates nothing
+  private static KindContext narrowContext(Class<?> targetType) {
+    return new KindContext(targetType, NARROW.toString());
   }
 
   /**
