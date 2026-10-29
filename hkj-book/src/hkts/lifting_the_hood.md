@@ -123,4 +123,4 @@ An `EitherPath` skips the `Kind`, the instance and the lambda: it holds an `Eith
 ---
 
 **Previous:** [Type Arity](type-arity.md)
-**Next:** [Extending the Simulation](extending-simulation.md)
+**Next:** [Adding Your Own Type](extending-simulation.md)
