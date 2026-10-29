@@ -16,6 +16,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Mapping {#mapping}
 
 - **A bean property's fix line compiles once followed** ([#1149](https://github.com/higher-kinded-j/higher-kinded-j/issues/1149)). The setter offered for `eMails` is `seteMails`, not `setEMails`. A rename to a keyword such as `default` is offered no marker, and a marker replaces the spec's own rename. A near miss such as `setx(int)` beside `Integer getX()` is named. See [When an unpaired accessor is refused](../mapping/rules.md#unpaired-accessors).
+- **Two more PATCH-bean fix lines compile once followed** ([#1293](https://github.com/higher-kinded-j/higher-kinded-j/issues/1293)). A legacy setter such as `setTimeout(Integer)` beside a rename of `timeout` is offered no `@Unmapped` marker, since the rename takes that name. A primitive word such as `setx(int)` is offered its wrapper, `setX(Integer)`. See [A method that only starts like an accessor](../mapping/rules.md#word-accessors).
 
 ---
 

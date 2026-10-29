@@ -1692,12 +1692,14 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Reports the words that would carry {@code component}, offering each its accessor's name, and
-   * the {@code @Unmapped} marker that reads them as no accessors, where one can be followed: not
-   * beside a {@code @ReadOnly} marker of the name, which it would contradict, nor for a getter on a
-   * bean only read, whose parse must fill every component, nor for a setter beside a getter-only
-   * {@code List}, whose fill through a getter that hands back a copy would lose the value, nor
-   * where no marker can be declared ({@link #unmappedOffer}).
+   * Reports the words that would carry {@code component}, offering each its accessor's name ({@link
+   * #renamedWord}), and the {@code @Unmapped} marker that reads them as no accessors, where one can
+   * be followed: not beside a {@code @ReadOnly} marker of the name, which it would contradict, nor
+   * for a getter on a bean only read, whose parse must fill every component, nor for a setter
+   * beside a getter-only {@code List}, whose fill through a getter that hands back a copy would
+   * lose the value, nor where no marker can be declared ({@link #unmappedOffer}). On the sparse
+   * tier a primitive word is offered its wrapper, and so is the accessor of the other kind beside a
+   * single word, or the two would still not pair.
    */
   private void reportWords(
       TypeElement spec,
@@ -1736,6 +1738,13 @@ public class MappingProcessor extends AbstractProcessor {
                 && filled.isEmpty()
             ? unmappedOffer(spec, component, first)
             : Optional.empty();
+    Types types = processingEnv.getTypeUtils();
+    boolean boxed =
+        words.stream().anyMatch(word -> !types.isSameType(partnerType(word, sparse), word.type()));
+    // A word is refused only beside no accessor of its own kind (accessorOfItsKind), so one of its
+    // name is the accessor it would pair once renamed.
+    Optional<WireShape.UnpairedAccessor> partner =
+        bean.unpaired().stream().filter(other -> other.name().equals(name)).findFirst();
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -1752,7 +1761,7 @@ public class MappingProcessor extends AbstractProcessor {
             + "'.",
         "A name that runs on in lower case after its get, is or set prefix is a word rather than"
             + " an accessor, which would be spelt "
-            + first.renamedFor(name)
+            + retyped(first, partnerType(first, sparse)).renamedFor(name)
             + ". "
             + (sparse
                 ? "updateFrom folds in only what a PATCH bean both reads and writes, so a value the"
@@ -1776,21 +1785,36 @@ public class MappingProcessor extends AbstractProcessor {
                                 ? " to read it, parse could not fill " + target
                                 : " to write it, build would leave " + target + " out"))
             + ", and nothing would say so.",
-        "Rename "
-            + joined(
-                words.stream()
-                    .map(word -> word.spelling() + " to " + word.renamedFor(name))
-                    .toList())
+        (boxed ? "Change " : "Rename ")
+            + joined(words.stream().map(word -> renamedWord(word, name, sparse)).toList())
+            + partner
+                .map(other -> boxedToo(other, partnerType(other, sparse)))
+                .orElse(boxed ? ", since a PATCH property must be able to be absent." : ".")
             + unmapped
                 .map(
                     offer ->
-                        ". Or, if "
+                        " Or, if "
                             + methods
                             + (one ? " is" : " are")
                             + " not meant to carry "
                             + target
                             + offer)
-                .orElse("."));
+                .orElse(""));
+  }
+
+  /**
+   * A word's rename to the accessor it would be, at the {@link #partnerType} a PATCH bean declares
+   * a primitive at: {@code setx(int)} to {@code setX(Integer)}, and {@code getx()} to {@code
+   * Integer getX()}, since a getter's name alone does not show its type.
+   */
+  private String renamedWord(WireShape.UnpairedAccessor word, String name, boolean sparse) {
+    TypeMirror type = partnerType(word, sparse);
+    return word.spelling()
+        + " to "
+        + (word.reads() && !processingEnv.getTypeUtils().isSameType(type, word.type())
+            ? ProcessorUtils.simpleTypeName(type) + " "
+            : "")
+        + retyped(word, type).renamedFor(name);
   }
 
   /**
@@ -2404,9 +2428,6 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape.UnpairedAccessor accessor, WireShape.UnpairedAccessor other, boolean sparse) {
     String name = accessor.name();
     TypeMirror type = partnerType(accessor, sparse);
-    WireShape.UnpairedAccessor retyped =
-        new WireShape.UnpairedAccessor(
-            other.name(), other.method(), type, other.role(), other.inheritedFrom());
     return " Or, if "
         + other.signature()
         + " is meant to "
@@ -2417,7 +2438,7 @@ public class MappingProcessor extends AbstractProcessor {
         + (processingEnv.getTypeUtils().isSameType(other.type(), type)
             ? "rename it "
             : "change it to " + (other.reads() ? ProcessorUtils.simpleTypeName(type) + " " : ""))
-        + retyped.renamedFor(name)
+        + retyped(other, type).renamedFor(name)
         + boxedToo(accessor, type);
   }
 
@@ -2427,6 +2448,13 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private TypeMirror partnerType(WireShape.UnpairedAccessor accessor, boolean sparse) {
     return sparse ? boxed(accessor.type()) : accessor.type();
+  }
+
+  /** {@code accessor} declared at {@code type}, as a fix line that retypes it spells it. */
+  private static WireShape.UnpairedAccessor retyped(
+      WireShape.UnpairedAccessor accessor, TypeMirror type) {
+    return new WireShape.UnpairedAccessor(
+        accessor.name(), accessor.method(), type, accessor.role(), accessor.inheritedFrom());
   }
 
   /**
@@ -2480,14 +2508,13 @@ public class MappingProcessor extends AbstractProcessor {
    * accessor's name binds or is refused, so the marker that takes its target off the wire replaces
    * it: beside it, the rename would name nothing on the wire. Empty where no marker can be
    * declared: for a keyword, such as a rename to {@code default} gives, and in place of such a
-   * rename where the spec already has a member under the accessor's name.
+   * rename where the spec already has a member under the accessor's name ({@link #markerFits}).
    */
   private Optional<String> unmappedOffer(
       TypeElement spec, String component, WireShape.UnpairedAccessor accessor) {
     if (!SourceVersion.isName(accessor.name())) {
       return Optional.empty();
     }
-    Optional<ExecutableElement> existing = sameNamedMember(spec, accessor.name());
     // A rename the spec declares is the one name the component maps under (wireNamesOf), so it is
     // the accessor's.
     Optional<ExecutableElement> rename =
@@ -2495,17 +2522,17 @@ public class MappingProcessor extends AbstractProcessor {
             .filter(member -> declaredLocally(member, spec))
             .filter(member -> member.getAnnotation(MapField.class) != null);
     if (rename.isPresent()) {
-      return existing.isPresent()
-          ? Optional.empty()
-          : Optional.of(
+      return markerFits(spec, accessor.name())
+          ? Optional.of(
               ", replace "
                   + memberIn(rename.get(), spec)
                   + " with "
                   + unmappedMarker(accessor)
-                  + ".");
+                  + ".")
+          : Optional.empty();
     }
     return Optional.of(
-        existing
+        sameNamedMember(spec, accessor.name())
                 .map(
                     member ->
                         !member.isDefault()
@@ -2559,12 +2586,22 @@ public class MappingProcessor extends AbstractProcessor {
                 ? removal + "."
                 : removal
                     + ", or rename it after the component it should update and give it a getter.")
-            // A keyword, as setDefault(...) gives, can name no marker.
-            + (SourceVersion.isName(name)
+            // A keyword, as setDefault(...) gives, can name no marker, and nor can the name of a
+            // component the spec renames, whose rename is already declared under it.
+            + (markerFits(spec, name)
                 ? " Or declare "
                     + unmappedMarker(setter)
                     + " on the spec, to leave it out deliberately."
                 : ""));
+  }
+
+  /**
+   * Whether a marker named {@code name} can be declared on the spec: no method can be named after a
+   * keyword, and none beside a member the spec already has under the name, such as the rename of
+   * the component it is named after.
+   */
+  private boolean markerFits(TypeElement spec, String name) {
+    return SourceVersion.isName(name) && sameNamedMember(spec, name).isEmpty();
   }
 
   /**

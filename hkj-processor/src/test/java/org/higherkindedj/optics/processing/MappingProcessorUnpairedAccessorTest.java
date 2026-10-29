@@ -270,12 +270,13 @@ class MappingProcessorUnpairedAccessorTest {
                   + " rename it after the component it should update and give it a getter. Or"
                   + " declare '@Unmapped String nickname();' on the spec, to leave it out"
                   + " deliberately.");
+      // The rename is declared under 'email', so no marker of that name can go beside it.
       assertThat(compilation)
           .hadErrorContaining(
               "would be ignored without a word: 'Contact.email' is renamed by @MapField, and the"
-                  + " update reads it under that name. Remove setEmail(String) from 'AliasPatch'."
-                  + " Or declare '@Unmapped String email();' on the spec, to leave it out"
-                  + " deliberately.");
+                  + " update reads it under that name. Remove setEmail(String) from 'AliasPatch'.");
+      Assertions.assertThat(errors(compilation))
+          .noneMatch(error -> error.contains("@Unmapped String email()"));
       assertThat(compilation)
           .hadErrorContaining(
               "Add setActive(Boolean) to 'FlagPatch', and declare isActive() with Boolean too,"
@@ -452,6 +453,26 @@ class MappingProcessorUnpairedAccessorTest {
               """
               @GenerateMapping
               public interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
+              """);
+      // A primitive setter word declared first, so the reason spells it at the wrapper the fix
+      // offers.
+      JavaFileObject dotPatch =
+          source(
+              "DotPatch",
+              """
+              public class DotPatch {
+                public void setx(int x) {}
+                public int getx() { return 0; }
+                public Integer getY() { return null; }
+                public void setY(Integer y) {}
+              }
+              """);
+      JavaFileObject dotSpec =
+          source(
+              "DotPatchMapping",
+              """
+              @GenerateMapping
+              public interface DotPatchMapping extends UpdateSpec<Point, DotPatch> {}
               """);
       // A read-only marker the word would have bound, and a rename onto a word.
       JavaFileObject item =
@@ -715,6 +736,8 @@ class MappingProcessorUnpairedAccessorTest {
               point,
               pointPatch,
               pointSpec,
+              dotPatch,
+              dotSpec,
               item,
               itemDto,
               itemSpec,
@@ -728,7 +751,7 @@ class MappingProcessorUnpairedAccessorTest {
               soloDto,
               soloSpec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorCount(17);
+      assertThat(compilation).hadErrorCount(18);
       assertThat(compilation)
           .hadErrorContaining("declare '@Unmapped List<String> d();' on the spec.");
       assertThat(compilation)
@@ -765,6 +788,15 @@ class MappingProcessorUnpairedAccessorTest {
           .hadErrorContaining(
               "updateFrom folds in only what a PATCH bean both reads and writes, so a value the"
                   + " client sends for 'x' would never reach 'Point.x', and nothing would say so.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'DotPatch' declares setx(int) and getx(), which are not read as the setter and"
+                  + " getter of 'x'. A name that runs on in lower case after its get, is or set"
+                  + " prefix is a word rather than an accessor, which would be spelt"
+                  + " setX(Integer). updateFrom folds in only what a PATCH bean both reads and"
+                  + " writes, so a value the client sends for 'x' would never reach 'Point.x', and"
+                  + " nothing would say so. Change setx(int) to setX(Integer) and getx() to Integer"
+                  + " getX(), since a PATCH property must be able to be absent.");
       assertThat(compilation)
           .hadErrorContaining(
               "With nothing else on 'ItemDto' to read it, parse could not fill 'Item.id', and"
