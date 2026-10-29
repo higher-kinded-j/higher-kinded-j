@@ -175,6 +175,7 @@
   - [Monad](functional/monad.md)
   - [MonadError](functional/monad_error.md)
   - [For Comprehension](functional/for_comprehension.md)
+  - [Check Your Understanding](hkts/self_check.md)
   - [Higher-Kinded Types](hkts/ch_intro.md)
     - [HKT Introduction](hkts/hkt_introduction.md)
     - [Type Arity](hkts/type-arity.md)
