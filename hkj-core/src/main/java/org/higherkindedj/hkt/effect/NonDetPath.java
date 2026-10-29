@@ -182,6 +182,39 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     return list.size();
   }
 
+  /**
+   * Returns the last element, or empty if the path is empty.
+   *
+   * @return an Optional containing the last element if present
+   */
+  public Optional<A> lastOption() {
+    return list.isEmpty() ? Optional.empty() : Optional.of(list.getLast());
+  }
+
+  /**
+   * Returns whether any element matches the predicate.
+   *
+   * @param predicate the condition to test; must not be null
+   * @return true if any element matches
+   * @throws NullPointerException if predicate is null
+   */
+  public boolean anyMatch(Predicate<? super A> predicate) {
+    Objects.requireNonNull(predicate, "predicate must not be null");
+    return list.stream().anyMatch(predicate);
+  }
+
+  /**
+   * Returns whether all elements match the predicate.
+   *
+   * @param predicate the condition to test; must not be null
+   * @return true if all elements match (or the path is empty)
+   * @throws NullPointerException if predicate is null
+   */
+  public boolean allMatch(Predicate<? super A> predicate) {
+    Objects.requireNonNull(predicate, "predicate must not be null");
+    return list.stream().allMatch(predicate);
+  }
+
   // ===== Composable implementation =====
 
   @Override
@@ -333,6 +366,30 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
   }
 
   /**
+   * Takes elements while predicate is true.
+   *
+   * @param predicate the condition; must not be null
+   * @return a new NonDetPath with elements taken while predicate holds
+   * @throws NullPointerException if predicate is null
+   */
+  public NonDetPath<A> takeWhile(Predicate<? super A> predicate) {
+    Objects.requireNonNull(predicate, "predicate must not be null");
+    return new NonDetPath<>(list.stream().takeWhile(predicate).collect(Collectors.toList()));
+  }
+
+  /**
+   * Drops elements while predicate is true.
+   *
+   * @param predicate the condition; must not be null
+   * @return a new NonDetPath with elements after predicate stops holding
+   * @throws NullPointerException if predicate is null
+   */
+  public NonDetPath<A> dropWhile(Predicate<? super A> predicate) {
+    Objects.requireNonNull(predicate, "predicate must not be null");
+    return new NonDetPath<>(list.stream().dropWhile(predicate).collect(Collectors.toList()));
+  }
+
+  /**
    * Returns distinct elements.
    *
    * @return a new NonDetPath with duplicates removed
@@ -382,6 +439,19 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     List<A> reversed = new ArrayList<>(list);
     Collections.reverse(reversed);
     return new NonDetPath<>(reversed);
+  }
+
+  /**
+   * Returns the element at the given index.
+   *
+   * @param index the index
+   * @return an Optional containing the element if index is valid
+   */
+  public Optional<A> get(int index) {
+    if (index < 0 || index >= list.size()) {
+      return Optional.empty();
+    }
+    return Optional.of(list.get(index));
   }
 
   // ===== Conversions =====
