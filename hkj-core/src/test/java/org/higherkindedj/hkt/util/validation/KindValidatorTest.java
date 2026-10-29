@@ -75,6 +75,20 @@ class KindValidatorTest {
     }
 
     @Test
+    @DisplayName("should reject a null targetType even when the Kind narrows")
+    void shouldRejectNullTargetType() {
+      var kind = EITHER.widen(Either.<String, String>right("test"));
+
+      assertThatExceptionOfType(NullPointerException.class)
+          .isThrownBy(
+              () ->
+                  Validation.kind()
+                      .<EitherKind.Witness<String>, String, Either<String, String>>narrow(
+                          kind, null, k -> EITHER.<String, String>narrow(k)))
+          .withMessage("targetType cannot be null");
+    }
+
+    @Test
     @DisplayName("should throw KindUnwrapException when narrowing fails")
     void shouldThrowWhenNarrowingFails() {
       var maybe = Maybe.just("test");
@@ -189,6 +203,16 @@ class KindValidatorTest {
     }
 
     @Test
+    @DisplayName("should reject a null targetType even when the Kind is of the target type")
+    void shouldRejectNullTargetType() {
+      var kind = EITHER.widen(Either.<String, String>right("test"));
+
+      assertThatExceptionOfType(NullPointerException.class)
+          .isThrownBy(() -> Validation.kind().narrowWithTypeCheck(kind, null))
+          .withMessage("targetType cannot be null");
+    }
+
+    @Test
     @DisplayName("should throw KindUnwrapException for wrong type")
     void shouldThrowForWrongType() {
       var maybe = Maybe.just("test");
@@ -225,6 +249,16 @@ class KindValidatorTest {
     @DisplayName("should throw NullPointerException when input is null")
     void shouldThrowWhenInputIsNull() {
       assertWidenNull(() -> Validation.kind().requireForWiden(null, Either.class), Either.class);
+    }
+
+    @Test
+    @DisplayName("should reject a null inputType even when the input is present")
+    void shouldRejectNullInputType() {
+      var input = Either.<String, String>right("test");
+
+      assertThatExceptionOfType(NullPointerException.class)
+          .isThrownBy(() -> Validation.kind().requireForWiden(input, null))
+          .withMessage("inputType cannot be null");
     }
 
     @Test

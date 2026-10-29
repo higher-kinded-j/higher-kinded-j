@@ -38,21 +38,21 @@ public enum KindValidator {
    * @param <T> The target type to narrow to
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or narrowing fails
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T> T narrow(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Function<? super Kind<F, A>, ? extends T> narrower) {
-
-    var context = new KindContext(targetType, NARROW.toString());
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         try {
           yield narrower.apply(kind);
         } catch (Exception e) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind), e);
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind), e);
         }
       }
     };
@@ -71,17 +71,17 @@ public enum KindValidator {
    * @param <T> The target type to narrow to
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected type
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T> T narrowWithTypeCheck(
       @Nullable Kind<F, A> kind, Class<T> targetType) {
-
-    var context = new KindContext(targetType, NARROW.toString());
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         if (!targetType.isInstance(kind)) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind));
         }
         yield targetType.cast(kind);
       }
@@ -112,24 +112,29 @@ public enum KindValidator {
    * @param <H> The holder type
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected holder type
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T, H extends Kind<F, A>> T narrowHolder(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Class<H> holderType,
       Function<? super H, ? extends T> accessor) {
-
-    var context = new KindContext(targetType, NARROW.toString());
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
-      case null -> throw new KindUnwrapException(context.nullParameterMessage());
+      case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
       default -> {
         if (!holderType.isInstance(kind)) {
-          throw new KindUnwrapException(context.invalidTypeMessage(kind));
+          throw new KindUnwrapException(narrowContext(targetType).invalidTypeMessage(kind));
         }
         yield accessor.apply(holderType.cast(kind));
       }
     };
+  }
+
+  // Built only when a narrow fails, so a successful narrow allocates nothing
+  private static KindContext narrowContext(Class<?> targetType) {
+    return new KindContext(targetType, NARROW.toString());
   }
 
   /**
@@ -139,9 +144,11 @@ public enum KindValidator {
    * @param inputType The class of the input type for context
    * @param <T> The input type
    * @return The validated input
-   * @throws NullPointerException if input is null
+   * @throws NullPointerException if input or inputType is null
    */
   public <T> T requireForWiden(T input, Class<T> inputType) {
+    Objects.requireNonNull(inputType, "inputType cannot be null");
+
     if (input == null) {
       var context = new KindContext(inputType, WIDEN.toString());
       throw new NullPointerException(context.nullInputMessage());

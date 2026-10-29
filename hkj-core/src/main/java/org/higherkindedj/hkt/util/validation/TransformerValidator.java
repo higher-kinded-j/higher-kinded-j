@@ -49,11 +49,10 @@ public enum TransformerValidator {
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String transformerName = transformerClass.getSimpleName();
-    String context = transformerName + " " + operation;
-
-    var domainContext = new DomainContext("Outer Monad", context);
-    return Objects.requireNonNull(monad, domainContext.nullParameterMessage());
+    if (monad == null) {
+      throw new NullPointerException(outerContext("Outer Monad", transformerClass, operation));
+    }
+    return monad;
   }
 
   /**
@@ -72,9 +71,11 @@ public enum TransformerValidator {
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String context = transformerClass.getSimpleName() + " " + operation;
-    var domainContext = new DomainContext("Outer Applicative", context);
-    return Objects.requireNonNull(applicative, domainContext.nullParameterMessage());
+    if (applicative == null) {
+      throw new NullPointerException(
+          outerContext("Outer Applicative", transformerClass, operation));
+    }
+    return applicative;
   }
 
   /**
@@ -93,9 +94,17 @@ public enum TransformerValidator {
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String context = transformerClass.getSimpleName() + " " + operation;
-    var domainContext = new DomainContext("Outer Functor", context);
-    return Objects.requireNonNull(functor, domainContext.nullParameterMessage());
+    if (functor == null) {
+      throw new NullPointerException(outerContext("Outer Functor", transformerClass, operation));
+    }
+    return functor;
+  }
+
+  // Built only when a check fails, so a passing check allocates nothing
+  private static String outerContext(
+      String domainType, Class<?> transformerClass, Operation operation) {
+    return new DomainContext(domainType, transformerClass.getSimpleName() + " " + operation)
+        .nullParameterMessage();
   }
 
   /**
@@ -129,14 +138,15 @@ public enum TransformerValidator {
     Objects.requireNonNull(transformerClass, "transformerClass cannot be null");
     Objects.requireNonNull(operation, "operation cannot be null");
 
-    String transformerName = transformerClass.getSimpleName();
-    String fullContext = transformerName + "." + operation;
-
-    var context = DomainContext.transformer(fullContext);
-
-    return Objects.requireNonNull(
-        component,
-        String.format(Locale.ROOT, "%s cannot be null for %s", componentName, fullContext));
+    if (component == null) {
+      throw new NullPointerException(
+          String.format(
+              Locale.ROOT,
+              "%s cannot be null for %s",
+              componentName,
+              transformerClass.getSimpleName() + "." + operation));
+    }
+    return component;
   }
 
   /** Context for domain-specific validations (transformers, etc.) */

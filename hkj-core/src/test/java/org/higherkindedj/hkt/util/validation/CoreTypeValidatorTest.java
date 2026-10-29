@@ -53,6 +53,22 @@ class CoreTypeValidatorTest {
           .isThrownBy(() -> CORE_TYPE_VALIDATOR.requireValue(null, TestType.class, LEFT))
           .withMessageContaining("left");
     }
+
+    @Test
+    @DisplayName("should reject a null typeClass even when the value is present")
+    void shouldRejectNullTypeClass() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CORE_TYPE_VALIDATOR.requireValue("test-value", null, LEFT))
+          .withMessage("typeClass cannot be null");
+    }
+
+    @Test
+    @DisplayName("should reject a null operation even when the value is present")
+    void shouldRejectNullOperation() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> CORE_TYPE_VALIDATOR.requireValue("test-value", TestType.class, null))
+          .withMessage("operation cannot be null");
+    }
   }
 
   @Nested
@@ -93,6 +109,35 @@ class CoreTypeValidatorTest {
           .isThrownBy(
               () -> CORE_TYPE_VALIDATOR.requireValue(null, "customValue", TestType.class, LEFT))
           .withMessageContaining("TestType.left");
+    }
+
+    @Test
+    @DisplayName("should reject a null valueName even when the value is present")
+    void shouldRejectNullValueName() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> CORE_TYPE_VALIDATOR.requireValue("test-value", null, TestType.class, LEFT))
+          .withMessage("valueName cannot be null");
+    }
+
+    @Test
+    @DisplayName("should reject a null typeClass even when the value is present")
+    void shouldRejectNullTypeClass() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> CORE_TYPE_VALIDATOR.requireValue("test-value", "customValue", null, LEFT))
+          .withMessage("typeClass cannot be null");
+    }
+
+    @Test
+    @DisplayName("should reject a null operation even when the value is present")
+    void shouldRejectNullOperation() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  CORE_TYPE_VALIDATOR.requireValue(
+                      "test-value", "customValue", TestType.class, null))
+          .withMessage("operation cannot be null");
     }
   }
 
@@ -140,6 +185,26 @@ class CoreTypeValidatorTest {
       var result = CORE_TYPE_VALIDATOR.requireError(illegalStateError, TestType.class, RIGHT);
 
       assertThat(result).isEqualTo(illegalStateError);
+    }
+
+    @Test
+    @DisplayName("should reject a null typeClass even when the error is present")
+    void shouldRejectNullTypeClass() {
+      var error = new RuntimeException("test error");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> CORE_TYPE_VALIDATOR.requireError(error, null, LEFT))
+          .withMessage("typeClass cannot be null");
+    }
+
+    @Test
+    @DisplayName("should reject a null operation even when the error is present")
+    void shouldRejectNullOperation() {
+      var error = new RuntimeException("test error");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> CORE_TYPE_VALIDATOR.requireError(error, TestType.class, null))
+          .withMessage("operation cannot be null");
     }
   }
 }

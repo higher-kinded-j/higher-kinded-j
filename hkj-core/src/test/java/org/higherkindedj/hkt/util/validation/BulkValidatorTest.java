@@ -243,6 +243,18 @@ class BulkValidatorTest {
     }
 
     @Test
+    void throwsForNullTargetType() {
+      Kind<FixtureWitness, String> kind = new FixtureHolder("hello");
+
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  Validation.kind()
+                      .narrowHolder(kind, null, FixtureHolder.class, FixtureHolder::value))
+          .withMessage("targetType cannot be null");
+    }
+
+    @Test
     void throwsForWrongHolderType() {
       Kind<FixtureWitness, String> wrongKind = new OtherHolder("hello");
 
