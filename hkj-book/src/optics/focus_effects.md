@@ -96,7 +96,7 @@ List<Role> roles = allRoles.getAll(roleBox);
 RoleBox promoted = allRoles.modifyAll(Fixture::promote, roleBox);
 ```
 
-`EachInstances.fromTraverse` takes the witness `F` from the `Traverse` and the element type from the path, so the chain spells out neither. (A *witness* is the marker type that stands in for the higher-kinded `F`; see [Higher-Kinded Types](../hkts/hkt_introduction.md) if the term is new.)
+`EachInstances.fromTraverse` takes the witness `F` from the `Traverse` and the element type from the path, so the chain spells out neither. (A *witness* is the marker type that stands in for the higher-kinded `F`; see [How the Encoding Works](../hkts/core-concepts.md#the-witness-and-kind) if the term is new.)
 
 | Field shape | Use |
 |-------------|-----|

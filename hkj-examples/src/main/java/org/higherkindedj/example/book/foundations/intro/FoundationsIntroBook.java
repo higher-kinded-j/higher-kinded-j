@@ -39,7 +39,7 @@ public final class FoundationsIntroBook {
   private FoundationsIntroBook() {}
 
   /** What an order costs: each line's price times its quantity, summed. */
-  static BigDecimal total(Order order) {
+  public static BigDecimal total(Order order) {
     return order.lines().stream()
         .map(line -> line.price().multiply(BigDecimal.valueOf(line.quantity())))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -54,7 +54,7 @@ public final class FoundationsIntroBook {
 
   // ANCHOR_END: generic
 
-  static Order order(String id, List<LineItem> lines) {
+  public static Order order(String id, List<LineItem> lines) {
     return new Order(
         UUID.fromString(id),
         new Customer("Ada", new EmailAddress("ada@example.com")),

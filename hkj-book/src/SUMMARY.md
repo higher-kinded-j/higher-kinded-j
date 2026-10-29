@@ -177,7 +177,7 @@
   - [For Comprehension](functional/for_comprehension.md)
   - [Check Your Understanding](hkts/self_check.md)
   - [Higher-Kinded Types](hkts/ch_intro.md)
-    - [HKT Introduction](hkts/hkt_introduction.md)
+    - [Why Higher-Kinded Types?](hkts/hkt_introduction.md)
     - [Type Arity](hkts/type-arity.md)
     - [Lifting the Hood](hkts/lifting_the_hood.md)
     - [Extending the Simulation](hkts/extending-simulation.md)

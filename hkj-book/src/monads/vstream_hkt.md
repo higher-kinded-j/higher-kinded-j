@@ -398,7 +398,7 @@ Practise VStream HKT encoding in [TutorialVStreamHKT](https://github.com/higher-
 ~~~admonish tip title="See Also"
 - [VStream](vstream.md) - Core VStream type: factories, combinators, terminal operations
 - [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
-- [Higher-Kinded Types](../hkts/hkt_introduction.md) - How the HKT simulation works
+- [Why Higher-Kinded Types?](../hkts/hkt_introduction.md) - Why Java needs an encoding for higher kinds
 - [Functor](../functional/functor.md) - The Functor type class
 - [Monad](../functional/monad.md) - The Monad type class
 - [Alternative](../functional/alternative.md) - The Alternative type class

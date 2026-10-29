@@ -368,7 +368,19 @@
     "functional/for_comprehension.html#4-projection-yield": "functional/for_comprehension.html#from-let-and-yield",
     "functional/for_comprehension.html#turn-the-power-up-statet-example": "functional/for_comprehension.html#which-comprehension",
     "functional/for_comprehension.html#similarities-to-scala": "functional/for_comprehension.html#coming-from-scala",
-    "functional/for_comprehension.html#admonition-consider-tostate-for-complex-workflows": "functional/for_comprehension.html#twelve-values-and-their-tuples"
+    "functional/for_comprehension.html#admonition-consider-tostate-for-complex-workflows": "functional/for_comprehension.html#twelve-values-and-their-tuples",
+    "hkts/ch_intro.html#the-core-insight": "hkts/hkt_introduction.html#one-method-for-every-container",
+    "hkts/ch_intro.html#what-youll-learn": "hkts/ch_intro.html#pages-in-this-group",
+    "hkts/ch_intro.html#section-contents": "hkts/ch_intro.html#pages-in-this-group",
+    "hkts/hkt_introduction.html#introduction-to-higher-kinded-types": "hkts/hkt_introduction.html#why-higher-kinded-types",
+    "hkts/hkt_introduction.html#the-meaning-of-regular-and-higher-order": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
+    "hkts/hkt_introduction.html#generic-code-in-practice": "hkts/hkt_introduction.html#one-method-for-every-container",
+    "hkts/hkt_introduction.html#the-core-idea-abstraction-over-containers": "hkts/hkt_introduction.html#one-method-for-every-container",
+    "hkts/hkt_introduction.html#building-up-from-java-generics": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
+    "hkts/hkt_introduction.html#level-1-concrete-types-like-values": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
+    "hkts/hkt_introduction.html#level-2-generic-types-like-functions": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
+    "hkts/hkt_introduction.html#level-3-higher-kinded-types-like-functions-that-take-other-functions": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
+    "hkts/hkt_introduction.html#a-practical-analogy-the-shipping-company": "hkts/hkt_introduction.html#one-method-for-every-container"
   };
 
   function target() {

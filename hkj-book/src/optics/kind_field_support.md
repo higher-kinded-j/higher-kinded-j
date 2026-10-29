@@ -49,7 +49,7 @@ The processor knows which `Traverse` belongs to `ListKind.Witness`, so the gener
 The `Traverse` for a witness is resolved once, by the processor, rather than threaded through every call site. Without this a `Kind<F, A>` field means passing an explicit `Traverse` instance to each operation that walks it, which is the ceremony that makes higher-kinded code look expensive in Java. Here the witness in the field's type is enough for the processor to pick the instance and the path type together.
 ~~~
 
-A *witness* is the marker type that stands in for the higher-kinded `F` (see [Higher-Kinded Types](../hkts/hkt_introduction.md)). The library's witnesses are recognised by name:
+A *witness* is the marker type that stands in for the higher-kinded `F` (see [How the Encoding Works](../hkts/core-concepts.md#the-witness-and-kind)). The library's witnesses are recognised by name:
 
 | Witness Type | Traverse Instance | Semantics | Generated Path |
 |--------------|-------------------|-----------|----------------|

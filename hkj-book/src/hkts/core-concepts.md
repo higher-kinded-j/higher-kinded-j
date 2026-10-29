@@ -38,7 +38,7 @@ Java can abstract over a type, as `List<T>` does over `T`, but not over a type c
 }
 ```
 
-javac answers `unexpected type`, with `found: type parameter F`: a type parameter cannot take type arguments of its own. A language with higher-kinded types can name such a parameter, written `F<_>` in this book: "a container still waiting for its element type". It is not Java's `?` wildcard, which stands for an unknown type rather than a missing one. [Introduction to Higher-Kinded Types](hkt_introduction.md) says what this buys. Higher-Kinded-J gets there with ordinary interfaces. Each container gets a name, and generic code passes the name about in place of the container. The technique is called [defunctionalisation](../glossary/type-system.md#defunctionalisation).
+javac answers `unexpected type`, with `found: type parameter F`: a type parameter cannot take type arguments of its own. A language with higher-kinded types can name such a parameter, written `F<_>` in this book: "a container still waiting for its element type". It is not Java's `?` wildcard, which stands for an unknown type rather than a missing one. [Why Higher-Kinded Types?](hkt_introduction.md) says what this buys. Higher-Kinded-J gets there with ordinary interfaces. Each container gets a name, and generic code passes the name about in place of the container. The technique is called [defunctionalisation](../glossary/type-system.md#defunctionalisation).
 
 ## The witness and `Kind<F, A>` {#the-witness-and-kind}
 

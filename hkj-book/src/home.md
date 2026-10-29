@@ -560,7 +560,7 @@ For the cases where the Path API does not fit (a different outer monad, polymorp
 ~~~admonish note title="Foundations (reference)" collapsible=true
 These sections document the underlying machinery. Most users can start with Effect Paths directly.
 
-1. **[Higher-Kinded Types](hkts/hkt_introduction.md):** The simulation and why it matters
+1. **[Higher-Kinded Types](hkts/ch_intro.md):** The simulation and why it matters
 2. **[Type Classes](functional/ch_intro.md):** Functor, Monad, and other type classes
 3. **[Core Types](monads/ch_intro.md):** Either, Maybe, Try, and other effect types
 4. **[Order Example Walkthrough](hkts/order-walkthrough.md):** A complete workflow with monad transformers

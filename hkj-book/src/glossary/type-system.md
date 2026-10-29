@@ -128,7 +128,7 @@ increment(Instances.functor(list()), LIST.widen(List.of(1, 2, 3)));        // [2
 
 **Why It Matters:** Enables writing truly generic, reusable functional code that works across different container types.
 
-**Related:** [HKT Introduction](../hkts/hkt_introduction.md)
+**Related:** [Why Higher-Kinded Types?](../hkts/hkt_introduction.md)
 
 ---
 
