@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -51,6 +53,7 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.hkt.writer.Writer;
@@ -292,5 +295,57 @@ class ApplicativeBookTest {
   private static String record(List<String> ran, String step) {
     ran.add(step);
     return step;
+  }
+
+  @Test
+  @DisplayName("checkpoint: List's map2 with an empty list gives an empty list")
+  void checkpointMap2WithAnEmptyList() {
+    List<String> none =
+        LIST.narrow(
+            applicative(list())
+                .map2(
+                    LIST.widen(List.of("LAMP", "DESK")),
+                    LIST.<Integer>widen(List.of()),
+                    (sku, quantity) -> sku + "x" + quantity));
+
+    assertThat(none).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: VTask's map2 runs one task after the other, and Par.map2 runs both at once")
+  void checkpointTwoSlowTasks() {
+    // each task waits for the other to start, so they meet only if they run together
+    CountDownLatch inTurn = new CountDownLatch(2);
+    Boolean metInTurn =
+        VTASK
+            .narrow(
+                applicative(vtask())
+                    .map2(
+                        VTASK.widen(VTask.delay(() -> meet(inTurn, 100))),
+                        VTASK.widen(VTask.delay(() -> meet(inTurn, 100))),
+                        (first, second) -> first))
+            .run();
+    CountDownLatch together = new CountDownLatch(2);
+    Boolean metTogether =
+        Par.map2(
+                VTask.delay(() -> meet(together, 5_000)),
+                VTask.delay(() -> meet(together, 5_000)),
+                (first, second) -> first && second)
+            .run();
+
+    assertThat(metInTurn).isFalse();
+    assertThat(metTogether).isTrue();
+  }
+
+  /** Counts this task in, and reports whether the other task started within {@code millis}. */
+  private static boolean meet(CountDownLatch bothStarted, long millis) {
+    bothStarted.countDown();
+    try {
+      return bothStarted.await(millis, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
   }
 }

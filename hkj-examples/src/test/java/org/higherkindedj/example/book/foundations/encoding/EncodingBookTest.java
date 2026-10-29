@@ -15,6 +15,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.instances.Witnesses.stream;
+import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.lazy.LazyKindHelper.LAZY;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -251,5 +252,13 @@ class EncodingBookTest {
                       .<String>raiseError(Unit.INSTANCE)))
           .isEqualTo(Maybe.nothing());
     }
+  }
+
+  @Test
+  @DisplayName("checkpoint: of(null) gives Nothing on Maybe, and Try's instance refuses it")
+  void checkpointOfNullInTwoContainers() {
+    assertThat(MAYBE.narrow(Instances.monad(maybe()).of(null))).isEqualTo(Maybe.nothing());
+    assertThatThrownBy(() -> Instances.monad(try_()).of(null))
+        .isInstanceOf(NullPointerException.class);
   }
 }

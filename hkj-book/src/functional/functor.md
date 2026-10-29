@@ -156,6 +156,26 @@ The test checks both laws on a `Just`, a `Nothing` and an `IO`, where `ORDER` is
 You can now write a method that maps inside any container, as `totals` does, and check an instance of your own against the two laws. The rest of this page is for which types have a `Functor`, and what builds on it.
 ~~~
 
+~~~admonish question title="Checkpoint: `map` over an `Invalid`" id="check-functor-invalid"
+With `Validated`'s instance, you map `LineItem::quantity` over a `Validated` that is `Invalid([SKU is blank])`. What comes back, and does `LineItem::quantity` run?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-functor-invalid-answer"
+**The same `Invalid([SKU is blank])`, and the function never runs.** `map` changes the values a container holds and keeps its shape. An `Invalid` holds no line item, so there is nothing to change.
+
+Where this lives: [What `map` promises](#what-map-promises).
+~~~
+
+~~~admonish question title="Checkpoint: the identity law on `IO`" id="check-functor-io-equality"
+You check `IO`'s `Functor` against the identity law, with an equality built by `KindEquivalence.byEqualsAfter(IO_OP::narrow)`. Does `FunctorLaws.assertIdentity` pass?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-functor-io-equality-answer"
+**No.** `map(a -> a, io)` builds a new `IO`, so comparing the two `IO` objects with `equals` fails, though both give the same result. For a deferred container, two values are equal when running both gives equal results, so the equality must run them: `byEqualsAfter(kind -> IO_OP.narrow(kind).unsafeRunSync())`.
+
+Where this lives: [Two laws](#two-laws).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

@@ -3,9 +3,11 @@
 package org.higherkindedj.example.book.foundations.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
@@ -24,6 +26,7 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -129,5 +132,13 @@ class WorkingWithKindBookTest {
     assertThat((Object) LIST.widen(list)).isNotSameAs(list);
     assertThat(MAYBE.widen(maybe)).isSameAs(maybe);
     assertThat(EITHER.widen(either)).isSameAs(either);
+  }
+
+  @Test
+  @DisplayName("checkpoint: an Optional MonadError declared with String throws when it raises")
+  void checkpointWrongErrorTypeOnOptional() {
+    MonadError<OptionalKind.Witness, String> me = Instances.monadError(optional());
+
+    assertThatThrownBy(() -> me.raiseError("out of stock")).isInstanceOf(ClassCastException.class);
   }
 }

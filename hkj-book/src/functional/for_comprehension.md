@@ -161,6 +161,32 @@ A monad transformer, such as `StateT`, is a `Monad` over `Kind`, so `For` chains
 You can now write a chain of dependent steps once for any container, as `receipt` is, with plain values between the steps. You can filter it with `when`, mark independent steps with `par` knowing what each instance does with them, and traverse a collection inside it. The rest of this page is for how many values a chain holds, and for readers who know Scala's `for`.
 ~~~
 
+~~~admonish question title="Checkpoint: `when` on a `MonadZero` held as a `Monad`" id="check-for-when"
+`Maybe`'s instance is a `MonadZero`. Why does this chain not compile, and what one change gives it `when`?
+
+<!-- verify:rejects "cannot find symbol" -->
+```java
+Monad<MaybeKind.Witness> monad = Instances.monadZero(maybe());
+For.from(monad, found).when(order -> order.status() == OrderStatus.SHIPPED);
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-for-when-answer"
+**The declared type decides, and `monad` is declared a `Monad`, so the chain has no `when` and javac reports "cannot find symbol".** Declare it `MonadZero<MaybeKind.Witness>`, and `For.from` starts the chain that has `when`.
+
+Where this lives: [Filtering with `when`](#filtering-with-when).
+~~~
+
+~~~admonish question title="Checkpoint: `par` over two failures" id="check-for-par"
+With `Either`'s instance, `For.par` starts a chain from `Left("SKU is blank")` and `Left("quantity must be positive")`. What does `yield` give?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-for-par-answer"
+**`Left(SKU is blank)`.** `par` combines its values with the instance's `map2`, and `Either`'s keeps the first failure. Only an instance whose `map2` joins errors, such as `Validated`'s, reports both.
+
+Where this lives: [Independent steps with `par`](#independent-steps-with-par).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

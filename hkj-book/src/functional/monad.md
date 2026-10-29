@@ -219,13 +219,33 @@ import org.higherkindedj.hkt.laws.MonadLaws;
 ~~~admonish warning title="Common Misunderstandings"
 - **"`flatMap` runs the step at once."** `Either`'s does. `IO`'s and `VTask`'s build a deferred value, and nothing runs until you run it. `Stream`'s runs the step only as the stream is consumed. The order of the steps is fixed, and the timing is the container's.
 - **"Monads always short-circuit."** Instances whose input holds at most one value stop when it is missing or failed: `Either`, `Validated`, `Maybe`, `IO` and `CompletableFuture` among them. `List`'s `flatMap` runs the step on every element. The behaviour comes from the instance, not from the word "Monad".
-- **"`flatMap` is `Stream.flatMap`."** `Stream.flatMap` is one instance of the shape: it flattens a stream of streams. `Monad`'s `flatMap` names the shape for any container, and each instance defines its own flattening.
+- **"`flatMap` is `Stream.flatMap`."** `Stream.flatMap` is one instance of the shape: it flattens a stream of streams. `Monad`'s `flatMap` names the shape for any container.
 - **"Nested `flatMap` calls are the cleanest you can do."** They are the most explicit, as `flatMap2`'s body shows. For more than two steps, a [For comprehension](for_comprehension.md) reads better and avoids the indentation.
 - **"You can call `.flatMap` on a `Kind`."** `Kind` has no methods. Go through the `Monad<F>` instance, which knows how to flatten inside `F`.
 ~~~
 
 ~~~admonish tip title="You can ship now"
 You can now write a chain once for any container, as `markPaid` is, and say what each instance does when a step has no value to work on. You can use the helpers in place of hand-written lambdas, and check an instance against left identity, right identity and associativity. The rest of this page is for which types have a `Monad`, and what builds on it.
+~~~
+
+~~~admonish question title="Checkpoint: `markPaid` over a list" id="check-monad-list"
+`markPaid` runs with `List`'s instance on two found orders. `save` gives back an empty list for the first, and one order for the second. How many orders come back?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-monad-list-answer"
+**One.** `List`'s `flatMap` runs the step on every element and joins the results, so the empty list adds nothing.
+
+Where this lives: [What each instance does](#what-each-instance-does).
+~~~
+
+~~~admonish question title="Checkpoint: `flatMapIfOrElse` on a `Left`" id="check-monad-helpers"
+On a `Left`, which branch of `flatMapIfOrElse` runs: `ifTrue` or `ifFalse`?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-monad-helpers-answer"
+**Neither.** `flatMapIfOrElse` is built from `flatMap`, which passes a `Left` on without running its step, so the test and both branches never run. `ifFalse` handles a value that fails the test, not a failure.
+
+Where this lives: [Helpers built on `flatMap` and `map`](#helpers).
 ~~~
 
 ---
