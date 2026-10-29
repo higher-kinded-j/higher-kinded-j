@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
@@ -114,10 +115,9 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
    * @param <A> The type of the value in the input {@code Kind}.
    * @param <B> The type of the value in the output {@code Kind}.
    * @return A {@code Kind} instance representing the result of the flatMap operation.
-   * @throws NullPointerException if {@code f} is null, {@code ma} is null, or {@code f} returns a
-   *     null {@code Kind}.
+   * @throws NullPointerException if {@code f} is null or {@code ma} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
-   *     to a valid {@code Validated} representation.
+   *     to a valid {@code Validated} representation, or {@code f} returns a null {@code Kind}.
    */
   @Override
   public <A, B> Kind<ValidatedKind.Witness<E>, B> flatMap(
@@ -168,9 +168,9 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
    * @param <A> The type of the value within the monad.
    * @return The original monadic value if it was {@code Valid}, or the result of the {@code
    *     handler} if it was {@code Invalid}. Guaranteed non-null.
-   * @throws NullPointerException if ma, handler, or the result of the handler is null.
+   * @throws NullPointerException if {@code ma} or {@code handler} is null.
    * @throws org.higherkindedj.hkt.exception.KindUnwrapException if {@code ma} cannot be unwrapped
-   *     to a valid {@code Validated} representation.
+   *     to a valid {@code Validated} representation, or the handler returns a null {@code Kind}.
    */
   @Override
   public <A> Kind<ValidatedKind.Witness<E>, A> handleErrorWith(
@@ -217,7 +217,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // Both valid - apply the function
     C result = f.apply(va.get(), vb.get());
-    Validation.function().requireNonNullResult(result, "combining function", MAP_2);
+    Objects.requireNonNull(result, "f must not return null");
     return VALIDATED.valid(result);
   }
 
@@ -251,7 +251,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     D result = f.apply(va.get(), vb.get(), vc.get());
-    Validation.function().requireNonNullResult(result, "f", MAP_3);
+    Objects.requireNonNull(result, "f must not return null");
     return VALIDATED.valid(result);
   }
 
@@ -289,7 +289,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get());
-    Validation.function().requireNonNullResult(result, "f", MAP_4);
+    Objects.requireNonNull(result, "f must not return null");
     return VALIDATED.valid(result);
   }
 
@@ -331,7 +331,7 @@ public class ValidatedMonad<E> implements MonadError<ValidatedKind.Witness<E>, E
 
     // All valid - apply the function
     R result = f.apply(va.get(), vb.get(), vc.get(), vd.get(), ve.get());
-    Validation.function().requireNonNullResult(result, "f", MAP_5);
+    Objects.requireNonNull(result, "f must not return null");
     return VALIDATED.valid(result);
   }
 

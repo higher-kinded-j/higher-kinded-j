@@ -115,9 +115,11 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    * Maps the value {@code A} to {@code B} if this is {@code Valid}, otherwise returns the {@code
    * Invalid} instance.
    *
-   * @param fn The mapping function. Must not be null.
+   * @param fn The mapping function. Must not be null, and must not return null when this is {@link
+   *     Valid}.
    * @param <B> The new value type.
    * @return A {@code Validated<E, B>} instance.
+   * @throws NullPointerException if {@code fn} is null, or returns null when this is {@link Valid}.
    */
   <B> Validated<E, B> map(Function<? super A, ? extends B> fn);
 

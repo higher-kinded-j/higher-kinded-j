@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.func;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -34,19 +35,22 @@ public final class FunctionKindHelper {
   /**
    * Narrows a {@link Kind2} of {@link FunctionKind.Witness} to a {@link FunctionKind}.
    *
-   * @param kind the kind to narrow
+   * @param kind the kind to narrow. May be {@code null}.
    * @param <A> the input type of the function
    * @param <B> the output type of the function
-   * @return the narrowed function
+   * @return the narrowed function. Never null.
+   * @throws KindUnwrapException if {@code kind} is {@code null} or not a {@link FunctionKind}.
    */
   @SuppressWarnings("unchecked")
   public <A, B> FunctionKind<A, B> narrow(@Nullable Kind2<FunctionKind.Witness, A, B> kind) {
     if (kind == null) {
-      throw new NullPointerException("Cannot narrow null Kind2 to FunctionKind");
+      throw new KindUnwrapException("Cannot narrow null Kind2 for FunctionKind");
     }
     if (!(kind instanceof FunctionKind<?, ?>)) {
-      throw new IllegalArgumentException(
-          "Expected FunctionKind but got: " + kind.getClass().getName());
+      throw new KindUnwrapException(
+          "Kind2 instance cannot be narrowed to FunctionKind (received: "
+              + kind.getClass().getSimpleName()
+              + ")");
     }
     return (FunctionKind<A, B>) kind;
   }

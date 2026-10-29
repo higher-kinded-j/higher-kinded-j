@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.test.contract.Category;
@@ -99,10 +98,9 @@ class ValidatedFunctorTest extends ValidatedTestBase {
     void mapWithNullReturningFunctionOnValidThrowsException() {
       Kind<ValidatedKind.Witness<String>, Integer> kind = validKind(DEFAULT_VALID_VALUE);
 
-      // Valid.map validates that the function doesn't return null
       assertThatThrownBy(() -> functor.map(_ -> null, kind))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("Function fn in map returned null");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("fn must not return null");
     }
 
     @Test

@@ -95,7 +95,7 @@ public record Valid<E, A>(A value) implements Validated<E, A> {
   public <B> Validated<E, B> map(Function<? super A, ? extends B> fn) {
     Validation.function().require(fn, "fn", MAP);
     B newValue = fn.apply(value);
-    Validation.function().requireNonNullResult(newValue, "fn", MAP);
+    Objects.requireNonNull(newValue, "fn must not return null");
     return new Valid<>(newValue);
   }
 
