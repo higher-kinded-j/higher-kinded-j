@@ -141,6 +141,102 @@ class NonDetPathTest {
 
       assertThat(path.size()).isEqualTo(3);
     }
+
+    @Test
+    @DisplayName("lastOption() returns last element")
+    void lastOptionReturnsLast() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3));
+
+      assertThat(path.lastOption()).contains(3);
+    }
+
+    @Test
+    @DisplayName("lastOption() returns empty for empty path")
+    void lastOptionReturnsEmptyForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.lastOption()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("anyMatch() returns true when any element matches")
+    void anyMatchReturnsTrueWhenAnyMatches() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3));
+
+      assertThat(path.anyMatch(n -> n == 2)).isTrue();
+      assertThat(path.anyMatch(n -> n > 3)).isFalse();
+    }
+
+    @Test
+    @DisplayName("anyMatch() returns false for empty path")
+    void anyMatchReturnsFalseForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.anyMatch(n -> true)).isFalse();
+    }
+
+    @Test
+    @DisplayName("anyMatch() validates null predicate")
+    void anyMatchValidatesNullPredicate() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.anyMatch(null))
+          .withMessageContaining("predicate must not be null");
+    }
+
+    @Test
+    @DisplayName("allMatch() returns true only when every element matches")
+    void allMatchReturnsTrueWhenAllMatch() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(2, 4, 6));
+
+      assertThat(path.allMatch(n -> n % 2 == 0)).isTrue();
+      assertThat(path.allMatch(n -> n > 2)).isFalse();
+    }
+
+    @Test
+    @DisplayName("allMatch() returns true for empty path")
+    void allMatchReturnsTrueForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.allMatch(n -> false)).isTrue();
+    }
+
+    @Test
+    @DisplayName("allMatch() validates null predicate")
+    void allMatchValidatesNullPredicate() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.allMatch(null))
+          .withMessageContaining("predicate must not be null");
+    }
+
+    @Test
+    @DisplayName("get() returns element at valid index")
+    void getReturnsElementAtIndex() {
+      NonDetPath<String> path = NonDetPath.of(List.of("a", "b", "c"));
+
+      assertThat(path.get(0)).contains("a");
+      assertThat(path.get(2)).contains("c");
+    }
+
+    @Test
+    @DisplayName("get() returns empty for a negative index or one past the end")
+    void getReturnsEmptyForInvalidIndex() {
+      NonDetPath<String> path = NonDetPath.of(List.of("a", "b", "c"));
+
+      assertThat(path.get(-1)).isEmpty();
+      assertThat(path.get(3)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("get() returns empty for empty path")
+    void getReturnsEmptyForEmpty() {
+      NonDetPath<String> path = NonDetPath.empty();
+
+      assertThat(path.get(0)).isEmpty();
+    }
   }
 
   @Nested
@@ -356,6 +452,62 @@ class NonDetPathTest {
       NonDetPath<Integer> result = path.drop(2);
 
       assertThat(result.run()).containsExactly(3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("takeWhile() takes elements while predicate holds")
+    void takeWhileTakesWhilePredicateHolds() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3, 1, 2));
+
+      NonDetPath<Integer> result = path.takeWhile(n -> n < 3);
+
+      assertThat(result.run()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("takeWhile() returns empty for empty path")
+    void takeWhileReturnsEmptyForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.takeWhile(n -> true).run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("takeWhile() validates null predicate")
+    void takeWhileValidatesNullPredicate() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.takeWhile(null))
+          .withMessageContaining("predicate must not be null");
+    }
+
+    @Test
+    @DisplayName("dropWhile() drops elements while predicate holds")
+    void dropWhileDropsWhilePredicateHolds() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3, 1, 2));
+
+      NonDetPath<Integer> result = path.dropWhile(n -> n < 3);
+
+      assertThat(result.run()).containsExactly(3, 1, 2);
+    }
+
+    @Test
+    @DisplayName("dropWhile() returns empty for empty path")
+    void dropWhileReturnsEmptyForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.dropWhile(n -> true).run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("dropWhile() validates null predicate")
+    void dropWhileValidatesNullPredicate() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.dropWhile(null))
+          .withMessageContaining("predicate must not be null");
     }
 
     @Test

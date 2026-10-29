@@ -32,6 +32,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 - **javac checks each chain step's kind of Path and error type** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). A step passed to `via` or another chaining method must be the chain's own kind of Path, so a mismatch is a compile error rather than an exception at run time. A step may still fail with a variant of the chain's error. See [The Family Parameter](../effect/capabilities.md#the-family-parameter).
 - **`TrampolinePath` and `FreePath` combine three paths with `zipWith3`** ([#1302](https://github.com/higher-kinded-j/higher-kinded-j/issues/1302)): both already combined two paths with `zipWith`. The three-way combine stays lazy until `run()` or `foldMap`, so a deep chain stays stack-safe. See [Combinable (Applicative)](../effect/capabilities.md#combinable-applicative).
+- **`NonDetPath` gains six list operations that `ListPath` already had** ([#1337](https://github.com/higher-kinded-j/higher-kinded-j/issues/1337)): `lastOption`, `anyMatch`, `allMatch`, `takeWhile`, `dropWhile` and `get`. Each behaves as its `ListPath` counterpart.
 
 ---
 
