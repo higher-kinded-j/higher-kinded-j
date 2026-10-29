@@ -345,6 +345,12 @@ TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(rawAge))
     .recover(ex -> 0);
 ```
 
+`MaybePath`, `TryPath` and `CompletableFuturePath` each keep a fixed error.
+`mapError` on `MaybePath` and `TryPath` returns an `EitherPath` that carries
+the mapped error, so a later `recover` reads that error.
+`CompletableFuturePath.mapError` returns a `VResultPath`.
+`TryPath.mapException` stays a `TryPath`.
+
 `Recoverable` is perhaps the most frequently used capability after `Chainable`,
 which tells you something about the general state of affairs in software.
 

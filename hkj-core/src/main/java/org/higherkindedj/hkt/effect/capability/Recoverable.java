@@ -127,6 +127,13 @@ public sealed interface Recoverable<P, E, A> extends Chainable<P, A>
    * throw {@link UnsupportedOperationException} when they carry errors/warnings; those types offer
    * a {@code mapErrorWith(mapper, newSemigroup)} alternative. See their documentation.
    *
+   * <p>{@code MaybePath}, {@code TryPath} and {@code CompletableFuturePath} keep a fixed error
+   * ({@code Unit}, {@code Throwable} and {@code Exception}). {@code mapError} on {@code MaybePath}
+   * and {@code TryPath} applies the mapper and returns an {@link EitherPath}, so a later {@code
+   * recover} receives that error. {@code CompletableFuturePath.mapError} returns a {@link
+   * VResultPath} settled from the future. {@code TryPath.mapException} stays a {@code TryPath} when
+   * the new error is still a {@code Throwable}.
+   *
    * <p>Example:
    *
    * <pre>{@code

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.either;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.higherkindedj.hkt.MonadError;
@@ -171,6 +172,20 @@ class NullErrorContractTest {
     }
 
     @Test
+    @DisplayName("mapError on MaybePath and TryPath names the mapper")
+    void mapErrorOnFixedErrorPaths() {
+      IllegalStateException failure = new IllegalStateException();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.<Integer>nothing().mapError(unit -> (String) null))
+          .withMessage("mapper must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.<Integer>failure(failure).mapError(ex -> (String) null))
+          .withMessage("mapper must not return null")
+          .withCause(failure);
+    }
+
+    @Test
     @DisplayName("TryPath conversions keep the failure they mapped")
     void tryPathConversionsKeepTheFailure() {
       IllegalStateException failure = new IllegalStateException();
@@ -198,6 +213,21 @@ class NullErrorContractTest {
   @Nested
   @DisplayName("Deferred paths fail when they run")
   class DeferredPaths {
+
+    @Test
+    @DisplayName("CompletableFuturePath.mapError names the mapper when the path runs")
+    void completableFuturePathMapErrorNamesTheMapperWhenItRuns() {
+      IllegalStateException failure = new IllegalStateException();
+      VResultPath<String, Integer> mapped =
+          CompletableFuturePath.<Integer>failed(failure).mapError(ex -> (String) null);
+
+      assertThatThrownBy(() -> mapped.run().run())
+          .isInstanceOf(CompletionException.class)
+          .cause()
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("mapper must not return null")
+          .hasCause(failure);
+    }
 
     @Test
     @DisplayName("VResultPath.mapError and bimap")

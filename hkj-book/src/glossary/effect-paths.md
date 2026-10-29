@@ -33,11 +33,11 @@ var program =
 
 ## CompletableFuturePath
 
-**Definition:** A path over Java's `CompletableFuture<A>`: asynchronous work that completes with a value or fails with an exception. It adds recovery, timeouts and retry to the future. `join()` waits for the result, and `run()` returns the underlying future.
+**Definition:** A path over Java's `CompletableFuture<A>`: asynchronous work that completes with a value or fails with an exception. It adds recovery, timeouts and retry to the future. `join()` waits for the result, and `run()` returns the underlying future. `mapError` returns a `VResultPath`.
 
 **Factories:** `Path.future(future)`, `Path.futureCompleted(value)`, `Path.futureFailed(exception)` and `Path.futureAsync(supplier)`.
 
-**Operations:** `map`, `via`, `recover`, `withTimeout`, `completeOnTimeout`, `race` and `withRetry`.
+**Operations:** `map`, `via`, `recover`, `mapError`, `withTimeout`, `completeOnTimeout`, `race` and `withRetry`.
 
 **Related:** [CompletableFuture Monad](../monads/cf_monad.md), [Migration Cookbook (Recipe 4)](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath), [Path](#path), [VTaskPath](#vtaskpath), [Retry](concurrency.md#retry)
 
@@ -518,7 +518,7 @@ record ReadLine<A>(Function<String, A> k) implements ConsoleOp<A> {
 
 ## MaybePath
 
-**Definition:** A path over `Maybe<A>` for a value that may be absent. Absence is its only failure, so it has no error value, and `run()` returns the `Maybe`.
+**Definition:** A path over `Maybe<A>` for a value that may be absent. Absence is its only failure, so it has no error value, and `run()` returns the `Maybe`. `mapError` returns an `EitherPath`.
 
 **Factories:** `Path.just(value)`, `Path.nothing()`, and `Path.maybe(value)` for either a nullable value or an existing `Maybe`.
 

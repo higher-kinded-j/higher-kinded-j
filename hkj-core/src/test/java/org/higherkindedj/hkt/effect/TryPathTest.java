@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -702,18 +704,50 @@ class TryPathTest {
     }
 
     @Test
-    @DisplayName("mapError() returns path cast to new error type")
-    void mapErrorReturnsCastPath() {
-      TryPath<String> successPath = Path.success(TEST_VALUE);
-      TryPath<String> failurePath = Path.failure(TEST_EXCEPTION);
+    @DisplayName("mapError() returns an EitherPath and skips the mapper on Success")
+    void mapErrorReturnsEitherPath() {
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
 
-      // mapError for TryPath just casts - the error type is fixed as Throwable
-      var successResult = successPath.mapError(ex -> "mapped error");
-      var failureResult = failurePath.mapError(ex -> "mapped error");
+      EitherPath<String, String> successResult =
+          Path.success(TEST_VALUE)
+              .mapError(
+                  ex -> {
+                    mapperCalled.set(true);
+                    return "mapped error";
+                  });
+      EitherPath<String, String> failureResult =
+          Path.<String>failure(TEST_EXCEPTION).mapError(ex -> "mapped: " + ex.getMessage());
 
-      // Both should still be TryPath instances
-      assertThat(successResult).isInstanceOf(TryPath.class);
-      assertThat(failureResult).isInstanceOf(TryPath.class);
+      assertThat(mapperCalled).isFalse();
+      assertThat(successResult.run().isRight()).isTrue();
+      assertThat(successResult.run().getRight()).isEqualTo(TEST_VALUE);
+      assertThat(failureResult.run().isLeft()).isTrue();
+      assertThat(failureResult.run().getLeft()).isEqualTo("mapped: test error");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.success(TEST_VALUE).mapError(null))
+          .withMessage("mapper must not be null");
+      assertThat(Path.success(TEST_VALUE).mapError(ex -> (String) null).run().getRight())
+          .isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("mapError() then recover() receives the mapped error")
+    @SuppressWarnings("unchecked")
+    void mapErrorThenRecoverReceivesTheMappedError() {
+      Recoverable<TryPath<?>, Throwable, Integer> failed = Path.failure(TEST_EXCEPTION);
+      Recoverable<?, String, Integer> mapped = failed.mapError(ex -> "missing");
+
+      AtomicReference<String> recoveredFrom = new AtomicReference<>();
+      Recoverable<?, String, Integer> recovered =
+          mapped.recover(
+              error -> {
+                recoveredFrom.set(error);
+                return error.length();
+              });
+
+      assertThat(recoveredFrom).hasValue("missing");
+      assertThat(recovered).isInstanceOf(EitherPath.class);
+      assertThat(((EitherPath<String, Integer>) recovered).run().getRight()).isEqualTo(7);
     }
   }
 

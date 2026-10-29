@@ -414,22 +414,37 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
     return typedResult;
   }
 
+  /**
+   * Maps a failure's exception to a typed error, returning an {@link EitherPath}.
+   *
+   * <p>A {@code TryPath}'s error is a {@link Throwable}, so a different error type cannot stay on a
+   * {@code TryPath}. A success becomes a {@code Right} and {@code mapper} is not called. A failure
+   * becomes a {@code Left} of {@code mapper.apply(exception)}. This is {@link
+   * #toEitherPath(Function)}, so a later {@code recover} through {@link Recoverable} receives the
+   * mapped error. To transform the exception and stay a {@code TryPath}, use {@link
+   * #mapException(Function)}.
+   *
+   * @param mapper converts the exception to an error; must not be null, and must not return null
+   * @param <E2> the new error type
+   * @return an {@code EitherPath} with this path's value, or the mapped error
+   * @throws NullPointerException if {@code mapper} is null, or returns null for this path's
+   *     exception, with that exception as the cause
+   */
   @Override
-  @SuppressWarnings("unchecked")
-  public <E2> Recoverable<TryPath<?>, E2, A> mapError(
-      Function<? super Throwable, ? extends E2> mapper) {
-    // TryPath uses Throwable as a fixed error type. mapError transforms the error type,
-    // but for TryPath we can't actually change the underlying Throwable.
-    // We return this cast to the new error type, which is a limitation of the type system.
+  public <E2> EitherPath<E2, A> mapError(Function<? super Throwable, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<TryPath<?>, E2, A>) this;
+    return value.foldFailureFirst(
+        ex -> new EitherPath<>(Either.left(ErrorResults.fromException(mapper, ex, "mapper"))),
+        a -> new EitherPath<>(Either.right(a)));
   }
 
   /**
    * Transforms the exception in a failure.
    *
    * <p>If this path is a failure, applies the function to transform the exception into a new
-   * exception. If this path is a success, returns unchanged.
+   * exception. If this path is a success, returns unchanged. To map the exception onto an error
+   * that is not a {@code Throwable}, use {@link #mapError(Function)}, which returns an {@link
+   * EitherPath}.
    *
    * @param mapper the function to transform the exception; must not be null
    * @return a TryPath with the transformed exception

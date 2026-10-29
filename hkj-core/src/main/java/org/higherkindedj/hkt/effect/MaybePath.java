@@ -444,15 +444,31 @@ public final class MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A> {
     return typedResult;
   }
 
+  /**
+   * Maps absence to a typed error, returning an {@link EitherPath}.
+   *
+   * <p>A {@code MaybePath} implements {@link Recoverable} with {@link Unit} as its error, and a
+   * {@code Nothing} holds no error value, so the mapped error cannot stay on a {@code MaybePath}. A
+   * {@code Just} becomes a {@code Right} and {@code mapper} is not called. A {@code Nothing}
+   * becomes a {@code Left} of {@code mapper.apply(Unit.INSTANCE)}. This is {@link
+   * #toEitherPath(Supplier)} with the supplier applying {@code mapper}, so a later {@link
+   * Recoverable#recover(Function) recover} receives the mapped error.
+   *
+   * @param mapper builds the error for a {@code Nothing}; must not be null, and must not return
+   *     null when this path is empty
+   * @param <E2> the new error type
+   * @return an {@code EitherPath} with this path's value, or the mapped error
+   * @throws NullPointerException if {@code mapper} is null, or returns null when this path is empty
+   */
   @Override
-  @SuppressWarnings("unchecked")
-  public <E2> Recoverable<MaybePath<?>, E2, A> mapError(
-      Function<? super Unit, ? extends E2> mapper) {
-    // For MaybePath, mapError is effectively a no-op since Unit is the only error type.
-    // We return this cast to the new error type, which is safe because MaybePath
-    // doesn't actually store errors (Nothing has no error value).
+  public <E2> EitherPath<E2, A> mapError(Function<? super Unit, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<MaybePath<?>, E2, A>) this;
+    if (value.isJust()) {
+      return new EitherPath<>(Either.right(value.get()));
+    }
+    return new EitherPath<>(
+        Either.left(
+            Objects.requireNonNull(mapper.apply(Unit.INSTANCE), "mapper must not return null")));
   }
 
   // ===== FocusPath Bridge Methods =====
