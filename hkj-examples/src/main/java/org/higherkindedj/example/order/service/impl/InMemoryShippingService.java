@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +24,7 @@ import org.higherkindedj.example.order.model.value.OrderId;
 import org.higherkindedj.example.order.service.ShippingService;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.time.TimeSource;
 
 /** In-memory implementation of ShippingService for testing and examples. */
 public class InMemoryShippingService implements ShippingService {
@@ -33,6 +35,22 @@ public class InMemoryShippingService implements ShippingService {
   private static final Set<String> DOMESTIC_COUNTRIES = Set.of("GB", "UK");
   private static final Set<String> EUROPEAN_COUNTRIES =
       Set.of("DE", "FR", "IT", "ES", "NL", "BE", "AT", "PL", "SE", "DK", "FI", "NO", "IE");
+
+  /** Where this service reads time from; inject a fixed or steppable source in tests. */
+  private final TimeSource timeSource;
+
+  public InMemoryShippingService() {
+    this(TimeSource.system());
+  }
+
+  public InMemoryShippingService(TimeSource timeSource) {
+    this.timeSource = Objects.requireNonNull(timeSource, "timeSource must not be null");
+  }
+
+  /** Reads the injected clock directly; this service is synchronous and returns Either. */
+  private Instant now() {
+    return timeSource.clock().instant();
+  }
 
   @Override
   public Either<OrderError, ValidatedShippingAddress> validateAddress(ShippingAddress address) {
@@ -89,14 +107,8 @@ public class InMemoryShippingService implements ShippingService {
     var shipmentId = "SHIP-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     var trackingNumber = generateTrackingNumber(address.shippingZone());
     var carrier = selectCarrier(address.shippingZone());
-    var baseDays =
-        switch (address.shippingZone()) {
-          case DOMESTIC -> 2;
-          case EUROPE -> 5;
-          case INTERNATIONAL -> 10;
-        };
-    var estimatedDelivery =
-        Instant.now().plus(baseDays + warehouse.processingDays(), ChronoUnit.DAYS);
+    var days = transitDays(address.shippingZone()) + warehouse.processingDays();
+    var estimatedDelivery = now().plus(days, ChronoUnit.DAYS);
     var shippingCost = Money.gbp(warehouse.shippingCost());
 
     var shipmentInfo =
@@ -145,13 +157,16 @@ public class InMemoryShippingService implements ShippingService {
   }
 
   private Instant calculateEstimatedDelivery(ShippingZone zone) {
-    var days =
-        switch (zone) {
-          case DOMESTIC -> 2;
-          case EUROPE -> 5;
-          case INTERNATIONAL -> 10;
-        };
-    return Instant.now().plus(days, ChronoUnit.DAYS);
+    return now().plus(transitDays(zone), ChronoUnit.DAYS);
+  }
+
+  /** Days in transit for a zone, before any warehouse processing time. */
+  private static int transitDays(ShippingZone zone) {
+    return switch (zone) {
+      case DOMESTIC -> 2;
+      case EUROPE -> 5;
+      case INTERNATIONAL -> 10;
+    };
   }
 
   @Override
@@ -175,7 +190,7 @@ public class InMemoryShippingService implements ShippingService {
         new ShipmentStatus(
             ShipmentStatus.Status.CANCELLED,
             status != null ? status.location() : "Unknown",
-            status != null ? status.estimatedDelivery() : Instant.now()));
+            status != null ? status.estimatedDelivery() : now()));
 
     return Either.right(Unit.INSTANCE);
   }
