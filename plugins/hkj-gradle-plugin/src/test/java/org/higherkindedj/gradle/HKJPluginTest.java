@@ -5,6 +5,7 @@ package org.higherkindedj.gradle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.Project;
@@ -36,6 +37,13 @@ class HKJPluginTest {
   private void evaluateProject() {
     // Force afterEvaluate callbacks to run
     ((ProjectInternal) project).evaluate();
+  }
+
+  private List<JavaCompile> javaCompileTasks() {
+    // Iterating realises every task, so an assertion over them cannot pass vacuously.
+    List<JavaCompile> tasks = List.copyOf(project.getTasks().withType(JavaCompile.class));
+    assertThat(tasks).isNotEmpty();
+    return tasks;
   }
 
   private Set<String> dependencyNotations(String configurationName) {
@@ -120,10 +128,8 @@ class HKJPluginTest {
       applyPlugin();
       evaluateProject();
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task -> assertThat(task.getOptions().getCompilerArgs()).contains("-parameters"));
     }
 
@@ -133,10 +139,8 @@ class HKJPluginTest {
       applyPlugin();
       evaluateProject();
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task -> assertThat(task.getOptions().getCompilerArgs()).contains("--enable-preview"));
     }
 
@@ -169,10 +173,8 @@ class HKJPluginTest {
       applyPlugin();
       evaluateProject();
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task ->
                   assertThat(task.getOptions().getCompilerArgs()).contains("-Xplugin:HKJChecker"));
     }
@@ -183,10 +185,8 @@ class HKJPluginTest {
       applyPlugin();
       evaluateProject();
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task -> {
                 assertThat(task.getOptions().isFork()).isTrue();
                 assertThat(task.getOptions().getForkOptions().getJvmArgs())
@@ -217,10 +217,8 @@ class HKJPluginTest {
       ext.getPreview().set(false);
       evaluateProject();
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task ->
                   assertThat(task.getOptions().getCompilerArgs())
                       .doesNotContain("--enable-preview"));
@@ -239,10 +237,8 @@ class HKJPluginTest {
       assertThat(dependencyNotations("testAnnotationProcessor"))
           .noneMatch(dep -> dep.contains("hkj-checker"));
 
-      project
-          .getTasks()
-          .withType(JavaCompile.class)
-          .configureEach(
+      assertThat(javaCompileTasks())
+          .allSatisfy(
               task ->
                   assertThat(task.getOptions().getCompilerArgs())
                       .doesNotContain("-Xplugin:HKJChecker"));
