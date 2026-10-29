@@ -38,11 +38,13 @@ public enum KindValidator {
    * @param <T> The target type to narrow to
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or narrowing fails
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T> T narrow(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Function<? super Kind<F, A>, ? extends T> narrower) {
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
       case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
@@ -69,9 +71,11 @@ public enum KindValidator {
    * @param <T> The target type to narrow to
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected type
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T> T narrowWithTypeCheck(
       @Nullable Kind<F, A> kind, Class<T> targetType) {
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
       case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
@@ -108,12 +112,14 @@ public enum KindValidator {
    * @param <H> The holder type
    * @return The narrowed result
    * @throws KindUnwrapException if kind is null or not of the expected holder type
+   * @throws NullPointerException if targetType is null
    */
   public <F extends WitnessArity<?>, A, T, H extends Kind<F, A>> T narrowHolder(
       @Nullable Kind<F, A> kind,
       Class<T> targetType,
       Class<H> holderType,
       Function<? super H, ? extends T> accessor) {
+    Objects.requireNonNull(targetType, "targetType cannot be null");
 
     return switch (kind) {
       case null -> throw new KindUnwrapException(narrowContext(targetType).nullParameterMessage());
@@ -138,9 +144,11 @@ public enum KindValidator {
    * @param inputType The class of the input type for context
    * @param <T> The input type
    * @return The validated input
-   * @throws NullPointerException if input is null
+   * @throws NullPointerException if input or inputType is null
    */
   public <T> T requireForWiden(T input, Class<T> inputType) {
+    Objects.requireNonNull(inputType, "inputType cannot be null");
+
     if (input == null) {
       var context = new KindContext(inputType, WIDEN.toString());
       throw new NullPointerException(context.nullInputMessage());
