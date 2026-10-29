@@ -27,4 +27,4 @@ The [Foundations FAQ](faq.md) answers the design questions this group raises, su
 ---
 
 **Previous:** [Check Your Understanding](self_check.md)
-**Next:** [HKT Introduction](hkt_introduction.md)
+**Next:** [Why Higher-Kinded Types?](hkt_introduction.md)

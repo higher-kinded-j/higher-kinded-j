@@ -305,5 +305,5 @@ The arity system catches these errors at compile time rather than runtime.
 
 ---
 
-**Previous:** [HKT Introduction](hkt_introduction.md)
+**Previous:** [Why Higher-Kinded Types?](hkt_introduction.md)
 **Next:** [Lifting the Hood](lifting_the_hood.md)
