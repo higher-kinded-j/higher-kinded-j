@@ -42,7 +42,7 @@ public interface MyTypeKind<A> extends Kind<MyTypeKind.Witness, A> {
 public record MyType<A>(A value) implements MyTypeKind<A> {}
 ```
 
-[Extending the Simulation](extending-simulation.md) goes on from here to the helper and the instances.
+[Adding Your Own Type](extending-simulation.md) goes on from here to the helper and the instances.
 
 ## Unary and binary {#unary-and-binary}
 

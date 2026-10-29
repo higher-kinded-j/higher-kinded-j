@@ -400,7 +400,10 @@
     "hkts/lifting_the_hood.html#step-3-inside-the-user-function": "hkts/lifting_the_hood.html#inside-flatmap",
     "hkts/lifting_the_hood.html#step-4-eithernarrowresult": "hkts/lifting_the_hood.html#widen-and-narrow",
     "hkts/lifting_the_hood.html#allocation-summary": "hkts/lifting_the_hood.html#what-each-step-allocates",
-    "hkts/lifting_the_hood.html#what-changes-for-jdk-types": "hkts/lifting_the_hood.html#what-each-step-allocates"
+    "hkts/lifting_the_hood.html#what-changes-for-jdk-types": "hkts/lifting_the_hood.html#what-each-step-allocates",
+    "hkts/extending-simulation.html#extending-higher-kinded-type-simulation": "hkts/extending-simulation.html#adding-your-own-type",
+    "hkts/extending-simulation.html#scenario-1-adapting-an-external-type-eg-javautilseta": "hkts/extending-simulation.html#a-type-you-cannot-change",
+    "hkts/extending-simulation.html#scenario-2-integrating-a-custom-library-type": "hkts/extending-simulation.html#your-own-type"
   };
 
   function target() {

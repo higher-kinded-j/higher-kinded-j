@@ -49,7 +49,7 @@ In words: type classes are written over the `Kind` encoding, and the core types 
 ~~~admonish tip title="Which level am I working at?"
 - **Effect Paths** (`MaybePath`, `EitherPath`, `ValidationPath`): application code. Concrete types you call directly, with no witness, `widen` or `narrow` to write. Most code stays here, and the [Effect Paths](../effect/ch_intro.md) chapter teaches it.
 - **Type classes over `Kind`** (`Functor<F>`, `Monad<F>`): one method for any container, as `totals` is. This chapter.
-- **Your own `Kind`** (a witness, `widen` and `narrow` of your own): adding a type to the library, in [Extending the Simulation](extending-simulation.md).
+- **Your own `Kind`** (a witness, `widen` and `narrow` of your own): making a type of your own work with the type classes, in [Adding Your Own Type](extending-simulation.md).
 
 When two effects must stack and no Path covers them, [Path or Transformer?](../transformers/when_to_drop_to_transformers.md) decides.
 ~~~
@@ -70,7 +70,7 @@ You can ship with Effect Paths without reading this chapter. Start from what you
 | Every error in a form or request reported at once | [ValidationPath](../effect/path_validation.md) in application code; [Validated](../monads/validated_monad.md) and [Accumulating Assembly](../monads/validated_assembly.md) for the type beneath it |
 | The whole stack seen in one expression | [One Line, Six Layers](one_line_six_layers.md) |
 | One method that works for every container, as `totals` does | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
-| A type of your own that joins the library | [Extending the Simulation](extending-simulation.md) |
+| A type of your own that joins the library | [Adding Your Own Type](extending-simulation.md) |
 | A comparison with Vavr, Cyclops or Arrow-Kt | [Foundations FAQ](faq.md) |
 | The type class interfaces at a glance | [Functional API](../functional/functional_api.md) |
 | The everyday API instead | [Effect Paths](../effect/ch_intro.md) |

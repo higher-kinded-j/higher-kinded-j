@@ -20,7 +20,7 @@ Read this group when you want the reasons and the mechanics behind the encoding,
 1. [Why Higher-Kinded Types?](hkt_introduction.md): What a higher-kinded type is, and why Java needs an encoding for one
 2. [Type Arity](type-arity.md): How a witness declares how many type arguments its container still needs
 3. [Lifting the Hood](lifting_the_hood.md): One call traced through the encoding, step by step
-4. [Extending the Simulation](extending-simulation.md): Adding Higher-Kinded-J support to a type of your own
+4. [Adding Your Own Type](extending-simulation.md): A witness, a helper and an instance for a type of your own, the laws that prove them, and a Path
 
 The [Foundations FAQ](faq.md) answers the design questions this group raises, such as why `Kind` has two type parameters, and what `widen` and `narrow` cost.
 

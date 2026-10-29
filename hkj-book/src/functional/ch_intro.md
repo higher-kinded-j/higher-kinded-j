@@ -101,5 +101,5 @@ Write once. Use everywhere the capability exists.
 
 ---
 
-**Previous:** [Extending the Simulation](../hkts/extending-simulation.md)
+**Previous:** [Adding Your Own Type](../hkts/extending-simulation.md)
 **Next:** [Semigroup and Monoid](semigroup_and_monoid.md)
