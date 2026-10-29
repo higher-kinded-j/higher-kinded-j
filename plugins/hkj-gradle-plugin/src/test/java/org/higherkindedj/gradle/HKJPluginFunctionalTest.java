@@ -227,6 +227,44 @@ class HKJPluginFunctionalTest {
   }
 
   @Test
+  @DisplayName("a checker argument the build script writes is the only one javac receives")
+  void buildScriptCheckerArg_isTheOnlyCheckerArg() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+        }
+
+        def severity = 'warn'
+        tasks.withType(JavaCompile).configureEach {
+            options.compilerArgs << "-Xplugin:HKJChecker severity=${severity}"
+        }
+
+        tasks.register('pluginArgs') {
+            doLast {
+                tasks.withType(JavaCompile).each { task ->
+                    def args = task.options.allCompilerArgs.findAll { it.startsWith('-Xplugin:') }
+                    println "${task.name}: ${args}"
+                }
+            }
+        }
+        """);
+
+    // Compiling would need published HKJ artifacts, so the test stops at the arguments
+    // Gradle hands javac, as the script's own GString leaves them.
+    String output = runner("pluginArgs").build().getOutput();
+
+    assertThat(output)
+        .contains("compileJava: [-Xplugin:HKJChecker severity=warn]")
+        .contains("compileTestJava: [-Xplugin:HKJChecker severity=warn]");
+  }
+
+  @Test
   @DisplayName("dependencies task lists hkj-core in implementation")
   void dependencies_listsCoreDependency() throws IOException {
     writeBuildFile(

@@ -110,7 +110,8 @@ class HKJLifecycleParticipantTest {
     if (child == null) {
       return List.of();
     }
-    return Arrays.stream(child.getChildren("arg")).map(Xpp3Dom::getValue).toList();
+    // Maven reads every child, whatever its element name.
+    return Arrays.stream(child.getChildren()).map(Xpp3Dom::getValue).toList();
   }
 
   @Nested
@@ -160,6 +161,64 @@ class HKJLifecycleParticipantTest {
       Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
       assertThat(argValues(finalCfg, "testCompilerArgs"))
           .containsExactlyInAnyOrder("--user-test-arg", "-Xplugin:HKJChecker", "-parameters");
+    }
+
+    @Test
+    @DisplayName("adds no -Xplugin:HKJChecker beside one the build writes with options")
+    void keepsHandWrittenCheckerArg() {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom args = dom("compilerArgs");
+      args.addChild(arg("-Xplugin:HKJChecker severity=warn"));
+      cfg.addChild(args);
+      Xpp3Dom testArgs = dom("testCompilerArgs");
+      testArgs.addChild(arg("-Xplugin:HKJChecker\tdisable=raw-kind"));
+      cfg.addChild(testArgs);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      assertThat(argValues(pluginConfig(), "compilerArgs"))
+          .containsExactly("-Xplugin:HKJChecker severity=warn", "-parameters");
+      assertThat(argValues(pluginConfig(), "testCompilerArgs"))
+          .containsExactly("-Xplugin:HKJChecker\tdisable=raw-kind", "-parameters");
+    }
+
+    @Test
+    @DisplayName("counts an argument under any element name, so none is added twice")
+    void readsAnyArgElementName() {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom args = dom("compilerArgs");
+      child(args, "compilerArg", "-Xplugin:HKJChecker severity=warn");
+      child(args, "compilerArg", "-parameters");
+      cfg.addChild(args);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      assertThat(argValues(pluginConfig(), "compilerArgs"))
+          .containsExactly("-Xplugin:HKJChecker severity=warn", "-parameters");
+    }
+
+    @Test
+    @DisplayName("adds -Xplugin:HKJChecker beside an argument javac reads as another plugin's")
+    void addsCheckerBesideAnotherPlugin() {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom args = dom("compilerArgs");
+      args.addChild(arg("-Xplugin:ErrorProne -XepDisableAllChecks"));
+      args.addChild(arg("-Xplugin:HKJCheckerX"));
+      args.addChild(arg("-Xplugin: "));
+      cfg.addChild(args);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      assertThat(argValues(pluginConfig(), "compilerArgs"))
+          .containsExactly(
+              "-Xplugin:ErrorProne -XepDisableAllChecks",
+              "-Xplugin:HKJCheckerX",
+              "-Xplugin: ",
+              "-parameters",
+              "-Xplugin:HKJChecker");
     }
 
     @Test

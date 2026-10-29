@@ -49,6 +49,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Build and tooling {#build-and-tooling}
 
 - **The HKJ checker names the fix beside javac's error for a mismatched step** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). `error-type-mismatch` says where to type the chain, as in `write .<OrderError>mapError(...)`, or that the step's error needs mapping. `path-type-mismatch` now reads method-reference steps, `VResultPath` and the accumulating methods. See [Compile-Time Checks](../tooling/compile_checks.md).
+- **A build with an HKJ plugin applied can set the checker's options** ([#1336](https://github.com/higher-kinded-j/higher-kinded-j/issues/1336)). A hand-written `-Xplugin:HKJChecker severity=warn` failed the build with `plug-in not found: HKJChecker`. The Gradle and Maven plugins now add no checker argument when the build already names the checker. See [Configuring the checker](../tooling/compile_checks.md#configuration).
 - **An OpenRewrite recipe adds the Path family to capability types** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). `org.higherkindedj.openrewrite.AddPathFamily` rewrites `Chainable<A>` to `Chainable<?, A>`, and likewise the other capability types, a `PathProvider`'s `createPath` included. See [0.6.0 Path family](../tooling/openrewrite.md#060-path-family).
 
 ---

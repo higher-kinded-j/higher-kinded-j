@@ -8,8 +8,10 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
@@ -46,6 +48,13 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       "org.apache.maven.plugins:maven-compiler-plugin";
   private static final String SUREFIRE_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-surefire-plugin";
+
+  /**
+   * An argument naming the checker, with or without options: javac takes the first word after
+   * {@code -Xplugin:} as the plugin's name and the rest as its options.
+   */
+  private static final Pattern CHECKER_ARG =
+      Pattern.compile("-Xplugin:HKJChecker(\\s.*)?", Pattern.DOTALL);
 
   /** The processors HKJ's jars register, bundled at build time. */
   private static final List<String> CORE_PROCESSORS;
@@ -199,7 +208,6 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     }
   }
 
-  /** Whether every processor path naming one of {@code artifactIds} carries {@code version}. */
   /**
    * Whether the processors {@code artifactIds} name resolve to {@code version}. A processor path
    * without a version, and under {@code annotationProcessorPathsUseDepMgmt} every processor jar,
@@ -325,9 +333,21 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     // -parameters is unconditional (matching the Gradle plugin); the checker arg only
     // applies when the path-type-mismatch check is enabled.
     addArgIfMissing(args, "-parameters");
-    if (config.pathTypeMismatch()) {
-      addArgIfMissing(args, "-Xplugin:HKJChecker");
+    if (config.pathTypeMismatch() && !requestsChecker(args)) {
+      addArg(args, "-Xplugin:HKJChecker");
     }
+  }
+
+  /**
+   * Whether the build already names the checker. javac reports a second request for the checker
+   * with other options as a plugin not found, so the plugin adds none beside the build's own.
+   */
+  private static boolean requestsChecker(Xpp3Dom compilerArgs) {
+    // Maven reads every child of <compilerArgs>, whatever its element name.
+    return Arrays.stream(compilerArgs.getChildren())
+        .map(Xpp3Dom::getValue)
+        .filter(Objects::nonNull)
+        .anyMatch(arg -> CHECKER_ARG.matcher(arg).matches());
   }
 
   void configureSurefirePlugin(MavenProject project, HKJConfiguration config) {
@@ -412,11 +432,15 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   }
 
   private void addArgIfMissing(Xpp3Dom compilerArgs, String arg) {
-    for (Xpp3Dom child : compilerArgs.getChildren("arg")) {
+    for (Xpp3Dom child : compilerArgs.getChildren()) {
       if (arg.equals(child.getValue())) {
         return;
       }
     }
+    addArg(compilerArgs, arg);
+  }
+
+  private void addArg(Xpp3Dom compilerArgs, String arg) {
     Xpp3Dom argElement = new Xpp3Dom("arg");
     argElement.setValue(arg);
     compilerArgs.addChild(argElement);
