@@ -163,7 +163,7 @@ var gathered = For.par(monad,
         ProcessingState.initial(address, customer, order));
 ```
 
-With `EitherPath`, the benefit is documentation of intent; execution remains sequential. With `VTaskPath`, the two operations would run concurrently on virtual threads. See [Parallel Composition](../functional/for_par.md) for the full API.
+With `EitherPath`, the benefit is documentation of intent; execution remains sequential. A `VTaskPath` version, written with `ForPath.par`, would run the two operations at the same time on virtual threads. See [Independent steps with par](../functional/for_comprehension.md#independent-steps-with-par) for the full API.
 ~~~
 
 ### Named State Replaces Tuple Positions

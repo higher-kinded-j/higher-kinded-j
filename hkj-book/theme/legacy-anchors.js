@@ -356,7 +356,19 @@
     "functional/monad_error.html#value-level-recovery-with-handleerror": "functional/monad_error.html#recovering",
     "functional/monad_error.html#effect-level-recovery-with-handleerrorwith": "functional/monad_error.html#recovering",
     "functional/monad_error.html#chained-recovery": "functional/monad_error.html#recovering",
-    "functional/monad_error.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#two-encodings-one-algebra"
+    "functional/monad_error.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#two-encodings-one-algebra",
+    "functional/for_comprehension.html#the-pyramid-of-doom-problem": "functional/for_comprehension.html#when-nested-flatmap-calls-get-deep",
+    "functional/for_comprehension.html#for-a-fluent-sequential-builder": "functional/for_comprehension.html#from-let-and-yield",
+    "functional/for_comprehension.html#admonition-supported-arities": "functional/for_comprehension.html#twelve-values-and-their-tuples",
+    "functional/for_comprehension.html#extended-arity-example-6-bindings": "functional/for_comprehension.html#twelve-values-and-their-tuples",
+    "functional/for_comprehension.html#core-operations-of-the-for-builder": "functional/for_comprehension.html#from-let-and-yield",
+    "functional/for_comprehension.html#1-generators-from": "functional/for_comprehension.html#from-let-and-yield",
+    "functional/for_comprehension.html#2-value-bindings-let": "functional/for_comprehension.html#from-let-and-yield",
+    "functional/for_comprehension.html#3-guards-when": "functional/for_comprehension.html#filtering-with-when",
+    "functional/for_comprehension.html#4-projection-yield": "functional/for_comprehension.html#from-let-and-yield",
+    "functional/for_comprehension.html#turn-the-power-up-statet-example": "functional/for_comprehension.html#which-comprehension",
+    "functional/for_comprehension.html#similarities-to-scala": "functional/for_comprehension.html#coming-from-scala",
+    "functional/for_comprehension.html#admonition-consider-tostate-for-complex-workflows": "functional/for_comprehension.html#twelve-values-and-their-tuples"
   };
 
   function target() {

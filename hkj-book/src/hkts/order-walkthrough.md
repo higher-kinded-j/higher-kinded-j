@@ -204,7 +204,7 @@ var gathered =
 // ... enrich phase continues from `gathered`
 ```
 
-For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. For a `VTaskPath` version of this workflow, `par()` would provide true concurrent execution. See [Parallel Composition](../functional/for_par.md) for details.
+For `EitherPath`, `par()` is sequential, so the benefit is purely documentation of intent. A `VTaskPath` version of this workflow, written with `ForPath.par`, would run the two at the same time. See [Independent steps with par](../functional/for_comprehension.md#independent-steps-with-par) for details.
 ~~~
 
 None of these concepts is particularly complex. `Either` is just a container with two cases. `For` is a comprehension that accumulates results in a tuple. `toState()` constructs a record from those results. `ForState` threads that record through each step. Lenses are just pairs of getter and setter functions. Sealed interfaces are just sum types.

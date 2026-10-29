@@ -9,7 +9,10 @@
  * the skills and other chapters all point into section anchors.
  *
  * What is checked, for every markdown file under hkj-book/src:
- *   - a link to another book page resolves to a file that exists;
+ *   - a link to another book page resolves to a file that exists; the release
+ *     notes, which are never rewritten, may also link a page that book.toml
+ *     redirects, as a merged page is;
+ *   - each book.toml redirect lands on a page and heading that exist;
  *   - a fragment (`page.md#section`, or `#section` on the same page) resolves
  *     to a heading id on the target page.
  *
@@ -31,6 +34,29 @@ const { markdownFiles, linesAsProse } = require("./book-prose.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const bookSrc = path.join(repoRoot, "hkj-book", "src");
+const bookToml = path.join(repoRoot, "hkj-book", "book.toml");
+
+/**
+ * The pages book.toml redirects, from each source .md path to the redirect's target as
+ * written, which is relative to the redirected page. A page merged into another leaves links
+ * behind in the release notes, which are never rewritten, and the deployed book sends those
+ * links on to the page that absorbed it. Where the target names its own heading, a fragment
+ * on the old link is replaced by it, so only the target's heading can be checked.
+ */
+function redirectedPages(tomlText) {
+  const pages = new Map();
+  let inRedirects = false;
+  for (const raw of tomlText.split("\n")) {
+    const line = raw.trim();
+    if (line.startsWith("[")) {
+      inRedirects = line === "[output.html.redirect]";
+      continue;
+    }
+    const match = inRedirects && line.match(/^"\/([^"]+)\.html"\s*=\s*"([^"]+)"/);
+    if (match) pages.set(path.join(bookSrc, `${match[1]}.md`), match[2]);
+  }
+  return pages;
+}
 
 /** The text a heading renders to, which is what mdbook makes its id from. */
 function renderedText(headingText) {
@@ -148,6 +174,18 @@ function selfTest() {
     process.exit(2);
   }
 
+  const redirects = redirectedPages(
+    '[output.html.redirect]\n"/functional/for_par.html" = "for_comprehension.html#par"\n' +
+      '[output.html.fold]\n"/not/a/redirect.html" = "elsewhere.html"\n'
+  );
+  if (
+    redirects.get(path.join(bookSrc, "functional", "for_par.md")) !== "for_comprehension.html#par" ||
+    redirects.has(path.join(bookSrc, "not", "a", "redirect.md"))
+  ) {
+    console.log("::error::book-anchor-check reads book.toml's redirect table wrongly");
+    process.exit(2);
+  }
+
   const dupes = headingIds("## Limits\n\n## Limits\n\n## Limits\n");
   for (const id of ["limits", "limits-1", "limits-2"]) {
     if (!dupes.has(id)) {
@@ -160,6 +198,7 @@ function selfTest() {
 selfTest();
 
 const files = markdownFiles(bookSrc).sort();
+const redirected = redirectedPages(fs.readFileSync(bookToml, "utf8"));
 const idsByFile = new Map(files.map((file) => [file, headingIds(fs.readFileSync(file, "utf8"))]));
 
 /**
@@ -177,6 +216,23 @@ function copiedFromRoot(target) {
 
 let failures = 0;
 let checked = 0;
+let throughRedirects = 0;
+
+// Each redirect must land somewhere real, or a renamed heading strands every old link to it.
+for (const [page, target] of redirected) {
+  const [targetPath, fragment] = target.split("#");
+  const targetFile = path.resolve(path.dirname(page), targetPath.replace(/\.html$/, ".md"));
+  const where = `book.toml redirect for ${path.relative(bookSrc, page)}`;
+  if (!idsByFile.has(targetFile)) {
+    failures++;
+    console.log(`FAIL  ${where}  no such page: ${target}`);
+    console.log(`::error file=hkj-book/book.toml::${where} lands on no page: ${target}`);
+  } else if (fragment && !idsByFile.get(targetFile).has(fragment)) {
+    failures++;
+    console.log(`FAIL  ${where}  no heading '#${fragment}'`);
+    console.log(`::error file=hkj-book/book.toml::${where} lands on no heading: ${target}`);
+  }
+}
 
 for (const file of files) {
   const rel = path.relative(repoRoot, file);
@@ -188,6 +244,20 @@ for (const file of files) {
       if (fs.existsSync(targetFile)) continue; // a page outside src, left alone
       const copied = copiedFromRoot(targetFile);
       if (copied !== null) targetFile = copied;
+    }
+
+    if (!idsByFile.has(targetFile) && redirected.has(targetFile)) {
+      if (path.relative(bookSrc, file).startsWith(`release-history${path.sep}`)) {
+        throughRedirects++;
+        continue;
+      }
+      failures++;
+      console.log(`FAIL  ${rel}:${link.line}  links a redirected page: ${link.target}`);
+      console.log(
+        `::error file=${rel},line=${link.line}::${link.target} is redirected by book.toml; ` +
+          `link where it lands instead: ${redirected.get(targetFile)}`
+      );
+      continue;
     }
 
     if (!idsByFile.has(targetFile)) {
@@ -213,6 +283,7 @@ for (const file of files) {
 console.log(
   failures
     ? `${failures} of ${checked} book links resolve to nothing`
-    : `${checked} book links all resolve`
+    : `${checked} book links all resolve` +
+        (throughRedirects ? `, ${throughRedirects} through a book.toml redirect` : "")
 );
 process.exit(failures ? 1 : 0);

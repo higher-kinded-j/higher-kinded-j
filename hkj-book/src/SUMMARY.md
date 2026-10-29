@@ -175,8 +175,6 @@
   - [Monad](functional/monad.md)
   - [MonadError](functional/monad_error.md)
   - [For Comprehension](functional/for_comprehension.md)
-    - [Parallel Composition](functional/for_par.md)
-    - [Traverse Within Comprehensions](functional/for_traverse.md)
   - [Higher-Kinded Types](hkts/ch_intro.md)
     - [HKT Introduction](hkts/hkt_introduction.md)
     - [Type Arity](hkts/type-arity.md)

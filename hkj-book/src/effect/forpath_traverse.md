@@ -77,7 +77,7 @@ MaybePath<Kind<ListKind.Witness, Integer>> flat =
 ~~~
 
 ~~~admonish tip title="See Also"
-- For the underlying type-class-based traverse within `For` comprehensions, see [Traverse Within Comprehensions](../functional/for_traverse.md).
+- For the underlying type-class-based traverse within `For` comprehensions, see [Traversing inside a chain](../functional/for_comprehension.md#traversing-inside-a-chain).
 - For a detailed introduction to `Traverse`, `Foldable`, and `sequenceA`, see [Foldable & Traverse](../functional/foldable_and_traverse.md).
 ~~~
 

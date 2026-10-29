@@ -102,7 +102,7 @@ MaybePath<String> result =
 Even when execution is sequential, `par()` documents the *intent* that the computations are independent, making the dependency structure of your workflow explicit.
 
 ~~~admonish tip title="See Also"
-For `par()` with raw `Kind` values (no Path wrappers), see [For Parallel Composition](../functional/for_par.md).
+For `par()` with raw `Kind` values (no Path wrappers), see [Independent steps with par](../functional/for_comprehension.md#independent-steps-with-par).
 ~~~
 
 ---

@@ -395,9 +395,9 @@ ForState.withState(idMonad, Id.of(employeeList))
 ~~~admonish note title="Two Kinds of Traverse"
 `ForState.traverse(Lens, Traversal, Function)` is an **optics-based** bulk update: it uses a lens to locate a collection field within the state record and a traversal optic to iterate over its elements. The result is written back into the state via the same lens.
 
-The `For` comprehension offers a different form: `For.traverse(Traverse, extractor, f)`, which is **type-class-based**. It uses a `Traverse` type-class instance to map an effectful function over a traversable structure extracted from the current tuple, adding the collected result as a new binding.
+The `For` comprehension offers a different form: a `traverse(Traverse, extractor, f)` step, which is **type-class-based**. It uses a `Traverse` type-class instance to map an effectful function over a traversable structure extracted from the current tuple, adding the collected result as a new binding.
 
-Both are useful; choose the one that matches your comprehension style. See [Traverse Within Comprehensions](for_traverse.md) for the `For`-based variant.
+Both are useful; choose the one that matches your comprehension style. See [Traversing inside a chain](for_comprehension.md#traversing-inside-a-chain) for the `For`-based variant.
 ~~~
 
 ### Converting Through Isos
