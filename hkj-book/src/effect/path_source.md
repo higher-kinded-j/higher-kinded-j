@@ -66,7 +66,7 @@ The running example is `Traced`. Here is what you write, and what the processor 
 | A kind helper, whose `narrow` turns the `Kind` back into a `Traced` | `run` hands back the `Kind` |
 | `@PathSource` on the effect type | The processor writes `TracedPath` from it |
 
-[Extending the HKT simulation](../hkts/extending-simulation.md#scenario-2-integrating-a-custom-library-type)
+[Adding Your Own Type](../hkts/extending-simulation.md#your-own-type)
 covers the first three in depth. The witness is a marker class inside the effect's `Kind` interface:
 
 ```java
@@ -473,7 +473,7 @@ Path.free(program, ConsoleOpFunctor.instance()), then remove @PathSource.
 - [GenericPath](path_generic.md): the escape hatch every custom monad has without a build step
 - [Capability Interfaces](capabilities.md): what `Composable`, `Combinable` and `Chainable` promise
 - [PathProvider registration](../monads/vstream_advanced.md#pathprovider-spi-registration): registering a `PathProvider`, so `Path.from` finds a Path for your witness
-- [Extending the HKT simulation](../hkts/extending-simulation.md): writing a witness, a helper and a `Monad`
+- [Adding Your Own Type](../hkts/extending-simulation.md): writing a witness, a helper and a `Monad`
 - [Effect Handlers](effect_handlers_intro.md): `@EffectAlgebra`, for effects described as instructions
 ~~~
 

@@ -180,7 +180,7 @@
     - [Why Higher-Kinded Types?](hkts/hkt_introduction.md)
     - [Type Arity](hkts/type-arity.md)
     - [Lifting the Hood](hkts/lifting_the_hood.md)
-    - [Extending the Simulation](hkts/extending-simulation.md)
+    - [Adding Your Own Type](hkts/extending-simulation.md)
   - [Type Classes](functional/ch_intro.md)
     - [Semigroup and Monoid](functional/semigroup_and_monoid.md)
     - [Foldable and Traverse](functional/foldable_and_traverse.md)

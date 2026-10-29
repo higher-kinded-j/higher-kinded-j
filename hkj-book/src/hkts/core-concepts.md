@@ -85,7 +85,7 @@ Every container that joins the encoding brings the same pieces. They differ in o
 | `narrow` | Checks the type, then casts | Checks for the holder, then returns the `Optional` it holds |
 | Type class instances | `MaybeMonad`, `MaybeTraverse` and others | `OptionalMonad`, `OptionalTraverse` and others |
 
-The JDK's types cannot implement `Kind`, so they are held, and so are two of the library's own: `Lazy` and `Tuple2`. A type that is its own `Kind` crosses into the encoding without an allocation, and a debugger shows the `Maybe` itself, not a holder. [Extending the Simulation](extending-simulation.md) shows how to give a type of your own these pieces.
+The JDK's types cannot implement `Kind`, so they are held, and so are two of the library's own: `Lazy` and `Tuple2`. A type that is its own `Kind` crosses into the encoding without an allocation, and a debugger shows the `Maybe` itself, not a holder. [Adding Your Own Type](extending-simulation.md) shows how to give a type of your own these pieces.
 
 ## Values, never null {#values-never-null}
 
