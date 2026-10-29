@@ -78,6 +78,7 @@
 | `.orElse(supplier)` | Try an alternative path | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.mapError(fn)` | Transform the error type | EitherPath, TryPath, ValidationPath |
 | `.bimap(errFn, okFn)` | Transform error and success together | EitherPath |
+| `.ensure(test, onFail)` | Keep a success only if it passes `test`, otherwise fail with `onFail(value)` | EitherPath |
 | `.handleError(fn)` | Throwable → recovery value | IOPath, VTaskPath (via `Effectful`) |
 | `.handleErrorWith(fn)` | Throwable → recovery effect | IOPath, VTaskPath (via `Effectful`) |
 | `.guarantee(runnable)` | Run cleanup whether success or failure | IOPath, VTaskPath (via `Effectful`) |

@@ -687,6 +687,81 @@ class EitherPathTest {
   }
 
   @Nested
+  @DisplayName("Ensure Operation")
+  class EnsureOperationTests {
+
+    @Test
+    @DisplayName("ensure() returns a passing Right unchanged")
+    void ensureReturnsPassingRightUnchanged() {
+      EitherPath<String, Integer> path = Path.right(3);
+
+      assertThat(path.ensure(n -> n > 0, n -> "not positive: " + n)).isSameAs(path);
+    }
+
+    @Test
+    @DisplayName("ensure() turns a failing Right into a Left built from the value")
+    void ensureTurnsFailingRightIntoLeft() {
+      EitherPath<String, Integer> path = Path.right(-3);
+
+      EitherPath<String, Integer> result = path.ensure(n -> n > 0, n -> "not positive: " + n);
+
+      assertThat(result.run().isLeft()).isTrue();
+      assertThat(result.run().getLeft()).isEqualTo("not positive: -3");
+    }
+
+    @Test
+    @DisplayName("ensure() returns a Left unchanged and calls neither function")
+    void ensureReturnsLeftUnchanged() {
+      EitherPath<String, Integer> path = Path.left(TEST_ERROR);
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      EitherPath<String, Integer> result =
+          path.ensure(
+              n -> {
+                called.set(true);
+                return true;
+              },
+              n -> {
+                called.set(true);
+                return "unused";
+              });
+
+      assertThat(result).isSameAs(path);
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("ensure() validates null test")
+    void ensureValidatesNullTest() {
+      EitherPath<String, Integer> path = Path.right(TEST_INT);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.ensure(null, n -> "error"))
+          .withMessage("test must not be null");
+    }
+
+    @Test
+    @DisplayName("ensure() validates null onFail")
+    void ensureValidatesNullOnFail() {
+      EitherPath<String, Integer> path = Path.right(TEST_INT);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.ensure(n -> true, null))
+          .withMessage("onFail must not be null");
+    }
+
+    @Test
+    @DisplayName("ensure() rejects an onFail that returns null")
+    void ensureRejectsOnFailReturningNull() {
+      EitherPath<String, Integer> path = Path.right(-3);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.ensure(n -> n > 0, n -> null))
+          .withMessage("onFail must not return null");
+    }
+  }
+
+  @Nested
   @DisplayName("Swap Operation")
   class SwapOperationTests {
 
