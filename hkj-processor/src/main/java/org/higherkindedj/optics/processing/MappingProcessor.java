@@ -1761,7 +1761,7 @@ public class MappingProcessor extends AbstractProcessor {
             + "'.",
         "A name that runs on in lower case after its get, is or set prefix is a word rather than"
             + " an accessor, which would be spelt "
-            + first.renamedFor(name)
+            + retyped(first, partnerType(first, sparse)).renamedFor(name)
             + ". "
             + (sparse
                 ? "updateFrom folds in only what a PATCH bean both reads and writes, so a value the"

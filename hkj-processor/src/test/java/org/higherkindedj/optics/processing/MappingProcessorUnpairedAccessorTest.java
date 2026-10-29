@@ -454,6 +454,26 @@ class MappingProcessorUnpairedAccessorTest {
               @GenerateMapping
               public interface PointPatchMapping extends UpdateSpec<Point, PointPatch> {}
               """);
+      // A primitive setter word declared first, so the reason spells it at the wrapper the fix
+      // offers.
+      JavaFileObject dotPatch =
+          source(
+              "DotPatch",
+              """
+              public class DotPatch {
+                public void setx(int x) {}
+                public int getx() { return 0; }
+                public Integer getY() { return null; }
+                public void setY(Integer y) {}
+              }
+              """);
+      JavaFileObject dotSpec =
+          source(
+              "DotPatchMapping",
+              """
+              @GenerateMapping
+              public interface DotPatchMapping extends UpdateSpec<Point, DotPatch> {}
+              """);
       // A read-only marker the word would have bound, and a rename onto a word.
       JavaFileObject item =
           source("Item", "public record Item(String id, String label, String name) {}");
@@ -716,6 +736,8 @@ class MappingProcessorUnpairedAccessorTest {
               point,
               pointPatch,
               pointSpec,
+              dotPatch,
+              dotSpec,
               item,
               itemDto,
               itemSpec,
@@ -729,7 +751,7 @@ class MappingProcessorUnpairedAccessorTest {
               soloDto,
               soloSpec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorCount(17);
+      assertThat(compilation).hadErrorCount(18);
       assertThat(compilation)
           .hadErrorContaining("declare '@Unmapped List<String> d();' on the spec.");
       assertThat(compilation)
@@ -766,6 +788,15 @@ class MappingProcessorUnpairedAccessorTest {
           .hadErrorContaining(
               "updateFrom folds in only what a PATCH bean both reads and writes, so a value the"
                   + " client sends for 'x' would never reach 'Point.x', and nothing would say so.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'DotPatch' declares setx(int) and getx(), which are not read as the setter and"
+                  + " getter of 'x'. A name that runs on in lower case after its get, is or set"
+                  + " prefix is a word rather than an accessor, which would be spelt"
+                  + " setX(Integer). updateFrom folds in only what a PATCH bean both reads and"
+                  + " writes, so a value the client sends for 'x' would never reach 'Point.x', and"
+                  + " nothing would say so. Change setx(int) to setX(Integer) and getx() to Integer"
+                  + " getX(), since a PATCH property must be able to be absent.");
       assertThat(compilation)
           .hadErrorContaining(
               "With nothing else on 'ItemDto' to read it, parse could not fill 'Item.id', and"
