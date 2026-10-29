@@ -69,8 +69,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Core types {#runtime-core-types}
 
-- **`Validated.map` throws `NullPointerException` when its function returns null** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). It threw `KindUnwrapException`. Catching that around the call no longer catches it. See [Values, never null](../hkts/core-concepts.md#values-never-null).
-- **`FunctionKindHelper.narrow` throws `KindUnwrapException`** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). A null `Kind` used to throw `NullPointerException`, and another type's `Kind` threw `IllegalArgumentException`. The other kind helpers already throw `KindUnwrapException` for both. See [When `narrow` throws](../hkts/core-concepts.md#when-narrow-throws).
+- **`Validated.map`, and `map2` to `map5` on its monad, throw `NullPointerException` when their function returns null** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). They threw `KindUnwrapException`, so catching that, or `IllegalArgumentException`, around the call no longer catches it. See [Values, never null](../hkts/core-concepts.md#values-never-null).
+- **`FunctionKindHelper.narrow` throws `KindUnwrapException`, as the other kind helpers do** ([#1318](https://github.com/higher-kinded-j/higher-kinded-j/issues/1318)). A null `Kind` threw `NullPointerException`, so catching that no longer catches it. Another type's `Kind` threw `IllegalArgumentException`, which `KindUnwrapException` extends, so catching that still does. See [When `narrow` throws](../hkts/core-concepts.md#when-narrow-throws).
 
 #### Optics {#runtime-optics}
 

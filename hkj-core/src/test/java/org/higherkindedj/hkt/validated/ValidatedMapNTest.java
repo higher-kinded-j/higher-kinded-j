@@ -13,7 +13,6 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
-import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -102,10 +101,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v2 = VALIDATED.valid(20);
 
       assertThatThrownBy(() -> monad.map2(v1, v2, (_, _) -> null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("combining function")
-          .hasMessageContaining("map2")
-          .hasMessageContaining("null");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("f must not return null");
     }
 
     @Test
@@ -202,10 +199,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v3 = VALIDATED.valid(30);
 
       assertThatThrownBy(() -> monad.map3(v1, v2, v3, (_, _, _) -> null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("f")
-          .hasMessageContaining("map3")
-          .hasMessageContaining("null");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("f must not return null");
     }
   }
 
@@ -312,10 +307,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v4 = VALIDATED.valid(40);
 
       assertThatThrownBy(() -> monad.map4(v1, v2, v3, v4, (_, _, _, _) -> null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("f")
-          .hasMessageContaining("map4")
-          .hasMessageContaining("null");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("f must not return null");
     }
   }
 
@@ -427,10 +420,8 @@ class ValidatedMapNTest {
       Kind<ValidatedKind.Witness<String>, Integer> v5 = VALIDATED.valid(5);
 
       assertThatThrownBy(() -> monad.map5(v1, v2, v3, v4, v5, (_, _, _, _, _) -> null))
-          .isInstanceOf(KindUnwrapException.class)
-          .hasMessageContaining("f")
-          .hasMessageContaining("map5")
-          .hasMessageContaining("null");
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("f must not return null");
     }
   }
 
