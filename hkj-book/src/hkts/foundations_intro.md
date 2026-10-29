@@ -94,20 +94,21 @@ The [Foundations journey](../tutorials/coretypes/foundations_journey.md) practis
 7. [Monad](../functional/monad.md): Sequencing steps that depend on each other
 8. [MonadError](../functional/monad_error.md): Raising errors and recovering from them
 9. [For Comprehension](../functional/for_comprehension.md): Chains of steps that read in order
+10. [Check Your Understanding](self_check.md): Twelve questions on the Ship pages, with a plan for your score
 
 **On demand**, when a task calls for it:
 
-10. [Higher-Kinded Types](ch_intro.md): The encoding in depth, and adding your own type
-11. [Type Classes](../functional/ch_intro.md): Monoid, Traverse, natural transformations and more
-12. [Core Types](../monads/ch_intro.md): Either, Validated, IO, VTask and the rest
+11. [Higher-Kinded Types](ch_intro.md): The encoding in depth, and adding your own type
+12. [Type Classes](../functional/ch_intro.md): Monoid, Traverse, natural transformations and more
+13. [Core Types](../monads/ch_intro.md): Either, Validated, IO, VTask and the rest
 
 **Look it up**, when you hold a question:
 
-13. [Supported Types](../monads/supported-types.md): Which type to choose, and what it supports
-14. [Quick Reference](quick_reference.md): The everyday patterns at a glance
-15. [Functional API](../functional/functional_api.md): The type class interfaces
-16. [Foundations FAQ](faq.md): Design questions, runtime cost and comparisons
-17. [Basic HKT Examples](hkt_basic_examples.md): The runnable examples, listed
+14. [Supported Types](../monads/supported-types.md): Which type to choose, and what it supports
+15. [Quick Reference](quick_reference.md): The everyday patterns at a glance
+16. [Functional API](../functional/functional_api.md): The type class interfaces
+17. [Foundations FAQ](faq.md): Design questions, runtime cost and comparisons
+18. [Basic HKT Examples](hkt_basic_examples.md): The runnable examples, listed
 
 ---
 
