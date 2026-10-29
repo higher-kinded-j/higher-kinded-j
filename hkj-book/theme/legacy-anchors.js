@@ -380,7 +380,27 @@
     "hkts/hkt_introduction.html#level-1-concrete-types-like-values": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
     "hkts/hkt_introduction.html#level-2-generic-types-like-functions": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
     "hkts/hkt_introduction.html#level-3-higher-kinded-types-like-functions-that-take-other-functions": "hkts/hkt_introduction.html#types-type-constructors-and-higher-kinds",
-    "hkts/hkt_introduction.html#a-practical-analogy-the-shipping-company": "hkts/hkt_introduction.html#one-method-for-every-container"
+    "hkts/hkt_introduction.html#a-practical-analogy-the-shipping-company": "hkts/hkt_introduction.html#one-method-for-every-container",
+    "hkts/type-arity.html#witness-vs-witnessarity-understanding-the-distinction": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#what-is-type-arity": "hkts/type-arity.html#unary-and-binary",
+    "hkts/type-arity.html#the-arity-interfaces": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#typearity": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#witnessarity": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#how-arity-enforces-type-safety": "hkts/type-arity.html#how-the-bounds-fit-together",
+    "hkts/type-arity.html#unary-vs-binary-when-to-use-each": "hkts/type-arity.html#unary-and-binary",
+    "hkts/type-arity.html#unary-type-constructors": "hkts/type-arity.html#unary-and-binary",
+    "hkts/type-arity.html#binary-type-constructors": "hkts/type-arity.html#unary-and-binary",
+    "hkts/type-arity.html#diagram-type-class-hierarchy-by-arity": "functional/ch_intro.html#the-hierarchy",
+    "hkts/type-arity.html#common-patterns": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#defining-a-new-unary-type": "hkts/type-arity.html#witness-and-witnessarity",
+    "hkts/type-arity.html#using-either-with-different-arities": "hkts/type-arity.html#what-the-compiler-refuses",
+    "hkts/type-arity.html#why-arity-matters": "hkts/type-arity.html#what-the-compiler-refuses",
+    "hkts/lifting_the_hood.html#step-1-eitherwidenstart": "hkts/lifting_the_hood.html#widen-and-narrow",
+    "hkts/lifting_the_hood.html#step-2-monadflatmap": "hkts/lifting_the_hood.html#how-the-call-finds-eithermonad",
+    "hkts/lifting_the_hood.html#step-3-inside-the-user-function": "hkts/lifting_the_hood.html#inside-flatmap",
+    "hkts/lifting_the_hood.html#step-4-eithernarrowresult": "hkts/lifting_the_hood.html#widen-and-narrow",
+    "hkts/lifting_the_hood.html#allocation-summary": "hkts/lifting_the_hood.html#what-each-step-allocates",
+    "hkts/lifting_the_hood.html#what-changes-for-jdk-types": "hkts/lifting_the_hood.html#what-each-step-allocates"
   };
 
   function target() {
