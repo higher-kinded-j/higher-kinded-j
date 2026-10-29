@@ -233,4 +233,4 @@ Practise `par` on Paths in the [ForPath Parallel journey](../tutorials/expressio
 ---
 
 **Previous:** [MonadError](monad_error.md)
-**Next:** [Higher-Kinded Types](../hkts/ch_intro.md)
+**Next:** [Check Your Understanding](../hkts/self_check.md)
