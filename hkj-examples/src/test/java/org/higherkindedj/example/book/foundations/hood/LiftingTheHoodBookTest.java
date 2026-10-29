@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.example.book.foundations.encoding.EncodingBook;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
@@ -30,7 +32,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Holds the claims the Lifting the Hood page can test about the round trip in {@link EncodingBook}:
- * how the call reaches {@code EitherMonad}, and which steps build a new object.
+ * how the call reaches {@code EitherMonad}, and which steps build a new object, on the {@code Kind}
+ * level and on an {@code EitherPath}.
  */
 @DisplayName("Lifting the Hood: one round trip, call by call")
 class LiftingTheHoodBookTest {
@@ -111,5 +114,18 @@ class LiftingTheHoodBookTest {
     assertThat(fromEither).isSameAs(built);
     assertThat(fromOptional).isNotSameAs(empty);
     assertThat(OPTIONAL.narrow(fromOptional)).isSameAs(OPTIONAL.narrow(empty));
+  }
+
+  @Test
+  @DisplayName("EitherPath's via builds no path of its own; its map builds one at each step")
+  void viaBuildsNoPathButMapDoes() {
+    EitherPath<String, Integer> failed = Path.left("not found");
+    EitherPath<String, Integer> succeeded = Path.right(10);
+    EitherPath<String, String> built = Path.right("v=10");
+
+    assertThat(failed.via(i -> built)).isSameAs(failed);
+    assertThat(succeeded.via(i -> built)).isSameAs(built);
+    assertThat(failed.map(i -> "v=" + i)).isNotSameAs(failed);
+    assertThat(succeeded.map(i -> "v=" + i)).isNotSameAs(succeeded);
   }
 }

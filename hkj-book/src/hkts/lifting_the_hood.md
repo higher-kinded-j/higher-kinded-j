@@ -100,17 +100,17 @@ The same round trip, on a library type and on a JDK type:
 | Inside your function | What it builds: here a `String` and a `Right` | What it builds, and one holder when it widens its result |
 | `narrow` | Nothing: a type check and a cast | Nothing: a type check and a field read |
 
-So for a library type the machinery allocates one short-lived lambda per `flatMap`, and a JDK type adds a holder at each `widen`. The token comes once, when you look the instance up. The JIT can often remove short-lived objects that never leave the method, by escape analysis, but it cannot always. [Benchmarks & Performance](../benchmarks.md) has measured numbers.
+So for a type that is its own `Kind`, the machinery allocates one short-lived lambda per `flatMap`. A held type, such as `Optional` or `Lazy`, adds a holder at each `widen`. The token comes once, when you look the instance up. The JIT can often remove short-lived objects that never leave the method, by escape analysis, but it cannot always. [Benchmarks & Performance](../benchmarks.md) has measured numbers.
 
 That asymmetry is the tax on a type that cannot be its own `Kind`. The fix is not technical; it is to use library types (`Maybe`, `Either`) when the cost matters.
 
 ## What this means in practice {#what-this-means-in-practice}
 
-- **`widen` and `narrow` on a library type cost a check, not an object.** Write them wherever they make the code clearer.
+- **On a type that is its own `Kind`, `widen` and `narrow` cost a check, not an object.** Write them wherever they make the code clearer.
 - **On a JDK type, each `widen` allocates a holder.** In a tight loop, prefer `Maybe`, `Either` or `Try`. In a method that runs once per request, the holder does not show.
 - **The instance is a value you pass.** Look it up once, outside a loop. A call site that sees one instance class is usually inlined. One that sees many, as code generic over `F` can, pays for an ordinary interface call.
 
-An `EitherPath` skips the `Kind`, the instance and the lambda: it holds an `Either` and calls it directly, and allocates a new path at each step instead. [Two encodings, one algebra](one_line_six_layers.md#two-encodings-one-algebra) sets the two side by side, and the [chapter introduction](foundations_intro.md) says which level fits your code.
+An `EitherPath` skips the `Kind`, the instance and the lambda: it holds an `Either` and calls it directly. Its `via` builds no path of its own: a failed path comes back as itself, and otherwise you get the path your function built. Its `map` builds a new path at each step. [Two encodings, one algebra](one_line_six_layers.md#two-encodings-one-algebra) sets the two side by side, and the [chapter introduction](foundations_intro.md) says which level fits your code.
 
 ---
 
