@@ -19,7 +19,7 @@ This page answers the questions that experienced Java developers ask once they h
 
 ## Why can't this just be an interface `Mappable<T>`?
 
-It can, for one container at a time. We can write `interface Mappable<T> { <U> Mappable<U> map(Function<T, U>); }` and have `Optional`, `List`, and `Try` all implement it.
+It can, for one container at a time. We can write `interface Mappable<T> { <U> Mappable<U> map(Function<T, U>); }` and have our own containers implement it, though never the JDK's `Optional` or `List`, which we cannot change.
 
 What we cannot write is a method that says *"give me any `Mappable<T>` and I will return another `Mappable<T>` of the same shape"*. Java has no way to spell "of the same shape" because it has no way to talk about the type constructor itself. The signature `<F<?>, A, B> F<B> map(F<A>, Function<A, B>)` is not legal Java; the `F<?>` parameter cannot be quantified at the method level.
 

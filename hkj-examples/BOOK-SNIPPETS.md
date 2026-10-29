@@ -233,8 +233,7 @@ Some shapes recur across the book and are left unmarked deliberately. The list b
 the ones met so far and the page that prompted each; it is **not** a closed set, and an unmarked
 fence that matches none of it is a page not yet reached rather than a decision. About 280 such
 fences remain. The Optics chapter holds about 75 of them, and the rest are spread thinly across the
-book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introduction.md`,
-`glossary/type-system.md`), equivalence pairs that show two spellings of one result (the three
+book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `glossary/type-system.md`), equivalence pairs that show two spellings of one result (the three
 `transformers/mtl_*.md` pages), and fences using a literal `...` as syntax:
 
 - **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`

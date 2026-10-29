@@ -438,7 +438,7 @@ Update `build.gradle`:
 
 ### "I Don't Understand Kind<F, A>"
 
-**Start here**: [HKT Introduction](../hkts/hkt_introduction.md)
+**Start here**: [Why Higher-Kinded Types?](../hkts/hkt_introduction.md)
 
 **Key insight**: `Kind<F, A>` is just a wrapper. The actual data is unchanged:
 ```java

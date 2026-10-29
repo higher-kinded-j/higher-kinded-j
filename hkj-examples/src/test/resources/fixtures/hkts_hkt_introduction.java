@@ -1,29 +1,30 @@
 // Fixture for hkj-book/src/hkts/hkt_introduction.md
 //
-// The chapter opens with what Java can and cannot say. The three fences that are deliberately not
-// Java - the `F<?>` syntax it wishes for, and the container shapes it names in passing - stay
-// unmarked; the rest is ordinary code and is gated.
+// The page argues, with javac, why Java needs an encoding for higher kinds. Each of its three
+// fences is something javac refuses: a type parameter given type arguments, a shared interface
+// that loses the container, and an instance whose container differs from the Kind's. The last
+// calls the chapter's own totals on the order below.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
-import java.util.ArrayList;
+import static org.higherkindedj.example.book.foundations.intro.FoundationsIntroBook.totals;
+import static org.higherkindedj.hkt.instances.Instances.functor;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import org.higherkindedj.hkt.Functor;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.TypeArity;
-import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.example.book.foundations.intro.FoundationsIntroBook;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
 
 class Fixture {
 
-  static final List<Integer> numbers = List.of(1, 2, 3);
-
-  static String intToString(int value) {
-    return Integer.toString(value);
-  }
+  static final Order order =
+      FoundationsIntroBook.order(
+          "00000000-0000-0000-0000-000000000001",
+          List.of(new LineItem("LAMP", 1, new BigDecimal("40.00"))));
 }
