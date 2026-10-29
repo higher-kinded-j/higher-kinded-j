@@ -1,241 +1,123 @@
+<!-- description: Follow one widen, flatMap and narrow through Higher-Kinded-J: how the call reaches its instance, what runs inside it, and what each step allocates. -->
+
 # Lifting the Hood
 
+_One round trip through the encoding, call by call, with what each step costs._
+
+<!-- source: Leo Tolstoy, Anna Karenina (1878), Part One, Chapter 1, trans. Richard Pevear and Larissa Volokhonsky (2000) -->
 > _"All happy families are alike; each unhappy family is unhappy in its own way."_
 >
-> – Leo Tolstoy, *Anna Karenina*
+> — Leo Tolstoy, *Anna Karenina* (Part One, Chapter 1, trans. Richard Pevear and Larissa Volokhonsky)
 
 ---
 
-We have been calling `.flatMap(...)` on `MaybePath`, `EitherPath`, and friends for chapters now. Time to follow one such call through every layer it touches and watch the machinery do its job.
+Most library types widen alike: each is already a `Kind`, so `widen` hands back the same object. Each JDK type is wrapped in a holder of its own. This page follows one round trip through the encoding, call by call, and shows where that difference costs something.
 
-This page is the engine-room tour. Nothing new is introduced; everything below is already documented elsewhere. What is new is the order: we trace one expression top to bottom rather than reading each layer in isolation.
+~~~admonish info title="What You'll Learn"
+- Trace what runs when you call `flatMap` on a `Kind`
+- Say how the call reaches `EitherMonad`: through a value you pass, not a lookup at compile time
+- Count what each step allocates, for a library type and for a JDK type
+- Choose a library type when a holder's allocation matters
+~~~
 
-~~~admonish info title="What We'll Learn"
-- Exactly what runs when we call `.flatMap` on a `Kind`-shaped value
-- Where `widen` and `narrow` actually fire, and what they cost
-- How the right `Monad` instance is chosen at compile time
-- Where a `Holder` does or does not appear in the chain
+~~~admonish example title="See Example Code"
+**The round trip is the `roundtrip` region of [EncodingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/encoding/EncodingBook.java)**, the code How the Encoding Works shows. [LiftingTheHoodBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/hood/LiftingTheHoodBookTest.java) holds the claims a test can hold, and reads the compiled class for the claim about the bytecode.
 ~~~
 
 ---
 
-## The Expression We Are Tracing
+## The round trip {#the-expression-we-are-tracing}
 
-<!-- verify -->
+The round trip from [How the Encoding Works](core-concepts.md#the-witness-and-kind) widens an `Either`, calls `flatMap` on it, and narrows the result:
+
 ```java
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-
-MonadError<EitherKind.Witness<String>, String> monad = Instances.monadError(either());
-
-Either<String, Integer> start = Either.right(10);
-Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(start);
-
-Kind<EitherKind.Witness<String>, String> result =
-    monad.flatMap(i -> EITHER.widen(Either.right("v=" + i)), kind);
-
-Either<String, String> finalEither = EITHER.narrow(result);
-// Right("v=10")
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/encoding/EncodingBook.java:roundtrip}}
 ```
 
-Five lines, four method calls that matter. We will follow each in turn.
+Four calls matter: `Instances.monad`, `widen`, `flatMap` and `narrow`. The next three sections take them in turn.
 
----
+## How the call finds `EitherMonad` {#how-the-call-finds-eithermonad}
 
-## Step 1: `EITHER.widen(start)`
+The instance is a value. `either()` returns a token that holds the one `EitherMonad`, and `Instances.monad(either())` hands that object back, typed as `Monad<EitherKind.Witness<String>>`. The witness type does not choose the instance. It makes javac check that `monad` and `kind` name the same container. [Obtaining Instances](../functional/instances_facade.md) covers the lookup.
 
-```
-   user code                              library
+`monad.flatMap(...)` is then an ordinary interface call. javac emits `invokeinterface Monad.flatMap`, and the JVM reaches `EitherMonad.flatMap` at run time, as it would for any interface method. While only one instance class passes through a call site, the JIT usually inlines the call, so the interface costs little in a hot loop. The test reads the compiled class and finds that `invokeinterface`.
 
-   Either.right(10)                       (already an Either)
-        │
-        ▼
-   EITHER.widen(start) ──────▶  EitherKindHelper.widen
-                                       │
-                                       │ null check
-                                       │ (Either<L,R> already implements
-                                       │  EitherKind<L,R> which extends Kind)
-                                       │
-                                       ▼
-                                  return start (typed cast)
-        │
-        ▼
-   Kind<EitherKind.Witness<String>, Integer>
-```
+## `widen` and `narrow` {#widen-and-narrow}
 
-What actually happens at the bytecode level:
-
-1. The helper checks the argument is non-null.
-2. It returns the same reference, typed as `Kind<EitherKind.Witness<String>, Integer>` rather than `Either<String, Integer>`.
-
-There is no allocation. The same `Right(10)` object that we created on the first line is the object that lives inside the `Kind`. If we sat at a debugger and inspected `kind.getClass()`, it would say `Either$Right`.
-
-This is the path for *library types*, and it is now the path for **most** of them. Each HKJ-owned type declares itself as extending its own `Kind` interface (e.g. `Either<L, R> extends EitherKind<L, R>`, `Try<T> extends TryKind<T>`, `Reader<R, A> extends ReaderKind<R, A>`), so every value *is* a `Kind` already and `widen` is a cast-free, allocation-free upcast. This covers `Maybe`, `Either`, `Validated`, `Try`, `Id`, `Writer`, `Reader`, `State`, `Trampoline`, `Context`, `Free`, `IO`, `VTask`, `VStream` and more, including the `@FunctionalInterface` types `Reader` and `State`, whose lambdas are themselves `Kind` values (extending the empty `Kind` marker leaves them single-abstract-method). The relationship is compiler-checked: a new implementation that forgot it would not compile, rather than failing at runtime. The `Holder` record now survives in just two situations, both principled: JDK types like `Optional`, `List`, `Stream` and `CompletableFuture` that we cannot make implement our interfaces; and `Lazy`, whose memoising thunk is deliberately mutable and so is kept behind an immutable holder to honour the "`Kind` carriers are immutable" rule. We will see the `Optional` variant lower down.
-
-`widen`/`narrow` remain the idiomatic boundary for *every* type; they read uniformly and validate their input, and they are the only option for the holder-backed types. The structural relationship above is an internal guarantee, not an invitation to drop `widen` for a favoured few.
-
----
-
-## Step 2: `monad.flatMap(...)`
-
-The compile-time picture:
-
-```
-   monad                                  Monad<EitherKind.Witness<String>>
-        │
-        │ at compile time, Java resolves this to EitherMonad.flatMap
-        │ because monad is declared EitherMonad<String> (or assignable to it)
-        │
-        ▼
-   EitherMonad.flatMap(f, kind)
+```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
+sequenceDiagram
+    accTitle: widen and narrow on an Either
+    accDescr: Your code passes Right(10) to the EITHER helper's widen, which checks it is not null and returns the same object, typed as a Kind. Later your code passes the result to narrow, which checks it is not null and is an Either, and returns the same object, typed as an Either.
+    participant Y as Your code
+    participant H as EITHER helper
+    Y->>H: widen(Right(10))
+    Note over H: not null?
+    H-->>Y: the same Right(10), as a Kind
+    Y->>H: narrow(result)
+    Note over H: not null? an Either?
+    H-->>Y: the same object, as an Either
 ```
 
-`Monad<F>` is an interface. `EitherMonad<L>` is the concrete instance. The method dispatched here is `EitherMonad.flatMap`, and the compiler knew that the moment it saw `monad` typed as `EitherMonad<String>` (or `Monad<EitherKind.Witness<String>>`). No virtual lookup is interesting here, no reflection, no `Class` switching. The witness type acted as a key into the type-class instance, and the rest is ordinary Java method dispatch.
+In words: `widen` checks for `null` and returns its argument, because an `Either` already implements `Kind`. `narrow` checks for `null` and for an `Either`, then casts. Neither allocates. Given another container's `Kind`, `narrow` throws `KindUnwrapException`, as [When `narrow` throws](core-concepts.md#when-narrow-throws) explains.
 
-The runtime picture:
+Most of the library's own types work this way. The JDK's types widen into a holder instead, since the library cannot change them, and so does `Lazy`, which memoises its value in fields that change, where every `Kind` must be immutable. [The pieces each type provides](core-concepts.md#the-pieces-each-type-provides) lists both kinds. An `Either` is a `Kind`, so you could skip `widen`. Keep it, so that every type reads the same and every value is checked.
 
-```
-   EitherMonad.flatMap(f, kind):
-       │
-       │ EITHER.narrow(kind)        // back to Either<L, R>
-       │     │
-       │     │ instanceof Either check
-       │     │ cast and return
-       │     ▼
-       │   Either<String, Integer>
-       │
-       │ either.flatMap(f)          // built-in Either.flatMap
-       │     │
-       │     │ if Right(v): apply f, expect Kind back
-       │     │ if Left(e):  return same Left, no call
-       │     ▼
-       │   the new Kind that f produced (or the original Left)
-       ▼
-   return Kind<EitherKind.Witness<String>, String>
-```
+## Inside `flatMap` {#inside-flatmap}
 
-Three things worth marking on this picture:
+`EitherMonad.flatMap` narrows the `Kind` it is given, and hands `Either.flatMap` a lambda that calls your function:
 
-1. **The narrow happens inside the type class, not in user code.** We never had to take the `Kind` apart manually. `EitherMonad.flatMap` does that internally so the body can call the real `Either.flatMap`.
-2. **The function we passed (`i -> EITHER.widen(Either.right("v=" + i))`) is invoked once, on the right side, and returns a new `Kind`.** That new `Kind` becomes the output. If the input had been `Left("oops")`, our function would never run.
-3. **No allocation for the `Kind` shell.** The return value is a `Right("v=10")`, typed as a `Kind`. Same trick as `widen`.
-
----
-
-## Step 3: Inside the User Function
-
-The lambda we wrote is `i -> EITHER.widen(Either.right("v=" + i))`. Tracing it:
-
-```
-   i = 10
-        │
-        ▼
-   "v=" + i  →  "v=10"          // String concat, allocates one String
-        │
-        ▼
-   Either.right("v=10")          // allocates one Right record
-        │
-        ▼
-   EITHER.widen(...)             // null check + typed cast, no allocation
-        │
-        ▼
-   Kind<EitherKind.Witness<String>, String>
+```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
+sequenceDiagram
+    accTitle: Inside EitherMonad.flatMap on a Right
+    accDescr: Your code calls flatMap on EitherMonad. It checks its arguments, narrows the Kind to an Either, and calls Right(10)'s flatMap with a lambda. The lambda calls your function f with 10, gets back Right("v=10") as a Kind, and narrows it. EitherMonad widens the result, which is the same Right("v=10"), and returns it.
+    participant Y as Your code
+    participant M as EitherMonad
+    participant E as Right(10)
+    participant F as f
+    Y->>M: flatMap(f, kind)
+    Note over M: checks, then narrow(kind)
+    M->>E: flatMap(lambda)
+    E->>F: apply(10)
+    F-->>E: Right("v=10")
+    Note over E: lambda narrows it
+    E-->>M: Right("v=10")
+    M-->>Y: widen: the same object
 ```
 
-Two allocations: the `String` and the `Right`. Both unavoidable; they are the *result* the caller asked for. The `Kind` part costs nothing on top.
+The diagram shows two narrows: one for the `Kind` you pass in, and one for the `Kind` your function returns. On a `Left`, `Either.flatMap` returns the same `Left` without calling the lambda. So your function never runs, and the `Kind` that comes back is the very `Left` that went in.
 
----
+## What each step allocates {#what-each-step-allocates}
 
-## Step 4: `EITHER.narrow(result)`
+The same round trip, on a library type and on a JDK type:
 
-The mirror of step 1:
+| Step | `Either`, a library type | `Optional`, a JDK type |
+|---|---|---|
+| `Instances.monad(either())`, or `optional()` | One small token, from `either()` | One small token, from `optional()` |
+| `widen` | Nothing: the same object comes back | One holder |
+| `flatMap`'s own work | One lambda that captures your function | One lambda, and one holder for the result |
+| Inside your function | What it builds: here a `String` and a `Right` | What it builds, and one holder when it widens its result |
+| `narrow` | Nothing: a type check and a cast | Nothing: a type check and a field read |
 
-```
-   Kind<EitherKind.Witness<String>, String>
-        │
-        ▼
-   EITHER.narrow(result) ──────▶  EitherKindHelper.narrow
-                                       │
-                                       │ null check
-                                       │ instanceof Either check
-                                       │ cast
-                                       │
-                                       ▼
-                                  return result (as Either<String, String>)
-        │
-        ▼
-   Either<String, String>
-```
+So for a type that is its own `Kind`, the machinery allocates one short-lived lambda per `flatMap`. A held type, such as `Optional` or `Lazy`, adds a holder at each `widen`. The token comes once, when you look the instance up. The JIT can often remove short-lived objects that never leave the method, by escape analysis, but it cannot always. [Benchmarks & Performance](../benchmarks.md) has measured numbers.
 
-If we somehow handed `narrow` a `Kind` of the wrong shape (a `MaybeKind` masquerading, say), the `instanceof` check would fail and we would get a `KindUnwrapException`. In practice this never happens because the compiler enforces the witness types upstream; it is a defence-in-depth check for the rare case where someone bypasses the front door.
+That asymmetry is the tax on a type that cannot be its own `Kind`. The fix is not technical; it is to use library types (`Maybe`, `Either`) when the cost matters.
 
----
+## What this means in practice {#what-this-means-in-practice}
 
-## Allocation Summary
+- **On a type that is its own `Kind`, `widen` and `narrow` cost a check, not an object.** Write them wherever they make the code clearer.
+- **On a JDK type, each `widen` allocates a holder.** In a tight loop, prefer `Maybe`, `Either` or `Try`. In a method that runs once per request, the holder does not show.
+- **The instance is a value you pass.** Look it up once, outside a loop. A call site that sees one instance class is usually inlined. One that sees many, as code generic over `F` can, pays for an ordinary interface call.
 
-For one `widen`, one `flatMap`, and one `narrow` against a library type:
-
-| Step | Allocations |
-|------|------------|
-| `EITHER.widen(start)` | 0 |
-| `monad.flatMap(...)` | depends entirely on `f`; the machinery itself allocates 0 |
-| Inside `f`: `Right("v=" + i)` | 1 String + 1 Right record |
-| `EITHER.narrow(result)` | 0 |
-
-The library overhead, in the steady state, is essentially the `instanceof` cost of `narrow`. The JIT typically inlines through the entire chain when call sites are monomorphic, which they are when only one container type passes through them.
-
----
-
-## What Changes for JDK Types?
-
-For `Optional`, the picture differs at exactly two steps.
-
-```
-   Optional.of(10)
-        │
-        ▼
-   OPTIONAL.widen(opt)
-        │
-        │ null check
-        │ allocate one OptionalHolder record wrapping the Optional
-        │
-        ▼
-   Kind<OptionalKind.Witness, Integer>      (it is a Holder)
-
-
-   ...later...
-
-   OPTIONAL.narrow(kind)
-        │
-        │ null check
-        │ instanceof OptionalHolder
-        │ extract the wrapped Optional
-        │
-        ▼
-   Optional<Integer>
-```
-
-One extra allocation per `widen` (the `Holder`), one extra field read per `narrow`. Escape analysis often elides the `Holder` when the `Kind` does not leave the current method, but if it does, the cost is real and measurable.
-
-That asymmetry is the tax for HKT-ifying a class we cannot modify. The fix is not technical; it is to use library types (`Maybe`, `EitherPath`) when the cost matters.
-
----
-
-## What This Means in Practice
-
-Three takeaways for everyday code:
-
-1. **`widen`/`narrow` calls on library types are free.** Sprinkle them as required for clarity; do not contort the code to avoid them.
-2. **`widen`/`narrow` calls on JDK types cost one tiny allocation each.** In a tight loop, prefer `Maybe`, `Either`, `Try`. In a Spring controller method that runs once per request, the cost is invisible.
-3. **The type-class instance is selected at compile time.** There is no per-call lookup, no reflection, no megamorphic dispatch unless we are deliberately writing code that is generic over the witness type. The latter is occasionally the point, but it is not the default.
-
-The library is built so that the *abstraction* lives in the type system and the *runtime* is essentially the same Java we would have written by hand, just with the boilerplate factored out.
+An `EitherPath` skips the `Kind`, the instance and the lambda: it holds an `Either` and calls it directly. Its `via` builds no path of its own: a failed path comes back as itself, and otherwise you get the path your function built. Its `map` builds a new path at each step. [Two encodings, one algebra](one_line_six_layers.md#two-encodings-one-algebra) sets the two side by side, and the [chapter introduction](foundations_intro.md) says which level fits your code.
 
 ---
 
 ~~~admonish tip title="See Also"
-- [How the Encoding Works](core-concepts.md) - the components introduced here, in slower depth
-- [Foundations FAQ](faq.md) - the design questions that this trace will prompt
-- [Benchmarks & Performance](../benchmarks.md) - the actual numbers
+- [How the Encoding Works](core-concepts.md): the pieces this page traces
+- [Foundations FAQ](faq.md): the design questions this trace raises
+- [Benchmarks & Performance](../benchmarks.md): measured numbers
 ~~~
 
 ---

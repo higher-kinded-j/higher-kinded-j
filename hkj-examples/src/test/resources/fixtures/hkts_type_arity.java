@@ -1,8 +1,7 @@
 // Fixture for hkj-book/src/hkts/type-arity.md
 //
-// The chapter quotes the library's own declarations - TypeArity, WitnessArity, a Kind interface's
-// nested Witness, the type-class bounds - and those stay unmarked: the real type cannot be declared
-// beside itself. What is gated is the worked half of each section.
+// Every fence on the page is gated: a witness declared for a type of the reader's own, the two
+// bounds javac refuses, and Either used at both arities.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -27,7 +26,4 @@ import org.higherkindedj.hkt.either.EitherKind2;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 
-class Fixture {
-
-  static final Either<String, Integer> either = Either.right(42);
-}
+class Fixture {}
