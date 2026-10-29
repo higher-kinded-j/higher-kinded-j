@@ -12,6 +12,7 @@ Quick-lookup reference for converting common imperative Java patterns to Higher-
 | `CompletableFuture.thenCompose` | `CompletableFuturePath` | Integrated recovery, parallel combinators |
 | Manual `List<String> errors` | `ValidationPath` | Automatic accumulation, type-safe result |
 | Nested record reconstruction | `FocusPath` + lenses | Declarative path, immune to field additions |
+| `if (!ok) return Either.left(...)` guards | `EitherPath` + `ensure` | One step per check, the value flows through unchanged |
 
 ---
 
@@ -268,6 +269,40 @@ EitherPath<AppError, Order> result =
 
 ---
 
+## Recipe 7: Guard Clauses -> EitherPath.ensure
+
+**Pattern replaced:** A run of `if (!ok) return Either.left(...)` checks on one value, or a `via` step that only checks its value and hands it back unchanged.
+
+### Before
+<!-- verify -->
+```java
+Either<String, Integer> checkQuantity(int quantity) {
+    if (quantity <= 0) {
+        return Either.left("quantity must be positive, was " + quantity);
+    }
+    if (quantity > 100) {
+        return Either.left("at most 100 per order, was " + quantity);
+    }
+    return Either.right(quantity);
+}
+```
+
+### After
+<!-- verify -->
+```java
+EitherPath<String, Integer> checkQuantity(int quantity) {
+    return Path.<String, Integer>right(quantity)
+        .ensure(n -> n > 0, n -> "quantity must be positive, was " + n)
+        .ensure(n -> n <= 100, n -> "at most 100 per order, was " + n);
+}
+```
+
+**Gain:** Each check is one step, and the value flows through unchanged. The first check that fails becomes the error, and the checks after it never run. `onFail` receives the failing value, so the message can name it.
+
+Use `ensure` when the first failed check should stop the chain. When every failure should be reported, use Recipe 5's `ValidationPath` instead.
+
+---
+
 ## Conversion Cheat Sheet
 
 When migrating incrementally, convert between Path types at boundaries:
@@ -291,4 +326,5 @@ When migrating incrementally, convert between Path types at boundaries:
 - `via` = your function returns a Path (`A -> Path<B>`)
 - `peek` = observe without changing (logging, metrics)
 - `recover` = convert error track back to success track
+- `ensure` = keep a success only if it passes a check, otherwise switch to the error track
 - `mapError` = transform error type (for unifying error types across `via` boundaries)
