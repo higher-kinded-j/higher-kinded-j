@@ -11,7 +11,7 @@ Key entry point: `org.higherkindedj.hkt.effect.Path`, the factory for all Path t
 
 ## When to load supporting files
 
-- If the user asks about **migrating imperative code** (try/catch, Optional, null checks, CompletableFuture), load `reference/migration-recipes.md`
+- If the user asks about **migrating imperative code** (try/catch, Optional, null checks, CompletableFuture, guard clauses), load `reference/migration-recipes.md`
 - If the user asks about **service layer patterns, validation pipelines, or testing patterns**, load `reference/patterns.md`
 - If the user asks about **retry, circuit breaker, saga, bulkhead, or `VResultPath`**, load `reference/resilience.md`
 - For **optics, lenses, Focus DSL** in depth, suggest `/hkj-optics`
@@ -134,6 +134,7 @@ Additional considerations:
 | `.recoverWith(fn)` | Error -> new path | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.orElse(supplier)` | Try an alternative path | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.mapError(fn)` | Transform the error type | EitherPath, TryPath, ValidationPath |
+| `.ensure(test, onFail)` | Keep a success only if it passes `test`, otherwise fail with `onFail(value)` | EitherPath |
 
 ### Extraction
 | Operator | What It Does | Available On |
