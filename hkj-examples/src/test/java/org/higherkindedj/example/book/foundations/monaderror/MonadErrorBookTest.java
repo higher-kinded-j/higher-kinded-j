@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.higherkindedj.example.book.foundations.monaderror.MonadErrorBook.Store;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.Kind;
@@ -490,5 +492,29 @@ class MonadErrorBookTest {
       List<String> handled, MonadError<F, ?> monadError) {
     handled.add("handled");
     return monadError.of(ORDER);
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: recover builds its value even on a success; handleError only on a failure")
+  void checkpointASlowDefault() {
+    AtomicInteger built = new AtomicInteger();
+    Supplier<Order> slowDefault =
+        () -> {
+          built.incrementAndGet();
+          return ARCHIVED;
+        };
+    Kind<EitherKind.Witness<String>, Order> found = EITHER_ERRORS.of(ORDER);
+
+    Kind<EitherKind.Witness<String>, Order> recovered =
+        EITHER_ERRORS.recover(found, slowDefault.get());
+    int builtForRecover = built.get();
+    Kind<EitherKind.Witness<String>, Order> handled =
+        EITHER_ERRORS.handleError(found, _ -> slowDefault.get());
+
+    assertThat(EITHER.narrow(recovered)).isEqualTo(Either.right(ORDER));
+    assertThat(EITHER.narrow(handled)).isEqualTo(Either.right(ORDER));
+    assertThat(builtForRecover).isEqualTo(1);
+    assertThat(built).hasValue(1);
   }
 }

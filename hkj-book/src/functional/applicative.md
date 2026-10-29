@@ -191,6 +191,26 @@ import org.higherkindedj.hkt.validated.ValidatedKind;
 You can now build one value from several independent ones, in a method written once for any container, as `lineItem` is. You can say what each instance does with a failure, and check an instance against the four laws. The rest of this page is for which types have an `Applicative`, where `Validated` bends a rule, and what builds on `Applicative`.
 ~~~
 
+~~~admonish question title="Checkpoint: `map2` with an empty list" id="check-applicative-empty-list"
+With `List`'s instance, what does `map2` give for the SKUs `["LAMP", "DESK"]` and an empty list of quantities?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-applicative-empty-list-answer"
+**An empty list.** `List`'s `map2` gives every combination of the two inputs, and two SKUs with no quantities make no combinations.
+
+Where this lives: [What each instance does](#what-each-instance-does).
+~~~
+
+~~~admonish question title="Checkpoint: two slow tasks" id="check-applicative-vtask"
+Two `VTask`s each take a second to run. About how long does running `Instances.applicative(vtask()).map2(first, second, f)` take, and what would take one second?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-applicative-vtask-answer"
+**About two seconds.** `VTask`'s `map2` runs the first task, then the second. `Par.map2` runs the two at the same time, so it takes about one.
+
+Where this lives: [What each instance does](#what-each-instance-does).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

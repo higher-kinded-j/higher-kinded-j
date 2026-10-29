@@ -188,4 +188,11 @@ class InstancesFacadeBookTest {
         .distinct()
         .toList();
   }
+
+  @Test
+  @DisplayName("checkpoint: monad(io()) succeeds, and alternative(io()) fails at the call")
+  void checkpointTwoLookupsOnIO() {
+    assertThat(Instances.monad(io())).isNotNull();
+    assertThatThrownBy(() -> Instances.alternative(io())).isInstanceOf(ClassCastException.class);
+  }
 }

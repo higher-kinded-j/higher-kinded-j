@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.foundations.functor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.example.book.foundations.intro.FoundationsIntroBook.totals;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Instances.functor;
@@ -17,6 +18,7 @@ import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,14 +35,20 @@ import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -146,5 +154,43 @@ class FunctorBookTest {
     assertThat(calls).hasValue(1);
     IO_OP.narrow(mapped).unsafeRunSync();
     assertThat(calls).hasValue(2);
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: map over an Invalid gives the same Invalid, and never runs the function")
+  void checkpointMapOverAnInvalid() {
+    AtomicInteger calls = new AtomicInteger();
+    Functor<ValidatedKind.Witness<List<String>>> functor = Instances.validated(Semigroups.list());
+    Validated<List<String>, LineItem> invalid = Validated.invalid(List.of("SKU is blank"));
+
+    Validated<List<String>, Integer> mapped =
+        VALIDATED.narrow(
+            functor.map(
+                line -> {
+                  calls.incrementAndGet();
+                  return line.quantity();
+                },
+                VALIDATED.widen(invalid)));
+
+    assertThat(mapped).isEqualTo(Validated.invalid(List.of("SKU is blank")));
+    assertThat(calls).hasValue(0);
+  }
+
+  @Test
+  @DisplayName("checkpoint: IO's identity law fails with equals on the IO, and holds when both run")
+  void checkpointIdentityLawOnIO() {
+    Functor<IOKind.Witness> functor = Instances.functor(io());
+    Kind<IOKind.Witness, String> fa = IO_OP.widen(IO.delay(() -> "LAMP"));
+
+    assertThatThrownBy(
+            () ->
+                FunctorLaws.assertIdentity(
+                    functor, fa, KindEquivalence.<IOKind.Witness>byEqualsAfter(IO_OP::narrow)))
+        .isInstanceOf(AssertionError.class);
+    FunctorLaws.assertIdentity(
+        functor,
+        fa,
+        KindEquivalence.<IOKind.Witness>byEqualsAfter(kind -> IO_OP.narrow(kind).unsafeRunSync()));
   }
 }

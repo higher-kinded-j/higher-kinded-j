@@ -113,6 +113,31 @@ The source is [`Unit.java`](https://github.com/higher-kinded-j/higher-kinded-j/b
 You can now run any type class over a value you hold: widen it, call the instance, and narrow the result, returning `Unit` or a `Maybe` where you might have returned `null`. The rest of this page is for when a `null` turns up or `narrow` throws.
 ~~~
 
+~~~admonish question title="Checkpoint: a unary witness where a binary one goes" id="check-encoding-arity"
+`EitherKind.Witness<String>` names `Either` with its left type fixed. Can it stand in for `F` in `Bifunctor<F>`, which maps both sides of a two-sided type?
+
+<!-- verify:rejects "is not within bounds of type-variable" -->
+```java
+Bifunctor<EitherKind.Witness<String>> bifunctor;
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-encoding-arity-answer"
+**No: javac refuses it, saying the witness "is not within bounds of type-variable" `F`.** `Bifunctor` takes a binary witness, over `Kind2`, and `EitherKind.Witness<L>` is unary, because fixing the left type leaves one argument missing. `EitherKind2.Witness`, with both missing, is the one `Bifunctor` takes.
+
+Where this lives: [The `WitnessArity` bound](#the-witnessarity-bound).
+~~~
+
+~~~admonish question title="Checkpoint: `of(null)` in two containers" id="check-encoding-null"
+What does `Instances.monad(maybe()).of(null)` give back, and what does `Instances.monad(try_()).of(null)` do?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-encoding-null-answer"
+**`Nothing`, and it throws `NullPointerException`.** `Maybe`'s instance reads a `null` value as `Nothing`, and `Try` refuses one, as every library type in the table does except `Maybe` and `Id`. So code written for any `F` never hands `null` to `of`: what comes back depends on `F`.
+
+Where this lives: [Values, never null](#values-never-null).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

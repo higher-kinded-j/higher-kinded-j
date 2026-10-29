@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.example.book.optics.cast.Order;
@@ -364,5 +365,44 @@ class MonadBookTest {
   private static String record(List<String> ran, String step) {
     ran.add(step);
     return step;
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: markPaid over a list joins what save gives, and an empty list adds nothing")
+  void checkpointMarkPaidOverAList() {
+    AtomicInteger saves = new AtomicInteger();
+    List<Order> paid =
+        LIST.narrow(
+            markPaid(
+                monad(list()),
+                LIST.widen(List.of(ORDER, ORDER)),
+                order ->
+                    LIST.widen(saves.getAndIncrement() == 0 ? List.<Order>of() : List.of(order))));
+
+    assertThat(paid).singleElement().extracting(Order::status).isEqualTo(OrderStatus.PAID);
+  }
+
+  @Test
+  @DisplayName("checkpoint: on a Left, flatMapIfOrElse runs neither the test nor either branch")
+  void checkpointFlatMapIfOrElseOnALeft() {
+    List<String> ran = new ArrayList<>();
+    Kind<EitherKind.Witness<String>, Order> notFound = EITHER.widen(Either.left("order not found"));
+
+    Kind<EitherKind.Witness<String>, Order> result =
+        EITHER_MONAD.flatMapIfOrElse(
+            order -> ran.add("test"),
+            order -> {
+              ran.add("ifTrue");
+              return EITHER.widen(Either.right(order));
+            },
+            order -> {
+              ran.add("ifFalse");
+              return EITHER.widen(Either.right(order));
+            },
+            notFound);
+
+    assertThat(EITHER.narrow(result)).isEqualTo(Either.left("order not found"));
+    assertThat(ran).isEmpty();
   }
 }

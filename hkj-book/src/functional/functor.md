@@ -102,7 +102,7 @@ A `Functor` keeps two laws, and you have assumed both whenever you called `map`.
 - **Identity: mapping `a -> a` changes nothing.** `map(a -> a, fa)` equals `fa`.
 - **Composition: two maps equal one map of both functions.** `map(g, map(f, fa))` equals `map(f.andThen(g), fa)`.
 
-Two containers are equal when they hold equal values in the same shape. For a deferred container such as `IO`, they are equal when running both gives equal results. Both laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+Two containers are equal when they hold equal values in the same shape. For a deferred container such as `IO`, they are equal when running both gives equal results. Comparing them runs both, and repeats any effect they have, so check the laws with an `IO` that gives the same result on every run, as the test's `IO.delay(() -> ORDER)` does. Both laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
 
 `FunctorLaws`, in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks both laws on any instance, your own included. You pass it the equality to use. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds one from a function it applies to both sides, and compares the two results with `equals`: `MAYBE::narrow` unwraps a `Maybe`, and for an `IO` the function also runs it. A test of `Maybe` and `IO` uses these imports, with JUnit's:
 
@@ -154,6 +154,26 @@ The test checks both laws on a `Just`, a `Nothing` and an `IO`, where `ORDER` is
 
 ~~~admonish tip title="You can ship now"
 You can now write a method that maps inside any container, as `totals` does, and check an instance of your own against the two laws. The rest of this page is for which types have a `Functor`, and what builds on it.
+~~~
+
+~~~admonish question title="Checkpoint: `map` over an `Invalid`" id="check-functor-invalid"
+With `Validated`'s instance, you map `LineItem::quantity` over a `Validated` that is `Invalid([SKU is blank])`. What comes back, and does `LineItem::quantity` run?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-functor-invalid-answer"
+**The same `Invalid([SKU is blank])`, and the function never runs.** `map` changes the values a container holds and keeps its shape. An `Invalid` holds no line item, so there is nothing to change.
+
+Where this lives: [What `map` promises](#what-map-promises).
+~~~
+
+~~~admonish question title="Checkpoint: the identity law on `IO`" id="check-functor-io-equality"
+You check `IO`'s `Functor` against the identity law, with an equality built by `KindEquivalence.byEqualsAfter(IO_OP::narrow)`. Does `FunctorLaws.assertIdentity` pass?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-functor-io-equality-answer"
+**No.** `map(a -> a, io)` builds a new `IO`, so comparing the two `IO` objects with `equals` fails, though both give the same result. For a deferred container, two values are equal when running both gives equal results, so the equality must run them, on an `IO` that gives the same result every run: `byEqualsAfter(kind -> IO_OP.narrow(kind).unsafeRunSync())`.
+
+Where this lives: [Two laws](#two-laws).
 ~~~
 
 ---

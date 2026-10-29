@@ -36,6 +36,7 @@ The code on this page uses these imports, with `Order` and `OrderStatus` from th
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.math.BigDecimal;
@@ -51,6 +52,7 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
 ```
 
 ## Write the method once {#write-the-method-once}
@@ -101,6 +103,39 @@ For a chain of several dependent steps, a [for comprehension](../functional/for_
 
 ~~~admonish tip title="You can ship now"
 You can now write one method over a type class and run it on any container that has an instance: widen, call, narrow. The rest of this page is for when `narrow` throws, and what widening allocates.
+~~~
+
+~~~admonish question title="Checkpoint: an error type the instance does not have" id="check-kind-error-type"
+This compiles. What happens when it runs?
+
+<!-- verify -->
+```java
+MonadError<OptionalKind.Witness, String> me = Instances.monadError(optional());
+me.raiseError("out of stock");
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-kind-error-type-answer"
+**`raiseError` throws `ClassCastException`.** `Instances.monadError` takes `E` from the variable, and nothing checks it against the instance: `Optional`'s error type is `Unit`, not `String`. Declare `MonadError<OptionalKind.Witness, Unit>`, and raise `Unit.INSTANCE`.
+
+Where this lives: [Take it through the steps](#take-it-through-the-steps), with each type's error type in [Obtaining Instances](../functional/instances_facade.md#zero-argument-lookups).
+~~~
+
+~~~admonish question title="Checkpoint: narrowing inside a generic method" id="check-kind-narrow"
+A method written for any `F` gets back a `Kind<F, BigDecimal>`. Can it narrow that with `MAYBE.narrow` to give zero when the total failed? If not, how does it give zero?
+
+<!-- verify:rejects "cannot be converted to" -->
+```java
+<F extends WitnessArity<TypeArity.Unary>> BigDecimal peekAtTotal(Kind<F, BigDecimal> total) {
+    return MAYBE.narrow(total).orElse(BigDecimal.ZERO);
+}
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-kind-narrow-answer"
+**No: javac refuses it, because `Kind<F, BigDecimal>` "cannot be converted to" `Maybe`'s `Kind`.** The method does not know that `F` is `Maybe`, so it cannot pick a helper, and it cannot return a plain `BigDecimal` either. It takes the `MonadError` for `F`, returns a `Kind<F, BigDecimal>` and recovers through the instance, as `totalOrZero` does with `handleErrorWith`. The caller, who knows `F`, narrows.
+
+Where this lives: [Recover in code for any container](#recover-in-code-for-any-container).
 ~~~
 
 ---

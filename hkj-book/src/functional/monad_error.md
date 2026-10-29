@@ -242,6 +242,26 @@ import org.higherkindedj.hkt.trymonad.TryKind;
 You can now raise an error as a value in a method written once for any container, as `refuseShipped` is, and name each instance's error type. You can recover with the right one of four methods, keeping a costly fallback in a handler, and state the three laws that tie raising to handling. The rest of this page is for which types have a `MonadError`, the different meaning of the same names on a Path, and what builds on `MonadError`.
 ~~~
 
+~~~admonish question title="Checkpoint: raising an error in a `VTask`" id="check-monaderror-vtask"
+Does `Instances.monadError(vtask()).raiseError(error)` throw `error`?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-monaderror-vtask-answer"
+**No.** It builds a task that fails with `error` when it runs, and nothing is thrown until then. `raiseError` builds a value in every instance; `VTask`'s value is a task.
+
+Where this lives: [What each instance does](#what-each-instance-does).
+~~~
+
+~~~admonish question title="Checkpoint: a slow default" id="check-monaderror-recover"
+`found` is a success. In `monadError.recover(found, slowDefault())`, does `slowDefault()` run?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-monaderror-recover-answer"
+**Yes.** `recover` takes a value, so Java calls `slowDefault()` before `recover`, whatever `found` holds. To run it only on a failure, give it to a handler: `handleError(found, _ -> slowDefault())`.
+
+Where this lives: [Should you use `recoverWith` or `handleErrorWith`?](#constant-fallbacks-recover-and-recoverwith)
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

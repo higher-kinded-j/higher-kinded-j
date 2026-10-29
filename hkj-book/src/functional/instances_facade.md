@@ -111,6 +111,31 @@ A dependency in the signature cannot be missed: `Instances.validated()` with no 
 You can now get any built-in instance in one shape: a token for a type that needs nothing, an argument for one that needs a dependency. The rest of this page is for what the compiler checks, what the facade covers, and the accessors behind it.
 ~~~
 
+~~~admonish question title="Checkpoint: two lookups on `IO`" id="check-facade-cast"
+Which of these throws, and when: `Instances.monad(io())` or `Instances.alternative(io())`?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-facade-cast-answer"
+**`Instances.alternative(io())` throws `ClassCastException` when the call runs, and `Instances.monad(io())` succeeds.** The compiler cannot check that a type has the capability you ask for, and `IO`'s instance has no `Alternative`.
+
+Where this lives: [Zero-argument lookups](#zero-argument-lookups).
+~~~
+
+~~~admonish question title="Checkpoint: a token for `Validated`" id="check-facade-argument"
+`maybe()` is a token for `Instances.monad(maybe())`. Is there a `validated()` token, for `Instances.monad(validated())`?
+
+<!-- verify:rejects "cannot find symbol" -->
+```java
+var monad = Instances.monad(validated());
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-facade-argument-answer"
+**No: javac reports "cannot find symbol".** `Validated` needs a `Semigroup` to join its errors, so it has no token. The facade asks for the `Semigroup` in the method's parameters instead: `Instances.validated(Semigroups.list())`.
+
+Where this lives: [Argument-carrying instances](#argument-carrying-instances).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}
