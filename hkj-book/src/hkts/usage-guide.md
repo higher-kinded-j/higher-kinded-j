@@ -36,6 +36,7 @@ The code on this page uses these imports, with `Order` and `OrderStatus` from th
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
 import java.math.BigDecimal;
@@ -51,6 +52,7 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
 ```
 
 ## Write the method once {#write-the-method-once}
