@@ -78,6 +78,10 @@ EitherPath<String, Config> withBackup =
 
 // Provide alternative path
 EitherPath<String, Config> orDefault = loaded.orElse(() -> Path.right(Config.defaults()));
+
+// Keep a success only if it passes a check, otherwise fail with an error built from it
+EitherPath<String, Config> named =
+    loaded.ensure(config -> !config.name().isBlank(), config -> "config has no name");
 ```
 
 ---

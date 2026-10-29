@@ -462,6 +462,42 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
                     successMapper.apply(a), "successMapper must not return null")));
   }
 
+  /**
+   * Keeps a success only if its value passes a check, and otherwise turns it into an error built
+   * from that value.
+   *
+   * <p>A {@code Right(a)} whose value passes {@code test} is returned unchanged. A {@code Right(a)}
+   * whose value fails it becomes {@code Left(onFail.apply(a))}. A {@code Left} is returned
+   * unchanged, and neither function is called.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * EitherPath<String, Integer> quantity =
+   *     Path.<String, Integer>right(order.quantity())
+   *         .ensure(n -> n > 0, n -> "quantity must be positive, was " + n);
+   * }</pre>
+   *
+   * @param test the check a success value must pass; must not be null
+   * @param onFail builds the error from a value that fails {@code test}; must not be null, and must
+   *     not return null
+   * @return this path if it is a {@code Left} or its value passes {@code test}, otherwise a new
+   *     {@code EitherPath} holding the error
+   * @throws NullPointerException if {@code test} or {@code onFail} is {@code null}, or onFail
+   *     returns null
+   */
+  public EitherPath<E, A> ensure(
+      Predicate<? super A> test, Function<? super A, ? extends E> onFail) {
+    Objects.requireNonNull(test, "test must not be null");
+    Objects.requireNonNull(onFail, "onFail must not be null");
+    if (value.isLeft() || test.test(value.getRight())) {
+      return this;
+    }
+    return new EitherPath<>(
+        Either.left(
+            Objects.requireNonNull(onFail.apply(value.getRight()), "onFail must not return null")));
+  }
+
   // ===== FocusPath Bridge Methods =====
 
   /**
