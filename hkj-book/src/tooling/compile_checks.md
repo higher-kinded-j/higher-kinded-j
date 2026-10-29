@@ -146,6 +146,21 @@ else the warn-default checks stay `warn`; else the global `severity`.
 Unknown ids and unparseable values are ignored rather than failing the
 build. A typo in a compiler argument must never break compilation.
 
+Setting the checker's options through a build plugin is not supported
+yet. With a plugin applied, write the argument yourself and leave the
+dependency to the plugin:
+
+```kotlin
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xplugin:HKJChecker severity=warn")
+}
+```
+
+In Maven, put the same argument in an `<arg>` under `<compilerArgs>`,
+and under `<testCompilerArgs>` too if your build has one.
+While `pathTypeMismatch` is on, the plugin puts `hkj-checker` on the
+processor path and adds no `-Xplugin:HKJChecker` beside yours.
+
 ### Opting out one declaration
 
 `disable=` is project-wide. To accept a single deliberate call site,

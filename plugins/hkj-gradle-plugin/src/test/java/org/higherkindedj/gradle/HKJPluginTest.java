@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.codehaus.groovy.runtime.GStringImpl;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("HKJPlugin")
 class HKJPluginTest {
@@ -310,6 +313,75 @@ class HKJPluginTest {
       Task installTask = project.getTasks().findByName("hkjInstallSkills");
       assertThat(installTask).isNotNull();
       assertThat(installTask.getGroup()).isEqualTo("hkj");
+    }
+  }
+
+  @Nested
+  @DisplayName("an -Xplugin argument the build writes")
+  class BuildWrittenPluginArgument {
+
+    @SuppressWarnings("unchecked") // a Groovy build script can add a GString
+    private void addToEveryCompile(Object arg) {
+      project
+          .getTasks()
+          .withType(JavaCompile.class)
+          .configureEach(
+              task -> ((List<Object>) (List<?>) task.getOptions().getCompilerArgs()).add(arg));
+    }
+
+    private void assertPluginArgs(String... expected) {
+      // All the compiler args, as javac receives them, with a GString turned to text.
+      assertThat(javaCompileTasks())
+          .allSatisfy(
+              task ->
+                  assertThat(task.getOptions().getAllCompilerArgs())
+                      .filteredOn(arg -> arg.startsWith("-Xplugin:"))
+                      .containsExactly(expected));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "-Xplugin:HKJChecker",
+          "-Xplugin:HKJChecker severity=warn",
+          "-Xplugin:HKJChecker\tdisable=raw-kind"
+        })
+    @DisplayName("naming the checker, with or without options, is the only checker argument")
+    void plugin_addsNoCheckerArg_whenBuildNamesChecker(String handWritten) {
+      applyPlugin();
+      addToEveryCompile(handWritten);
+      evaluateProject();
+
+      assertPluginArgs(handWritten);
+    }
+
+    @Test
+    @DisplayName("naming the checker in a Groovy GString is the only checker argument")
+    void plugin_addsNoCheckerArg_whenBuildNamesCheckerInGString() {
+      applyPlugin();
+      addToEveryCompile(
+          new GStringImpl(
+              new Object[] {"warn"}, new String[] {"-Xplugin:HKJChecker severity=", ""}));
+      evaluateProject();
+
+      assertPluginArgs("-Xplugin:HKJChecker severity=warn");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "-Xplugin:ErrorProne -XepDisableAllChecks",
+          "-Xplugin:HKJCheckerX",
+          "-Xplugin: HKJChecker",
+          "-Xplugin: "
+        })
+    @DisplayName("naming another plugin, as javac reads it, gets the checker's added beside it")
+    void plugin_addsCheckerArg_besideAnotherPlugin(String other) {
+      applyPlugin();
+      addToEveryCompile(other);
+      evaluateProject();
+
+      assertPluginArgs(other, "-Xplugin:HKJChecker");
     }
   }
 

@@ -96,7 +96,7 @@ With default settings, the plugin adds:
 - `hkj-checker` to `annotationProcessor`
 - `--enable-preview` to `JavaCompile`, `Test`, `JavaExec`, and `Javadoc` tasks
 - `-parameters` to every `JavaCompile` task (unconditional)
-- `-Xplugin:HKJChecker` to compiler arguments
+- `-Xplugin:HKJChecker` to compiler arguments, or nothing to a task that already names the checker, such as one that [sets the checker's options](compile_checks.md#configuration)
 
 ---
 
@@ -184,7 +184,7 @@ hkj {
 }
 ```
 
-This removes `hkj-checker` from the annotation processor path and omits the `-Xplugin:HKJChecker` compiler argument.
+This removes `hkj-checker` from the annotation processor path and omits the `-Xplugin:HKJChecker` compiler argument. To turn off one check or change its severity, keep this on and [set the checker's options](compile_checks.md#configuration).
 
 ---
 

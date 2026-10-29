@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
@@ -39,6 +40,13 @@ public class HKJPlugin implements Plugin<Project> {
 
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String EXTENSION_NAME = "hkj";
+
+  /**
+   * An argument naming the checker, with or without options: javac takes the first word after
+   * {@code -Xplugin:} as the plugin's name and the rest as its options.
+   */
+  private static final Pattern CHECKER_ARG =
+      Pattern.compile("-Xplugin:HKJChecker(\\s.*)?", Pattern.DOTALL);
 
   @Override
   public void apply(Project project) {
@@ -107,7 +115,7 @@ public class HKJPlugin implements Plugin<Project> {
           .configureEach(
               task -> {
                 List<String> args = task.getOptions().getCompilerArgs();
-                if (!args.contains("-Xplugin:HKJChecker")) {
+                if (!requestsChecker(args)) {
                   args.add("-Xplugin:HKJChecker");
                 }
                 // The checker accesses jdk.compiler internals at compile time
@@ -180,6 +188,16 @@ public class HKJPlugin implements Plugin<Project> {
                   (StandardJavadocDocletOptions) task.getOptions();
               options.addBooleanOption("-enable-preview", true);
             });
+  }
+
+  /**
+   * Whether the build already names the checker. javac reports a second request for the checker
+   * with other options as a plugin not found, so the plugin adds none beside the build's own. Each
+   * element is read through {@code toString}, as Gradle reads them, since a Groovy build script can
+   * add a {@code GString}.
+   */
+  private static boolean requestsChecker(List<?> args) {
+    return args.stream().map(String::valueOf).anyMatch(arg -> CHECKER_ARG.matcher(arg).matches());
   }
 
   /** Left-aligns {@code label} by padding with trailing spaces to at least {@code width} chars. */
