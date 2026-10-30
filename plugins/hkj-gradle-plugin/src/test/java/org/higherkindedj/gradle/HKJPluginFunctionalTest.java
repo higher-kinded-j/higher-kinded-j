@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
@@ -55,6 +56,46 @@ class HKJPluginFunctionalTest {
         Files.delete(path);
       }
     }
+  }
+
+  /**
+   * Writes a project with one documented class, whose HKJ dependencies resolve to empty jars, so
+   * that it compiles and documents without the published artifacts. The checker stays off, since it
+   * needs the real hkj-checker jar. {@code extra} is appended to the build file.
+   */
+  private void writeDocumentedProject(String extra) throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+            checks {
+                pathTypeMismatch = false
+            }
+        }
+
+        repositories {
+            flatDir { dirs 'libs' }
+        }
+        """
+            + extra);
+    Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
+    for (String artifact : List.of("hkj-core", "hkj-processor-plugins")) {
+      new JarOutputStream(Files.newOutputStream(libs.resolve(artifact + "-0.3.0.jar"))).close();
+    }
+    Path srcDir = Files.createDirectories(testProjectDir.resolve("src/main/java/test"));
+    Files.writeString(
+        srcDir.resolve("App.java"),
+        """
+        package test;
+
+        /** An application. */
+        public class App {}
+        """);
   }
 
   @Test
@@ -281,6 +322,64 @@ class HKJPluginFunctionalTest {
     assertThat(output)
         .contains("compileJava: [-Xplugin:HKJChecker severity=warn]")
         .contains("compileTestJava: [-Xplugin:HKJChecker severity=warn]");
+  }
+
+  @Test
+  @DisplayName("javadoc runs with preview features on")
+  void javadoc_runsWithPreviewFeatures() throws IOException {
+    writeDocumentedProject("");
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(testProjectDir.resolve("build/docs/javadoc/test/App.html")).isRegularFile();
+  }
+
+  @Test
+  @DisplayName("javadoc runs with preview features on and a toolchain")
+  void javadoc_runsWithPreviewFeaturesAndToolchain() throws IOException {
+    writeDocumentedProject(
+        """
+
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
+            }
+        }
+        """);
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(testProjectDir.resolve("build/docs/javadoc/test/App.html")).isRegularFile();
+  }
+
+  @Test
+  @DisplayName("a Javadoc task that passes its own -source or --release keeps it")
+  void javadoc_keepsTheBuildsOwnSourceOrRelease() throws IOException {
+    writeDocumentedProject(
+        """
+
+        def documented = { Javadoc task, String dir ->
+            task.source = sourceSets.main.allJava
+            task.classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+            task.destinationDir = layout.buildDirectory.dir(dir).get().asFile
+        }
+        tasks.register('javadocWithSource', Javadoc) {
+            documented(it, 'withSource')
+            options.source = JavaVersion.current().majorVersion
+        }
+        tasks.register('javadocWithRelease', Javadoc) {
+            documented(it, 'withRelease')
+            options.addStringOption('-release', JavaVersion.current().majorVersion)
+        }
+        """);
+
+    // javadoc refuses -source beside --release, so either task fails if the plugin adds its own
+    BuildResult result = runner("javadocWithSource", "javadocWithRelease").build();
+
+    assertThat(result.task(":javadocWithSource").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(result.task(":javadocWithRelease").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
   }
 
   @Test
