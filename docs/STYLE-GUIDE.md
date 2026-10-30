@@ -31,12 +31,14 @@ Each page should start with a level-1 heading (`#`) that describes the topic.
 # Applicative: Combining Independent Effects
 ```
 
-**Monad/container pages** should use "TypeName: Description" or "TypeName" alone:
+**Core type pages** use "TypeName: Description", naming the type a reader holds rather than the class of its instance:
 
 ```markdown
 # Maybe: Representing Optional Values
-# Either: Modelling Success or Failure
+# Validated: Accumulating Errors
 ```
+
+Never `# The ValidatedMonad:`. A subtitle goes on the italic line under the H1, as [Headings and Subtitles](#headings-and-subtitles) says, never in an H2, which the search description skips.
 
 ### Opening Quote
 
@@ -256,6 +258,10 @@ If a feature's payoff is an error message, a response payload, or a diagnostic, 
 A code-comment output inside a compiled include (`// Invalid(NonEmptyList[email: ...])`) counts **only when a test asserts it**, or when a gate runs the example and compares its output. The build compiles an example; it does not run its `main`. The pattern to copy is the boundary capstone: the payoff lives in the example, and its test asserts the messages, in order.
 
 **Format a payoff output for a phone.** Roughly 60 columns, one field per line. A response payload that runs off the side of a 400px screen hides the very thing it was shown for.
+
+### A Type's Page Answers a Search First
+
+A page named after a type is where a search for that type lands, so its opening is for a reader who has read nothing else. Its first screen names the type's Effect Path and links the chapter's page for choosing a type, as a Core Types page's type card does. Its first code shows the type in use, through its own methods or its Effect Path. `Kind` types, witnesses and `widen`/`narrow` calls wait for a "Working with Kind" section later on the page.
 
 ### Selling Points: the "Why this matters" Admonition
 
