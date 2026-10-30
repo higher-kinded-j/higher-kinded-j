@@ -1,588 +1,219 @@
+<!-- description: Combine values with Semigroup, start from a Monoid's empty value, total money exactly with bigDecimalAddition, and build your own monoid with Monoid.of. -->
+
 # Semigroup and Monoid: Foundational Type Classes
 
+_Combine two values of one type, and start from an empty value to total any number of them._
+
 ~~~admonish info title="What You'll Learn"
-- The fundamental building blocks for combining data: Semigroup and Monoid
-- How associative operations enable parallel and sequential data processing
-- Using Monoids for error accumulation in validation scenarios
-- Practical applications with String concatenation, integer addition, and boolean operations
-- Advanced Monoid operations: combining collections, repeated application, and identity testing
-- Working with numeric types: Long and Double monoid instances
-- Optional-based monoids for data aggregation: first, last, maximum, and minimum
-- How these abstractions power Foldable operations and validation workflows
+- Combine two values of one type with a `Semigroup`, and say what associativity promises
+- Start a combination from a `Monoid`'s empty value, so an empty list totals to zero
+- Total money exactly with `Monoids.bigDecimalAddition()`, and build a monoid the library lacks with `Monoid.of`
+- Pick a ready-made monoid for numbers, strings, collections, optional values and updates
+- Check a monoid against its three laws
 ~~~
 
-In functional programming, we often use **type classes** to define common behaviours that can be applied to a wide range of data types. These act as interfaces that allow us to write more abstract and reusable code. In `higher-kinded-j`, we provide a number of these type classes to enable powerful functional patterns.
-
-Here we will cover two foundational type classes: `Semigroup` and `Monoid`. Understanding these will give you a solid foundation for many of the more advanced concepts in the library.
+~~~admonish example title="See Example Code"
+**The code on this page is [MonoidBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java)**: the page includes it, so the build compiles and runs it. [MonoidBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/monoid/MonoidBookTest.java) holds what the page says, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws.
+~~~
 
 ---
 
-## **`Semigroup<A>`**
+## Combining two values {#combining-two-values}
 
-A **`Semigroup`** is one of the simplest and most fundamental type classes. It provides a blueprint for types that have a single, associative way of being combined.
+A `Semigroup<A>` has one method, `combine`, which takes two values of type `A` and returns one. Unlike the type classes on the pages around this one, it works on plain values, not on a container `Kind<F, A>`: two lists of errors become one list, and two strings become one string.
 
-### What is it?
-
-A `Semigroup` is a type class for any data type that has a `combine` operation. This operation takes two values of the same type and merges them into a single value of that type. The only rule is that this operation must be **associative**.
-
-This means that for any values `a`, `b`, and `c`:
-
-`(a.combine(b)).combine(c)` must be equal to `a.combine(b.combine(c))`
-
-The interface for `Semigroup` in `hkj-api` is as follows:
-
-
-``` java 
-public interface Semigroup<A> {
-    A combine(A a1, A a2);
-}
-```
-
-### Common Instances: The `Semigroups` Utility
-
-To make working with `Semigroup` easier, `higher-kinded-j` provides a `Semigroups` utility interface with static factory methods for common instances.
-
-
-<!-- verify -->
-``` java
-// Get a Semigroup for concatenating Strings
-Semigroup<String> stringConcat = Semigroups.string();
-
-// Get a Semigroup for concatenating Strings with a delimiter
-Semigroup<String> stringConcatDelimited = Semigroups.string(", ");
-
-// Get a Semigroup for concatenating Lists
-Semigroup<List<Integer>> listConcat = Semigroups.list();
-```
-
-~~~admonish tip title="The non-empty alternative: `NonEmptyList.semigroup()`"
-For an accumulating error channel, prefer [`NonEmptyList`](../monads/nonemptylist_monad.md) over a plain `List`: an *invalid* result always has at least one error, and `NonEmptyList` proves that in the type (making `head`/`reduce` total). Its concatenating combine lives on the type itself:
+The code on this page uses these imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// Concatenates two NonEmptyLists, left-to-right (associative, not commutative).
-Semigroup<NonEmptyList<String>> nelConcat = NonEmptyList.semigroup();
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Semigroup;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.Update;
 ```
 
-It is not on the `Semigroups` facade because `NonEmptyList` lives in `hkj-core` while `Semigroups` lives in `hkj-api`. The `Path.validNel` / `Path.invalidNel` factories bake it in, so the common validation case needs no `Semigroup` argument at all.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:semigroup}}
+```
+
+`combine` must be associative: `combine(combine(a, b), c)` equals `combine(a, combine(b, c))`. So a list of values combines to the same result however you group the calls, and a library can split a long list and combine the halves.
+
+The `Semigroups` interface holds the common ones:
+
+| Factory | Combines two values by |
+|---|---|
+| `Semigroups.list()` | Joining two lists, the first's elements first |
+| `Semigroups.set()` | Taking the union of two sets |
+| `Semigroups.string()` | Joining two strings |
+| `Semigroups.string(delimiter)` | Joining two strings with `delimiter` between them |
+| `Semigroups.first()` | Keeping the first value |
+| `Semigroups.last()` | Keeping the last value |
+
+The library's main use for one is [`Validated`](../monads/validated_monad.md)'s error accumulation. `Instances.validated(Semigroups.list())` gives an `Applicative` whose `map2` joins the errors of every invalid input with the semigroup, as [Applicative](applicative.md#what-each-instance-does) shows.
+
+~~~admonish tip title="The non-empty alternative: `NonEmptyList.semigroup()`"
+For errors, a [`NonEmptyList`](../monads/nonemptylist_monad.md) says in its type what an invalid result promises: at least one error, so its `head` and `reduce` need no empty case. `NonEmptyList.semigroup()` joins two of them, left to right. It lives on the type rather than in `Semigroups`, because `NonEmptyList` is in `hkj-core` and `Semigroups` in `hkj-api`. `Path.validNel` and `Path.invalidNel` build it in, so the common validation needs no `Semigroup` argument.
 ~~~
 
-### Where is it used in `higher-kinded-j`?
+---
 
-The primary and most powerful use case for `Semigroup` in this library is to enable **error accumulation** with the **`Validated`** data type.
+## Starting from an empty value {#starting-from-an-empty-value}
 
-When you use the `Applicative` instance for `Validated`, you must provide a `Semigroup` for the error type. This tells the applicative how to combine errors when multiple invalid computations occur.
+A `Monoid<A>` is a `Semigroup<A>` with one more method, `empty`, which returns a value that changes nothing when combined with another. Zero is addition's empty value, and an empty list is joining's. With it, `combineAll`, a default method on every `Monoid`, can total any number of values, none included, since a total of nothing is the empty value.
 
-**Example: Accumulating Validation Errors**
+If you have called `stream.reduce(identity, accumulator)`, you have used a monoid: `reduce` asks for an identity and an associative accumulator, and `Monoid` names that pair.
 
+The examples total an order's lines:
 
-<!-- verify -->
-``` java
-// Create an applicative for Validated that accumulates String errors by joining them.
-Applicative<ValidatedKind.Witness<String>> applicative =
-    Instances.validated(Semigroups.string("; "));
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:lines}}
+```
 
-// Two invalid results
-Validated<String, Integer> invalid1 = Validated.invalid("Field A is empty");
-Validated<String, Integer> invalid2 = Validated.invalid("Field B is not a number");
+An order's total is the monoid for `BigDecimal` addition, run over each line's total:
 
-// Combine them using the applicative's map2 method
-Kind<ValidatedKind.Witness<String>, Integer> result =
-    applicative.map2(
-        VALIDATED.widen(invalid1),
-        VALIDATED.widen(invalid2),
-        (val1, val2) -> val1 + val2
-    );
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:total}}
+```
 
-// The errors are combined using our Semigroup
-// Result: Invalid("Field A is empty; Field B is not a number")
-System.out.println(VALIDATED.narrow(result));
+On an [Effect Path](../effect/ch_intro.md), `ListPath.foldMap` takes the monoid and the function together, and [Foldable and Traverse](foldable_and_traverse.md#foldable-one-structure-many-summaries) does the same for any container.
+
+Money is `BigDecimal`, as `LineItem.price` is, since `Monoids.doubleAddition()` rounds, as [Things people get wrong](#things-people-get-wrong) shows. A `BigDecimal` sum keeps the larger scale of its two values, so prices with two decimal places total to a value with two.
+
+### Ready-made monoids {#ready-made-monoids}
+
+| Factory | Combines by | Empty value |
+|---|---|---|
+| `integerAddition()`, `longAddition()`, `doubleAddition()` | `+` | `0` |
+| `integerMultiplication()`, `longMultiplication()`, `doubleMultiplication()` | `*` | `1` |
+| `bigDecimalAddition()` | `BigDecimal.add` | `BigDecimal.ZERO` |
+| `booleanAnd()`, `booleanOr()` | `&&`, `\|\|` | `true`, `false` |
+| `string()` | Joining two strings | `""` |
+| `list()`, `set()` | Joining two lists, or the union of two sets | An empty list, or an empty set |
+| `firstOptional()`, `lastOptional()` | Keeping the first, or the last, present value | `Optional.empty()` |
+| `maximum()`, `minimum()`, with or without a `Comparator` | Keeping the greater, or the lesser, present value | `Optional.empty()` |
+| `update()` | Applying one `Update` and then the other | `Update.identity()` |
+
+Each is a static method on `Monoids`, such as `Monoids.list()`.
+
+### A monoid of your own {#a-monoid-of-your-own}
+
+`Monoid.of(empty, combine)` builds one from its empty value and a `Semigroup`, which can be a lambda. Counting the units of each SKU across orders needs a monoid `Monoids` does not have: an empty map, and a merge that adds the counts.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:units}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:units_run}}
+```
+
+`Monoid.of` does not check the laws, so check them as [Three laws](#three-laws) does.
+
+---
+
+## What every monoid can do {#what-every-monoid-can-do}
+
+Besides `combineAll`, every `Monoid` has two more default methods. `combineN(value, n)` combines a value with itself `n` times: `n` of `0` gives the empty value, and a negative `n` throws `IllegalArgumentException`. `isEmpty` tests whether a value is the empty value.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:defaults}}
 ```
 
 ---
 
-## **`Monoid<A>`**
+## Choosing among optional values {#choosing-among-optional-values}
 
-A **`Monoid`** is a `Semigroup` with a special "identity" or "empty" element. This makes it even more powerful, as it provides a way to have a "starting" or "default" value.
+The optional monoids pick one value from many, by the `Comparator` you pass or the type's natural order. `firstOptional` suits a fallback chain: a setting from the environment, then one from a file, then a default.
 
-### What is it?
-
-A `Monoid` is a type class for any data type that has an associative `combine` operation (from `Semigroup`) and an `empty` value. This `empty` value is a special element that, when combined with any other value, returns that other value.
-
-This is known as the **identity law**. For any value `a`:
-
-- `a.combine(empty())` must be equal to `a`
-- `empty().combine(a)` must be equal to `a`
-
-The interface for `Monoid` in `hkj-api` extends `Semigroup`:
-
-
-``` java 
-public interface Monoid<A> extends Semigroup<A> {
-    A empty();
-}
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:priciest}}
 ```
 
-### Common Instances: The `Monoids` Utility
-
-Similar to `Semigroups`, the library provides a `Monoids` utility interface for creating common instances.
-
-
-<!-- verify -->
-``` java
-// Get a Monoid for integer addition (empty = 0)
-Monoid<Integer> intAddition = Monoids.integerAddition();
-
-// Get a Monoid for String concatenation (empty = "")
-Monoid<String> stringMonoid = Monoids.string();
-
-// Get a Monoid for boolean AND (empty = true)
-Monoid<Boolean> booleanAnd = Monoids.booleanAnd();
-```
-
-### Where it is used in `higher-kinded-j`
-
-A `Monoid` is essential for **folding** (or reducing) a data structure. The `empty` element provides a safe starting value, which means you can correctly fold a collection that might be empty.
-
-This is formalised in the **`Foldable`** type class, which has a `foldMap` method. This method maps every element in a structure to a monoidal type and then combines all the results.
-
-**Example: Using `foldMap` with different Monoids**
-
-
-<!-- verify -->
-``` java 
-List<Integer> numbers = List.of(1, 2, 3, 4, 5);
-Kind<ListKind.Witness, Integer> numbersKind = LIST.widen(numbers);
-
-// 1. Sum the list using the integer addition monoid
-Integer sum = ListTraverse.INSTANCE.foldMap(
-    Monoids.integerAddition(),
-    Function.identity(),
-    numbersKind
-); // Result: 15
-
-// 2. Concatenate the numbers as strings
-String concatenated = ListTraverse.INSTANCE.foldMap(
-    Monoids.string(),
-    String::valueOf,
-    numbersKind
-); // Result: "12345"
-```
+Each skips an empty `Optional`, and a list of only empty ones, or of none, gives `Optional.empty()`.
 
 ---
 
-## **Advanced Monoid Operations**
+## Composing updates {#composing-updates}
 
-The `Monoid` interface provides several powerful default methods that build upon the basic `combine` and `empty` operations. These methods handle common aggregation patterns and make working with collections much more convenient.
+Every monoid so far combines data. `Monoids.update()` combines behaviour. An `Update<S>` is a transformation from an `S` to a new `S`. It extends `UnaryOperator<S>`, so it goes wherever Java takes a `Function<S, S>`, such as `Stream.map`, and its `andThen` returns an `Update`, so a chain of them stays one. The monoid's `combine(f, g)` applies `f` and then `g`, and its empty value is `Update.identity()`, which returns its input unchanged.
 
-### `combineAll`: Aggregating Collections
-
-The `combineAll` method takes an iterable collection and combines all its elements using the monoid's operation. If the collection is empty, it returns the identity element.
-
-
-<!-- verify -->
-``` java
-Monoid<Integer> sum = Monoids.integerAddition();
-List<Integer> salesData = List.of(120, 450, 380, 290);
-
-Integer totalSales = sum.combineAll(salesData);
-// Result: 1240
-
-// Works safely with empty collections
-Integer emptyTotal = sum.combineAll(Collections.emptyList());
-// Result: 0 (the empty value)
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:update}}
 ```
 
-This is particularly useful for batch processing scenarios where you need to aggregate data from multiple sources:
-
-
-<!-- verify -->
-``` java
-// Combining log messages
-Monoid<String> logMonoid = Monoids.string();
-List<String> logMessages = loadLogMessages();
-String combinedLog = logMonoid.combineAll(logMessages);
-
-// Merging configuration sets
-Monoid<Set<String>> configMonoid = Monoids.set();
-List<Set<String>> featureFlags = List.of(
-    Set.of("feature-a", "feature-b"),
-    Set.of("feature-b", "feature-c"),
-    Set.of("feature-d")
-);
-Set<String> allFlags = configMonoid.combineAll(featureFlags);
-// Result: ["feature-a", "feature-b", "feature-c", "feature-d"]
-```
-
-### `combineN`: Repeated Application
-
-The `combineN` method combines a value with itself `n` times. This is useful for scenarios where you need to apply the same value repeatedly:
-
-
-<!-- verify -->
-``` java
-Monoid<Integer> product = Monoids.integerMultiplication();
-
-// Calculate 2^5 using multiplication monoid
-Integer result = product.combineN(2, 5);
-// Result: 32 (2 * 2 * 2 * 2 * 2)
-
-// Repeat a string pattern
-Monoid<String> stringMonoid = Monoids.string();
-String border = stringMonoid.combineN("=", 50);
-// Result: "=================================================="
-
-// Build a list with repeated elements
-Monoid<List<String>> listMonoid = Monoids.list();
-List<String> repeated = listMonoid.combineN(List.of("item"), 3);
-// Result: ["item", "item", "item"]
-```
-
-**Special cases:**
-- When `n = 0`, returns the empty value
-- When `n = 1`, returns the value unchanged
-- When `n < 0`, throws `IllegalArgumentException`
-
-### `isEmpty`: Identity Testing
-
-The `isEmpty` method tests whether a given value equals the identity element of the monoid:
-
-
-<!-- verify -->
-``` java
-Monoid<Integer> sum = Monoids.integerAddition();
-Monoid<Integer> product = Monoids.integerMultiplication();
-
-sum.isEmpty(0);      // true (0 is the identity for addition)
-sum.isEmpty(5);      // false
-
-product.isEmpty(1);  // true (1 is the identity for multiplication)
-product.isEmpty(0);  // false
-
-Monoid<String> stringMonoid = Monoids.string();
-stringMonoid.isEmpty("");     // true
-stringMonoid.isEmpty("text"); // false
-```
-
-This is particularly useful for optimisation and conditional logic:
-
-
-<!-- verify -->
-``` java
-public void processIfNotEmpty(Monoid<String> monoid, String value) {
-    if (!monoid.isEmpty(value)) {
-        // Only process non-empty values
-        performExpensiveOperation(value);
-    }
-}
-```
-
----
-
-## **Working with Numeric Types**
-
-The `Monoids` utility provides comprehensive support for numeric operations beyond just `Integer`. This is particularly valuable for financial calculations, statistical operations, and scientific computing.
-
-### Long Monoids
-
-For working with large numeric values or high-precision calculations:
-
-
-<!-- verify -->
-``` java
-// Long addition for counting large quantities
-Monoid<Long> longSum = Monoids.longAddition();
-List<Long> userCounts = List.of(1_500_000L, 2_300_000L, 890_000L);
-Long totalUsers = longSum.combineAll(userCounts);
-// Result: 4,690,000
-
-// Long multiplication for compound calculations
-Monoid<Long> longProduct = Monoids.longMultiplication();
-Long compound = longProduct.combineN(2L, 20);
-// Result: 1,048,576 (2^20)
-```
-
-### Double Monoids
-
-For floating-point arithmetic and statistical computations:
-
-
-<!-- verify -->
-``` java
-// Double addition for financial calculations
-Monoid<Double> dollarSum = Monoids.doubleAddition();
-List<Double> expenses = List.of(49.99, 129.50, 89.99);
-Double totalExpenses = dollarSum.combineAll(expenses);
-// Result: 269.48
-
-// Double multiplication for compound interest
-Monoid<Double> growth = Monoids.doubleMultiplication();
-Double interestRate = 1.05; // 5% per year
-Double compoundGrowth = growth.combineN(interestRate, 10);
-// Result: ≈1.629 (after 10 years)
-```
-
-**Practical Example: Statistical Calculations**
-
-
-<!-- verify -->
-``` java
-public class Statistics {
-
-    public static double calculateMean(List<Double> values) {
-        if (values.isEmpty()) {
-            throw new IllegalArgumentException("Cannot calculate mean of an empty list.");
-        }
-
-        Monoid<Double> sum = Monoids.doubleAddition();
-        Double total = sum.combineAll(values);
-        return total / values.size();
-    }
-
-    public static double calculateProduct(List<Double> factors) {
-        Monoid<Double> product = Monoids.doubleMultiplication();
-        return product.combineAll(factors);
-    }
-}
-
-// Usage
-List<Double> measurements = List.of(23.5, 24.1, 23.8, 24.3);
-double average = Statistics.calculateMean(measurements);
-// Result: 23.925
-```
-
----
-
-## **Optional Monoids for Data Aggregation**
-
-One of the most powerful features of the `Monoids` utility is its support for `Optional`-based aggregation. These monoids elegantly handle the common pattern of finding the "best" value from a collection of optional results.
-
-### `firstOptional` and `lastOptional`
-
-These monoids select the first or last non-empty optional value, making them perfect for fallback chains and priority-based selection:
-
-
-<!-- verify -->
-``` java
-Monoid<Optional<String>> first = Monoids.firstOptional();
-Monoid<Optional<String>> last = Monoids.lastOptional();
-
-List<Optional<String>> configs = List.of(
-    Optional.empty(),           // Missing config
-    Optional.of("default.conf"), // Found!
-    Optional.of("user.conf")    // Also found
-);
-
-// Get first available configuration
-Optional<String> primaryConfig = first.combineAll(configs);
-// Result: Optional["default.conf"]
-
-// Get last available configuration
-Optional<String> latestConfig = last.combineAll(configs);
-// Result: Optional["user.conf"]
-```
-
-**Practical Example: Configuration Fallback Chain**
-
-
-``` java
-public class ConfigLoader {
-
-    public Optional<Config> loadConfig() {
-        Monoid<Optional<Config>> firstAvailable = Monoids.firstOptional();
-
-        return firstAvailable.combineAll(List.of(
-            loadFromEnvironment(),     // Try environment variables first
-            loadFromUserHome(),        // Then user's home directory
-            loadFromWorkingDir(),      // Then current directory
-            loadDefaultConfig()        // Finally, use defaults
-        ));
-    }
-
-    private Optional<Config> loadFromEnvironment() {
-        return Optional.ofNullable(System.getenv("APP_CONFIG"))
-            .map(this::parseConfig);
-    }
-
-    private Optional<Config> loadFromUserHome() {
-        Path userConfig = Paths.get(System.getProperty("user.home"), ".apprc");
-        return Files.exists(userConfig)
-            ? Optional.of(parseConfigFile(userConfig))
-            : Optional.empty();
-    }
-
-    // ... other loaders
-}
-```
-
-### `maximum` and `minimum`
-
-These monoids find the maximum or minimum value from a collection of optional values. They work with any `Comparable` type or accept a custom `Comparator`:
-
-
-<!-- verify -->
-``` java
-Monoid<Optional<Integer>> max = Monoids.maximum();
-Monoid<Optional<Integer>> min = Monoids.minimum();
-
-List<Optional<Integer>> scores = List.of(
-    Optional.of(85),
-    Optional.empty(),      // Missing data
-    Optional.of(92),
-    Optional.of(78),
-    Optional.empty()
-);
-
-Optional<Integer> highestScore = max.combineAll(scores);
-// Result: Optional[92]
-
-Optional<Integer> lowestScore = min.combineAll(scores);
-// Result: Optional[78]
-```
-
-**Using Custom Comparators**
-
-For more complex types, you can provide a custom comparator:
-
-
-<!-- verify -->
-``` java
-public record Product(String name, double price) {}
-
-// Find most expensive product
-Monoid<Optional<Product>> mostExpensive =
-    Monoids.maximum(Comparator.comparing(Product::price));
-
-List<Optional<Product>> products = List.of(
-    Optional.of(new Product("Widget", 29.99)),
-    Optional.empty(),
-    Optional.of(new Product("Gadget", 49.99)),
-    Optional.of(new Product("Gizmo", 19.99))
-);
-
-Optional<Product> priciest = mostExpensive.combineAll(products);
-// Result: Optional[Product("Gadget", 49.99)]
-
-// Find product with shortest name
-Monoid<Optional<Product>> shortestName =
-    Monoids.minimum(Comparator.comparing(p -> p.name().length()));
-
-Optional<Product> shortest = shortestName.combineAll(products);
-// Result: Optional[Product("Gizmo", 19.99)]
-```
-
-**Practical Example: Finding Best Offers**
-
-
-<!-- verify -->
-``` java
-import java.util.stream.Collectors;
-
-public class PriceComparison {
-
-    public record Offer(String vendor, BigDecimal price, boolean inStock)
-        implements Comparable<Offer> {
-
-        @Override
-        public int compareTo(Offer other) {
-            return this.price.compareTo(other.price);
-        }
-    }
-
-    public Optional<Offer> findBestOffer(List<String> vendors, String productId) {
-        Monoid<Optional<Offer>> cheapest = Monoids.minimum();
-
-        List<Optional<Offer>> offers = vendors.stream()
-            .map(vendor -> fetchOffer(vendor, productId))
-            .filter(opt -> opt.map(Offer::inStock).orElse(false)) // Only in-stock items
-            .collect(Collectors.toList());
-
-        return cheapest.combineAll(offers);
-    }
-
-    private Optional<Offer> fetchOffer(String vendor, String productId) {
-        // API call to get offer from vendor; Optional.empty() if unavailable
-        return Optional.of(new Offer(vendor, new BigDecimal("19.99"), true));
-    }
-}
-```
-
-**When Both Optionals are Empty**
-
-It's worth noting that these monoids handle empty collections gracefully:
-
-
-<!-- verify -->
-``` java
-Monoid<Optional<Integer>> max = Monoids.maximum();
-
-List<Optional<Integer>> allEmpty = List.of(
-    Optional.empty(),
-    Optional.empty()
-);
-
-Optional<Integer> result = max.combineAll(allEmpty);
-// Result: Optional.empty()
-
-// Also works with empty list
-Optional<Integer> emptyResult = max.combineAll(Collections.emptyList());
-// Result: Optional.empty()
-```
-
-This makes them perfect for aggregation pipelines where you're not certain data will be present, but you want to find the best available value if any exists.
-
----
-
-## **The Update Monoid: Composing Transformations**
-
-Every monoid so far combines *data*. `Monoids.update()` combines *behaviour*: an `Update<S>` is a named, reusable transformation of a value (`S -> S`), and the monoid composes any number of them into one.
-
-`Update<S>` extends `UnaryOperator<S>`, so it drops straight into `Stream.map`, `Optional.map`, and any other `Function`-shaped API. Its `andThen` stays in the type, so composition chains fluently:
-
-<!-- verify -->
-``` java
-Update<Order> normalise     = order -> order.withEmail(order.email().toLowerCase());
-Update<Order> applyDiscount = order -> order.withTotal(order.total().multiply(DISCOUNT));
-
-// Compose two updates and apply to many sources:
-Order a = normalise.andThen(applyDiscount).apply(orderA);
-Order b = normalise.andThen(applyDiscount).apply(orderB);
-```
-
-The monoid's identity is the do-nothing update (`Update.identity()`), and `combine(f, g)` applies `f` first, then `g`, so folding a list of updates applies them left to right:
-
-<!-- verify -->
-``` java
-Monoid<Update<Order>> m = Monoids.update();
-
-List<Update<Order>> steps = List.of(normalise, applyDiscount, assignWarehouse);
-Update<Order> pipeline = m.combineAll(steps);
-
-Order processed = pipeline.apply(order);
-```
-
-Because the identity element is "change nothing", an absent or skipped step simply contributes nothing to the fold: the property that powers sparse partial updates. The [`Edits` builder](../optics/multi_edit.md) builds on exactly this: optic-targeted edits folded through `Monoids.update()`, with absent fields contributing the identity.
+A step with nothing to change can be `Update.identity()`. That is what makes sparse updates work: the [`Edits` builder](../optics/multi_edit.md) folds optic edits through `Monoids.update()`, and a field the request left out contributes `Update.identity()`. Fold updates with `combineAll`, which applies them in a loop. A fold through `combine`, such as `foldMap`, nests one call per update, and a long enough list overflows the stack.
 
 ~~~admonish note title="For the functionally curious"
-In functional-programming literature this is the `Endo` monoid (for *endomorphism*, a function from a type to itself). Higher-Kinded-J names it `Update` for clarity.
+In functional programming this is the `Endo` monoid, for *endomorphism*, a function from a type to itself. Higher-Kinded-J names it `Update` for clarity.
 ~~~
 
 ---
 
-~~~admonish info title="Key Takeaways"
-* **Semigroup provides `combine`** for associatively merging two values of the same type
-* **Monoid adds `empty`** (the identity element), enabling safe folds over potentially empty collections
-* **Swap the Monoid, change the behaviour**: addition, multiplication, concatenation, min/max, all from the same operation
-* **Error accumulation** in `Validated` is powered by Semigroup; it tells the Applicative how to merge errors
-* **Utility methods** (`combineAll`, `combineN`, `isEmpty`) and Optional-based monoids (`firstOptional`, `maximum`, etc.) cover common aggregation patterns
-* **`Monoids.update()` composes behaviour, not data**: fold any number of `Update<S>` transformations into one, applied left to right
+## Three laws {#three-laws}
+
+A `Semigroup` keeps one law and a `Monoid` two more. Together they say that grouping does not matter, and that the empty value adds nothing.
+
+~~~admonish note title="Laws"
+- **Associativity: grouping the combines differently changes nothing.** `combine(combine(a, b), c)` equals `combine(a, combine(b, c))`.
+- **Left identity: combining the empty value first changes nothing.** `combine(empty(), a)` equals `a`.
+- **Right identity: combining the empty value last changes nothing.** `combine(a, empty())` equals `a`.
+
+Values are equal by `equals`. For `bigDecimalAddition`, the identity laws hold by `equals` for a value of scale zero or more, which includes any price. Added to `ZERO`, `new BigDecimal("1E+3")` comes back as `1000`: equal by `compareTo`, but not by `equals`.
+
+Checking the `Semigroup` and `Monoid` laws with `hkj-test` is not supported yet, so the test checks them by hand, for `bigDecimalAddition` and for the units monoid. It uses these imports, with JUnit's:
+
+<!-- verify -->
+```java
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+import java.util.Map;
+import org.higherkindedj.example.book.foundations.monoid.MonoidBook;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
+```
+
+```java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:monoid_laws}}
+```
 ~~~
+
+---
+
+## Things people get wrong {#things-people-get-wrong}
+
+~~~admonish warning title="Common Misunderstandings"
+- **"`doubleAddition` will do for money."** It rounds: `0.1` and `0.2` give `0.30000000000000004`, where `bigDecimalAddition` sums `0.10` and `0.20` to exactly `0.30`.
+- **"`combine` must be commutative."** It must be associative, and that is all. `Monoids.string()` combines `"LAMP"` and `"BULB"` into `"LAMPBULB"`, and the other way round into `"BULBLAMP"`.
+- **"Any semigroup becomes a monoid once you name an empty value."** Only if that value changes nothing. The `combineAll` of `Monoid.of("", Semigroups.string(", "))` turns `"LAMP"` and `"BULB"` into `", LAMP, BULB"`: it starts from `""`, and joining `""` adds a delimiter.
+- **"`isEmpty` always compares with `equals`."** `bigDecimalAddition`'s is true for zero at any scale, so `0.00` is empty, although `BigDecimal.ZERO.equals(new BigDecimal("0.00"))` is false.
+~~~
+
+---
+
+## The fine print {#the-fine-print}
+
+### What takes a Semigroup or a Monoid {#what-takes-a-semigroup-or-a-monoid}
+
+- **`Instances.eitherOrBoth(semigroup)` joins the warnings each step carries.** [EitherOrBoth](../monads/either_or_both_monad.md) shows how.
+- **`Instances.writer(monoid)` combines each step's log, starting from the empty log.** [Writer](../monads/writer_monad.md) shows how.
+- **`Foldable.foldMap(monoid, f, fa)` turns each element into a monoid value and combines them.** [Foldable and Traverse](foldable_and_traverse.md) shows how.
+- **`Const`'s `Applicative` takes a monoid to combine what it collects.** [Const](../monads/const_type.md) shows how.
 
 ---
 
 ~~~admonish tip title="See Also"
-- [Foldable and Traverse](foldable_and_traverse.md) - See how Monoids power folding operations
-- [Applicative](applicative.md) - Learn how Semigroups enable error accumulation with Validated
+- [Foldable and Traverse](foldable_and_traverse.md): folding any container with a monoid
+- [Applicative](applicative.md): how `Validated` combines errors with a semigroup
+- [Multi-Edit and Sparse Updates](../optics/multi_edit.md): the `Edits` builder that `Monoids.update()` powers
 ~~~
 
 ---

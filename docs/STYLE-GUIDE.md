@@ -13,6 +13,7 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 - Do not use decorative emojis in documentation. The one exception is the status markers **✅** (correct, supported, "do this") and **❌** (wrong, unsupported, "avoid this"), used sparingly to label good-versus-bad code examples or supported-versus-unsupported rows in a table. Their plain-text equivalents **✓** and **✗** are equally acceptable. Do not use them as decoration or in prose; reserve them for a clear pass/fail signal.
 - Address the reader as "you", and name the maintainers as "Higher-Kinded-J" or "the library". Book pages never use "we", which blurs who is acting. The tutorials keep their own "we", the voice of working through an exercise together: the exercise files, and the journey pages under `hkj-book/src/tutorials/`. A page that still says "we" adopts "you" when it is next reworked
 - Keep explanations practical and focused on Java developers
+- Hold money in `BigDecimal`, as the order cast's `LineItem.price` does, and total it with `Monoids.bigDecimalAddition()`. A `double` cannot hold `0.10` exactly, so a reader who copies a `double` total copies a rounding error.
 - Avoid academic jargon; prefer accessible explanations
 - Describe behaviour, not provenance: no GitHub issue or pull-request references outside the release history (see [No Issue or PR References](#no-issue-or-pr-references))
 

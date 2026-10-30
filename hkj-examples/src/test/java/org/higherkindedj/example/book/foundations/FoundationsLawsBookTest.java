@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
@@ -17,10 +18,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.higherkindedj.example.book.foundations.monoid.MonoidBook;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
@@ -31,6 +34,8 @@ import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
@@ -44,8 +49,12 @@ import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.laws.TraverseLaws;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
@@ -210,4 +219,48 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: monad_error_laws
+
+  // ANCHOR: monoid_laws
+  <A> void assertMonoidLaws(Monoid<A> monoid, A a, A b, A c) {
+    // combining with empty, on either side, changes nothing
+    assertThat(monoid.combine(monoid.empty(), a)).isEqualTo(a);
+    assertThat(monoid.combine(a, monoid.empty())).isEqualTo(a);
+    // grouping the combines differently changes nothing
+    assertThat(monoid.combine(monoid.combine(a, b), c))
+        .isEqualTo(monoid.combine(a, monoid.combine(b, c)));
+  }
+
+  @Test
+  @DisplayName("BigDecimal addition and the page's units monoid keep the monoid laws")
+  void monoidLaws() {
+    assertMonoidLaws(
+        Monoids.bigDecimalAddition(),
+        new BigDecimal("40.00"),
+        new BigDecimal("10.00"),
+        new BigDecimal("7.50"));
+    assertMonoidLaws(
+        MonoidBook.UNITS, Map.of("LAMP", 1), Map.of("BULB", 4), Map.of("BULB", 3, "DESK", 1));
+  }
+
+  // ANCHOR_END: monoid_laws
+
+  // ANCHOR: traverse_laws
+  @Test
+  @DisplayName("List's and Maybe's Traverse keep the identity law")
+  void traverseLaws() {
+    TraverseLaws.assertIdentity(
+        ListTraverse.INSTANCE,
+        LIST.widen(MonoidBook.LINES),
+        KindEquivalence.<ListKind.Witness>byEqualsAfter(LIST::narrow));
+    TraverseLaws.assertIdentity(
+        MaybeTraverse.INSTANCE,
+        MAYBE.just(ORDER),
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+    TraverseLaws.assertIdentity(
+        MaybeTraverse.INSTANCE,
+        MAYBE.<Order>nothing(),
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+  }
+
+  // ANCHOR_END: traverse_laws
 }
