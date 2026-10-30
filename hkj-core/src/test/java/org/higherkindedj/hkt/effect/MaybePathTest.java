@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.junit.jupiter.api.DisplayName;
@@ -546,18 +548,55 @@ class MaybePathTest {
     }
 
     @Test
-    @DisplayName("mapError() is a no-op for MaybePath")
-    void mapErrorIsNoOpForMaybePath() {
-      MaybePath<String> justPath = Path.just(TEST_VALUE);
-      MaybePath<String> nothingPath = Path.nothing();
+    @DisplayName("mapError() returns an EitherPath and skips the mapper on Just")
+    void mapErrorReturnsEitherPath() {
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
 
-      // mapError returns Recoverable<?, E2, A> from interface
-      // For MaybePath, it's effectively a no-op and returns the same instance
-      Recoverable<?, String, String> justResult = justPath.mapError(unit -> "error");
-      Recoverable<?, String, String> nothingResult = nothingPath.mapError(unit -> "error");
+      EitherPath<String, String> justResult =
+          Path.just(TEST_VALUE)
+              .mapError(
+                  unit -> {
+                    mapperCalled.set(true);
+                    return "error";
+                  });
 
-      assertThat(justResult).isSameAs(justPath);
-      assertThat(nothingResult).isSameAs(nothingPath);
+      assertThat(mapperCalled).isFalse();
+      assertThat(justResult.run().isRight()).isTrue();
+      assertThat(justResult.run().getRight()).isEqualTo(TEST_VALUE);
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.just(TEST_VALUE).mapError(null))
+          .withMessage("mapper must not be null");
+      assertThat(Path.just(TEST_VALUE).mapError(unit -> (String) null).run().getRight())
+          .isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("mapError() then recover() receives the mapped error")
+    @SuppressWarnings("unchecked")
+    void mapErrorThenRecoverReceivesTheMappedError() {
+      Recoverable<MaybePath<?>, Unit, Integer> absent = Path.nothing();
+      AtomicReference<Object> mappedFrom = new AtomicReference<>();
+      Recoverable<?, String, Integer> mapped =
+          absent.mapError(
+              unit -> {
+                mappedFrom.set(unit);
+                return "missing";
+              });
+
+      assertThat(mappedFrom).hasValue(Unit.INSTANCE);
+
+      AtomicReference<String> recoveredFrom = new AtomicReference<>();
+      Recoverable<?, String, Integer> recovered =
+          mapped.recover(
+              error -> {
+                recoveredFrom.set(error);
+                return error.length();
+              });
+
+      assertThat(recoveredFrom).hasValue("missing");
+      assertThat(recovered).isInstanceOf(EitherPath.class);
+      assertThat(((EitherPath<String, Integer>) recovered).run().isRight()).isTrue();
+      assertThat(((EitherPath<String, Integer>) recovered).run().getRight()).isEqualTo(7);
     }
 
     @Test

@@ -75,6 +75,9 @@ TryPath<Integer> parsed = Path.tryOf(() -> Integer.parseInt(input))
     .orElse(() -> Path.success(defaultValue));
 ```
 
+`mapError` returns an `EitherPath` with the mapped error.
+`mapException` changes the exception and stays a `TryPath`.
+
 ---
 
 ## Extraction

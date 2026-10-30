@@ -70,6 +70,9 @@ MaybePath<Integer> positive = Path.just(42).filter(n -> n > 0);  // Just(42)
 MaybePath<Integer> rejected = Path.just(-1).filter(n -> n > 0);  // Nothing
 ```
 
+`mapError` returns an `EitherPath`.
+A `Nothing` becomes a `Left` of the mapped error, and a `Just` becomes a `Right`.
+
 ---
 
 ## Extraction

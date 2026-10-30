@@ -3,15 +3,19 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -526,15 +530,149 @@ class CompletableFuturePathTest {
     }
 
     @Test
-    @DisplayName("mapError() returns same instance (limitation of type system)")
-    void mapErrorReturnsSameInstance() {
-      CompletableFuturePath<String> path =
-          CompletableFuturePath.failed(new RuntimeException("error"));
+    @DisplayName(
+        "mapError() returns a VResultPath without waiting, and runs the mapper when a failure runs")
+    void mapErrorReturnsVResultPathWithoutWaiting() {
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
+      IllegalStateException failure = new IllegalStateException("missing");
+      CompletableFuture<Integer> pending = new CompletableFuture<>();
 
-      var result = path.mapError(ex -> "mapped: " + ex.getMessage());
+      VResultPath<String, String> success =
+          CompletableFuturePath.completed(TEST_VALUE)
+              .mapError(
+                  ex -> {
+                    mapperCalled.set(true);
+                    return "mapped";
+                  });
+      AtomicInteger failedMapperCalls = new AtomicInteger();
+      VResultPath<String, Integer> failed =
+          CompletableFuturePath.<Integer>failed(failure)
+              .mapError(
+                  ex -> {
+                    failedMapperCalls.incrementAndGet();
+                    assertThat(ex).isSameAs(failure);
+                    return "mapped: " + ex.getMessage();
+                  });
+      AtomicBoolean pendingMapperCalled = new AtomicBoolean(false);
+      VResultPath<String, Integer> waiting =
+          assertTimeoutPreemptively(
+              Duration.ofMillis(500),
+              () ->
+                  CompletableFuturePath.fromFuture(pending)
+                      .mapError(
+                          ex -> {
+                            pendingMapperCalled.set(true);
+                            return "late";
+                          }));
+      CompletableFuture<Integer> pendingFailure = new CompletableFuture<>();
+      AtomicBoolean pendingFailureMapperCalled = new AtomicBoolean(false);
+      VResultPath<String, Integer> lateFailure =
+          CompletableFuturePath.fromFuture(pendingFailure)
+              .mapError(
+                  ex -> {
+                    pendingFailureMapperCalled.set(true);
+                    assertThat(ex).isSameAs(failure);
+                    return "late failure";
+                  });
 
-      // mapError returns the same instance for CompletableFuturePath
-      assertThat(result).isSameAs(path);
+      assertThat(mapperCalled).isFalse();
+      assertThat(failedMapperCalls.get()).isZero();
+      assertThat(pending.isDone()).isFalse();
+      assertThat(pendingMapperCalled).isFalse();
+      assertThat(success.run().run().getRight()).isEqualTo(TEST_VALUE);
+      assertThat(failed.run().run().getLeft()).isEqualTo("mapped: missing");
+      assertThat(failedMapperCalls.get()).isEqualTo(1);
+      assertThat(failed.run().run().getLeft()).isEqualTo("mapped: missing");
+      assertThat(failedMapperCalls.get()).isEqualTo(2);
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> CompletableFuturePath.fromFuture(new CompletableFuture<>()).mapError(null))
+          .withMessage("mapper must not be null");
+      assertThat(
+              CompletableFuturePath.completed(TEST_VALUE)
+                  .mapError(ex -> (String) null)
+                  .run()
+                  .run()
+                  .getRight())
+          .isEqualTo(TEST_VALUE);
+      pending.complete(TEST_INT);
+      assertThat(waiting.run().run().getRight()).isEqualTo(TEST_INT);
+      assertThat(pendingMapperCalled).isFalse();
+      pendingFailure.completeExceptionally(failure);
+      assertThat(pendingFailureMapperCalled).isFalse();
+      assertThat(lateFailure.run().run().getLeft()).isEqualTo("late failure");
+      assertThat(pendingFailureMapperCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("mapError() fails a run with the exception the mapper throws")
+    void mapErrorFailsARunWithTheMappersException() {
+      IllegalStateException failure = new IllegalStateException("missing");
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
+      VResultPath<String, Integer> mapped =
+          CompletableFuturePath.<Integer>failed(failure)
+              .mapError(
+                  ex -> {
+                    mapperCalled.set(true);
+                    throw new IllegalArgumentException("boom");
+                  });
+
+      assertThat(mapperCalled).isFalse();
+      assertThatThrownBy(() -> mapped.run().run())
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("boom");
+      assertThat(mapperCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("mapError() then recover() receives the mapped error")
+    @SuppressWarnings("unchecked")
+    void mapErrorThenRecoverReceivesTheMappedError() {
+      Recoverable<CompletableFuturePath<?>, Exception, Integer> failed =
+          CompletableFuturePath.failed(new IllegalStateException("missing"));
+      Recoverable<?, String, Integer> mapped = failed.mapError(ex -> "missing");
+
+      AtomicReference<String> recoveredFrom = new AtomicReference<>();
+      Recoverable<?, String, Integer> recovered =
+          mapped.recover(
+              error -> {
+                recoveredFrom.set(error);
+                return error.length();
+              });
+
+      assertThat(recovered).isInstanceOf(VResultPath.class);
+      assertThat(((VResultPath<String, Integer>) recovered).run().run().getRight()).isEqualTo(7);
+      assertThat(recoveredFrom).hasValue("missing");
+    }
+
+    @Test
+    @DisplayName("mapError() treats a cancelled future as recover does")
+    void mapErrorTreatsCancellationAsRecoverDoes() {
+      CompletableFuture<Integer> pending = new CompletableFuture<>();
+      CompletableFuturePath<Integer> path = CompletableFuturePath.fromFuture(pending);
+      pending.cancel(true);
+
+      AtomicReference<Exception> recoveredFrom = new AtomicReference<>();
+      assertThat(
+              path.recover(
+                      ex -> {
+                        recoveredFrom.set(ex);
+                        return 0;
+                      })
+                  .join())
+          .isZero();
+
+      AtomicReference<Exception> mappedFrom = new AtomicReference<>();
+      VResultPath<String, Integer> mapped =
+          path.mapError(
+              ex -> {
+                mappedFrom.set(ex);
+                return "cancelled";
+              });
+
+      assertThat(mapped.run().run().getLeft()).isEqualTo("cancelled");
+      assertThat(mappedFrom.get()).isInstanceOf(CancellationException.class);
+      assertThat(mappedFrom.get()).isSameAs(recoveredFrom.get());
     }
   }
 

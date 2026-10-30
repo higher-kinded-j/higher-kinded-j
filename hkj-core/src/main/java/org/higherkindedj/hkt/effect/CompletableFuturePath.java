@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.vtask.VTask;
 
 /**
  * A fluent path wrapper for {@link CompletableFuture} async computations.
@@ -436,16 +437,33 @@ public final class CompletableFuturePath<A>
     return recoverWith(ignored -> alternative.get());
   }
 
+  /**
+   * Maps a failure to a typed error, returning a {@link VResultPath}.
+   *
+   * <p>This path's error is an {@link Exception}, and a {@code CompletableFuture} cannot hold a
+   * different error type. The call returns without waiting for this future. {@code mapper} runs
+   * when the returned path runs, not when this future completes. A success becomes a {@code Right}
+   * and {@code mapper} is not called. A failure, including cancellation, becomes a {@code Left} of
+   * the mapped exception, unwrapped as {@link #recover(Function)} unwraps it, so a later {@code
+   * recover} through {@link Recoverable} receives that error. An exception {@code mapper} throws
+   * fails that run as itself.
+   *
+   * @param mapper converts the exception to an error; must not be null, and must not return null
+   *     when this path has failed
+   * @param <E2> the new error type
+   * @return a {@code VResultPath} with this path's value, or the mapped error
+   * @throws NullPointerException if {@code mapper} is null. A null result fails the path when it
+   *     runs: a {@code NullPointerException} naming {@code mapper} carries this path's exception as
+   *     its cause
+   */
   @Override
-  @SuppressWarnings("unchecked")
-  public <E2> Recoverable<CompletableFuturePath<?>, E2, A> mapError(
-      Function<? super Exception, ? extends E2> mapper) {
-    // CompletableFuturePath uses Exception as a fixed error type. mapError transforms the error
-    // type,
-    // but for CompletableFuturePath we can't actually change the underlying Exception.
-    // We return this cast to the new error type, which is a limitation of the type system.
+  public <E2> VResultPath<E2, A> mapError(Function<? super Exception, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return (Recoverable<CompletableFuturePath<?>, E2, A>) this;
+    CompletableFuture<Either<Exception, A>> settled =
+        future.handle((a, ex) -> ex == null ? Either.right(a) : Either.left(unwrapException(ex)));
+    return new VResultPath<>(
+        VTask.of(
+            () -> settled.join().mapLeft(ex -> ErrorResults.fromException(mapper, ex, "mapper"))));
   }
 
   // ===== Async-Specific Operations =====
