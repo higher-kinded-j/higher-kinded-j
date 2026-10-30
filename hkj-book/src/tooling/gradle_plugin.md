@@ -97,6 +97,7 @@ With default settings, the plugin adds:
 - `hkj-processor-plugins` to `annotationProcessor`
 - `hkj-checker` to `annotationProcessor`
 - `--enable-preview` to `JavaCompile`, `Test`, `JavaExec`, and `Javadoc` tasks
+- `--release` to a `Javadoc` task that sets no `options.source`, at its javadoc tool's version, since javadoc takes `--enable-preview` only beside one of the two
 - `-parameters` to every `JavaCompile` task (unconditional)
 - `-Xplugin:HKJChecker` to compiler arguments, or nothing to a task that already names the checker, such as one that [sets the checker's options](compile_checks.md#configuration)
 

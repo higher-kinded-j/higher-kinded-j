@@ -189,6 +189,13 @@ public class HKJPlugin implements Plugin<Project> {
               StandardJavadocDocletOptions options =
                   (StandardJavadocDocletOptions) task.getOptions();
               options.addBooleanOption("-enable-preview", true);
+              // javadoc takes --enable-preview only beside -source or --release, for the release
+              // of the JDK that runs it. A -source the build sets stays: javadoc refuses both.
+              if (options.getSource() == null) {
+                int release =
+                    task.getJavadocTool().get().getMetadata().getLanguageVersion().asInt();
+                options.addStringOption("-release", String.valueOf(release));
+              }
             });
   }
 
