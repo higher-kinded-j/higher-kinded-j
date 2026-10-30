@@ -4,6 +4,7 @@ package org.higherkindedj.example.book.foundations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.func.FunctionKindHelper.FUNCTION;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.list;
@@ -13,6 +14,7 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
+import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.math.BigDecimal;
@@ -26,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.example.book.foundations.monoid.MonoidBook;
 import org.higherkindedj.example.book.foundations.natural.NaturalBook;
+import org.higherkindedj.example.book.foundations.profunctor.ProfunctorBook;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
@@ -33,8 +36,10 @@ import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
@@ -48,12 +53,16 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherBifunctor;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherSelective;
+import org.higherkindedj.hkt.func.FunctionKind;
+import org.higherkindedj.hkt.func.FunctionProfunctor;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.BifunctorLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
 import org.higherkindedj.hkt.laws.SelectiveLaws;
@@ -65,6 +74,8 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.hkt.maybe.MaybeSelective;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.hkt.trymonad.TryKind;
+import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple2Bifunctor;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
@@ -456,4 +467,80 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: monad_zero_laws
+
+  // ANCHOR: bifunctor_laws
+  <F extends WitnessArity<TypeArity.Binary>, A, B> void assertBifunctorLaws(
+      Bifunctor<F> bifunctor,
+      Kind2<F, A, B> fab,
+      Function<A, String> describe,
+      Function<B, Customer> customerOf,
+      BiPredicate<Kind2<F, ?, ?>, Kind2<F, ?, ?>> same) {
+    BifunctorLaws.assertIdentity(bifunctor, fab, same);
+    BifunctorLaws.assertComposition(
+        bifunctor, fab, describe, String::toUpperCase, customerOf, Customer::name, same);
+    BifunctorLaws.assertFirstConsistency(bifunctor, fab, describe, same);
+    BifunctorLaws.assertSecondConsistency(bifunctor, fab, customerOf, same);
+  }
+
+  static Stream<Either<OrderError, Order>> results() {
+    return Stream.of(Either.right(ORDER), Either.left(OrderError.notFound(ORDER.id())));
+  }
+
+  @ParameterizedTest
+  @MethodSource("results")
+  @DisplayName("Either's Bifunctor keeps all four laws, on a Right and on a Left")
+  void eitherBifunctorLaws(Either<OrderError, Order> result) {
+    assertBifunctorLaws(
+        EitherBifunctor.INSTANCE,
+        EITHER.widen2(result),
+        error -> error.getClass().getSimpleName(),
+        Order::customer,
+        (a, b) -> EITHER.narrow2(a).equals(EITHER.narrow2(b)));
+  }
+
+  @Test
+  @DisplayName("Tuple2's Bifunctor keeps all four laws, mapping both of its values")
+  void tuple2BifunctorLaws() {
+    assertBifunctorLaws(
+        Tuple2Bifunctor.INSTANCE,
+        TUPLE2.widen2(new Tuple2<>("checked", ORDER)),
+        String::strip,
+        Order::customer,
+        (a, b) -> TUPLE2.narrow2(a).equals(TUPLE2.narrow2(b)));
+  }
+
+  // ANCHOR_END: bifunctor_laws
+
+  // ANCHOR: profunctor_laws
+  // Two functions are equal when they give equal results for every input; the test tries several
+  <A, B> void assertSameResults(List<A> inputs, Function<A, B> expected, Function<A, B> actual) {
+    for (A input : inputs) {
+      assertThat(actual.apply(input)).isEqualTo(expected.apply(input));
+    }
+  }
+
+  @Test
+  @DisplayName("Function's Profunctor keeps both laws, on every input tried")
+  void functionProfunctorLaws() {
+    FunctionProfunctor profunctor = FunctionProfunctor.INSTANCE;
+    Function<LineItem, BigDecimal> lineTotal = MonoidBook::lineTotal;
+    Kind2<FunctionKind.Witness, LineItem, BigDecimal> p = FUNCTION.widen(lineTotal);
+
+    assertSameResults(
+        MonoidBook.LINES,
+        lineTotal,
+        FUNCTION.getFunction(
+            profunctor.dimap(Function.<LineItem>identity(), Function.<BigDecimal>identity(), p)));
+
+    Function<String, LineItem> f1 = ProfunctorBook::parse;
+    Function<String, String> f2 = String::strip;
+    Function<BigDecimal, Integer> g1 = ProfunctorBook::pence;
+    Function<Integer, String> g2 = pence -> pence + "p";
+    assertSameResults(
+        List.of(" BULB,4,2.50", "LAMP,1,40.00 "),
+        FUNCTION.getFunction(profunctor.dimap(f2.andThen(f1), g1.andThen(g2), p)),
+        FUNCTION.getFunction(profunctor.dimap(f2, g2, profunctor.dimap(f1, g1, p))));
+  }
+
+  // ANCHOR_END: profunctor_laws
 }

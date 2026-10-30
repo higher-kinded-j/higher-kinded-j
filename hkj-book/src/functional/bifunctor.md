@@ -1,431 +1,175 @@
+<!-- description: Map an Either's error, its value or both with Bifunctor's bimap, write one method for any two-sided type, and check its laws with hkj-test. -->
+
 # Bifunctor: Mapping Over Both Sides
 
+_Map an error, a value or both, with one method written for any type with two sides._
+
 ~~~admonish info title="What You'll Learn"
-- How to transform types with two covariant parameters independently or simultaneously
-- The difference between sum types (Either, Validated) and product types (Tuple2, Writer)
-- Using `bimap`, `first`, and `second` operations effectively
-- Transforming both error and success channels in validation scenarios
-- Real-world applications in API design, data migration, and error handling
+- Map either side of a type with two type arguments, or both, with `bimap`, `first` and `second`
+- Write one method for any two-sided type, through its `Bifunctor`
+- Predict which of `bimap`'s two functions runs, for each instance
+- Tell a type's `Bifunctor` from its `Functor`, and know which to use
+- Check an instance against the four Bifunctor laws with `hkj-test`'s `BifunctorLaws`
 ~~~
 
-~~~admonish example title="See Example Code:"
-[BifunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/bifunctor/BifunctorExample.java)
-~~~
-
-Whilst `Functor` lets us map over types with a single parameter like `F<A>`, many useful types have *two* parameters. `Either<L, R>`, `Tuple2<A, B>`, `Validated<E, A>`, and `Writer<W, A>` all carry two distinct types. The **`Bifunctor`** type class provides a uniform interface for transforming both parameters.
-
-Unlike `Profunctor`, which is contravariant in the first parameter and covariant in the second (representing input/output relationships), `Bifunctor` is **covariant in both parameters**. This makes it perfect for types where both sides hold data that can be independently transformed.
-
-~~~admonish note
-New to variance terminology? See the [Glossary](../glossary.md) for detailed explanations of covariant, contravariant, and invariant with Java-focused examples.
+~~~admonish example title="See Example Code"
+**The code on this page is [BifunctorBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/bifunctor/BifunctorBook.java)**, with `OrderError` from [OrderError.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderError.java): the page includes both, so the build compiles and runs them. [BifunctorBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/bifunctor/BifunctorBookTest.java) holds what the page says each instance does, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws. [BifunctorExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/bifunctor/BifunctorExample.java) maps an `Either`, a `Tuple2`, a `Validated` and a `Writer` in turn.
 ~~~
 
 ---
 
-## What is a Bifunctor?
+## Two sides, two functions {#two-sides-two-functions}
 
-A **`Bifunctor`** is a type class for any type constructor `F<A, B>` that supports mapping over both its type parameters. It provides three core operations:
+If you have caught a service's exception and thrown your own, while converting what it returns, you have written a `bimap` by hand. With the error held as a value, `bimap` converts both sides without throwing, and one method can serve any type with two sides.
 
-* **`bimap`**: Transform both type parameters simultaneously
-* **`first`**: Transform only the first type parameter
-* **`second`**: Transform only the second type parameter
+An `Either<L, R>` holds an error or a value, and a `Tuple2<A, B>` holds two values. A [Functor](functor.md) maps one type argument and leaves the other alone. `Bifunctor` maps either of the two, or both.
 
-The interface for `Bifunctor` in `hkj-api` works with `Kind2<F, A, B>`:
+For one value, each type has its own `bimap`, such as `Either.bimap` or an [Effect Path](../effect/ch_intro.md)'s `EitherPath.bimap`, and application code stays there. This page is for a method written once for any type with two sides. `Bifunctor<F>` declares `bimap`, and builds `first` and `second` from it:
 
+<!-- verify -->
 ```java
-@NullMarked
 public interface Bifunctor<F extends WitnessArity<TypeArity.Binary>> {
+  <A, B, C, D> Kind2<F, C, D> bimap(
+      Function<? super A, ? extends C> f, Function<? super B, ? extends D> g, Kind2<F, A, B> fab);
 
-    // Transform only the first parameter
-    default <A, B, C> Kind2<F, C, B> first(
-        Function<? super A, ? extends C> f,
-        Kind2<F, A, B> fab) {
-        return bimap(f, Function.identity(), fab);
-    }
+  default <A, B, C> Kind2<F, C, B> first(Function<? super A, ? extends C> f, Kind2<F, A, B> fab) {
+    return bimap(f, Function.identity(), fab);
+  }
 
-    // Transform only the second parameter
-    default <A, B, D> Kind2<F, A, D> second(
-        Function<? super B, ? extends D> g,
-        Kind2<F, A, B> fab) {
-        return bimap(Function.identity(), g, fab);
-    }
-
-    // Transform both parameters simultaneously
-    <A, B, C, D> Kind2<F, C, D> bimap(
-        Function<? super A, ? extends C> f,
-        Function<? super B, ? extends D> g,
-        Kind2<F, A, B> fab);
+  default <A, B, D> Kind2<F, A, D> second(Function<? super B, ? extends D> g, Kind2<F, A, B> fab) {
+    return bimap(Function.identity(), g, fab);
+  }
 }
 ```
 
----
+`bimap` takes a function for each side. `first` maps only the first side and `second` only the second, each passing `Function.identity()` for the side it leaves. `F` has [binary arity](../hkts/type-arity.md#unary-and-binary), so `Kind2<F, A, B>` keeps both type arguments open.
 
-## Sum Types vs Product Types
-
-Understanding the distinction between **sum types** and **product types** is crucial to using bifunctors effectively.
-
-### Sum Types (Exclusive OR)
-
-A **sum type** represents a choice between alternatives: you have *either* one value *or* another, but never both. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Either<A, B>` has `n + m` possible values (hence "sum").
-
-Examples in higher-kinded-j:
-* **`Either<L, R>`**: Holds *either* a `Left` value (conventionally an error) *or* a `Right` value (conventionally a success)
-* **`Validated<E, A>`**: Holds *either* an `Invalid` error *or* a `Valid` result
-
-When you use `bimap` on a sum type, only *one* of the two functions will actually execute, depending on which variant is present.
-
-### Product Types (Both AND)
-
-A **product type** contains multiple values simultaneously: you have *both* the first value *and* the second value. In type theory, if type `A` has `n` possible values and type `B` has `m` possible values, then `Tuple2<A, B>` has `n × m` possible values (hence "product").
-
-Examples in higher-kinded-j:
-* **`Tuple2<A, B>`**: Holds *both* a first value *and* a second value
-* **`Writer<W, A>`**: Holds *both* a log/output value *and* a computation result
-
-When you use `bimap` on a product type, *both* functions execute because both values are always present.
-
----
-
-## The Bifunctor Laws
-
-For a `Bifunctor` to be lawful, it must satisfy two fundamental properties:
-
-1. **Identity Law**: Mapping with identity functions changes nothing
-   ```java
-   bifunctor.bimap(x -> x, y -> y, fab); // Must be equivalent to fab
-   ```
-
-2. **Composition Law**: Mapping with composed functions is equivalent to mapping in sequence
-   ```java
-   Function<A, B> f1 = ...;
-   Function<B, C> f2 = ...;
-   Function<D, E> g1 = ...;
-   Function<E, F> g2 = ...;
-
-   // These must be equivalent:
-   bifunctor.bimap(f2.compose(f1), g2.compose(g1), fab);
-   bifunctor.bimap(f2, g2, bifunctor.bimap(f1, g1, fab));
-   ```
-
-These laws ensure that bifunctor operations are predictable, composable, and preserve the structure of your data.
-
----
-
-## Why is it useful?
-
-Bifunctors provide a uniform interface for transforming dual-parameter types, which arise frequently in functional programming. Rather than learning different APIs for transforming `Either`, `Tuple2`, `Validated`, and `Writer`, you use the same operations everywhere.
-
-### Key Use Cases
-
-* **Error Handling**: Transform both error and success channels simultaneously
-* **API Design**: Normalise internal representations to external formats
-* **Data Migration**: Convert both fields of legacy data structures
-* **Validation**: Format both error messages and valid results
-* **Logging**: Transform both the log output and the computation result
-
----
-
-## Example 1: Either – A Sum Type
-
-`Either<L, R>` is the quintessential sum type. It holds *either* a `Left` (conventionally an error) *or* a `Right` (conventionally a success).
+The code on this page uses these imports, with `Order` and `OrderStatus` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.Bifunctor;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherBifunctor;
-import org.higherkindedj.hkt.Kind2;
-
-Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
-
-// Success case: transform the Right channel
-Either<String, Integer> success = Either.right(42);
-Kind2<EitherKind2.Witness, String, String> formatted =
-    bifunctor.second(
-        n -> "Success: " + n,
-        EITHER.widen2(success));
-
-System.out.println(EITHER.narrow2(formatted));
-// Output: Right(Success: 42)
-
-// AppError case: transform the Left channel
-Either<String, Integer> error = Either.left("FILE_NOT_FOUND");
-Kind2<EitherKind2.Witness, String, Integer> enhanced =
-    bifunctor.first(
-        err -> "AppError Code: " + err,
-        EITHER.widen2(error));
-
-System.out.println(EITHER.narrow2(enhanced));
-// Output: Left(AppError Code: FILE_NOT_FOUND)
-
-// Transform both channels with bimap
-Either<String, Integer> either = Either.right(100);
-Kind2<EitherKind2.Witness, Integer, String> both =
-    bifunctor.bimap(
-        String::length,        // Left: string -> int (not executed here)
-        n -> "Value: " + n,    // Right: int -> string (executed)
-        EITHER.widen2(either));
-
-System.out.println(EITHER.narrow2(both));
-// Output: Right(Value: 100)
-```
-
-**Note:** With `Either`, only one function in `bimap` executes because `Either` is a *sum type*: you have either Left *or* Right, never both.
-
----
-
-## Example 2: Tuple2 – A Product Type
-
-`Tuple2<A, B>` is a product type that holds *both* a first value *and* a second value simultaneously.
-
-<!-- verify -->
-```java
-import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
-import org.higherkindedj.hkt.Bifunctor;
-import org.higherkindedj.hkt.tuple.Tuple2;
-import org.higherkindedj.hkt.tuple.Tuple2Bifunctor;
-
-Bifunctor<Tuple2Kind2.Witness> bifunctor = Tuple2Bifunctor.INSTANCE;
-
-// A tuple representing (name, age)
-Tuple2<String, Integer> person = new Tuple2<>("Alice", 30);
-
-// Transform only the first element
-Kind2<Tuple2Kind2.Witness, Integer, Integer> nameLength =
-    bifunctor.first(String::length, TUPLE2.widen2(person));
-
-System.out.println(TUPLE2.narrow2(nameLength));
-// Output: Tuple2(5, 30)
-
-// Transform only the second element
-Kind2<Tuple2Kind2.Witness, String, String> ageFormatted =
-    bifunctor.second(age -> age + " years", TUPLE2.widen2(person));
-
-System.out.println(TUPLE2.narrow2(ageFormatted));
-// Output: Tuple2(Alice, 30 years)
-
-// Transform both simultaneously with bimap
-Kind2<Tuple2Kind2.Witness, String, String> formatted =
-    bifunctor.bimap(
-        name -> "Name: " + name,  // First: executed
-        age -> "Age: " + age,      // Second: executed
-        TUPLE2.widen2(person));
-
-System.out.println(TUPLE2.narrow2(formatted));
-// Output: Tuple2(Name: Alice, Age: 30)
-```
-
-**Note:** With `Tuple2`, both functions in `bimap` execute because `Tuple2` is a *product type*: both values are always present.
-
----
-
-## Example 3: Validated – Error Accumulation
-
-`Validated<E, A>` is a sum type designed for validation scenarios where you need to accumulate errors.
-
-<!-- verify -->
-```java
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-import org.higherkindedj.hkt.Bifunctor;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedBifunctor;
-import java.util.List;
-
-Bifunctor<ValidatedKind2.Witness> bifunctor = ValidatedBifunctor.INSTANCE;
-
-// Valid case
-Validated<List<String>, Integer> valid = Validated.valid(100);
-Kind2<ValidatedKind2.Witness, List<String>, String> transformedValid =
-    bifunctor.second(n -> "Score: " + n, VALIDATED.widen2(valid));
-
-System.out.println(VALIDATED.narrow2(transformedValid));
-// Output: Valid(Score: 100)
-
-// Invalid case with multiple errors
-Validated<List<String>, Integer> invalid =
-    Validated.invalid(List.of("TOO_SMALL", "OUT_OF_RANGE"));
-
-// Transform errors to be more user-friendly
-Kind2<ValidatedKind2.Witness, String, Integer> userFriendly =
-    bifunctor.first(
-        errors -> "Validation failed: " + String.join(", ", errors),
-        VALIDATED.widen2(invalid));
-
-System.out.println(VALIDATED.narrow2(userFriendly));
-// Output: Invalid(Validation failed: TOO_SMALL, OUT_OF_RANGE)
 ```
 
----
+## One method for any two-sided type {#one-method-for-any-two-sided-type}
 
-## Example 4: Writer – Logging with Computation
+The order service refuses a request with an `OrderError`:
 
-`Writer<W, A>` is a product type that holds *both* a log value *and* a computation result.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderError.java:order_error}}
+```
+
+A caller sees a message rather than the `OrderError`, and the order's status rather than the whole `Order`. `forCaller` makes that change on both sides, for any type with a `Bifunctor`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/bifunctor/BifunctorBook.java:generic}}
+```
+
+The same method runs on an `Either` and on a `Validated`, where `ORDER` is any `Order` with status `NEW`. `widen2` and `narrow2` are `widen` and `narrow` for a `Kind2`, as [Bifunctor and Functor](#bifunctor-and-functor) explains:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/bifunctor/BifunctorBook.java:run}}
+```
+
+`forCaller` never asks which side it was given. Each instance applies the function for the side its value holds.
+
+## What `bimap` runs {#what-bimap-runs}
+
+Whether one function runs or both depends on the instance:
+
+| Type | `bimap` runs | Instance |
+|---|---|---|
+| `Either`: a `Left` or a `Right` | The first function on a `Left`, the second on a `Right` | `EitherBifunctor.INSTANCE` |
+| `Validated`: an `Invalid` or a `Valid` | The first on an `Invalid`, the second on a `Valid` | `ValidatedBifunctor.INSTANCE` |
+| `EitherOrBoth`: a `Left`, a `Right` or a `Both` | One on a `Left` or a `Right`, and both on a `Both` | `EitherOrBothBifunctor.INSTANCE` |
+| `Tuple2`: two values | Both | `Tuple2Bifunctor.INSTANCE` |
+| `Writer`: a log and a value | Both: the first on the log, the second on the value | `WriterBifunctor.INSTANCE` |
+| `Const`: a value, and a type it holds no value of | Only the first: the second changes a type, and never runs | `ConstBifunctor.INSTANCE` |
+
+These are all the instances Higher-Kinded-J ships. `Instances` has no entry for a type class with a binary witness, so take each from its `INSTANCE` field. [Const](../monads/const_type.md) explains why its second type is a [phantom type](../glossary/type-system.md#phantom-type).
+
+## Bifunctor and Functor {#bifunctor-and-functor}
+
+`Either` has two witnesses. `EitherKind.Witness<L>` fixes the error type, and is the one `Functor`, `Monad` and `MonadError` take. `EitherKind2.Witness` leaves both types open, and is the one `Bifunctor` takes. From the same `Either`, `EITHER.widen` gives the `Kind` a `Functor` takes, and `EITHER.widen2` the `Kind2` a `Bifunctor` takes.
+
+`Instances.functor(either())` maps only the `Right`, as `second` does. Use the `Functor` when only the value changes, and the `Bifunctor` when the error changes too.
+
+## Four laws {#four-laws}
+
+A `Bifunctor` keeps four laws. The first two are [Functor's](functor.md#two-laws) laws for both sides at once. The last two tie `first` and `second` to `bimap`, and matter because most instances write their own, as `Either`'s `first` calls `mapLeft`.
+
+~~~admonish note title="Laws"
+- **Identity: mapping both sides with `a -> a` changes nothing.** `bimap(a -> a, b -> b, fab)` equals `fab`.
+- **Composition: two bimaps equal one bimap of both pairs.** `bimap(f2, g2, bimap(f1, g1, fab))` equals `bimap(f1.andThen(f2), g1.andThen(g2), fab)`.
+- **First: `first` is a `bimap` that leaves the second side alone.** `first(f, fab)` equals `bimap(f, b -> b, fab)`.
+- **Second: `second` is a `bimap` that leaves the first side alone.** `second(g, fab)` equals `bimap(a -> a, g, fab)`.
+
+Two values are equal when they hold equal values on the same sides. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+
+`BifunctorLaws`, in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks all four on any instance, your own included. You pass it the equality to use. `KindEquivalence` builds equalities for a `Kind`, not a `Kind2`, so the test writes this one as a lambda that narrows both sides. It uses these imports, with JUnit's:
 
 <!-- verify -->
 ```java
-import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.tuple.Tuple2KindHelper.TUPLE2;
+
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import java.util.stream.Stream;
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.Bifunctor;
-import org.higherkindedj.hkt.writer.Writer;
-import org.higherkindedj.hkt.writer.WriterBifunctor;
-
-Bifunctor<WriterKind2.Witness> bifunctor = WriterBifunctor.INSTANCE;
-
-// A Writer with a log and a result
-Writer<String, Integer> computation = Writer.of("Calculated: ", 42);
-
-// Transform the log channel
-Kind2<WriterKind2.Witness, String, Integer> uppercaseLog =
-    bifunctor.first(String::toUpperCase, WRITER.widen2(computation));
-
-System.out.println(WRITER.narrow2(uppercaseLog));
-// Output: Writer(CALCULATED: , 42)
-
-// Transform both log and result
-Kind2<WriterKind2.Witness, List<String>, String> structured =
-    bifunctor.bimap(
-        log -> List.of("[LOG]", log),   // Wrap log in structured format
-        value -> "Result: " + value,     // Format the result
-        WRITER.widen2(computation));
-
-System.out.println(WRITER.narrow2(structured));
-// Output: Writer([LOG], Calculated: , Result: 42)
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherBifunctor;
+import org.higherkindedj.hkt.laws.BifunctorLaws;
+import org.higherkindedj.hkt.tuple.Tuple2;
+import org.higherkindedj.hkt.tuple.Tuple2Bifunctor;
 ```
 
----
+The test checks the laws on an `Either`, both a `Right` and a `Left`, and on a `Tuple2`, where `ORDER` is any `Order`:
 
-## Example 5: Const – A Phantom Type Bifunctor
-
-`Const<C, A>` is a unique bifunctor where the second type parameter is **phantom** (not stored at runtime), making it perfect for fold operations, getters in lens libraries, and data extraction patterns.
-
-<!-- verify -->
 ```java
-import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
-import org.higherkindedj.hkt.Bifunctor;
-import org.higherkindedj.hkt.constant.Const;
-import org.higherkindedj.hkt.constant.ConstBifunctor;
-
-Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
-
-// A Const holding a count, with String as the phantom type
-Const<Integer, String> count = new Const<>(42);
-System.out.println("Original: " + count.value());
-// Output: 42
-
-// Transform the constant value with first()
-Kind2<ConstKind2.Witness, String, String> transformed =
-    bifunctor.first(
-        n -> "Count: " + n,  // Transforms the constant: 42 -> "Count: 42"
-        CONST.widen2(count));
-
-System.out.println(CONST.narrow2(transformed).value());
-// Output: "Count: 42"
-
-// Transform ONLY the phantom type with second()
-Kind2<ConstKind2.Witness, Integer, Double> phantomChanged =
-    bifunctor.second(
-        s -> s.length() * 2.0,  // This defines the phantom type transformation
-        CONST.widen2(count));
-
-System.out.println(CONST.narrow2(phantomChanged).value());
-// Output: 42 (UNCHANGED!)
-
-// Use bimap() - but only first() affects the constant
-Kind2<ConstKind2.Witness, String, Boolean> both =
-    bifunctor.bimap(
-        n -> "#" + n,          // Transforms constant: 42 -> "#42"
-        s -> s.isEmpty(),      // Phantom type transformation only
-        CONST.widen2(count));
-
-System.out.println(CONST.narrow2(both).value());
-// Output: "#42"
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:bifunctor_laws}}
 ```
+~~~
 
-**Note:** With `Const`, the `second` function in `bimap` never affects the constant value because the second type parameter is phantom. This property makes `Const` ideal for folds that accumulate a single value whilst traversing a structure, and for implementing getters in van Laarhoven lens patterns.
+## Things people get wrong {#things-people-get-wrong}
 
-For more on `Const` and its applications in folds and lens patterns, see the [Const Type documentation](../monads/const_type.md).
-
----
-
-## Real-World Scenario: API Response Transformation
-
-One of the most common uses of bifunctors is transforming internal data representations to external API formats.
-
-<!-- verify -->
-```java
-// Internal representation uses simple error codes and domain objects
-Either<String, UserData> internalResult = Either.left("USER_NOT_FOUND");
-
-// External API requires structured error objects and formatted responses
-Function<String, ApiError> toApiError =
-    code -> new ApiError(code, "AppError occurred", 404);
-
-Function<UserData, ApiResponse> toApiResponse =
-    user -> new ApiResponse(user.name(), user.email(), 200);
-
-Bifunctor<EitherKind2.Witness> bifunctor = EitherBifunctor.INSTANCE;
-
-Kind2<EitherKind2.Witness, ApiError, ApiResponse> apiResult =
-    bifunctor.bimap(
-        toApiError,     // Transform internal error to API error format
-        toApiResponse,  // Transform internal data to API response format
-        EITHER.widen2(internalResult));
-
-// Result: Left(ApiError(USER_NOT_FOUND, AppError occurred, 404))
-```
-
-This approach keeps your domain logic clean whilst providing flexible adaptation to external requirements.
+~~~admonish warning title="Common Misunderstandings"
+- **"`bimap` runs both functions."** Only where both sides hold a value: a `Tuple2`, a `Writer` and an `EitherOrBoth`'s `Both`. An `Either` or a `Validated` runs one.
+- **"`bimap` can turn a `Left` into a `Right`."** It maps each side in place, so a `Left` stays a `Left`. To recover from an error, use `EitherPath.recover` or [MonadError](monad_error.md#recovering).
+- **"`Const`'s `second` changes its value."** It changes only a type. A `Const` holds no value of its second type, so the function never runs.
+- **"A type's `Functor` is its `Bifunctor`."** They are separate instances, over separate witnesses. `Either`'s `Functor` maps only the `Right`, as its `Bifunctor`'s `second` does.
+~~~
 
 ---
 
-## Bifunctor vs Profunctor
-
-Whilst both type classes work with dual-parameter types, they serve different purposes:
-
-| Feature | Bifunctor | Profunctor |
-|---------|-----------|------------|
-| First parameter | Covariant (output) | Contravariant (input) |
-| Second parameter | Covariant (output) | Covariant (output) |
-| Typical use | Data structures with two outputs | Functions and transformations |
-| Examples | `Either<L, R>`, `Tuple2<A, B>` | `Function<A, B>`, optics |
-| Use case | Transform both "sides" of data | Adapt input and output of pipelines |
-
-**Use Bifunctor when:** Both parameters represent data you want to transform (errors and results, first and second elements).
-
-**Use Profunctor when:** The first parameter represents input (contravariant) and the second represents output (covariant), like in functions.
-
----
-
-## When to Use Bifunctor
-
-Bifunctors are ideal when you need to:
-
-* **Normalise API responses** by transforming both error and success formats
-* **Migrate data schemas** by transforming both fields of legacy structures
-* **Format validation results** by enhancing both error messages and valid values
-* **Process paired data** like tuples, logs with results, or any product type
-* **Handle sum types uniformly** by providing transformations for all variants
-
-The power of bifunctors lies in their ability to abstract over the dual-parameter structure whilst preserving the semantics (sum vs product) of the underlying type.
-
----
-
-## Summary
-
-* **Bifunctor** provides `bimap`, `first`, and `second` for transforming dual-parameter types
-* **Sum types** (Either, Validated) execute only one function based on which variant is present
-* **Product types** (Tuple2, Writer) execute both functions since both values are present
-* **Use cases** include API design, validation, data migration, and error handling
-* **Differs from Profunctor** by being covariant in both parameters rather than contravariant/covariant
-
-Understanding bifunctors empowers you to write generic, reusable transformation logic that works uniformly across diverse dual-parameter types.
-
----
+~~~admonish tip title="See Also"
+- [Profunctor](profunctor.md): two type arguments, where the first is what a function takes
+- [Functor](functor.md): mapping a container with one type argument
+- [Either](../monads/either_monad.md), [Validated](../monads/validated_monad.md) and [EitherOrBoth](../monads/either_or_both_monad.md): two-sided types whose first side is an error or a warning
+- [Type Arity](../hkts/type-arity.md): binary witnesses, and how they differ from unary ones
+~~~
 
 ~~~admonish tip title="Further Reading"
-- **Mark Seemann**: [Bifunctors](https://blog.ploeh.dk/2018/12/24/bifunctors/) - Excellent article explaining bifunctors with Either and Tuple examples
-- **Mojang/DataFixerUpper**: [DFU on GitHub](https://github.com/Mojang/DataFixerUpper) - Minecraft's Java library that uses bifunctors and profunctors for data migration
-- **Baeldung**: [Introduction to Vavr's Either](https://www.baeldung.com/vavr-either) - Practical look at dual-channel types in Java
+- **Mark Seemann**, [Bifunctors](https://blog.ploeh.dk/2018/12/24/bifunctors/): bifunctors explained with `Either` and tuples
 ~~~
 
 ---
