@@ -96,6 +96,11 @@ encoding, a type class, a call), and the `domain` class (`fill:#a6d189,stroke:#4
 marks a type a reader holds (a core type, an Effect Path). Errors and decisions take the Style Guide's
 `error` and `decision` classes.
 
+The type class hierarchy is drawn once, on the
+[Type Classes introduction](../hkj-book/src/functional/ch_intro.md), where
+`BookTypeClassHierarchyTest` generates it from `hkj-api`. A page that needs the hierarchy links to
+that page's `#the-hierarchy` heading rather than drawing its own.
+
 ## Checks
 
 Run these before opening the pull request:
