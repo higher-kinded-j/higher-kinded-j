@@ -60,8 +60,8 @@ Each arrow means *extends*, and each box lists the abstract methods its type cla
 7. [Applicative, Selective or Monad?](abstraction_levels.md): Deciding by whether a step needs an earlier result
 8. [Bifunctor](bifunctor.md): Mapping either or both type arguments of a type such as `Either` or `Tuple2`
 9. [Profunctor](profunctor.md): Adapting what a function takes and what it returns
-10. [Optics Integration](for_optics.md): Lenses, prisms, isos and traversals as steps in a `For` comprehension
-11. [MTL & ForState Bridge](for_mtl.md): `MonadReader`, `MonadState` and `MonadWriter` steps in a `For` comprehension, and the bridge to `ForState`
+10. [For with Optics](for_optics.md): Lenses, prisms and isos as steps in a `For` comprehension, and edits over a traversal
+11. [For with MTL Capabilities](for_mtl.md): `MonadReader`, `MonadState` and `MonadWriter` operations as steps in a `For` comprehension
 12. [ForState Comprehension](forstate_comprehension.md): A comprehension that keeps its values in a named record rather than a tuple
 
 ---

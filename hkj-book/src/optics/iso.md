@@ -150,7 +150,7 @@ ForState.withState(idMonad, Id.of(department))
 The `modifyVia` flow is: `lens.get` &#8594; `iso.get` &#8594; `modifier` &#8594; `iso.reverseGet` &#8594; `lens.set`. The `updateVia` flow is simpler: `iso.reverseGet(value)` &#8594; `lens.set`. Both honour the Iso's round-trip property.
 
 ~~~admonish tip title="See Also"
-For the full range of optics operations within comprehensions (including traversals, pattern matching, and bulk transforms), see [Optics Integration](../functional/for_optics.md).
+For the full range of optics operations within comprehensions (including traversals, pattern matching, and bulk transforms), see [For with Optics](../functional/for_optics.md), and [ForState's steps](../functional/forstate_comprehension.md#every-step) for `modifyVia` and `updateVia`.
 ~~~
 
 ---

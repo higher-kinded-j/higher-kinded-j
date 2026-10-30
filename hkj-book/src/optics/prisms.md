@@ -370,7 +370,7 @@ Once you're comfortable with these prism fundamentals, explore [Advanced Prism P
 ~~~
 
 ~~~admonish tip title="For Comprehension Integration"
-Prisms integrate with For comprehensions via the `match()` operation, which provides prism-based pattern matching with short-circuit semantics. When the prism match fails, the computation short-circuits using the monad's zero value (empty list, Nothing, etc.). See [For Comprehensions: Pattern Matching with match()](../functional/for_optics.md#filtering-with-pattern-matching-via-match).
+Prisms integrate with For comprehensions via the `match()` operation, which provides prism-based pattern matching with short-circuit semantics. When the prism match fails, the computation short-circuits using the monad's zero value (empty list, Nothing, etc.). See [Optic steps in a `For` chain](../functional/for_optics.md#optic-steps-in-a-for-chain).
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

@@ -183,7 +183,7 @@ What each manual pattern becomes with indexed optics:
 
 ~~~admonish tip title="See Also"
 - [Indexed Optics](indexed_optics.md): the basics this page builds on
-- [Position-Aware Traversals with ForIndexed](../functional/for_optics.md#position-aware-traversals-with-forindexed): comprehension-style position-aware filtering, modifying, and collecting
+- [Editing by position with ForIndexed](../functional/for_optics.md#position-aware-traversals-with-forindexed): comprehension-style position-aware filtering, modifying, and collecting
 - [Indexed Access](indexed_access.md): At and Ixed for single-key operations
 ~~~
 

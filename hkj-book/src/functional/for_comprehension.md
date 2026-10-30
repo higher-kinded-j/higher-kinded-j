@@ -144,7 +144,7 @@ A step can run an effect on every element of a collection the chain holds, and b
 |---|---|
 | Application code over one Effect Path | [`ForPath`](../effect/forpath_comprehension.md), which takes and gives back Paths |
 | A method for any container, over `Kind` | `For`, on this page |
-| A chain whose values are easier to name than to number | [`ForState`](forstate_comprehension.md), with named fields in a record, or `toState` from `For` ([MTL and ForState](for_mtl.md#bridging-to-forstate-with-tostate)) |
+| A chain whose values are easier to name than to number | [`ForState`](forstate_comprehension.md), with named fields in a record, or `toState` from `For`, as [ForState's two ways in](forstate_comprehension.md#two-ways-in) shows |
 | Steps that read a field, convert a value or match a case | `focus`, `through` and `match`, as [For with Optics](for_optics.md) shows: `through` works on the first step only, and `match` needs a `MonadZero` |
 
 A monad transformer, such as `StateT`, is a `Monad` over `Kind`, so `For` chains it as it does any other: the [StateT](../transformers/statet_transformer.md) page shows one.
@@ -216,9 +216,9 @@ The compiler turns every `<-` but the last into `flatMap` and the last into `map
 - [Monad](monad.md): the `flatMap` that `from` is built on
 - [Applicative](applicative.md): the `map2` that `par` is built on
 - [ForPath Comprehension](../effect/forpath_comprehension.md): the same steps over Effect Paths, with [ForPath Traverse](../effect/forpath_traverse.md) for collections
-- [ForState](forstate_comprehension.md): a chain whose values are named fields
+- [ForState](forstate_comprehension.md): a chain whose values are named fields, entered with `toState`
 - [For with Optics](for_optics.md): `focus`, `match`, `ForTraversal` and `ForIndexed`
-- [MTL and ForState](for_mtl.md): reader, state and writer capabilities, and `toState`
+- [For with MTL Capabilities](for_mtl.md): reader, state and writer capabilities as steps
 - [Order Workflow](../hkts/order-walkthrough.md): a longer chain, end to end
 ~~~
 

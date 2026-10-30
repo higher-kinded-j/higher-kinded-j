@@ -1,431 +1,183 @@
-# Optics Integration
+<!-- description: Read a field, convert a value or match a case as a step in a For comprehension, and edit every element an optic reaches with ForTraversal and ForIndexed. -->
 
-> "To see a World in a Grain of Sand,
-> And a Heaven in a Wild Flower,
-> Hold Infinity in the palm of your hand,
-> And Eternity in an hour."
+# For with Optics
+
+_Use lenses, Isos and prisms as `For` steps, and edit every element a traversal reaches._
+
+<!-- source: William Blake, "Auguries of Innocence" (c. 1803), in Poems of William Blake, edited by Alice Meynell (1911); text checked against Project Gutenberg eBook #79363 -->
+> _"To see the world in a grain of sand, / And a heaven in a wild flower; / Hold infinity in the palm of your hand, / And eternity in an hour."_
 >
-> — William Blake, _Auguries of Innocence_
+> — William Blake, *Auguries of Innocence*
+
+Blake finds the whole world in one grain. An optic step goes the other way: from a whole record, it brings one part into the chain, as `focus` brings out a consignment's state.
 
 ~~~admonish info title="What You'll Learn"
-- How `focus()` and `match()` let you extract and filter data within comprehensions
-- Using `through(Iso)` for type-safe value conversion
-- ForState's traversal-aware bulk operations: `traverseOver` and `modifyThrough`
-- Iso-integrated state updates with `modifyVia` and `updateVia`
-- Bulk operations with `ForTraversal` and position-aware traversals with `ForIndexed`
+- Add a field to a `For` chain with `focus`, a converted value with `through`, and a matched case with `match`
+- Say what each optic step is short for, and which of them take an optic
+- Edit every element an optic reaches with `ForTraversal`, and by position with `ForIndexed`
+- Say what `ForTraversal`'s `filter` tests, and why its `Applicative` adds no effect
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [EnhancedOpticsIntegrationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/EnhancedOpticsIntegrationExample.java)
-- [ForStateExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/expression/ForStateExample.java) - ForState basics
-~~~
-
-Comprehensions give you sequential, composable workflows. Optics give you precise, composable data access. When the two meet, something powerful happens: you can reach into nested structures, filter on variant types, convert between representations, and transform entire collections, all within a single fluent pipeline.
-
-This chapter builds a payroll processing scenario step by step. Each section introduces an optics operation that solves a specific part of the problem, so by the end you will have seen how all the pieces fit together.
-
----
-
-## Seeing Into Your Data
-
-The first challenge in any data pipeline is getting at the values you need. In a traditional approach you would destructure records, call getters, and scatter intermediate variables across your method. Within a comprehension, `focus()` and `match()` let you do this declaratively: each extracted value is accumulated alongside the original, available to every subsequent step.
-
-### Extracting Nested Values with `focus()`
-
-Suppose you have a list of employees, each with a nested department. You want to produce a summary that includes both the employee's name and their department:
-
-<!-- verify -->
-```java
-record Department(String name, int budgetInCents, List<Employee> staff) {}
-record Employee(String name, int salaryInCents, Department department) {}
-
-var engineering = new Department("Engineering", 500000, List.of());
-var employees = List.of(
-    new Employee("Alice", 80000, engineering),
-    new Employee("Bob", 90000, engineering)
-);
-
-Kind<ListKind.Witness, String> result =
-    For.from(listMonad, LIST.widen(employees))
-        .focus(departmentNameOfEmployee)
-        .yield((emp, deptName) -> emp.name() + " works in " + deptName);
-
-// Result: ["Alice works in Engineering", "Bob works in Engineering"]
-```
-
-The `focus()` call does not introduce a new monadic binding; it simply extracts a value from what is already in scope and adds it to the tuple. Both the original employee and the extracted department name are available in `yield()`.
-
-### Filtering with Pattern Matching via `match()`
-
-Not all data fits neatly into a single type. When you need to work with sum types (sealed interfaces, variants, or optional shapes), `match()` provides prism-like pattern matching directly within the comprehension. Elements that do not match are filtered out (with `List`) or short-circuit the computation (with `Maybe`):
-
-<!-- verify -->
-```java
-sealed interface PayrollResult permits Paid, Skipped {}
-record Paid(String employeeName, int amount) implements PayrollResult {}
-record Skipped(String reason) implements PayrollResult {}
-
-Prism<PayrollResult, Paid> paidPrism = Prism.of(
-    r -> r instanceof Paid p ? Optional.of(p) : Optional.empty(),
-    p -> p
-);
-
-List<PayrollResult> results = List.of(
-    new Paid("Alice", 80000),
-    new Skipped("Bob on leave"),
-    new Paid("Charlie", 75000)
-);
-
-Kind<ListKind.Witness, String> receipts =
-    For.from(listMonad, LIST.widen(results))
-        .match(paidPrism)
-        .yield((result, paid) -> paid.employeeName() + ": " + paid.amount());
-
-// Result: ["Alice: 80000", "Charlie: 75000"] -- skipped entries are filtered out
-```
-
-With `Maybe`, a failed match short-circuits to `Nothing`:
-
-<!-- verify -->
-```java
-Kind<MaybeKind.Witness, String> result =
-    For.from(maybeMonad, MAYBE.just((PayrollResult) new Skipped("on leave")))
-        .match(paidPrism)
-        .yield((r, paid) -> paid.employeeName());
-
-// Result: Nothing -- the match failed
-```
-
-~~~admonish tip title="Chaining focus() and match()"
-Both operations compose naturally. Extract a nested value, match on its shape, then guard on the result:
-
-<!-- verify -->
-```java
-For.from(listMonad, LIST.widen(items))
-    .focus(itemCategoryLens)
-    .match(t -> premiumCategoryPrism.getOptional(t._2()))
-    .when(t -> t._3().discount() > 0.1)
-    .yield((item, category, premium) -> item.name());
-```
+**The code on this page is [ForOpticsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java)**: the page includes it, so the build compiles and runs it. [ForOpticsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBookTest.java) holds what the page says each step does.
 ~~~
 
 ---
 
-## Working in the Right Units
+## Optic steps in a `For` chain {#optic-steps-in-a-for-chain}
 
-> "Nothing is true, everything is permitted."
->
-> — William Burroughs, _Cities of the Red Night_
+In plain Java you read a field with its accessor, convert a value with a method, and test for one case of a sealed type with `instanceof`. An optic does each of these as a value you can pass around. A `Lens` reads one field, an `Iso` converts a value to another type and back, and a `Prism` picks one case. `@GenerateLenses`, `@GeneratePrisms` and `@GenerateTraversals` write them for your records, as the [Optics](../optics/ch_intro.md) chapter explains.
 
-A salary stored as `int` cents and a budget reasoned about in dollars are the same information in different clothes. Converting back and forth is tedious and error-prone; you end up with `/ 100.0` and `* 100` calls scattered throughout your code. An [Iso](../optics/iso.md) formalises this equivalence, and comprehensions provide three ways to use it.
+On an [Effect Path](../effect/ch_intro.md), [`ForPath`](../effect/forpath_comprehension.md)'s `focus` takes a `FocusPath`, such as `ConsignmentFocus.state()`. A `ForPath` over a `MaybePath` or an `OptionalPath` has `match`, and so does one over a `NonDetPath` after its first step. This page is for `For`, over `Kind`.
 
-### Converting Within a For Comprehension: `through(Iso)`
+| Step | In plain Java | Short for | Takes |
+|---|---|---|---|
+| `focus(lens)` | `consignment.state()` | `let(lens::get)` | A `Lens` straight after `For.from`, and a function of the tuple after that |
+| `through(iso)` | `email.value()` | `let(iso::get)` | An `Iso`, straight after `For.from` only |
+| `match(prism)` | `state instanceof ConsignmentState.Dispatched sent` | A `from` that gives the instance's `zero()` when the prism misses | A `Prism` straight after `For.from`, and a function of the tuple giving an `Optional` after that |
 
-The `through()` method converts the currently bound value via an Iso and keeps both representations in scope. This is available on `MonadicSteps1` and `FilterableSteps1`:
+Each step adds the value it reads as the chain's next value. The three steps only read. `through` never calls the Iso's way back, so it adds a second value beside the first, as `let` would. `match` needs an empty value to give on a miss, so, like `when`, it is there only on a chain started from a [`MonadZero`](monad_zero.md), as [Filtering with `when`](for_comprehension.md#filtering-with-when) explains.
 
-<!-- verify -->
-```java
-Iso<Integer, Double> centsToDollars =
-    Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
-
-Kind<IdKind.Witness, String> result =
-    For.from(idMonad, Id.of(50000))
-        .through(centsToDollars)
-        .yield((cents, dollars) ->
-            "Budget: " + cents + " cents = $" + dollars);
-
-// Result: "Budget: 50000 cents = $500.0"
-```
-
-Both the original value and the Iso-converted value are available in subsequent steps and in the final `yield()`. This eliminates manual conversion calls scattered through your comprehension.
-
-When used with a `MonadZero`, `through()` returns a `FilterableSteps2`, preserving the ability to apply `when()` guards on the converted values:
+The code on this page uses these imports, with `EmailAddress`, `Order` and `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-Kind<ListKind.Witness, String> result =
-    For.from(listMonad, LIST.widen(temperatures))
-        .through(celsiusToFahrenheitIso)
-        .when(t -> t._2().value() > 50.0)  // filter on Fahrenheit value
-        .yield((celsius, fahrenheit) -> celsius.value() + "C");
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.id;
+import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderTraversals;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.expression.ForIndexed;
+import org.higherkindedj.hkt.expression.ForTraversal;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.optics.Iso;
+import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.util.IndexedTraversals;
+import org.higherkindedj.optics.util.Traversals;
 ```
 
-~~~admonish tip title="When to Use through(Iso)"
-Use `through()` when you need both the original and converted values in scope. If you only need the converted value, a simple `let(t -> iso.get(t))` suffices. At higher arities (Steps2 and above), `let` is recommended since `through()` is only available on Steps1.
+A consignment is the parcel an order ships in, with the address it goes to and the state it has reached. Its state is one case of a sealed interface:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Consignment.java:consignment}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/ConsignmentState.java:consignment_state}}
+```
+
+`CONSIGNMENTS` holds three: one dispatched to Leeds, one waiting to go to York, and one returned from Hull. The chain reads each one's state and keeps the dispatched one, and `List`'s instance drops the others:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:steps}}
+```
+
+`focus` comes straight after `For.from`, so it takes the lens. By `match`, the chain holds two values, so `match` takes a function of the tuple that says which value the prism reads: `t._2()` is the state `focus` added.
+
+An `EmailAddress` holds one `String`, so an Iso converts between the two without loss, and `through` adds the text beside the address. `ORDER` is an order of one lamp at 40.00 and four bulbs at 2.50:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:email_text}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:through}}
+```
+
+## Editing every element with `ForTraversal` {#bulk-operations-with-fortraversal}
+
+In plain Java, editing some of an order's lines means streaming the lines, changing the ones you want, and building a new order around the new list. `ForTraversal.over(traversal, source, applicative)` does it as a list of steps, over every element a [Traversal](../optics/traversals.md) reaches, such as `OrderTraversals.lines()`:
+
+| Step | What it does |
+|---|---|
+| `filter(test)` | Makes the `modify` and `set` steps after it change only the elements that pass |
+| `modify(lens, f)` | Runs `f` on the field the lens reads, in each element |
+| `set(lens, value)` | Sets that field in each element |
+| `run()` | Gives the edited whole, inside the instance |
+| `toList()` | Gives the elements that pass every filter |
+
+The examples price lines with these helpers:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:helpers}}
+```
+
+Here the lines with a quantity of two or more get ten per cent off, and `toList` names which lines those are:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:for_traversal}}
+```
+
+The chain runs over `Id`, the container that adds nothing, as [Identity](../monads/identity.md) explains, so `ID.unwrap` takes the order out. Every step takes a plain function, so no step has an effect to run, and the `Applicative` only wraps the result with its `of`. Over `List`'s instance, `run` gives a list of one order.
+
+### What `filter` and `toList` read {#collecting-results}
+
+`filter` tests each element as it was in the source, not as an earlier `modify` left it. A `modify` before the `filter` still changes every element, and a `filter` that follows it sees the values from before that change. `toList` reads the source too, so it lists the elements that pass the filters with none of the edits.
+
+~~~admonish tip title="Plain optics win for one edit"
+`Traversals.modify` runs one plain function through an optic, with no `Applicative` to pass and nothing to unwrap. `filtered` narrows the traversal to the lines that pass, and `andThen` goes on from each line to its price:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:plain}}
+```
+
+`ForTraversal` reads better when several edits share a filter.
 ~~~
 
-### Modifying State Through an Iso: `modifyVia`
+## Editing by position with `ForIndexed` {#position-aware-traversals-with-forindexed}
 
-Within a `ForState` workflow, `modifyVia(lens, iso, modifier)` lets you modify a field in a different representation. It extracts the field via the lens, converts through the Iso, applies your modifier in the converted type, and converts back:
+`ForIndexed.overIndexed(indexedTraversal, source, applicative)` has the same steps, with each element's index beside it. `filterIndex` tests the index, and `filter` the index and the element together. `modify` passes the index to its function, `set` takes a function of the index, and `toIndexedList` gives each element that passes the filters with its index. `IndexedTraversals.forList()` counts from 0, so a packing slip adds 1:
 
-<!-- verify -->
 ```java
-Iso<Integer, Double> centsToDollars =
-    Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
-
-// Give everyone a 10% raise -- reasoning in dollars, storing in cents
-Kind<IdKind.Witness, Department> result =
-    ForState.withState(idMonad, Id.of(department))
-        .modifyVia(budgetLens, centsToDollars, dollars -> dollars * 1.1)
-        .yield();
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:slip_line}}
 ```
 
-The flow is: `lens.get` &#8594; `iso.get` &#8594; `modifier` &#8594; `iso.reverseGet` &#8594; `lens.set`. You never touch the internal representation directly.
+The slip numbers every line. Then every second line goes half price: `filterIndex` keeps the odd indexes, and `modify`'s function takes the index beside the price:
 
-### Setting State Through an Iso: `updateVia`
-
-When you want to set a field to a specific value in the converted representation, use `updateVia(lens, iso, value)`:
-
-<!-- verify -->
 ```java
-// Set budget to exactly $750.00 (stored internally as 75000 cents)
-ForState.withState(idMonad, Id.of(department))
-    .updateVia(budgetLens, centsToDollars, 750.0)
-    .yield();
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foroptics/ForOpticsBook.java:for_indexed}}
 ```
 
-~~~admonish tip title="modifyVia vs updateVia"
-- **`modifyVia`** transforms the existing value: read, convert, modify, convert back, write
-- **`updateVia`** replaces with a new value: convert the new value back, write
+`ForIndexed`'s steps are plain functions too, and its `filter` tests the source element, as `ForTraversal`'s does. [Indexed Optics](../optics/indexed_optics.md) explains the indexed traversals.
 
-Both honour the Iso's round-trip property, keeping internal and external representations consistent.
+## Things people get wrong {#things-people-get-wrong}
+
+~~~admonish warning title="Common Misunderstandings"
+- **"`through` keeps the two values in step."** It calls the Iso's `get` once, as `let(iso::get)` would. The way back never runs.
+- **"Every chain has `match`."** Only a chain started from a `MonadZero` has it, since a miss gives the instance's empty value.
+- **"`filter` tests what an earlier `modify` left."** It tests each element as it was in the source.
+- **"`ForTraversal` runs an effect on each element."** Its steps are plain functions, and the `Applicative` only wraps the result.
 ~~~
 
 ---
-
-## Transforming Collections in Place
-
-With extraction, filtering, and conversion covered, the remaining challenge is bulk operations: applying a transformation to every element in a collection, potentially with effects. ForState provides two operations for this, and the standalone `ForTraversal` and `ForIndexed` builders offer additional flexibility.
-
-### Effectful Traversal with `traverseOver`
-
-`traverseOver(traversal, function)` applies an effectful function to each element focused by the traversal. The monad governs how effects compose; with `Maybe`, a single failure short-circuits the entire operation:
-
-<!-- verify -->
-```java
-Traversal<List<Employee>, Employee> empTraversal = Traversals.forList();
-
-// Validate all employees have positive salaries
-Kind<MaybeKind.Witness, List<Employee>> result =
-    ForState.withState(maybeMonad, MAYBE.just(employees))
-        .traverseOver(empTraversal,
-            emp -> emp.salaryInCents() > 0 ? MAYBE.just(emp) : MAYBE.nothing())
-        .yield();
-// Just(employees) if all valid, Nothing if any fails
-```
-
-The key difference from `traverse(lens, traversal, function)` is that `traverseOver` operates directly on the state type itself. Use `traverseOver` when the state *is* the collection; use `traverse` when the collection is a field within a larger state record.
-
-### Pure Traversal with `modifyThrough`
-
-When your transformation is pure (no validation, no effects, no possibility of failure), use `modifyThrough(traversal, modifier)`. It uses the Identity monad internally, so there is no monadic overhead:
-
-<!-- verify -->
-```java
-// Uppercase all employee names (pure operation, no effect needed)
-Kind<IdKind.Witness, List<Employee>> result =
-    ForState.withState(idMonad, Id.of(employees))
-        .modifyThrough(empTraversal,
-            emp -> new Employee(
-                emp.name().toUpperCase(), emp.salaryInCents(), emp.department()))
-        .yield();
-```
-
-The three-argument form `modifyThrough(traversal, lens, modifier)` composes a traversal with a lens to modify a nested field within each element:
-
-<!-- verify -->
-```java
-// Increase every employee's salary by 500
-ForState.withState(idMonad, Id.of(employees))
-    .modifyThrough(empTraversal, salaryLens, s -> s + 500)
-    .yield();
-```
-
-This is equivalent to manually composing `traversal` with `lens.asTraversal()`, but more concise and intention-revealing.
-
-### Choosing Between traverseOver and modifyThrough
-
-```
-+-------------------------------------------------------------------+
-|                   ForState Traversal Operations                   |
-+-------------------------------------------------------------------+
-|                                                                   |
-|  traverseOver(traversal, f)    modifyThrough(traversal, modifier) |
-|  +------------------------+   +-------------------------------+   |
-|  | Effectful: A -> M<A>   |   | Pure: A -> A                  |   |
-|  | Uses monad directly    |   | Uses Identity monad internally|   |
-|  | Can fail/short-circuit |   | Always succeeds               |   |
-|  +------------------------+   +-------------------------------+   |
-|                                                                   |
-|  modifyThrough(traversal, lens, modifier)                         |
-|  +-------------------------------+                                |
-|  | Composed: focus on nested     |                                |
-|  | field within each element     |                                |
-|  +-------------------------------+                                |
-|                                                                   |
-+-------------------------------------------------------------------+
-```
-
-The rule of thumb: if your function returns `Kind<M, A>`, use `traverseOver`. If it returns plain `A`, use `modifyThrough`.
-
----
-
-## Bulk Operations with ForTraversal
-
-For operations over multiple elements within a structure, `ForTraversal` provides a standalone fluent API built around a [Traversal](../optics/traversals.md). This is useful when you want to apply a sequence of modifications and filters without threading state through a `ForState` workflow:
-
-<!-- verify -->
-```java
-record Player(String name, int score) {}
-
-List<Player> players = List.of(
-    new Player("Alice", 100),
-    new Player("Bob", 200)
-);
-
-Traversal<List<Player>, Player> playersTraversal = Traversals.forList();
-Lens<Player, Integer> scoreLens = Lens.of(
-    Player::score,
-    (p, s) -> new Player(p.name(), s)
-);
-
-// Add bonus points to all players
-Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
-        .modify(scoreLens, score -> score + 50)
-        .run();
-
-List<Player> updated = ID.narrow(result).value();
-// Result: [Player("Alice", 150), Player("Bob", 250)]
-```
-
-### Filtering Within Traversals
-
-The `filter()` method preserves non-matching elements unchanged whilst applying transformations only to matching elements:
-
-<!-- verify -->
-```java
-Kind<IdKind.Witness, List<Player>> result =
-    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
-        .filter(p -> p.score() >= 150)
-        .modify(scoreLens, score -> score * 2)
-        .run();
-
-// Alice (100) unchanged, Bob (200) doubled to 400
-```
-
-### Collecting Results {#collecting-results}
-
-Use `toList()` to collect the focused elements. After a `filter`, it collects only those that pass:
-
-<!-- verify -->
-```java
-Kind<IdKind.Witness, List<Player>> highScorers =
-    ForTraversal.over(playersTraversal, players, Instances.monad(id()))
-        .filter(p -> p.score() >= 150)
-        .toList();
-```
-
-It reads the source structure, so a `modify` earlier in the chain does not show in the list.
-
----
-
-## Position-Aware Traversals with ForIndexed
-
-Sometimes the transformation depends on *where* an element sits, not just *what* it is. `ForIndexed` extends traversal comprehensions with index awareness:
-
-<!-- verify -->
-```java
-IndexedTraversal<Integer, List<Player>, Player> indexedPlayers =
-    IndexedTraversals.forList();
-
-List<Player> players = List.of(
-    new Player("Alice", 100),
-    new Player("Bob", 200),
-    new Player("Charlie", 150)
-);
-
-// Add position-based bonus (first place gets more)
-Kind<IdKind.Witness, List<Player>> result =
-    ForIndexed.overIndexed(indexedPlayers, players, Instances.monad(id()))
-        .modify(scoreLens, (index, score) -> score + (100 - index * 10))
-        .run();
-
-// Alice: 100 + 100 = 200
-// Bob: 200 + 90 = 290
-// Charlie: 150 + 80 = 230
-```
-
-### Filtering by Position
-
-Use `filterIndex()` to focus only on specific positions:
-
-<!-- verify -->
-```java
-// Only modify top 3 players
-ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-    .filterIndex(i -> i < 3)
-    .modify(scoreLens, (i, s) -> s * 2)
-    .run();
-```
-
-### Combined Index and Value Filtering
-
-Use `filter()` with a `BiPredicate` to filter on both position and value:
-
-<!-- verify -->
-```java
-ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-    .filter((index, player) -> index < 5 && player.score() > 100)
-    .modify(scoreLens, (i, s) -> s + 50)
-    .run();
-```
-
-### Collecting with Indices
-
-Use `toIndexedList()` to collect elements along with their indices. Like `toList()`, it keeps only the elements that pass `filterIndex` and `filter`:
-
-<!-- verify -->
-```java
-Kind<IdKind.Witness, List<Pair<Integer, Player>>> indexed =
-    ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
-        .toIndexedList();
-
-// Result: [Pair(0, Player("Alice", 100)), Pair(1, Player("Bob", 200)), ...]
-```
 
 ~~~admonish tip title="See Also"
-For more details on indexed optics, see [Indexed Optics](../optics/indexed_optics.md).
+- [For Comprehensions](for_comprehension.md): the steps the optic steps join
+- [ForState](forstate_comprehension.md): a chain whose values live in a record, changed through lenses, Isos and traversals
+- [ForPath Comprehension](../effect/forpath_comprehension.md): `focus` and `match` on Effect Paths
+- [Lenses](../optics/lenses.md), [Prisms](../optics/prisms.md), [Isomorphisms](../optics/iso.md) and [Traversals](../optics/traversals.md): the optics the steps take
 ~~~
-
----
-
-## Putting It Together
-
-The real power of optics integration emerges when you combine these operations in a single pipeline. Here is a payroll workflow that validates employees, normalises their names, gives everyone a raise, and increases the department budget, all in one composable chain:
-
-<!-- verify -->
-```java
-MonadZero<MaybeKind.Witness> maybeMonad = Instances.monadZero(maybe());
-Iso<Integer, Double> centsToDollars =
-    Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
-
-Kind<MaybeKind.Witness, Department> result =
-    ForState.withState(maybeMonad, MAYBE.just(department))
-        // Validate: every employee must have a positive salary
-        .traverse(staffLens, Traversals.forList(),
-            emp -> emp.salaryInCents() > 0 ? MAYBE.just(emp) : MAYBE.nothing())
-        // Normalise: uppercase all names (pure, no effects)
-        .modifyThrough(staffLens.asTraversal().andThen(Traversals.forList()),
-            empNameLens, String::toUpperCase)
-        // Raise: increase budget by 10%, reasoning in dollars
-        .modifyVia(budgetLens, centsToDollars, dollars -> dollars * 1.1)
-        .yield();
-```
-
-Each operation addresses a different concern (validation, transformation, unit conversion), yet they compose into a single, readable pipeline. The monad handles failure propagation; the optics handle data access. Neither concern leaks into the other.
 
 ---
 
 **Previous:** [Profunctor](profunctor.md)
-**Next:** [MTL & ForState Bridge](for_mtl.md)
+**Next:** [For with MTL Capabilities](for_mtl.md)
