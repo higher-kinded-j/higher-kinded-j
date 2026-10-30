@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.io;
+import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
@@ -24,6 +25,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import org.higherkindedj.example.book.foundations.monoid.MonoidBook;
+import org.higherkindedj.example.book.foundations.natural.NaturalBook;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
@@ -36,6 +38,8 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
@@ -43,17 +47,20 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.either.EitherSelective;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
 import org.higherkindedj.hkt.laws.TraverseLaws;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeSelective;
 import org.higherkindedj.hkt.maybe.MaybeTraverse;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.validated.Validated;
@@ -263,4 +270,105 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: traverse_laws
+
+  // ANCHOR: natural_laws
+  <F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A, B>
+      void assertNaturality(
+          Natural<F, G> nat,
+          Functor<F> from,
+          Functor<G> to,
+          Kind<F, A> fa,
+          Function<A, B> f,
+          BiPredicate<Kind<G, ?>, Kind<G, ?>> same) {
+    // mapping and then converting equals converting and then mapping
+    assertThat(same.test(nat.apply(from.map(f, fa)), to.map(f, nat.apply(fa)))).isTrue();
+  }
+
+  @Test
+  @DisplayName("maybeToList and firstOf are natural, and andThen keeps identity and grouping")
+  void naturalLaws() {
+    Natural<MaybeKind.Witness, ListKind.Witness> toList = NaturalBook::maybeToList;
+    Natural<ListKind.Witness, MaybeKind.Witness> first = NaturalBook::firstOf;
+    BiPredicate<Kind<ListKind.Witness, ?>, Kind<ListKind.Witness, ?>> sameList =
+        KindEquivalence.byEqualsAfter(LIST::narrow);
+    BiPredicate<Kind<MaybeKind.Witness, ?>, Kind<MaybeKind.Witness, ?>> sameMaybe =
+        KindEquivalence.byEqualsAfter(MAYBE::narrow);
+
+    for (Kind<MaybeKind.Witness, Order> fa : List.of(MAYBE.just(ORDER), MAYBE.<Order>nothing())) {
+      assertNaturality(
+          toList,
+          Instances.functor(maybe()),
+          Instances.functor(list()),
+          fa,
+          Order::customer,
+          sameList);
+      // the identity, on either side, changes nothing
+      assertThat(
+              sameList.test(
+                  Natural.<MaybeKind.Witness>identity().andThen(toList).apply(fa),
+                  toList.apply(fa)))
+          .isTrue();
+      assertThat(sameList.test(toList.andThen(Natural.identity()).apply(fa), toList.apply(fa)))
+          .isTrue();
+      // grouping the conversions differently changes nothing
+      assertThat(
+              sameList.test(
+                  toList.andThen(first).andThen(toList).apply(fa),
+                  toList.andThen(first.andThen(toList)).apply(fa)))
+          .isTrue();
+    }
+    Order second =
+        new Order(
+            ORDER.id(),
+            ORDER.customer(),
+            List.of(),
+            ORDER.placedAt(),
+            ORDER.currency(),
+            ORDER.status());
+    for (List<Order> orders : List.of(List.<Order>of(), List.of(ORDER), List.of(ORDER, second))) {
+      assertNaturality(
+          first,
+          Instances.functor(list()),
+          Instances.functor(maybe()),
+          LIST.widen(orders),
+          Order::lines,
+          sameMaybe);
+    }
+  }
+
+  // ANCHOR_END: natural_laws
+
+  // ANCHOR: selective_laws
+  @Test
+  @DisplayName("Maybe's and Either's Selective keep the two pure laws")
+  void selectiveLaws() {
+    Kind<MaybeKind.Witness, Function<String, BigDecimal>> parseMaybe = MAYBE.just(BigDecimal::new);
+    Kind<EitherKind.Witness<String>, Function<String, BigDecimal>> parseEither =
+        EITHER.widen(Either.right(BigDecimal::new));
+    Selective<EitherKind.Witness<String>> eitherSelective = EitherSelective.instance();
+
+    SelectiveLaws.assertLeftPure(
+        MaybeSelective.INSTANCE,
+        "40.00",
+        parseMaybe,
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+    // a Right must skip the function, so give it a function that has failed
+    SelectiveLaws.assertRightPure(
+        MaybeSelective.INSTANCE,
+        new BigDecimal("2.50"),
+        MAYBE.<Function<String, BigDecimal>>nothing(),
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+    SelectiveLaws.assertLeftPure(
+        eitherSelective,
+        "40.00",
+        parseEither,
+        KindEquivalence.<EitherKind.Witness<String>>byEqualsAfter(EITHER::narrow));
+    SelectiveLaws.assertRightPure(
+        eitherSelective,
+        new BigDecimal("2.50"),
+        EITHER.<String, Function<String, BigDecimal>>widen(Either.left("no parser")),
+        KindEquivalence.<EitherKind.Witness<String>>byEqualsAfter(EITHER::narrow));
+  }
+
+  // ANCHOR_END: selective_laws
 }
