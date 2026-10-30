@@ -10,8 +10,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
@@ -41,19 +44,27 @@ public abstract class HKJInstallSkillsTask extends DefaultTask {
   }
 
   /**
-   * Returns the output directory where skills are installed.
+   * Returns the directory the skills are installed into. The plugin sets it to the {@code
+   * .claude/skills} directory under the project root when it registers the task.
    *
-   * @return the .claude/skills directory under the project root
+   * @return the directory the skills are installed into
    */
   @OutputDirectory
-  public Path getOutputDir() {
-    return getProject().getProjectDir().toPath().resolve(".claude/skills");
-  }
+  public abstract DirectoryProperty getOutputDir();
 
-  /** Copies skill files from the plugin's classpath resources to the project directory. */
+  /**
+   * Returns the layout of the project the task belongs to, which the configuration cache can store
+   * where it cannot store the project.
+   *
+   * @return the project's layout
+   */
+  @Inject
+  protected abstract ProjectLayout getLayout();
+
+  /** Copies skill files from the plugin's classpath resources to the output directory. */
   @TaskAction
   public void install() {
-    Path targetDir = getOutputDir();
+    Path targetDir = getOutputDir().get().getAsFile().toPath();
 
     try (InputStream manifestStream =
         HKJInstallSkillsTask.class.getResourceAsStream(MANIFEST_RESOURCE)) {
@@ -93,7 +104,7 @@ public abstract class HKJInstallSkillsTask extends DefaultTask {
           .lifecycle(
               "Installed {} HKJ Claude Code skill files into {}",
               installed,
-              getProject().getProjectDir().toPath().relativize(targetDir));
+              getLayout().getProjectDirectory().getAsFile().toPath().relativize(targetDir));
 
     } catch (IOException e) {
       throw new GradleException("Failed to install HKJ skills: " + e.getMessage(), e);

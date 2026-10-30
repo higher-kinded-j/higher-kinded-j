@@ -7,6 +7,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +40,21 @@ class HKJPluginFunctionalTest {
         .withPluginClasspath()
         .withArguments(args)
         .forwardOutput();
+  }
+
+  /** The output of a build of {@code tasks} with the configuration cache on. */
+  private String cachedBuild(String... tasks) {
+    List<String> args = new ArrayList<>(List.of(tasks));
+    args.add("--configuration-cache");
+    return runner(args.toArray(String[]::new)).build().getOutput();
+  }
+
+  private static void deleteRecursively(Path dir) throws IOException {
+    try (Stream<Path> paths = Files.walk(dir)) {
+      for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+        Files.delete(path);
+      }
+    }
   }
 
   @Test
@@ -517,6 +536,80 @@ class HKJPluginFunctionalTest {
       assertThat(installed.map(dir -> dir.getFileName().toString()))
           .allMatch(name -> name.startsWith("hkj-"));
     }
+  }
+
+  @Test
+  @DisplayName("diagnostics task runs with the configuration cache, and a second build reuses it")
+  void diagnostics_task_runsWithConfigurationCache() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+        }
+
+        sourceSets {
+            integrationTest {}
+        }
+        """);
+
+    String stored = cachedBuild("hkjDiagnostics");
+    String reused = cachedBuild("hkjDiagnostics");
+
+    assertThat(stored).contains("Configuration cache entry stored.");
+    assertThat(reused).contains("Reusing configuration cache.");
+    // The reused build prints the report the first build stored, source sets included
+    for (String output : List.of(stored, reused)) {
+      assertThat(output)
+          .contains("Version:            0.3.0")
+          .contains("Path type mismatch: enabled")
+          .contains(
+              "integrationTestAnnotationProcessor: io.github.higher-kinded-j:hkj-checker:0.3.0");
+    }
+  }
+
+  @Test
+  @DisplayName("a skills build runs with the configuration cache, and a second build reuses it")
+  void skillsBuild_runsWithConfigurationCache() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+            skills = true
+        }
+
+        repositories {
+            flatDir { dirs 'libs' }
+        }
+        """);
+    // Storing the entry resolves compileJava's classpaths. Empty jars stand in for the published
+    // artifacts, since with no sources javac never runs.
+    Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
+    for (String artifact : List.of("hkj-core", "hkj-processor-plugins", "hkj-checker")) {
+      Files.createFile(libs.resolve(artifact + "-0.3.0.jar"));
+    }
+    Path skillsDir = testProjectDir.resolve(".claude/skills");
+
+    String stored = cachedBuild("classes");
+    assertThat(stored)
+        .contains("Configuration cache entry stored.")
+        .contains("into .claude/skills");
+    assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
+
+    // Removing the skills makes the install run again, from the stored entry
+    deleteRecursively(skillsDir);
+    String reused = cachedBuild("classes");
+    assertThat(reused).contains("Reusing configuration cache.").contains("into .claude/skills");
+    assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
   }
 
   @Test

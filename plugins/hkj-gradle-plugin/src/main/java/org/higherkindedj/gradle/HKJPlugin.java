@@ -11,7 +11,9 @@ import java.util.regex.Pattern;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
@@ -224,7 +226,16 @@ public class HKJPlugin implements Plugin<Project> {
   }
 
   private void registerInstallSkillsTask(Project project, HKJExtension extension) {
-    var installTask = project.getTasks().register("hkjInstallSkills", HKJInstallSkillsTask.class);
+    var installTask =
+        project
+            .getTasks()
+            .register(
+                "hkjInstallSkills",
+                HKJInstallSkillsTask.class,
+                task ->
+                    task.getOutputDir()
+                        .convention(
+                            project.getLayout().getProjectDirectory().dir(".claude/skills")));
 
     // When skills = true, wire the install task into the build lifecycle
     project.afterEvaluate(
@@ -238,6 +249,17 @@ public class HKJPlugin implements Plugin<Project> {
   }
 
   private void registerDiagnosticsTask(Project project, HKJExtension extension) {
+    SourceSetContainer sourceSets = project.getExtensions().getByType(SourceSetContainer.class);
+    // The configuration cache cannot store the project, so the action holds only the report's
+    // provider, whose value the cache stores.
+    Provider<String> report =
+        project.provider(
+            () ->
+                diagnosticsReport(
+                    extension,
+                    sourceSets.stream()
+                        .map(SourceSet::getAnnotationProcessorConfigurationName)
+                        .toList()));
     project
         .getTasks()
         .register(
@@ -245,99 +267,77 @@ public class HKJPlugin implements Plugin<Project> {
             task -> {
               task.setGroup("help");
               task.setDescription("Prints the current HKJ plugin configuration");
-              task.doLast(
-                  t -> {
-                    String version = extension.getVersion().get();
-                    boolean preview = extension.getPreview().get();
-                    boolean spring = extension.getSpring().get();
-                    boolean skills = extension.getSkills().get();
-                    boolean checks = extension.getChecks().getPathTypeMismatch().get();
-
-                    SourceSetContainer sourceSets =
-                        project.getExtensions().getByType(SourceSetContainer.class);
-
-                    // Compute padding so labels align with the longest configuration name.
-                    int labelWidth = "implementation:".length();
-                    for (var sourceSet : sourceSets) {
-                      labelWidth =
-                          Math.max(
-                              labelWidth,
-                              sourceSet.getAnnotationProcessorConfigurationName().length() + 1);
-                    }
-                    final int width = labelWidth;
-
-                    List<String> depsAdded = new ArrayList<>();
-                    depsAdded.add(
-                        padLabel("implementation:", width) + GROUP_ID + ":hkj-core:" + version);
-                    sourceSets.forEach(
-                        sourceSet -> {
-                          String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
-                          depsAdded.add(
-                              padLabel(label, width)
-                                  + GROUP_ID
-                                  + ":hkj-processor-plugins:"
-                                  + version);
-                        });
-                    if (checks) {
-                      for (var sourceSet : sourceSets) {
-                        String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
-                        depsAdded.add(
-                            padLabel(label, width) + GROUP_ID + ":hkj-checker:" + version);
-                      }
-                    }
-                    if (spring) {
-                      depsAdded.add(
-                          padLabel("implementation:", width)
-                              + GROUP_ID
-                              + ":hkj-spring-boot-starter:"
-                              + version);
-                      for (var sourceSet : sourceSets) {
-                        String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
-                        depsAdded.add(
-                            padLabel(label, width)
-                                + GROUP_ID
-                                + ":hkj-spring-boot-client-processor:"
-                                + version);
-                      }
-                    }
-
-                    List<String> compilerArgs = new ArrayList<>();
-                    if (preview) {
-                      compilerArgs.add("--enable-preview");
-                    }
-                    if (checks) {
-                      compilerArgs.add("-Xplugin:HKJChecker");
-                    }
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("HKJ Configuration:\n");
-                    sb.append("  Version:            ").append(version).append("\n");
-                    sb.append("  Preview features:   ")
-                        .append(preview ? "enabled" : "disabled")
-                        .append("\n");
-                    sb.append("  Spring integration: ")
-                        .append(spring ? "enabled" : "disabled")
-                        .append("\n");
-                    sb.append("  Claude Code skills: ")
-                        .append(skills ? "enabled" : "disabled")
-                        .append("\n");
-                    sb.append("  Compile-time checks:\n");
-                    sb.append("    Path type mismatch: ")
-                        .append(checks ? "enabled" : "disabled")
-                        .append("\n");
-                    sb.append("  Dependencies added:\n");
-                    for (String dep : depsAdded) {
-                      sb.append("    ").append(dep).append("\n");
-                    }
-                    if (!compilerArgs.isEmpty()) {
-                      sb.append("  Compiler args added:\n");
-                      for (String arg : compilerArgs) {
-                        sb.append("    ").append(arg).append("\n");
-                      }
-                    }
-
-                    project.getLogger().lifecycle(sb.toString().stripTrailing());
-                  });
+              task.doLast(t -> t.getLogger().lifecycle(report.get()));
             });
+  }
+
+  /**
+   * The configuration {@code hkjDiagnostics} prints, naming each annotation processor configuration
+   * the plugin adds to.
+   */
+  private static String diagnosticsReport(
+      HKJExtension extension, List<String> processorConfigurations) {
+    String version = extension.getVersion().get();
+    boolean preview = extension.getPreview().get();
+    boolean spring = extension.getSpring().get();
+    boolean skills = extension.getSkills().get();
+    boolean checks = extension.getChecks().getPathTypeMismatch().get();
+
+    // Compute padding so labels align with the longest configuration name.
+    int width = "implementation:".length();
+    for (String configuration : processorConfigurations) {
+      width = Math.max(width, configuration.length() + 1);
+    }
+
+    List<String> depsAdded = new ArrayList<>();
+    depsAdded.add(padLabel("implementation:", width) + GROUP_ID + ":hkj-core:" + version);
+    for (String configuration : processorConfigurations) {
+      depsAdded.add(
+          padLabel(configuration + ":", width) + GROUP_ID + ":hkj-processor-plugins:" + version);
+    }
+    if (checks) {
+      for (String configuration : processorConfigurations) {
+        depsAdded.add(padLabel(configuration + ":", width) + GROUP_ID + ":hkj-checker:" + version);
+      }
+    }
+    if (spring) {
+      depsAdded.add(
+          padLabel("implementation:", width) + GROUP_ID + ":hkj-spring-boot-starter:" + version);
+      for (String configuration : processorConfigurations) {
+        depsAdded.add(
+            padLabel(configuration + ":", width)
+                + GROUP_ID
+                + ":hkj-spring-boot-client-processor:"
+                + version);
+      }
+    }
+
+    List<String> compilerArgs = new ArrayList<>();
+    if (preview) {
+      compilerArgs.add("--enable-preview");
+    }
+    if (checks) {
+      compilerArgs.add("-Xplugin:HKJChecker");
+    }
+
+    StringBuilder sb = new StringBuilder();
+    sb.append("HKJ Configuration:\n");
+    sb.append("  Version:            ").append(version).append("\n");
+    sb.append("  Preview features:   ").append(preview ? "enabled" : "disabled").append("\n");
+    sb.append("  Spring integration: ").append(spring ? "enabled" : "disabled").append("\n");
+    sb.append("  Claude Code skills: ").append(skills ? "enabled" : "disabled").append("\n");
+    sb.append("  Compile-time checks:\n");
+    sb.append("    Path type mismatch: ").append(checks ? "enabled" : "disabled").append("\n");
+    sb.append("  Dependencies added:\n");
+    for (String dep : depsAdded) {
+      sb.append("    ").append(dep).append("\n");
+    }
+    if (!compilerArgs.isEmpty()) {
+      sb.append("  Compiler args added:\n");
+      for (String arg : compilerArgs) {
+        sb.append("    ").append(arg).append("\n");
+      }
+    }
+    return sb.toString().stripTrailing();
   }
 }
