@@ -169,5 +169,5 @@ Practise `ForState` in the [ForState journey](../tutorials/expression/forstate_j
 
 ---
 
-**Previous:** [MTL & ForState Bridge](for_mtl.md)
+**Previous:** [For with MTL Capabilities](for_mtl.md)
 **Next:** [Core Types](../monads/ch_intro.md)

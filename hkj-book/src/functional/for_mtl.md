@@ -155,5 +155,5 @@ Practise writing methods against the capabilities in [Tutorial 04: Polymorphic C
 
 ---
 
-**Previous:** [Optics Integration](for_optics.md)
+**Previous:** [For with Optics](for_optics.md)
 **Next:** [ForState Comprehension](forstate_comprehension.md)

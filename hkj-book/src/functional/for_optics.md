@@ -180,4 +180,4 @@ The slip numbers every line. Then every second line goes half price: `filterInde
 ---
 
 **Previous:** [Profunctor](profunctor.md)
-**Next:** [MTL & ForState Bridge](for_mtl.md)
+**Next:** [For with MTL Capabilities](for_mtl.md)
