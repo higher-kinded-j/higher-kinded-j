@@ -57,7 +57,7 @@ Each arrow means *extends*, and each box lists the abstract methods its type cla
 4. [Selective](selective.md): Branching on an earlier result, with both branches given up front
 5. [Alternative](alternative.md): `empty` and `orElse`, which `Maybe` reads as a fallback and `List` as both lists joined
 6. [MonadZero](monad_zero.md): A `Monad` with an empty value, which lets a `For` comprehension filter
-7. [Choosing Abstraction Levels](abstraction_levels.md): Whether a task needs `Applicative`, `Selective` or `Monad`
+7. [Applicative, Selective or Monad?](abstraction_levels.md): Deciding by whether a step needs an earlier result
 8. [Bifunctor](bifunctor.md): Mapping either or both type arguments of a type such as `Either` or `Tuple2`
 9. [Profunctor](profunctor.md): Adapting what a function takes and what it returns
 10. [Optics Integration](for_optics.md): Lenses, prisms, isos and traversals as steps in a `For` comprehension

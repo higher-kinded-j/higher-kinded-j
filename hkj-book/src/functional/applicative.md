@@ -139,7 +139,7 @@ So `Applicative` promises neither that errors accumulate nor that inputs run at 
 - **Use `flatMap` when a step needs the previous result.** Finding an order's customer needs the order first. `flatMap` is [Monad](monad.md)'s. On a failure that holds no value, such as a `Left`, it stops, because the next step has nothing to run on.
 - **Use `map2` to `map5` when the steps are independent.** The instance can then do more with the failures, as `Validated`'s does.
 
-The two can differ on one instance. `Instances.validated` returns a single instance with both methods: its `map3` combines the errors of every invalid input, and its `flatMap` stops at the first. [Choosing Your Abstraction Level](abstraction_levels.md) walks through the choice, `Selective` included.
+The two can differ on one instance. `Instances.validated` returns a single instance with both methods: its `map3` combines the errors of every invalid input, and its `flatMap` stops at the first. [Applicative, Selective or Monad?](abstraction_levels.md) walks through the choice.
 
 ## Four laws {#four-laws}
 
@@ -240,7 +240,7 @@ A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `fla
 ~~~admonish tip title="See Also"
 - [Functor](functor.md): the `map` that `Applicative` extends
 - [Monad](monad.md): sequencing dependent computations with `flatMap`
-- [Choosing Your Abstraction Level](abstraction_levels.md): `Applicative`, `Selective` or `Monad`
+- [Applicative, Selective or Monad?](abstraction_levels.md): choosing by whether a step needs an earlier result
 - [Validated](../monads/validated_monad.md): the type built to report every error
 ~~~
 

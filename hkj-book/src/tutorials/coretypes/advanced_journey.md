@@ -152,7 +152,7 @@ if (hasDeletions && !userHasPermission("delete")) {
 
 **Real-world application**: Permission checking, audit logging, cost estimation, query batching, security validation.
 
-**Links to documentation**: [Choosing Abstraction Levels](../../functional/abstraction_levels.md)
+**Links to documentation**: [Applicative, Selective or Monad?](../../functional/abstraction_levels.md)
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial11_StaticAnalysis.java)
 

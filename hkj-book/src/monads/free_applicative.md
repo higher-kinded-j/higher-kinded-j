@@ -390,7 +390,7 @@ Use Free Applicative when your computations are independent; use Free Monad when
 ---
 
 ~~~admonish tip title="See Also"
-- [Choosing Abstraction Levels](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
+- [Applicative, Selective or Monad?](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
 - [Selective](../functional/selective.md) - Middle ground between Applicative and Monad
 - [Applicative](../functional/applicative.md) - The type class Free Applicative is based on
 ~~~

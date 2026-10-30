@@ -1,180 +1,154 @@
+<!-- description: Filter inside a monadic chain with MonadZero: drop a value with filter, guard a For comprehension with when, and check the zero laws. -->
+
 # MonadZero: Filtering in Monadic Chains
 
+_Give a monad an empty value, and a chain can drop whatever fails a test._
+
 ~~~admonish info title="What You'll Learn"
-- How MonadZero combines Monad and Alternative capabilities
-- The role of `zero()` as an absorbing element in monadic sequences
-- Filtering directly with `MonadZero.filter(predicate, ma)`
-- Enabling filtering in for-comprehensions with `when()`
-- Practical examples using List, Maybe, and Optional
-- Writing generic functions for monads with failure semantics
+- Say what a `zero` adds to a `Monad`, and why a chain ends at one
+- Drop a value that fails a test with `filter`, in a method written once for any container
+- Guard a step of a `For` comprehension with `when`
+- Name the types that have a zero, and what each one's is
+- Check an instance against the two zero laws
 ~~~
 
-## The Problem: No Way to Filter Mid-Chain
-
-You're building a for-comprehension that iterates over combinations of values, but you need to discard certain results mid-chain. With a plain `Monad`, there is no way to say "skip this iteration":
-
-<!-- verify -->
-```java
-// Without MonadZero: you must push filtering to the end and wrap in a conditional
-var result = For.from(monad, list1)
-    .from(a -> list2)
-    .yield((a, b) -> {
-        if ((a + b) % 2 != 0) {        // awkward: filtering inside yield
-            return a + " + " + b;
-        }
-        return null;                     // no clean way to discard
-    });
-```
-
-What you really want is a guard clause that eliminates unwanted paths *before* they reach the final projection.
-
----
-
-## The Solution: `zero()` and `when()`
-
-**`MonadZero`** extends both `Monad` and `Alternative`, adding a `zero()` element that acts as an absorbing value. When a computation produces `zero`, subsequent operations in the chain are skipped, exactly like multiplying by zero.
-
-```
-  For-comprehension with MonadZero:
-
-  list1: [1, 2, 3]  x  list2: [10, 20]
-
-  (1,10)  sum=11 odd? YES --> yield "1 + 10 = Sum: 11"
-  (1,20)  sum=21 odd? YES --> yield "1 + 20 = Sum: 21"
-  (2,10)  sum=12 odd? NO  --> zero() (discarded)
-  (2,20)  sum=22 odd? NO  --> zero() (discarded)
-  (3,10)  sum=13 odd? YES --> yield "3 + 10 = Sum: 13"
-  (3,20)  sum=23 odd? YES --> yield "3 + 20 = Sum: 23"
-```
-
-~~~admonish note title="Interface Signature"
-```java
-public interface MonadZero<F> extends Monad<F>, Alternative<F> {
-    <A> Kind<F, A> zero();
-
-    @Override
-    default <A> Kind<F, A> empty() {
-        return zero();
-    }
-
-    // Derived from flatMap + of / zero; overridden by List and Stream
-    // for an O(n) single-pass implementation.
-    default <A> Kind<F, A> filter(Predicate<? super A> predicate, Kind<F, A> ma) {
-        return flatMap(a -> predicate.test(a) ? of(a) : zero(), ma);
-    }
-}
-```
+~~~admonish example title="See Example Code"
+**The code on this page is [MonadZeroBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java)**: the page includes it, so the build compiles and runs it. [MonadZeroBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBookTest.java) holds what the page says each instance does, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws.
 ~~~
 
 ---
 
-## Filtering in For-Comprehensions
+## A monad with an empty value {#a-monad-with-an-empty-value}
 
-The most powerful application of `MonadZero` is the `.when()` clause in the `For` comprehension builder. The builder has two entry points:
+`MonadZero` extends [Monad](monad.md) and [Alternative](alternative.md), and adds `zero()`: a container with nothing in it, which is also its `Alternative`'s `empty()`. A `flatMap` over a zero has no value to run its step on, so the chain ends there. For a `List`, each element runs the rest of the chain on its own, so a zero ends only that element's run. That is enough to filter: replace a value that fails a test with a zero. If you have called `stream.filter` or `optional.filter`, you have done this for one container.
 
-* `For.from(monad, ...)`: For any standard `Monad`.
-* `For.from(monadZero, ...)`: An overloaded version that unlocks `.when(predicate)`.
-
-When the predicate evaluates to `false`, the builder internally calls `monad.zero()` to terminate that specific computational path.
+On an [Effect Path](../effect/ch_intro.md), `MaybePath.filter` does it for a `Maybe`, and application code stays there. This page is for a method written once for any container. Its code uses these imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.expression.For;
-import org.higherkindedj.hkt.list.ListKind;
-import org.higherkindedj.hkt.list.ListMonad;
-import java.util.Arrays;
-import java.util.List;
-
+import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-final MonadZero<ListKind.Witness> listMonad = Instances.monadZero(list());
-
-final Kind<ListKind.Witness, Integer> list1 = LIST.widen(Arrays.asList(1, 2, 3));
-final Kind<ListKind.Witness, Integer> list2 = LIST.widen(Arrays.asList(10, 20));
-
-final Kind<ListKind.Witness, String> result =
-    For.from(listMonad, list1)
-        .from(a -> list2)
-        .when(t -> (t._1() + t._2()) % 2 != 0)        // Guard: keep only odd sums
-        .let(t -> "Sum: " + (t._1() + t._2()))
-        .yield((a, b, c) -> a + " + " + b + " = " + c);
-
-final List<String> narrow = LIST.narrow(result);
-System.out.println("Result: " + narrow);
-// [1 + 10 = Sum: 11, 1 + 20 = Sum: 21, 3 + 10 = Sum: 13, 3 + 20 = Sum: 23]
+import java.math.BigDecimal;
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
 
----
+The examples use two baskets:
 
-## Key Implementations
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java:baskets}}
+```
 
-For different types, `zero()` has the natural "empty" semantics:
+## Filtering with `filter` {#filtering-with-filter}
 
-| Type | `zero()` returns | Effect of filtering |
-|------|-----------------|---------------------|
-| **List** | `[]` (empty list) | Discards that combination from the result list |
-| **Maybe** | `Nothing` | Short-circuits to `Nothing` |
-| **Optional** | `Optional.empty()` | Short-circuits to empty |
-| **Stream** | Empty stream | Skips that element lazily |
+`filter(predicate, ma)` keeps a value that passes and gives a zero for one that fails: it is `flatMap(a -> predicate.test(a) ? of(a) : zero(), ma)`, with the arguments in `flatMap`'s order, the test first. Written once over `MonadZero`, one method filters any container that has a zero:
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java:generic}}
+```
 
-## Filtering Directly with `filter`
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java:filter}}
+```
 
-`MonadZero` also exposes `filter(predicate, ma)` so you don't need a for-comprehension just to drop unwanted elements. The argument order matches `Monad.flatMap` (predicate first, then the monadic value), not the instance-method style of `Stream.filter` / `Optional.filter`:
+Each type's zero is what a failed test leaves:
+
+| Type | `zero()` | A failed test |
+|---|---|---|
+| `List` | `[]` | Drops that element from the list |
+| `Maybe` | `Nothing` | Ends the chain at `Nothing` |
+| `Optional` | `Optional.empty()` | Ends the chain at an empty `Optional` |
+| `Stream` | An empty stream | Drops that element, lazily |
+
+`Instances.monadZero(token)` gives the instance for `list()`, `maybe()`, `optional()` and `stream()`, and for any other token fails when it runs, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
+
+## Guarding a `For` comprehension with `when` {#guarding-a-for-comprehension-with-when}
+
+A `For` comprehension given a `MonadZero`, as in `For.from(monadZero, ...)`, has a `when(test)` step, and so do `For.par` and `ForState.withState` given one. When the test fails for a combination, that combination gives a zero, and the comprehension drops it. `when` sees the values so far as a tuple, so `t._2()` is the line. Here `when` keeps only the lines that ask for more than one unit:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java:when}}
+```
+
+A comprehension started with a plain `Monad` has no `when`, and javac says so:
+
+<!-- verify:rejects "cannot find symbol" -->
+```java
+For.from(Instances.monad(list()), LIST.widen(List.of(1, 2, 3)))
+    .when(n -> n > 1)
+    .yield(n -> n);
+```
+
+javac refuses it with "cannot find symbol", naming `when`. [For Comprehension](for_comprehension.md#filtering-with-when) shows `when` in a longer chain.
+
+## Two laws {#two-laws}
+
+A `MonadZero` keeps two laws beyond the `Monad` and `Alternative` ones. Together they say a zero ends a chain whichever end it is at.
+
+~~~admonish note title="Laws"
+- **Left zero: no step runs after a zero.** `flatMap(f, zero())` equals `zero()`.
+- **Right zero: a step that gives a zero makes the chain a zero.** `flatMap(a -> zero(), fa)` equals `zero()`.
+
+Two containers are equal when they hold equal values in the same shape. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+
+Checking these laws with `hkj-test` is not supported yet, so the test checks them by hand, for `Maybe` and `List`. `ORDER` is any `Order`, and the test uses these imports, with JUnit's:
 
 <!-- verify -->
 ```java
-// List: keep positives
-MonadZero<ListKind.Witness> lz = Instances.monadZero(list());
-Kind<ListKind.Witness, Integer> positives =
-    lz.filter(x -> x > 0, LIST.widen(List.of(-1, 2, -3, 4)));   // [2, 4]
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-// Maybe: keep even values
-MonadZero<MaybeKind.Witness> mz = Instances.monadZero(maybe());
-mz.filter(x -> x % 2 == 0, mz.of(4));   // Just(4)
-mz.filter(x -> x % 2 == 0, mz.of(3));   // Nothing
+import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
 
-The default implementation is derived from `flatMap` + `of` / `zero` and adds no new algebraic obligations:
-
-```
-filter(p, ma)  ≡  flatMap(a -> p.test(a) ? of(a) : zero(), ma)
-```
-
-`ListMonad` and `StreamMonad` override `filter` to avoid the per-element singleton/empty allocations the derived form would produce. `ListMonad` walks once into a single result list, `StreamMonad` delegates to `Stream.filter` to preserve laziness.
-
----
-
-## Writing Generic Functions
-
-`MonadZero` lets you write generic functions that work over any monad with a concept of "emptiness". Since `filter` is now part of the interface, generic filtering is just a method call:
-
-<!-- verify -->
 ```java
-public static <F extends WitnessArity<TypeArity.Unary>, A extends Number>
-    Kind<F, A> keepPositive(MonadZero<F> mz, Kind<F, A> fa) {
-    return mz.filter(a -> a.doubleValue() > 0, fa);
-}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:monad_zero_laws}}
 ```
-
----
-
-~~~admonish info title="Key Takeaways"
-* **`zero()` is the absorbing element** that terminates a computational path, like multiplying by zero
-* **`filter(predicate, ma)`** drops values that fail the predicate by short-circuiting to `zero()`
-* **`.when()` in for-comprehensions** is built on `filter` and is the idiomatic form for mid-chain guards
-* **Requires `MonadZero`**, not just `Monad`; use `For.from(monadZero, ...)` to unlock filtering
-* **Works uniformly** across List, Maybe, Optional, and Stream
 ~~~
+
+## Things people get wrong {#things-people-get-wrong}
+
+~~~admonish warning title="Common Misunderstandings"
+- **"Filtering needs a `For` comprehension."** `filter(predicate, ma)` filters directly, as `bulk` does.
+- **"`when` works with any `Monad`."** Only a comprehension given a `MonadZero` has it.
+- **"A filtered `Maybe` keeps the value it failed on."** It gives `Nothing`, and the value is gone, as it is from `optional.filter`.
+- **"`Either` has a zero."** `Either` has no empty value to give, since a `Left` must hold an error. `Instances.monadZero(either())` compiles, and throws `ClassCastException` when it runs.
+~~~
+
+---
 
 ~~~admonish tip title="See Also"
-- [Alternative](alternative.md) - The type class that MonadZero extends alongside Monad
-- [For Comprehension](for_comprehension.md) - Using MonadZero's filtering capabilities in comprehensions
+- [Alternative](alternative.md): `empty` and `orElse`, which every `MonadZero` has
+- [For Comprehension](for_comprehension.md): `when` among the other comprehension steps
 ~~~
 
 ---
 
 **Previous:** [Alternative](alternative.md)
-**Next:** [Choosing Abstraction Levels](abstraction_levels.md)
+**Next:** [Applicative, Selective or Monad?](abstraction_levels.md)

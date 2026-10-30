@@ -188,7 +188,7 @@
     - [Selective](functional/selective.md)
     - [Alternative](functional/alternative.md)
     - [MonadZero](functional/monad_zero.md)
-    - [Choosing Abstraction Levels](functional/abstraction_levels.md)
+    - [Applicative, Selective or Monad?](functional/abstraction_levels.md)
     - [Bifunctor](functional/bifunctor.md)
     - [Profunctor](functional/profunctor.md)
     - [Optics Integration](functional/for_optics.md)

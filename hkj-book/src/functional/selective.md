@@ -22,7 +22,7 @@ _Run an effect only when an earlier result calls for it, with every branch named
 
 [Applicative](applicative.md)'s `map2` combines effects that do not depend on one another: no value one effect gives can decide whether another runs. [Monad](monad.md)'s `flatMap` lets a step choose the next effect from the last result, but the next effect does not exist until the step runs. `Selective` sits between them: an earlier result decides whether an effect runs, and every effect that might run is named up front.
 
-`Selective` extends `Applicative`, and every `Selective` in the library is also a `Monad`. Choosing among `Applicative`, `Selective` and `Monad` for a task is [Choosing Abstraction Levels](abstraction_levels.md)'s subject. On an [Effect Path](../effect/ch_intro.md), a `via` step with an `if` does this job for one container.
+`Selective` extends `Applicative`, and every `Selective` in the library is also a `Monad`. [Applicative, Selective or Monad?](abstraction_levels.md) walks through choosing among the three for a task. On an [Effect Path](../effect/ch_intro.md), a `via` step with an `if` does this job for one container.
 
 The code on this page uses these imports:
 
@@ -180,7 +180,7 @@ An instance needs `select`, with `of` and `ap` from `Applicative` and `map` from
 ---
 
 ~~~admonish tip title="See Also"
-- [Choosing Abstraction Levels](abstraction_levels.md): `Applicative`, `Selective` or `Monad` for a task
+- [Applicative, Selective or Monad?](abstraction_levels.md): choosing by whether a step needs an earlier result
 - [Free Applicative](../monads/free_applicative.md): programs that can be inspected before they run
 - [Applicative](applicative.md): combining effects that do not depend on one another
 ~~~

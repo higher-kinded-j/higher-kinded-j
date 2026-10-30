@@ -96,7 +96,7 @@ public interface Monad<M extends WitnessArity<TypeArity.Unary>> extends Applicat
 
 `map` takes an `A -> B`. `flatMap` takes an `A -> Kind<M, B>`: a step that gives back a container of its own. With `map`, that step would leave a container inside a container, a `Kind<M, Kind<M, B>>`. `flatMap` flattens the step's result into one `Kind<M, B>`.
 
-When no step needs another's result, `map2` to `map5` are enough, and the less powerful tool is the one to pick. [Should you use map3 or flatMap?](applicative.md#map3-or-flatmap) says what they can do that `flatMap` cannot, and [Choosing Your Abstraction Level](abstraction_levels.md) walks through the choice.
+When no step needs another's result, `map2` to `map5` are enough, and the less powerful tool is the one to pick. [Should you use map3 or flatMap?](applicative.md#map3-or-flatmap) says what they can do that `flatMap` cannot, and [Applicative, Selective or Monad?](abstraction_levels.md) walks through the choice.
 
 ## One chain for any container {#one-chain-for-any-container}
 
@@ -275,7 +275,7 @@ Where this lives: [Helpers built on `flatMap` and `map`](#helpers).
 - [Applicative](applicative.md): combining values that do not depend on one another
 - [MonadError](monad_error.md): raising an error and recovering from one
 - [For Comprehension](for_comprehension.md): a chain of `flatMap` calls written as steps
-- [Choosing Your Abstraction Level](abstraction_levels.md): `Applicative`, `Selective` or `Monad`
+- [Applicative, Selective or Monad?](abstraction_levels.md): choosing by whether a step needs an earlier result
 - [One Line, Six Layers](../hkts/one_line_six_layers.md): where `via` sits in the chapter's one-liner
 ~~~
 

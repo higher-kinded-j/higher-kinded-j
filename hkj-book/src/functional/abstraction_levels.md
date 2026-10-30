@@ -1,323 +1,158 @@
-# Choosing Your Abstraction Level
-## _Applicative, Selective, or Monad?_
+<!-- description: Choose between Applicative, Selective and Monad by one question, and see why an applicative program can be read and checked before it runs. -->
 
+# Applicative, Selective or Monad?
+
+_Pick the least powerful of the three that does the job, and keep what that buys._
+
+<!-- source: Arthur Conan Doyle, "A Scandal in Bohemia" (1891), in The Adventures of Sherlock Holmes; text checked against Project Gutenberg eBook #1661 -->
 > _"It is a capital mistake to theorise before one has data."_
 >
 > — Arthur Conan Doyle, *A Scandal in Bohemia*
 
-With monads, we theorise about what our program might do, but we cannot know until we run it. Applicatives and Selectives give us the data first, letting us analyse before we execute.
+Theorising about a `flatMap` chain before it runs is Holmes's mistake: its next step is built from data that arrives only when the program runs. An applicative program names every step before any runs, so you can read it first.
 
 ~~~admonish info title="What You'll Learn"
-- The expressiveness spectrum from Applicative to Monad
-- How each abstraction level trades power for analysability
-- When to choose Applicative, Selective, or Monad
-- How to leverage static analysis with Free Applicative
-- Practical decision criteria for real-world code
+- Choose between `Applicative`, `Selective` and `Monad` by whether a step needs an earlier result
+- Say what each level can express that the one before cannot
+- Hold an applicative program as data, and count or check its instructions before it runs
+- Say why a monadic program cannot be read in advance
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [StaticAnalysisExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/StaticAnalysisExample.java) - Analysing programs before execution
-- [PermissionCheckingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/PermissionCheckingExample.java) - Pre-execution permission analysis
+**The code on this page is [AbstractionBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBook.java)**, with examples from the [Applicative](applicative.md) and [Monad](monad.md) pages: the page includes them, so the build compiles and runs them. [AbstractionBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBookTest.java) holds what the page says. [StaticAnalysisExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/StaticAnalysisExample.java) and [PermissionCheckingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/free_ap/PermissionCheckingExample.java) take the analysis further.
 ~~~
 
 ---
 
-## The Expressiveness Spectrum
+## Two questions decide {#two-questions-decide}
 
-When working with effects in functional programming, you face a fundamental choice: how much power do you need? The answer determines which abstraction to use.
+Ask whether an earlier result decides which effect runs next, and then whether you can name every effect it might choose before the program runs.
 
+```mermaid
+flowchart TD
+    accTitle: Choosing between Applicative, Selective and Monad
+    accDescr: If no earlier result decides which effect runs, use Applicative. If one does, and every effect it might choose can be named up front, use Selective. If the next effect is built from the result, use Monad.
+    q1{"Does an earlier result decide<br/>which effect runs next?"}
+    q2{"Can you name every effect<br/>it might choose, up front?"}
+    app["Applicative<br/><small>map2 to map5</small>"]
+    sel["Selective<br/><small>select, whenS, ifS</small>"]
+    mon["Monad<br/><small>flatMap</small>"]
+    q1 -->|No| app
+    q1 -->|Yes| q2
+    q2 -->|Yes| sel
+    q2 -->|No| mon
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+    class q1,q2 decision
+    class app,sel,mon domain
 ```
-Applicative  ←──  Selective  ←──  Monad
-    │                 │              │
-    ▼                 ▼              ▼
-Most analysable   Middle ground   Most expressive
-```
 
-Each step to the right gains expressive power but loses the ability to statically analyse what your program will do. This trade-off is not merely academic; it has real consequences for optimisation, testing, and safety.
+In words: if results are only combined, as `map2` adds two prices, use `Applicative`. If a result only picks among effects you can name, use `Selective`. If the next step is built from the result, use `Monad`. Each level can express what the one before it can, and each step up gives something away. An applicative program can be read before it runs. A selective one names every effect it might run, and a monadic one names only its first.
 
-### The Core Trade-off
+## Applicative: steps that do not depend on one another {#applicative}
 
-| Abstraction | Key Operation | Static Analysis | What You Can Express |
-|-------------|---------------|-----------------|----------------------|
-| **Applicative** | `ap`, `map2` | Complete | Independent computations |
-| **Selective** | `select`, `ifS` | Partial (bounds) | Conditional effects with visible branches |
-| **Monad** | `flatMap` | None | Dynamic effect selection |
-
-The crucial insight is that **monadic bind (`flatMap`) allows dynamic selection of effects based on runtime values**. This is powerful, but it means you cannot know which effects will execute without actually running the program.
-
----
-
-## Understanding Each Level
-
-### Applicative: Independent Computations
-
-With `Applicative`, all computations are independent. Neither can affect which effects the other produces:
+The code on this page uses these imports, with `LineItem`, `Order`, `OrderLenses` and `OrderStatus` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// Two independent fetches - neither depends on the other's result
-FreeAp<DbOpKind.Witness, UserProfile> program = userFetch.map2(
-    postsFetch,
-    (user, posts) -> new UserProfile(user, posts)
-);
+import static org.higherkindedj.example.book.foundations.OrderOpKindHelper.ORDER_OP;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
-// Before execution, we can:
-// - Count all operations
-// - Check for dangerous operations
-// - Parallelise independent fetches
-// - Batch similar queries
+import java.math.BigDecimal;
+import java.util.Map;
+import java.util.function.Function;
+import org.higherkindedj.example.book.foundations.OrderOp;
+import org.higherkindedj.example.book.foundations.OrderOpInterpreter;
+import org.higherkindedj.example.book.foundations.OrderOpKind;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.free_ap.FreeAp;
+import org.higherkindedj.hkt.free_ap.FreeApAnalyzer;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdMonad;
 ```
 
-**Static analysis capability:** Complete. You can inspect the entire program structure before running anything.
+A line item's SKU, quantity and price are checked on their own, so `map3` combines them, and no check can change which others run. With `Validated`'s instance, every failing check is reported, as [Applicative](applicative.md) shows:
 
-**Limitation:** You cannot use the result of one computation to decide what to do next.
-
-### Selective: Conditional Effects
-
-`Selective` sits between Applicative and Monad. It allows conditional execution, but **all branches must be provided upfront**:
-
-<!-- verify -->
 ```java
-// Both branches visible at construction time
-Kind<IOKind.Witness, Config> config = selective.ifS(
-    isProd,
-    prodConfig,   // Known upfront
-    devConfig     // Known upfront
-);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/applicative/ApplicativeBook.java:generic}}
 ```
 
-**Static analysis capability:** Partial. You can determine bounds:
-- **Under (minimum):** Effects that will definitely execute
-- **Over (maximum):** Effects that might possibly execute
+## Selective: one of a few effects, named up front {#selective}
 
-**Limitation:** You cannot dynamically construct new effect paths based on runtime values.
+A large order is flagged for review, and a small one is not. The flag's effect is passed in before the condition runs, and the condition only decides whether it runs. `whenS` and `ifS` work this way, as [Selective](selective.md) shows. Every effect that might run is a value you passed in.
 
-### Monad: Dynamic Effect Selection
+## Monad: the next step built from the last result {#monad}
 
-With `Monad`, each step can decide what to do based on the previous result:
+Saving an order needs the order the lookup found, so the save is built from that result, and does not exist until the lookup runs. That is `flatMap`, as [Monad](monad.md) shows:
 
-<!-- verify -->
 ```java
-// The function inside flatMap is opaque until runtime
-Kind<MaybeKind.Witness, Result> program = monad.flatMap(user -> {
-    if (user.isAdmin()) {
-        return fetchAdminDashboard(user.id());  // Not known until runtime
-    } else {
-        return fetchUserDashboard(user.id());   // Not known until runtime
-    }
-}, getUser(userId));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monad/MonadBook.java:generic}}
 ```
 
-**Static analysis capability:** None. The program structure is constructed dynamically.
+## Reading a program before it runs {#reading-a-program-before-it-runs}
 
-**Advantage:** Maximum flexibility. You can express any computational pattern.
+An applicative program can be held as data, so you can check it before anything runs. Count its instructions to estimate the work, look for one that needs a permission, or log what it will do. A [Free Applicative](../monads/free_applicative.md) holds a program this way. Reading a `Selective` program before it runs is not supported yet, and a monadic one cannot be read in advance.
 
----
+The instructions here are the order service's. Each is a record: `PriceOf` asks for a SKU's price, and `Cancel` cancels an order. Its `k` turns the instruction's result into the program's value, so `price -> price` keeps the price. [`@EffectAlgebra`](../effect/effect_handlers.md#defining-effects) generates `OrderOpKind`, `ORDER_OP` and `OrderOpInterpreter` from it.
 
-## Decision Flowchart
-
-When choosing an abstraction, ask yourself these questions:
-
-```
-Does step B need the RESULT of step A?
-    │
-    ├─ No → Use Applicative
-    │       (map2, ap, FreeAp)
-    │
-    └─ Yes → Does step B need to CHOOSE different
-             effects based on A's result?
-                 │
-                 ├─ No, just needs the value → Use Applicative
-                 │   (the value flows through, but effect choice is fixed)
-                 │
-                 └─ Yes, different effects for different values
-                         │
-                         ├─ All branches known upfront? → Use Selective
-                         │   (ifS, whenS, branch)
-                         │
-                         └─ Branches constructed dynamically? → Use Monad
-                             (flatMap)
-```
-
-### Practical Examples
-
-**Use Applicative when:**
-<!-- verify -->
 ```java
-// Fetching user AND posts - independent operations
-FreeAp<DbOpKind.Witness, Dashboard> dashboard =
-    fetchUser(id).map2(fetchPosts(id), Dashboard::new);
-
-// Validating multiple fields - accumulate ALL errors
-Kind<ValidatedKind.Witness<List<String>>, User> user = applicative.map3(
-    VALIDATED.widen(validateName(name)),
-    VALIDATED.widen(validateEmail(email)),
-    VALIDATED.widen(validateAge(age)),
-    (n, e, a) -> new User(n, e, true));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderOp.java:order_op}}
 ```
 
-**Use Selective when:**
-<!-- verify -->
+A program prices two SKUs, neither depending on the other, and adds the prices:
+
 ```java
-// Feature flag - both branches known, but only one executes
-Kind<IOKind.Witness, Unit> maybeTrack = selective.whenS(
-    featureFlagEnabled("analytics"),
-    trackEvent("page_view")
-);
-
-// Environment-based config - both configs defined upfront
-Kind<IOKind.Witness, Config> config = selective.ifS(isProd, prodConfig, devConfig);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBook.java:program}}
 ```
 
-**Use Monad when:**
-<!-- verify -->
+`FreeApAnalyzer` reads the program without running it:
+
 ```java
-// User type determines next action - genuinely dynamic
-Kind<MaybeKind.Witness, Result> dashboard = monad.flatMap(user -> {
-    return switch (user.role()) {
-        case "ADMIN" -> fetchAdminDashboard(user.id());
-        case "MANAGER" -> fetchManagerDashboard(user.id());
-        default -> fetchUserDashboard(user.id());
-        // New roles can be added; branches not fixed at construction
-    };
-}, getUser(userId));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBook.java:analyse}}
 ```
 
----
+An interpreter then decides what each instruction does, and `foldMap` runs the program with it. [`Id`](../monads/identity.md) adds nothing to a value, so the run gives the plain total:
 
-## Static Analysis in Practice
-
-### Analysing Free Applicative Programs
-
-`FreeAp` captures the structure of applicative computations, enabling analysis before execution:
-
-<!-- verify -->
 ```java
-// Build a program
-FreeAp<DbOpKind.Witness, Dashboard> program = buildDashboard(userId);
-
-// Count operations before running
-int opCount = FreeApAnalyzer.countOperations(program);
-System.out.println("Program will execute " + opCount + " database operations");
-
-// Check for dangerous operations
-boolean hasDeletions = FreeApAnalyzer.containsOperation(
-    program,
-    op -> DbOpHelper.DB_OP.narrow(op) instanceof DbOp.DeleteOp
-);
-
-boolean approved =
-    !hasDeletions || promptUser("Program contains delete operations. Continue?");
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBook.java:interpreter}}
 ```
 
-### Analysing Selective Programs
-
-For Selective, you can determine bounds on possible effects:
-
-<!-- verify -->
 ```java
-// Collect all effects that might possibly run (Over semantics)
-Set<DbOp<?>> possibleEffects = SelectiveAnalyzer.collectPossibleEffects(
-    program,
-    DbOpHelper.DB_OP::narrow
-);
-
-// Get effect bounds (minimum and maximum operations)
-SelectiveAnalyzer.EffectBounds bounds = SelectiveAnalyzer.computeEffectBounds(program);
-System.out.println("Effects: min=" + bounds.minimum() + ", max=" + bounds.maximum());
-
-// Check for dangerous operations before execution
-boolean hasDangerous = SelectiveAnalyzer.containsDangerousEffect(
-    program,
-    DbOpHelper.DB_OP::narrow,
-    op -> op instanceof DbOp.DeleteOp
-);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/abstraction/AbstractionBook.java:run}}
 ```
 
----
+A `flatMap` chain cannot be read this way: its second step is a function, and what that function does is known only when it runs on the first step's result.
 
-## Why This Matters
+## Things people get wrong {#things-people-get-wrong}
 
-### Optimisation Opportunities
-
-With analysable programs, interpreters can:
-- **Parallelise** independent operations
-- **Batch** similar database queries
-- **Cache** and deduplicate requests
-- **Reorder** operations for efficiency
-
-### Safety and Auditing
-
-Before executing a program, you can:
-- **Check permissions** for sensitive operations
-- **Estimate resource usage** (API calls, database queries)
-- **Generate audit logs** of what will happen
-- **Request user approval** for dangerous actions
-
-### Testing and Debugging
-
-Analysable programs enable:
-- **Structural testing** without execution
-- **Dependency visualisation**
-- **Dead code detection**
-- **Coverage analysis** of effect paths
-
----
-
-## Higher-Kinded-J Support
-
-Higher-Kinded-J provides comprehensive support for all three levels:
-
-### Applicative
-
-Every effect type has an `Applicative` instance:
-- `MaybeApplicative`, `EitherApplicative`, `IOApplicative`
-- `ValidatedApplicative` for error accumulation
-- `FreeApApplicative` for analysable programs
-
-### Selective
-
-Selective instances for conditional execution:
-- `MaybeSelective`, `EitherSelective`, `IOSelective`
-- `ValidatedSelective`, `ListSelective`, `ReaderSelective`
-
-### Monad
-
-Full monadic power when needed:
-- All effect types have `Monad` instances
-- `MonadError` for error handling
-- `Free` monad for DSL construction
-
-### Analysis Tools
-
-- `FreeAp.analyse()` for applicative program analysis
-- `FreeApAnalyzer` utility class for common analysis patterns
-- `SelectiveAnalyzer` for Under/Over analysis of selective programs
-- `Const` functor for effect-free information gathering
-
----
-
-~~~admonish info title="Key Takeaways"
-* **The expressiveness spectrum** runs from Applicative (most analysable) through Selective to Monad (most expressive)
-* **Choose the least powerful abstraction** that solves your problem; you gain analysability
-* **Applicative** is for independent computations; use `FreeAp` for full static analysis
-* **Selective** is for conditional effects where all branches are known upfront
-* **Monad** is for genuinely dynamic effect selection based on runtime values
-* **Static analysis enables** optimisation, safety checks, and better tooling
+~~~admonish warning title="Common Misunderstandings"
+- **"`Monad` is the safe default."** It can do everything, and costs what the others keep. `Validated`'s `map3` reports every failing check where its `flatMap` stops at the first, and a `flatMap` chain cannot be read before it runs.
+- **"An applicative program runs its steps at the same time."** No instance on these pages does, as [Applicative](applicative.md#things-people-get-wrong) says.
+- **"A `Selective` program can be analysed before it runs."** Only a Free Applicative program can be read first.
+- **"Only built-in operations can be read first."** Any sealed set of instructions will do, such as `OrderOp`.
 ~~~
 
 ---
 
 ~~~admonish tip title="See Also"
-- [Selective](selective.md) - Conditional effects with static structure
-- [Free Applicative](../monads/free_applicative.md) - Building analysable programs
-- [Applicative](applicative.md) - Combining independent effects
-- [Monad](monad.md) - Chaining dependent computations
+- [Applicative](applicative.md): combining steps that do not depend on one another
+- [Selective](selective.md): one of a few effects, chosen by an earlier result
+- [Monad](monad.md): chaining steps that depend on the last result
+- [Free Applicative](../monads/free_applicative.md): applicative programs held as data
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Chris Penner**: [Monads Are Too Powerful](https://chrispenner.ca/posts/expressiveness-spectrum) - The original article inspiring this guide
-- **Andrey Mokhov et al.**: [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694) - Academic paper introducing Selective
+- **Chris Penner**, [Monads Are Too Powerful](https://chrispenner.ca/posts/expressiveness-spectrum): the article this page's question comes from
+- **Andrey Mokhov, Georgy Lukyanov, Simon Marlow and Jeremie Dimino**, [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694): the paper that introduced `Selective`
 ~~~
 
 ---

@@ -31,11 +31,13 @@ import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Natural;
@@ -371,4 +373,87 @@ class FoundationsLawsBookTest {
   }
 
   // ANCHOR_END: selective_laws
+
+  // ANCHOR: alternative_laws
+  <F extends WitnessArity<TypeArity.Unary>, A> void assertAlternativeLaws(
+      Alternative<F> alt,
+      Kind<F, A> fa,
+      Kind<F, A> fb,
+      Kind<F, A> fc,
+      Kind<F, Function<A, A>> ff,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> same) {
+    // empty changes nothing, on either side
+    assertThat(same.test(alt.orElse(alt.empty(), () -> fa), fa)).isTrue();
+    assertThat(same.test(alt.orElse(fa, alt::empty), fa)).isTrue();
+    // grouping the choices differently changes nothing
+    assertThat(
+            same.test(
+                alt.orElse(alt.orElse(fa, () -> fb), () -> fc),
+                alt.orElse(fa, () -> alt.orElse(fb, () -> fc))))
+        .isTrue();
+    // an empty function, or an empty value, makes ap empty
+    assertThat(same.test(alt.ap(alt.<Function<A, A>>empty(), fa), alt.empty())).isTrue();
+    assertThat(same.test(alt.ap(ff, alt.<A>empty()), alt.empty())).isTrue();
+  }
+
+  @Test
+  @DisplayName("Maybe's and List's Alternative keep identity, associativity and absorption")
+  void alternativeLaws() {
+    Alternative<MaybeKind.Witness> maybeAlt = Instances.alternative(maybe());
+    Alternative<ListKind.Witness> listAlt = Instances.alternative(list());
+    Function<String, String> lower = String::toLowerCase;
+
+    for (Kind<MaybeKind.Witness, String> fa :
+        List.of(MAYBE.just("LAMP"), MAYBE.<String>nothing())) {
+      assertAlternativeLaws(
+          maybeAlt,
+          fa,
+          MAYBE.just("BULB"),
+          MAYBE.just("DESK"),
+          MAYBE.just(lower),
+          KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+    }
+    assertAlternativeLaws(
+        listAlt,
+        LIST.widen(List.of("LAMP", "BULB")),
+        LIST.widen(List.of("DESK")),
+        LIST.widen(List.<String>of()),
+        LIST.widen(List.of(lower)),
+        KindEquivalence.<ListKind.Witness>byEqualsAfter(LIST::narrow));
+  }
+
+  // ANCHOR_END: alternative_laws
+
+  // ANCHOR: monad_zero_laws
+  <F extends WitnessArity<TypeArity.Unary>, A, B> void assertMonadZeroLaws(
+      MonadZero<F> monadZero,
+      Kind<F, A> fa,
+      Function<A, Kind<F, B>> f,
+      BiPredicate<Kind<F, ?>, Kind<F, ?>> same) {
+    // a zero ends the chain: no step after it runs
+    assertThat(same.test(monadZero.flatMap(f, monadZero.<A>zero()), monadZero.zero())).isTrue();
+    // a step that gives zero makes the chain zero
+    assertThat(same.test(monadZero.flatMap(a -> monadZero.<B>zero(), fa), monadZero.zero()))
+        .isTrue();
+  }
+
+  @Test
+  @DisplayName("Maybe's and List's MonadZero keep the zero laws")
+  void monadZeroLaws() {
+    MonadZero<MaybeKind.Witness> maybeZero = Instances.monadZero(maybe());
+    MonadZero<ListKind.Witness> listZero = Instances.monadZero(list());
+
+    assertMonadZeroLaws(
+        maybeZero,
+        MAYBE.just(ORDER),
+        order -> MAYBE.just(order.customer()),
+        KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow));
+    assertMonadZeroLaws(
+        listZero,
+        LIST.widen(List.of(ORDER, ORDER)),
+        order -> LIST.widen(order.lines()),
+        KindEquivalence.<ListKind.Witness>byEqualsAfter(LIST::narrow));
+  }
+
+  // ANCHOR_END: monad_zero_laws
 }
