@@ -20,11 +20,12 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.work.DisableCachingByDefault;
 
 /**
- * Task that installs HKJ Claude Code skills into the project's {@code .claude/skills/} directory.
+ * Task that installs HKJ Claude Code skills into {@link #getOutputDir()}, the project's {@code
+ * .claude/skills/} directory unless the build sets another.
  *
  * <p>Skills are bundled as classpath resources in the plugin JAR under {@code
- * META-INF/hkj-skills/}. This task reads the manifest listing all skill files and copies them to
- * the project directory.
+ * META-INF/hkj-skills/}. This task reads the manifest listing all skill files and copies them
+ * there.
  *
  * <p>Caching is disabled because the task writes outside the build directory (into the consumer
  * project's {@code .claude/skills/} directory) and the copy cost is negligible compared to the
@@ -41,11 +42,12 @@ public abstract class HKJInstallSkillsTask extends DefaultTask {
   public HKJInstallSkillsTask() {
     setGroup("hkj");
     setDescription("Installs HKJ Claude Code skills into .claude/skills/");
+    getOutputDir().convention(getLayout().getProjectDirectory().dir(".claude/skills"));
   }
 
   /**
-   * Returns the directory the skills are installed into. The plugin sets it to the {@code
-   * .claude/skills} directory under the project root when it registers the task.
+   * Returns the directory the skills are installed into. Unless the build sets it, this is {@code
+   * .claude/skills} in the directory of the project the task belongs to.
    *
    * @return the directory the skills are installed into
    */
@@ -53,8 +55,9 @@ public abstract class HKJInstallSkillsTask extends DefaultTask {
   public abstract DirectoryProperty getOutputDir();
 
   /**
-   * Returns the layout of the project the task belongs to, which the configuration cache can store
-   * where it cannot store the project.
+   * Returns the layout of the project the task belongs to, which Gradle injects. The task reads the
+   * project directory from it, since the configuration cache forbids reaching the project while a
+   * task runs.
    *
    * @return the project's layout
    */
@@ -102,12 +105,19 @@ public abstract class HKJInstallSkillsTask extends DefaultTask {
 
       getLogger()
           .lifecycle(
-              "Installed {} HKJ Claude Code skill files into {}",
-              installed,
-              getLayout().getProjectDirectory().getAsFile().toPath().relativize(targetDir));
+              "Installed {} HKJ Claude Code skill files into {}", installed, shown(targetDir));
 
     } catch (IOException e) {
       throw new GradleException("Failed to install HKJ skills: " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Names {@code dir} relative to the project directory when it lies inside it, and in full
+   * otherwise: a directory on another drive has no relative path.
+   */
+  private Path shown(Path dir) {
+    Path projectDir = getLayout().getProjectDirectory().getAsFile().toPath();
+    return dir.startsWith(projectDir) && !dir.equals(projectDir) ? projectDir.relativize(dir) : dir;
   }
 }

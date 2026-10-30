@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
+import org.gradle.testkit.runner.TaskOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,11 +43,10 @@ class HKJPluginFunctionalTest {
         .forwardOutput();
   }
 
-  /** The output of a build of {@code tasks} with the configuration cache on. */
-  private String cachedBuild(String... tasks) {
+  private BuildResult buildWithConfigurationCache(String... tasks) {
     List<String> args = new ArrayList<>(List.of(tasks));
     args.add("--configuration-cache");
-    return runner(args.toArray(String[]::new)).build().getOutput();
+    return runner(args.toArray(String[]::new)).build();
   }
 
   private static void deleteRecursively(Path dir) throws IOException {
@@ -557,8 +557,8 @@ class HKJPluginFunctionalTest {
         }
         """);
 
-    String stored = cachedBuild("hkjDiagnostics");
-    String reused = cachedBuild("hkjDiagnostics");
+    String stored = buildWithConfigurationCache("hkjDiagnostics").getOutput();
+    String reused = buildWithConfigurationCache("hkjDiagnostics").getOutput();
 
     assertThat(stored).contains("Configuration cache entry stored.");
     assertThat(reused).contains("Reusing configuration cache.");
@@ -591,25 +591,56 @@ class HKJPluginFunctionalTest {
             flatDir { dirs 'libs' }
         }
         """);
-    // Storing the entry resolves compileJava's classpaths. Empty jars stand in for the published
-    // artifacts, since with no sources javac never runs.
+    // Storing the entry resolves compileJava's classpaths. Empty files stand in for the published
+    // jars, since with no sources javac never runs.
     Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
     for (String artifact : List.of("hkj-core", "hkj-processor-plugins", "hkj-checker")) {
       Files.createFile(libs.resolve(artifact + "-0.3.0.jar"));
     }
     Path skillsDir = testProjectDir.resolve(".claude/skills");
+    String installedInto = "into " + Path.of(".claude", "skills");
 
-    String stored = cachedBuild("classes");
-    assertThat(stored)
+    BuildResult stored = buildWithConfigurationCache("classes");
+    assertThat(stored.task(":hkjInstallSkills").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(stored.getOutput())
         .contains("Configuration cache entry stored.")
-        .contains("into .claude/skills");
+        .contains(installedInto);
     assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
 
     // Removing the skills makes the install run again, from the stored entry
     deleteRecursively(skillsDir);
-    String reused = cachedBuild("classes");
-    assertThat(reused).contains("Reusing configuration cache.").contains("into .claude/skills");
+    BuildResult reused = buildWithConfigurationCache("classes");
+    assertThat(reused.task(":hkjInstallSkills").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(reused.getOutput()).contains("Reusing configuration cache.").contains(installedInto);
     assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
+  }
+
+  @Test
+  @DisplayName("an install task the build registers installs into .claude/skills or its outputDir")
+  void installSkillsTask_registeredByTheBuild_installsIntoItsOutputDir(@TempDir Path elsewhere)
+      throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        tasks.register('installAgain', org.higherkindedj.gradle.HKJInstallSkillsTask)
+        tasks.register('installElsewhere', org.higherkindedj.gradle.HKJInstallSkillsTask) {
+            outputDir = file('%s')
+        }
+        """
+            .formatted(elsewhere.toString().replace('\\', '/')));
+
+    BuildResult result = runner("installAgain", "installElsewhere").build();
+
+    assertThat(result.task(":installAgain").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(testProjectDir.resolve(".claude/skills/hkj-guide/SKILL.md")).isRegularFile();
+    assertThat(result.task(":installElsewhere").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(elsewhere.resolve("hkj-guide/SKILL.md")).isRegularFile();
+    // A directory outside the project is named in full
+    assertThat(result.getOutput()).contains("into " + elsewhere);
   }
 
   @Test

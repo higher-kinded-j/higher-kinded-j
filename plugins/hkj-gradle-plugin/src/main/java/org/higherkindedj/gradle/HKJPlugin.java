@@ -226,16 +226,7 @@ public class HKJPlugin implements Plugin<Project> {
   }
 
   private void registerInstallSkillsTask(Project project, HKJExtension extension) {
-    var installTask =
-        project
-            .getTasks()
-            .register(
-                "hkjInstallSkills",
-                HKJInstallSkillsTask.class,
-                task ->
-                    task.getOutputDir()
-                        .convention(
-                            project.getLayout().getProjectDirectory().dir(".claude/skills")));
+    var installTask = project.getTasks().register("hkjInstallSkills", HKJInstallSkillsTask.class);
 
     // When skills = true, wire the install task into the build lifecycle
     project.afterEvaluate(
@@ -272,8 +263,8 @@ public class HKJPlugin implements Plugin<Project> {
   }
 
   /**
-   * The configuration {@code hkjDiagnostics} prints, naming each annotation processor configuration
-   * the plugin adds to.
+   * The report {@code hkjDiagnostics} prints, naming each annotation processor configuration the
+   * plugin adds to.
    */
   private static String diagnosticsReport(
       HKJExtension extension, List<String> processorConfigurations) {
