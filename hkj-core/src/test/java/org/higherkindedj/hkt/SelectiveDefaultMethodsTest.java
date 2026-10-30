@@ -5,13 +5,18 @@ package org.higherkindedj.hkt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherSelective;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOSelective;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -905,16 +910,39 @@ class SelectiveDefaultMethodsTest {
       }
 
       @Test
-      @DisplayName("whenS should skip effect when condition is false")
+      @DisplayName("whenS should skip an effect that would fail when the condition is false")
       void whenSSkipsOnFalseDefault() {
         Kind<EitherKind.Witness<String>, Boolean> condition = EITHER.widen(Either.right(false));
-        Kind<EitherKind.Witness<String>, Unit> effect = EITHER.widen(Either.right(Unit.INSTANCE));
+        Kind<EitherKind.Witness<String>, Unit> effect = EITHER.widen(Either.left("effect error"));
 
         Kind<EitherKind.Witness<String>, Unit> result = defaultSelective.whenS(condition, effect);
 
         Either<String, Unit> either = EITHER.narrow(result);
         assertThat(either.isRight()).isTrue();
         assertThat(either.getRight()).isEqualTo(Unit.INSTANCE);
+      }
+
+      @Test
+      @DisplayName("whenS should run an effect that fails when the condition is true")
+      void whenSRunsFailingEffectOnTrueDefault() {
+        Kind<EitherKind.Witness<String>, Boolean> condition = EITHER.widen(Either.right(true));
+        Kind<EitherKind.Witness<String>, Unit> effect = EITHER.widen(Either.left("effect error"));
+
+        Kind<EitherKind.Witness<String>, Unit> result = defaultSelective.whenS(condition, effect);
+
+        assertThat(EITHER.narrow(result)).isEqualTo(Either.left("effect error"));
+      }
+
+      @Test
+      @DisplayName("whenS should give the condition's error when the effect fails too")
+      void whenSGivesTheConditionsErrorFirstDefault() {
+        Kind<EitherKind.Witness<String>, Boolean> condition =
+            EITHER.widen(Either.left("condition error"));
+        Kind<EitherKind.Witness<String>, Unit> effect = EITHER.widen(Either.left("effect error"));
+
+        Kind<EitherKind.Witness<String>, Unit> result = defaultSelective.whenS(condition, effect);
+
+        assertThat(EITHER.narrow(result)).isEqualTo(Either.left("condition error"));
       }
 
       @Test
@@ -957,11 +985,12 @@ class SelectiveDefaultMethodsTest {
     class IfSDefaultTests {
 
       @Test
-      @DisplayName("ifS should return then branch when condition is true")
+      @DisplayName("ifS should return the then branch, skipping an else branch that would fail")
       void ifSReturnsThenOnTrueDefault() {
         Kind<EitherKind.Witness<String>, Boolean> condition = EITHER.widen(Either.right(true));
         Kind<EitherKind.Witness<String>, Integer> thenBranch = EITHER.widen(Either.right(42));
-        Kind<EitherKind.Witness<String>, Integer> elseBranch = EITHER.widen(Either.right(100));
+        Kind<EitherKind.Witness<String>, Integer> elseBranch =
+            EITHER.widen(Either.left("else error"));
 
         Kind<EitherKind.Witness<String>, Integer> result =
             defaultSelective.ifS(condition, thenBranch, elseBranch);
@@ -972,10 +1001,11 @@ class SelectiveDefaultMethodsTest {
       }
 
       @Test
-      @DisplayName("ifS should return else branch when condition is false")
+      @DisplayName("ifS should return the else branch, skipping a then branch that would fail")
       void ifSReturnsElseOnFalseDefault() {
         Kind<EitherKind.Witness<String>, Boolean> condition = EITHER.widen(Either.right(false));
-        Kind<EitherKind.Witness<String>, Integer> thenBranch = EITHER.widen(Either.right(42));
+        Kind<EitherKind.Witness<String>, Integer> thenBranch =
+            EITHER.widen(Either.left("then error"));
         Kind<EitherKind.Witness<String>, Integer> elseBranch = EITHER.widen(Either.right(100));
 
         Kind<EitherKind.Witness<String>, Integer> result =
@@ -984,6 +1014,22 @@ class SelectiveDefaultMethodsTest {
         Either<String, Integer> either = EITHER.narrow(result);
         assertThat(either.isRight()).isTrue();
         assertThat(either.getRight()).isEqualTo(100);
+      }
+
+      @Test
+      @DisplayName("ifS should give the condition's error when both branches fail too")
+      void ifSGivesTheConditionsErrorFirstDefault() {
+        Kind<EitherKind.Witness<String>, Boolean> condition =
+            EITHER.widen(Either.left("condition error"));
+        Kind<EitherKind.Witness<String>, Integer> thenBranch =
+            EITHER.widen(Either.left("then error"));
+        Kind<EitherKind.Witness<String>, Integer> elseBranch =
+            EITHER.widen(Either.left("else error"));
+
+        Kind<EitherKind.Witness<String>, Integer> result =
+            defaultSelective.ifS(condition, thenBranch, elseBranch);
+
+        assertThat(EITHER.narrow(result)).isEqualTo(Either.left("condition error"));
       }
 
       @Test
@@ -1033,6 +1079,105 @@ class SelectiveDefaultMethodsTest {
         assertThatThrownBy(() -> defaultSelective.ifS(condition, thenBranch, null))
             .isInstanceOf(NullPointerException.class)
             .hasMessageContaining("felse for ifS cannot be null");
+      }
+    }
+
+    @Nested
+    @DisplayName("defaults over a lazy effect")
+    class LazyEffectDefaultTests {
+
+      // An IO Selective that keeps whenS, ifS and branch as the interface's defaults
+      private final Selective<IOKind.Witness> ioDefaults =
+          new Selective<>() {
+            @Override
+            public <A> Kind<IOKind.Witness, A> of(@Nullable A value) {
+              return IOSelective.INSTANCE.of(value);
+            }
+
+            @Override
+            public <A, B> Kind<IOKind.Witness, B> map(
+                Function<? super A, ? extends @Nullable B> f, Kind<IOKind.Witness, A> fa) {
+              return IOSelective.INSTANCE.map(f, fa);
+            }
+
+            @Override
+            public <A, B> Kind<IOKind.Witness, B> ap(
+                Kind<IOKind.Witness, ? extends Function<A, B>> ff, Kind<IOKind.Witness, A> fa) {
+              return IOSelective.INSTANCE.ap(ff, fa);
+            }
+
+            @Override
+            public <A, B> Kind<IOKind.Witness, B> select(
+                Kind<IOKind.Witness, Choice<A, B>> fab, Kind<IOKind.Witness, Function<A, B>> ff) {
+              return IOSelective.INSTANCE.select(fab, ff);
+            }
+          };
+
+      private Kind<IOKind.Witness, Boolean> condition(List<String> ran, boolean value) {
+        return recording(ran, "cond", value);
+      }
+
+      private <A> Kind<IOKind.Witness, A> recording(List<String> ran, String name, A value) {
+        return IO_OP.widen(
+            IO.delay(
+                () -> {
+                  ran.add(name);
+                  return value;
+                }));
+      }
+
+      @Test
+      @DisplayName("whenS runs the condition, then the effect only when the condition is true")
+      void whenSRunsTheEffectOnlyOnTrue() {
+        List<String> skipped = new ArrayList<>();
+        IO_OP
+            .narrow(
+                ioDefaults.whenS(
+                    condition(skipped, false), recording(skipped, "log", Unit.INSTANCE)))
+            .unsafeRunSync();
+        assertThat(skipped).containsExactly("cond");
+
+        List<String> ran = new ArrayList<>();
+        IO_OP
+            .narrow(ioDefaults.whenS(condition(ran, true), recording(ran, "log", Unit.INSTANCE)))
+            .unsafeRunSync();
+        assertThat(ran).containsExactly("cond", "log");
+      }
+
+      @Test
+      @DisplayName("whenS_ runs the condition, then the effect only when the condition is true")
+      void whenS_RunsTheEffectOnlyOnTrue() {
+        List<String> skipped = new ArrayList<>();
+        IO_OP
+            .narrow(ioDefaults.whenS_(condition(skipped, false), recording(skipped, "write", 3)))
+            .unsafeRunSync();
+        assertThat(skipped).containsExactly("cond");
+
+        List<String> ran = new ArrayList<>();
+        IO_OP
+            .narrow(ioDefaults.whenS_(condition(ran, true), recording(ran, "write", 3)))
+            .unsafeRunSync();
+        assertThat(ran).containsExactly("cond", "write");
+      }
+
+      @Test
+      @DisplayName("ifS runs the condition, then only the branch the condition picks")
+      void ifSRunsOnlyThePickedBranch() {
+        for (boolean value : List.of(true, false)) {
+          List<String> ran = new ArrayList<>();
+          String picked =
+              IO_OP
+                  .narrow(
+                      ioDefaults.ifS(
+                          condition(ran, value),
+                          recording(ran, "then", "then"),
+                          recording(ran, "else", "else")))
+                  .unsafeRunSync();
+
+          String expected = value ? "then" : "else";
+          assertThat(picked).isEqualTo(expected);
+          assertThat(ran).containsExactly("cond", expected);
+        }
       }
     }
   }

@@ -108,7 +108,10 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
    *
    * <p>If the condition is {@code true}, the effect {@code fa} is executed and its result is
    * returned. If the condition is {@code false}, {@code fa} is not executed and {@code
-   * of(Unit.INSTANCE)} is returned.
+   * of(Unit.INSTANCE)} is returned. The default runs the condition first and passes {@code fa} to
+   * {@link #select} as the function's effect, so {@code fa} runs exactly when {@code select} runs
+   * that effect: its contract skips it for a {@code Right}, as every library instance's does, and a
+   * {@code select} built from {@code ap} runs it every time.
    *
    * <p>This is the primary conditional effect execution operator for Selective functors. It
    * explicitly uses {@link Unit} to represent "operation completed with no interesting result",
@@ -126,9 +129,9 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
    *
    * <pre>{@code
    * // Log only if debug mode is enabled
-   * Kind<IO.Witness, Boolean> debugEnabled = IO.of(Config.isDebugMode());
-   * Kind<IO.Witness, Unit> logEffect = IO.fromRunnable(() -> log.debug("Debug info"));
-   * Kind<IO.Witness, Unit> maybeLog = selective.whenS(debugEnabled, logEffect);
+   * Kind<IOKind.Witness, Boolean> debugEnabled = IO_OP.widen(IO.delay(Config::isDebugMode));
+   * Kind<IOKind.Witness, Unit> logEffect = IO_OP.widen(IO.fromRunnable(() -> log.debug("on")));
+   * Kind<IOKind.Witness, Unit> maybeLog = selective.whenS(debugEnabled, logEffect);
    * }</pre>
    *
    * @param fcond A non-null {@link Kind Kind&lt;F, Boolean&gt;} representing an effectful boolean
@@ -142,20 +145,10 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
     requireNonNull(fcond, "Kind<F, Boolean> fcond for whenS cannot be null");
     requireNonNull(fa, "Kind<F, Unit> fa for whenS cannot be null");
 
-    // Transform Boolean to Choice<Unit, Unit>
-    // If true: Left(unit) - need to execute fa to get the Unit result
-    // If false: Right(Unit.INSTANCE) - skip fa, use Unit.INSTANCE directly
-    Kind<F, Choice<Unit, Unit>> condition =
-        map2(
-            fa,
-            fcond,
-            (unitFromEffect, conditionValue) ->
-                conditionValue ? Selective.left(unitFromEffect) : Selective.right(Unit.INSTANCE));
-
-    // Identity function for Unit
-    Kind<F, Function<Unit, Unit>> identity = of(u -> Unit.INSTANCE);
-
-    return select(condition, identity);
+    // true asks select for the function, which carries fa; false answers with Unit and skips it
+    Kind<F, Choice<Unit, Unit>> condition = map(Selective::unitChoice, fcond);
+    Kind<F, Function<Unit, Unit>> effect = map(unit -> ignored -> unit, fa);
+    return select(condition, effect);
   }
 
   /**
@@ -171,11 +164,11 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
    *
    * <pre>{@code
    * // Write to database (returns row count, but we don't care)
-   * Kind<IO.Witness, Integer> writeResult = database.write(data);
-   * Kind<IO.Witness, Boolean> shouldWrite = IO.of(config.shouldPersist());
+   * Kind<IOKind.Witness, Integer> writeResult = IO_OP.widen(IO.delay(() -> database.write(data)));
+   * Kind<IOKind.Witness, Boolean> shouldWrite = IO_OP.widen(IO.delay(config::shouldPersist));
    *
    * // Discard the Integer result, treat as Unit
-   * Kind<IO.Witness, Unit> maybeWrite = selective.whenS_(shouldWrite, writeResult);
+   * Kind<IOKind.Witness, Unit> maybeWrite = selective.whenS_(shouldWrite, writeResult);
    * }</pre>
    *
    * @param fcond The non-null effectful condition
@@ -193,8 +186,10 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
    * A ternary conditional operator for selective functors. If the condition is {@code true},
    * returns the result of {@code fthen}, otherwise returns the result of {@code felse}.
    *
-   * <p>Unlike a monadic bind, both {@code fthen} and {@code felse} are visible upfront, allowing
-   * for static analysis and potentially parallel execution.
+   * <p>Unlike a monadic bind, both {@code fthen} and {@code felse} are given up front. The default
+   * runs the condition first and passes each branch to {@link #branch} as a handler's effect, so a
+   * branch runs exactly when {@link #select} runs that effect: its contract skips it for a {@code
+   * Right}, as every library instance's does, and a {@code select} built from {@code ap} runs both.
    *
    * @param fcond A non-null {@link Kind Kind&lt;F, Boolean&gt;} representing an effectful boolean
    *     condition.
@@ -211,19 +206,16 @@ public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Appl
     requireNonNull(fthen, "Kind<F, A> fthen for ifS cannot be null");
     requireNonNull(felse, "Kind<F, A> felse for ifS cannot be null");
 
-    Kind<F, Choice<A, A>> eitherChoice =
-        map3(
-            fthen,
-            felse,
-            fcond,
-            (thenVal, elseVal, b) ->
-                b
-                    ? Selective.left(thenVal) // Use Selective.left()
-                    : Selective.right(elseVal)); // Use Selective.right()
+    // true takes branch's left handler, which carries fthen; false takes the right, carrying felse
+    Kind<F, Choice<Unit, Unit>> condition = map(Selective::unitChoice, fcond);
+    Kind<F, Function<Unit, A>> thenHandler = map(value -> ignored -> value, fthen);
+    Kind<F, Function<Unit, A>> elseHandler = map(value -> ignored -> value, felse);
+    return branch(condition, thenHandler, elseHandler);
+  }
 
-    Kind<F, Function<A, A>> identity = of(a -> a);
-
-    return select(eitherChoice, identity);
+  /** {@code Left} for {@code true} and {@code Right} for {@code false}, as whenS and ifS need. */
+  private static Choice<Unit, Unit> unitChoice(Boolean condition) {
+    return condition ? Selective.left(Unit.INSTANCE) : Selective.right(Unit.INSTANCE);
   }
 
   /**
