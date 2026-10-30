@@ -61,7 +61,7 @@ class BookSnippetVerificationTest {
    * deleted together with the prose it illustrated, when a page is cut down. Lower the floor
    * deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2400;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2395;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
@@ -69,7 +69,7 @@ class BookSnippetVerificationTest {
    * check for an easy positive snippet elsewhere leaves the total untouched, and those checks are
    * the only thing holding the pages that document refusals to what the processor actually says.
    */
-  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 174;
+  private static final int MINIMUM_DIAGNOSTIC_SNIPPETS = 236;
 
   /**
    * How many of those snippets must come from the skills root, for the same reason the diagnostic

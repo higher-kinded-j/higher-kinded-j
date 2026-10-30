@@ -1,318 +1,177 @@
+<!-- description: Convert one container into another with Natural, without looking at the value inside, check the naturality law, and see where interpreters use it. -->
+
 # Natural Transformation
-## _Polymorphic Functions Between Type Constructors_
 
-~~~admonish info title="What We'll Learn"
-- What a natural transformation is, in two sentences
-- How to convert between containers (`Maybe`, `List`, `Either`, `Try`) without peeking inside
-- The naturality law and why a transformation that breaks it stops being trustworthy
-- How natural transformations compose and where the identity transformation fits
-- Why every Free monad interpreter is a natural transformation in disguise
-- Where this shows up inside the Foundations one-liner
-~~~
+_Turn one container into another, such as a `Maybe` into a `List`, whatever value it holds._
 
-~~~admonish example title="Hands-On Practice"
-[Tutorial08_NaturalTransformation.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java)
+<!-- source: Franz Kafka, Metamorphosis (1915), opening sentence, translated by David Wyllie; text checked against Project Gutenberg eBook #5200 -->
+> _"One morning, when Gregor Samsa woke from troubled dreams, he found himself transformed in his bed into a horrible vermin."_
+>
+> — Franz Kafka, *Metamorphosis* (trans. David Wyllie)
+
+Gregor wakes in a new shell with the same thoughts: `maybeToList` gives a line item a new container, and leaves the item as it was.
+
+~~~admonish info title="What You'll Learn"
+- Say what a natural transformation is, and how it differs from `map`
+- Write one as a generic method and use it as a `Natural` through a method reference
+- Chain transformations with `andThen`, and start a chain from `Natural.identity()`
+- Check a transformation against the naturality law
+- Find the interpreters and conversions in the library that take a `Natural`
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [NaturalTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/NaturalTest.java) - Comprehensive test suite
-- [NaturalTransformationExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/natural/NaturalTransformationExample.java) - Practical examples
+**The code on this page is [NaturalBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/natural/NaturalBook.java)**: the page includes it, so the build compiles and runs it. [NaturalBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/natural/NaturalBookTest.java) holds what the page says each transformation does, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws.
 ~~~
 
-## Two Sentences
-
-A natural transformation is a function that converts every `F<A>` into a `G<A>`, for *any* `A`, without ever looking at the value inside. It changes the container, never the cargo.
-
-```
-F<A>  ────  Natural<F, G>  ────▶  G<A>
-```
-
-If we have used Higher-Kinded-J for more than a few hours, we have already called several. `MaybePath::toEitherPath` is one. `Either::toMaybe` is another. The interface in this section is just the formalisation, plus the laws that keep these transformations honest.
-
 ---
 
-## Everyday Examples
+## The container changes, never the cargo {#the-container-changes-never-the-cargo}
 
-| From | To | Transformation |
-|------|----|----------------|
-| `Maybe<A>` | `List<A>` | `Nothing` becomes `[]`, `Just(x)` becomes `[x]` |
-| `List<A>` | `Maybe<A>` | Take the head element, if any |
-| `Either<E, A>` | `Maybe<A>` | `Left` becomes `Nothing`, `Right(x)` becomes `Just(x)` |
-| `Try<A>` | `Either<Throwable, A>` | `Success`/`Failure` map to `Right`/`Left` |
-| `MaybePath<A>` | `EitherPath<E, A>` | absence becomes a typed `Left` carrying the supplied error |
+A natural transformation turns every `F<A>` into a `G<A>`, for any `A`, without looking at the value inside. It changes the container, never the cargo. [Functor](functor.md)'s `map` does the opposite: it changes the value and keeps the container.
 
-The pattern is the same in every row: a rule about the *shape* of the input that knows nothing about what the input contains.
+You have called some already. `optional.stream()` turns an `Optional` into a `Stream`, and `list.stream().findFirst()` turns a `List` into an `Optional`. The library adds `maybe.toOptional()`, `Try.toEither(mapper)` and, on an [Effect Path](../effect/ch_intro.md), `MaybePath.toEitherPath(error)`. Application code stays with methods like these.
 
----
+This page writes three over the `Kind` encoding, as an interpreter needs:
 
-## The Interface
+| From | To | The rule |
+|---|---|---|
+| `Maybe<A>` | `List<A>` | `Nothing` becomes `[]`, and `Just(x)` becomes `[x]` |
+| `List<A>` | `Maybe<A>` | Keep the first element, if there is one |
+| `Either<E, A>` | `Maybe<A>` | `Left` becomes `Nothing`, and `Right(x)` becomes `Just(x)` |
 
-```java
-@FunctionalInterface
-public interface Natural<F, G> {
+Each rule is about the shape of its input, and none needs to know what the input holds.
 
-    <A> Kind<G, A> apply(Kind<F, A> fa);
+## Write one as a generic method {#writing-one}
 
-    default <H> Natural<F, H> andThen(Natural<G, H> after);
-
-    default <E> Natural<E, G> compose(Natural<E, F> before);
-
-    static <F> Natural<F, F> identity();
-}
-```
-
-Three things to notice:
-
-1. The `<A>` is on `apply`, not on the interface. A single `Natural<F, G>` works for *every* element type. That polymorphism is the entire point.
-2. It is a `@FunctionalInterface`, so most transformations are written as a one-line lambda.
-3. `andThen` and `compose` exist because we want to chain transformations, and `identity()` exists because chains need a sensible starting point.
-
----
-
-## Three Worked Transformations
-
-### `Maybe ~> List`
+The code on this page uses these imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-Natural<MaybeKind.Witness, ListKind.Witness> maybeToList = new Natural<>() {
-    @Override
-    public <A> Kind<ListKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
-        Maybe<A> maybe = MAYBE.narrow(fa);
-        List<A> list = maybe.isJust() ? List.of(maybe.get()) : List.of();
-        return LIST.widen(list);
-    }
-};
-
-Kind<MaybeKind.Witness, String> hello   = MAYBE.widen(Maybe.just("hello"));
-Kind<ListKind.Witness, String>  asList  = maybeToList.apply(hello);
-// LIST.narrow(asList) -> ["hello"]
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
 
-### `Either ~> Maybe` (discarding the error)
+`Natural<F, G>` has one abstract method, `<A> Kind<G, A> apply(Kind<F, A> fa)`. Its `<A>` is on the method, not the interface, so one `Natural` works for every element type. That also means a lambda cannot implement it, since a Java lambda cannot be generic:
 
-<!-- verify -->
+<!-- verify:rejects "invalid functional descriptor" -->
 ```java
-Natural<EitherKind.Witness<String>, MaybeKind.Witness> eitherToMaybe = new Natural<>() {
-    @Override
-    public <A> Kind<MaybeKind.Witness, A> apply(Kind<EitherKind.Witness<String>, A> fa) {
-        Either<String, A> either = EITHER.<String, A>narrow(fa);
-        return MAYBE.widen(
-            either.fold(left -> Maybe.nothing(), Maybe::just));
-    }
-};
+Natural<MaybeKind.Witness, ListKind.Witness> toList = fa -> NaturalBook.maybeToList(fa);
 ```
 
-### `List ~> Maybe` (head)
+javac refuses it with "invalid functional descriptor for lambda expression". Write each conversion as a generic method:
 
-<!-- verify -->
 ```java
-Natural<ListKind.Witness, MaybeKind.Witness> listHead = new Natural<>() {
-    @Override
-    public <A> Kind<MaybeKind.Witness, A> apply(Kind<ListKind.Witness, A> fa) {
-        List<A> list = LIST.narrow(fa);
-        return MAYBE.widen(
-            list.isEmpty() ? Maybe.nothing() : Maybe.just(list.get(0)));
-    }
-};
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/natural/NaturalBook.java:transformations}}
 ```
 
-In all three cases, the body never inspects the element type. That is the discipline `Natural` enforces.
+A method reference makes one a `Natural`. `LAMP` is a lamp line item: `Just(LAMP)` becomes a one-element list, and `Nothing` an empty one.
 
----
-
-## The Naturality Law
-
-A transformation that calls itself "natural" must obey one rule:
-
-> For any function `f: A -> B` and any value `fa: F<A>`,
-> `nat.apply(map(f, fa))` equals `map(f, nat.apply(fa))`.
-
-In a diagram:
-
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/natural/NaturalBook.java:apply}}
 ```
+
+## Chaining {#chaining}
+
+`andThen` runs one transformation and then another, and `compose` runs them the other way round. `Natural.identity()` returns its input unchanged, so it can start a chain built in a loop. Here a `Right` becomes a one-element list, and a `Left` an empty one, its error dropped:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/natural/NaturalBook.java:compose}}
+```
+
+## The naturality law {#the-naturality-law}
+
+One rule makes a transformation natural: for any function `f`, mapping `f` and then converting gives what converting and then mapping gives.
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="The naturality square. From F of A, mapping f then applying nat reaches G of B, and so does applying nat then mapping f. Both routes give the same result.">
             map(f)
-   F<A>  ──────────▶  F<B>
+   F&lt;A&gt;  ──────────▶  F&lt;B&gt;
     │                   │
    nat                 nat
     ▼                   ▼
-   G<A>  ──────────▶  G<B>
+   G&lt;A&gt;  ──────────▶  G&lt;B&gt;
             map(f)
-```
+</pre>
 
-Either route to the bottom-right corner gives the same answer. Concretely: it does not matter whether we map and then transform, or transform and then map. The container changes; the value does not.
+Both routes to the bottom-right corner give the same answer. That is what lets you move a conversion before or after a `map` without changing the result.
 
-### Why This Matters
+~~~admonish note title="Laws"
+- **Naturality: converting and mapping can swap places.** `nat.apply(map(f, fa))` equals `map(f, nat.apply(fa))`, for every function `f` and value `fa`.
+- **Identity: the identity changes nothing, on either side.** `Natural.identity().andThen(nat).apply(fa)` equals `nat.apply(fa)`, and so does `nat.andThen(Natural.identity()).apply(fa)`.
+- **Associativity: grouping a chain differently changes nothing.** `f.andThen(g).andThen(h).apply(fa)` equals `f.andThen(g.andThen(h)).apply(fa)`.
 
-If a transformation peeks at `A` and behaves differently for `Integer` than for `String`, it is no longer structure-preserving and the naturality square stops commuting. The moment that happens, every reasoning we want to do about composition stops holding. We can no longer freely refactor `nat.apply(map(f, x))` into `map(f, nat.apply(x))`, and the abstraction has cost us nothing while delivering nothing.
+The laws compare what each side gives for the same input. Two `Natural`s are different objects, so `equals` between them says nothing. The laws assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one. A transformation that looks at the value inside, such as one that treats an `Integer` differently from a `String`, breaks the naturality law, and is a function of another kind.
 
-The discipline is not pedantic; it is what makes natural transformations *useful*.
-
-~~~admonish warning title="Violating Naturality"
-A "transformation" that converts a `List<Integer>` differently from a `List<String>`, or that uses `instanceof` to inspect element types, is not a natural transformation. It might still be a useful function; it just is not one of these.
-~~~
-
----
-
-## Composition
-
-Natural transformations chain like ordinary functions, with `andThen` and `compose`:
-
-```java
-Natural<F, G> fg = ...;
-Natural<G, H> gh = ...;
-
-Natural<F, H> fh = fg.andThen(gh);     // F ~> G ~> H
-```
-
-Composition is associative. Identity is `Natural.identity()`:
-
-```java
-Natural<F, F> id = Natural.identity();   // id.apply(fa) == fa
-Natural.identity().andThen(nat).equals(nat);
-nat.andThen(Natural.identity()).equals(nat);
-```
-
-These laws are the same laws categories obey. We do not need the category-theory background to use them; we just need to know that chaining is well-behaved and we can trust it.
-
----
-
-## Where This Shows Up
-
-### Free Monad Interpreters
-
-The most common use is interpreting Free monads. A Free program is built from an instruction set `F`. To run it, we provide a natural transformation `F ~> M`, where `M` is the target effect (often `IO`).
+Checking these laws with `hkj-test` is not supported yet, so the test checks them by hand, for `maybeToList` and `firstOf`. It uses these imports, with JUnit's, and `ORDER` is any `Order`:
 
 <!-- verify -->
 ```java
-sealed interface ConsoleOp<A> {
-    record PrintLine(String text) implements ConsoleOp<Unit> {}
-    record ReadLine() implements ConsoleOp<String> {}
-}
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-Natural<ConsoleOpKind.Witness, IOKind.Witness> interpreter = new Natural<>() {
-    @Override
-    @SuppressWarnings("unchecked")   // the operation fixes A; the switch cannot say so
-    public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOpKind.Witness, A> fa) {
-        ConsoleOp<A> op = CONSOLE_OP.narrow(fa);
-        return switch (op) {
-            case ConsoleOp.PrintLine p -> IO_OP.widen(IO.delay(() -> {
-                System.out.println(p.text());
-                return (A) Unit.INSTANCE;
-            }));
-            case ConsoleOp.ReadLine r -> IO_OP.widen(IO.delay(() -> (A) scanner.nextLine()));
-        };
-    }
-};
-
-// program is a Free<ConsoleOpKind.Witness, String>
-Kind<IOKind.Witness, String> executable = program.foldMap(interpreter, ioMonad);
+import java.util.List;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import org.higherkindedj.example.book.foundations.natural.NaturalBook;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.maybe.MaybeKind;
 ```
-
-The `interpreter` is *the* place where the program meets the world. Swapping it for a test interpreter (one that returns canned input and records prints) is how we test Free programs without mocking. The interpreter is a `Natural`, full stop.
-
-### Monad Transformer Lifting
-
-Every `lift` on a monad transformer (`IO ~> EitherT<IO, E, ?>`, for example) is a natural transformation. The same shape applies; the cargo is preserved; the container deepens by one layer.
-
-### Coyoneda Lowering
-
-`Coyoneda.lower` runs internally as a natural transformation. We rarely need to know that, but it explains why the lowering is law-abiding without extra hand-waving.
-
----
-
-## Back to the One-Liner
-
-Once again the line:
 
 ```java
-repo.find(id)
-    .toEitherPath()           // <-- natural transformation: MaybePath ~> EitherPath
-    .focus().attributes().at(key)
-    .modify(spec::validateAndCoerce)
-    .flatMap(repo::save);
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:natural_laws}}
 ```
+~~~
 
-`.toEitherPath()` is the everyday face of a natural transformation. It takes whatever was inside the `MaybePath` (a found node, or absence) and produces the equivalent `EitherPath` (a `Right` with the node, or a typed `Left` carrying the not-found error). The element type `A` does not matter; the rule converts the *shape*. That is precisely what `Natural` is for.
+## Where the library takes one {#where-the-library-takes-one}
 
-The reason this composes with everything downstream is that `Natural` is law-abiding: anything we could have done to the value inside the `MaybePath` we can equally do to the value inside the `EitherPath` after the transformation, and the answer agrees. That is naturality, doing useful work without us thinking about it.
+A [Free](../monads/free_monad.md) program holds its steps, its instructions, as data. An interpreter runs it by turning each instruction into a real effect, and that turning is a `Natural`.
 
----
+- **A Free program's interpreter is a `Natural`.** `program.foldMap(interpreter, monad)` runs a program by converting each instruction with a `Natural<F, M>`, and a `FreeAp` program's `foldMap` does the same with an applicative. A test interpreter is another `Natural` for the same program, and `FreePath.foldMap` takes one too.
+- **`Free.translate(program, nat, functor)` moves a program from one instruction set to another.** [EitherF](../monads/eitherf.md#freetranslate-lifting-between-effect-types) shows it.
+- **`Interpreters.combine` joins two interpreters into one.** A program over two instruction sets needs it, as [EitherF](../monads/eitherf.md) shows.
+- **`EffectBoundary.of` takes the interpreter to `IO` that runs a program at the edge.**
+- **A transformer's `mapT` takes `nat::apply`.** `EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT` and `WriterT` each have one. It changes the outer container, for example from `IO` to `VTask`, and leaves the inner value alone.
 
-## When to Reach for `Natural`
-
-Good use cases:
-
-1. **Free monad and Free applicative interpretation.** The primary reason the type exists.
-2. **Converting between similar containers in generic code.** Hand-rolling each conversion is fine for one-offs; defining a `Natural` is the move when the conversion is reused across the codebase.
-3. **Swapping interpreters at runtime.** Production interpreter, test interpreter, dry-run interpreter; same program, three different `Natural`s.
-4. **Lifting through transformer stacks.** Moving a value up a stack of transformers is naturality at work.
-
-When we do *not* need a `Natural`: if we only need to convert one specific `Maybe<String>` to a `List<String>` once, write a method. `Natural` earns its keep when the polymorphism does.
-
----
-
-## Things People Get Wrong
+## Things people get wrong {#things-people-get-wrong}
 
 ~~~admonish warning title="Common Misunderstandings"
-- **"Naturality is a category-theory thing I can ignore."** It is the law that lets us refactor freely between "transform then map" and "map then transform". Without it, we lose the ability to reason about composition. We do not need the category theory to honour the law.
-- **"I can branch on `A`."** Not in a `Natural`. The moment the body of `apply` looks at the element type, we have a function with the same Java signature but none of the guarantees `Natural` is supposed to provide.
-- **"`Natural` and `Functor.map` are the same."** `map` rewrites the value `A`, leaving the container `F` alone. `Natural` rewrites the container `F`, leaving the value `A` alone. They are dual.
-- **"It is just a method reference like any other."** It can be expressed that way, but only if the method preserves the value across all `A`. The `@FunctionalInterface` keeps the type signature honest; the law keeps the *meaning* honest.
+- **"A `Natural` is a lambda."** Its `apply` is generic, and a Java lambda cannot be. Write a generic method, and pass it as a method reference.
+- **"I can branch on `A`."** Not in a natural transformation. A body that inspects the value, with `instanceof` for example, compiles, but it breaks the naturality law.
+- **"A natural transformation keeps every value."** It keeps the values it keeps unchanged, but it may drop some: `firstOf` keeps only the first element, and `eitherToMaybe` drops the error. Both are natural.
+- **"Naturality is theory I can ignore."** It is what lets you move a conversion past a `map`. An interpreter that breaks it gives a program a meaning that depends on where its steps were mapped.
 ~~~
 
 ---
-
-## Identity, Composition, Laws
-
-```java
-// Left identity
-Natural.identity().andThen(nat).equals(nat);
-
-// Right identity
-nat.andThen(Natural.identity()).equals(nat);
-
-// Associativity
-fg.andThen(gh).andThen(hi).equals(fg.andThen(gh.andThen(hi)));
-```
-
-These are the same laws functions obey. `Natural` is, deliberately, just a function with extra discipline.
-
----
-
-## Relationship to Other Concepts
-
-| Concept | Relationship |
-|---------|--------------|
-| **Functor** | Natural transformations operate on Functors; the naturality law involves `map` |
-| **Free Monad** | Interpretation via `foldMap` uses a natural transformation |
-| **Free Applicative** | Interpretation via `foldMap` also uses a natural transformation |
-| **Monad Transformers** | `lift` operations are natural transformations |
-| **Coyoneda** | Lowering from Coyoneda uses a natural transformation internally |
-
----
-
-~~~admonish info title="Key Takeaways"
-* A natural transformation converts `F<A>` to `G<A>` without inspecting `A`
-* The naturality law makes the conversion structure-preserving and composable
-* `andThen`, `compose`, and `identity` make `Natural` chain like ordinary functions
-* Every Free monad interpreter is a `Natural`; swap interpreters to swap behaviour
-* Inside the Foundations one-liner, `.toEitherPath()` is a `Natural` doing exactly this job
-~~~
 
 ~~~admonish tip title="See Also"
-- [Functor](functor.md) - the type class natural transformations interact with
-- [Free Monad](../monads/free_monad.md) - the primary client of natural transformations
-- [Bifunctor](bifunctor.md) - mapping over two parameters; a different abstraction along the same axis
-- [One Line, Six Layers](../hkts/one_line_six_layers.md) - where this fits in the wider Foundations picture
+- [Functor](functor.md): the `map` that the naturality law is stated in
+- [Free Monad](../monads/free_monad.md): programs that a `Natural` interprets
+- [Free Applicative](../monads/free_applicative.md): independent programs that a `Natural` interprets
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Bartosz Milewski**: [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/) - Accessible introduction with diagrams
-- **Mojang/DataFixerUpper**: [DFU on GitHub](https://github.com/Mojang/DataFixerUpper) - Minecraft's Java library where natural transformations drive data version migration
+- **Bartosz Milewski**, [Natural Transformations](https://bartoszmilewski.com/2015/04/07/natural-transformations/): an introduction with diagrams
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

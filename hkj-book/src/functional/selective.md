@@ -1,362 +1,192 @@
+<!-- description: Run an effect only when an earlier result calls for it with select, whenS and ifS, every branch given up front, and see what that buys. -->
+
 # Selective: Conditional Effects
 
+_Run an effect only when an earlier result calls for it, with every branch named up front._
+
 ~~~admonish info title="What You'll Learn"
-- How Selective bridges the gap between Applicative and Monad
-- Conditional effect execution without full monadic power
-- Using `select`, `whenS`, and `ifS` for static branching
-- Building robust workflows with compile-time visible alternatives
-- Combining multiple alternatives with `orElse`
-- Real-world examples of conditional effect execution
+- Apply a function only to a value that still needs it, with `select`
+- Run an effect only when a condition holds with `whenS`, and pick one of two with `ifS`
+- Say what giving every branch up front buys, and where a program can be inspected before it runs
+- Get the `Selective` instance for each type that has one
+- Check an instance against the two laws `hkj-test` checks
 ~~~
 
-You've seen how `Applicative` lets you combine independent computations and how `Monad` lets you chain dependent computations. The **`Selective`** type class sits precisely between them, providing a powerful middle ground: **conditional effects with static structure**.
+~~~admonish example title="See Example Code"
+**The code on this page is [SelectiveBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java)**: the page includes it, so the build compiles and runs it. [SelectiveBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/selective/SelectiveBookTest.java) holds what the page says each operation runs, and [FoundationsLawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java) checks the laws.
+~~~
 
 ---
 
-## What is it?
+## Between Applicative and Monad {#between-applicative-and-monad}
 
-A **`Selective`** functor extends `Applicative` with the ability to conditionally apply effects based on the result of a previous computation. Unlike `Monad`, which allows arbitrary dynamic choice of effects, Selective provides a more restricted form of conditional execution where all possible branches must be provided upfront.
+[Applicative](applicative.md)'s `map2` combines effects that do not depend on one another: no value one effect gives can decide whether another runs. [Monad](monad.md)'s `flatMap` lets a step choose the next effect from the last result, but the next effect does not exist until the step runs. `Selective` sits between them: an earlier result decides whether an effect runs, and every effect that might run is named up front.
 
-This static structure enables:
-* **Static analysis**: All possible execution paths are visible at construction time
-* **Optimisation**: Compilers and runtimes can analyse and potentially parallelise branches
-* **Conditional effects**: Execute operations only when needed, without full monadic power
-* **Type-safe branching**: All branches must produce the same result type
+`Selective` extends `Applicative`, and every `Selective` in the library is also a `Monad`. Choosing among `Applicative`, `Selective` and `Monad` for a task is [Choosing Abstraction Levels](abstraction_levels.md)'s subject. On an [Effect Path](../effect/ch_intro.md), a `via` step with an `if` does this job for one container.
 
-The interface for `Selective` in `hkj-api` extends `Applicative`:
-
-```java
-@NullMarked
-public interface Selective<F extends WitnessArity<TypeArity.Unary>> extends Applicative<F> {
-  // Core operation
-  <A, B> Kind<F, B> select(Kind<F, Choice<A, B>> fab, Kind<F, Function<A, B>> ff);
-
-  // Derived operations
-  default <A> Kind<F, Unit> whenS(Kind<F, Boolean> fcond, Kind<F, Unit> fa) { ... }
-  default <A> Kind<F, A> ifS(Kind<F, Boolean> fcond, Kind<F, A> fthen, Kind<F, A> felse) { ... }
-  default <A, B, C> Kind<F, C> branch(Kind<F, Choice<A, B>> fab,
-                                       Kind<F, Function<A, C>> fl,
-                                       Kind<F, Function<B, C>> fr) { ... }
-  // ... and more
-}
-```
-
----
-
-## The Core Operation: `select`
-
-The fundamental operation is `select`, which takes a `Choice<A, B>` (similar to `Either`) and a function:
-
-* If the choice is `Left(a)`, the function is applied to `a` to produce `B`
-* If the choice is `Right(b)`, the function is ignored and `b` is returned
-
-**Example: Conditional Validation**
+The code on this page uses these imports:
 
 <!-- verify -->
 ```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.Selective;
-import org.higherkindedj.hkt.maybe.MaybeSelective;
-import org.higherkindedj.hkt.maybe.Maybe;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-Selective<MaybeKind.Witness> selective = MaybeSelective.INSTANCE;
-
-// A value that might need validation
-Kind<MaybeKind.Witness, Choice<String, Integer>> input =
-    MAYBE.widen(Maybe.just(Selective.left("42"))); // Left: needs parsing
-
-// Parser function (only applied if Choice is Left)
-Kind<MaybeKind.Witness, Function<String, Integer>> parser =
-    MAYBE.widen(Maybe.just(s -> Integer.parseInt(s)));
-
-Kind<MaybeKind.Witness, Integer> result = selective.select(input, parser);
-// Result: Just(42)
-
-// If input was already Right(42), parser would not be used
-Kind<MaybeKind.Witness, Choice<String, Integer>> alreadyParsed =
-    MAYBE.widen(Maybe.just(Selective.right(42)));
-
-Kind<MaybeKind.Witness, Integer> result2 = selective.select(alreadyParsed, parser);
-// Result: Just(42) - parser was not applied
-```
-
----
-
-## Conditional Effect Execution: `whenS`
-
-The `whenS` operation is the primary way to conditionally execute effects. It takes an effectful boolean condition and an effect that returns `Unit`, executing the effect only if the condition is `true`.
-
-**Example: Conditional Logging**
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.io.IOSelective;
-import org.higherkindedj.hkt.io.IO;
-import org.higherkindedj.hkt.Unit;
-import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-
-Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
-
-// Check if debug mode is enabled
-Kind<IOKind.Witness, Boolean> debugEnabled =
-    IO_OP.widen(IO.delay(() -> Config.isDebugMode()));
-
-// The logging effect (only executed if debug is enabled)
-Kind<IOKind.Witness, Unit> logEffect =
-    IO_OP.widen(IO.fromRunnable(() -> log.debug("Debug information")));
-
-// Conditional execution
-Kind<IOKind.Witness, Unit> maybeLog = selective.whenS(debugEnabled, logEffect);
-
-// Run the IO
-IO_OP.narrow(maybeLog).unsafeRunSync();
-// Only logs if Config.isDebugMode() returns true
-```
-
-### `whenS_`: Discarding Results
-
-When you have an effect that returns a value but you want to treat it as a `Unit`-returning operation, use `whenS_`:
-
-<!-- verify -->
-```java
-// Database write returns row count, but we don't care about the value
-Kind<IOKind.Witness, Integer> writeEffect =
-    IO_OP.widen(IO.delay(() -> database.write(data)));
-
-Kind<IOKind.Witness, Boolean> shouldPersist =
-    IO_OP.widen(IO.delay(() -> config.shouldPersist()));
-
-// Discard the Integer result, treat as Unit
-Kind<IOKind.Witness, Unit> maybeWrite = selective.whenS_(shouldPersist, writeEffect);
-```
-
----
-
-## Branching: `ifS`
-
-The `ifS` operation provides if-then-else semantics for selective functors. Unlike monadic branching, both branches must be provided upfront.
-
-**Example: Configuration-Based Behaviour**
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.either.EitherSelective;
-import org.higherkindedj.hkt.either.Either;
-import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
-
-Selective<EitherKind.Witness<String>> selective = EitherSelective.instance();
-
-// Check environment
-Kind<EitherKind.Witness<String>, Boolean> isProd =
-    EITHER.widen(Either.right(System.getenv("ENV").equals("production")));
-
-// Production configuration
-Kind<EitherKind.Witness<String>, Config> prodConfig =
-    EITHER.widen(Either.right(new Config("prod", 443, true)));
-
-// Development configuration
-Kind<EitherKind.Witness<String>, Config> devConfig =
-    EITHER.widen(Either.right(new Config("dev", 8080, false)));
-
-// Select configuration based on environment
-Kind<EitherKind.Witness<String>, Config> config =
-    selective.ifS(isProd, prodConfig, devConfig);
-
-// Result: Either.right(Config("prod", 443, true)) if ENV=production
-//         Either.right(Config("dev", 8080, false)) otherwise
-```
-
----
-
-## Trying Alternatives: `orElse`
-
-The `orElse` operation tries multiple alternatives in sequence, returning the first successful result.
-
-**Example: Fallback Configuration Sources**
-
-<!-- verify -->
-```java
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
-
-Selective<OptionalKind.Witness> selective = OptionalSelective.INSTANCE;
-
-// Try multiple configuration sources
-List<Kind<OptionalKind.Witness, Choice<String, Config>>> sources = List.of(
-    // Try environment variables
-    OPTIONAL.widen(tryEnvConfig()),
-    // Try config file
-    OPTIONAL.widen(tryFileConfig()),
-    // Try default config
-    OPTIONAL.widen(Optional.of(Selective.right(defaultConfig())))
-);
-
-Kind<OptionalKind.Witness, Choice<String, Config>> result =
-    selective.orElse(sources);
-
-// Returns the first successful Config, or the last error
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOSelective;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeSelective;
 ```
 
----
+Import the library's `IO` by name: Java 25 has a `java.lang.IO` too.
 
-## Selective vs Applicative vs Monad
+## `select`: apply a function only where it is needed {#select}
 
-Understanding the differences helps you choose the right abstraction:
+A `Choice<A, B>` is a `Left` holding an `A` or a `Right` holding a `B`, and `Selective.left` and `Selective.right` build one. Here `Left` means not done yet, not failure.
 
-| Feature | Applicative | Selective | Monad |
-|---------|------------|-----------|-------|
-| **Combine independent effects** | ✅ | ✅ | ✅ |
-| **Conditional effects** | ❌ | ✅ | ✅ |
-| **Dynamic effect choice** | ❌ | ❌ | ✅ |
-| **Static structure** | ✅ | ✅ | ❌ |
-| **Error accumulation** | ✅ (with Validated) | ✅ (with Validated) | ❌ |
-| **Analyse all branches** | ✅ | ✅ | ❌ |
-
-**When to use Selective:**
-* You need conditional effects but want static analysis
-* All branches should be known at construction time
-* You want optimisation opportunities from visible alternatives
-* You need something more powerful than Applicative but less than Monad
-
-**Example: Static vs Dynamic Choice**
+`select(fab, ff)` takes a container of `Choice<A, B>` and a container of a function from `A` to `B`. A `Left(a)` still needs the function, so `select` applies it. A `Right(b)` is already the answer, so `select` returns it untouched. With `ap`, a `Nothing` function would make any result `Nothing`:
 
 ```java
-// Selective: Both branches visible at construction
-Kind<F, A> selectiveChoice = selective.ifS(
-    condition,
-    branchA,  // Known upfront
-    branchB   // Known upfront
-);
-
-// Monad: Second computation depends on first result (dynamic)
-Kind<M, B> monadicChoice = monad.flatMap(a -> {
-    if (a > 10) return computeX(a);  // Not known until 'a' is available
-    else return computeY(a);
-}, source);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:select}}
 ```
 
----
+## `whenS`: run an effect only when a condition holds {#whens}
 
-## Multi-Way Branching: `branch`
-
-For more complex branching, `branch` handles both sides of a `Choice` with different handlers:
+The condition is itself an effect: an `IO` that, when it runs, says whether an order's total is over 100.00.
 
 ```java
-Kind<F, Choice<ErrorA, ErrorB>> input = ...; // Could be either error type
-
-Kind<F, Function<ErrorA, String>> handleA =
-    selective.of(a -> "AppError type A: " + a);
-
-Kind<F, Function<ErrorB, String>> handleB =
-    selective.of(b -> "AppError type B: " + b);
-
-Kind<F, String> result = selective.branch(input, handleA, handleB);
-// Applies the appropriate handler based on which error type
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:large}}
 ```
 
-## Chaining Conditional Functions: `apS`
-
-For chaining multiple conditional functions, `apS` applies a list of functions sequentially to a value, propagating either the successful result or the first error. It's useful for building a pipeline of validation or transformation steps.
-
-**Example: Multi-Step Validation**
+`whenS(condition, effect)` runs the effect only when the condition gives `true`, and gives `Unit` either way. Flagging an order for review runs only for a large one:
 
 ```java
-Kind<F, Choice<AppError, Data>> initialData = ...;
-
-List<Kind<F, Function<Data, Choice<AppError, Data>>>> validationSteps = List.of(
-    validateStep1,
-    validateStep2,
-    validateStep3
-);
-
-// Applies each validation step in order, short-circuiting on the first error.
-Kind<F, Choice<AppError, Data>> finalResult = selective.apS(initialData, validationSteps);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:review}}
 ```
 
----
+Run for an order of 50.00 and one of 120.00, it flags only the second:
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:review_run}}
+```
 
-## Real-World Example: Feature Flags
+`whenS_` does the same for an effect that gives a value, and drops the value.
 
-**Scenario:** Execute analytics tracking only if the feature flag is enabled.
+## `ifS`: pick one of two effects {#ifs}
+
+`ifS(condition, then, else)` gives `then` when the condition gives `true` and `else` when it gives `false`. Both are given up front, and `IO`'s `ifS` runs the condition, then only the branch it picks. A large order goes by freight, and any other by post:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:courier}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/selective/SelectiveBook.java:courier_run}}
+```
+
+A condition that holds more than one answer gives more than one branch. `List`'s `ifS` gives both branches' results for `[true, false]`. `Validated`'s gathers both branches' errors when the condition is itself invalid.
+
+## Other operations {#other-operations}
+
+| Operation | What it does |
+|---|---|
+| `branch(fab, onLeft, onRight)` | Applies `onLeft` to a `Left` and `onRight` to a `Right`, running only the handler it applies |
+| `orElse(alternatives)` | Gives the first `Right` in a list of `Choice` containers, or the last `Left` when none is a `Right` |
+| `apS(initial, steps)` | Runs each step on the value while it is a `Right`, and stops at the first `Left` |
+
+This `orElse` takes `Choice` containers. The [Alternative](alternative.md) on the next page has an `orElse` of its own, a different method.
+
+## What "given up front" buys {#what-given-up-front-buys}
+
+With `flatMap`, the next effect is built by a function from the last result, so nothing can see it before the program runs. With `Selective`, every effect that might run is a value you passed in, so a program held as data could be inspected before it runs. Holding a `Selective` program as data is not supported yet. A [Free Applicative](../monads/free_applicative.md) program has no conditions, and `FreeApAnalyzer` lists every effect it will run.
+
+An instance such as `IOSelective` or `MaybeSelective` runs a program, and inspects nothing. None of them runs two branches at the same time.
+
+## Laws {#laws}
+
+The [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694) paper gives `select` three laws: identity, distributivity and associativity. They do not require a `select` to skip the function for a `Right`. Checking them with `hkj-test` is not supported yet. `SelectiveLaws` checks two stricter properties, which the library's instances keep.
+
+~~~admonish note title="Laws"
+- **Left pure: a known `Left` applies the function.** `select(of(Left(a)), ff)` equals `ap(ff, of(a))`.
+- **Right pure: a known `Right` skips the function.** `select(of(Right(b)), ff)` equals `of(b)`, even when `ff` has failed.
+
+Two containers are equal when they hold equal values, or equal errors, in the same shape. The checks assume functions that never return `null`, and [Values, never null](../hkts/core-concepts.md#values-never-null) says what each type does with one.
+
+`SelectiveLaws`, in [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency)'s `org.higherkindedj.hkt.laws` package, checks both on any instance. `KindEquivalence.byEqualsAfter`, in `org.higherkindedj.hkt.assertions`, builds the equality from a function it applies to both sides before comparing them with `equals`. The test uses these imports, with JUnit's:
 
 <!-- verify -->
 ```java
-import org.higherkindedj.hkt.io.IOSelective;
-import org.higherkindedj.hkt.io.IO;
-import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
-public class AnalyticsService {
-    private final Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
-    private final FeatureFlags featureFlags = new FeatureFlags();
-    private final Analytics analytics = new Analytics();
-    private final SimpleLogger log = new SimpleLogger();
-
-    public Kind<IOKind.Witness, Unit> trackEvent(String eventName, User user) {
-        // Check feature flag (effectful)
-        Kind<IOKind.Witness, Boolean> flagEnabled =
-            IO_OP.widen(IO.delay(() -> featureFlags.isEnabled("analytics")));
-
-        // The tracking effect (potentially expensive)
-        Kind<IOKind.Witness, Unit> trackingEffect =
-            IO_OP.widen(IO.fromRunnable(() -> {
-                analytics.track(eventName, user.id(), user.properties());
-                log.info("Tracked event: " + eventName);
-            }));
-
-        // Only track if flag is enabled
-        return selective.whenS(flagEnabled, trackingEffect);
-    }
-}
-
-// Usage
-AnalyticsService analytics = new AnalyticsService();
-Kind<IOKind.Witness, Unit> trackingOperation =
-    analytics.trackEvent("user_signup", currentUser);
-
-// Execute the IO
-IO_OP.narrow(trackingOperation).unsafeRunSync();
-// Only sends analytics if feature flag is enabled
+import java.math.BigDecimal;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Selective;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.either.EitherSelective;
+import org.higherkindedj.hkt.laws.SelectiveLaws;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.maybe.MaybeSelective;
 ```
 
----
-
-## Implementations
-
-Higher-Kinded-J provides Selective instances for:
-
-* **`Either<E, *>`** - `EitherSelective`
-* **`Maybe`** - `MaybeSelective`
-* **`Optional`** - `OptionalSelective`
-* **`List`** - `ListSelective`
-* **`IO`** - `IOSelective`
-* **`Reader<R, *>`** - `ReaderSelective`
-* **`Id`** - `IdSelective`
-* **`Validated<E, *>`** - `ValidatedSelective`
-
----
-
-~~~admonish info title="Key Takeaways"
-* **Selective sits between Applicative and Monad**, providing conditional effects with static structure
-* **`select` is the core operation**, conditionally applying a function based on a `Choice`
-* **`whenS` enables conditional effect execution**, perfect for feature flags and debug logging
-* **`ifS` provides if-then-else semantics** with both branches visible upfront
-* **All branches are known at construction time**, enabling static analysis and optimisation
-* **Use Selective when you need conditional effects but want to avoid full monadic power**
+```java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/FoundationsLawsBookTest.java:selective_laws}}
+```
 ~~~
+
+## Things people get wrong {#things-people-get-wrong}
+
+~~~admonish warning title="Common Misunderstandings"
+- **"A `Selective` program is analysed before it runs."** An instance such as `IOSelective` runs it, and holding a `Selective` program as data is not supported yet.
+- **"`ifS` runs both branches."** `IO`'s runs the condition and then the chosen branch. Only a condition that holds more than one answer, as a `List` can, gives both.
+- **"Both branches run at the same time."** No instance runs them together. For `VTask`s that run at once, use [`Par`](../monads/vtask_monad.md#parallel-composition-with-par).
+- **"`whenS` needs a `Monad`."** It needs only `select`, which a `Selective` provides.
+~~~
+
+---
+
+## The fine print {#the-fine-print}
+
+### Which types have a `Selective` {#which-types-have-a-selective}
+
+| Type | Instance |
+|---|---|
+| `Maybe` | `MaybeSelective.INSTANCE` |
+| `Optional` | `OptionalSelective.INSTANCE` |
+| `List` | `ListSelective.INSTANCE` |
+| `IO` | `IOSelective.INSTANCE` |
+| `Either<E, ?>` | `EitherSelective.instance()` |
+| `Reader<R, ?>` | `ReaderSelective.instance()` |
+| `Id` | `IdSelective.instance()` |
+| `Validated<E, ?>` | `ValidatedSelective.instance(semigroup)`, whose semigroup joins the errors `select` meets |
+
+`Instances` has no `selective` factory, so ask the class for its instance.
+
+### A `Selective` of your own {#a-selective-of-your-own}
+
+An instance needs `select`, with `of` and `ap` from `Applicative` and `map` from `Functor`. The defaults for `whenS`, `ifS` and `branch` run a guarded effect exactly when your `select` runs the function's effect. Skip that effect for a `Right`, as the library's instances do, and the defaults run only the chosen effect. A `select` built from `ap` runs every effect.
 
 ---
 
 ~~~admonish tip title="See Also"
-- [Choosing Abstraction Levels](abstraction_levels.md) - When to use Applicative vs Selective vs Monad
-- [Free Applicative](../monads/free_applicative.md) - Building fully analysable programs
-- [Applicative](applicative.md) - Combining independent effects
+- [Choosing Abstraction Levels](abstraction_levels.md): `Applicative`, `Selective` or `Monad` for a task
+- [Free Applicative](../monads/free_applicative.md): programs that can be inspected before they run
+- [Applicative](applicative.md): combining effects that do not depend on one another
 ~~~
 
 ~~~admonish tip title="Further Reading"
-- **Andrey Mokhov et al.**: [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694) - The academic paper introducing Selective functors
-- **Togglz**: [Feature Flags for Java](https://www.togglz.org/) - A Java feature flag library that addresses the same conditional-execution problem Selective solves at the type level
+- **Andrey Mokhov, Georgy Lukyanov, Simon Marlow and Jeremie Dimino**, [Selective Applicative Functors](https://dl.acm.org/doi/10.1145/3341694): the paper that introduced `Selective`
 ~~~
 
 ---
