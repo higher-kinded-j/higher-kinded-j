@@ -73,7 +73,7 @@ glance", a two-column table in this shape:
 | **Replaces** | A method that may return `null` |
 | **Effect Path** | [`MaybePath`](../effect/path_types.md) |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:maybe_monad}}
-| **Choose it when** | Absence needs no reason; otherwise [Either](either_monad.md) |
+| **Choose it when** | Absence needs no reason; otherwise [Either](either_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 ```
 
@@ -84,7 +84,23 @@ glance", a two-column table in this shape:
 - **Effect Path:** the Path application code uses, linked, or "none".
 - **Instances:** the type's row from `BookCapabilityMatrixTest`'s golden file, included with the
   page's file name as its anchor, as above. Never type it.
-- **Choose it when:** one clause, naming the neighbouring type to choose otherwise.
+- **Choose it when:** one clause, naming the neighbouring type to choose otherwise, then a link to
+  Choosing a Type.
+
+After the card, a Core Types page runs in this order:
+
+1. What You'll Learn and See Example Code.
+2. The type in use, through its own methods or its Effect Path, compiled and with its output.
+3. A table of the type's own methods.
+4. `## Working with Kind`: the instance, `widen` and `narrow`, and what only the type class level
+   adds. It is never collapsed, since readers search for it.
+5. `## Back to the one-liner`, only where the type is in
+   [the line](../hkj-book/src/hkts/one_line_six_layers.md): the line's include, then at most three
+   sentences.
+6. When to use it, against its neighbours.
+7. Hands-On Learning, where a tutorial covers the type.
+8. One line naming its benchmark, where one measures the type, and linking
+   [Benchmarks](../hkj-book/src/benchmarks.md), in place of a Benchmarks admonition.
 
 The full matrix is on the [Core Types introduction](../hkj-book/src/monads/ch_intro.md), and a page
 never redraws it.

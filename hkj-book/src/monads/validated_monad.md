@@ -1,338 +1,200 @@
-# The ValidatedMonad:
-## _Accumulating Errors with `Validated`_
+<!-- description: Validate every field of a Java request with Validated and accumulate all the errors in one reply, not only the first. -->
+
+# Validated: Accumulating Errors
+
+_Check every field of a request, and report all the errors in one reply._
+
+<!-- source: William Shakespeare, Hamlet, Act IV, Scene V (Claudius); text checked against Project Gutenberg eBook #1524 -->
+> _"When sorrows come, they come not single spies, / But in battalions."_
+>
+> — William Shakespeare, *Hamlet* (IV.v)
+
+A form's mistakes come the same way, and a fail-fast check reports them one spy at a time. `Validated` reports the battalion.
+
+~~~admonish abstract title="Validated at a glance"
+| | |
+|---|---|
+| **Models** | A valid value, or every error the checks found |
+| **Replaces** | Error messages collected in a `List`, or Bean Validation's `Set<ConstraintViolation>` |
+| **Effect Path** | [`ValidationPath`](../effect/path_validation.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:validated_monad}}
+| **Choose it when** | The caller wants every error from checks that do not depend on one another; otherwise [Either](either_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- Why fail-fast validation frustrates your users (and how to fix it)
-- The difference between `flatMap` (fail-fast) and `ap` with `Semigroup` (error-accumulating)
-- Building a complete form validator that reports ALL errors in one pass
-- Using `ValidatedMonad` as a `MonadError` for recovery and error transformation
-- When to reach for `Validated` vs `Either` vs `ValidationPath`
+- Report every failed check of a request in one result, instead of one per submit
+- Join independent checks with `Validated.accumulate()`, and follow them with a check that needs their result
+- Say why generic code gets every error from `Validated`'s `map2` but only the first from its `flatMap`
+- Keep the same checks on a `ValidationPath`, and know which of its methods stop at the first error
+- Choose between `Validated`, `ValidationPath` and Accumulating Assembly
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[ValidatedMonadExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/validated/ValidatedMonadExample.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [ValidatedBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java)**: the page includes it, so the build compiles and runs it. [ValidatedBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/validated/ValidatedBookTest.java) holds what the page says each method does.
 ~~~
 
-## The Problem: Death by a Thousand Submits
+---
 
-A user fills out your registration form. They make three mistakes: empty name, malformed email, and age below 18. They hit Submit.
+## The problem: death by a thousand submits {#the-problem-death-by-a-thousand-submits}
 
-Your validation reports: **"Name is required."**
-
-They fix the name, hit Submit again. Now they see: **"Invalid email format."**
-
-They fix the email, hit Submit a third time. Finally: **"Must be at least 18."**
+A customer types a delivery address at checkout and makes three mistakes: no street, no city, and a postcode of `XYZ`. They press Submit, and the page says **"street is required"**. They fill in the street and submit again, to see **"city is required"**. A third submit finally shows **"postcode XYZ is not a UK postcode"**.
 
 Three round-trips. Three frustrations. Three errors that were all knowable from the very first submission.
 
-This is fail-fast validation. With a monadic chain (`flatMap`), each step depends on the previous one succeeding, so the first failure stops everything:
+The code on this page uses these imports, with `Address` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// flatMap chain: validation stops at the FIRST error
-validateName("")         // Invalid(["Name is required"])   <-- STOPS HERE
-  .flatMap(name ->
-    validateEmail("x@@")   // never reached
-      .flatMap(email ->
-        validateAge(15)));   // never reached
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.Validated;
 ```
 
-What you actually want is to run ALL validations independently and collect every error in one pass. That is exactly what `Validated` with applicative operations gives you.
-
-~~~admonish note title="Fail-Fast vs Error Accumulation"
-```
-FAIL-FAST (flatMap):                  ACCUMULATE (ap + Semigroup):
-
-validateName("")  --> Invalid         validateName("")  --> Invalid("Name is required")
-       |                              validateEmail("x@@") --> Invalid("Invalid email")
-    STOP HERE                         validateAge(15)   --> Invalid("Must be 18+")
-                                           |
-                                      combine all errors
-                                           |
-                                      Invalid(["Name is required",
-                                               "Invalid email",
-                                               "Must be 18+"])
-```
-
-- **flatMap**: Each step depends on the previous result. If step 1 fails, steps 2 and 3 never run. Use this when validations are **dependent**.
-- **ap + Semigroup**: All steps run independently. Errors are combined using a `Semigroup<E>`. Use this when validations are **independent**.
-~~~
-
-## Core Components
+Each check returns a `Validated` rather than throwing. A `Valid` holds the checked value, and an `Invalid` holds the errors in a [`NonEmptyList`](nonemptylist_monad.md), since an invalid result always has at least one:
 
 ```java
-public sealed interface Validated<E, A> permits Valid, Invalid { ... }
-
-record Valid<E, A>(A value)   implements Validated<E, A> { ... }
-record Invalid<E, A>(E error) implements Validated<E, A> { ... }
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:checks}}
 ```
 
-`Valid` and `Invalid` look like `Right` and `Left`, and at the `Monad` level they behave the same way (fail-fast). The difference shows up in the `Applicative` instance, where `Invalid` accumulates rather than short-circuits.
+`POSTCODE` is a `Pattern` for the shape of a UK postcode.
 
-| Component | Role |
-|-----------|------|
-| `Validated<E, A>` | `Valid(value)` or `Invalid(error)`, like Either but validation-focused |
-| `ValidatedKind<E, A>` / `ValidatedKindHelper` | HKT bridge: `widen()`, `narrow()`, `valid()`, `invalid()` |
-| `ValidatedMonad<E>` | `MonadError<ValidatedKind.Witness<E>, E>`: fail-fast `map`/`flatMap`, plus `raiseError`/`handleErrorWith` |
+Joined with `flatMap`, each check runs only when the one before it has passed, so the address takes three submits:
 
-~~~admonish note title="Validated vs Either"
-Both represent success or failure. The difference is in **applicative** behaviour:
-- `Either`: Always fail-fast in both Monad and Applicative contexts.
-- `Validated`: Fail-fast as a Monad (`flatMap`), but can **accumulate errors** as an Applicative (`ap` with `Semigroup`).
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:one_at_a_time}}
+```
 
-If you only ever need fail-fast semantics, use [Either](./either_monad.md).
-~~~
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:submits}}
+```
 
-## Building a Complete Form Validator
+## Every error in one reply {#every-error-in-one-reply}
 
-Let's build a registration validator that validates username, email, and age, reporting ALL errors in one pass.
+The three checks do not need one another's results, so none has to wait for another. Passed to `Validated.accumulate()` as arguments, every check runs, where `flatMap` put the later checks inside functions it might never call. `accumulate()` builds the address only when every check passed, and otherwise keeps every error, in the order of the checks:
 
-~~~admonish tip title="Error channel: prefer `NonEmptyList<E>` over `List<E>`"
-The examples below use `Validated<List<String>, T>`, but an *invalid* result always has at least one error, so [`NonEmptyList`](nonemptylist_monad.md) is the more honest channel. `Validated.validNel(v)` / `Validated.invalidNel(e)` produce `Validated<NonEmptyList<E>, T>` with no manual `List.of(...)` wrapping, and `getError().head()` becomes total. The `List<String>` form shown here still works unchanged.
-~~~
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:accumulate}}
+```
 
-~~~admonish example title="Step 1: Define Individual Validators"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:one_reply}}
+```
 
-Each validator is an independent function that returns `Validated<List<String>, T>`:
+```mermaid
+flowchart TB
+    accTitle: flatMap stops, accumulate runs every check
+    accDescr: With flatMap, the street check fails, so the city and postcode checks never run and the result holds one error. With accumulate, the street, city and postcode checks all run, and the result holds all three errors.
+    subgraph fast ["flatMap"]
+        direction LR
+        S1["street"] --> R1["Invalid: street"]
+        C1["city, postcode: never run"]
+    end
+    subgraph all ["accumulate()"]
+        direction LR
+        S2["street"] --> R2["Invalid: street, city, postcode"]
+        C2["city"] --> R2
+        P2["postcode"] --> R2
+    end
+    fast ~~~ all
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    class S1,C1,S2,C2,P2 step
+    class R1,R2 error
+```
+
+The diagram shows the same three checks joined two ways. With `flatMap`, the first failure ends the run; with `accumulate()`, every check runs and every error is kept. Bean Validation also reports every violation, but of an object that already exists. A `Validated` builds the address only when every check passes, and its list of errors can never be empty. For a record with many fields, or errors that name the field they belong to, [Accumulating Assembly](validated_assembly.md) builds the record with `Validated.fields()`.
+
+## When one check needs another {#when-one-check-needs-another}
+
+Some checks need the value the others built. Whether the courier delivers to an address can only be asked of a whole address, so that check follows `accumulate()` with `flatMap`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:dependent}}
+```
+
+`COURIER_AREAS` holds the postcode areas the courier serves, such as `LS1`.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:delivery}}
+```
+
+An address with blank fields never reaches the courier check, so the reply holds only the fields' errors. Independent checks accumulate, and a check that needs their result follows them. [Applicative, Selective or Monad?](../functional/abstraction_levels.md) makes the same choice for any container.
+
+## On a `ValidationPath` {#on-a-validationpath}
+
+Application code can hold the same checks on a [`ValidationPath`](../effect/path_validation.md). `Path.accumulate()` keeps every error, as `Validated.accumulate()` does, and `via` chains a check that needs the value. These are the extra imports:
 
 <!-- verify -->
 ```java
-MonadError<ValidatedKind.Witness<List<String>>, List<String>> validatedMonad =
-    Instances.validated(Semigroups.list());
-
-static Validated<List<String>, String> validateName(String name) {
-    return (name == null || name.isBlank())
-        ? Validated.invalid(List.of("Name is required"))
-        : Validated.valid(name.trim());
-}
-
-static Validated<List<String>, String> validateEmail(String email) {
-    return (email == null || !email.matches("^[^@]+@[^@]+\\.[^@]+$"))
-        ? Validated.invalid(List.of("Invalid email format"))
-        : Validated.valid(email.trim());
-}
-
-static Validated<List<String>, Integer> validateAge(int age) {
-    return (age < 18)
-        ? Validated.invalid(List.of("Must be at least 18 years old"))
-        : Validated.valid(age);
-}
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.ValidationPath;
 ```
 
-Each validator works independently. None depends on another's result. This is the key to accumulation.
-~~~
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:path}}
+```
 
-~~~admonish example title="Step 2: Compose with flatMap (Fail-Fast)"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:path_outcome}}
+```
 
-When validations **depend** on each other, use `flatMap`. The chain stops at the first failure:
+Two of a `ValidationPath`'s methods for joining Paths stop at the first error: `zipWith` and `zipWith3`. `zipWithAccum`, `zipWith3Accum`, `andAlso` and `andThen` keep every error.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Validated.valid(value)`, `Validated.invalid(error)` | Build a valid value or an error |
+| `Validated.validNel(value)`, `Validated.invalidNel(error)` | The same, with the error in a `NonEmptyList` |
+| `Validated.validateThat(condition, error)` | Gives `Valid(Unit)` when the condition holds, and the error otherwise; the error may also come from a `Supplier` |
+| `Validated.accumulate()` | Joins independent checks over `NonEmptyList` errors, keeping every error |
+| `Validated.fields()` | The same, naming the field each error belongs to, as [Accumulating Assembly](validated_assembly.md) shows |
+| `isValid()`, `isInvalid()` | Say which case it holds |
+| `map(f)`, `mapError(f)`, `bimap(onError, onValid)` | Change the value, the error, or whichever it holds |
+| `flatMap(f)` | Runs a check that needs the value; an `Invalid` passes through, so its errors are the only ones kept |
+| `ap(function, semigroup)` | Applies a validated function, joining both errors with the semigroup when both are invalid |
+| `fold(onInvalid, onValid)` | Turns either case into one result |
+| `orElse(other)`, `orElseGet(supplier)` | Return the value, or a fallback |
+| `orElseThrow(supplier)` | Returns the value, or throws the supplied exception |
+| `get()`, `getError()` | Return the value or the error, or throw `NoSuchElementException` |
+| `ifValid(action)`, `ifInvalid(action)` | Run an action for the case it holds |
+| `asUnit()` | Replaces a valid value with `Unit`, and keeps an error |
+| `toEither()` | Gives an `Either` holding the same value or error |
+
+## Working with Kind {#working-with-kind}
+
+Generic code takes `Validated` through its instance, from `Instances.validated(semigroup)`. The semigroup is how the instance joins two errors; `NonEmptyList.semigroup()` appends one list to the other. The instance's `map2` to `map5` keep every error, and its `handleErrorWith` can replace the errors with a fallback. These are the extra imports:
 
 <!-- verify -->
 ```java
-// Dependent validation: email domain must match company based on user's role
-Kind<ValidatedKind.Witness<List<String>>, String> result =
-    validatedMonad.flatMap(
-        name -> validatedMonad.flatMap(
-            email -> VALIDATED.valid("User: " + name + " <" + email + ">"),
-            VALIDATED.widen(validateEmail("alice@example.com"))
-        ),
-        VALIDATED.widen(validateName("Alice"))
-    );
-// Valid("User: Alice <alice@example.com>")
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
-// If the first step fails, everything stops:
-Kind<ValidatedKind.Witness<List<String>>, String> failed =
-    validatedMonad.flatMap(
-        name -> validatedMonad.flatMap(
-            email -> VALIDATED.valid("User: " + name + " <" + email + ">"),
-            VALIDATED.widen(validateEmail("bad@@"))      // never reached
-        ),
-        VALIDATED.widen(validateName(""))                 // Invalid - stops here
-    );
-// Invalid(["Name is required"])
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 ```
-~~~
-
-~~~admonish example title="Step 3: Compose with ap (Error Accumulation)"
-
-When validations are **independent**, use `ap` with a `Semigroup`. All validators run, and errors combine:
-
-<!-- verify -->
-```java
-// All three validators run regardless of individual failures
-Validated<List<String>, String>  name  = validateName("");           // Invalid
-Validated<List<String>, String>  email = validateEmail("bad@@");     // Invalid
-Validated<List<String>, Integer> age   = validateAge(15);            // Invalid
-
-// Using map3 to combine - ALL errors are collected:
-Kind<ValidatedKind.Witness<List<String>>, String> result = validatedMonad.map3(
-    VALIDATED.widen(name),
-    VALIDATED.widen(email),
-    VALIDATED.widen(age),
-    (n, e, a) -> "User(" + n + ", " + e + ", age=" + a + ")"
-);
-
-Validated<List<String>, String> finalResult = VALIDATED.narrow(result);
-// Invalid(["Name is required", "Invalid email format", "Must be at least 18 years old"])
-//         ^^^ ALL three errors in one pass!
-```
-
-`map3` uses `ap` under the hood; it lifts the combining function into the `Validated` context and applies each argument, accumulating errors via the `Semigroup`. The `mapN` family (`map2`, `map3`, `map4`) is the recommended way to combine independent validations without writing curried functions manually.
-~~~
-
-~~~admonish tip title="The ergonomic front door: the assembly builder"
-For the everyday case (assembling a record from N validated fields) the staged builder on `Validated` itself is the recommended entry point: open arity up to 16, no `Semigroup` argument, no `Kind`, and located errors.
-
-<!-- verify -->
-```java
-Validated<NonEmptyList<FieldError>, User> user =
-    Validated.fields()
-        .field("name", parseName(dto.name()))
-        .field("email", parseEmail(dto.email()))
-        .field("age", parseAge(dto.age()))
-        .apply(User::new);
-// Invalid(NonEmptyList[email: not an email address, age: not a number])
-```
-
-The `mapN` family remains the right tool inside `Kind`-generic code. See [Accumulating Assembly](validated_assembly.md) for the full tour.
-~~~
-
-~~~admonish example title="Step 4: Recover from Errors"
-
-`ValidatedMonad<E>` implements `MonadError`, so you get structured recovery:
-
-<!-- verify -->
-```java
-Kind<ValidatedKind.Witness<List<String>>, Integer> failed =
-    validatedMonad.raiseError(List.of("Something went wrong"));
-
-// handleErrorWith: recover to a Valid state
-Kind<ValidatedKind.Witness<List<String>>, Integer> recovered =
-    validatedMonad.handleErrorWith(failed, errors -> validatedMonad.of(0));
-// Valid(0)
-
-// handleErrorWith: transform the error
-Kind<ValidatedKind.Witness<List<String>>, Integer> transformed =
-    validatedMonad.handleErrorWith(failed,
-        errors -> validatedMonad.raiseError(
-            List.of("Transformed: " + errors.getFirst())));
-// Invalid(["Transformed: Something went wrong"])
-
-// handleError: recover with a plain value
-Kind<ValidatedKind.Witness<List<String>>, Integer> fallback =
-    validatedMonad.handleError(failed, errors -> -1);
-// Valid(-1)
-
-// Valid values pass through untouched - handler is never called
-Kind<ValidatedKind.Witness<List<String>>, Integer> ok = validatedMonad.of(42);
-Kind<ValidatedKind.Witness<List<String>>, Integer> stillOk =
-    validatedMonad.handleErrorWith(ok, errors -> validatedMonad.of(0));
-// Valid(42) - handler was never invoked
-```
-~~~
-
-### Working with `Validated<E, A>` Directly
-
-Beyond the typeclass, the `Validated` type itself offers useful methods:
-
-* `isValid()` / `isInvalid()`: check the state.
-* `get()` / `getError()`: extract value or error (throws `NoSuchElementException` on wrong case).
-* `orElse(other)` / `orElseGet(supplier)` / `orElseThrow(supplier)`: safe extraction with fallbacks.
-* `fold(invalidMapper, validMapper)`: eliminate both cases into a single result.
-* `map`, `flatMap`, `ap`: also available directly on `Validated` instances.
-
-~~~admonish note title="Which Composition to Choose?"
-```
-Does step B depend on step A's result?
-  |
-  +-- YES --> flatMap (fail-fast)
-  |           "Validate email, THEN check if domain matches company"
-  |
-  +-- NO  --> ap + Semigroup (accumulate)
-              "Validate name AND email AND age independently"
-```
-Many real-world forms mix both: independent field validations (accumulate), followed by cross-field checks (fail-fast).
-~~~
-
----
-
-## Back to the One-Liner
-
-The Foundations one-liner uses `EitherPath` because it is fail-fast by design: a save endpoint either succeeds or surfaces the first reason it could not. The variant we reach for when the request is "validate every field and tell me about every problem in one go" is `Validated`:
 
 ```java
-applicative.map3(
-        VALIDATED.widen(validateName(input.name())),
-        VALIDATED.widen(validateEmail(input.email())),
-        VALIDATED.widen(validatePassword(input.password())),
-        UserDetails::new)
-    .flatMap(repo::save);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/validated/ValidatedBook.java:kind}}
 ```
 
-The shape is the same as the one-liner; only the container changes. `Validated`'s `Applicative` accumulates errors through a `Semigroup`, where `EitherPath`'s `Monad` short-circuits at the first `Left`. Two abstractions, one mechanical decision: do we want fail-fast or fail-slow?
+`PICKUP_POINT` is an `Address` where an order can be collected instead. The postcode passed, so the reply holds the street's and the city's errors. `Validated` has instances of other type classes too, such as `Traverse` and `Bifunctor`, each an object of its own, and *Validated at a glance*, at the head of the page, lists them.
 
-See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Applicative](../functional/applicative.md) for why `Validated` and `Either` deliberately disagree at the type-class level.
+The instance's `map2` to `map5` keep every error, while its `flatMap`, and the `flatMap2` built on it, stop at the first, so generic code gets a different answer from each. [Where `Validated` bends a rule](../functional/applicative.md#where-validated-bends-a-rule) says why the two differ.
 
-## When to Use Validated
+## When to use `Validated` {#when-to-use-validated}
 
-| Scenario | Use |
-|----------|-----|
-| Form/input validation (want ALL errors at once) | `Validated` with `ap` + `Semigroup` |
-| Sequential validation (later steps depend on earlier results) | `ValidatedMonad` (fail-fast via `flatMap`) |
-| Typed errors with arbitrary branching | Prefer [Either](./either_monad.md) |
-| Application-level validation with fluent API | Prefer [ValidationPath](../effect/path_validation.md) |
-| Mix of independent + dependent validations | Independent fields via `ap`, then cross-field checks via `flatMap` |
+| You need | Use |
+|---|---|
+| Every error from checks that do not depend on one another | `Validated`, with `accumulate()` |
+| A record built from many checked fields, each error naming its field | [Accumulating Assembly](validated_assembly.md) |
+| The same checks as a fluent chain in application code | [ValidationPath](../effect/path_validation.md) |
+| The first error only, or a run of steps that each need the last one's value | [Either](either_monad.md) |
+| A success that can carry warnings beside it | [EitherOrBoth](either_or_both_monad.md) |
 
-~~~admonish important title="Key Points"
-- `Validated<E, A>` is `Valid(value)` or `Invalid(error)`, explicitly modelling validation outcomes.
-- **Monadic** operations (`flatMap` via `ValidatedMonad`) are **fail-fast**: the first `Invalid` short-circuits the chain.
-- **Applicative** operations (`ap` with a `Semigroup<E>`) **accumulate** errors from independent validations.
-- `ValidatedMonad<E>` implements `MonadError<ValidatedKind.Witness<E>, E>`, giving you `raiseError` and `handleErrorWith` for structured recovery.
-- The choice between `flatMap` and `ap` is a design decision: **dependent** validations use flatMap, **independent** validations use ap.
-- `ValidatedKindHelper` provides zero-cost `widen()`/`narrow()` casts for HKT integration.
-~~~
-
----
-
-~~~admonish tip title="Effect Path Alternative"
-For most use cases, prefer **[ValidationPath](../effect/path_validation.md)** which wraps `Validated` and provides:
-
-- Fluent composition with `map`, `via`, `recover`
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
-- A consistent API shared across all effect types
-- Error accumulation when combined with applicative operations
-
-<!-- verify -->
-```java
-// Instead of manual Validated chaining:
-Validated<List<AppError>, User> user = validateUser(input);
-Validated<List<AppError>, Order> order = user.flatMap(u -> createOrder(u));
-
-// Use ValidationPath for cleaner composition:
-ValidationPath<List<AppError>, Order> orderPath =
-    Path.validated(validateUser(input), Semigroups.list())
-        .via(u -> createOrderPath(u));
-```
-
-See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
-
-~~~admonish example title="Benchmarks"
-Validated has dedicated JMH benchmarks. Key expectations:
-
-- **`invalidMap`** reuses the same Invalid instance with zero allocation (like Either.Left)
-- **`invalidLongChain`** benefits from sustained instance reuse over deep chains
-- If Invalid operations allocate memory, instance reuse is broken
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*ValidatedBenchmark.*"
-```
-See [Benchmarks & Performance](../benchmarks.md) for full details.
-~~~
-
-~~~admonish note title="Related Types"
-- [Either](either_monad.md): the exclusive, fail-fast success-or-failure sibling
-- [EitherOrBoth](either_or_both_monad.md): when a result can carry a value *and* accumulated warnings, not only errors or a value (`Validated` is exclusive; `EitherOrBoth` adds the `Both` case)
-- [NonEmptyList](nonemptylist_monad.md): the non-empty error channel that proves an `Invalid` has at least one error
+~~~admonish info title="Hands-On Learning"
+Practise accumulating errors with `map3`, beside `Either` and `Maybe`, in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises).
 ~~~
 
 ---

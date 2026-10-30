@@ -1,286 +1,167 @@
+<!-- description: Return a typed error from a Java method as an Either instead of throwing an exception, and chain the steps that can fail. -->
+
 # Either: Modelling Success or Failure
 
-~~~admonish info title="What We'll Learn"
-- How `Either<L, R>` makes failure a value rather than an exception
-- Why right-bias makes the "happy path" read like a sentence
-- How `Left` short-circuits a chain without a single `if` in sight
-- How `Either` lifts into Higher-Kinded-J's type-class machinery via `EitherMonad`
-- Where `Either` shows up inside the Foundations one-liner
+_Return a typed error as a value, and chain steps that stop at the first error._
+
+~~~admonish abstract title="Either at a glance"
+| | |
+|---|---|
+| **Models** | A success (`Right`) or a typed error (`Left`), never both |
+| **Replaces** | A method that throws a checked exception |
+| **Effect Path** | [`EitherPath`](../effect/path_either.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:either_monad}}
+| **Choose it when** | The first error, and why it happened, is enough; otherwise [Validated](validated_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
+
+~~~admonish info title="What You'll Learn"
+- Return a typed error from a method as an `Either`, instead of throwing it
+- Chain steps that can fail, and say which step's error reaches the end
+- Read an `Either` with a `switch` or `fold`, without a getter that throws
+- Choose between `Either`, `EitherPath`, `Try` and `Validated` for a failure
+- Pass an `Either` to generic code through its `MonadError` instance
 ~~~
 
 ~~~admonish example title="See Example Code"
-[EitherExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/either/EitherExample.java)
-~~~
-
-## Failure as a Value
-
-`Either<L, R>` represents a value that is one of two things: a success on the right or an alternative on the left. The convention is older than Java itself, and it pays its way every time we use it.
-
-- `Right<L, R>` is the **success** rail and carries an `R`.
-- `Left<L, R>` is the **alternative** rail and carries an `L`, typically an error.
-
-Where exceptions hide failure inside a side channel, `Either` puts it in the return type, in the open, where the compiler can argue with us about it. Where `Optional` and `Maybe` only signal absence, `Either` carries information about *why* something went wrong. We can think of `Either` as `Maybe` with a story to tell about its `Nothing`.
-
-The implementation is a `sealed interface Either<L, R>` with two `record` cases, `Left<L, R>` and `Right<L, R>`. Both directly implement `EitherKind<L, R>` and `EitherKind2<L, R>`, so widening into `Kind` is a zero-allocation cast.
-
-```java
-public sealed interface Either<L, R>
-    permits Either.Left, Either.Right { ... }
-
-record Left<L, R>(L value)  implements Either<L, R> { ... }
-record Right<L, R>(R value) implements Either<L, R> { ... }
-```
-
-That is the whole shape of the type. Two cases, one rail each.
-
-~~~admonish note title="Related Types"
-For exceptions specifically, see [Try](./try_monad.md), an `Either` specialised with `Throwable` on the left. For fail-slow validation that gathers every error rather than the first, see [Validated](./validated_monad.md). For a success that can also carry non-fatal warnings (a value *and* problems, not one or the other), see [EitherOrBoth](./either_or_both_monad.md), the inclusive-or.
+**The code on this page is [EitherBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java)**: the page includes it, so the build compiles and runs it. [EitherBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/either/EitherBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Two Rails, One Chain
+## Failure as a value {#failure-as-a-value}
 
-The mental picture worth keeping is two parallel rails. `Right` keeps us on the success rail; `Left` jumps us to the alternative rail and stays there.
+A method that can fail usually says so with a checked exception, as `Order find(UUID id) throws OrderNotFoundException` does. The failure is in the signature but not in the value: a lambda passed to `map` cannot throw it, and every caller must catch it or declare it again. `Either<L, R>` puts the failure in the return type, as an ordinary value. A `Right` holds the success, and a `Left` holds the error, often a sealed type that says which failure it was. Where `Optional` and `Maybe` only say that a value is missing, `Either` says why. You can think of it as `Maybe` with a story to tell about its `Nothing`.
 
-<pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Right</b>  ═══●═══════════════●═══▶  result</span>
-    <span style="color:#4CAF50">           map             flatMap</span>
-                ╲               ╲   any step returns Left (or starts on Left)
-                 ╲               ╲
-    <span style="color:#F44336"><b>Left</b>   ────●───────────────●───▶  short-circuit</span>
+The code on this page uses these imports. `Order` is one of the order records the [Optics](../optics/ch_intro.md) chapter introduces, and `OrderFocus` holds its generated optics:
+
+<!-- verify -->
+```java
+import java.util.Map;
+import java.util.UUID;
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.either.Either;
+```
+
+The error is a sealed interface, with one record for each way the order service can refuse:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderError.java:order_error}}
+```
+
+Each step returns its error rather than throwing it:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:steps}}
+```
+
+## Chaining steps that can fail {#chaining-steps-that-can-fail}
+
+`flatMap` runs the next step on a `Right`'s value, and `map` changes the value with a function that cannot fail, here `OrderFocus.status().set`, which returns a copy of the order with a new status. On a `Left`, both pass the error on untouched:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:chain}}
+```
+
+`ORDERS` holds two orders, `PLACED`, which is open, and `SHIPPED`. No order has the id `UNKNOWN`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:outcomes}}
+```
+
+<pre class="hkj-railway-diagram" role="img" aria-label="markPaid's two tracks. On the Right track, the order is found, passes requireOpen and is marked paid. A Left from find stays on the Left track, and nothing after it runs. A Left from requireOpen, for an order that has shipped, also ends on the Left track.">
+         find    requireOpen    mark paid
+Right  ════●══════════●═════════════●═════▶  Right(paid order)
+                       ╲  the order has shipped
+Left   ────●────────────●─────────────────▶  Left(error)
+         no order:
+         nothing after it runs
 </pre>
 
-Once we are on the left rail, every downstream `map` and `flatMap` is a no-op. The error reaches the end of the chain unchanged, ready to be inspected with `fold` or pattern matching. We never wrote that propagation logic; the type wrote it for us.
+The diagram shows the two ways onto the `Left` track: `find` finds no order, so `requireOpen` never runs, or `requireOpen` refuses an order that has shipped. Either way, the error reaches the end of the chain as the step returned it, and no `if` in `markPaid` checks for it.
 
----
+## Reading an `Either` {#reading-an-either}
 
-## Creating Instances {#creating-instances}
+A `switch` over the two cases reads the result, and the compiler checks that every case is handled. A record pattern can look inside the error as well:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:describe}}
+```
+
+`fold(onLeft, onRight)` does the same with two functions, when both sides give one type. `getLeft` and `getRight` throw `NoSuchElementException` on the wrong side, so keep them for tests.
+
+## Creating instances {#creating-instances}
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:creating}}
+```
+
+A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(null)` and a `map` whose function returns `null` throw `NullPointerException`, as [Values, never null](../hkts/core-concepts.md#values-never-null) says. A step with nothing to return gives `Unit.INSTANCE`.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Either.right(value)`, `Either.left(error)` | Build a success or an error |
+| `isRight()`, `isLeft()` | Say which side it holds |
+| `map(f)`, `mapRight(f)` | Change a `Right`'s value; a `Left` passes through |
+| `flatMap(f)` | Runs a step that can fail on a `Right`'s value; a `Left` passes through |
+| `mapLeft(f)` | Changes a `Left`'s error; a `Right` passes through |
+| `bimap(onLeft, onRight)` | Changes whichever side it holds |
+| `fold(onLeft, onRight)` | Turns either side into one result |
+| `ifLeft(action)`, `ifRight(action)` | Run an action for the side it holds |
+| `getLeft()`, `getRight()` | Return that side's value, or throw `NoSuchElementException` |
+
+A `Maybe` becomes an `Either` with `toEither(error)`, and a `Validated` with `toEither()`.
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `Either` through its `MonadError` instance, as [MonadError](../functional/monad_error.md) shows. The instance works over `Kind<EitherKind.Witness<L>, R>`, so you widen an `Either` to pass it in, and narrow the result to read it. These are the extra imports:
 
 <!-- verify -->
 ```java
-Either<String, Integer> success = Either.right(123);
-Either<String, Integer> failure = Either.left("File not found");
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 
-// A step that succeeds with nothing to return
-Either<String, Unit> saved = Either.right(Unit.INSTANCE);
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 ```
-
-A `Right` always holds a value, so `Either.right(null)` throws `NullPointerException`, and so does a `map` whose function returns null. A step with nothing to return gives `Unit.INSTANCE`. For a value that may be missing, lift through [`Maybe`](./maybe_monad.md) first or convert with `Maybe::toEither`, so the `Left` says why it is missing.
-
-A `Left` always holds an error in the same way. `Either.left(null)`, `raiseError(null)` and a `mapLeft` whose function returns null all throw `NullPointerException`. An error with no detail to carry is `Unit.INSTANCE`, typed `Either<Unit, A>`.
-
----
-
-## Working with `Either`
-
-### Checking State
-
-<!-- verify -->
-```java
-if (success.isRight()) {
-    System.out.println("It's Right!");
-}
-if (failure.isLeft()) {
-    System.out.println("It's Left!");
-}
-```
-
-### Extracting Values (Use With Caution)
-
-`getLeft` and `getRight` exist for the rare case where we already know the rail:
-
-<!-- verify -->
-```java
-try {
-    Integer value = success.getRight(); // 123
-    String  error = failure.getLeft();  // "File not found"
-    // success.getLeft();               // throws NoSuchElementException
-} catch (NoSuchElementException e) {
-    System.err.println("Asked the wrong rail: " + e.getMessage());
-}
-```
-
-In application code, prefer `fold` or pattern matching. The throwing accessors are there for tests and for the few cases where the type system has already proved the rail.
-
-### Folding Both Rails at Once
-
-<!-- verify -->
-```java
-String resultMessage = failure.fold(
-    leftValue  -> "Operation failed with: "    + leftValue,
-    rightValue -> "Operation succeeded with: " + rightValue);
-// "Operation failed with: File not found"
-
-String successMessage = success.fold(
-    leftValue  -> "AppError: "   + leftValue,
-    rightValue -> "Success: " + rightValue);
-// "Success: 123"
-```
-
-`fold` is the safe extractor: both rails must be handled, both branches must agree on a return type, and the compiler keeps us honest.
-
-### `map` (Right-Biased)
-
-`map` only touches the right rail.
-
-<!-- verify -->
-```java
-Function<Integer, String> intToString = Object::toString;
-
-Either<String, String> mappedSuccess = success.map(intToString); // Right("123")
-Either<String, String> mappedFailure = failure.map(intToString); // Left("File not found"), unchanged
-```
-
-This is what "right-biased" means: `Either` treats success as the default flow, the same way `Optional.map` treats "present" as the default flow. The error rail is preserved verbatim.
-
-### `flatMap`
-
-`flatMap` is the reason we keep coming back to `Either`. It chains operations where each step might fail, and the moment a step returns `Left`, the rest of the chain stops.
-
-<!-- verify -->
-```java
-Function<String, Either<String, Integer>> parse = s -> {
-    try { return Either.right(Integer.parseInt(s.trim())); }
-    catch (NumberFormatException e) { return Either.left("Invalid number"); }
-};
-
-Function<Integer, Either<String, Integer>> checkPositive = i ->
-    (i > 0) ? Either.right(i) : Either.left("Number not positive");
-
-Either<String, Integer> r1 = Either.<String, String>right(" 10 ").flatMap(parse).flatMap(checkPositive);
-// Right(10)
-
-Either<String, Integer> r2 = Either.<String, String>right(" -5 ").flatMap(parse).flatMap(checkPositive);
-// Left("Number not positive")
-
-Either<String, Integer> r3 = Either.<String, String>right(" abc ").flatMap(parse).flatMap(checkPositive);
-// Left("Invalid number")
-
-Either<String, Integer> r4 = Either.<String, String>left("Initial error").flatMap(parse).flatMap(checkPositive);
-// Left("Initial error")
-```
-
-Three different errors, one chain, no `if`, no `try`. The `Left` reaches the end of the pipeline carrying its original message.
-
----
-
-## Lifting `Either` Into the Type-Class Machinery
-
-When we want to write code that is generic over the container, we go through `EitherMonad`. It implements `MonadError<EitherKind.Witness<L>, L>` for any chosen left type `L`.
-
-<!-- verify -->
-```java
-MonadError<EitherKind.Witness<String>, String> eitherMonad = Instances.monadError(either());
-
-// Widen
-Either<String, Integer> myEither = Either.right(10);
-Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(myEither);
-
-// Map through the monad
-Kind<EitherKind.Witness<String>, String> mapped =
-    eitherMonad.map(Object::toString, kind);
-
-// Sequence with flatMap
-Function<Integer, Kind<EitherKind.Witness<String>, Double>> nextStep = i ->
-    EITHER.widen(i > 5 ? Either.right(i / 2.0) : Either.left("TooSmall"));
-
-Kind<EitherKind.Witness<String>, Double> sequenced =
-    eitherMonad.flatMap(nextStep, kind);
-
-// Raise an error explicitly
-Kind<EitherKind.Witness<String>, Integer> errorKind = eitherMonad.raiseError("E101");
-
-// Recover from an error
-Kind<EitherKind.Witness<String>, Integer> recovered =
-    eitherMonad.handleErrorWith(errorKind, error -> {
-        System.out.println("Handling error: " + error);
-        return eitherMonad.of(0);
-    });
-
-// Narrow
-Either<String, Integer> finalEither = EITHER.narrow(recovered);
-// Right(0)
-```
-
-The handler above uses the error (it logs it), so `handleErrorWith` is the right tool. When you only want a constant fallback and don't need the error, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are shorter. `eitherMonad.recover(errorKind, 0)` yields the same `Right(0)`.
-
-This is the door through which `Either` joins every generic combinator the rest of the library defines: `traverse`, `sequence`, `flatMapN`, the lot.
-
----
-
-## Back to the One-Liner
-
-The Foundations one-liner is built on `EitherPath`, the fluent wrapper around `Either`:
 
 ```java
-repo.find(id)
-    .toEitherPath()              // <-- absence becomes a typed left
-    .focus().attributes().at(key)
-    .modify(spec::validateAndCoerce)
-    .flatMap(repo::save);        // <-- EitherMonad.flatMap dispatches here
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:kind}}
 ```
 
-Two of the six layers in that line are `Either` doing its job. `.toEitherPath()` is a natural transformation from the absence-shaped `MaybePath` into a failure-shaped `EitherPath`, lifting "the node was not found" into a typed left. `.flatMap(repo::save)` is `EitherMonad.flatMap`: if validation produced a `Left`, `save` is silently skipped and the original error reaches the caller.
+The instance's `flatMap` and `map` do what `Either`'s own methods do, and `handleError` turns an error into a value. Widening allocates nothing: `Either` implements `EitherKind` itself, so `widen` checks for `null` and returns the same object. `Either` has instances of other type classes too, such as `Traverse` and `Bifunctor`, each an object of its own, and *Either at a glance*, at the head of the page, lists them.
 
-We never wrote the propagation, the conversion, or the short-circuit. The type system arranged them for us.
+## Back to the one-liner {#back-to-the-one-liner}
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/oneliner/OneLinerBook.java:line}}
+```
 
-## When to Use `Either`
+In [the one-liner](../hkts/one_line_six_layers.md), `toEitherPath(OrderError.notFound(id))` turns the repository's `MaybePath` into an `EitherPath`, so a missing order becomes a typed `Left`. `via(orders::save)` runs `save` only on a `Right`, as `flatMap` does on this page, and a refused save is a `Left` too. An `EitherPath` holds an `Either` and calls its methods directly, and `run()` hands that `Either` back.
 
-| Scenario | Use |
-|----------|-----|
-| Domain-specific typed errors (validation, business rules) | `Either<MyError, A>`, where the left carries context |
-| Sequential operations where any step can fail | `Either` with `flatMap`; short-circuits on `Left` |
-| Combining typed errors with async or other effects | [EitherT](../transformers/eithert_transformer.md) transformer; see the [Order Example](../hkts/order-walkthrough.md) |
-| Wrapping `Throwable`-based APIs | Prefer [Try](./try_monad.md), an `Either<Throwable, A>` with extras |
-| Accumulating multiple validation errors | Prefer [Validated](./validated_monad.md) with applicative operations |
-| Application-level pipelines with a fluent API | Prefer [EitherPath](../effect/path_either.md) |
+## When to use `Either` {#when-to-use-either}
 
-~~~admonish important title="Key Points"
-- Model domain failures explicitly rather than reaching for exceptions
-- Sequence operations that can each fail; the type stops the chain at the first `Left`
-- Compose with other effects through [EitherT](../transformers/eithert_transformer.md) or, more often, through [EitherPath](../effect/path_either.md)
-- Prefer it over returning `null` or throwing for any failure that the caller can reasonably handle
+| You need | Use |
+|---|---|
+| The first error from a run of steps, typed by your domain | `Either<MyError, A>` |
+| The same steps as a fluent chain in application code | [EitherPath](../effect/path_either.md) |
+| A failure that is a caught exception | [Try](try_monad.md) |
+| Every error from checks that do not depend on one another | [Validated](validated_monad.md) |
+| A success that can carry warnings beside it | [EitherOrBoth](either_or_both_monad.md) |
+| Typed errors inside another effect, such as `CompletableFuture` | An [Effect Path](../effect/ch_intro.md), or the [EitherT](../transformers/eithert_transformer.md) transformer |
+
+~~~admonish info title="Hands-On Learning"
+Practise choosing between `Either`, `Maybe` and `Validated` in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises).
 ~~~
 
----
-
-~~~admonish tip title="Effect Path Alternative"
-For most application code, prefer **[EitherPath](../effect/path_either.md)**, which wraps `Either` and provides:
-
-- Fluent composition with `map`, `via`, `recover`
-- Direct integration with the [Focus DSL](../optics/focus_dsl.md)
-- A consistent API shared across every effect type
-
-<!-- verify -->
-```java
-// Manual Either chaining
-Either<AppError, User>  user  = findUser(id);
-Either<AppError, Order> order = user.flatMap(u -> createOrder(u));
-
-// EitherPath, same logic, less ceremony
-EitherPath<AppError, Order> orderPath = Path.either(findUser(id))
-    .via(u -> createOrderPath(u));
-```
-
-See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
-
-~~~admonish example title="Benchmarks"
-`Either` has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, and chain composition. Headline expectations:
-
-- `leftMap` is 5-10x faster than `rightMap`; a `Left` reuses the same instance with zero allocation
-- `leftLongChain` is 10-50x faster than `rightLongChain`; the reuse benefit compounds across 50-deep chains
-- If `Left` operations allocate memory, instance reuse is broken and we have a regression
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*EitherBenchmark.*"
-```
-
-See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
-~~~
+**Benchmarks:** `EitherBenchmark` measures how cheaply a `Left` passes along a chain. [Benchmarks & Performance](../benchmarks.md) says how to run it.
 
 ---
 

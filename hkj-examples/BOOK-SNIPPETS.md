@@ -172,7 +172,9 @@ without colliding. A fixture's *imports*, though, are hoisted into every unit, s
 never single-type-import a name a snippet declares - that is a duplicate declaration, not a
 shadow. Import that package **on demand** instead (`import org.higherkindedj.example.order.error.*;`):
 an on-demand import is shadowed by the declaration, and still resolves the name for every other
-snippet on the page.
+snippet on the page. The reverse clashes too: a fixture's `record Order(...)` and a snippet's
+`import ...cast.Order;` are two declarations of `Order`. When a page moves to the real cast's types,
+drop the fixture's stand-ins, or the fixture itself once its page needs nothing from it.
 
 Where building a value would mean assembling half a domain to say nothing about the code on the
 page, a generic stand-in says so:
