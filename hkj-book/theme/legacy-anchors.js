@@ -568,7 +568,13 @@
     "functional/forstate_comprehension.html#zooming-into-nested-state": "functional/forstate_comprehension.html#every-step",
     "functional/forstate_comprehension.html#yielding-results": "functional/forstate_comprehension.html#every-step",
     "functional/forstate_comprehension.html#admonition-two-kinds-of-traverse": "functional/forstate_comprehension.html#every-step",
-    "functional/forstate_comprehension.html#admonition-further-reading": "functional/forstate_comprehension.html#admonition-see-also"
+    "functional/forstate_comprehension.html#admonition-further-reading": "functional/forstate_comprehension.html#admonition-see-also",
+    "monads/ch_intro.html#the-landscape": "monads/ch_intro.html#pages-in-this-group",
+    "monads/ch_intro.html#choosing-the-right-type": "monads/supported-types.html#choosing-a-type",
+    "monads/ch_intro.html#what-youll-learn": "monads/ch_intro.html#pages-in-this-group",
+    "monads/ch_intro.html#admonition-in-this-section": "monads/ch_intro.html#pages-in-this-group",
+    "monads/ch_intro.html#section-contents": "monads/ch_intro.html#pages-in-this-group",
+    "monads/ch_intro.html#admonition-hands-on-practice": "monads/ch_intro.html#admonition-hands-on-learning"
   };
 
   function target() {

@@ -1,0 +1,105 @@
+<!-- Written by BookCapabilityMatrixTest from hkj-core's class files. Do not edit: the test prints the replacement. -->
+<!-- ANCHOR: matrix -->
+| Type | Type classes |
+|---|---|
+| [`Either<L, R>`](either_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<L>`, `Foldable`, `Traverse`, `Bifunctor` |
+| [`Validated<E, A>`](validated_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<E>`, `Foldable`, `Traverse`, `Bifunctor` |
+| [`Try<T>`](try_monad.md) | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>`, `Foldable`, `Traverse` |
+| [`EitherOrBoth<L, R>`](either_or_both_monad.md) | `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, `Bifunctor` |
+| [`NonEmptyList<A>`](nonemptylist_monad.md) | `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse` |
+| [`Maybe<T>`](maybe_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<Unit>`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+| [`Optional<T>`](optional_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<Unit>`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+| [`IO<A>`](io_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad` |
+| [`Lazy<A>`](lazy_monad.md) | `Functor`, `Applicative`, `Monad` |
+| [`CompletableFuture<T>`](cf_monad.md) | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>` |
+| [`VTask<A>`](vtask_monad.md) | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>` |
+| [`VStream<A>`](vstream.md) | `Functor`, `Applicative`, `Monad`, `Alternative`, `Foldable`, `Traverse` |
+| [`Reader<R, A>`](reader_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad` |
+| [`Context<R, A>`](context_scoped.md) | `Functor`, `Applicative`, `Monad` |
+| [`State<S, A>`](state_monad.md) | `Functor`, `Applicative`, `Monad` |
+| [`Writer<W, A>`](writer_monad.md) | `Functor`, `Applicative`, `Monad`, `Bifunctor` |
+| [`List<E>`](list_monad.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+| [`Stream<T>`](stream_monad.md) | `Functor`, `Applicative`, `Monad`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+| [`Id<A>`](identity.md) | `Functor`, `Applicative`, `Selective`, `Monad`, `Foldable`, `Traverse` |
+| [`Trampoline<A>`](trampoline_monad.md) | `Functor`, `Applicative`, `Monad` |
+| [`Free<F, A>`](free_monad.md) | `Functor`, `Applicative`, `Monad` |
+| [`FreeAp<F, A>`](free_applicative.md) | `Functor`, `Applicative` |
+| [`EitherF<F, G, A>`](eitherf.md) | `Functor` |
+| [`Coyoneda<F, A>`](coyoneda.md) | `Functor` |
+| [`Const<C, A>`](const_type.md) | `Functor`, `Applicative`, `Bifunctor` |
+<!-- ANCHOR_END: matrix -->
+<!-- ANCHOR: either_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<L>`, `Foldable`, `Traverse`, `Bifunctor` |
+<!-- ANCHOR_END: either_monad -->
+<!-- ANCHOR: validated_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<E>`, `Foldable`, `Traverse`, `Bifunctor` |
+<!-- ANCHOR_END: validated_monad -->
+<!-- ANCHOR: try_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: try_monad -->
+<!-- ANCHOR: either_or_both_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, `Bifunctor` |
+<!-- ANCHOR_END: either_or_both_monad -->
+<!-- ANCHOR: nonemptylist_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: nonemptylist_monad -->
+<!-- ANCHOR: maybe_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<Unit>`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: maybe_monad -->
+<!-- ANCHOR: optional_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<Unit>`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: optional_monad -->
+<!-- ANCHOR: io_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad` |
+<!-- ANCHOR_END: io_monad -->
+<!-- ANCHOR: lazy_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad` |
+<!-- ANCHOR_END: lazy_monad -->
+<!-- ANCHOR: cf_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>` |
+<!-- ANCHOR_END: cf_monad -->
+<!-- ANCHOR: vtask_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `MonadError<Throwable>` |
+<!-- ANCHOR_END: vtask_monad -->
+<!-- ANCHOR: vstream -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `Alternative`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: vstream -->
+<!-- ANCHOR: reader_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad` |
+<!-- ANCHOR_END: reader_monad -->
+<!-- ANCHOR: context_scoped -->
+| **Instances** | `Functor`, `Applicative`, `Monad` |
+<!-- ANCHOR_END: context_scoped -->
+<!-- ANCHOR: state_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad` |
+<!-- ANCHOR_END: state_monad -->
+<!-- ANCHOR: writer_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `Bifunctor` |
+<!-- ANCHOR_END: writer_monad -->
+<!-- ANCHOR: list_monad -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: list_monad -->
+<!-- ANCHOR: stream_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad`, `Alternative`, `MonadZero`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: stream_monad -->
+<!-- ANCHOR: identity -->
+| **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `Foldable`, `Traverse` |
+<!-- ANCHOR_END: identity -->
+<!-- ANCHOR: trampoline_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad` |
+<!-- ANCHOR_END: trampoline_monad -->
+<!-- ANCHOR: free_monad -->
+| **Instances** | `Functor`, `Applicative`, `Monad` |
+<!-- ANCHOR_END: free_monad -->
+<!-- ANCHOR: free_applicative -->
+| **Instances** | `Functor`, `Applicative` |
+<!-- ANCHOR_END: free_applicative -->
+<!-- ANCHOR: eitherf -->
+| **Instances** | `Functor` |
+<!-- ANCHOR_END: eitherf -->
+<!-- ANCHOR: coyoneda -->
+| **Instances** | `Functor` |
+<!-- ANCHOR_END: coyoneda -->
+<!-- ANCHOR: const_type -->
+| **Instances** | `Functor`, `Applicative`, `Bifunctor` |
+<!-- ANCHOR_END: const_type -->

@@ -58,6 +58,37 @@ the bridge from the second level to the first.
 - **The Core Types group lists its pages by family**: Failure, Absence, Deferred, Virtual threads,
   Environment and state, Collections, and Programs as data, in that order.
 
+## Core Types Pages
+
+**Each page with a row in the capability matrix opens with a type card**, after its subtitle, its
+epigraph and the epigraph's bridge, and before What You'll Learn. Sub-pages, such as Accumulating
+Assembly or the VStream pages, have none. The card is an `abstract` admonition titled "*Type* at a
+glance", a two-column table in this shape:
+
+```markdown
+~~~admonish abstract title="Maybe at a glance"
+| | |
+|---|---|
+| **Models** | A value, or nothing, and never `null` |
+| **Replaces** | A method that may return `null` |
+| **Effect Path** | [`MaybePath`](../effect/path_types.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:maybe_monad}}
+| **Choose it when** | Absence needs no reason; otherwise [Either](either_monad.md) |
+~~~
+```
+
+- **Models:** what a value holds, in one clause.
+- **Replaces:** the Java idiom it stands in for. A JDK type, such as `Optional` or
+  `CompletableFuture`, writes "Nothing: it is Java's own type". A type with no Java counterpart,
+  such as `Free` or `Const`, names the code you would otherwise write by hand.
+- **Effect Path:** the Path application code uses, linked, or "none".
+- **Instances:** the type's row from `BookCapabilityMatrixTest`'s golden file, included with the
+  page's file name as its anchor, as above. Never type it.
+- **Choose it when:** one clause, naming the neighbouring type to choose otherwise.
+
+The full matrix is on the [Core Types introduction](../hkj-book/src/monads/ch_intro.md), and a page
+never redraws it.
+
 ## Reference Pages
 
 The Look it up pages follow the Style Guide's [Reference Pages](STYLE-GUIDE.md#reference-pages)

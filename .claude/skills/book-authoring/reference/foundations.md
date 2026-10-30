@@ -50,6 +50,12 @@ work in and the traps the chapter has met.
   `functional/functional_api.md`, `hkts/quick_reference.md` and `monads/vstream_hkt.md`, and each is
   wrong somewhere, so never copy one: `MonadZero` extends both `Monad` and `Alternative`, `Traverse`
   extends both `Functor` and `Foldable`, and there is no `Apply`.
+- **Never type a core type's instances; include them.** `BookCapabilityMatrixTest` reads them from
+  `hkj-core`'s class files into `hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden`.
+  The `matrix` anchor holds the whole table, which `monads/ch_intro.md` includes, and each type has
+  an `Instances` row under its page's name, such as `maybe_monad`, for its type card. When an
+  instance changes, `bookVerify` fails and prints the replacement golden file. A new Core Types page
+  fails the test until it has a row.
 - **`Path` clashes with `java.nio.file.Path`** under a module import of `java.base`. Import the
   library's `Path` by name.
 - **`import module org.higherkindedj.core;` needs the library resolved as a module**: required in
