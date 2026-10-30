@@ -130,7 +130,7 @@ import org.jspecify.annotations.NullMarked;
  *   <tr>
  *     <td>Typical instances</td>
  *     <td>Either, Tuple2, Validated</td>
- *     <td>Function, Reader, Optics</td>
+ *     <td>Function</td>
  *   </tr>
  *   <tr>
  *     <td>Use case</td>
@@ -205,7 +205,7 @@ import org.jspecify.annotations.NullMarked;
  * <p><b>Why these laws matter:</b>
  *
  * <ul>
- *   <li>Enable compiler optimisations (fusion, deforestation)
+ *   <li>Let two {@code bimap} calls be replaced by one, as the composition law states
  *   <li>Guarantee that refactoring doesn't change behaviour
  *   <li>Allow reasoning about code using equational reasoning
  *   <li>Ensure Bifunctors compose properly in larger systems

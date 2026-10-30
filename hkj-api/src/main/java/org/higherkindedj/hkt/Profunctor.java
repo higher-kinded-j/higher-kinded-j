@@ -10,8 +10,10 @@ import org.jspecify.annotations.NullMarked;
  * its first argument and covariant in its second argument. In other words, it represents "things
  * that consume A's and produce B's".
  *
- * <p>Profunctors are particularly useful for modelling optics, parsers, serialisers, and other
- * bidirectional transformations. The key operations are:
+ * <p>{@code Function} is the canonical instance: {@code lmap} adapts what a function takes, and
+ * {@code rmap} what it gives. Higher-Kinded-J's optics adapt in the same way through {@link
+ * org.higherkindedj.optics.Optic#dimap}, but they are van Laarhoven optics, built on {@code
+ * modifyF}, and do not use this type class. The key operations are:
  *
  * <ul>
  *   <li>{@code lmap}: Pre-compose with a function on the input (contravariant)
@@ -23,7 +25,7 @@ import org.jspecify.annotations.NullMarked;
  *
  * <pre>
  * 1. Identity: dimap(id, id, p) == p
- * 2. Composition: dimap(f1.compose(f2), g1.andThen(g2), p) == dimap(f2, g1, dimap(f1, g2, p))
+ * 2. Composition: dimap(f1.compose(f2), g1.andThen(g2), p) == dimap(f2, g2, dimap(f1, g1, p))
  * </pre>
  *
  * @param <P> The profunctor type constructor witness (e.g., {@code FunctionKind.Witness})
