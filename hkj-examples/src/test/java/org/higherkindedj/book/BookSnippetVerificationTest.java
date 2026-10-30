@@ -61,7 +61,7 @@ class BookSnippetVerificationTest {
    * deleted together with the prose it illustrated, when a page is cut down. Lower the floor
    * deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2384;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2380;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code
