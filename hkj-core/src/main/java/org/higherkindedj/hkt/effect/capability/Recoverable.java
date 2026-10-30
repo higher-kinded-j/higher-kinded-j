@@ -131,8 +131,8 @@ public sealed interface Recoverable<P, E, A> extends Chainable<P, A>
    * ({@code Unit}, {@code Throwable} and {@code Exception}). {@code mapError} on {@code MaybePath}
    * and {@code TryPath} applies the mapper and returns an {@link EitherPath}, so a later {@code
    * recover} receives that error. {@code CompletableFuturePath.mapError} returns a {@link
-   * VResultPath} settled from the future. {@code TryPath.mapException} stays a {@code TryPath} when
-   * the new error is still a {@code Throwable}.
+   * VResultPath} and applies the mapper when that path runs. {@code TryPath.mapException} stays a
+   * {@code TryPath} when the new error is still a {@code Throwable}.
    *
    * <p>Example:
    *

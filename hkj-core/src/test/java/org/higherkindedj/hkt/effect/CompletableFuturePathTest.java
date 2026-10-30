@@ -531,7 +531,7 @@ class CompletableFuturePathTest {
 
     @Test
     @DisplayName(
-        "mapError() returns a VResultPath without waiting, and skips the mapper on success")
+        "mapError() returns a VResultPath without waiting, and runs the mapper when a failure runs")
     void mapErrorReturnsVResultPathWithoutWaiting() {
       AtomicBoolean mapperCalled = new AtomicBoolean(false);
       IllegalStateException failure = new IllegalStateException("missing");
@@ -544,10 +544,12 @@ class CompletableFuturePathTest {
                     mapperCalled.set(true);
                     return "mapped";
                   });
+      AtomicInteger failedMapperCalls = new AtomicInteger();
       VResultPath<String, Integer> failed =
           CompletableFuturePath.<Integer>failed(failure)
               .mapError(
                   ex -> {
+                    failedMapperCalls.incrementAndGet();
                     assertThat(ex).isSameAs(failure);
                     return "mapped: " + ex.getMessage();
                   });
@@ -562,12 +564,26 @@ class CompletableFuturePathTest {
                             pendingMapperCalled.set(true);
                             return "late";
                           }));
+      CompletableFuture<Integer> pendingFailure = new CompletableFuture<>();
+      AtomicBoolean pendingFailureMapperCalled = new AtomicBoolean(false);
+      VResultPath<String, Integer> lateFailure =
+          CompletableFuturePath.fromFuture(pendingFailure)
+              .mapError(
+                  ex -> {
+                    pendingFailureMapperCalled.set(true);
+                    assertThat(ex).isSameAs(failure);
+                    return "late failure";
+                  });
 
       assertThat(mapperCalled).isFalse();
+      assertThat(failedMapperCalls.get()).isZero();
       assertThat(pending.isDone()).isFalse();
       assertThat(pendingMapperCalled).isFalse();
       assertThat(success.run().run().getRight()).isEqualTo(TEST_VALUE);
       assertThat(failed.run().run().getLeft()).isEqualTo("mapped: missing");
+      assertThat(failedMapperCalls.get()).isEqualTo(1);
+      assertThat(failed.run().run().getLeft()).isEqualTo("mapped: missing");
+      assertThat(failedMapperCalls.get()).isEqualTo(2);
       assertThatNullPointerException()
           .isThrownBy(
               () -> CompletableFuturePath.fromFuture(new CompletableFuture<>()).mapError(null))
@@ -582,6 +598,30 @@ class CompletableFuturePathTest {
       pending.complete(TEST_INT);
       assertThat(waiting.run().run().getRight()).isEqualTo(TEST_INT);
       assertThat(pendingMapperCalled).isFalse();
+      pendingFailure.completeExceptionally(failure);
+      assertThat(pendingFailureMapperCalled).isFalse();
+      assertThat(lateFailure.run().run().getLeft()).isEqualTo("late failure");
+      assertThat(pendingFailureMapperCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("mapError() fails a run with the exception the mapper throws")
+    void mapErrorFailsARunWithTheMappersException() {
+      IllegalStateException failure = new IllegalStateException("missing");
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
+      VResultPath<String, Integer> mapped =
+          CompletableFuturePath.<Integer>failed(failure)
+              .mapError(
+                  ex -> {
+                    mapperCalled.set(true);
+                    throw new IllegalArgumentException("boom");
+                  });
+
+      assertThat(mapperCalled).isFalse();
+      assertThatThrownBy(() -> mapped.run().run())
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("boom");
+      assertThat(mapperCalled).isTrue();
     }
 
     @Test
