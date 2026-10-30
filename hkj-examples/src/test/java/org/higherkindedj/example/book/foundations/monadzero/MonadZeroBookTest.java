@@ -22,6 +22,7 @@ import java.util.List;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.expression.ForState;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -55,7 +56,7 @@ class MonadZeroBookTest {
   }
 
   @Test
-  @DisplayName("when in a Maybe comprehension ends the chain at Nothing")
+  @DisplayName("when on one value tests the value itself, and a failed test ends at Nothing")
   void whenOnMaybe() {
     Maybe<String> sku =
         MAYBE.narrow(
@@ -64,6 +65,18 @@ class MonadZeroBookTest {
                 .yield(LineItem::sku));
 
     assertThat(sku).isEqualTo(Maybe.nothing());
+  }
+
+  @Test
+  @DisplayName("when in ForState tests the state itself, and a failed test ends at Nothing")
+  void whenInForStateTestsTheState() {
+    Maybe<LineItem> line =
+        MAYBE.narrow(
+            ForState.withState(MAYBE_ZERO, MAYBE.just(LAMP))
+                .when(state -> state.quantity() > 1)
+                .yield());
+
+    assertThat(line).isEqualTo(Maybe.nothing());
   }
 
   @Test

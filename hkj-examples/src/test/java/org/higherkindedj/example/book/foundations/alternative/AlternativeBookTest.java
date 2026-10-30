@@ -109,6 +109,17 @@ class AlternativeBookTest {
   }
 
   @Test
+  @DisplayName("Stream's orElseAll walks an Iterable only as far as the result is read")
+  void streamOrElseAllWalksLazily() {
+    Iterable<Kind<StreamKind.Witness, String>> endless =
+        () -> Stream.generate(() -> STREAM.widen(Stream.of("LAMP"))).iterator();
+
+    Stream<String> skus = STREAM.narrow(Instances.alternative(stream()).orElseAll(endless));
+
+    assertThat(skus.limit(3).toList()).containsExactly("LAMP", "LAMP", "LAMP");
+  }
+
+  @Test
   @DisplayName("List's orElse joins both lists, so it always builds the second")
   void listJoinsBoth() {
     List<String> built = new ArrayList<>();

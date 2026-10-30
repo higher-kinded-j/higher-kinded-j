@@ -9,7 +9,7 @@ _Pick the least powerful of the three that does the job, and keep what that buys
 >
 > — Arthur Conan Doyle, *A Scandal in Bohemia*
 
-Theorising about a `flatMap` chain before it runs is Holmes's mistake: its next step is built from data that arrives only when the program runs. An applicative program names every step before any runs, so you can read it first.
+Theorising about a `flatMap` chain before it runs is Holmes's mistake: its next step is built from data that arrives only when the program runs. An applicative program names every step before any runs, so once it is held as data, you can read it first.
 
 ~~~admonish info title="What You'll Learn"
 - Choose between `Applicative`, `Selective` and `Monad` by whether a step needs an earlier result
@@ -47,7 +47,7 @@ flowchart TD
     class app,sel,mon domain
 ```
 
-In words: if results are only combined, as `map2` adds two prices, use `Applicative`. If a result only picks among effects you can name, use `Selective`. If the next step is built from the result, use `Monad`. Each level can express what the one before it can, and each step up gives something away. An applicative program can be read before it runs. A selective one names every effect it might run, and a monadic one names only its first.
+In words: if results are only combined, as `map2` adds two prices, use `Applicative`. If a result only picks among effects you can name, use `Selective`. If the next step is built from the result, use `Monad`. Each level can express what the one before it can, and each step up gives something away. An applicative program held as data can be read before it runs. A selective one names every effect it might run, and a monadic one names only its first.
 
 ## Applicative: steps that do not depend on one another {#applicative}
 

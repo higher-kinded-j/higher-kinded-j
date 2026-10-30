@@ -86,7 +86,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/alternative/AlternativeBook.java:all_run}}
 ```
 
-A call to this form draws javac's unchecked warning for a generic varargs array, since Java allows no `@SafeVarargs` on an interface's default method. Suppress it on the method that makes the call, as the example does. `orElseAll(Iterable)` takes a list built at run time, with no warning. Its sources are already built, and it walks the whole list, so it never ends on an infinite one. For `Maybe` it gives the first present source, and `List`, `Stream` and `VStream` join them all.
+A call to this form draws javac's unchecked warning for a generic varargs array, since Java allows no `@SafeVarargs` on an interface's default method. Suppress it on the method that makes the call, as the example does. `orElseAll(Iterable)` takes a list built at run time, with no warning. Its sources are values, not `Supplier`s. For `Maybe` it gives the first present source, and `List`, `Stream` and `VStream` join them all. Every instance but `Stream`'s walks the whole list, so it never ends on an infinite one. `Stream`'s walks only as far as you read the result, so `limit(3)` ends even on an endless `Iterable`.
 
 ## Turning a test into a value {#turning-a-test-into-a-value}
 

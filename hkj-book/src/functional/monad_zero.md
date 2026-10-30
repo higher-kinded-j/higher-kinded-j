@@ -76,7 +76,7 @@ Each type's zero is what a failed test leaves:
 
 ## Guarding a `For` comprehension with `when` {#guarding-a-for-comprehension-with-when}
 
-A `For` comprehension given a `MonadZero`, as in `For.from(monadZero, ...)`, has a `when(test)` step, and so do `For.par` and `ForState.withState` given one. When the test fails for a combination, that combination gives a zero, and the comprehension drops it. `when` sees the values so far as a tuple, so `t._2()` is the line. Here `when` keeps only the lines that ask for more than one unit:
+A `For` comprehension given a `MonadZero`, as in `For.from(monadZero, ...)`, has a `when(test)` step, and so do `For.par` and `ForState.withState` given one. When the test fails for a combination, that combination gives a zero, and the comprehension drops it. The test sees what the comprehension holds so far: one value as itself, two or more as a tuple, and in `ForState` the state. Here it holds a basket and a line, so `t._2()` is the line, and `when` keeps only the lines that ask for more than one unit:
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monadzero/MonadZeroBook.java:when}}
