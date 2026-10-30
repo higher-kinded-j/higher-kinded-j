@@ -9,7 +9,7 @@
 
 ---
 
-This group adds operations you can perform on any container without thinking about which: `foldMap`, `traverse`, `orElse`, `select`.
+This group adds operations you can perform on a container without thinking about which one it is: `foldMap`, `traverse`, `orElse`, `select`. Each needs the container to have an instance of the type class that declares it, and [the hierarchy](#the-hierarchy) shows which class that is.
 
 The Ship pages in the [Chapter Contents](../hkts/foundations_intro.md#chapter-contents) teach the four type classes most code needs: `Functor`, `Applicative`, `Monad` and `MonadError`. The rest are here, with the `For` comprehensions that build on them. Read one when a task calls for it, such as folding a list into one value, validating every element with `traverse`, falling back with `orElse`, or mapping both sides of an `Either`. Until then you can skip the group.
 
