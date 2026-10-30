@@ -41,8 +41,8 @@ Each On demand group's introduction follows the Style Guide's
 titled "Pages in this group", in `SUMMARY.md` order. Core Types sets its list under the names of its
 families. A group links the chapter's decision pages rather than drawing a tree of its own:
 [Supported Types](../hkj-book/src/monads/supported-types.md) for choosing a core type, and
-[Choosing Abstraction Levels](../hkj-book/src/functional/abstraction_levels.md) for choosing between
-Applicative, Selective and Monad.
+[Applicative, Selective or Monad?](../hkj-book/src/functional/abstraction_levels.md) for choosing between
+the three.
 
 ## Which Level a Page Works At
 

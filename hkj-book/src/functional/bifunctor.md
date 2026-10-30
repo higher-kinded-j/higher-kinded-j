@@ -430,5 +430,5 @@ Understanding bifunctors empowers you to write generic, reusable transformation 
 
 ---
 
-**Previous:** [Choosing Abstraction Levels](abstraction_levels.md)
+**Previous:** [Applicative, Selective or Monad?](abstraction_levels.md)
 **Next:** [Profunctor](profunctor.md)

@@ -79,7 +79,7 @@ The `hkj-api` module contains the heart of the Higher-Kinded-J library: a set of
 
 ~~~admonish tip title="See Also"
 - [Obtaining Instances](instances_facade.md) - The uniform `Instances` facade for getting any instance below
-- [Choosing Your Abstraction Level](abstraction_levels.md) - Decision flowchart for Applicative vs Selective vs Monad
+- [Applicative, Selective or Monad?](abstraction_levels.md) - Decision flowchart for Applicative vs Selective vs Monad
 - [For Comprehension](for_comprehension.md) - Readable syntax for composing monadic operations
 - [Natural Transformation](natural_transformation.md) - Polymorphic functions between type constructors
 ~~~

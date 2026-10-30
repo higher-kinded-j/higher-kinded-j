@@ -596,7 +596,7 @@ that powers `via`, `recover`, `mapError` and the rest is documented in
 [Capability Interfaces](capabilities.md) under the Reference section.
 
 ~~~admonish tip title="See Also"
-- [Choosing Abstraction Levels](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
+- [Applicative, Selective or Monad?](../functional/abstraction_levels.md) - When to use Applicative vs Selective vs Monad
 - [Monad](../functional/monad.md) - The type class powering `via` and `flatMap`
 - [Functor](../functional/functor.md) - The type class powering `map`
 - [IO Monad](../monads/io_monad.md) - The underlying type for `IOPath`

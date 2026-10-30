@@ -53,8 +53,8 @@ import org.junit.jupiter.api.Test;
  * some expressive power for the ability to reason about programs statically.
  *
  * <p>Links to documentation: <a
- * href="https://higher-kinded-j.github.io/latest/functional/abstraction_levels.html">Choosing
- * Abstraction Levels</a>
+ * href="https://higher-kinded-j.github.io/latest/functional/abstraction_levels.html">Applicative,
+ * Selective or Monad?</a>
  */
 public class Tutorial11_StaticAnalysis {
 
