@@ -770,7 +770,7 @@ This is the reason they can all be composed together so seamlessly.
 - [Common Data Structures](common_data_structure_traversals.md): ready-made traversals for Optional, Map, and tuple types
 - [Limiting Traversals](limiting_traversals.md): focusing on slices of a list instead of every element
 - [Composition Rules](composition_rules.md): what type `andThen` returns for each pair of optics
-- [Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal): comprehension-style filtering, modifying, and collecting through a traversal
+- [Editing every element with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal): comprehension-style filtering, modifying, and collecting through a traversal
 - [Production Readiness](production_readiness.md#runtime-cost): what a traversal and `partsOf` allocate, and when to cache a composed optic
 ~~~
 

@@ -26,7 +26,7 @@ For.from() → toState() → update/modify → when → yield
 By the end, you'll be able to build complex workflows that combine effectful computation with named state management, guards, pattern matching, nested scope narrowing, and seamless bridging from `For` comprehensions.
 
 ~~~admonish tip title="Read First"
-Before starting this tutorial, read the [ForState: Named State Comprehensions](../../functional/forstate_comprehension.md) chapter for a full comparison of `For` vs `ForState` and a complete API reference.
+Before starting this tutorial, read the [ForState: Named State Comprehensions](../../functional/forstate_comprehension.md) page for when to reach for `ForState` and a table of every step.
 ~~~
 
 ---

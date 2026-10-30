@@ -374,8 +374,8 @@ Kind<ValidatedKind.Witness<String>, Employee> result =
 
 ~~~admonish tip title="For Comprehension Integration"
 Lenses integrate with For comprehensions in two ways:
-- Use `focus()` within a For comprehension to extract values via lens-like accessors. See [For Comprehensions: Extracting Values with focus()](../functional/for_optics.md#extracting-nested-values-with-focus).
-- Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_mtl.md#stateful-updates-with-forstate).
+- Use `focus()` within a For comprehension to extract values via lens-like accessors. See [Optic steps in a `For` chain](../functional/for_optics.md#optic-steps-in-a-for-chain).
+- Use `ForState` for stateful lens operations that thread updates through a workflow. See [ForState](../functional/forstate_comprehension.md).
 ~~~
 
 ~~~admonish info title="Key Takeaways"

@@ -18,8 +18,6 @@
     "examples/examples_order.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 4, "aboveBelow": 0 },
     "examples/market_building.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "examples/market_reference.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
-    "functional/for_optics.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
-    "functional/forstate_comprehension.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 2 },
     "functional/functional_api.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "glossary/concurrency.md": { "long35": 2, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "glossary/effect-paths.md": { "long35": 1, "long50": 1, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
