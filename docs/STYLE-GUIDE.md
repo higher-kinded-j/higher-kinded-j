@@ -669,6 +669,7 @@ Use the following admonition types consistently:
 | `warning` | Potential pitfalls or common mistakes |
 | `question` | A [checkpoint](#checkpoints) question, never collapsed |
 | `success` | A checkpoint answer, always `collapsible=true` |
+| `abstract` | A Core Types page's type card, "*Type* at a glance" |
 
 ## Code Formatting
 

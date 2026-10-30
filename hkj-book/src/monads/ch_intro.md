@@ -1,129 +1,67 @@
+<!-- description: Find the Higher-Kinded-J type for a task, such as Either, Validated, Maybe or IO, and see which type classes each one supports. -->
+
 # Core Types
 
-> *"Everything was beautiful and nothing hurt."*
+<!-- source: Rudyard Kipling, "The Elephant's Child", in Just So Stories (1902), the closing verse; text checked against Project Gutenberg eBook #2781 -->
+> _"I keep six honest serving-men: / (They taught me all I knew) / Their names are What and Where and When / And How and Why and Who."_
 >
-> – Kurt Vonnegut, *Slaughterhouse-Five*
+> — Rudyard Kipling, *Just So Stories* (The Elephant's Child)
 
 ---
 
-Within a monadic context, certain complexities simply vanish. Null checks disappear inside `Maybe`. Error propagation becomes implicit within `Either`. Asynchronous callbacks flatten into sequential steps with `CompletableFuture`. The mess remains (it must), but the monad contains it, and within that containment, everything is beautiful and nothing hurts.
+Each family asks one of them of a value: what, if anything, it holds; why it failed; when it runs; where its settings come from; how many there are; or who runs it.
 
-This section surveys the types that Higher-Kinded-J supports: seventeen distinct monads, each representing a different computational context. Some wrap standard Java types (`Optional`, `List`, `CompletableFuture`). Others are library-defined (`Maybe`, `Either`, `IO`, `Validated`). Still others handle advanced concerns like state management (`State`, `Reader`, `Writer`) or stack-safe recursion (`Trampoline`, `Free`).
+A core type is a container for a value, as Java's `Optional` is, and the library adds its own, such as `Maybe`, `Either` and `IO`. Application code reaches most of them through an [Effect Path](../effect/ch_intro.md) such as `EitherPath`, and generic code through their type class instances. The [Foundations introduction](../hkts/foundations_intro.md) says which you are writing.
 
-Each type has its purpose. `Id` does nothing, which makes it useful as a baseline. `Maybe` and `Optional` handle absence. `Either` and `Try` handle failure with information. `IO` defers side effects. `Lazy` memoises computations. `Reader` threads configuration. `State` manages mutable state purely. `Writer` accumulates logs. `Validated` gathers all errors rather than stopping at the first.
-
-The art lies in choosing the right context for the problem at hand. Sometimes you need fail-fast semantics; sometimes you need error accumulation. Sometimes laziness helps; sometimes it hinders. This section provides the vocabulary. Experience provides the judgement.
-
-~~~admonish title="Hands On Practice"
-[Tutorial07_RealWorld.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java)
-~~~
+Read a page when a task calls for its type, such as returning a typed error. [Choosing a Type](supported-types.md#choosing-a-type) helps you pick one, and until then you can skip the group.
 
 ---
 
-## The Landscape
+## Pages in this group {#pages-in-this-group}
 
-```
-    ┌─────────────────────────────────────────────────────────────┐
-    │  ABSENCE                                                    │
-    │    Maybe         Optional         (value or nothing)        │
-    └─────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────┐
-    │  FAILURE                                                    │
-    │    Either        Try         Validated   (error handling)   │
-    └─────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────┐
-    │  EFFECTS                                                    │
-    │    IO       CompletableFuture    (deferred/async execution) │
-    └─────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────┐
-    │  COLLECTIONS                                                │
-    │    List          Stream           (multiple values)         │
-    └─────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────┐
-    │  ENVIRONMENT                                                │
-    │    Reader       State       Writer   (contextual computation)│
-    └─────────────────────────────────────────────────────────────┘
-
-    ┌─────────────────────────────────────────────────────────────┐
-    │  CONTROL                                                    │
-    │    Lazy      Trampoline      Free    (evaluation strategy)  │
-    └─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Choosing the Right Type
-
-A rough decision guide:
-
-| Need | Type | Why |
-|------|------|-----|
-| Value might be absent | `Maybe` or `Optional` | Explicit absence handling |
-| Operation might fail | `Either<E, A>` | Typed error with information |
-| Might throw exceptions | `Try<A>` | Captures Throwable |
-| Accumulate all errors | `Validated<E, A>` | Fail-slow validation |
-| Defer side effects | `IO<A>` | Referential transparency |
-| Run asynchronously | `CompletableFuture<A>` | Non-blocking execution |
-| Multiple results | `List<A>` or `Stream<A>` | Non-determinism |
-| Read configuration | `Reader<R, A>` | Dependency injection |
-| Track state changes | `State<S, A>` | Pure state management |
-| Log operations | `Writer<W, A>` | Accumulate output |
-| Deep recursion | `Trampoline<A>` | Stack safety |
-| Build DSLs | `Free<F, A>` | Separate description from execution |
+- **Failure**
+  - [Either](either_monad.md): A value, or the first typed error
+  - [Validated](validated_monad.md): A value, or every error found, and [Accumulating Assembly](validated_assembly.md) for records of validated fields
+  - [Try](try_monad.md): A value, or a caught exception
+  - [EitherOrBoth](either_or_both_monad.md): A value, an error, or a value with warnings
+  - [NonEmptyList](nonemptylist_monad.md): A list with at least one element, such as errors
+- **Absence**
+  - [Maybe](maybe_monad.md): A value, or nothing, and never `null`
+  - [Optional](optional_monad.md): Java's `Optional`, with the same instances as `Maybe`
+- **Deferred**
+  - [IO](io_monad.md): A side effect described now and run later
+  - [Lazy](lazy_monad.md): A value worked out when first asked for, then kept
+  - [CompletableFuture](cf_monad.md): Java's asynchronous result, already running
+- **Virtual threads**
+  - [VTask](vtask_monad.md): A deferred task, which `runAsync`, `Par` and `Scope` run on virtual threads, with [Structured Concurrency](vtask_scope.md) and [Resource Management](vtask_resource.md)
+  - [VStream](vstream.md): A stream that produces each element when pulled, with [HKT and Type Classes](vstream_hkt.md), [Parallel Operations](vstream_parallel.md), [Performance](vstream_performance.md), [Resource-Safe Streaming](vstream_resources.md) and [Advanced Features](vstream_advanced.md)
+- **Environment and state**
+  - [Reader](reader_monad.md): A value worked out from settings
+  - [Context](context_scoped.md): Settings read from a Java `ScopedValue`
+  - [State](state_monad.md): A step that reads a state and gives a new one
+  - [Writer](writer_monad.md): A value with a log beside it
+- **Collections**
+  - [List](list_monad.md): Java's `List`, read as many possible results
+  - [Stream](stream_monad.md): Java's `Stream`, each element worked out when needed
+- **Programs as data**
+  - [Identity](identity.md): A value and nothing else, for generic code with no effect
+  - [Trampoline](trampoline_monad.md): A recursion that runs without growing the stack
+  - [Free](free_monad.md): A program written as data, for an interpreter to run
+  - [Free Applicative](free_applicative.md): Independent steps an interpreter can inspect before running them
+  - [EitherF](eitherf.md): Two instruction sets joined, so one program can use both
+  - [Coyoneda](coyoneda.md): A `Functor` for any type, which joins its `map` calls into one
+  - [Const](const_type.md): A value of its first type and none of its second, for folds and getters
 
 ---
 
-## What You'll Learn
+## What each type supports {#what-each-type-supports}
 
-~~~admonish info title="In This Section"
-- **Identity** – The trivial monad that simply wraps a value unchanged. Useful as a baseline for testing and as a placeholder in generic code.
-- **Maybe and Optional** – Two approaches to representing absent values. Maybe is the library's own implementation; Optional wraps Java's `java.util.Optional`.
-- **Either** – Represents computations that can fail with typed error information. Unlike exceptions, the error type is explicit in the signature.
-- **Try** – Captures exceptions as values, converting thrown errors into a failed Try. Bridges imperative exception handling with functional composition.
-- **Validated** – Like Either, but accumulates all errors rather than stopping at the first. Essential for form validation and batch processing.
-- **List and Stream** – Model non-deterministic computation where operations can produce multiple results. Stream adds laziness for infinite or large sequences.
-- **CompletableFuture** – Wraps Java's CompletableFuture for asynchronous computation, enabling monadic composition of async operations.
-- **IO** – Defers side effects until explicitly run, maintaining referential transparency. Effects are described, not executed, until interpretation.
-- **Lazy** – Delays computation until the value is needed, then memoises the result. Useful for expensive computations that may never be required.
-- **Reader** – Threads a read-only environment through computations. A functional approach to dependency injection.
-- **State** – Threads mutable state through a computation while maintaining purity. Each step receives state and produces new state alongside its result.
-- **Writer** – Accumulates output (typically logs) alongside computation results. The output type must be a Monoid for combining.
-- **Trampoline** – Enables stack-safe recursion by converting recursive calls into a heap-allocated data structure.
-- **Free** – Represents programs as data structures that can be interpreted in multiple ways. The foundation for building embedded DSLs.
-- **Const** – Ignores its second type parameter, carrying only the first. Useful for accumulating values during traversals.
-~~~
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:matrix}}
 
----
-
-## Section Contents
-
-1. [Supported Types](supported-types.md) - Overview of all seventeen monadic types
-2. [CompletableFuture](cf_monad.md) - Asynchronous computation
-3. [Either](either_monad.md) - Typed, informative failure
-4. [Identity](identity.md) - The simplest monad, doing nothing
-5. [IO](io_monad.md) - Deferred side effects
-6. [Lazy](lazy_monad.md) - Memoised computation
-7. [List](list_monad.md) - Multiple values (non-determinism)
-8. [Maybe](maybe_monad.md) - Handling absence
-9. [Optional](optional_monad.md) - Java's Optional as a monad
-10. [Reader](reader_monad.md) - Environment access
-11. [State](state_monad.md) - Pure state threading
-12. [Stream](stream_monad.md) - Lazy sequences
-13. [Trampoline](trampoline_monad.md) - Stack-safe recursion
-14. [Free](free_monad.md) - Programs as data
-15. [Free Applicative](free_applicative.md) - Static analysis of programs
-16. [Coyoneda](coyoneda.md) - Free functor for any type
-17. [Try](try_monad.md) - Exception capture
-18. [Validated](validated_monad.md) - Error accumulation
-19. [Writer](writer_monad.md) - Output accumulation
-20. [Const](const_type.md) - Phantom-typed constants
+A type class, such as `Functor` or `Traverse`, names operations that work on any type with an instance of it, so a row tells you which generic code accepts that type. Every row lists the classes in the same order, so the differences show towards the end, and includes each class a listed one extends, as [the hierarchy](../functional/ch_intro.md#the-hierarchy) shows. `MonadError<…>` names the error its instance raises and recovers from: the type's own `L` or `E`, a `Throwable`, or `Unit`, the bare absence of `Maybe` and `Optional`. A test reads the table from the library's classes, so it lists exactly the instances of these type classes the library has. [`Semigroup` and `Monoid`](../functional/semigroup_and_monoid.md), which take a plain type rather than a container, are left out. Some instances take an argument: `Validated`'s and `EitherOrBoth`'s need a `Semigroup` to join two errors, and `Writer`'s and `Const`'s a `Monoid` to join two logs or two values.
 
 ~~~admonish info title="Hands-On Learning"
-Practise real-world monad patterns in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises).
+Practise the core types together in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises).
 ~~~
 
 ---
