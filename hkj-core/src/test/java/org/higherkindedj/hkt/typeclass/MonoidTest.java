@@ -3,19 +3,82 @@
 package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.function.BinaryOperator;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Semigroups;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("Monoid interface default methods")
+@DisplayName("Monoid interface factory and default methods")
 class MonoidTest {
+
+  @Nested
+  @DisplayName("of factory")
+  class OfTests {
+
+    @Test
+    @DisplayName("should return the given empty value and combine in argument order")
+    void shouldUseTheGivenEmptyAndOperation() {
+      Monoid<String> concat = Monoid.of("", String::concat);
+
+      assertThat(concat.empty()).isEmpty();
+      assertThat(concat.combine("a", "b")).isEqualTo("ab");
+    }
+
+    @Test
+    @DisplayName("should take a method reference such as Duration::plus")
+    void shouldTakeAMethodReference() {
+      Monoid<Duration> elapsed = Monoid.of(Duration.ZERO, Duration::plus);
+
+      assertThat(elapsed.combineAll(List.of(Duration.ofSeconds(90), Duration.ofMinutes(2))))
+          .isEqualTo(Duration.ofSeconds(210));
+    }
+
+    @Test
+    @DisplayName("should lift an existing Semigroup by giving it an empty value")
+    void shouldLiftASemigroup() {
+      Monoid<List<String>> lines = Monoid.of(List.of(), Semigroups.list());
+
+      assertThat(lines.combineAll(List.of(List.of("a"), List.of("b", "c"))))
+          .containsExactly("a", "b", "c");
+      assertThat(lines.combineAll(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should take a BinaryOperator as operator::apply")
+    void shouldTakeABinaryOperatorThroughApply() {
+      BinaryOperator<Integer> larger = BinaryOperator.maxBy(Comparator.naturalOrder());
+      Monoid<Integer> maximum = Monoid.of(Integer.MIN_VALUE, larger::apply);
+
+      assertThat(maximum.combineAll(List.of(3, 9, 4))).isEqualTo(9);
+    }
+
+    @Test
+    @DisplayName("should refuse a null empty value")
+    void shouldRefuseANullEmpty() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Monoid.<Integer>of(null, Integer::sum))
+          .withMessage("empty must not be null");
+    }
+
+    @Test
+    @DisplayName("should refuse a null operation")
+    void shouldRefuseANullOperation() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Monoid.of(0, null))
+          .withMessage("combine must not be null");
+    }
+  }
 
   @Nested
   @DisplayName("combineAll method")

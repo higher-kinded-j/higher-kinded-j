@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -235,6 +236,43 @@ public interface Monoids {
       @Override
       public Double combine(Double d1, Double d2) {
         return d1 * d2;
+      }
+    };
+  }
+
+  /**
+   * Returns a {@code Monoid} for {@link BigDecimal} addition. Combination is {@link
+   * BigDecimal#add(BigDecimal) add}, identity is {@link BigDecimal#ZERO}.
+   *
+   * <p>Use it for money, where {@link #doubleAddition()} rounds: {@code 0.10} and {@code 0.20} sum
+   * to exactly {@code 0.30}.
+   *
+   * <p>A sum keeps the larger scale of its two values, so prices with two decimal places total to a
+   * value with two. By {@code equals}, then, {@code ZERO} is an identity for every value of scale
+   * zero or more, which includes any price. Added to {@code ZERO}, a value of negative scale such
+   * as {@code new BigDecimal("1E+3")} comes back as {@code 1000}: equal by {@code compareTo}, but
+   * not by {@code equals}.
+   *
+   * <p>{@link Monoid#isEmpty isEmpty} is true for zero at any scale, so {@code 0.00} is empty,
+   * although it does not equal {@code ZERO}.
+   *
+   * @return a Monoid for BigDecimal addition
+   */
+  static Monoid<BigDecimal> bigDecimalAddition() {
+    return new Monoid<BigDecimal>() {
+      @Override
+      public BigDecimal empty() {
+        return BigDecimal.ZERO;
+      }
+
+      @Override
+      public BigDecimal combine(BigDecimal b1, BigDecimal b2) {
+        return b1.add(b2);
+      }
+
+      @Override
+      public boolean isEmpty(BigDecimal value) {
+        return value.signum() == 0;
       }
     };
   }

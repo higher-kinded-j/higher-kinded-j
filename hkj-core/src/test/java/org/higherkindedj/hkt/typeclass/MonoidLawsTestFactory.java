@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -64,6 +65,14 @@ class MonoidLawsTestFactory {
         MonoidTestData.of("doubleAddition", Monoids.doubleAddition(), 1.5, 2.5, 3.5, 7.5),
         MonoidTestData.of(
             "doubleMultiplication", Monoids.doubleMultiplication(), 2.0, 3.0, 4.0, 24.0),
+        MonoidTestData.of(
+            "bigDecimalAddition",
+            Monoids.bigDecimalAddition(),
+            new BigDecimal("19.99"),
+            new BigDecimal("0.50"),
+            new BigDecimal("3.00"),
+            new BigDecimal("23.49")),
+        MonoidTestData.of("of", Monoid.of("", String::concat), "a", "b", "c", "abc"),
         MonoidTestData.of(
             "firstOptional",
             Monoids.firstOptional(),

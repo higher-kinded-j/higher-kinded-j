@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt;
 
+import java.util.Objects;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -17,21 +18,57 @@ import org.jspecify.annotations.NullMarked;
  * <p><b>Example:</b> A Monoid for {@code Integer} with addition:
  *
  * <pre>{@code
- * Monoid<Integer> integerAddition = new Monoid<>() {
- *  public Integer combine(Integer i1, Integer i2) {
- *    return i1 + i2;
- *  }
- *  public Integer empty() {
- *    return 0;
- *  }
- * };
+ * Monoid<Integer> integerAddition = Monoid.of(0, Integer::sum);
+ * integerAddition.combineAll(List.of(1, 2, 3)); // 6
  * }</pre>
+ *
+ * <p>{@link Monoids} holds ready-made instances, this one among them.
  *
  * @param <A> The type of the values.
  * @see Semigroup
+ * @see Monoids
  */
 @NullMarked
 public interface Monoid<A> extends Semigroup<A> {
+
+  /**
+   * Returns a Monoid with the given empty value and combine operation.
+   *
+   * <p>The operation can be a lambda, a method reference, or an existing {@link Semigroup}, which
+   * this lifts to a Monoid by giving it an empty value:
+   *
+   * <pre>{@code
+   * Monoid<Duration> elapsed = Monoid.of(Duration.ZERO, Duration::plus);
+   * Monoid<Money> total = Monoid.of(Money.ZERO, moneyAddition); // a Semigroup<Money>
+   * }</pre>
+   *
+   * <p>A {@code BinaryOperator<A>} passes as {@code operator::apply}.
+   *
+   * <p>{@code of} does not check the laws: {@code empty} must leave any value unchanged when
+   * combined with it, on either side, and {@code combine} must be associative.
+   *
+   * @param <A> The type of the values.
+   * @param empty The empty value (non-null).
+   * @param combine The associative operation (non-null).
+   * @return A Monoid whose {@code empty()} returns {@code empty} and whose {@code combine} calls
+   *     {@code combine} (non-null).
+   * @throws NullPointerException if {@code empty} or {@code combine} is null.
+   */
+  static <A> Monoid<A> of(final A empty, final Semigroup<A> combine) {
+    Objects.requireNonNull(empty, "empty must not be null");
+    Objects.requireNonNull(combine, "combine must not be null");
+    return new Monoid<>() {
+      @Override
+      public A empty() {
+        return empty;
+      }
+
+      @Override
+      public A combine(final A a1, final A a2) {
+        return combine.combine(a1, a2);
+      }
+    };
+  }
 
   /**
    * Returns the identity or "empty" value for this Monoid.
@@ -87,6 +124,9 @@ public interface Monoid<A> extends Semigroup<A> {
 
   /**
    * Tests whether the given value is equal to the empty value of this Monoid.
+   *
+   * <p>An instance may test a looser equality: {@link Monoids#bigDecimalAddition()} counts zero at
+   * any scale as empty.
    *
    * @param value The value to test (non-null).
    * @return {@code true} if the value equals the empty value, {@code false} otherwise.

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.typeclass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -624,6 +625,67 @@ class MonoidsTest {
         Double rightAssoc = doubleMultiplication.combine(a, doubleMultiplication.combine(b, c));
 
         assertThat(leftAssoc).isEqualTo(rightAssoc).isEqualTo(24.0);
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("BigDecimal monoids")
+  class BigDecimalMonoidTests {
+
+    @Nested
+    @DisplayName("bigDecimalAddition")
+    class BigDecimalAdditionTests {
+
+      private final Monoid<BigDecimal> total = Monoids.bigDecimalAddition();
+
+      @Test
+      @DisplayName("should have ZERO as empty value")
+      void shouldHaveCorrectEmpty() {
+        assertThat(total.empty()).isEqualTo(BigDecimal.ZERO);
+      }
+
+      @Test
+      @DisplayName("should add exactly, beyond the precision of a double")
+      void shouldAddExactly() {
+        assertThat(total.combine(new BigDecimal("0.10"), new BigDecimal("0.20")))
+            .isEqualTo(new BigDecimal("0.30"));
+        assertThat(total.combine(new BigDecimal("12345678901234567890.01"), new BigDecimal("0.01")))
+            .isEqualTo(new BigDecimal("12345678901234567890.02"));
+      }
+
+      @Test
+      @DisplayName("should keep the larger scale of its two values")
+      void shouldKeepTheLargerScale() {
+        BigDecimal result = total.combine(new BigDecimal("1.5"), new BigDecimal("2.25"));
+
+        assertThat(result).isEqualTo(new BigDecimal("3.75"));
+        assertThat(total.combineAll(List.of(new BigDecimal("19.99"), new BigDecimal("5.01"))))
+            .isEqualTo(new BigDecimal("25.00"));
+      }
+
+      @Test
+      @DisplayName(
+          "should return a negative-scale value at scale zero, equal by compareTo but not by"
+              + " equals")
+      void shouldReturnANegativeScaleAtScaleZero() {
+        BigDecimal thousand = new BigDecimal("1E+3");
+
+        for (BigDecimal result :
+            List.of(
+                total.combine(total.empty(), thousand), total.combine(thousand, total.empty()))) {
+          assertThat(result).isEqualByComparingTo(thousand).isNotEqualTo(thousand);
+          assertThat(result).isEqualTo(new BigDecimal("1000"));
+        }
+      }
+
+      @Test
+      @DisplayName("should treat zero at any scale as empty")
+      void shouldTreatZeroAtAnyScaleAsEmpty() {
+        assertThat(total.isEmpty(BigDecimal.ZERO)).isTrue();
+        assertThat(total.isEmpty(new BigDecimal("0.00"))).isTrue();
+        assertThat(total.isEmpty(new BigDecimal("0.01"))).isFalse();
+        assertThat(total.isEmpty(new BigDecimal("-0.01"))).isFalse();
       }
     }
   }
