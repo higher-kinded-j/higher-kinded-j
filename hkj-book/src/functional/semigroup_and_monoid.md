@@ -91,8 +91,9 @@ Money is `BigDecimal`, as `LineItem.price` is, since `Monoids.doubleAddition()` 
 
 | Factory | Combines by | Empty value |
 |---|---|---|
-| `integerAddition()`, `longAddition()`, `doubleAddition()` | `+` | `0` |
-| `integerMultiplication()`, `longMultiplication()`, `doubleMultiplication()` | `*` | `1` |
+| `integerAddition()`, `longAddition()` | `+` | `0` |
+| `integerMultiplication()`, `longMultiplication()` | `*` | `1` |
+| `doubleAddition()`, `doubleMultiplication()` | `+`, `*`, which round, so regrouping can change the result, as [Things people get wrong](#things-people-get-wrong) shows | `0.0`, `1.0` |
 | `bigDecimalAddition()` | `BigDecimal.add` | `BigDecimal.ZERO` |
 | `booleanAnd()`, `booleanOr()` | `&&`, `\|\|` | `true`, `false` |
 | `string()` | Joining two strings | `""` |
@@ -131,7 +132,7 @@ Besides `combineAll`, every `Monoid` has two more default methods. `combineN(val
 
 ## Choosing among optional values {#choosing-among-optional-values}
 
-The optional monoids pick one value from many, by the `Comparator` you pass or the type's natural order. `firstOptional` suits a fallback chain: a setting from the environment, then one from a file, then a default.
+The optional monoids pick one present value from many. `firstOptional` and `lastOptional` pick by position and compare nothing, so `firstOptional` suits a fallback chain: a setting from the environment, then one from a file, then a default. `maximum` and `minimum` compare the values, by the `Comparator` you pass or by the type's natural order.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/monoid/MonoidBook.java:priciest}}
@@ -192,6 +193,7 @@ import org.higherkindedj.hkt.Monoids;
 
 ~~~admonish warning title="Common Misunderstandings"
 - **"`doubleAddition` will do for money."** It rounds: `0.1` and `0.2` give `0.30000000000000004`, where `bigDecimalAddition` sums `0.10` and `0.20` to exactly `0.30`.
+- **"Every monoid in `Monoids` keeps the laws."** The `double` ones do not, since each `+` or `*` rounds. Combining `1e16`, `-1e16` and `1` gives `1.0` grouped as `(1e16 + -1e16) + 1`, and `0.0` grouped as `1e16 + (-1e16 + 1)`.
 - **"`combine` must be commutative."** It must be associative, and that is all. `Monoids.string()` combines `"LAMP"` and `"BULB"` into `"LAMPBULB"`, and the other way round into `"BULBLAMP"`.
 - **"Any semigroup becomes a monoid once you name an empty value."** Only if that value changes nothing. The `combineAll` of `Monoid.of("", Semigroups.string(", "))` turns `"LAMP"` and `"BULB"` into `", LAMP, BULB"`: it starts from `""`, and joining `""` adds a delimiter.
 - **"`isEmpty` always compares with `equals`."** `bigDecimalAddition`'s is true for zero at any scale, so `0.00` is empty, although `BigDecimal.ZERO.equals(new BigDecimal("0.00"))` is false.

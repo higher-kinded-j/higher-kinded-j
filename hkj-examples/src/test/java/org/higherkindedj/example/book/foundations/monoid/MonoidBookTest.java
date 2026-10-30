@@ -84,6 +84,24 @@ class MonoidBookTest {
   }
 
   @Test
+  @DisplayName("firstOptional and lastOptional pick by position, comparing nothing")
+  void firstAndLastPickByPosition() {
+    List<Optional<String>> skus =
+        List.of(
+            Optional.empty(),
+            Optional.of("DESK"),
+            Optional.of("LAMP"),
+            Optional.of("BULB"),
+            Optional.of("CHAIR"),
+            Optional.empty());
+
+    assertThat(Monoids.<String>firstOptional().combineAll(skus)).contains("DESK");
+    assertThat(Monoids.<String>lastOptional().combineAll(skus)).contains("CHAIR");
+    assertThat(Monoids.<String>maximum().combineAll(skus)).contains("LAMP");
+    assertThat(Monoids.<String>minimum().combineAll(skus)).contains("BULB");
+  }
+
+  @Test
   @DisplayName("the update monoid applies its updates left to right")
   void updatesApplyLeftToRight() {
     Update<LineItem> restock = line -> new LineItem(line.sku(), line.quantity() + 10, line.price());
@@ -103,6 +121,15 @@ class MonoidBookTest {
     assertThat(Monoids.doubleAddition().combine(0.1, 0.2)).isEqualTo(0.30000000000000004);
     assertThat(MONEY.combine(new BigDecimal("0.10"), new BigDecimal("0.20")))
         .isEqualTo(new BigDecimal("0.30"));
+  }
+
+  @Test
+  @DisplayName("double addition is not associative: regrouping changes the sum")
+  void doubleAdditionIsNotAssociative() {
+    Monoid<Double> sum = Monoids.doubleAddition();
+
+    assertThat(sum.combine(sum.combine(1e16, -1e16), 1.0)).isEqualTo(1.0);
+    assertThat(sum.combine(1e16, sum.combine(-1e16, 1.0))).isEqualTo(0.0);
   }
 
   @Test

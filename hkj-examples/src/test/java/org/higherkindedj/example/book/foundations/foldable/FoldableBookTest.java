@@ -88,7 +88,7 @@ class FoldableBookTest {
                     line -> VALIDATED.widen(checkLine(line)),
                     LIST.widen(ZERO_QUANTITIES)))
             .map(LIST::narrow);
-    Either<List<String>, List<LineItem>> stopped =
+    Either<List<String>, List<LineItem>> firstError =
         EITHER
             .narrow(
                 ListTraverse.INSTANCE.traverse(
@@ -101,7 +101,7 @@ class FoldableBookTest {
         .isEqualTo(
             Validated.invalid(
                 List.of("CHAIR: quantity must be positive", "DESK: quantity must be positive")));
-    assertThat(stopped).isEqualTo(Either.left(List.of("CHAIR: quantity must be positive")));
+    assertThat(firstError).isEqualTo(Either.left(List.of("CHAIR: quantity must be positive")));
   }
 
   @Test

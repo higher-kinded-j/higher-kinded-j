@@ -37,10 +37,10 @@ import org.higherkindedj.hkt.validated.ValidatedKind;
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/functional/foldable_and_traverse.html">Foldable
  * and Traverse</a> page: an order's line items folded into a total, a check and a list of SKUs, and
- * traversed with a check that one instance stops at and another reports in full. The line items and
- * {@code lineTotal} are the Semigroup and Monoid page's. The page {@code {{#include}}}s the
- * anchored regions, {@code FoldableBookTest} holds the claims the page makes, and the book's output
- * gate runs {@link #main} against the comments in the regions.
+ * traversed with a check, where {@code Either} keeps the first error and {@code Validated} reports
+ * every one. The line items and {@code lineTotal} are the Semigroup and Monoid page's. The page
+ * {@code {{#include}}}s the anchored regions, {@code FoldableBookTest} holds the claims the page
+ * makes, and the book's output gate runs {@link #main} against the comments in the regions.
  */
 public final class FoldableBook {
 

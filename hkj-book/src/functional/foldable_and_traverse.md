@@ -13,7 +13,7 @@ A fold's result is a part of every element it met: `foldMap` turns an order's li
 
 ~~~admonish info title="What You'll Learn"
 - Fold any container to one value with `foldMap` and a [monoid](semigroup_and_monoid.md)
-- Get a total, a check and a list from the same fold by swapping the monoid
+- Get a total, a check and a list from the same fold, by choosing the monoid and the function that feeds it
 - Run a check on every element with `traverse`, and get one result for the whole container
 - Predict whether a traversal keeps the first failure or reports them all, from the instance you pass
 - Say when `sequenceA` fits, and check a `Traverse` against its identity law
@@ -79,7 +79,7 @@ This page is for a method written once for any container.
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foldable/FoldableBook.java:summaries}}
 ```
 
-The difference between the three is one argument: the monoid. `ListTraverse.INSTANCE` is `List`'s `Foldable`, and `Traverse` extends `Foldable`, so every type with a `Traverse` can be folded.
+The three calls differ in the monoid and in the function that feeds it: a line's total for the sum, a test for the check, and a one-element list for the SKUs. `ListTraverse.INSTANCE` is `List`'s `Foldable`, and `Traverse` extends `Foldable`, so every type with a `Traverse` can be folded.
 
 ### One method for any container {#one-method-for-any-container}
 
