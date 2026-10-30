@@ -35,6 +35,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`EitherPath` gains `ensure`** ([#1338](https://github.com/higher-kinded-j/higher-kinded-j/issues/1338)): `ensure(test, onFail)` keeps a success whose value passes `test` and turns any other success into a failure built from its value, so a guard no longer needs an `if` returning a `Left`. See [EitherPath](../effect/path_either.md#error-handling).
 - **`TrampolinePath` and `FreePath` combine three paths with `zipWith3`** ([#1302](https://github.com/higher-kinded-j/higher-kinded-j/issues/1302)): both already combined two paths with `zipWith`. The three-way combine stays lazy until `run()` or `foldMap`, so a deep chain stays stack-safe. See [Combinable (Applicative)](../effect/capabilities.md#combinable-applicative).
 - **`NonDetPath` gains six list operations that `ListPath` already had** ([#1337](https://github.com/higher-kinded-j/higher-kinded-j/issues/1337)): `lastOption`, `anyMatch`, `allMatch`, `takeWhile`, `dropWhile` and `get`. Each behaves as its `ListPath` counterpart.
+- **`Monoid.of` builds a monoid from its empty value and its operation, and `Monoids.bigDecimalAddition()` sums money exactly** ([#1356](https://github.com/higher-kinded-j/higher-kinded-j/pull/1356)). `Monoid.of(Duration.ZERO, Duration::plus)` takes the place of an anonymous class, and an existing `Semigroup` can be the operation. The `BigDecimal` monoid's sums keep the larger scale of their two values, and its `isEmpty` is true for zero at any scale.
 
 ---
 
