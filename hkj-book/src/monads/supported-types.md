@@ -73,7 +73,7 @@ Six ways to model "this computation might not produce a value."
 
 **[`Id<A>`](./identity.md)**: The "do nothing" wrapper. No effects, no surprises. Sounds pointless, but it is the neutral element that makes monad transformers and generic code work. When you need a `Monad<F>` but have no effect to model, `Id` is your answer.
 
-**[`Maybe<A>`](./maybe_monad.md)**: `Just(value)` or `Nothing`. The library's own optional type with full typeclass support: Selective, Traverse, Alternative. Pick this over `Optional` when you want richer composition and don't need JDK API interop.
+**[`Maybe<A>`](./maybe_monad.md)**: `Just(value)` or `Nothing`. The library's own optional type, with the same type class instances as `Optional`. Pick this over `Optional` in code you control: it is its own `Kind`, so widening allocates nothing, and `toEither` gives its absence a reason.
 
 **[`Optional<A>`](./optional_monad.md)**: HKT bridge to `java.util.Optional`. Same semantics as Maybe, but wraps the JDK type directly. Use this when your codebase already passes `Optional` values around and you want to lift them into generic HKT code without conversion.
 

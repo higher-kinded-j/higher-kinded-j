@@ -1,446 +1,181 @@
-# The MaybeMonad:
-## _Handling Optional Values with Non-Null Guarantee_
+<!-- description: Return a value that may be missing from a Java method with Maybe instead of null, chain lookups that may find nothing, and give the absence a reason. -->
+
+# Maybe: Representing Optional Values
+
+_Return a value that may be missing, without ever handing back `null`._
+
+~~~admonish abstract title="Maybe at a glance"
+| | |
+|---|---|
+| **Models** | A value, or nothing, and never `null` |
+| **Replaces** | A method that may return `null` |
+| **Effect Path** | [`MaybePath`](../effect/path_maybe.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:maybe_monad}}
+| **Choose it when** | Absence needs no reason; otherwise [Either](either_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How Maybe provides null-safe optional values with guaranteed non-null contents
-- The difference between Maybe and Optional (non-null guarantee in Just)
-- Using Maybe as a MonadError with Unit as the error type
-- Chaining operations with automatic Nothing propagation
-- Building robust pipelines that handle absence gracefully
+- Turn a lookup that may return `null` into a `Maybe`, once, where the value comes in
+- Chain lookups that may each find nothing, and say when a later one runs
+- Read a `Maybe` with a fallback, or give its absence a reason with `toEither`
+- Hand a `Maybe` to code that takes an `Optional` or a `Stream`
+- Use `Maybe` in generic code through its `MonadError` instance
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[MaybeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/maybe/MaybeExample.java)
-~~~
-
-## Purpose
-
-How do you handle optional values in Java without falling into the null pointer trap? The `Maybe<T>` type in Higher-Kinded-J provides an elegant solution: representing a value that might be present (`Just<T>`) or absent (`Nothing<T>`), with one crucial guarantee: a `Just<T>` will never hold null.
-
-The `Maybe<T>` type is conceptually similar to `java.util.Optional<T>` but with a key distinction: a `Just<T>` is guaranteed to hold a **non-null** value. This strictness helps prevent `NullPointerExceptions` when a value is asserted to be present. `Maybe.fromNullable(T value)` or `MaybeMonad.of(T value)` should be used if the input value could be null, as these will correctly produce a `Nothing` in such cases.
-
-The `MaybeMonad` provides a monadic interface for `Maybe`, allowing for functional composition and integration with the Higher-Kinded Type (HKT) system. This facilitates chaining operations that may or may not yield a value, propagating the `Nothing` state automatically.
-
-~~~admonish info title="Key benefits include:"
-
-* **Explicit Optionality with Non-Null Safety:** `Just<T>` guarantees its contained value is not null. `Nothing<T>` clearly indicates absence.
-* **Functional Composition:** Enables elegant chaining of operations using `map`, `flatMap`, and `ap`, where `Nothing` short-circuits computations.
-* **HKT Integration:** `MaybeKind<A>` (the HKT wrapper for `Maybe<A>`) and `MaybeMonad` allow `Maybe` to be used with generic functions and type classes that expect `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, `Monad<M>`, or `MonadError<M, E>` where `F extends WitnessArity<TypeArity.Unary>`.
-* **Error Handling for Absence:** `MaybeMonad` implements `MonadError<MaybeKind.Witness, Unit>`. `Nothing` is treated as the "error" state, with `Unit` as the phantom error type, signifying absence.
-~~~
-
-It implements `MonadError<MaybeKind.Witness, Unit>`, which transitively includes `Monad<MaybeKind.Witness>`, `Applicative<MaybeKind.Witness>`, and `Functor<MaybeKind.Witness>`.
-
-
-```java
-public sealed interface Maybe<T> permits Just, Nothing { ... }
-
-record Just<T>(T value)  implements Maybe<T> { ... }   // never null
-record Nothing<T>()      implements Maybe<T> { ... }   // singleton
-```
-
-Two cases, with a strict non-null guarantee on `Just` that `Optional` does not give us.
-
-~~~admonish note title="Related Types"
-For working with Java's standard `Optional` type in the HKT system, see [Optional Monad](./optional_monad.md). For error handling with typed error values, see [Either Monad](./either_monad.md).
-~~~
-
-
-## How to Use `MaybeMonad` and `Maybe`
-
-### Creating Instances
-
-`Maybe<A>` instances can be created directly using static factory methods on `Maybe`, or via `MaybeMonad` for HKT integration. Since `Just<T>` and `Nothing<T>` directly implement `MaybeKind<T>`, they are first-class participants in the HKT simulation with zero runtime overhead for widen/narrow operations.
-
-**Direct `Maybe` Creation:**
- ~~~admonish  title="_Maybe.just(@NonNull T value)_"
- Creates a `Just` holding a **non-null** value. Throws `NullPointerException` if `value` is null.
-  <!-- verify -->
-  ```java
-  Maybe<String> justHello = Maybe.just("Hello"); // Just("Hello")
-  Maybe<String> illegalJust = Maybe.just(null); // Throws NullPointerException
-  ```
-  ~~~
-  ~~~admonish  title="_Maybe.nothing()_"
- Returns a singleton `Nothing` instance.
-  <!-- verify -->
-  ```java
-  Maybe<Integer> noInt = Maybe.nothing(); // Nothing
-  ```
-  ~~~
-  ~~~admonish  title="_Maybe.fromNullable(@Nullable T value)_"
- Creates `Just(value)` if `value` is non-null, otherwise `Nothing`.
-  <!-- verify -->
-  ```java
-  Maybe<String> fromPresent = Maybe.fromNullable("Present"); // Just("Present")
-  Maybe<String> fromNull = Maybe.fromNullable(null);     // Nothing
-  ```
-  ~~~
-  ~~~admonish  title="_Maybe.fromOptional(Optional<T> optional)_"
- Bridges in from the JDK: a present `Optional` becomes `Just`, an empty one `Nothing`. The inverse of `toOptional()`.
-  <!-- verify -->
-  ```java
-  Maybe<String> fromPresent = Maybe.fromOptional(Optional.of("Present")); // Just("Present")
-  Maybe<String> fromEmpty = Maybe.fromOptional(Optional.empty());         // Nothing
-  ```
-  ~~~
-
-**`MaybeKindHelper` (for HKT wrapping):**
-~~~admonish  title="_MaybeKindHelper.widen(Maybe<A> maybe)_"
-
-Converts a `Maybe<A>` to `Kind<MaybeKind.Witness, A>`. Since `Just` and `Nothing` directly implement `MaybeKind`, this performs a null check and type-safe cast (zero overhead, no wrapper object allocation).
-  <!-- verify -->
-  ```java
-  Kind<MaybeKind.Witness, String> kindJust = MAYBE.widen(Maybe.just("Wrapped"));
-  Kind<MaybeKind.Witness,Integer> kindNothing = MAYBE.widen(Maybe.nothing());
-  ```
-~~~
-~~~admonish  title="_MAYBE.just(@NonNull A value)_"
-
-Convenience for `widen(Maybe.just(value))`.
-~~~
-~~~admonish  title="_MAYBE.nothing()_"
-
-Convenience for `widen(Maybe.nothing())`.
-~~~
-
-**`MaybeMonad` Instance Methods:**
-~~~admonish  title="_maybeMonad.of(@Nullable A value)_"
-
-Lifts a value into `Kind<MaybeKind.Witness, A>`. Uses `Maybe.fromNullable()` internally.
-  <!-- verify -->
-  ```java
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-  Kind<MaybeKind.Witness, String> kindFromMonad = maybeMonad.of("Monadic"); // Just("Monadic")
-  Kind<MaybeKind.Witness, String> kindNullFromMonad = maybeMonad.of(null);   // Nothing
-  ```
-~~~
-~~~admonish  title="_maybeMonad.raiseError(Unit error)_"
-
-Creates a `Kind<MaybeKind.Witness, A>` representing `Nothing`. A `Nothing` carries no detail, so the error is `Unit.INSTANCE`, and a null error throws.
-  <!-- verify -->
-  ```java
-  Kind<MaybeKind.Witness, Double> errorKind = maybeMonad.raiseError(Unit.INSTANCE); // Nothing
-  ``` 
- ~~~
-   
-~~~admonish  title="Unwrapping _MaybeKind_"
-To get the underlying `Maybe<A>` from a `MaybeKind<A>`, use `MAYBE.narrow()`:
-
-<!-- verify -->
-```java
-Kind<MaybeKind.Witness, String> kindJust = MAYBE.just("Example");
-Maybe<String> unwrappedMaybe = MAYBE.narrow(kindJust); // Just("Example")
-System.out.println("Unwrapped: " + unwrappedMaybe);
-
-Kind<MaybeKind.Witness, Integer> kindNothing = MAYBE.nothing();
-Maybe<Integer> unwrappedNothing = MAYBE.narrow(kindNothing); // Nothing
-System.out.println("Unwrapped Nothing: " + unwrappedNothing);
-```
-~~~
-
-### Interacting with `Maybe` values
-
-The `Maybe` interface itself provides useful methods:
-
-* `isJust()`: Returns `true` if it's a `Just`.
-* `isNothing()`: Returns `true` if it's a `Nothing`.
-* `get()`: Returns the value if `Just`, otherwise throws `NoSuchElementException`. **Use with caution.**
-* `orElse(@NonNull T other)`: Returns the value if `Just`, otherwise returns `other`.
-* `orElseGet(@NonNull Supplier<? extends @NonNull T> other)`: Returns the value if `Just`, otherwise invokes `other.get()`.
-* `toEither(L leftValue)`: Converts to `Either<L, T>`. `Just(t)` becomes `Right(t)`, `Nothing` becomes `Left(leftValue)`.
-* `toEither(Supplier<L> leftSupplier)`: Lazy variant that only evaluates the supplier for `Nothing`.
-* `toOptional()`: The inverse of `Maybe.fromOptional`. `Just(t)` becomes `Optional.of(t)`, `Nothing` becomes `Optional.empty()`. Total in both directions, because a `Just` never holds null.
-* `stream()`: Renders the `Maybe` as a `Stream` of zero or one element, with the same contract as `Optional.stream()`.
-* The `Maybe` interface also has its own `map` and `flatMap` methods, which are similar in behaviour to those on `MaybeMonad` but operate directly on `Maybe` instances.
-
-~~~admonish example title="Converting Maybe to Either"
-The `toEither` methods bridge between `Maybe` and `Either`, useful when you need to provide error context for absent values:
-
-<!-- verify -->
-```java
-Maybe<User> maybeUser = findUser(userId);
-
-// Convert with a static error value
-Either<String, User> result = maybeUser.toEither("User not found");
-
-// Convert with a lazy error (only computed if Nothing)
-Either<UserError, User> result2 = maybeUser.<UserError>toEither(
-    () -> new UserError("User " + userId + " not found")
-);
-
-// Just(user) -> Right(user)
-// Nothing    -> Left("User not found")
-```
-~~~
-
-~~~admonish example title="Bridging to the JDK"
-`toOptional()` and `stream()` hand a `Maybe` to code that speaks `Optional` or `java.util.stream`. The stream form is the one to reach for when a pipeline of lookups should keep only its hits:
-
-<!-- verify -->
-```java
-List<Order> found = ids.stream()
-    .map(repository::findOrder)   // Stream<Maybe<Order>>
-    .flatMap(Maybe::stream)
-    .toList();
-```
-
-`Maybe` carries `stream()` deliberately alone among the optional-shaped types: an empty stream renders absence faithfully, while the same conversion on `Either` or `Try` would silently discard the error the value carries. Those types convert through `toEither` and `fold` instead, which `Try` spells `foldFailureFirst`.
-~~~
-
-### Key Operations (via `MaybeMonad`)
-
-~~~admonish example title="Example: _map(Function<A, B> f, Kind<MaybeKind.Witness, A> ma)_"
-
-Applies `f` to the value inside `ma` if it's `Just`. If `ma` is `Nothing`, or if `f` returns `null` (which `Maybe.fromNullable` then converts to `Nothing`), the result is `Nothing`.
-
-<!-- verify -->
-```java
-void mapExample() {
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-  Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
-  Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
-
-  Function<Integer, String> numToString = n -> "Val: " + n;
-  Kind<MaybeKind.Witness, String> justStr = maybeMonad.map(numToString, justNum); // Just("Val: 10")
-  Kind<MaybeKind.Witness, String> nothingStr = maybeMonad.map(numToString, nothingNum); // Nothing
-
-  Function<Integer, String> numToNull = n -> null;
-  Kind<MaybeKind.Witness, String> mappedToNull = maybeMonad.map(numToNull, justNum); // Nothing
-
-  System.out.println("Map (Just): " + MAYBE.narrow(justStr));
-  System.out.println("Map (Nothing): " + MAYBE.narrow(nothingStr));
-  System.out.println("Map (To Null): " + MAYBE.narrow(mappedToNull));
-}
-```
-~~~~
-
-~~~admonish example title="Example: _flatMap(Function<A, Kind<MaybeKind.Witness, B>> f, Kind<MaybeKind.Witness, A> ma)_"
-
-If `ma` is `Just(a)`, applies `f` to `a`. `f` must return a `Kind<MaybeKind.Witness, B>`. If `ma` is `Nothing`, or `f` returns `Nothing`, the result is `Nothing`.
-
-<!-- verify -->
-```java
-void flatMapExample() {
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-  Function<String, Kind<MaybeKind.Witness, Integer>> parseString = s -> {
-    try {
-      return MAYBE.just(Integer.parseInt(s));
-    } catch (NumberFormatException e) {
-      return MAYBE.nothing();
-    }
-  };
-
-  Kind<MaybeKind.Witness, String> justFiveStr = MAYBE.just("5");
-  Kind<MaybeKind.Witness, Integer> parsedJust = maybeMonad.flatMap(parseString, justFiveStr); // Just(5)
-
-  Kind<MaybeKind.Witness, String> justNonNumStr = MAYBE.just("abc");
-  Kind<MaybeKind.Witness, Integer> parsedNonNum = maybeMonad.flatMap(parseString, justNonNumStr); // Nothing
-
-  System.out.println("FlatMap (Just): " + MAYBE.narrow(parsedJust));
-  System.out.println("FlatMap (NonNum): " + MAYBE.narrow(parsedNonNum));
-}
-```
-~~~~
-
-~~~admonish example title="Example: _ap(Kind<MaybeKind.Witness, Function<A, B>> ff, Kind<MaybeKind.Witness, A> fa)_"
-
-If `ff` is `Just(f)` and `fa` is `Just(a)`, applies `f` to `a`. Otherwise, `Nothing`.
-
-<!-- verify -->
-```java
-void apExample() {
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-  Kind<MaybeKind.Witness, Integer> justNum = MAYBE.just(10);
-  Kind<MaybeKind.Witness, Integer> nothingNum = MAYBE.nothing();
-  Kind<MaybeKind.Witness, Function<Integer, String>> justFunc = MAYBE.just(i -> "Result: " + i);
-  Kind<MaybeKind.Witness, Function<Integer, String>> nothingFunc = MAYBE.nothing();
-
-  Kind<MaybeKind.Witness, String> apApplied = maybeMonad.ap(justFunc, justNum); // Just("Result: 10")
-  Kind<MaybeKind.Witness, String> apNothingFunc = maybeMonad.ap(nothingFunc, justNum); // Nothing
-  Kind<MaybeKind.Witness, String> apNothingVal = maybeMonad.ap(justFunc, nothingNum); // Nothing
-
-  System.out.println("Ap (Applied): " + MAYBE.narrow(apApplied));
-  System.out.println("Ap (Nothing Func): " + MAYBE.narrow(apNothingFunc));
-  System.out.println("Ap (Nothing Val): " + MAYBE.narrow(apNothingVal));
-}
-```
-~~~~
-
-~~~admonish example title="Example: _handleErrorWith(Kind<MaybeKind.Witness, A> ma, Function<? super Unit, ? extends Kind<MaybeKind.Witness, A>> handler)_"
-
-If `ma` is `Just`, it's returned. If `ma` is `Nothing` (the "error" state), `handler` is invoked (with `Unit.INSTANCE` for `Unit`) to provide a recovery `MaybeKind`.
-
-<!-- verify -->
-```java
-void handleErrorWithExample() {
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-  Function<Unit, Kind<MaybeKind.Witness, String>> recover = v -> MAYBE.just("Recovered");
-
-  Kind<MaybeKind.Witness, String> handledJust = maybeMonad.handleErrorWith(MAYBE.just("Original"), recover); // Just("Original")
-  Kind<MaybeKind.Witness, String> handledNothing = maybeMonad.handleErrorWith(MAYBE.nothing(), recover);    // Just("Recovered")
-
-  System.out.println("HandleError (Just): " + MAYBE.narrow(handledJust));
-  System.out.println("HandleError (Nothing): " + MAYBE.narrow(handledNothing));
-}
-```
-
-Because this handler ignores `Unit` and returns a constant, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) say the same thing without the lambda:
-
-<!-- verify -->
-```java
-maybeMonad.recover(MAYBE.nothing(), "Recovered");        // Just("Recovered")
-maybeMonad.recoverWith(MAYBE.nothing(), MAYBE.just("Recovered"));
-```
-~~~
-
-
-~~~admonish example title="Example: Using _MaybeMonad_"
-
-A complete example demonstrating generic usage:
-
-<!-- verify -->
-```java
-public void monadExample() {
-  MonadError<MaybeKind.Witness, Unit> maybeMonad = Instances.monadError(maybe());
-
-  // 1. Create MaybeKind instances
-  Kind<MaybeKind.Witness, Integer> presentIntKind = MAYBE.just(100);
-  Kind<MaybeKind.Witness, Integer> absentIntKind = MAYBE.nothing();
-  Kind<MaybeKind.Witness, String> nullInputStringKind = maybeMonad.of(null); // Becomes Nothing
-
-  // 2. Use map
-  Function<Integer, String> intToStatus = n -> "Status: " + n;
-  Kind<MaybeKind.Witness, String> mappedPresent = maybeMonad.map(intToStatus, presentIntKind);
-  Kind<MaybeKind.Witness, String> mappedAbsent = maybeMonad.map(intToStatus, absentIntKind);
-
-  System.out.println("Mapped (Present): " + MAYBE.narrow(mappedPresent)); // Just(Status: 100)
-  System.out.println("Mapped (Absent): " + MAYBE.narrow(mappedAbsent));   // Nothing
-
-  // 3. Use flatMap
-  Function<Integer, Kind<MaybeKind.Witness, String>> intToPositiveStatusKind = n ->
-      (n > 0) ? maybeMonad.of("Positive: " + n) : MAYBE.nothing();
-
-  Kind<MaybeKind.Witness, String> flatMappedPresent = maybeMonad.flatMap(intToPositiveStatusKind, presentIntKind);
-  Kind<MaybeKind.Witness, String> flatMappedZero = maybeMonad.flatMap(intToPositiveStatusKind, maybeMonad.of(0)); // 0 is not > 0
-
-  System.out.println("FlatMapped (Present Positive): " + MAYBE.narrow(flatMappedPresent)); // Just(Positive: 100)
-  System.out.println("FlatMapped (Zero): " + MAYBE.narrow(flatMappedZero)); // Nothing
-
-  // 4. Use 'of' and 'raiseError'
-  Kind<MaybeKind.Witness, String> fromOf = maybeMonad.of("Direct Value");
-  Kind<MaybeKind.Witness, String> fromRaiseError = maybeMonad.raiseError(Unit.INSTANCE); // Creates Nothing
-  System.out.println("From 'of': " + MAYBE.narrow(fromOf)); // Just(Direct Value)
-  System.out.println("From 'raiseError': " + MAYBE.narrow(fromRaiseError)); // Nothing
-  System.out.println("From 'of(null)': " + MAYBE.narrow(nullInputStringKind)); // Nothing
-
-
-  // 5. Use handleErrorWith
-  Function<Unit, Kind<MaybeKind.Witness, Integer>> recoverWithDefault =
-      v -> maybeMonad.of(-1); // Default value if absent
-
-  Kind<MaybeKind.Witness, Integer> recoveredFromAbsent =
-      maybeMonad.handleErrorWith(absentIntKind, recoverWithDefault);
-  Kind<MaybeKind.Witness, Integer> notRecoveredFromPresent =
-      maybeMonad.handleErrorWith(presentIntKind, recoverWithDefault);
-
-  System.out.println("Recovered (from Absent): " + MAYBE.narrow(recoveredFromAbsent)); // Just(-1)
-  System.out.println("Recovered (from Present): " + MAYBE.narrow(notRecoveredFromPresent)); // Just(100)
-
-  // Using the generic processData function
-  Kind<MaybeKind.Witness, String> processedPresent = processData(presentIntKind, x -> "Processed: " + x, "N/A", maybeMonad);
-  Kind<MaybeKind.Witness, String> processedAbsent = processData(absentIntKind, x -> "Processed: " + x, "N/A", maybeMonad);
-
-  System.out.println("Generic Process (Present): " + MAYBE.narrow(processedPresent)); // Just(Processed: 100)
-  System.out.println("Generic Process (Absent): " + MAYBE.narrow(processedAbsent));   // Just(N/A)
-
-  // Unwrap to get back the standard Maybe
-  Maybe<String> finalMappedMaybe = MAYBE.narrow(mappedPresent);
-  System.out.println("Final unwrapped mapped maybe: " + finalMappedMaybe); // Just(Status: 100)
-}
-
-public static <A, B> Kind<MaybeKind.Witness, B> processData(
-    Kind<MaybeKind.Witness, A> inputKind,
-    Function<A, B> mapper,
-    B defaultValueOnAbsence,
-    MonadError<MaybeKind.Witness, Unit> monad
-) {
-  // inputKind is now Kind<MaybeKind.Witness, A>, which is compatible with monad.map
-  Kind<MaybeKind.Witness, B> mappedKind = monad.map(mapper, inputKind);
-
-  // The result of monad.map is Kind<MaybeKind.Witness, B>.
-  // The handler (Unit v) -> monad.of(defaultValueOnAbsence) also produces Kind<MaybeKind.Witness, B>.
-  return monad.handleErrorWith(mappedKind, (Unit v) -> monad.of(defaultValueOnAbsence));
-}
-```
-
-This example highlights how `MaybeMonad` facilitates working with optional values in a functional, type-safe manner, especially when dealing with the HKT abstractions and requiring non-null guarantees for present values.
+~~~admonish example title="See Example Code"
+**The code on this page is [MaybeBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java)**: the page includes it, so the build compiles and runs it. [MaybeBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/maybe/MaybeBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Back to the One-Liner
+## Absence without `null` {#absence-without-null}
 
-In the Foundations one-liner:
+`Map.get` returns `null` for a key it does not hold, and so do many older APIs. Nothing in the signature says so, and code that forgets to check fails later with a `NullPointerException`. A `Maybe<T>` is a value that may be missing, with the missing case in the type: a `Just` holds a value, which is never `null`, and `Nothing` holds none. It is close to Java's `Optional`, which [Optional](optional_monad.md) covers, and treats `null` the same way: `Maybe.just`, like `Optional.of`, refuses it.
 
-```java
-repo.find(id)              // <-- a Maybe in flight (or its MaybePath fluent wrapper)
-    .toEitherPath()
-    .focus().attributes().at(key)
-    .modify(spec::validateAndCoerce)
-    .flatMap(repo::save);
-```
-
-`repo.find(id)` returns "the node, or absence", which is the exact shape `Maybe` was built for. Inside the library, that absence flows through `MaybeMonad.flatMap` (or its `MaybePath` surface) without ever touching a `null`. The `.toEitherPath()` step is the moment we decide that "absent" should become a typed error rather than continuing as silent absence; before that, every `map`/`flatMap` is `MaybeMonad` doing its quiet job of either applying the function or short-circuiting on `Nothing`.
-
-See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Natural Transformation](../functional/natural_transformation.md) for what `.toEitherPath()` is actually doing.
-
-## When to Use Maybe
-
-| Scenario | Use |
-|----------|-----|
-| Green-field code representing optional values | `Maybe`: strict non-null guarantee in `Just` |
-| JDK interop (APIs returning `java.util.Optional`) | Prefer [Optional](./optional_monad.md), or bridge at the edge with `fromOptional`/`toOptional` |
-| Optional values with typed error context | Convert with `maybeUser.toEither("not found")` → use [Either](./either_monad.md) |
-| Generic monadic code that works across any `Kind<F, A>` | `MaybeMonad`: implements `MonadError<MaybeKind.Witness, Unit>` |
-| Application-level pipelines with fluent API | Prefer [MaybePath](../effect/path_maybe.md) |
-
----
-
-~~~admonish tip title="Effect Path Alternative"
-For most use cases, prefer **[MaybePath](../effect/path_maybe.md)** which wraps `Maybe` and provides:
-
-- Fluent composition with `map`, `via`, `recover`
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
-- A consistent API shared across all effect types
+The code on this page uses these imports, with `Order`, `Consignment` and `Address` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// Instead of manual Maybe chaining:
-Maybe<User> user = findUser(id);
-Maybe<String> chained = user.flatMap(u -> Maybe.fromNullable(u.name()));
-
-// Use MaybePath for cleaner composition:
-MaybePath<String> name = Path.maybe(findUser(id))
-    .via(u -> Path.maybe(u.name()));
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.maybe.Maybe;
 ```
 
-See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
+`ORDERS` and `CONSIGNMENTS` are `Map`s keyed by order id, and only an order that has shipped has a consignment. Each lookup turns `Map.get`'s `null` into `Nothing`, once, where the value comes in:
 
-~~~admonish example title="Benchmarks"
-Maybe has dedicated JMH benchmarks measuring instance reuse, short-circuit efficiency, filtering, and nullable interop. Key expectations:
-
-- **`nothingMap` is 5-10x faster than `justMap`**: Nothing reuses the same instance with zero allocation
-- **`nothingLongChain` is 10-50x faster than `justLongChain`**: sustained reuse benefit over 50-deep chains
-- `nothingFilter` and `nothingFlatMap` should show similar reuse benefits
-- If Nothing operations allocate memory, instance reuse is broken
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*MaybeBenchmark.*"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:find}}
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
+
+## Chaining lookups {#chaining-lookups}
+
+`flatMap` runs the next lookup on a `Just`'s value, and `map` changes the value. On `Nothing`, neither runs, and `Nothing` reaches the end:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:chain}}
+```
+
+`PLACED` has not shipped, `SHIPPED` has, and no order has the id `UNKNOWN`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:outcomes}}
+```
+
+The two `Nothing` results look the same: one order has not shipped, and the other does not exist. `Maybe` says only that something is missing, not why.
+
+## Reading a `Maybe` {#reading-a-maybe}
+
+`orElse` gives a fallback for `Nothing`, but its text cannot say why the value is missing: an unknown order reads "not dispatched yet" too. When the caller needs the reason, `toEither` gives the absence one, and the chain continues as an [Either](either_monad.md):
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:reading}}
+```
+
+`city` is `"not dispatched yet"`. `get()` returns a `Just`'s value and throws `NoSuchElementException` on `Nothing`, so keep it for tests. `Just` and `Nothing` are not public types, so a `switch` cannot name them: read a `Maybe` through its methods.
+
+## Bridging to the JDK {#interacting-with-maybe-values}
+
+`toOptional()` hands a `Maybe` to code that takes an `Optional`, and `Maybe.fromOptional` brings one back. Neither conversion can fail, because neither type holds `null`. `stream()` gives a stream of zero or one element, so `flatMap(Maybe::stream)` keeps only the lookups that found something:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:jdk}}
+```
+
+Among the library's types that can fail, only `Maybe` has `stream()`, as `Optional` does. An empty stream says that a value is missing, while the same conversion on `Either` or `Try` would drop the error it holds.
+
+## Creating instances {#creating-instances}
+
+`Maybe.just(value)` builds a `Just`, and throws `NullPointerException` for `null`. `Maybe.fromNullable(value)` gives `Nothing` for `null`, and `Maybe.nothing()` gives `Nothing` directly. `Maybe`'s `map` gives `Nothing`, rather than failing, when its function returns `null`, and its instance's `of(null)` gives `Nothing` too, as [Values, never null](../hkts/core-concepts.md#values-never-null) sets out.
+
+## On a `MaybePath` {#on-a-maybepath}
+
+Application code can hold the same chain on a [`MaybePath`](../effect/path_maybe.md). `Path.maybe` takes a `Maybe`, or a value that may be `null`, `via` chains the next lookup, and `getOrElse` reads it. These are the extra imports:
+
+<!-- verify -->
+```java
+import org.higherkindedj.hkt.effect.MaybePath;
+import org.higherkindedj.hkt.effect.Path;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:path}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:path_outcome}}
+```
+
+`unknownCity` is `"unknown"`.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Maybe.just(value)`, `Maybe.nothing()` | Build a `Just`, throwing `NullPointerException` for `null`, or `Nothing` |
+| `Maybe.fromNullable(value)` | Gives `Nothing` for `null`, and a `Just` otherwise |
+| `Maybe.fromOptional(optional)`, `toOptional()` | Convert from and to Java's `Optional` |
+| `isJust()`, `isNothing()` | Say which case it holds |
+| `map(f)` | Changes a `Just`'s value; a function that returns `null` gives `Nothing` |
+| `flatMap(f)` | Runs a step that gives a `Maybe` on a `Just`'s value; `Nothing` passes through |
+| `orElse(other)`, `orElseGet(supplier)` | Return the value, or a fallback |
+| `toEither(error)`, `toEither(supplier)` | Give an `Either` whose `Left` says why the value is missing |
+| `stream()` | Gives a stream of zero or one element |
+| `get()` | Returns the value, or throws `NoSuchElementException` on `Nothing` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `Maybe` through its `MonadError` instance, as [MonadError](../functional/monad_error.md) shows. Its error type is `Unit`: `Nothing` is the error, and it carries no detail. The instance works over `Kind<MaybeKind.Witness, A>`, so you widen a `Maybe` to pass it in, and narrow the result to read it. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+```
+
+`ARCHIVED` is an order that has moved to the archive, so `findOrder` misses it and `findArchived` finds it there:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:kind}}
+```
+
+Widening allocates nothing: `Maybe` implements `MaybeKind` itself, so `widen` checks for `null` and returns the same object, and `Nothing` is one shared instance. `Maybe` has instances of other type classes too, such as `Selective` and `Traverse`, each an object of its own, and *Maybe at a glance*, at the head of the page, lists them.
+
+## Back to the one-liner {#back-to-the-one-liner}
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/oneliner/OneLinerBook.java:line}}
+```
+
+[The one-liner](../hkts/one_line_six_layers.md) starts with `orders.find(id)`, which gives a `MaybePath`: the order, or nothing. `toEitherPath(OrderError.notFound(id))` gives that absence a reason, so the rest of the line can fail with an `OrderError`. A `MaybePath` holds a `Maybe` and calls its methods directly.
+
+## When to use `Maybe` {#when-to-use-maybe}
+
+| You need | Use |
+|---|---|
+| A value that may be missing, in code you control | `Maybe` |
+| The same lookups as a fluent chain in application code | [MaybePath](../effect/path_maybe.md) |
+| To work with an API that returns `Optional` | [Optional](optional_monad.md), or bridge with `fromOptional` and `toOptional` |
+| A missing value that must say why | [Either](either_monad.md), converting with `toEither` |
+
+~~~admonish info title="Hands-On Learning"
+Practise `Maybe.just`, `Maybe.nothing` and converting to `Either`, beside `Either` and `Validated`, in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises).
 ~~~
+
+**Benchmarks:** `MaybeBenchmark` measures how cheaply `Nothing` passes along a chain, and the cost of `fromNullable`. [Benchmarks & Performance](../benchmarks.md) says how to run it.
 
 ---
 

@@ -71,7 +71,7 @@ glance", a two-column table in this shape:
 |---|---|
 | **Models** | A value, or nothing, and never `null` |
 | **Replaces** | A method that may return `null` |
-| **Effect Path** | [`MaybePath`](../effect/path_types.md) |
+| **Effect Path** | [`MaybePath`](../effect/path_maybe.md) |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:maybe_monad}}
 | **Choose it when** | Absence needs no reason; otherwise [Either](either_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
