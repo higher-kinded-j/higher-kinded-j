@@ -793,12 +793,35 @@ class CompletableFuturePathTest {
     @Test
     @DisplayName("toTryPath() converts failure to Failure")
     void toTryPathConvertsFailureCorrectly() {
-      CompletableFuturePath<String> path =
-          CompletableFuturePath.failed(new RuntimeException("error"));
+      RuntimeException ex = new RuntimeException("error");
+      CompletableFuturePath<String> path = CompletableFuturePath.failed(ex);
 
       TryPath<String> result = path.toTryPath();
 
       assertThat(result.run().isFailure()).isTrue();
+      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      assertThat(failure).isSameAs(ex).isNotInstanceOf(CompletionException.class);
+    }
+
+    @Test
+    @DisplayName("toTryPath() converts a cancelled future to Failure")
+    void toTryPathConvertsCancellationToFailure() {
+      CompletableFuture<String> pending = new CompletableFuture<>();
+      pending.cancel(true);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(pending);
+
+      AtomicReference<Exception> recoveredFrom = new AtomicReference<>();
+      path.recover(
+              ex -> {
+                recoveredFrom.set(ex);
+                return TEST_VALUE;
+              })
+          .join();
+
+      TryPath<String> result = path.toTryPath();
+
+      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      assertThat(failure).isInstanceOf(CancellationException.class).isSameAs(recoveredFrom.get());
     }
 
     @Test
@@ -821,6 +844,30 @@ class CompletableFuturePathTest {
       EitherPath<Exception, String> result = path.toEitherPath();
 
       assertThat(result.run().isLeft()).isTrue();
+      assertThat(result.run().getLeft()).isSameAs(ex);
+    }
+
+    @Test
+    @DisplayName("toEitherPath() converts a cancelled future to Left")
+    void toEitherPathConvertsCancellationToLeft() {
+      CompletableFuture<String> pending = new CompletableFuture<>();
+      pending.cancel(true);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(pending);
+
+      AtomicReference<Exception> recoveredFrom = new AtomicReference<>();
+      path.recover(
+              ex -> {
+                recoveredFrom.set(ex);
+                return TEST_VALUE;
+              })
+          .join();
+
+      EitherPath<Exception, String> result = path.toEitherPath();
+
+      assertThat(result.run().isLeft()).isTrue();
+      assertThat(result.run().getLeft())
+          .isInstanceOf(CancellationException.class)
+          .isSameAs(recoveredFrom.get());
     }
 
     @Test
@@ -846,6 +893,18 @@ class CompletableFuturePathTest {
     }
 
     @Test
+    @DisplayName("toMaybePath() converts a cancelled future to Nothing")
+    void toMaybePathConvertsCancellationToNothing() {
+      CompletableFuture<String> pending = new CompletableFuture<>();
+      pending.cancel(true);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(pending);
+
+      MaybePath<String> result = path.toMaybePath();
+
+      assertThat(result.run().isNothing()).isTrue();
+    }
+
+    @Test
     @DisplayName("a future's value is never null, so completed refuses one")
     void completedRefusesANullValue() {
       assertThatNullPointerException()
@@ -864,6 +923,21 @@ class CompletableFuturePathTest {
 
       assertThat(result.run().isLeft()).isTrue();
       assertThat(result.run().getLeft()).isInstanceOf(RuntimeException.class);
+      assertThat(result.run().getLeft().getCause()).isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    @DisplayName("toTryPath() keeps an Error cause")
+    void toTryPathKeepsAnErrorCause() {
+      AssertionError error = new AssertionError("test error");
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.completeExceptionally(error);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(future);
+
+      TryPath<String> result = path.toTryPath();
+
+      Throwable failure = result.foldFailureFirst(cause -> cause, value -> null);
+      assertThat(failure).isSameAs(error);
     }
   }
 

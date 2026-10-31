@@ -711,18 +711,33 @@ public final class CompletableFuturePath<A>
   /**
    * Converts to a TryPath (blocking).
    *
-   * <p>Blocks until the future completes, capturing any exception.
+   * <p>Blocks until the future completes. A failure, including cancellation, is a {@code Failure}
+   * of the exception the future failed with. A {@link CompletionException} from {@link #join()} is
+   * unwrapped to its cause, and a cancelled future gives its {@link CancellationException}. An
+   * {@link Error} cause stays an {@link Error}. A future that completed with null still fails as
+   * {@link Try#of(Supplier)} fails it.
    *
    * @return a TryPath containing the result or exception
    */
   public TryPath<A> toTryPath() {
-    return new TryPath<>(Try.of(this::join));
+    return new TryPath<>(
+        Try.of(this::join)
+            .recoverWith(
+                ex -> {
+                  Throwable failure = withoutJoinCancellation(ex);
+                  if (failure instanceof CompletionException completion
+                      && completion.getCause() != null) {
+                    failure = completion.getCause();
+                  }
+                  return Try.failure(failure);
+                }));
   }
 
   /**
    * Converts to an EitherPath (blocking).
    *
-   * <p>Blocks until the future completes. Exceptions become Left values.
+   * <p>Blocks until the future completes. A failure, including cancellation, becomes a {@code Left}
+   * of the exception {@link #recover(Function)} receives. A success becomes a {@code Right}.
    *
    * @return an EitherPath with Exception as Left
    */
@@ -730,10 +745,8 @@ public final class CompletableFuturePath<A>
     A value;
     try {
       value = join();
-    } catch (CompletionException e) {
-      Exception cause =
-          e.getCause() instanceof Exception ex ? ex : new RuntimeException(e.getCause());
-      return new EitherPath<>(Either.left(cause));
+    } catch (CompletionException | CancellationException e) {
+      return new EitherPath<>(Either.left(unwrapException(withoutJoinCancellation(e))));
     }
     return new EitherPath<>(Either.right(value));
   }
@@ -741,14 +754,15 @@ public final class CompletableFuturePath<A>
   /**
    * Converts to a MaybePath (blocking).
    *
-   * <p>Blocks until the future completes. Returns Nothing if the future fails.
+   * <p>Blocks until the future completes. Returns {@code Nothing} if the future fails, including
+   * when it was cancelled, and {@code Just} when it succeeds.
    *
    * @return a MaybePath containing the result if successful
    */
   public MaybePath<A> toMaybePath() {
     try {
       return new MaybePath<>(Maybe.just(join()));
-    } catch (CompletionException e) {
+    } catch (CompletionException | CancellationException e) {
       return new MaybePath<>(Maybe.nothing());
     }
   }
@@ -760,7 +774,26 @@ public final class CompletableFuturePath<A>
     return () -> Objects.requireNonNull(supplier.get(), "supplier must not return null");
   }
 
-  /** Unwraps CompletionException to get the underlying exception. */
+  /**
+   * Drops the wrapper {@link #join()} puts around a cancelled future.
+   *
+   * <p>{@code join} throws a new {@link CancellationException} whose message is {@code join} and
+   * whose cause is the future's own {@link CancellationException}. {@link #recover(Function)} is
+   * given that cause, so this returns it. Any other throwable is returned as it is.
+   */
+  private static Throwable withoutJoinCancellation(Throwable thrown) {
+    if (thrown instanceof CancellationException cancelled
+        && cancelled.getCause() instanceof Exception cause) {
+      return cause;
+    }
+    return thrown;
+  }
+
+  /**
+   * The exception {@link #recover(Function)} hands to its function. A {@link CompletionException}
+   * is unwrapped to its cause. Any other {@link Exception}, including cancellation, is returned as
+   * it is. An {@link Error} is wrapped in a {@link RuntimeException}.
+   */
   private static Exception unwrapException(Throwable ex) {
     Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
     if (cause instanceof Exception e) {
