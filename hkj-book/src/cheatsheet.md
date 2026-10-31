@@ -94,9 +94,9 @@
 | `.runSafe()` | Execute safely, returning `Try` | IOPath, VTaskPath |
 | `.fold(onErr, onOk)` | Handle both tracks (error-first) | EitherPath, ValidationPath |
 | `.foldFailureFirst(onErr, onOk)` | Handle both tracks (error-first) | TryPath |
-| `.fold(identity, op)` | Reduce a sequence to one value | ListPath, StreamPath, VStreamPath |
-| `.foldLeft(seed, fn)` / `.foldRight(seed, fn)` | Directional reduce (type-changing) | ListPath, StreamPath |
-| `.foldMap(monoid, fn)` | Map then combine via a `Monoid` | ListPath, StreamPath, VStreamPath |
+| `.fold(identity, op)` | Reduce a sequence to one value | ListPath, NonDetPath, StreamPath, VStreamPath |
+| `.foldLeft(seed, fn)` / `.foldRight(seed, fn)` | Directional reduce (type-changing) | ListPath, NonDetPath, StreamPath |
+| `.foldMap(monoid, fn)` | Map then combine via a `Monoid` | ListPath, NonDetPath, StreamPath, VStreamPath |
 | `.getOrElse(default)` | Extract or use default | MaybePath, EitherPath, TryPath, ValidationPath |
 | `.getOrElseGet(supplier)` | Extract or compute default | MaybePath, EitherPath, TryPath, ValidationPath |
 

@@ -9,11 +9,13 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.function.Function3;
@@ -426,6 +428,75 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     B result = initial;
     for (A a : list) {
       result = f.apply(result, a);
+    }
+    return result;
+  }
+
+  /**
+   * Folds the list from the right.
+   *
+   * @param initial the initial accumulator value
+   * @param f the folding function; must not be null
+   * @param <B> the accumulator and result type
+   * @return the folded result
+   * @throws NullPointerException if f is null
+   */
+  public <B> B foldRight(B initial, BiFunction<A, B, B> f) {
+    Objects.requireNonNull(f, "f must not be null");
+    B result = initial;
+    for (int i = list.size() - 1; i >= 0; i--) {
+      result = f.apply(list.get(i), result);
+    }
+    return result;
+  }
+
+  /**
+   * Reduces the list to a single value of the same type using an identity element and an
+   * associative combining operator.
+   *
+   * <p>This is the monoid-style fold. It mirrors {@code ListPath.fold} and {@code
+   * VStreamPath.fold}, so the same reduction reads identically across sequence-like paths.
+   *
+   * <pre>{@code
+   * int sum = NonDetPath.of(1, 2, 3).map(x -> x * 2).fold(0, Integer::sum); // 12
+   * }</pre>
+   *
+   * @param identity the identity element returned for an empty list
+   * @param op the associative combining operator; must not be null
+   * @return the reduced value
+   * @throws NullPointerException if op is null
+   */
+  public A fold(A identity, BinaryOperator<A> op) {
+    Objects.requireNonNull(op, "op must not be null");
+    A result = identity;
+    for (A a : list) {
+      result = op.apply(result, a);
+    }
+    return result;
+  }
+
+  /**
+   * Maps each element to a monoidal value and combines them using the supplied {@link Monoid}.
+   *
+   * <p>Returns {@code monoid.empty()} for an empty list. This is the {@link
+   * org.higherkindedj.hkt.Foldable Foldable}-style fold and matches {@code ListPath.foldMap}.
+   *
+   * <pre>{@code
+   * String csv = NonDetPath.of(1, 2, 3).foldMap(Monoids.string(), i -> i + ",");
+   * }</pre>
+   *
+   * @param monoid the monoid used to combine mapped values; must not be null
+   * @param f the mapping function; must not be null
+   * @param <M> the monoidal result type
+   * @return the combined result
+   * @throws NullPointerException if monoid or f is null
+   */
+  public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f) {
+    Objects.requireNonNull(monoid, "monoid must not be null");
+    Objects.requireNonNull(f, "f must not be null");
+    M result = monoid.empty();
+    for (A a : list) {
+      result = monoid.combine(result, f.apply(a));
     }
     return result;
   }
