@@ -21,6 +21,7 @@ import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
+import org.gradle.external.javadoc.StandardJavadocDocletOptions;
 import org.gradle.jvm.toolchain.JavaInstallationMetadata;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 import org.gradle.jvm.toolchain.JavadocTool;
@@ -511,7 +512,7 @@ class HKJPluginTest {
       Javadoc task = project.getTasks().register("doc", Javadoc.class).get();
       task.getJavadocTool().set(toolAt(99));
 
-      HKJPlugin.addReleaseUnlessSourceSet(task);
+      HKJPlugin.addReleaseUnlessSet(task);
 
       assertThat(writtenOptions(task)).contains("--release '99'");
     }
@@ -523,9 +524,22 @@ class HKJPluginTest {
       task.getJavadocTool().set(toolAt(99));
       task.getOptions().setSource("25");
 
-      HKJPlugin.addReleaseUnlessSourceSet(task);
+      HKJPlugin.addReleaseUnlessSet(task);
 
       assertThat(writtenOptions(task)).contains("-source '25'").doesNotContain("--release");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"source", "-source", "-release"})
+    @DisplayName("keeps a -source or --release the task adds by name")
+    void keepsALanguageLevelAddedByName(String option) throws IOException {
+      Javadoc task = project.getTasks().register("doc", Javadoc.class).get();
+      task.getJavadocTool().set(toolAt(99));
+      ((StandardJavadocDocletOptions) task.getOptions()).addStringOption(option, "21");
+
+      HKJPlugin.addReleaseUnlessSet(task);
+
+      assertThat(writtenOptions(task)).contains("'21'").doesNotContain("'99'");
     }
   }
 }

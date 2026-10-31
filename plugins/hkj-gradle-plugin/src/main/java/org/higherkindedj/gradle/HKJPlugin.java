@@ -2,12 +2,17 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.gradle;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
@@ -18,6 +23,7 @@ import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
 import org.gradle.api.tasks.testing.Test;
+import org.gradle.external.javadoc.MinimalJavadocOptions;
 import org.gradle.external.javadoc.StandardJavadocDocletOptions;
 
 /**
@@ -49,6 +55,11 @@ public class HKJPlugin implements Plugin<Project> {
    */
   private static final Pattern CHECKER_ARG =
       Pattern.compile("-Xplugin:HKJChecker(\\s.*)?", Pattern.DOTALL);
+
+  /**
+   * A line of a javadoc options file that sets the language level: -source, --source or --release.
+   */
+  private static final Pattern LANGUAGE_LEVEL_OPTION = Pattern.compile("--?(source|release)\\s.*");
 
   @Override
   public void apply(Project project) {
@@ -189,22 +200,41 @@ public class HKJPlugin implements Plugin<Project> {
               StandardJavadocDocletOptions options =
                   (StandardJavadocDocletOptions) task.getOptions();
               options.addBooleanOption("-enable-preview", true);
-              task.doFirst(t -> addReleaseUnlessSourceSet((Javadoc) t));
+              task.doFirst(t -> addReleaseUnlessSet((Javadoc) t));
             });
   }
 
   /**
-   * Passes javadoc {@code --release} at its own tool's version, unless the task sets {@code
-   * -source}. javadoc takes {@code --enable-preview} only beside one of the two, at the release of
-   * the JDK that runs it, and refuses the pair. A {@code --release} the build adds shares this
-   * option's name. Deciding as the task runs sees a {@code -source} the build sets at any point,
-   * and reads the javadoc tool, which Gradle locks once read, only for a task that runs.
+   * Passes javadoc {@code --release} at its own tool's version, unless the task already passes
+   * {@code -source} or {@code --release}. javadoc takes {@code --enable-preview} only beside one of
+   * the two, at the release of the JDK that runs it, and refuses the pair. Deciding as the task
+   * runs sees an option the build adds at any point, and reads the javadoc tool, which Gradle locks
+   * once read, only for a task that runs.
    */
-  static void addReleaseUnlessSourceSet(Javadoc task) {
-    StandardJavadocDocletOptions options = (StandardJavadocDocletOptions) task.getOptions();
-    if (options.getSource() == null) {
+  static void addReleaseUnlessSet(Javadoc task) {
+    MinimalJavadocOptions options = task.getOptions();
+    if (!setsLanguageLevel(options, task.getTemporaryDir())) {
       int release = task.getJavadocTool().get().getMetadata().getLanguageVersion().asInt();
-      options.addStringOption("-release", String.valueOf(release));
+      ((StandardJavadocDocletOptions) options).addStringOption("-release", String.valueOf(release));
+    }
+  }
+
+  /**
+   * Whether {@code options} pass javadoc {@code -source} or {@code --release}, however the build
+   * added it. They are read from the options file they write, as javadoc reads them, since Gradle
+   * offers no way to read back an option added by name.
+   */
+  private static boolean setsLanguageLevel(MinimalJavadocOptions options, File dir) {
+    Path probe = dir.toPath().resolve("hkj-language-level.options");
+    try {
+      options.write(probe.toFile());
+      try (Stream<String> lines = Files.lines(probe)) {
+        return lines.anyMatch(line -> LANGUAGE_LEVEL_OPTION.matcher(line).matches());
+      } finally {
+        Files.deleteIfExists(probe);
+      }
+    } catch (IOException e) {
+      throw new GradleException("Could not read the javadoc options: " + e.getMessage(), e);
     }
   }
 
