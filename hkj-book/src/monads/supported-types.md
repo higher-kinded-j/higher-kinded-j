@@ -95,7 +95,7 @@ Eight ways to model "this computation does something beyond returning a value."
 
 **[`CompletableFuture<A>`](./cf_monad.md)**: HKT bridge to `java.util.concurrent.CompletableFuture`. Asynchronous computation that is already running. Provides MonadError so you can `flatMap` over futures and handle failures through the typeclass hierarchy.
 
-**[`VTask<A>`](./vtask_monad.md)**: Lightweight task on virtual threads (JDK 21+). Like CompletableFuture but designed for structured concurrency: `VTaskScope` manages lifecycles, cancellation, and resource cleanup. The modern choice for concurrent Java.
+**[`VTask<A>`](./vtask_monad.md)**: A deferred task that may block or throw a checked exception. Unlike a CompletableFuture, it waits until you run it. `run()` uses the calling thread; `runAsync()`, `Par` and [`Scope`](./vtask_scope.md) use virtual threads. `Scope` manages their lifecycles and cancellation, and [`Resource`](./vtask_resource.md) their cleanup.
 
 **[`Reader<R, A>`](./reader_monad.md)**: A function `R -> A` wrapped in a monad. Pass a shared environment (config, database pool, feature flags) to an entire computation graph without threading it through every parameter list. Dependency injection, functional style.
 
