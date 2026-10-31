@@ -86,7 +86,7 @@ hkj {
 | Property | Default | Description |
 |----------|---------|-------------|
 | `version` | Plugin version | Version of HKJ libraries to use |
-| `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks |
+| `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks, with the `--release` javadoc needs beside it |
 | `spring` | `false` | Adds `hkj-spring-boot-starter` to `implementation`, and the `@HkjHttpClient` processor to every annotation processor configuration |
 | `skills` | `false` | Installs Claude Code skills into `.claude/skills/` during build |
 | `checks.pathTypeMismatch` | `true` | Adds the HKJ compile-time checker, whose [checks](compile_checks.md) explain a rejected chain step and report mistakes javac accepts |
@@ -97,6 +97,7 @@ With default settings, the plugin adds:
 - `hkj-processor-plugins` to `annotationProcessor`
 - `hkj-checker` to `annotationProcessor`
 - `--enable-preview` to `JavaCompile`, `Test`, `JavaExec`, and `Javadoc` tasks
+- `--release`, at the javadoc tool's version, to a `Javadoc` task that passes no `-source` or `--release` of its own: javadoc takes `--enable-preview` only beside one of the two. A task that passes javadoc `--add-exports` for a JDK module sets `options.source` instead, since javadoc refuses that beside `--release`
 - `-parameters` to every `JavaCompile` task (unconditional)
 - `-Xplugin:HKJChecker` to compiler arguments, or nothing to a task that already names the checker, such as one that [sets the checker's options](compile_checks.md#configuration)
 
