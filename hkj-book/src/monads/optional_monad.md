@@ -1,263 +1,122 @@
-# The OptionalMonad:
-## _Monadic Operations for Java Optional_
+<!-- description: Use Java's Optional with Higher-Kinded-J: read Optional fields through OptionalPath, pass Optional to generic code, and choose between Optional and Maybe. -->
+
+# Optional: Java's Optional in Generic Code
+
+_Keep Java's own `Optional`, with an Effect Path and the same instances as `Maybe`._
+
+~~~admonish abstract title="Optional at a glance"
+| | |
+|---|---|
+| **Models** | A value, or empty, in Java's own type |
+| **Replaces** | Nothing: it is Java's own type |
+| **Effect Path** | [`OptionalPath`](../effect/path_optional.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:optional_monad}}
+| **Choose it when** | The code already gives you an `Optional`; otherwise [Maybe](maybe_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to integrate Java's Optional with Higher-Kinded-J's type class system
-- Using MonadError with Unit to represent absence as an error state
-- Chaining optional operations with automatic empty propagation
-- Building safe database and service call pipelines
-- When to choose Optional vs Maybe for your use case
+- Read a record's `Optional` fields with a fallback, through an `OptionalPath`
+- Pass an `Optional` to code written once for any container, through its `MonadError` instance
+- Say what widening an `Optional` costs, and why `Maybe` pays nothing
+- Choose between `Optional` and `Maybe`, and convert between them
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
-~~~
-
-## Why Use OptionalMonad?
-
-Java's `Optional<T>` is everywhere: repositories return it, configuration lookups return it, and dozens of JDK and third-party APIs produce it. But when you try to write *generic* monadic code that programs against `Kind<F, A>`, `Optional` cannot participate directly. It is a concrete JDK class, not part of any higher-kinded type hierarchy.
-
-<!-- verify -->
-```java
-// You want to write generic code like this...
-<F extends WitnessArity<TypeArity.Unary>> Kind<F, String> lookupAndFormat(
-    Kind<F, User> userKind, Monad<F> monad) {
-  return monad.map(u -> u.name().toUpperCase(), userKind);
-}
-
-// ...but Optional<User> is not a Kind<F, User>.
-Optional<User> user = repository.findById(id); // can't pass to lookupAndFormat
-```
-
-`OptionalMonad` bridges this gap. It wraps `Optional` into the HKT system via `OptionalKind`, giving you `map`, `flatMap`, `ap`, `raiseError`, and `handleErrorWith`, all working through the `Kind` abstraction. Your generic algorithms now work with `Optional` alongside `Maybe`, `Either`, `IO`, and every other type in the library, without duplicating logic.
-
-<!-- verify -->
-```java
-// Wrap the Optional into the HKT world
-Kind<OptionalKind.Witness, User> userKind = OPTIONAL.widen(repository.findById(id));
-
-// Now it works with any generic function expecting Kind<F, A>
-Kind<OptionalKind.Witness, String> result = lookupAndFormat(userKind, Instances.monadError(optional()));
-
-// Unwrap back to Optional at the boundary
-Optional<String> name = OPTIONAL.narrow(result);
-```
-
-~~~admonish note title="Optional vs Maybe"
-Both `OptionalMonad` and [MaybeMonad](maybe_monad.md) model "a value that might be absent" with `Unit` as the error type. The key difference is a **null guarantee**:
-
-- **`Maybe.just(value)`** throws `NullPointerException` if `value` is null: a `Just` always holds a non-null value.
-- **`Optional.of(value)`** also rejects null, but `Optional.ofNullable(value)` (used by `OptionalMonad.of`) silently converts null to empty.
-
-Choose `OptionalMonad` when you need to interoperate with JDK APIs that already return `Optional`. Choose `MaybeMonad` when you control the data types and want the stronger non-null guarantee. See the [decision table below](#when-to-use-optional-vs-maybe) for detailed guidance.
-~~~
-
-## Core Components
-
-The `Optional` HKT simulation is built from these pieces:
-
-| Component | Role |
-|-----------|------|
-| `Optional<A>` | Standard JDK optional value |
-| `OptionalKind<A>` / `OptionalKindHelper` | HKT bridge: `widen()`, `narrow()` |
-| `OptionalMonad` | `MonadError<OptionalKind.Witness, Unit>`: provides `map`, `flatMap`, `of`, `ap`, `raiseError`, `handleErrorWith` |
-
-~~~admonish note title="How the Operations Map"
-| Type Class Operation | What It Does |
-|---------------------|--------------|
-| `OPTIONAL.widen(optional)` | Wrap a `java.util.Optional` into the HKT world |
-| `optionalMonad.of(value)` | Lift a value via `Optional.ofNullable`: null becomes empty |
-| `optionalMonad.map(f, fa)` | Transform the value if present; empty stays empty |
-| `optionalMonad.flatMap(f, fa)` | Chain a function that itself returns an `OptionalKind` |
-| `optionalMonad.ap(ff, fa)` | Apply a function-in-Optional to a value-in-Optional |
-| `optionalMonad.raiseError(Unit.INSTANCE)` | Create an empty `OptionalKind` (the "error" state) |
-| `optionalMonad.handleErrorWith(fa, handler)` | If empty, invoke the handler to recover |
-| `OPTIONAL.narrow(kind)` | Unwrap back to `java.util.Optional` at the boundary |
-~~~
-
-## Working with OptionalMonad
-
-The following examples demonstrate the three main workflows: creating optional values in the HKT world, composing operations, and recovering from absence.
-
-~~~admonish example title="Creating Optional Values"
-
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
-
-Use `OPTIONAL.widen` to wrap existing `Optional` values. Use `optionalMonad.of` to lift raw values (null-safe). Use `raiseError` to explicitly represent absence.
-
-<!-- verify -->
-```java
-MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
-
-// Wrap an existing Optional from a JDK API
-Optional<String> fromDb = Optional.of("Alice");
-Kind<OptionalKind.Witness, String> wrapped = OPTIONAL.widen(fromDb);
-
-// Lift a raw value - null becomes empty automatically
-Kind<OptionalKind.Witness, String> present = optionalMonad.of("Hello");   // Optional.of("Hello")
-Kind<OptionalKind.Witness, String> absent  = optionalMonad.of(null);      // Optional.empty()
-
-// Explicitly create an empty value (the "error" state)
-Kind<OptionalKind.Witness, String> empty = optionalMonad.raiseError(Unit.INSTANCE);
-
-// Unwrap back to java.util.Optional at the boundary
-Optional<String> result = OPTIONAL.narrow(present);  // Optional.of("Hello")
-```
-~~~
-
-~~~admonish example title="Composing with map, flatMap, and ap"
-
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
-
-`map` transforms the value if present. `flatMap` chains operations that themselves may produce empty. `ap` applies a function-in-Optional to a value-in-Optional. In all cases, empty propagates automatically.
-
-<!-- verify -->
-```java
-MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
-
-// --- map: transform a present value ---
-Kind<OptionalKind.Witness, Integer> num = OPTIONAL.widen(Optional.of(42));
-Kind<OptionalKind.Witness, String> formatted = optionalMonad.map(
-    n -> "Answer: " + n, num);
-// OPTIONAL.narrow(formatted) => Optional.of("Answer: 42")
-
-// --- flatMap: chain dependent lookups ---
-Function<String, Kind<OptionalKind.Witness, Integer>> parse = s -> {
-    try {
-        return OPTIONAL.widen(Optional.of(Integer.parseInt(s)));
-    } catch (NumberFormatException e) {
-        return OPTIONAL.widen(Optional.empty());
-    }
-};
-
-Kind<OptionalKind.Witness, Integer> parsed = optionalMonad.flatMap(
-    parse, optionalMonad.of("123"));      // Optional.of(123)
-Kind<OptionalKind.Witness, Integer> failed = optionalMonad.flatMap(
-    parse, optionalMonad.of("abc"));      // Optional.empty()
-
-// --- ap: apply a function from one Optional to a value from another ---
-Kind<OptionalKind.Witness, Function<Integer, String>> funcKind =
-    OPTIONAL.widen(Optional.of(i -> "Value: " + i));
-Kind<OptionalKind.Witness, Integer> valKind = OPTIONAL.widen(Optional.of(100));
-
-Kind<OptionalKind.Witness, String> applied = optionalMonad.ap(funcKind, valKind);
-// OPTIONAL.narrow(applied) => Optional.of("Value: 100")
-
-// If either side is empty, the result is empty
-Kind<OptionalKind.Witness, String> noFunc = optionalMonad.ap(
-    OPTIONAL.widen(Optional.empty()), valKind);
-// OPTIONAL.narrow(noFunc) => Optional.empty()
-```
-~~~
-
-~~~admonish example title="Recovering from Absence with handleErrorWith"
-
-- [OptionalExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/optional/OptionalExample.java)
-
-When an `OptionalKind` is empty, `handleErrorWith` invokes a recovery function. Present values pass through untouched.
-
-<!-- verify -->
-```java
-MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
-
-Kind<OptionalKind.Witness, String> present = OPTIONAL.widen(Optional.of("Found"));
-Kind<OptionalKind.Witness, String> absent  = OPTIONAL.widen(Optional.empty());
-
-Function<Unit, Kind<OptionalKind.Witness, String>> recover =
-    unit -> OPTIONAL.widen(Optional.of("Default Value"));
-
-// Present value passes through - handler is never called
-Kind<OptionalKind.Witness, String> handledPresent =
-    optionalMonad.handleErrorWith(present, recover);
-// OPTIONAL.narrow(handledPresent) => Optional.of("Found")
-
-// Empty triggers recovery
-Kind<OptionalKind.Witness, String> handledAbsent =
-    optionalMonad.handleErrorWith(absent, recover);
-// OPTIONAL.narrow(handledAbsent) => Optional.of("Default Value")
-```
-
-The recovery here ignores `Unit` and yields a constant, so it is exactly what the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express:
-
-<!-- verify -->
-```java
-optionalMonad.recover(absent, "Default Value");                                    // constant value
-optionalMonad.recoverWith(absent, OPTIONAL.widen(Optional.of("Default Value")));   // constant Kind
-```
+~~~admonish example title="See Example Code"
+**The code on this page is [OptionalBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/optional/OptionalBook.java)**: the page includes it, so the build compiles and runs it. [OptionalBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/optional/OptionalBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Back to the One-Liner
+## Java's own type {#javas-own-type}
 
-`Optional` is the JDK alternative to `Maybe` and lives at exactly the same spot in the Foundations one-liner: anywhere a repository or service might return "value, or absence". When the line begins with a JDK API:
+`java.util.Optional` is everywhere: repositories return it, configuration lookups return it, and records hold it in fields that may be empty. Higher-Kinded-J does not replace it. It gives `Optional` an Effect Path, `OptionalPath`, for application code, and a `MonadError` instance, so that a method written once for any container accepts an `Optional` too. [Maybe](maybe_monad.md) is the library's own type for the same job.
 
-```java
-OPTIONAL.widen(repo.findById(id))
-    .toEitherPath()
-    .focus().attributes().at(key)
-    .modify(spec::validateAndCoerce)
-    .flatMap(repo::save);
-```
-
-`OptionalMonad.flatMap` is the layer that decides whether the rest of the chain runs (when the `Optional` is present) or quietly skips itself (when it is empty). The one extra cost compared with `Maybe` is the small `Holder` allocation that `widen` performs because we cannot retrofit the JDK type; the trade is API compatibility with everything else that already returns `Optional`.
-
-See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Foundations FAQ](../hkts/faq.md) for the cost trade between `Maybe` and `Optional`.
-
-## When to Use Optional vs Maybe
-
-| Scenario | Recommendation |
-|----------|---------------|
-| Interoperating with JDK APIs that return `Optional` | Use `OptionalMonad`: avoids unnecessary conversion |
-| You control the data model and want non-null guarantees | Use [MaybeMonad](maybe_monad.md): `Just` rejects null at construction |
-| Writing generic code that must accept `Optional` from callers | Use `OptionalMonad`: wrap with `OPTIONAL.widen()` |
-| Green-field code with no `Optional` dependency | Prefer [MaybeMonad](maybe_monad.md): stricter and more predictable |
-| Need to convert between the two | `Optional` to `Maybe`: `Maybe.fromOptional(opt)`; `Maybe` to `Optional`: `maybe.toOptional()` |
-| Application-level fluent composition | Prefer [OptionalPath](../effect/path_optional.md) or [MaybePath](../effect/path_maybe.md) |
-
-~~~admonish important title="Key Points"
-- `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, treating `Optional.empty()` as the error state with `Unit` as the phantom error type.
-- `of(value)` uses `Optional.ofNullable` internally: null values silently become empty rather than throwing.
-- `map` returns empty if the mapping function returns null (standard `Optional.map` behaviour).
-- `handleErrorWith` is the recovery mechanism: the handler is invoked only when the value is empty.
-- Use `OPTIONAL.widen()` and `OPTIONAL.narrow()` to move between `java.util.Optional` and `Kind<OptionalKind.Witness, A>` at system boundaries.
-~~~
-
----
-
-~~~admonish tip title="Effect Path Alternative"
-For most use cases, prefer **[OptionalPath](../effect/path_optional.md)** which wraps `Optional` and provides:
-
-- Fluent composition with `map`, `via`, `recover`
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
-- A consistent API shared across all effect types
+The code on this page uses these imports, with `CustomerProfile` and `EmailAddress` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// Instead of manual OptionalKind chaining:
-Kind<OptionalKind.Witness, User> userKind = OPTIONAL.widen(findUser(id));
-Kind<OptionalKind.Witness, String> name = optionalMonad.map(User::name, userKind);
-
-// Use OptionalPath for cleaner composition:
-OptionalPath<String> path = Path.optional(findUser(id))
-    .map(User::name);
+import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.hkt.effect.OptionalPath;
+import org.higherkindedj.hkt.effect.Path;
 ```
 
-See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
+## Optional fields on an `OptionalPath` {#optional-fields-on-an-optionalpath}
 
-~~~admonish example title="Benchmarks"
-Optional has dedicated JMH benchmarks measuring wrapping overhead, map/flatMap chains, and empty propagation. Key expectations:
+A `CustomerProfile` holds a `nickname` and a second email address, `altEmail`, each as an `Optional`. `Path.optional` takes one, `map` changes the value when there is one, and `getOrElse` reads it with a fallback:
 
-- **`of` / `raiseError`** are very fast: thin wrappers around `Optional.ofNullable` and `Optional.empty()`
-- **Empty propagation** short-circuits immediately with minimal overhead
-- **`widen` / `narrow`** are low-cost cast operations with no object allocation
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*OptionalBenchmark.*"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/optional/OptionalBook.java:greeting}}
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details.
-~~~
+
+`ADA` has the nickname `"Countess"` and no second address, and `CHARLES` has a second address and no nickname:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/optional/OptionalBook.java:greeting_outcomes}}
+```
+
+`forAda` is `"Hello, Countess"`, and `forCharles` is `"Hello, Charles"`. `Optional`'s own `map` and `orElse` do as much for one field. The Path pays off when `via` chains it into another Path, or `toEitherPath` gives the absence a reason. `run()` gives the `Optional` back, and `toMaybePath()` turns the Path into a `MaybePath`.
+
+## Methods {#methods}
+
+`Optional`'s own methods are the JDK's. The library adds these:
+
+| Method | What it does |
+|---|---|
+| `Path.optional(optional)`, `Path.present(a)`, `Path.absent()` | Build an `OptionalPath` |
+| `map(f)`, `via(f)`, `filter(p)` | Change the value, chain a step, or keep the value only if it passes; a `map` function that returns `null` gives an empty Path |
+| `getOrElse(a)`, `orElsePath(a)` | Read the value with a fallback, or keep the Path, filling an empty one with the fallback |
+| `run()`, `isPresent()`, `isEmpty()` | Give the `Optional` back, or say which case it holds |
+| `toMaybePath()`, `toEitherPath(error)` | Convert to a `MaybePath`, or to an `EitherPath` whose error says why |
+| `Maybe.fromOptional(optional)`, `maybe.toOptional()` | Convert between `Optional` and `Maybe` |
+| `OPTIONAL.widen(optional)`, `OPTIONAL.narrow(kind)` | Move an `Optional` in and out of `Kind` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `Optional` through its `MonadError` instance, as [MonadError](../functional/monad_error.md) shows. Its error type is `Unit`: an empty `Optional` is the error, and it carries no detail. `Maybe`'s instance has the same shape, so one method serves both. These are the extra imports for writing the method and calling it:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
+```
+
+`F` stands for any container, and its [`WitnessArity` bound](../hkts/core-concepts.md#the-witnessarity-bound) says the container holds one type:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/optional/OptionalBook.java:generic}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/optional/OptionalBook.java:kind}}
+```
+
+`Optional` is a JDK class, so it cannot implement `OptionalKind`. `OPTIONAL.widen` wraps it in a small holder object each time, and `narrow` unwraps it, where widening a `Maybe` allocates nothing. The instance's `of(null)` gives an empty `Optional`, and so does a `map` whose function returns `null`, as `Optional.map` does. `Optional` has instances of other type classes too, such as `Selective` and `Traverse`, each an object of its own, and *Optional at a glance*, at the head of the page, lists them.
+
+## Should you use `Optional` or `Maybe`? {#when-to-use-optional-vs-maybe}
+
+Both model a value that may be missing, treat `null` alike, and have the same instances. They differ in who owns the type, and so in what widening costs:
+
+| You need | Use |
+|---|---|
+| To work with APIs and records that already use `Optional` | `Optional`, with `OptionalPath` or its instance |
+| A value that may be missing, in code you control | [Maybe](maybe_monad.md): it is its own `Kind`, so widening allocates nothing, and `toEither` gives its absence a reason |
+| Generic code that must accept an `Optional` from callers | `Optional`'s instance, widening with `OPTIONAL.widen` |
+| To move between the two | `Maybe.fromOptional(optional)` and `maybe.toOptional()` |
+| A missing value that must say why | [Either](either_monad.md), through `toEitherPath(error)` |
 
 ---
 
