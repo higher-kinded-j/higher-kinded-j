@@ -2,19 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.monads.assembly;
 
-import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
-
 import java.time.LocalDate;
-import java.util.List;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.MonadError;
-import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
-import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.optics.annotations.GenerateAssembly;
 import org.higherkindedj.optics.validated.StandardCodecs;
 
@@ -31,23 +23,7 @@ public final class ValidatedAssemblyBook {
     // Deliberately bad, so the accumulating result below is the one the page shows.
     UserDto dto = new UserDto("Ada", "not-an-email", "not-a-number");
     RawAddress raw = new RawAddress("Ada", "1 Main St", "SW1A 1AA");
-    RawSettings rawSettings = new RawSettings("localhost", "8080");
     RawConfigIn rawConfig = new RawConfigIn("8080", "30");
-
-    Kind<ValidatedKind.Witness<List<String>>, Name> nameKind =
-        VALIDATED.widen(Validated.valid(new Name("Ada")));
-    Kind<ValidatedKind.Witness<List<String>>, Email> emailKind =
-        VALIDATED.widen(Validated.valid(new Email("ada@example.com")));
-    Kind<ValidatedKind.Witness<List<String>>, Age> ageKind =
-        VALIDATED.widen(Validated.valid(new Age(36)));
-
-    // ANCHOR: hkt_generic
-    // The HKT-generic form: capped at map5, and every call passes the Semigroup by hand.
-    MonadError<ValidatedKind.Witness<List<String>>, List<String>> validatedMonad =
-        Instances.validated(Semigroups.list());
-    Kind<ValidatedKind.Witness<List<String>>, User> user =
-        validatedMonad.map3(nameKind, emailKind, ageKind, User::new);
-    // ANCHOR_END: hkt_generic
 
     // ANCHOR: fields
     Validated<NonEmptyList<FieldError>, User> assembled =
@@ -86,15 +62,6 @@ public final class ValidatedAssemblyBook {
             .apply(Customer::new);
     // ANCHOR_END: nesting
     System.out.println(customer);
-
-    // ANCHOR: accumulate
-    Validated<NonEmptyList<ConfigError>, Settings> settings =
-        Validated.accumulate()
-            .and(parseHost(rawSettings.host()))
-            .and(parsePort(rawSettings.port()))
-            .apply(Settings::new);
-    // ANCHOR_END: accumulate
-    System.out.println(settings);
 
     // ANCHOR: eob_accumulate
     EitherOrBoth<NonEmptyList<String>, Config> cfg =
@@ -148,14 +115,6 @@ public final class ValidatedAssemblyBook {
     return Validated.invalidNel(FieldError.of("not a postcode"));
   }
 
-  static Validated<NonEmptyList<ConfigError>, String> parseHost(String s) {
-    return Validated.validNel(s);
-  }
-
-  static Validated<NonEmptyList<ConfigError>, Integer> parsePort(String s) {
-    return Validated.validNel(Integer.parseInt(s));
-  }
-
   static EitherOrBoth<NonEmptyList<String>, Integer> parsePortLenient(String s) {
     return EitherOrBoth.both(NonEmptyList.single("port defaulted"), 8080);
   }
@@ -193,16 +152,10 @@ record Address(String street, String zip) {}
 
 record Customer(Name name, Address address) {}
 
-record Settings(String host, int port) {}
-
 record Config(int port, int timeout) {}
-
-record ConfigError(String message) {}
 
 record UserDto(String name, String email, String age) {}
 
 record RawAddress(String name, String street, String zip) {}
-
-record RawSettings(String host, String port) {}
 
 record RawConfigIn(String port, String timeout) {}

@@ -606,7 +606,25 @@
     "monads/validated_monad.html#admonition-effect-path-alternative": "monads/validated_monad.html#on-a-validationpath",
     "monads/validated_monad.html#admonition-key-points": "monads/validated_monad.html#when-to-use-validated",
     "monads/validated_monad.html#admonition-benchmarks": "monads/validated_monad.html#when-to-use-validated",
-    "monads/validated_monad.html#admonition-related-types": "monads/validated_monad.html#when-to-use-validated"
+    "monads/validated_monad.html#admonition-related-types": "monads/validated_monad.html#when-to-use-validated",
+    "monads/try_monad.html#the-trymonad": "monads/try_monad.html#try-capturing-exceptions-as-values",
+    "monads/try_monad.html#typed-error-handling": "monads/try_monad.html#try-capturing-exceptions-as-values",
+    "monads/try_monad.html#purpose": "monads/try_monad.html#exceptions-as-values",
+    "monads/try_monad.html#how-to-use-tryt": "monads/try_monad.html#exceptions-as-values",
+    "monads/try_monad.html#admonition-creating-instance": "monads/try_monad.html#creating-instances",
+    "monads/try_monad.html#admonition-checking-the-state": "monads/try_monad.html#methods",
+    "monads/try_monad.html#getting-the-value-use-with-caution": "monads/try_monad.html#handling-failures-foldfailurefirst-recover-recoverwith",
+    "monads/try_monad.html#admonition-transforming-values-_map_": "monads/try_monad.html#chaining-and-recovering",
+    "monads/try_monad.html#admonition-chaining-operations-_flatmap_": "monads/try_monad.html#chaining-and-recovering",
+    "monads/try_monad.html#admonition-_foldfailurefirstfailurefunc-successfunc_": "monads/try_monad.html#handling-failures-foldfailurefirst-recover-recoverwith",
+    "monads/try_monad.html#admonition-why-not-fold": "monads/try_monad.html#methods",
+    "monads/try_monad.html#admonition-_recoverrecoveryfunc_": "monads/try_monad.html#chaining-and-recovering",
+    "monads/try_monad.html#admonition-_recoverwithrecoveryfunc_": "monads/try_monad.html#chaining-and-recovering",
+    "monads/try_monad.html#admonition-example-using-_trymonad_": "monads/try_monad.html#working-with-kind",
+    "monads/try_monad.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#six-layers-in-one-expression",
+    "monads/try_monad.html#admonition-effect-path-alternative": "monads/try_monad.html#on-a-trypath",
+    "monads/try_monad.html#admonition-benchmarks": "monads/try_monad.html#when-to-use-try",
+    "monads/validated_assembly.html#the-problem-assembling-n-fields-was-the-hard-part": "monads/validated_assembly.html#which-field-was-wrong"
   };
 
   function target() {

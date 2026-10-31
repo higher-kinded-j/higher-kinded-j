@@ -109,7 +109,7 @@ String message = tryValue.foldFailureFirst(
 - The code doesn't throw → use [MaybePath](path_maybe.md) or [EitherPath](path_either.md)
 
 ~~~admonish tip title="See Also"
-- [Try Monad](../monads/try_monad.md) - Underlying type for TryPath
+- [Try](../monads/try_monad.md) - Underlying type for TryPath
 - [EitherPath](path_either.md) - For typed errors
 ~~~
 
