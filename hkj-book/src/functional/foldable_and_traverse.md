@@ -65,7 +65,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 ```
 
-On an [Effect Path](../effect/ch_intro.md), `ListPath` and `StreamPath` have `foldMap` themselves, and application code stays there:
+On an [Effect Path](../effect/ch_intro.md), `ListPath`, `NonDetPath` and `StreamPath` have `foldMap` themselves, and application code stays there:
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/foldable/FoldableBook.java:path}}
@@ -211,7 +211,7 @@ import org.higherkindedj.hkt.maybe.MaybeTraverse;
 - [Semigroup and Monoid](semigroup_and_monoid.md): the monoids that `foldMap` combines with
 - [Applicative](applicative.md): what each instance does when `traverse` combines its steps
 - [Validated](../monads/validated_monad.md): the type that reports every error
-- [Effect Path Cheatsheet](../cheatsheet.md): the fold methods on `ListPath`, `StreamPath` and `VStreamPath`
+- [Effect Path Cheatsheet](../cheatsheet.md): the fold methods on `ListPath`, `NonDetPath`, `StreamPath` and `VStreamPath`
 ~~~
 
 ~~~admonish tip title="Further Reading"

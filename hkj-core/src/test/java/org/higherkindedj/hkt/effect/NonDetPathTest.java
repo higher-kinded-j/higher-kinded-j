@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.Monoids;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -539,6 +540,132 @@ class NonDetPathTest {
       Integer result = path.foldLeft(0, Integer::sum);
 
       assertThat(result).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("foldRight() folds from right")
+    void foldRightFoldsFromRight() {
+      NonDetPath<String> path = NonDetPath.of("a", "b", "c");
+
+      String result = path.foldRight("", (a, acc) -> a + acc);
+
+      assertThat(result).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName("foldRight() returns initial value for an empty list")
+    void foldRightReturnsInitialForEmpty() {
+      NonDetPath<String> path = NonDetPath.empty();
+
+      assertThat(path.foldRight("z", (a, acc) -> a + acc)).isEqualTo("z");
+    }
+
+    @Test
+    @DisplayName("foldRight() with a single element combines element and initial value")
+    void foldRightSingleElement() {
+      NonDetPath<String> path = NonDetPath.of("a");
+
+      assertThat(path.foldRight("z", (a, acc) -> a + acc)).isEqualTo("az");
+    }
+
+    @Test
+    @DisplayName("foldRight() throws NullPointerException when f is null")
+    void foldRightThrowsWhenFunctionNull() {
+      NonDetPath<String> path = NonDetPath.of("a", "b");
+
+      assertThatThrownBy(() -> path.foldRight("", null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
+    }
+
+    @Test
+    @DisplayName("fold() reduces multiple elements with identity")
+    void foldReducesMultipleElements() {
+      NonDetPath<Integer> path = NonDetPath.of(1, 2, 3, 4);
+
+      Integer result = path.fold(0, Integer::sum);
+
+      assertThat(result).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("fold() combines elements from left to right")
+    void foldCombinesInOrder() {
+      NonDetPath<String> path = NonDetPath.of("a", "b", "c");
+
+      assertThat(path.fold("", String::concat)).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName("fold() returns identity for an empty list")
+    void foldReturnsIdentityForEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.fold(42, Integer::sum)).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("fold() with a single element combines identity and element")
+    void foldSingleElement() {
+      NonDetPath<Integer> path = NonDetPath.of(7);
+
+      assertThat(path.fold(0, Integer::sum)).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("fold() throws NullPointerException when op is null")
+    void foldThrowsWhenOpNull() {
+      NonDetPath<Integer> path = NonDetPath.of(1, 2, 3);
+
+      assertThatThrownBy(() -> path.fold(0, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("op must not be null");
+    }
+
+    @Test
+    @DisplayName("foldMap() maps and combines via a Monoid (type-changing)")
+    void foldMapCombinesViaMonoid() {
+      NonDetPath<Integer> path = NonDetPath.of(1, 2, 3);
+
+      String result = path.foldMap(Monoids.string(), i -> i + ",");
+
+      assertThat(result).isEqualTo("1,2,3,");
+    }
+
+    @Test
+    @DisplayName("foldMap() returns monoid identity for an empty list")
+    void foldMapReturnsEmptyForEmptyList() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      assertThat(path.foldMap(Monoids.integerAddition(), i -> i)).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("foldMap() with a single element")
+    void foldMapSingleElement() {
+      NonDetPath<Integer> path = NonDetPath.of(5);
+
+      assertThat(path.foldMap(Monoids.integerAddition(), i -> i * 2)).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("foldMap() throws NullPointerException when monoid is null")
+    void foldMapThrowsWhenMonoidNull() {
+      NonDetPath<Integer> path = NonDetPath.of(1);
+
+      assertThatThrownBy(() -> path.foldMap(null, i -> i))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("monoid must not be null");
+    }
+
+    @Test
+    @DisplayName("foldMap() throws NullPointerException when f is null")
+    void foldMapThrowsWhenFunctionNull() {
+      NonDetPath<Integer> path = NonDetPath.of(1);
+
+      assertThatThrownBy(() -> path.foldMap(Monoids.integerAddition(), null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
     }
 
     @Test
