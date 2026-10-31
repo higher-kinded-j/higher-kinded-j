@@ -1,326 +1,165 @@
-# The IOMonad:
-## _Managing Side Effects with `IO`_
+<!-- description: Describe a side effect in Java with IO and run it once, at the edge: read the time through TimeSource, compose steps, and catch failures on an IOPath. -->
+
+# IO: Describing Side Effects
+
+_Describe a side effect now, and run it once, at the edge._
+
+<!-- source: John Keats, "Ode on a Grecian Urn", stanza II, in Lamia, Isabella, The Eve of St. Agnes, and Other Poems (1820); text checked against Project Gutenberg eBook #23684 -->
+> _"Heard melodies are sweet, but those unheard / Are sweeter"_
+>
+> — John Keats, *Ode on a Grecian Urn*
+
+An `IO` is Keats's unheard melody: until you run it, it is a description you can still arrange and combine, and nothing has played.
+
+~~~admonish abstract title="IO at a glance"
+| | |
+|---|---|
+| **Models** | A side effect described now and run later |
+| **Replaces** | A method that performs its side effect as soon as it is called |
+| **Effect Path** | [`IOPath`](../effect/path_io.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:io_monad}}
+| **Choose it when** | The effect should wait until you run it, on the calling thread; otherwise [VTask](vtask_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to describe side effects without performing them immediately
-- Building pure functional programs with deferred execution
-- Composing complex side-effecting operations using `map` and `flatMap`
-- The difference between describing effects and running them with `unsafeRunSync`
-- Creating testable, composable programs that separate logic from execution
+- Read the time through `TimeSource`, so code that uses it can be tested with a fixed clock
+- Build a program from steps that each describe an effect, and say when each one runs
+- Say why running an `IO` twice runs its effects twice
+- Catch a failing step on an `IOPath`, since `IO` itself lets the exception through
+- Use `IO` in generic code through its `Monad` instance
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
-~~~
-
-## The Problem: Side Effects Everywhere
-
-Consider a method that loads configuration, connects to a database, and logs the result:
-
-<!-- verify -->
-```java
-// Every call executes immediately - untestable, unrepeatable, order-dependent
-Connection connect() {
-    Config config = loadConfig();                     // reads disk
-    Connection conn = connectToDb(config);            // opens network socket
-    logger.info("Connected to " + conn.endpoint());   // writes to stdout
-    return conn;
-}
-```
-
-Each line performs a side effect the instant it runs. You can't test `connectToDb` without a real database. You can't reorder or retry steps without re-executing earlier effects. And if you want to compose this with other workflows, you're stuck; the effects have already happened.
-
-The `IO` monad solves this by separating **description** from **execution**. An `IO<A>` value is a *recipe* for a computation that will produce an `A` when run, but nothing happens until you explicitly say "go." This means you can build, compose, and inspect entire programs as pure values, then execute them once at the application boundary.
-
-<!-- verify -->
-```java
-// Describe effects - nothing executes yet
-Kind<IOKind.Witness, Config>     loadCfg  = IO_OP.delay(() -> loadConfig());
-Kind<IOKind.Witness, Connection> connect  = ioMonad.flatMap(
-    cfg -> IO_OP.delay(() -> connectToDb(cfg)), loadCfg);
-Kind<IOKind.Witness, Connection> logged   = ioMonad.peek(
-    conn -> logger.info("Connected to " + conn.endpoint()), connect);
-
-// Execute the entire recipe at the edge
-Connection conn = IO_OP.unsafeRunSync(logged);
-```
-
-The logic is testable (swap `loadConfig` for a stub), composable (chain more steps with `flatMap`), and the effects happen exactly once, in exactly the order you specified.
-
-## Core Components
-
-The `IO` functionality is built upon these key pieces:
-
-| Component | Role |
-|-----------|------|
-| `IO<A>` | Wraps a `Supplier<A>`, describing an effect that produces `A` when run. Directly extends `IOKind<A>`, so no wrapper allocation is needed. |
-| `IOKind<A>` / `IOKindHelper` | HKT bridge: `widen()` and `narrow()` (zero-cost casts), `delay()` to create deferred effects, `unsafeRunSync()` to execute them |
-| `IOMonad` | Type class instance (`Monad<IOKind.Witness>`): provides `map`, `flatMap`, `of`, and `ap` for composing IO programs |
-
-~~~admonish note title="How the Operations Map"
-| Type Class Operation | What It Does |
-|---------------------|--------------|
-| `IO_OP.delay(supplier)` | Wrap a side effect; nothing executes yet |
-| `ioMonad.of(value)` | Lift a pure value into IO (no effect) |
-| `ioMonad.map(f, fa)` | Transform the eventual result without adding new effects |
-| `ioMonad.flatMap(f, fa)` | Sequence two effects: the second can depend on the first's result |
-| `ioMonad.ap(ff, fa)` | Apply a function-in-IO to a value-in-IO |
-| `IO_OP.unsafeRunSync(fa)` | **Execute**: run the recipe and produce the result. Call this at the edge. |
-~~~
-
-~~~admonish warning title="What IO Does Not Do"
-- **Error handling**: Exceptions thrown during `unsafeRunSync` propagate directly. For typed error handling, combine with [EitherT](../transformers/eithert_transformer.md) or wrap operations with [Try](./try_monad.md).
-- **Async execution**: IO runs synchronously on the calling thread. For async, see [CompletableFutureMonad](./cf_monad.md). For virtual-thread concurrency, see [VTaskPath](./vtask_monad.md).
-- **Resource management**: IO alone doesn't guarantee cleanup. Use [IOPath's bracket pattern](../effect/path_io.md) for safe resource handling.
-~~~
-
-## Working with IO
-
-The following examples build a small program step by step: creating IO actions, composing them, then executing the result.
-
-~~~admonish example title="Creating IO Actions"
-
-- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
-
-Use `IO_OP.delay` to capture side effects. Use `ioMonad.of` for pure values within IO.
-
-<!-- verify -->
-```java
-Monad<IOKind.Witness> ioMonad = Instances.monad(io());
-java.util.Scanner scanner = new java.util.Scanner(System.in);
-
-// IO action to print a message - nothing happens yet
-Kind<IOKind.Witness, Unit> printHello = IO_OP.delay(() -> {
-    System.out.println("Hello from IO!");
-    return Unit.INSTANCE;
-});
-
-// IO action to read a line from the console - nothing happens yet
-Kind<IOKind.Witness, String> readLine = IO_OP.delay(() -> {
-    System.out.print("Enter your name: ");
-    return scanner.nextLine();
-});
-
-// Lift a pure value - no side effect at all
-Kind<IOKind.Witness, Integer> pureValueIO = ioMonad.of(42);
-
-// Capture a time-dependent side effect
-Kind<IOKind.Witness, Long> currentTime = IO_OP.delay(System::currentTimeMillis);
-```
-
-None of these execute when created. The `Supplier` inside `delay` is stored, not called.
-
-An IO always gives a value, so `printHello` returns `Unit.INSTANCE` rather than `null`. A supplier or `map` function that returns null fails the IO when it runs, naming that function, and `ioMonad.of(null)` throws at the call. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
-~~~
-
-~~~admonish example title="Executing IO Actions"
-
-- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
-
-Use `IO_OP.unsafeRunSync` to run the computation. This is the "end of the world"; call it at application boundaries, not deep inside your logic.
-
-<!-- verify -->
-```java
-// Execute printHello - now the effect happens
-IO_OP.unsafeRunSync(printHello); // prints "Hello from IO!"
-
-// Execute pureValueIO
-Integer value = IO_OP.unsafeRunSync(pureValueIO);
-System.out.println("Fetched: " + value); // Output: 42
-
-// Running the same action again re-executes the effect
-IO_OP.unsafeRunSync(printHello); // prints "Hello from IO!" again
-
-// Exceptions propagate - handle at the boundary
-Kind<IOKind.Witness, String> risky = IO_OP.delay(() -> {
-    if (Math.random() < 0.5) throw new RuntimeException("Boom!");
-    return "OK";
-});
-try {
-    IO_OP.unsafeRunSync(risky);
-} catch (RuntimeException e) {
-    System.err.println("Caught: " + e.getMessage());
-}
-```
-~~~
-
-~~~admonish example title="Composing with map and flatMap"
-
-- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
-
-`map` transforms the result of an IO action *without executing it*. `flatMap` sequences two IO actions; the second can depend on the first's result.
-
-<!-- verify -->
-```java
-Monad<IOKind.Witness> ioMonad = Instances.monad(io());
-
-// --- map: transform a result ---
-Kind<IOKind.Witness, String> readLineAction = IO_OP.delay(() -> "Test Input");
-
-Kind<IOKind.Witness, String> greetAction = ioMonad.map(
-    name -> "Hello, " + name + "!",
-    readLineAction
-);
-
-System.out.println("Greet action created, not executed yet.");
-String greeting = IO_OP.unsafeRunSync(greetAction);
-System.out.println(greeting); // Output: Hello, Test Input!
-
-// --- flatMap: sequence dependent effects ---
-Kind<IOKind.Witness, String> getName = IO_OP.delay(() -> {
-    System.out.println("Effect: Getting name...");
-    return "Alice";
-});
-
-Function<String, Kind<IOKind.Witness, Unit>> printGreeting = name ->
-    IO_OP.delay(() -> {
-        System.out.println("Welcome, " + name + "!");
-        return Unit.INSTANCE;
-    });
-
-// Combine - nothing runs until unsafeRunSync
-Kind<IOKind.Witness, Unit> combinedAction = ioMonad.flatMap(printGreeting, getName);
-
-IO_OP.unsafeRunSync(combinedAction);
-// Output:
-// Effect: Getting name...
-// Welcome, Alice!
-```
-~~~
-
-~~~admonish example title="Conditional Execution and Utility Methods"
-
-- [IOExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/io/IOExample.java)
-
-Beyond `map` and `flatMap`, `IOMonad` provides utility methods for common patterns.
-
-<!-- verify -->
-```java
-Kind<IOKind.Witness, String> getAliceName = ioMonad.of("Alice");
-
-Function<String, Kind<IOKind.Witness, Unit>> printGreeting = name ->
-    IO_OP.delay(() -> { System.out.println("Welcome, " + name + "!"); return Unit.INSTANCE; });
-
-Function<String, Kind<IOKind.Witness, Unit>> doNothing = name -> ioMonad.of(Unit.INSTANCE);
-
-// peek: log without affecting the pipeline
-Kind<IOKind.Witness, String> logged =
-    ioMonad.peek(name -> System.out.println("LOG: Name -> " + name), getAliceName);
-
-// flatMapIfOrElse: conditional branching
-Kind<IOKind.Witness, Unit> conditionalGreeting =
-    ioMonad.flatMapIfOrElse(
-        name -> !name.equalsIgnoreCase("admin"),  // predicate
-        printGreeting,                              // true branch
-        doNothing,                                  // false branch
-        logged                                      // input value
-    );
-
-// as: replace the result, keeping the effect
-Kind<IOKind.Witness, Unit> finalProgram =
-    ioMonad.as(
-        Unit.INSTANCE,
-        ioMonad.peek(_ -> System.out.println("Program finished."), conditionalGreeting));
-
-IO_OP.unsafeRunSync(finalProgram);
-// Output:
-// LOG: Name -> Alice
-// Welcome, Alice!
-// Program finished.
-```
+~~~admonish example title="See Example Code"
+**The code on this page is [IOBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java)**: the page includes it, so the build compiles and runs it. [IOBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/io/IOBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Reading the Clock
+## Reading the clock {#reading-the-clock}
 
-The most common side effect after console/file I/O is reading the time, and `Instant.now()` scattered through your code makes every timestamp untestable. `TimeSource` lifts `java.time.Clock` into `IO` so time is a lazy, composable effect:
+A method that calls `Instant.now()` reads the clock the moment it is called, so no test can predict its result. Injecting a `java.time.Clock` fixes the test, but the read still happens at the call. An `IO<A>` is close to a `Supplier<A>` that nothing has called yet. What it adds is `map` and `flatMap`, which join steps into one description without running any of them, so you build the program in one place and run it in another. `TimeSource` wraps a `Clock`: its `now()` is `IO.delay(clock::instant)`, and `nowAsync()` gives the same read as a `VTask`.
+
+The code on this page uses these imports, with `Order`, `Consignment`, `ConsignmentState` and `Address` from the order records the [Optics](../optics/ch_intro.md) chapter introduces. Import the library's `IO` by name: Java 25 has a `java.lang.IO` too.
 
 <!-- verify -->
-``` java
+```java
+import java.util.ArrayList;
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.Address;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.time.TimeSource;
-
-TimeSource time = TimeSource.system();               // or TimeSource.fixed(instant) in tests
-
-IO<Reservation> reserve(Order order) {
-  return time.now().map(t -> new Reservation(order.id(), order.items(), t.plus(hold)));
-}
 ```
 
-Nothing is read until the effect runs, and each run reads afresh. In tests, inject `TimeSource.fixed(...)`, or `TimeSource.of(steppableClock)` with `hkj-test`'s [`SteppableClock`](../tooling/test_assertions.md#steppableclock), and the same code becomes deterministic. (It is named `TimeSource`, not `Clock`, precisely so it never clashes with `java.time.Clock`.)
-
-## Back to the One-Liner
-
-`IO` is the layer we wrap around the Foundations one-liner when we want side effects to be *described* rather than *performed* until interpretation:
+Dispatching an order stamps its consignment with the time:
 
 ```java
-IO.delay(() -> repo.find(id))
-    .map(maybe -> maybe.toEitherPath()
-                       .focus().attributes().at(key)
-                       .modify(spec::validateAndCoerce))
-    .flatMap(eitherPath ->
-        IO.delay(() -> eitherPath.flatMap(repo::save)));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:dispatch}}
 ```
 
-Every effectful step is now wrapped in `IO.delay`, which means the whole expression is a value: a description of work to do, not the work itself. Tests can assemble this value, swap `repo` for a stub, and never run a real save. Production calls `unsafeRunSync` (or composes the value into a larger interpreter) once, at the edge.
+`NINE_AM` is the instant a fixed time source reads, `ORDER` is a paid order ready to ship, and `LEEDS` is the address it goes to:
 
-See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [Free Monad](./free_monad.md) when we want the description to be a structured program that several interpreters can run in different ways.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:dispatch_outcome}}
+```
 
-## When to Use IO
+Nothing is read until the effect runs, and each run reads afresh. In tests, inject `TimeSource.fixed(...)`, or `TimeSource.of(steppableClock)` with `hkj-test`'s [`SteppableClock`](../tooling/test_assertions.md#steppableclock), and the same code becomes deterministic. It is named `TimeSource`, not `Clock`, so that it never clashes with `java.time.Clock`.
 
-| Scenario | Use |
-|----------|-----|
-| Deferring side effects for testability and composition | `IO` / `IOMonad` |
-| Side effects with typed error handling | Combine with [EitherT](../transformers/eithert_transformer.md) |
-| Application-level effect composition | Prefer [IOPath](../effect/path_io.md) for fluent API |
-| Concurrent / async execution | Consider [VTaskPath](./vtask_monad.md) or [CompletableFutureMonad](./cf_monad.md) |
+## Describing, then running {#describing-then-running}
 
-~~~admonish important title="Key Points"
-- `IO<A>` is a **description**, not an execution. Nothing happens until `unsafeRunSync` is called.
-- `IO<A>` directly extends `IOKind<A>`, so `widen`/`narrow` are zero-cost casts (no wrapper allocation).
-- `map` transforms the eventual result; `flatMap` sequences dependent effects. Neither triggers execution.
-- Call `unsafeRunSync` at the application boundary ("end of the world"), never deep inside business logic.
-- Re-running the same IO value re-executes the effect. IO values are recipes, not cached results.
-~~~
+`flatMap` joins a step that needs the result of the one before, and `map` changes the result. Both build a new `IO`, and neither runs anything. `IO.delay` describes any effect, here adding the consignment to a log:
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:program}}
+```
 
-~~~admonish tip title="Effect Path Alternative"
-For most use cases, prefer **[IOPath](../effect/path_io.md)** which wraps `IO` and provides:
+`unsafeRunSync` runs the whole description, in the order it was built. Its name warns that this is where the effects happen: call it once, at the edge of the application, never deep inside its logic:
 
-- Fluent composition with `map`, `via`, `recover`
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
-- A consistent API shared across all effect types
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:runs}}
+```
+
+The log is empty until the program runs, and holds two consignments after two runs. An `IO` is a description, not a stored result: each run does the work again, and reads the clock again. To reuse a result, run the `IO` once and keep its value. [Lazy](lazy_monad.md) keeps the first result of a computation with no side effect.
+
+## On an `IOPath` {#on-an-iopath}
+
+`IO` has no `MonadError` instance: an exception a step throws leaves `unsafeRunSync`, as it would leave a direct call. Application code usually holds its effects on an [`IOPath`](../effect/path_io.md), which adds the failure handling: `catching` turns an exception into a `Left`, `handleError` into a value, and `asTry` into a `Try`. These are the extra imports:
 
 <!-- verify -->
 ```java
-// Instead of manual IO chaining:
-Kind<IOKind.Witness, Config> config = IO_OP.delay(() -> loadConfig());
-Kind<IOKind.Witness, String> value = ioMonad.flatMap(
-    c -> IO_OP.delay(() -> c.getValue("key")), config);
-
-// Use IOPath for cleaner composition:
-IOPath<String> path = Path.io(() -> loadConfig())
-    .via(c -> Path.io(() -> c.getValue("key")));
+import org.higherkindedj.hkt.effect.IOPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.either.Either;
 ```
 
-See [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
+`bookCourier` stands in for a courier call that throws. `Path.ioPath` puts an `IO` on a Path, `via` chains the next step, and `catching` turns the exception into a `Left`. An `IOPath` runs with `unsafeRun`, as an `IO` runs with `unsafeRunSync`:
 
-~~~admonish example title="Benchmarks"
-IO has dedicated JMH benchmarks measuring lazy construction, platform thread execution, and map/flatMap chains. Key expectations:
-
-- **Construction** (delay, pure) is very fast (~100+ ops/us); IO is a lazy wrapper with no immediate execution
-- **IO vs VTask:** IO is ~10-30% faster for simple operations due to no virtual thread spawn overhead
-- **Deep chains (50+)** complete without error; composition overhead dominates at depth
-- At high concurrency (1000+ tasks), VTask scales better than IO due to virtual threads
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*IOBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskVsIOBenchmark.*"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:courier}}
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks against VTask, and how to interpret results.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:path_outcome}}
+```
+
+`IOPath` also releases resources with `bracket` and `withResource`, and retries or times out a step, as [IOPath](../effect/path_io.md) shows.
+
+## Creating instances {#creating-instances}
+
+`IO.delay(supplier)` describes an effect that gives a value, and `IO.fromRunnable(action)` one that gives [`Unit`](../hkts/core-concepts.md#unit). A plain value goes in as `IO.delay(() -> value)`, or as `Path.ioPure(value)` on a Path. `IO.delay` takes a `Supplier`, which cannot throw a checked exception, so catch one inside the lambda, as [IOPath](../effect/path_io.md#creation) shows, or use [VTask](vtask_monad.md), whose `Callable` can throw one. An `IO` always gives a value: a supplier or `map` function that returns `null` fails the `IO` when it runs, and the instance's `of(null)` throws at the call, as [Values, never null](../hkts/core-concepts.md#values-never-null) sets out.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `IO.delay(supplier)` | Describes an effect; the supplier runs only when the `IO` does |
+| `IO.fromRunnable(action)` | Describes an effect that gives `Unit` |
+| `map(f)` | Builds an `IO` whose result is changed by `f`, running nothing |
+| `flatMap(f)` | Builds an `IO` that runs the next step on this one's result, running nothing |
+| `asUnit()` | Keeps the effect and replaces the result with `Unit` |
+| `unsafeRunSync()` | Runs the description, blocking the calling thread until it gives its result or throws its exception |
+| `TimeSource.system()`, `fixed(instant)`, `of(clock)` | Give a `TimeSource` over the system clock in UTC, a fixed instant, or any `Clock` |
+| `timeSource.now()`, `nowAsync()` | Give an `IO<Instant>`, or a `VTask<Instant>`, that reads the time when it runs |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `IO` through its `Monad` instance, from `Instances.monad(io())`. The instance works over `Kind<IOKind.Witness, A>`, so you widen an `IO` to pass it in, and run the result with `IO_OP.unsafeRunSync`. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.io;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IOKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/io/IOBook.java:kind}}
+```
+
+`ran` is `"to Leeds"`. The instance's `map` builds a new `IO`, and nothing reads the clock until `IO_OP.unsafeRunSync` runs it. The `Monad` helpers, such as `peek` and `flatMapIfOrElse`, work on it too, as [Helpers built on `flatMap` and `map`](../functional/monad.md#helpers) shows. Widening allocates nothing: `IO` implements `IOKind` itself, so `widen` checks for `null` and returns the same object. `IO` has a `Selective` instance too, an object of its own, and *IO at a glance*, at the head of the page, lists it.
+
+## When to use `IO` {#when-to-use-io}
+
+| You need | Use |
+|---|---|
+| A side effect described now and run once, at the edge | `IO` |
+| The same, with failure handling, resources and retries | [IOPath](../effect/path_io.md) |
+| A value worked out once and kept, with no side effect | [Lazy](lazy_monad.md) |
+| An effect that runs on virtual threads, alone or concurrently | [VTask](vtask_monad.md) |
+| Work that has already started, on another thread | [CompletableFuture](cf_monad.md) |
+| A program as data, which several interpreters can run | [Free](free_monad.md) |
+
+~~~admonish info title="Hands-On Learning"
+Practise deferring a side effect with `IOPath`, in Exercise 3 of [Tutorial 01: Effect Path Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/effect/Tutorial01_EffectPathBasics.java) (9 exercises).
 ~~~
+
+**Benchmarks:** `IOBenchmark` measures building and running `IO` chains, and `VTaskVsIOBenchmark` compares them with `VTask`. [Benchmarks & Performance](../benchmarks.md) says how to run them.
 
 ---
 
