@@ -691,7 +691,22 @@
     "monads/optional_monad.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#six-layers-in-one-expression",
     "monads/optional_monad.html#admonition-key-points": "monads/optional_monad.html#when-to-use-optional-vs-maybe",
     "monads/optional_monad.html#admonition-effect-path-alternative": "monads/optional_monad.html#optional-fields-on-an-optionalpath",
-    "monads/optional_monad.html#admonition-benchmarks": "monads/optional_monad.html#when-to-use-optional-vs-maybe"
+    "monads/optional_monad.html#admonition-benchmarks": "monads/optional_monad.html#when-to-use-optional-vs-maybe",
+    "monads/io_monad.html#the-iomonad": "monads/io_monad.html#io-describing-side-effects",
+    "monads/io_monad.html#managing-side-effects-with-io": "monads/io_monad.html#io-describing-side-effects",
+    "monads/io_monad.html#the-problem-side-effects-everywhere": "monads/io_monad.html#reading-the-clock",
+    "monads/io_monad.html#core-components": "monads/io_monad.html#methods",
+    "monads/io_monad.html#admonition-how-the-operations-map": "monads/io_monad.html#methods",
+    "monads/io_monad.html#admonition-what-io-does-not-do": "monads/io_monad.html#on-an-iopath",
+    "monads/io_monad.html#working-with-io": "monads/io_monad.html#describing-then-running",
+    "monads/io_monad.html#admonition-creating-io-actions": "monads/io_monad.html#creating-instances",
+    "monads/io_monad.html#admonition-executing-io-actions": "monads/io_monad.html#describing-then-running",
+    "monads/io_monad.html#admonition-composing-with-map-and-flatmap": "monads/io_monad.html#describing-then-running",
+    "monads/io_monad.html#admonition-conditional-execution-and-utility-methods": "functional/monad.html#helpers",
+    "monads/io_monad.html#back-to-the-one-liner": "hkts/one_line_six_layers.html#six-layers-in-one-expression",
+    "monads/io_monad.html#admonition-key-points": "monads/io_monad.html#when-to-use-io",
+    "monads/io_monad.html#admonition-effect-path-alternative": "monads/io_monad.html#on-an-iopath",
+    "monads/io_monad.html#admonition-benchmarks": "monads/io_monad.html#when-to-use-io"
   };
 
   function target() {
