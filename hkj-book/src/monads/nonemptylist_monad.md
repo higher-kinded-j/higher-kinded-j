@@ -1,141 +1,158 @@
-# NonEmptyList:
-## _A List That Is Never Empty_
+<!-- description: Hold a Java list that can never be empty with NonEmptyList, so head, reduce and max never throw, and use it for the errors of an invalid result. -->
 
-~~~admonish example title="See Example Code"
-**The code on this page is [NonEmptyListBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java)** - the page includes it directly, so it is compiled and run by the build.
+# NonEmptyList: A List That Is Never Empty
+
+_Hold a list that always has a first element, so reading it never throws._
+
+~~~admonish abstract title="NonEmptyList at a glance"
+| | |
+|---|---|
+| **Models** | A list with at least one element |
+| **Replaces** | A `List` checked with `isEmpty()` before `getFirst()` |
+| **Effect Path** | None: a Path holds it, as [`ValidationPath`](../effect/path_validation.md) holds its errors |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:nonemptylist_monad}}
+| **Choose it when** | The list can never be empty, such as an invalid result's errors; otherwise [List](list_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
-
 
 ~~~admonish info title="What You'll Learn"
-- Why `List<Error>` is the wrong type for an accumulating error channel, and how `NonEmptyList` fixes it
-- Total operations (`head`, `last`, `reduce`, `min`, `max`) that never throw, because there is always at least one element
-- Constructing a `NonEmptyList` safely: `of`, `single`, and the checked `fromList` / `fromIterable` that return `Maybe`
-- Using `NonEmptyList` as the default validation error channel with `Path.validNel` / `Path.invalidNel`: no `Semigroup` argument, no manual single-error wrapping
-- Why there is deliberately **no** empty `NonEmptyList` and **no** `Monoid` instance
+- Turn a list that may be empty into a `NonEmptyList` once, at the boundary
+- Total a list with `reduce`, and read its first or largest element, with nothing to guard
+- Say why `List<String>` is the wrong type for an invalid result's errors
+- Choose between `NonEmptyList`'s `ap` and its `semigroup()` for combining two lists
+- Say why `NonEmptyList` has no empty value and no `Monoid`
 ~~~
 
-~~~admonish example title="See Example Code:"
-[NonEmptyListExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/nonemptylist/NonEmptyListExample.java)
-~~~
-
-## The Problem: `List<Error>` Lies
-
-Accumulating validation is one of Higher-Kinded-J's headline stories: `Validated` and `ValidationPath` collect *all* the errors instead of stopping at the first. But the type the errors are carried in matters. The common choice, `List<Error>`, permits an impossible state:
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:partial}}
-```
-
-Three things hurt here:
-
-- **It permits an impossible state.** An *invalid* result always has one or more errors, yet `List<Error>` allows the empty list. Consumers must defensively guard (`errors.isEmpty()`), and `getFirst()` is partial.
-- **It is ceremony-heavy.** Every entry point hands in `Semigroups.list()` by hand, and every single-error leaf wraps its error in `List.of(...)`.
-- **There is no total `head`.** Reading "the first error" can throw.
-
-`NonEmptyList<A>` is a list guaranteed by its type to contain at least one element. The invalid branch proves non-emptiness at compile time, and the common case loses its boilerplate:
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:total}}
-```
-
-This is the canonical companion to `Validated` in comparable libraries (Cats' `NonEmptyList` / `ValidatedNel`) precisely because it removes the empty-error-list footgun.
-
----
-
-## Core Components
-
-| Component | Role |
-|-----------|------|
-| `NonEmptyList<A>` | An immutable `record` of a `head` plus a (possibly empty) `tail`; always at least one element. Implements `Iterable<A>`. |
-| `NonEmptyListKind<A>` / `NonEmptyListKindHelper` | HKT bridge. `NonEmptyList` implements its own `Kind` directly, so `widen()` is a cast-free upcast and `narrow()` a direct cast. |
-| `NonEmptyListMonad` | `Monad<NonEmptyListKind.Witness>`: `map`, `flatMap`, `of`, and a Cartesian `ap`. Deliberately **not** a `MonadZero`. |
-| `NonEmptyListTraverse` | `Traverse` and `Foldable`; results are non-empty by construction. |
-| `NonEmptyList.semigroup()` | The concatenating `Semigroup<NonEmptyList<A>>` used as the accumulating error channel. |
-
----
-
-## Construction
-
-Java has no non-empty literal, so construction is explicit about where the guaranteed element comes from:
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:construct}}
-```
-
-To build one from data that *might* be empty, use the checked factories. They never throw; they return `Maybe`:
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:from_list}}
-```
-
-~~~admonish note title="Immutable and null-safe"
-The `tail` is defensively copied on construction, `tail()` returns an unmodifiable view, and elements are never `null`; any attempt to introduce a `null` element is rejected at construction time.
+~~~admonish example title="See Example Code"
+**The code on this page is [NonEmptyListBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java)**: the page includes it, so the build compiles and runs it. [NonEmptyListBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Total Accessors
+## An order's lines {#an-orders-lines}
 
-Because non-emptiness is part of the type, operations that are *partial* on an ordinary `List` are **total** here: they always return a value and never throw, with no `Optional` to unwrap:
+Code that reads the first element of a `List`, or totals it, must first check `isEmpty()`: `getFirst()` throws on an empty list, and a total needs a starting value. `NonEmptyList<A>` holds at least one element by its type, so the check happens once, where the list is made, and nowhere after.
 
+The code on this page uses these imports, with `Order` and `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
+
+<!-- verify -->
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:total_ops}}
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.List;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.Validated;
 ```
 
-It is also `Iterable`, so it works directly in for-each loops. `stream()` gives a `Stream`, and `toJavaList()` gives an immutable `java.util.List` for interop.
-
----
-
-## The Validation Error Channel
-
-`NonEmptyList` is the natural carrier for accumulating validation. The `Path` factories bake in `NonEmptyList.semigroup()`, so the common case needs no `Semigroup` argument and no manual `List.of(error)` wrapping:
+An order has a `List` of lines, and an order with none should not reach the code that totals it. `NonEmptyList.fromList` makes the check: it gives a `Maybe`, empty for an empty list. `PLACED` has two lines, and `EMPTIED` none:
 
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:accumulate}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:lines}}
 ```
-
-The same conveniences exist directly on `Validated`:
 
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:validated_nel}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:line_outcomes}}
 ```
 
-~~~admonish tip title="Two distinct 'combines'"
-Do not confuse `NonEmptyList`'s applicative `ap` (a Cartesian product, like `List`) with `NonEmptyList.semigroup()` (concatenation). Error accumulation in `ValidationPath` uses the **semigroup**: left-to-right concatenation, which is associative but *not* commutative, so error order is preserved.
-~~~
-
-The existing `Semigroups.list()` channel keeps working unchanged; `NonEmptyList` is an additive, less error-prone default.
-
----
-
-## Using It as a Higher-Kinded Type
-
-Casual use never requires `Kind`: `NonEmptyList.of(a, b).map(f).flatMap(g)` is a plain fluent chain. When you need the type-class instances for generic code, reach them through the usual registry:
+Past that check, the code needs no guard. `reduce` totals the lines with `Monoids.bigDecimalAddition()`, the book's way to add money, and uses only its join, never its empty value, because there is always a first line. `max` and `head` return a line, never an `Optional`:
 
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/nonemptylist/NonEmptyListBook.java:instances}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:total}}
 ```
 
-~~~admonish warning title="No empty, by design"
-There is no factory that produces an empty `NonEmptyList`, and therefore **no `Monoid` instance** and **no `MonadZero`/`Alternative`**: those carry an empty identity, which would reintroduce the very footgun the type exists to remove. `NonEmptyList` is a `Functor`, `Applicative`, `Monad`, `Foldable`, `Traverse`, and `Semigroup`, but never a `Monoid`. The absence is the point.
+`Maybe`'s `map` runs them only on an order that has lines:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:total_outcomes}}
+```
+
+The same code over a `List` would need a starting value for the total, such as `BigDecimal.ZERO`, and an `Optional` for the largest line.
+
+## Creating instances {#creating-instances}
+
+Java has no literal for a list that is never empty, so each factory names where the first element comes from:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:construct}}
+```
+
+`fromList` and `fromIterable` take data that may be empty, and give a `Maybe` rather than throwing. Every element is checked when the list is built, so a `null` is refused, as [Values, never null](../hkts/core-concepts.md#values-never-null) says for every type.
+
+## As the error list {#as-the-error-list}
+
+An invalid result always has at least one error, yet its errors are often held in a `List`, which can be empty. Nothing stops the impossible case being built:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:empty_errors}}
+```
+
+`noReason.getError().getFirst()` throws `NoSuchElementException`. With a `NonEmptyList` as the error list, the impossible case cannot be built, and reading the first error needs no guard:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:nel_errors}}
+```
+
+[Validated](validated_monad.md)'s `validNel`, `invalidNel`, `accumulate()` and `fields()` all hold the errors in a `NonEmptyList`, and Cats pairs its `Validated` with a `NonEmptyList` in the same way. `accumulate()` and `fields()` need no `Semigroup` argument. Neither does a `ValidationPath` built with `Path.validNel` or `Path.invalidNel`, which carries `NonEmptyList.semigroup()` with it. `Validated`'s own `ap`, and `Instances.validated`, still take one: pass `NonEmptyList.semigroup()`, which joins two error lists end to end, so the errors keep the order the checks ran.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `NonEmptyList.of(first, rest...)`, `single(a)` | Build a list from its first element and any others |
+| `NonEmptyList.fromList(list)`, `fromIterable(items)` | Give a `Maybe`, empty for empty input |
+| `head()`, `last()` | Return the first or last element |
+| `tail()` | Returns the elements after the first, as a `List` that cannot be changed, possibly empty |
+| `reduce(semigroup)` | Joins every element, with no starting value |
+| `min(comparator)`, `max(comparator)` | Return the smallest or largest element |
+| `map(f)`, `flatMap(f)` | Change each element, or replace each with a `NonEmptyList` |
+| `concat(other)`, `append(a)`, `prepend(a)` | Join two lists, or add one element |
+| `foldLeft(start, f)`, `reverse()`, `size()` | Fold from the left, reverse, or count |
+| `stream()`, `toJavaList()` | Give a `Stream`, or a `List` that cannot be changed |
+| `NonEmptyList.semigroup()` | Joins two lists end to end, keeping their order |
+
+`NonEmptyList` is also `Iterable`, so a for-each loop reads it directly.
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `NonEmptyList` through its `Monad` instance, from `Instances.monad(nonEmptyList())`. The instance works over `Kind<NonEmptyListKind.Witness, A>`, so you widen a list to pass it in, and narrow the result to read it. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.nonEmptyList;
+import static org.higherkindedj.hkt.nonemptylist.NonEmptyListKindHelper.NON_EMPTY_LIST;
+
+import java.util.function.Function;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyListKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/nonemptylist/NonEmptyListBook.java:kind}}
+```
+
+~~~admonish tip title="Two ways to combine"
+`NonEmptyList.semigroup()` joins two lists end to end: `[a]` and `[b]` give `[a, b]`. The instance's `ap` pairs every element of one with every element of the other, as `List`'s does. Error lists are joined with the semigroup.
 ~~~
 
-~~~admonish info title="Key Takeaways"
-- `NonEmptyList<A>` encodes "at least one element" in the type, making `head`/`last`/`reduce`/`min`/`max` **total**.
-- Build with `of` / `single`; cross the boundary from possibly-empty data with `fromList` / `fromIterable`, which return `Maybe` and never throw.
-- It is the streamlined validation error channel: `Path.validNel` / `Path.invalidNel` and `Validated.validNel` / `Validated.invalidNel` drop the `Semigroup` argument and the single-error wrapping.
-- Accumulation is left-to-right concatenation via `NonEmptyList.semigroup()`.
-- Deliberately no empty, no `Monoid`, no `MonadZero`.
+Widening allocates nothing: `NonEmptyList` implements `NonEmptyListKind` itself, so `widen` returns the same object. `NonEmptyList` has instances of other type classes too, such as `Traverse`, each an object of its own, and *NonEmptyList at a glance*, at the head of the page, lists them.
+
+~~~admonish note title="No empty, by design"
+No factory builds an empty `NonEmptyList`, so it has no `Monoid` instance and no `Alternative` or `MonadZero`. Each of those needs an empty value, which would bring back the case the type exists to rule out. `NonEmptyList.semigroup()` joins two lists, but nothing gives a `Monoid`'s empty one.
 ~~~
 
-~~~admonish tip title="See Also"
-- [Validated](validated_monad.md): the accumulating-error type `NonEmptyList` pairs with
-- [List](list_monad.md): the unconstrained sibling
-- [ValidationPath](../effect/path_validation.md): the fluent validation API
-- [Accumulating Assembly](validated_assembly.md): the `fields()` / `accumulate()` builder this channel was built for
-- [Semigroups and Monoids](../functional/semigroup_and_monoid.md): where `NonEmptyList.semigroup()` fits
-- [Advanced Paths](../effect/advanced_topics.md): the `race` and first-success combinators take `NonEmptyList` for a total, guard-free call
-~~~
+## When to use `NonEmptyList` {#when-to-use-nonemptylist}
+
+| You need | Use |
+|---|---|
+| A list that can never be empty, such as an invalid result's errors | `NonEmptyList` |
+| A list that may be empty | [List](list_monad.md) |
+| The errors of independent checks, kept together | [Validated](validated_monad.md), whose `invalidNel` holds them in a `NonEmptyList` |
+| A record built from many checked fields | [Accumulating Assembly](validated_assembly.md) |
 
 ---
 
