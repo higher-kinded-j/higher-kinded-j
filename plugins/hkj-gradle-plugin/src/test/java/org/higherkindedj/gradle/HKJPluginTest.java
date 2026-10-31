@@ -5,6 +5,9 @@ package org.higherkindedj.gradle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -12,14 +15,22 @@ import org.codehaus.groovy.runtime.GStringImpl;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
+import org.gradle.api.file.Directory;
+import org.gradle.api.file.RegularFile;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.compile.JavaCompile;
+import org.gradle.api.tasks.javadoc.Javadoc;
+import org.gradle.external.javadoc.StandardJavadocDocletOptions;
+import org.gradle.jvm.toolchain.JavaInstallationMetadata;
+import org.gradle.jvm.toolchain.JavaLanguageVersion;
+import org.gradle.jvm.toolchain.JavadocTool;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -432,6 +443,103 @@ class HKJPluginTest {
 
       assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
           .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Javadoc release")
+  class JavadocRelease {
+
+    @TempDir Path dir;
+
+    /** A javadoc tool that reports {@code version}, which differs from the JDK running the test. */
+    private JavadocTool toolAt(int version) {
+      Directory home = project.getLayout().getProjectDirectory();
+      JavaInstallationMetadata metadata =
+          new JavaInstallationMetadata() {
+            @Override
+            public JavaLanguageVersion getLanguageVersion() {
+              return JavaLanguageVersion.of(version);
+            }
+
+            @Override
+            public String getJavaRuntimeVersion() {
+              return String.valueOf(version);
+            }
+
+            @Override
+            public String getJvmVersion() {
+              return String.valueOf(version);
+            }
+
+            @Override
+            public String getVendor() {
+              return "stub";
+            }
+
+            @Override
+            public Directory getInstallationPath() {
+              return home;
+            }
+
+            @Override
+            public boolean isCurrentJvm() {
+              return false;
+            }
+          };
+      return new JavadocTool() {
+        @Override
+        public JavaInstallationMetadata getMetadata() {
+          return metadata;
+        }
+
+        @Override
+        public RegularFile getExecutablePath() {
+          return home.file("javadoc");
+        }
+      };
+    }
+
+    private String writtenOptions(Javadoc task) throws IOException {
+      Path file = dir.resolve(task.getName() + ".options");
+      task.getOptions().write(file.toFile());
+      return Files.readString(file);
+    }
+
+    @Test
+    @DisplayName("passes --release at the javadoc tool's version, not Gradle's own")
+    void addsTheToolsRelease() throws IOException {
+      Javadoc task = project.getTasks().register("doc", Javadoc.class).get();
+      task.getJavadocTool().set(toolAt(99));
+
+      HKJPlugin.addReleaseUnlessSet(task);
+
+      assertThat(writtenOptions(task)).contains("--release '99'");
+    }
+
+    @Test
+    @DisplayName("passes no --release beside a -source the task sets")
+    void keepsTheTasksSource() throws IOException {
+      Javadoc task = project.getTasks().register("doc", Javadoc.class).get();
+      task.getJavadocTool().set(toolAt(99));
+      task.getOptions().setSource("25");
+
+      HKJPlugin.addReleaseUnlessSet(task);
+
+      assertThat(writtenOptions(task)).contains("-source '25'").doesNotContain("--release");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"source", "-source", "-release"})
+    @DisplayName("keeps a -source or --release the task adds by name")
+    void keepsALanguageLevelAddedByName(String option) throws IOException {
+      Javadoc task = project.getTasks().register("doc", Javadoc.class).get();
+      task.getJavadocTool().set(toolAt(99));
+      ((StandardJavadocDocletOptions) task.getOptions()).addStringOption(option, "21");
+
+      HKJPlugin.addReleaseUnlessSet(task);
+
+      assertThat(writtenOptions(task)).contains("'21'").doesNotContain("'99'");
     }
   }
 }

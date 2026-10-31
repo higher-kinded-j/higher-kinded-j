@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
@@ -55,6 +56,51 @@ class HKJPluginFunctionalTest {
         Files.delete(path);
       }
     }
+  }
+
+  /**
+   * Writes a project with one documented class, whose HKJ dependencies resolve to empty jars, so
+   * that it compiles and documents without the published artifacts. The checker stays off, since it
+   * needs the real hkj-checker jar. {@code extra} is appended to the build file.
+   */
+  private void writeDocumentedProject(String extra) throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+            checks {
+                pathTypeMismatch = false
+            }
+        }
+
+        repositories {
+            flatDir { dirs 'libs' }
+        }
+        """
+            + extra);
+    Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
+    for (String artifact : List.of("hkj-core", "hkj-processor-plugins")) {
+      new JarOutputStream(Files.newOutputStream(libs.resolve(artifact + "-0.3.0.jar"))).close();
+    }
+    Path srcDir = Files.createDirectories(testProjectDir.resolve("src/main/java/test"));
+    Files.writeString(
+        srcDir.resolve("App.java"),
+        """
+        package test;
+
+        /** An application. */
+        public class App {}
+        """);
+  }
+
+  /** The options file Gradle wrote for the Javadoc task {@code taskName}. */
+  private String javadocOptions(String taskName) throws IOException {
+    return Files.readString(testProjectDir.resolve("build/tmp/" + taskName + "/javadoc.options"));
   }
 
   @Test
@@ -281,6 +327,105 @@ class HKJPluginFunctionalTest {
     assertThat(output)
         .contains("compileJava: [-Xplugin:HKJChecker severity=warn]")
         .contains("compileTestJava: [-Xplugin:HKJChecker severity=warn]");
+  }
+
+  @Test
+  @DisplayName("javadoc runs with preview features on")
+  void javadoc_runsWithPreviewFeatures() throws IOException {
+    writeDocumentedProject("");
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(testProjectDir.resolve("build/docs/javadoc/test/App.html")).isRegularFile();
+    assertThat(javadocOptions("javadoc"))
+        .contains("--enable-preview")
+        .contains("--release '" + Runtime.version().feature() + "'");
+  }
+
+  @Test
+  @DisplayName("javadoc runs with preview features on and a toolchain")
+  void javadoc_runsWithPreviewFeaturesAndToolchain() throws IOException {
+    writeDocumentedProject(
+        """
+
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
+            }
+        }
+        """);
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(testProjectDir.resolve("build/docs/javadoc/test/App.html")).isRegularFile();
+  }
+
+  @Test
+  @DisplayName("Javadoc tasks run beside the build's own -source, --release or tool, however set")
+  void javadoc_runsBesideTheBuildsOwnSettings() throws IOException {
+    writeDocumentedProject(
+        """
+
+        def documented = { Javadoc task, String dir ->
+            task.source = sourceSets.main.allJava
+            task.classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+            task.destinationDir = layout.buildDirectory.dir(dir).get().asFile
+        }
+        tasks.register('javadocWithSource', Javadoc) {
+            documented(it, 'withSource')
+        }
+        tasks.register('javadocWithRelease', Javadoc) {
+            documented(it, 'withRelease')
+            options.addStringOption('-release', JavaVersion.current().majorVersion)
+        }
+        tasks.register('javadocWithSourceOption', Javadoc) {
+            documented(it, 'withSourceOption')
+            options.addStringOption('source', JavaVersion.current().majorVersion)
+        }
+        afterEvaluate {
+            tasks.named('javadocWithSource', Javadoc) {
+                options.source = JavaVersion.current().majorVersion
+            }
+            tasks.named('javadoc', Javadoc) {
+                javadocTool = javaToolchains.javadocToolFor {
+                    languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
+                }
+            }
+        }
+        """);
+
+    // The afterEvaluate settings land after the plugin configures the tasks. javadoc refuses
+    // -source beside --release, and Gradle locks a javadoc tool once it has been read.
+    BuildResult result =
+        runner("javadocWithSource", "javadocWithRelease", "javadocWithSourceOption", "javadoc")
+            .build();
+
+    assertThat(result.task(":javadocWithSource").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(javadocOptions("javadocWithSource")).contains("-source").doesNotContain("--release");
+    assertThat(result.task(":javadocWithRelease").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(result.task(":javadocWithSourceOption").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+  }
+
+  @Test
+  @DisplayName("javadoc gets neither --enable-preview nor --release with preview features off")
+  void javadoc_getsNeitherFlag_withPreviewOff() throws IOException {
+    writeDocumentedProject(
+        """
+
+        hkj {
+            preview = false
+        }
+        """);
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(javadocOptions("javadoc"))
+        .doesNotContain("--enable-preview")
+        .doesNotContain("--release");
   }
 
   @Test
