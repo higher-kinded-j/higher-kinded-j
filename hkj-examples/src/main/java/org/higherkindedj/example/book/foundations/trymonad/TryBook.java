@@ -67,10 +67,14 @@ public final class TryBook {
   // ANCHOR_END: chain
 
   // ANCHOR: recover
-  // Some feeds write the pound sign, so try again without it
+  // Some feeds put a pound sign before the price, so try again without it
   static Try<BigDecimal> price(String text) {
     return Try.of(() -> new BigDecimal(text))
-        .recoverWith(error -> Try.of(() -> new BigDecimal(text.replace("£", ""))));
+        .recoverWith(
+            error ->
+                text.startsWith("£")
+                    ? Try.of(() -> new BigDecimal(text.substring(1)))
+                    : Try.failure(error));
   }
 
   // ANCHOR_END: recover

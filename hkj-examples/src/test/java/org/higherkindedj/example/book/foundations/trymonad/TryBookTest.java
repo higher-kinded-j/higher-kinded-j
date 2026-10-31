@@ -136,11 +136,13 @@ class TryBookTest {
   class Recovering {
 
     @Test
-    @DisplayName("recoverWith tries again without the pound sign")
+    @DisplayName("recoverWith tries again without a pound sign before the price")
     void recoverWithTriesAgain() {
       assertThat(price("£40.00")).isEqualTo(Try.success(new BigDecimal("40.00")));
       assertThat(price("40.00")).isEqualTo(Try.success(new BigDecimal("40.00")));
       assertThat(causeOf(price("forty"))).isInstanceOf(NumberFormatException.class);
+      // A pound sign inside the text is not a prefix, so the first failure stands
+      assertThat(causeOf(price("4£0.00"))).isInstanceOf(NumberFormatException.class);
     }
 
     @Test
