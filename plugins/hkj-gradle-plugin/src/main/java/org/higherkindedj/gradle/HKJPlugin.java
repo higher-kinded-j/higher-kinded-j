@@ -189,14 +189,23 @@ public class HKJPlugin implements Plugin<Project> {
               StandardJavadocDocletOptions options =
                   (StandardJavadocDocletOptions) task.getOptions();
               options.addBooleanOption("-enable-preview", true);
-              // javadoc takes --enable-preview only beside -source or --release, for the release
-              // of the JDK that runs it. A -source the build sets stays: javadoc refuses both.
-              if (options.getSource() == null) {
-                int release =
-                    task.getJavadocTool().get().getMetadata().getLanguageVersion().asInt();
-                options.addStringOption("-release", String.valueOf(release));
-              }
+              task.doFirst(t -> addReleaseUnlessSourceSet((Javadoc) t));
             });
+  }
+
+  /**
+   * Passes javadoc {@code --release} at its own tool's version, unless the task sets {@code
+   * -source}. javadoc takes {@code --enable-preview} only beside one of the two, at the release of
+   * the JDK that runs it, and refuses the pair. A {@code --release} the build adds shares this
+   * option's name. Deciding as the task runs sees a {@code -source} the build sets at any point,
+   * and reads the javadoc tool, which Gradle locks once read, only for a task that runs.
+   */
+  static void addReleaseUnlessSourceSet(Javadoc task) {
+    StandardJavadocDocletOptions options = (StandardJavadocDocletOptions) task.getOptions();
+    if (options.getSource() == null) {
+      int release = task.getJavadocTool().get().getMetadata().getLanguageVersion().asInt();
+      options.addStringOption("-release", String.valueOf(release));
+    }
   }
 
   /**
