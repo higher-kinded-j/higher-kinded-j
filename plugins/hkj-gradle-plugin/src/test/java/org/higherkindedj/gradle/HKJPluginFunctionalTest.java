@@ -98,6 +98,11 @@ class HKJPluginFunctionalTest {
         """);
   }
 
+  /** The options file Gradle wrote for the Javadoc task {@code taskName}. */
+  private String javadocOptions(String taskName) throws IOException {
+    return Files.readString(testProjectDir.resolve("build/tmp/" + taskName + "/javadoc.options"));
+  }
+
   @Test
   @DisplayName("build succeeds with default configuration")
   void build_succeeds_withDefaultConfiguration() throws IOException {
@@ -333,6 +338,9 @@ class HKJPluginFunctionalTest {
 
     assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
     assertThat(testProjectDir.resolve("build/docs/javadoc/test/App.html")).isRegularFile();
+    assertThat(javadocOptions("javadoc"))
+        .contains("--enable-preview")
+        .contains("--release '" + Runtime.version().feature() + "'");
   }
 
   @Test
@@ -355,8 +363,9 @@ class HKJPluginFunctionalTest {
   }
 
   @Test
-  @DisplayName("a Javadoc task that passes its own -source or --release keeps it")
-  void javadoc_keepsTheBuildsOwnSourceOrRelease() throws IOException {
+  @DisplayName(
+      "Javadoc tasks run beside the build's own -source, --release or tool, even from afterEvaluate")
+  void javadoc_runsBesideTheBuildsOwnSettings() throws IOException {
     writeDocumentedProject(
         """
 
@@ -367,19 +376,50 @@ class HKJPluginFunctionalTest {
         }
         tasks.register('javadocWithSource', Javadoc) {
             documented(it, 'withSource')
-            options.source = JavaVersion.current().majorVersion
         }
         tasks.register('javadocWithRelease', Javadoc) {
             documented(it, 'withRelease')
             options.addStringOption('-release', JavaVersion.current().majorVersion)
         }
+        afterEvaluate {
+            tasks.named('javadocWithSource', Javadoc) {
+                options.source = JavaVersion.current().majorVersion
+            }
+            tasks.named('javadoc', Javadoc) {
+                javadocTool = javaToolchains.javadocToolFor {
+                    languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion)
+                }
+            }
+        }
         """);
 
-    // javadoc refuses -source beside --release, so either task fails if the plugin adds its own
-    BuildResult result = runner("javadocWithSource", "javadocWithRelease").build();
+    // The afterEvaluate settings land after the plugin configures the tasks. javadoc refuses
+    // -source beside --release, and Gradle locks a javadoc tool once it has been read.
+    BuildResult result = runner("javadocWithSource", "javadocWithRelease", "javadoc").build();
 
     assertThat(result.task(":javadocWithSource").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(javadocOptions("javadocWithSource")).contains("-source").doesNotContain("--release");
     assertThat(result.task(":javadocWithRelease").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+  }
+
+  @Test
+  @DisplayName("javadoc gets neither --enable-preview nor --release with preview features off")
+  void javadoc_getsNeitherFlag_withPreviewOff() throws IOException {
+    writeDocumentedProject(
+        """
+
+        hkj {
+            preview = false
+        }
+        """);
+
+    BuildResult result = runner("javadoc").build();
+
+    assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(javadocOptions("javadoc"))
+        .doesNotContain("--enable-preview")
+        .doesNotContain("--release");
   }
 
   @Test
