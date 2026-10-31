@@ -363,8 +363,7 @@ class HKJPluginFunctionalTest {
   }
 
   @Test
-  @DisplayName(
-      "Javadoc tasks run beside the build's own -source, --release or tool, even from afterEvaluate")
+  @DisplayName("Javadoc tasks run beside the build's own -source, --release or tool, however set")
   void javadoc_runsBesideTheBuildsOwnSettings() throws IOException {
     writeDocumentedProject(
         """
@@ -381,6 +380,10 @@ class HKJPluginFunctionalTest {
             documented(it, 'withRelease')
             options.addStringOption('-release', JavaVersion.current().majorVersion)
         }
+        tasks.register('javadocWithSourceOption', Javadoc) {
+            documented(it, 'withSourceOption')
+            options.addStringOption('source', JavaVersion.current().majorVersion)
+        }
         afterEvaluate {
             tasks.named('javadocWithSource', Javadoc) {
                 options.source = JavaVersion.current().majorVersion
@@ -395,11 +398,14 @@ class HKJPluginFunctionalTest {
 
     // The afterEvaluate settings land after the plugin configures the tasks. javadoc refuses
     // -source beside --release, and Gradle locks a javadoc tool once it has been read.
-    BuildResult result = runner("javadocWithSource", "javadocWithRelease", "javadoc").build();
+    BuildResult result =
+        runner("javadocWithSource", "javadocWithRelease", "javadocWithSourceOption", "javadoc")
+            .build();
 
     assertThat(result.task(":javadocWithSource").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
     assertThat(javadocOptions("javadocWithSource")).contains("-source").doesNotContain("--release");
     assertThat(result.task(":javadocWithRelease").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(result.task(":javadocWithSourceOption").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
     assertThat(result.task(":javadoc").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
   }
 
