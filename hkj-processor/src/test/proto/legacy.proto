@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package legacy;
+
+option java_package = "com.example.proto";
+option java_outer_classname = "LegacyProto";
+
+// A field kept on the wire for older clients and declared deprecated, so protoc marks its
+// accessors @Deprecated: getNickname() on the message, setNickname(String) on its builder.
+message Account {
+  string id = 1;
+  string nickname = 2 [deprecated = true];
+}

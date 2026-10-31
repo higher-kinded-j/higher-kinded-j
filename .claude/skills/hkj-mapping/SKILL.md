@@ -620,6 +620,12 @@ matter: it maps build-only whatever its width, derived fields included.
   record itself (254 components in practice, fewer with `long`/`double`).
 - **It is law-checked.** Assert `build`/`parse` round-trip with `MappingLaws.assertMappingLaws(...)`
   from `hkj-test`.
+- **A deprecated wire, domain or accessor maps under `-Werror`.** A v1 DTO marked `@Deprecated`,
+  a bean's deprecated getter or a protobuf field declared `[deprecated = true]` needs no
+  `-Xlint:-deprecation` and no hand-written mapper: the `@GenerateMapping` or `@GenerateMerge`
+  Impl that names or calls one suppresses `deprecation` (or `removal`) on its own class. The
+  author's `@SuppressWarnings` on the spec covers only their own code, such as the spec's
+  `extends` clause. `@GenerateAssembly` and `@GenerateErrorEnvelope` do not suppress it yet.
 
 ### Sparse PATCH write-back: `UpdateSpec`
 
