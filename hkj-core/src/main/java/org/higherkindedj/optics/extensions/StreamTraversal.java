@@ -94,10 +94,11 @@ public interface StreamTraversal<S, A> {
   S modify(Function<A, A> f, S source);
 
   /**
-   * Modifies all focused elements via an effectful function on virtual threads.
+   * Modifies all focused elements via an effectful function.
    *
-   * <p>Each element is transformed using a {@link VTask}, which executes on a virtual thread. The
-   * returned VTask, when run, produces the modified structure.
+   * <p>Each element is transformed using a {@link VTask}. The returned VTask, when run, runs them
+   * one after another on its own thread and produces the modified structure. A failing task's
+   * exception passes on as it was thrown, a checked one included.
    *
    * <p>The primary advantage over {@link Traversal#modifyF} is that this method works directly with
    * VTask rather than requiring a generic Applicative, making it simpler to use for virtual thread
@@ -236,16 +237,17 @@ public interface StreamTraversal<S, A> {
         for (A a : elements) {
           tasks.add(f.apply(a));
         }
-        return VTask.of(
+        VTask<S> modified =
             () -> {
               List<A> results = new ArrayList<>(tasks.size());
               for (VTask<A> task : tasks) {
-                results.add(task.run());
+                results.add(executed(task));
               }
               // Reconstruct the structure with modified elements
               Iterator<A> iter = results.iterator();
               return Traversals.modify(traversal, _ -> iter.next(), source);
-            });
+            };
+        return modified;
       }
     };
   }
@@ -308,15 +310,31 @@ public interface StreamTraversal<S, A> {
 
       @Override
       public VTask<List<A>> modifyVTask(Function<A, VTask<A>> f, List<A> source) {
-        return VTask.of(
+        VTask<List<A>> modified =
             () -> {
               List<A> result = new ArrayList<>(source.size());
               for (A a : source) {
-                result.add(f.apply(a).run());
+                result.add(executed(f.apply(a)));
               }
               return List.copyOf(result);
-            });
+            };
+        return modified;
       }
     };
+  }
+
+  /**
+   * Runs one element's task as a step of {@code modifyVTask}, throwing the task's own failure, a
+   * checked one included, where {@code VTask.run()} would wrap a checked one. As {@code run()}
+   * does, it sets the interrupt status again for an {@link InterruptedException}.
+   */
+  private static <A> A executed(VTask<A> task) throws Throwable {
+    try {
+      return Objects.requireNonNull(
+          task.execute(), "the task returned null, and a VTask always gives a value");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw e;
+    }
   }
 }

@@ -65,6 +65,34 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   }
 
   @Override
+  public Try<A> runSafe() {
+    try {
+      return Try.success(execute(value));
+    } catch (Error error) {
+      // Effectful's runSafe lets an Error propagate, so this one does too
+      throw error;
+    } catch (Throwable t) {
+      return Try.failure(t);
+    }
+  }
+
+  /**
+   * Runs a task as a step of a path, throwing the task's own failure, a checked one included, where
+   * {@link VTask#run()} would wrap a checked one in a {@code VTaskExecutionException}. As {@code
+   * run()} does, it sets the interrupt status again for an {@link InterruptedException}, so a
+   * handler further along that recovers from it does not lose the cancellation.
+   */
+  private static <T> T execute(VTask<T> task) throws Throwable {
+    try {
+      return Objects.requireNonNull(
+          task.execute(), "the task returned null, and a VTask always gives a value");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw e;
+    }
+  }
+
+  @Override
   public CompletableFuture<A> runAsync() {
     return value.runAsync();
   }
@@ -136,22 +164,22 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
       Function<? super A, ? extends Chainable<? extends VTaskPath<?>, B>> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              A a = this.unsafeRun();
-              Chainable<? extends VTaskPath<?>, B> result = mapper.apply(a);
-              Objects.requireNonNull(result, "mapper must not return null");
+    VTask<B> chained =
+        () -> {
+          A a = execute(value);
+          Chainable<? extends VTaskPath<?>, B> result = mapper.apply(a);
+          Objects.requireNonNull(result, "mapper must not return null");
 
-              if (!(result instanceof VTaskPath<?> vtaskPath)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return VTaskPath, got: " + result.getClass());
-              }
+          if (!(result instanceof VTaskPath<?> vtaskPath)) {
+            throw new IllegalArgumentException(
+                "via mapper must return VTaskPath, got: " + result.getClass());
+          }
 
-              @SuppressWarnings("unchecked")
-              VTaskPath<B> typedResult = (VTaskPath<B>) vtaskPath;
-              return typedResult.unsafeRun();
-            }));
+          @SuppressWarnings("unchecked")
+          VTaskPath<B> typedResult = (VTaskPath<B>) vtaskPath;
+          return execute(typedResult.run());
+        };
+    return new DefaultVTaskPath<>(chained);
   }
 
   @Override
@@ -164,24 +192,24 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   public <B> VTaskPath<B> then(Supplier<? extends Chainable<? extends VTaskPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              // Execute this VTask for its side effects
-              this.unsafeRun();
+    VTask<B> sequenced =
+        () -> {
+          // Execute this VTask for its side effects
+          execute(value);
 
-              Chainable<? extends VTaskPath<?>, B> result = supplier.get();
-              Objects.requireNonNull(result, "supplier must not return null");
+          Chainable<? extends VTaskPath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
 
-              if (!(result instanceof VTaskPath<?> vtaskPath)) {
-                throw new IllegalArgumentException(
-                    "then supplier must return VTaskPath, got: " + result.getClass());
-              }
+          if (!(result instanceof VTaskPath<?> vtaskPath)) {
+            throw new IllegalArgumentException(
+                "then supplier must return VTaskPath, got: " + result.getClass());
+          }
 
-              @SuppressWarnings("unchecked")
-              VTaskPath<B> typedResult = (VTaskPath<B>) vtaskPath;
-              return typedResult.unsafeRun();
-            }));
+          @SuppressWarnings("unchecked")
+          VTaskPath<B> typedResult = (VTaskPath<B>) vtaskPath;
+          return execute(typedResult.run());
+        };
+    return new DefaultVTaskPath<>(sequenced);
   }
 
   // ===== Error handling =====
@@ -203,9 +231,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
             t -> {
               Effectful<?, A> fallback = recovery.apply(t);
               Objects.requireNonNull(fallback, "recovery must not return null");
-              // If the fallback is itself a VTaskPath, use its VTask directly so we
-              // preserve virtual-thread execution semantics; otherwise adapt the
-              // arbitrary Effectful<?, A> by delegating to unsafeRun inside a VTask.
+              // If the fallback is itself a VTaskPath, use its VTask directly so its own
+              // failure passes on as thrown; otherwise adapt the arbitrary Effectful<?, A>
+              // by delegating to unsafeRun inside a VTask.
               if (fallback instanceof VTaskPath<?> vtaskFallback) {
                 @SuppressWarnings("unchecked") // its value type is A
                 VTaskPath<A> same = (VTaskPath<A>) vtaskFallback;
@@ -293,16 +321,15 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   public <E> VTaskPath<Either<E, A>> catching(
       Function<? super Throwable, ? extends E> exceptionMapper) {
     Objects.requireNonNull(exceptionMapper, "exceptionMapper must not be null");
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              try {
-                return Either.right(this.unsafeRun());
-              } catch (Throwable t) {
-                return Either.left(
-                    ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
-              }
-            }));
+    VTask<Either<E, A>> caught =
+        () -> {
+          try {
+            return Either.right(execute(value));
+          } catch (Throwable t) {
+            return Either.left(ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
+          }
+        };
+    return new DefaultVTaskPath<>(caught);
   }
 
   @Override
@@ -336,7 +363,8 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public VTaskPath<A> guarantee(Runnable finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    return new DefaultVTaskPath<>(VTask.delay(() -> Cleanup.guarantee(this::unsafeRun, finalizer)));
+    VTask<A> guarded = () -> Cleanup.guarantee(() -> execute(value), finalizer);
+    return new DefaultVTaskPath<>(guarded);
   }
 
   // ===== Parallel Combinators =====

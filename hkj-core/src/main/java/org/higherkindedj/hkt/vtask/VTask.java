@@ -16,9 +16,11 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
- * Represents a lazy computation that, when executed, runs on a Java virtual thread and produces a
- * value of type {@code A}. {@code VTask} is the primary effect type for virtual thread-based
- * concurrency in Higher-Kinded-J.
+ * Represents a lazy computation that, when executed, produces a value of type {@code A}, and may
+ * block or throw a checked exception. {@code VTask} is the primary effect type for virtual
+ * thread-based concurrency in Higher-Kinded-J: {@link #run()} executes it on the calling thread,
+ * {@link #runAsync()} on a new virtual thread, and {@link Par} and {@link Scope} run several at the
+ * same time, each on a virtual thread of its own.
  *
  * <p>A {@code VTask<A>} instance does not perform any action when it's created. Instead, it acts as
  * a description or "recipe" for a computation that will be executed only when explicitly run via
@@ -31,10 +33,10 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <ul>
  *   <li><b>Laziness:</b> Effects are not executed upon creation of a {@code VTask} value, but only
  *       when explicitly run.
- *   <li><b>Virtual Threads:</b> Computations execute on virtual threads, enabling millions of
- *       concurrent tasks with minimal memory overhead.
- *   <li><b>Structured Concurrency:</b> Uses Java 25's {@code StructuredTaskScope} for proper
- *       cancellation and error propagation.
+ *   <li><b>Virtual Threads:</b> {@link #runAsync()}, {@link Par} and {@link Scope} execute tasks on
+ *       virtual threads, enabling millions of concurrent tasks with minimal memory overhead.
+ *   <li><b>Structured Concurrency:</b> {@link Par} and {@link Scope} use Java 25's {@code
+ *       StructuredTaskScope} for proper cancellation and error propagation.
  *   <li><b>Composability:</b> {@code VTask} operations can be easily chained using {@link
  *       #map(Function)}, {@link #flatMap(Function)}, and other combinators.
  *   <li><b>HKT Integration:</b> {@code VTask<A>} directly extends {@link VTaskKind VTaskKind<A>},
@@ -49,7 +51,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <pre>{@code
  * // Describe a computation that fetches data
  * VTask<String> fetchData = VTask.of(() -> {
- *     // This runs on a virtual thread
+ *     // This runs when the task is run, and may block
  *     return httpClient.get("https://api.example.com/data");
  * });
  *
@@ -110,8 +112,8 @@ public interface VTask<A> extends VTaskKind<A> {
   // ===== FACTORY METHODS =====
 
   /**
-   * Creates a {@code VTask<A>} from a {@link Callable}. The callable will be executed on a virtual
-   * thread when the task is run.
+   * Creates a {@code VTask<A>} from a {@link Callable}. The callable will be executed when the task
+   * is run, on the thread that runs it.
    *
    * @param callable The computation to execute. Must not be null, and must not return null: a null
    *     result fails the task with a {@link NullPointerException}.

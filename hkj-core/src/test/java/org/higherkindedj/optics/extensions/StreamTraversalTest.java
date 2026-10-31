@@ -4,8 +4,10 @@ package org.higherkindedj.optics.extensions;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Lens;
@@ -308,6 +310,34 @@ class StreamTraversalTest {
       VStream<String> result = st.modifyVTask(s -> VTask.of(s::toUpperCase), source).run();
 
       assertThat(result.toList().run()).containsExactly("HELLO", "WORLD");
+    }
+
+    @Test
+    @DisplayName("modifyVTask() passes a checked failure on as thrown, from either implementation")
+    void modifyVTaskPassesACheckedFailureOn() {
+      IOException feedDown = new IOException("feed down");
+      StreamTraversal<VStream<String>, String> viaTraversal =
+          StreamTraversal.fromTraversal(VStreamTraversals.forVStream());
+      StreamTraversal<List<String>, String> overList = StreamTraversal.forList();
+
+      assertThat(viaTraversal.modifyVTask(s -> VTask.fail(feedDown), VStream.of("a")).runSafe())
+          .isEqualTo(Try.failure(feedDown));
+      assertThat(overList.modifyVTask(s -> VTask.fail(feedDown), List.of("a")).runSafe())
+          .isEqualTo(Try.failure(feedDown));
+    }
+
+    @Test
+    @DisplayName("modifyVTask() sets the interrupt status again for an InterruptedException")
+    void modifyVTaskKeepsAnInterrupt() {
+      InterruptedException stopped = new InterruptedException("stopped");
+      StreamTraversal<List<String>, String> overList = StreamTraversal.forList();
+      try {
+        assertThat(overList.modifyVTask(s -> VTask.fail(stopped), List.of("a")).runSafe())
+            .isEqualTo(Try.failure(stopped));
+        assertThat(Thread.interrupted()).isTrue();
+      } finally {
+        Thread.interrupted(); // leave the test thread's interrupt status clear
+      }
     }
   }
 

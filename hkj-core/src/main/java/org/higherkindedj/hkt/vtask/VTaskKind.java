@@ -10,9 +10,9 @@ import org.higherkindedj.hkt.WitnessArity;
  * Kind interface marker for the VTask type in Higher-Kinded-J. Represents VTask as a type
  * constructor 'F' in {@code Kind<F, A>}. The witness type F is VTaskKind.Witness.
  *
- * <p>{@code VTask} is an effect type for computations that execute on Java virtual threads,
- * providing lightweight concurrency with structured cancellation. Like {@code IO}, VTask is lazy
- * and only executes when explicitly run.
+ * <p>{@code VTask} is an effect type for computations that may block, run on the calling thread or,
+ * at the same time as others, on Java virtual threads, providing lightweight concurrency with
+ * structured cancellation. Like {@code IO}, VTask is lazy and only executes when explicitly run.
  *
  * @param <A> The type of the value produced by the VTask computation.
  * @see org.higherkindedj.hkt.Kind

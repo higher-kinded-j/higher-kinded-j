@@ -307,9 +307,9 @@ Scope.<Result>allSucceed()
 **Example:**
 <!-- verify -->
 ```java
-// VTask executes on virtual threads
+// VTask runs on the calling thread, or on a virtual thread with runAsync, Par or Scope
 VTask<String> task = VTask.of(() -> {
-    // This blocking call doesn't waste a platform thread
+    // Run on a virtual thread, this blocking call doesn't hold a platform thread
     return httpClient.get("https://api.example.com/data");
 });
 

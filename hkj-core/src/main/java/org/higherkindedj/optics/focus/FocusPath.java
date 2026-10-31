@@ -941,7 +941,7 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * <p>This method bridges from the optics domain to the concurrent effect domain. The focused
    * element is extracted and passed to the provided function, which returns a {@link VTaskPath}
-   * that will execute on a virtual thread.
+   * that runs when it is run.
    *
    * <p>Since a FocusPath focuses on exactly one element, this is equivalent to extracting the value
    * and applying the function directly. It exists for API symmetry with {@link

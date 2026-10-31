@@ -771,7 +771,7 @@ EitherPath<AppError, String> mapped = userPath.map(user -> user.name());
 
 ## VResultPath
 
-**Definition:** A first-class railway for `VTask<Either<E, A>>`: asynchronous work, run on a virtual thread, that can fail with a typed domain error `E`. It composes `VTaskPath` (async) and `EitherPath` (typed error) into one path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces. It speaks the full family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`).
+**Definition:** A first-class railway for `VTask<Either<E, A>>`: deferred work that may block, and can fail with a typed domain error `E`. It composes `VTaskPath` (async) and `EitherPath` (typed error) into one path, so neither `Kind` ceremony nor a hand-rolled `EitherT` bridge ever surfaces. It speaks the full family vocabulary (`map`/`via`/`then`, `mapError`/`recover`/`recoverWith`/`bimap`).
 
 **Example:**
 <!-- verify -->
@@ -782,7 +782,7 @@ VResultPath<OrderError, OrderResult> process(OrderRequest request) {
         .recover(err -> OrderResult.rejected(err));  // handle the typed Left
 }
 
-VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execute on a virtual thread
+VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // run it when you choose
 ```
 
 **Factories:** `Path.vresultRight`/`vresultLeft` (decided), `Path.vresultEither` (lift a decided `Either`), `Path.vresult` (lift a `VTask<Either<E, A>>`), and `Path.vresultDefer` (defer the decision itself).
@@ -795,7 +795,7 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // execu
 
 ## VTaskPath
 
-**Definition:** A path over `VTask<A>`: a deferred computation that runs on a virtual thread. It suits I/O-bound work that needs to scale. `unsafeRun()` runs it, `runAsync()` returns a future, and `run()` returns the underlying `VTask`.
+**Definition:** A path over `VTask<A>`: a deferred computation that may block or throw a checked exception. It suits I/O-bound work that needs to scale. `unsafeRun()` runs it on the calling thread, `runAsync()` on a virtual thread, returning a future, and `run()` returns the underlying `VTask`. `zipWith`, `parZipWith` and `race` run paths at the same time on virtual threads.
 
 **Factories:** `Path.vtask(callable)`, `Path.vtaskExec(runnable)`, `Path.vtaskPure(value)`, `Path.vtaskFail(throwable)` and `Path.vtaskPath(vtask)`.
 

@@ -55,10 +55,11 @@ VTaskPath<Config> config = Path.vtaskPath(existingVTask);
 
 A `VTaskPath` always gives a value. `Path.vtaskPure(null)` throws at the call, and a callable or `map` function that returns null fails the path when it runs, naming that function. A step with nothing to return is `Path.vtaskExec`, which gives `Unit`. [A Task Always Gives a Value](../monads/vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 
-Unlike `IOPath`, which defers execution until you call `unsafeRun()`, a
-`VTaskPath` also defers execution. Nothing happens until you explicitly
-run the task. The difference is in *how* it runs: on a virtual thread,
-not the caller's thread.
+Like an `IOPath`, a `VTaskPath` defers execution: nothing happens until
+you run the task, and `unsafeRun()` and `runSafe()` run it on the calling
+thread. What differs is that its work may throw a checked exception, and
+that `runAsync()`, `zipWith`, `Par` and `Scope` run tasks on virtual
+threads, at the same time.
 
 ---
 
@@ -70,11 +71,11 @@ not the caller's thread.
 │                                                                 │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌─────────────┐   │
 │  │ describe │ → │  compose │ → │ transform│ → │   execute   │   │
-│  │  effect  │   │  effects │   │  results │   │ on virtual  │   │
-│  │          │   │          │   │          │   │   thread    │   │
+│  │  effect  │   │  effects │   │  results │   │  when you   │   │
+│  │          │   │          │   │          │   │   run it    │   │
 │  └──────────┘   └──────────┘   └──────────┘   └─────────────┘   │
 │                                                                 │
-│  Nothing runs until you call run(), runSafe(), or runAsync()    │
+│ Nothing runs until unsafeRun(), runSafe(), or runAsync()        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -146,8 +147,12 @@ future.thenAccept(value -> System.out.println("Async result: " + value));
 
 ~~~admonish note title="Execution Guidance"
 Prefer `runSafe()` for most use cases. It captures failures in a `Try`,
-maintaining functional error handling throughout your codebase. Use `run()`
+maintaining functional error handling throughout your codebase. Use `unsafeRun()`
 at system boundaries where you need to interact with exception-based APIs.
+
+`runSafe()`, `catching` and `handleError` see the exception the task threw,
+a checked one included. Only `unsafeRun()`, which cannot throw a checked
+exception, wraps one in `VTaskExecutionException`.
 ~~~
 
 ---
@@ -210,7 +215,7 @@ VTaskPath<Data> guarded = Path.vtask(() -> fetchData())
     .withBulkhead(serviceBulkhead);
 ```
 
-Two caveats inherited from `VTask.timeout`: the losing computation is *not* interrupted (it keeps running unobserved after the timeout is reported), and a `TimeoutException` thrown inside the computation is indistinguishable from the budget expiring. To interrupt it instead, fork it into a `Scope` with a `timeout`, as in `Scope.<Data>anySucceed().timeout(d).fork(task).join()`. A cancellation does reach it: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops, or the time runs out. The path's `unsafeRun()` and `runSafe()` report it wrapped in `VTaskExecutionException`, and `run().runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
+Two caveats inherited from `VTask.timeout`: the losing computation is *not* interrupted (it keeps running unobserved after the timeout is reported), and a `TimeoutException` thrown inside the computation is indistinguishable from the budget expiring. To interrupt it instead, fork it into a `Scope` with a `timeout`, as in `Scope.<Data>anySucceed().timeout(d).fork(task).join()`. A cancellation does reach it: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops, or the time runs out. The path's `unsafeRun()` reports it wrapped in `VTaskExecutionException`, and `runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
 
 ---
 
@@ -334,7 +339,7 @@ VTaskPath<String> backToPath = Path.vtaskPath(VTask.succeed("restored"));
 
 | Aspect | VTaskPath | IOPath |
 |--------|-----------|--------|
-| **Thread Model** | Virtual threads | Caller's thread |
+| **Thread Model** | Caller's thread for `unsafeRun()`; virtual threads for `runAsync()`, `zipWith`, `Par` and `Scope` | Caller's thread |
 | **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
 | **`zipWith` Behaviour** | Parallel (uses `Par.map2`) | Sequential |
 | **Structured Concurrency** | Yes, with `Scope` and `Resource` | No |
@@ -382,8 +387,8 @@ Try<Dashboard> dashboard = loadDashboard(userId).runSafe();
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Virtual Threads:** VTaskPath executes on lightweight JVM-managed threads, enabling millions of concurrent tasks
-* **Laziness:** Nothing runs until you call `run()`, `runSafe()`, or `runAsync()`
+* **Virtual Threads:** `runAsync()`, `zipWith`, `Par` and `Scope` run tasks on lightweight JVM-managed threads, enabling millions of concurrent tasks; `unsafeRun()` and `runSafe()` use the calling thread
+* **Laziness:** Nothing runs until you call `unsafeRun()`, `runSafe()`, or `runAsync()`
 * **Composition:** Use `map` for transformations, `via` for dependent chains, and `Par` combinators for parallel execution
 * **Scope:** Use `Scope` for flexible structured concurrency with `allSucceed`, `anySucceed`, `firstComplete`, or `accumulating` joiners
 * **Resource:** Use `Resource` for bracket-pattern resource management with guaranteed cleanup

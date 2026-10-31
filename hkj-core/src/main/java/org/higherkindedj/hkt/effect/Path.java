@@ -498,7 +498,7 @@ public final class Path {
   // ===== VTaskPath factory methods =====
 
   /**
-   * Creates a VTaskPath with a deferred computation that executes on a virtual thread.
+   * Creates a VTaskPath with a deferred computation, which may block or throw a checked exception.
    *
    * <p>The callable is not executed until {@link VTaskPath#unsafeRun()} or {@link
    * VTaskPath#runSafe()} is called. A VTask always gives a value, so a callable that returns null
@@ -516,7 +516,7 @@ public final class Path {
   }
 
   /**
-   * Creates a VTaskPath that executes a side-effecting runnable on a virtual thread.
+   * Creates a VTaskPath that executes a side-effecting runnable.
    *
    * <p>The runnable is not executed until {@link VTaskPath#unsafeRun()} or {@link
    * VTaskPath#runSafe()} is called.

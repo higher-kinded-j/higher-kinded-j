@@ -12,8 +12,9 @@ import org.higherkindedj.hkt.vtask.VTask;
 /**
  * Examples demonstrating VTaskPath for virtual thread-based concurrency.
  *
- * <p>VTaskPath wraps VTask to provide a fluent API for concurrent operations that execute on
- * virtual threads. This enables simple blocking code that scales to millions of concurrent tasks.
+ * <p>VTaskPath wraps VTask to provide a fluent API for operations that may block. {@code
+ * unsafeRun()} runs one on the calling thread, and {@code runAsync()}, {@code zipWith} and {@code
+ * Par} run them on virtual threads, so simple blocking code scales to millions of concurrent tasks.
  *
  * <p>This example demonstrates:
  *
@@ -57,7 +58,7 @@ public class VTaskPathExample {
         VTask.of(
             () -> {
               System.out.println("  Fetching data on thread: " + Thread.currentThread());
-              return "Data from virtual thread";
+              return "Data from the task";
             });
 
     // Create a pure value (no computation)
