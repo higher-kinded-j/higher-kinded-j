@@ -18,7 +18,7 @@ An `IO` is Keats's unheard melody: until you run it, it is a description you can
 | **Replaces** | A method that performs its side effect as soon as it is called |
 | **Effect Path** | [`IOPath`](../effect/path_io.md) |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:io_monad}}
-| **Choose it when** | The effect should wait until you run it, on the calling thread; otherwise [VTask](vtask_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | The effect waits until you run it, throws no checked exception, and need not run at the same time as other work; otherwise [VTask](vtask_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"
@@ -151,7 +151,7 @@ import org.higherkindedj.hkt.io.IOKind;
 | A side effect described now and run once, at the edge | `IO` |
 | The same, with failure handling, resources and retries | [IOPath](../effect/path_io.md) |
 | A value worked out once and kept, with no side effect | [Lazy](lazy_monad.md) |
-| An effect that runs on virtual threads, alone or concurrently | [VTask](vtask_monad.md) |
+| An effect that throws a checked exception, or runs at the same time as other work | [VTask](vtask_monad.md) |
 | Work that has already started, on another thread | [CompletableFuture](cf_monad.md) |
 | A program as data, which several interpreters can run | [Free](free_monad.md) |
 
