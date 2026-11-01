@@ -75,7 +75,8 @@ threads, at the same time.
 │  │          │   │          │   │          │   │   run it    │   │
 │  └──────────┘   └──────────┘   └──────────┘   └─────────────┘   │
 │                                                                 │
-│ Nothing runs until unsafeRun(), runSafe(), or runAsync()        │
+│ Nothing runs until unsafeRun(), runSafe() or runAsync(), or     │
+│ until toTryPath(), which runs the task at once                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -388,7 +389,7 @@ Try<Dashboard> dashboard = loadDashboard(userId).runSafe();
 
 ~~~admonish info title="Key Takeaways"
 * **Virtual Threads:** `runAsync()`, `zipWith`, `Par` and `Scope` run tasks on lightweight JVM-managed threads, enabling millions of concurrent tasks; `unsafeRun()` and `runSafe()` use the calling thread
-* **Laziness:** Nothing runs until you call `unsafeRun()`, `runSafe()`, or `runAsync()`
+* **Laziness:** Nothing runs until you call `unsafeRun()`, `runSafe()` or `runAsync()`, or convert the path with `toTryPath()`, which runs it at once
 * **Composition:** Use `map` for transformations, `via` for dependent chains, and `Par` combinators for parallel execution
 * **Scope:** Use `Scope` for flexible structured concurrency with `allSucceed`, `anySucceed`, `firstComplete`, or `accumulating` joiners
 * **Resource:** Use `Resource` for bracket-pattern resource management with guaranteed cleanup

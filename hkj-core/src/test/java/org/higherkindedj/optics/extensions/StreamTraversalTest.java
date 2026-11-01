@@ -327,6 +327,28 @@ class StreamTraversalTest {
     }
 
     @Test
+    @DisplayName(
+        "forVStream() modifyVTask runs each element's task, and fails, only as it is pulled")
+    void forVStreamModifyVTaskRunsAsPulled() {
+      IllegalStateException feedDown = new IllegalStateException("feed down");
+      AtomicInteger ran = new AtomicInteger();
+      StreamTraversal<VStream<String>, String> st = StreamTraversal.forVStream();
+
+      VStream<String> mapped =
+          st.modifyVTask(
+                  s -> {
+                    ran.incrementAndGet();
+                    return VTask.fail(feedDown);
+                  },
+                  VStream.of("a"))
+              .run();
+
+      assertThat(ran).hasValue(0);
+      assertThat(mapped.toList().runSafe()).isEqualTo(Try.failure(feedDown));
+      assertThat(ran).hasValue(1);
+    }
+
+    @Test
     @DisplayName("modifyVTask() sets the interrupt status again for an InterruptedException")
     void modifyVTaskKeepsAnInterrupt() {
       InterruptedException stopped = new InterruptedException("stopped");

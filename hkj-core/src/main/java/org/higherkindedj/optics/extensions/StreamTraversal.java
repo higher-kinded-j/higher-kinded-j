@@ -96,9 +96,12 @@ public interface StreamTraversal<S, A> {
   /**
    * Modifies all focused elements via an effectful function.
    *
-   * <p>Each element is transformed using a {@link VTask}. The returned VTask, when run, runs them
-   * one after another on its own thread and produces the modified structure. A failing task's
-   * exception passes on as it was thrown, a checked one included.
+   * <p>Each element is transformed using a {@link VTask}. For {@link #forList()} and {@link
+   * #fromTraversal}, the returned VTask, when run, runs the element tasks one after another on the
+   * thread that runs it, and produces the modified structure; a failing task's exception passes on
+   * as it was thrown, a checked one included. For {@link #forVStream()}, running the returned VTask
+   * only gives the mapped {@code VStream}: each element's task runs, and can fail, as that stream
+   * is pulled.
    *
    * <p>The primary advantage over {@link Traversal#modifyF} is that this method works directly with
    * VTask rather than requiring a generic Applicative, making it simpler to use for virtual thread
