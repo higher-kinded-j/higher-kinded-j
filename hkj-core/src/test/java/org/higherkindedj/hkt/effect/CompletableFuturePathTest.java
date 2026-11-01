@@ -506,6 +506,26 @@ class CompletableFuturePathTest {
     }
 
     @Test
+    @DisplayName("recover() keeps a CompletionException that has no cause")
+    void recoverKeepsACauselessCompletionException() {
+      CompletionException causeless = new CompletionException("upstream timed out", null);
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.completeExceptionally(causeless);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(future);
+
+      AtomicReference<Exception> recoveredFrom = new AtomicReference<>();
+      assertThat(
+              path.recover(
+                      ex -> {
+                        recoveredFrom.set(ex);
+                        return TEST_VALUE;
+                      })
+                  .join())
+          .isEqualTo(TEST_VALUE);
+      assertThat(recoveredFrom.get()).isSameAs(causeless);
+    }
+
+    @Test
     @DisplayName("recoverWith() provides fallback path on failure")
     void recoverWithProvidesFallbackPath() {
       CompletableFuturePath<String> path =
@@ -673,6 +693,17 @@ class CompletableFuturePathTest {
       assertThat(mapped.run().run().getLeft()).isEqualTo("cancelled");
       assertThat(mappedFrom.get()).isInstanceOf(CancellationException.class);
       assertThat(mappedFrom.get()).isSameAs(recoveredFrom.get());
+    }
+
+    @Test
+    @DisplayName("mapError() keeps a CompletionException that has no cause")
+    void mapErrorKeepsACauselessCompletionException() {
+      CompletionException causeless = new CompletionException("upstream timed out", null);
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.completeExceptionally(causeless);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(future);
+
+      assertThat(path.mapError(ex -> ex).run().run().getLeft()).isSameAs(causeless);
     }
   }
 
@@ -868,6 +899,20 @@ class CompletableFuturePathTest {
       assertThat(result.run().getLeft())
           .isInstanceOf(CancellationException.class)
           .isSameAs(recoveredFrom.get());
+    }
+
+    @Test
+    @DisplayName("toEitherPath() keeps a CompletionException that has no cause")
+    void toEitherPathKeepsACauselessCompletionException() {
+      CompletionException causeless = new CompletionException("upstream timed out", null);
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.completeExceptionally(causeless);
+      CompletableFuturePath<String> path = CompletableFuturePath.fromFuture(future);
+
+      EitherPath<Exception, String> result = path.toEitherPath();
+
+      assertThat(result.run().isLeft()).isTrue();
+      assertThat(result.run().getLeft()).isSameAs(causeless);
     }
 
     @Test
