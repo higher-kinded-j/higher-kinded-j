@@ -91,7 +91,7 @@ public final class SubtypePrismGenerator {
                 subTypeName)
             // The prism type is written in the subtype's vocabulary, and the method redeclares the
             // type parameters it names with their bounds.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(namedSumType, declared))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(namedSumType, declared))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(prismTypeName);
 

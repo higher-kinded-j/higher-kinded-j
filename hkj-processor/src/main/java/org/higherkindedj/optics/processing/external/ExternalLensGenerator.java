@@ -245,7 +245,7 @@ public class ExternalLensGenerator {
                 recordTypeName,
                 componentTypeName.box())
             // The lens type and the record's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -290,7 +290,7 @@ public class ExternalLensGenerator {
                 classTypeName,
                 fieldTypeName.box())
             // The lens type and the class's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeParameters))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -345,7 +345,7 @@ public class ExternalLensGenerator {
                 parameterName,
                 field.name(),
                 typeName)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeParameters))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(typeName)
             .addParameter(typeName, "source")
@@ -433,7 +433,7 @@ public class ExternalLensGenerator {
             .addAnnotation(GENERATED_ANNOTATION)
             // The class names the traversal type in its superinterface clause and redeclares the
             // record's type parameters, neither of which a member annotation reaches.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
@@ -462,7 +462,7 @@ public class ExternalLensGenerator {
 
     final MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n"

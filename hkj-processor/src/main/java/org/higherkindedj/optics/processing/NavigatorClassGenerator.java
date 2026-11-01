@@ -1095,7 +1095,8 @@ public class NavigatorClassGenerator {
     TypeSpec.Builder navigatorBuilder =
         TypeSpec.classBuilder(navigatorClassName)
             .addAnnotation(GENERATED)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(targetRecord.asType(), targetRecord))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(targetRecord.asType(), targetRecord))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(sourceTypeVar)
             .addTypeVariables(targetTypeVars)
@@ -1430,7 +1431,7 @@ public class NavigatorClassGenerator {
     return MethodSpec.methodBuilder(fieldName)
         // The method writes the target's field type out. The target's type-parameter bounds are
         // the navigator class's, and answered there.
-        .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(component.asType())))
+        .addAnnotations(ProcessorUtils.writtenTypesSuppression(List.of(component.asType())))
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(composed.pathClass(), sourceTypeVar, focusType))
         .addJavadoc(
