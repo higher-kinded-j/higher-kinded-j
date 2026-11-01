@@ -203,6 +203,30 @@ class VTaskBookTest {
       assertThat(confirmed.run().run().isLeft()).isTrue();
       assertThat(confirmations).hasValue(0);
     }
+
+    @Test
+    @DisplayName("withTimeout gives a typed Left, and leaves the task running")
+    void withTimeoutLeavesTheTaskRunning() throws InterruptedException {
+      CountDownLatch release = new CountDownLatch(1);
+      CountDownLatch booked = new CountDownLatch(1);
+      VResultPath<OrderError, String> slow =
+          Path.vresult(
+              VTask.of(
+                  () -> {
+                    release.await();
+                    booked.countDown();
+                    return Either.<OrderError, String>right("collection booked");
+                  }));
+
+      Either<OrderError, String> outcome =
+          slow.withTimeout(Duration.ofMillis(10), () -> OrderError.notFound(ORDER.id()))
+              .run()
+              .run();
+      release.countDown();
+
+      assertThat(outcome).isEqualTo(Either.left(OrderError.notFound(ORDER.id())));
+      assertThat(booked.await(5, TimeUnit.SECONDS)).isTrue();
+    }
   }
 
   @Nested

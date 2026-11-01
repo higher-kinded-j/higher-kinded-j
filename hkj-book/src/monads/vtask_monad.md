@@ -100,7 +100,7 @@ import org.higherkindedj.hkt.either.Either;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:vresult_outcome}}
 ```
 
-`withTimeout(duration, onTimeout)` gives a typed `Left` when the time runs out. A `VResultPath`'s `zipWith` runs its paths one after another and stops at the first `Left`. To run typed work at the same time, see [VResultPath](../effect/path_vresult.md#outcome-aware-structured-concurrency).
+`withTimeout(duration, onTimeout)` gives a typed `Left` when the time runs out, and, like a `VTaskPath`'s `timeout`, leaves the task running, so a booking can still complete after the caller has its `Left`. A `VResultPath`'s `zipWith` runs its paths one after another and stops at the first `Left`. To run typed work at the same time, see [VResultPath](../effect/path_vresult.md#outcome-aware-structured-concurrency).
 
 ## Running a task {#running-a-task}
 
