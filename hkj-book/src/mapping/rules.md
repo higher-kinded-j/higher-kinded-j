@@ -108,6 +108,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a merge fill a component through a threaded spec?](#how-a-merge-fills) | Yes, by the rule a mapping nests it by. | by design |
 | [Can a merge fill a component through an element-mapped spec?](#how-a-merge-fills) | No: a leaf over the whole pair builds it with `of(...)`. | not supported yet |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
+| [Does an error envelope over a deprecated type compile under `-Werror`?](../optics/production_readiness.md#build-time-impact) | No: the generated envelope names the type, and nothing there suppresses the warning. | not supported yet |
 
 ## Find your symptom {#find-your-symptom}
 
@@ -537,6 +538,7 @@ A one-directional mapping follows these rules:
 
 - **A singular field is read by `getX()` and written by `setX(...)`.** The overload taking the type `getX()` returns writes it, so a message field's `setX(X.Builder)` is passed over.
 - **A repeated field is a `List`, and a map field a `Map`.** `parse` reads them through `getXList()` and `getXMap()`, and `build` writes each whole, through `addAllX(...)` and `putAllX(...)` on a fresh builder. A map field's deprecated `getX()` is never called.
+- **A field declared `[deprecated = true]` maps like any other.** protoc marks its accessors `@Deprecated`, and the Impl that calls them suppresses the warning on its own class, as [Build-time impact](../optics/production_readiness.md#build-time-impact) says.
 - **A field is named as protobuf names it in Java.** A field `k_int` is `kInt`, where the JavaBeans rule would read its getter `getKInt()` as `KInt`.
 - **The other accessors are not fields.** `getXBytes()`, `getXValue()` beside an open enum, `getUnknownFields()`, counts, element getters and `OrBuilder` views stay out of the mapping. A domain component named after one has no wire counterpart.
 - **A field with `hasX()` reads `null` when it is unset.** A message field has one, as has a field declared `optional`, a oneof member and every singular proto2 field. Any component but an `Optional` then reports `must not be null`, so every message `parse` accepts builds back equal, bar the unknown fields and extensions it carries, which no domain component holds.

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -42,6 +43,7 @@ import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
@@ -921,27 +923,25 @@ public class MergeProcessor extends AbstractProcessor {
     ClassName implName =
         ClassName.get(specName.packageName(), String.join("", specName.simpleNames()) + "Impl");
     TypeName targetName = TypeName.get(shape.target().asType());
+    // The fill infers the target's component types, and the null scans and copies the element
+    // types their lambdas take.
+    List<TypeMirror> inferred =
+        Stream.of(
+                shape.target().getRecordComponents().stream().map(Element::asType),
+                fills.stream().map(Fill::scan).filter(Objects::nonNull).flatMap(NullScan::inferred),
+                fills.stream()
+                    .map(Fill::copy)
+                    .filter(Objects::nonNull)
+                    .flatMap(ContainerCopy::inferred))
+            .flatMap(Function.identity())
+            .toList();
 
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(mergeMethod.getSimpleName().toString())
             .addAnnotation(Override.class)
-            // The fill infers the target's component types, and the null scans and copies the
-            // element types their lambdas take, so a raw type in any lands in this method; the
-            // signature cannot carry one, since generic sources and targets are refused.
-            .addAnnotations(
-                ProcessorUtils.rawTypesSuppression(
-                    Stream.of(
-                            shape.target().getRecordComponents().stream().map(Element::asType),
-                            fills.stream()
-                                .map(Fill::scan)
-                                .filter(Objects::nonNull)
-                                .flatMap(NullScan::inferred),
-                            fills.stream()
-                                .map(Fill::copy)
-                                .filter(Objects::nonNull)
-                                .flatMap(ContainerCopy::inferred))
-                        .flatMap(Function.identity())
-                        .toList()))
+            // A raw type in any inferred type lands in this method; the signature cannot carry
+            // one, since generic sources and targets are refused.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(inferred))
             .addModifiers(Modifier.PUBLIC)
             .returns(
                 ProcessorUtils.typeNameOf(mergeMethod.getReturnType(), specName.packageName()));
@@ -1048,6 +1048,10 @@ public class MergeProcessor extends AbstractProcessor {
             .addOriginatingElement(spec)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
+            // The implements clause names the spec, and once a source or the target is deprecated
+            // the merge method names it too, so a deprecation is answered on the class.
+            .addAnnotations(
+                ProcessorUtils.suppression(deprecation(spec, mergeMethod, shape, fills, inferred)))
             .addSuperinterface(specName)
             // The Impl inherits the spec's member types, which would shadow an imported type of
             // the same simple name (a nested 'Supplier' or 'Objects'); javapoet qualifies those.
@@ -1084,6 +1088,41 @@ public class MergeProcessor extends AbstractProcessor {
         specName,
         ElementFilter.methodsIn(spec.getEnclosedElements()));
     writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * The deprecation categories a merge's Impl raises: through its spec ({@link
+   * ProcessorUtils#namedByImplementing}), whose merge method's signature names every source and the
+   * target; by reading the source accessor each fill reads; and by building the target through its
+   * canonical constructor, over the types its fill infers.
+   */
+  private List<Lint> deprecation(
+      TypeElement spec,
+      ExecutableElement mergeMethod,
+      ReturnShape shape,
+      List<Fill> fills,
+      List<TypeMirror> inferred) {
+    Map<String, TypeElement> sources =
+        mergeMethod.getParameters().stream()
+            .collect(
+                Collectors.toUnmodifiableMap(
+                    source -> source.getSimpleName().toString(),
+                    source -> asRecord(source.asType())));
+    return ProcessorUtils.deprecationOf(
+        processingEnv.getElementUtils(),
+        Stream.of(
+                ProcessorUtils.namedByImplementing(
+                    spec, ElementFilter.methodsIn(spec.getEnclosedElements())),
+                fills.stream()
+                    .flatMap(
+                        fill ->
+                            ProcessorUtils.accessorsOf(sources.get(fill.sourceParam()))
+                                .filter(
+                                    accessor ->
+                                        accessor.getSimpleName().contentEquals(fill.component()))),
+                ProcessorUtils.canonicalConstructorOf(processingEnv.getTypeUtils(), shape.target()),
+                inferred.stream().flatMap(ProcessorUtils::typesNamedBy))
+            .flatMap(Function.identity()));
   }
 
   void writeFile(TypeElement spec, String packageName, TypeSpec impl) {
