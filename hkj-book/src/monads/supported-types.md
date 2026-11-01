@@ -61,7 +61,7 @@ Every type follows the same HKT simulation structure:
 | `XxxKindHelper` | Bridge utilities: `widen()` (concrete to Kind), `narrow()` (Kind to concrete) |
 | Type class instances | `Functor`, `Applicative`, `Monad`, etc. parameterised by the Witness type |
 
-**Library-defined types** (Maybe, Either, IO, etc.) directly implement their Kind interface, so `widen`/`narrow` are zero-cost casts. **External Java types** (Optional, List, Stream, CompletableFuture) use an internal holder record.
+**Most library-defined types** (Maybe, Either, IO, etc.) directly implement their Kind interface, so `widen`/`narrow` are zero-cost casts. **`Lazy` and the external Java types** (Optional, List, Stream, CompletableFuture) use an internal holder record.
 
 ---
 
