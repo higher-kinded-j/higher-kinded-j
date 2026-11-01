@@ -76,6 +76,7 @@ import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -6569,7 +6570,8 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated FieldMask update for {@link $T}: applies the fields a mask names into an"
                     + " {@code Edits.Accumulated<Domain>}.\n",
-                List.of())
+                List.of(),
+                pairUses(domainDeclared, wire.element().asType(), wire, comps))
             .addFields(pathFields)
             .addField(fields)
             .addField(oneofPaths)
@@ -7032,15 +7034,15 @@ public class MappingProcessor extends AbstractProcessor {
     }
     call.add(")");
 
+    // The element types the edits' lambdas infer, which both the method's raw types and the class's
+    // deprecation are asked of.
+    List<TypeMirror> inferredTypes =
+        edits.stream().flatMap(edit -> inferred(edit.valueScan(), edit.valueCopy())).toList();
     MethodSpec updateFrom =
         MethodSpec.methodBuilder("updateFrom")
             // A sparse spec never flattens a group (checkNoFlattened).
             .addAnnotations(
-                pairSuppression(
-                    domainDeclared,
-                    wire,
-                    List.of(),
-                    edits.stream().flatMap(edit -> inferred(edit.valueScan(), edit.valueCopy()))))
+                pairSuppression(domainDeclared, wire, List.of(), inferredTypes.stream()))
             .addModifiers(Modifier.PUBLIC)
             .returns(accumulatedReturn)
             .addParameter(wireName, "wire")
@@ -7064,7 +7066,13 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated sparse PATCH write-back for {@link $T}: folds the present wire fields into"
                     + " an {@code Edits.Accumulated<Domain>}.\n",
-                List.of())
+                List.of(),
+                pairUses(
+                    domainDeclared,
+                    wire.element().asType(),
+                    wire,
+                    List.of(),
+                    inferredTypes.stream()))
             .addMethod(updateFrom)
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
@@ -12896,7 +12904,8 @@ public class MappingProcessor extends AbstractProcessor {
                 specName,
                 "Generated bidirectional mapping for {@link $T}: total {@code build} and"
                     + " accumulating, located {@code parse}.\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 parseMethod(
@@ -12974,7 +12983,8 @@ public class MappingProcessor extends AbstractProcessor {
                     + halvesJavadoc(readOnly, halves)
                     + ". {@code parse} cannot read a built wire back whole, so each is exposed as"
                     + " its own half (truthful types).\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(
                 buildMethod(
                     domainName,
@@ -13082,7 +13092,8 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated parse-only mapping for {@link $T}: accumulating, located {@code parse}"
                     + " and no {@code build}, since the wire offers nothing to write it through"
                     + " (truthful types).\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(
                 parseMethod(
                     domainName,
@@ -13132,7 +13143,8 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated build-only mapping for {@link $T}: total {@code build} and no {@code"
                     + " parse}, since the wire offers nothing to read it back through (truthful"
                     + " types).\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(
                 buildMethod(
                     domainName,
@@ -13567,7 +13579,8 @@ public class MappingProcessor extends AbstractProcessor {
                     + " {@code patch} write-back. No {@code parse} is emitted, since the dropped"
                     + " components cannot be reconstructed, and no {@code asLens()}, since a"
                     + " write-back that can fail has no lawful total {@code set} (truthful types).\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("patch")
@@ -13669,7 +13682,8 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated projection mapping for {@link $T}: total {@code build} and a lawful"
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
-                leafFields(spec))
+                leafFields(spec),
+                pairUses(domainDeclared, wireUsed, wire, comps))
             .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
@@ -14032,7 +14046,8 @@ public class MappingProcessor extends AbstractProcessor {
                             + " (truthful types)."
                         : "")
                     + "\n",
-                List.of())
+                List.of(),
+                sealedUses(domain, wire, pairs))
             .addMethod(
                 buildMethod(
                     domainName,
@@ -14078,15 +14093,26 @@ public class MappingProcessor extends AbstractProcessor {
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
-  private static TypeSpec.Builder implSkeleton(
+  /**
+   * The Impl class with what every tier shares: its declaration, its constructor and its instance.
+   * {@code uses} are the elements the tier's members name or call ({@link #pairUses}); with those
+   * the class names through its spec ({@link ProcessorUtils#namedByImplementing}), they decide the
+   * deprecation the class answers for.
+   */
+  private TypeSpec.Builder implSkeleton(
       TypeElement spec,
       ClassName implName,
       ClassName specName,
       String javadoc,
-      List<LeafField> abstractLeaves) {
+      List<LeafField> abstractLeaves,
+      Stream<? extends Element> uses) {
     List<TypeVariableName> variables =
         spec.getTypeParameters().stream()
             .map(parameter -> ProcessorUtils.typeVariableOf(parameter, implName.packageName()))
+            .toList();
+    List<? extends TypeMirror> bounds =
+        spec.getTypeParameters().stream()
+            .flatMap(parameter -> parameter.getBounds().stream())
             .toList();
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(implName)
@@ -14098,10 +14124,18 @@ public class MappingProcessor extends AbstractProcessor {
             .addAnnotation(GENERATED)
             // Each type parameter is restated with its bounds in the class's own type-parameter
             // clause, which no member annotation reaches, so a raw bound is answered on the class.
+            // So is a deprecation: the implements clause names the spec, and once the domain or
+            // the wire is deprecated nearly every member names it, so one answer covers them all.
             .addAnnotations(
-                ProcessorUtils.rawTypesSuppression(
-                    spec.getTypeParameters().stream()
-                        .flatMap(parameter -> parameter.getBounds().stream())
+                ProcessorUtils.suppression(
+                    Stream.concat(
+                            ProcessorUtils.rawTypesOf(bounds).stream(),
+                            ProcessorUtils.deprecationOf(
+                                processingEnv.getElementUtils(),
+                                Stream.concat(
+                                    ProcessorUtils.namedByImplementing(spec, specMembers(spec)),
+                                    uses))
+                                .stream())
                         .toList()))
             .addJavadoc(javadoc, specName);
     if (variables.isEmpty()) {
@@ -14139,10 +14173,7 @@ public class MappingProcessor extends AbstractProcessor {
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .addTypeVariables(variables)
                 .returns(typedInstanceType)
-                .addAnnotation(
-                    AnnotationSpec.builder(SuppressWarnings.class)
-                        .addMember("value", "$S", "unchecked")
-                        .build())
+                .addAnnotations(ProcessorUtils.suppression(List.of(Lint.UNCHECKED)))
                 .addJavadoc(
                     "The singleton, shared across instantiations — the cast is sound because the"
                         + " Impl holds only what its default leaves answer, which cannot depend on"
@@ -14259,6 +14290,18 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       List<Correspondence> comps,
       Stream<TypeMirror> inferred) {
+    return ProcessorUtils.rawTypesSuppression(pairTypes(domainDeclared, wire, comps, inferred));
+  }
+
+  /**
+   * The types a pair's members write out or infer, which {@link #pairSuppression} reads: every
+   * domain and wire component, a flattened group's members, and the inferred element types.
+   */
+  private List<TypeMirror> pairTypes(
+      DeclaredType domainDeclared,
+      WireShape wire,
+      List<Correspondence> comps,
+      Stream<TypeMirror> inferred) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();
     Set<String> groups =
         comps.stream()
@@ -14266,14 +14309,91 @@ public class MappingProcessor extends AbstractProcessor {
             .filter(Objects::nonNull)
             .map(Group::name)
             .collect(Collectors.toSet());
-    return ProcessorUtils.rawTypesSuppression(
+    return Stream.of(
+            domain.getRecordComponents().stream()
+                .flatMap(component -> withGroupMembers(domainDeclared, component, groups)),
+            wire.components().stream().map(WireShape.WireComponent::type),
+            inferred)
+        .flatMap(Function.identity())
+        .toList();
+  }
+
+  /**
+   * The elements a pair's Impl names or calls, with the element types its comps' lambdas infer,
+   * which {@link #implSkeleton} reads to decide the deprecation its class suppresses.
+   */
+  private Stream<Element> pairUses(
+      DeclaredType domainDeclared,
+      TypeMirror wireType,
+      WireShape wire,
+      List<Correspondence> comps) {
+    return pairUses(
+        domainDeclared,
+        wireType,
+        wire,
+        comps,
+        comps.stream().flatMap(c -> inferred(c.valueScan(), c.valueCopy())));
+  }
+
+  /**
+   * The elements a pair's Impl names or calls: the classes the domain, the wire and every type
+   * {@link #pairTypes} gives name; the accessors and canonical constructor of the domain, of each
+   * flattened group and of each record a oneof's arms switch on; and the members of the wire its
+   * reads and writes call ({@link WireShape#calledMembers}).
+   *
+   * <p>The set is the pair's, not the tier's: every component, a projection's dropped ones
+   * included, and every accessor and canonical constructor, whichever direction the tier crosses. A
+   * wider set only widens where the suppression lands, so an Impl may carry one that a tier
+   * crossing fewer of them would not need.
+   */
+  private Stream<Element> pairUses(
+      DeclaredType domainDeclared,
+      TypeMirror wireType,
+      WireShape wire,
+      List<Correspondence> comps,
+      Stream<TypeMirror> inferred) {
+    Elements elements = processingEnv.getElementUtils();
+    Types types = processingEnv.getTypeUtils();
+    List<TypeElement> records =
         Stream.of(
-                domain.getRecordComponents().stream()
-                    .flatMap(component -> withGroupMembers(domainDeclared, component, groups)),
-                wire.components().stream().map(WireShape.WireComponent::type),
-                inferred)
+                Stream.of((TypeElement) domainDeclared.asElement()),
+                comps.stream()
+                    .map(Correspondence::group)
+                    .filter(Objects::nonNull)
+                    .map(Group::record),
+                comps.stream()
+                    .map(Correspondence::oneof)
+                    .filter(Objects::nonNull)
+                    .flatMap(oneof -> oneof.arms().stream())
+                    .map(OneofArm::variant))
             .flatMap(Function.identity())
-            .toList());
+            .toList();
+    return Stream.of(
+            Stream.concat(
+                    Stream.of(domainDeclared, wireType),
+                    pairTypes(domainDeclared, wire, comps, inferred).stream())
+                .flatMap(ProcessorUtils::typesNamedBy),
+            records.stream().map(Element::asType).flatMap(ProcessorUtils::typesNamedBy),
+            records.stream()
+                .flatMap(
+                    record ->
+                        Stream.concat(
+                            ProcessorUtils.accessorsOf(record),
+                            ProcessorUtils.canonicalConstructorOf(types, record))),
+            wire.calledMembers(elements, types))
+        .flatMap(Function.identity());
+  }
+
+  /**
+   * The elements a sealed dispatch names: the classes its domain and wire name, and those of each
+   * subtype pair, which its switches match on. It calls nothing of theirs, only each pair's Impl.
+   */
+  private static Stream<Element> sealedUses(
+      TypeElement domain, TypeElement wire, List<SealedPair> pairs) {
+    return Stream.concat(
+            Stream.of(domain.asType(), wire.asType()),
+            pairs.stream().flatMap(pair -> Stream.of(pair.domain(), pair.wire())))
+        .flatMap(ProcessorUtils::typesNamedBy);
   }
 
   /**

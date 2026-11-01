@@ -13,6 +13,7 @@ import com.palantir.javapoet.WildcardTypeName;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -36,8 +38,10 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -492,7 +496,21 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static List<AnnotationSpec> rawTypesSuppression(List<? extends TypeMirror> types) {
-    return warningSuppression(namesRawType(types), false);
+    return suppression(rawTypesOf(types));
+  }
+
+  /**
+   * The raw-type category a generated declaration raises by writing out or inferring these types,
+   * as {@link #rawTypesSuppression(List)} reads them, for a caller merging it with another reason
+   * into the one suppression the declaration carries.
+   *
+   * @param types the types the declaration may write out or infer; must not be null
+   * @return {@link Lint#RAWTYPES} when {@link #firstRawIn} finds a raw type in any of them, else
+   *     none
+   * @since 0.6.0
+   */
+  public static List<Lint> rawTypesOf(List<? extends TypeMirror> types) {
+    return namesRawType(types) ? List.of(Lint.RAWTYPES) : List.of();
   }
 
   /**
@@ -531,15 +549,221 @@ public final class ProcessorUtils {
    * @since 0.5.0
    */
   public static List<AnnotationSpec> warningSuppression(boolean rawTypes, boolean unchecked) {
-    AnnotationSpec.Builder suppression = AnnotationSpec.builder(SuppressWarnings.class);
-    if (rawTypes && unchecked) {
-      return List.of(suppression.addMember("value", "{$S, $S}", "rawtypes", "unchecked").build());
+    return suppression(
+        Stream.of(
+                Optional.of(Lint.RAWTYPES).filter(_ -> rawTypes),
+                Optional.of(Lint.UNCHECKED).filter(_ -> unchecked))
+            .flatMap(Optional::stream)
+            .toList());
+  }
+
+  /**
+   * The one {@code @SuppressWarnings} a generated declaration carries for the given categories,
+   * each listed once, in {@link Lint}'s order: a single key as a plain string, more than one as an
+   * array, the way an author writes them. A declaration takes one {@code SuppressWarnings}, so
+   * every category it needs, for whatever reason, merges into this one annotation.
+   *
+   * @param lints the categories to suppress, in any order and possibly repeated; must not be null
+   * @return the suppression, or no annotations when {@code lints} is empty
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> suppression(Collection<Lint> lints) {
+    List<CodeBlock> keys =
+        lints.stream().distinct().sorted().map(lint -> CodeBlock.of("$S", lint.key())).toList();
+    if (keys.isEmpty()) {
+      return List.of();
     }
-    if (rawTypes || unchecked) {
-      return List.of(
-          suppression.addMember("value", "$S", rawTypes ? "rawtypes" : "unchecked").build());
-    }
-    return List.of();
+    return List.of(
+        AnnotationSpec.builder(SuppressWarnings.class)
+            .addMember("value", keys.size() == 1 ? "$L" : "{$L}", CodeBlock.join(keys, ", "))
+            .build());
+  }
+
+  /**
+   * The deprecation categories generated code raises by naming or calling these elements: {@link
+   * Lint#DEPRECATION} for one {@link Elements#isDeprecated deprecated} without {@code forRemoval},
+   * and {@link Lint#REMOVAL} for one whose {@code @Deprecated} says {@code forRemoval}.
+   *
+   * <p>The deprecation is the author's, as a raw type is ({@link #rawTypesSuppression(List)}): they
+   * chose to map the deprecated element, or generate optics over it, by declaring the spec or the
+   * record that names it, where javac reports it to them and their own suppression answers for it.
+   * A generated file is a compilation unit of its own, which that suppression does not reach, and
+   * javac's exemption for a use within the outermost class that declares the element never covers
+   * it, so generated code naming the element answers for it itself.
+   *
+   * <p>A caller passes every element its generated code may name or call, and a wider set only
+   * widens where the suppression lands: {@link #typesNamedBy} gives the classes a written type
+   * names. javac counts overriding a deprecated method as a use of it, so a generator passes the
+   * methods its code overrides as well as those it calls.
+   *
+   * @param elements the round's element utilities; must not be null
+   * @param used the elements the generated code names, calls or overrides, consumed by this call;
+   *     must not be null
+   * @return the categories raised, each once, in {@link Lint}'s order; empty when none is
+   *     deprecated
+   * @since 0.6.0
+   */
+  public static List<Lint> deprecationOf(Elements elements, Stream<? extends Element> used) {
+    return used.filter(elements::isDeprecated)
+        .map(
+            element ->
+                Optional.ofNullable(element.getAnnotation(Deprecated.class))
+                        .filter(Deprecated::forRemoval)
+                        .isPresent()
+                    ? Lint.REMOVAL
+                    : Lint.DEPRECATION)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  /**
+   * The classes and interfaces generated code names when it writes a type out: the type's own, its
+   * type arguments', a wildcard's bound's and an array's component's, and every class each is
+   * nested in, since a qualified name such as {@code Api.PersonV1Dto} names {@code Api} as well.
+   * javac reports a deprecated class wherever its name is written, and on an implicitly typed
+   * lambda parameter inferred to it. It does not report one a lambda parameter reaches only through
+   * a wildcard's capture, so a wildcard's bound is a wider answer than javac's, which only widens
+   * where a suppression lands.
+   *
+   * <p>A type variable names none: it is written by its own name, and its bounds only where it is
+   * declared, so a generator that redeclares type parameters asks of their bounds itself. A
+   * primitive names none.
+   *
+   * @param type the type as it is written; must not be null
+   * @return the classes it names, possibly with repeats
+   * @since 0.6.0
+   */
+  public static Stream<TypeElement> typesNamedBy(TypeMirror type) {
+    return switch (type.getKind()) {
+      case ARRAY -> typesNamedBy(((ArrayType) type).getComponentType());
+      case WILDCARD -> {
+        WildcardType wildcard = (WildcardType) type;
+        yield Stream.of(wildcard.getExtendsBound(), wildcard.getSuperBound())
+            .filter(Objects::nonNull)
+            .flatMap(ProcessorUtils::typesNamedBy);
+      }
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        yield Stream.of(
+                enclosingTypes((TypeElement) declared.asElement()),
+                declared.getTypeArguments().stream().flatMap(ProcessorUtils::typesNamedBy),
+                typesNamedBy(declared.getEnclosingType()))
+            .flatMap(Function.identity());
+      }
+      default -> Stream.empty();
+    };
+  }
+
+  /**
+   * The elements a generated class implementing {@code spec} names through it: the spec and each
+   * class it is nested in, which the class's implements clause names; each bound of the spec's type
+   * parameters, which a generic class restates; and each of {@code methods}, which the class
+   * overrides or calls, with the classes their signatures name, which an override restates. A
+   * static or private method of the spec is neither overridden nor called by the class, so it is
+   * passed over.
+   *
+   * @param spec the interface the generated class implements; must not be null
+   * @param methods the spec's methods; must not be null
+   * @return the elements named, possibly with repeats
+   * @since 0.6.0
+   */
+  public static Stream<Element> namedByImplementing(
+      TypeElement spec, List<ExecutableElement> methods) {
+    List<ExecutableElement> inherited =
+        methods.stream()
+            .filter(
+                method ->
+                    Collections.disjoint(
+                        method.getModifiers(), Set.of(Modifier.STATIC, Modifier.PRIVATE)))
+            .toList();
+    return Stream.of(
+            typesNamedBy(spec.asType()),
+            spec.getTypeParameters().stream()
+                .flatMap(parameter -> parameter.getBounds().stream())
+                .flatMap(ProcessorUtils::typesNamedBy),
+            inherited.stream(),
+            inherited.stream()
+                .flatMap(
+                    method ->
+                        Stream.concat(
+                            Stream.of(method.getReturnType()),
+                            method.getParameters().stream().map(Element::asType)))
+                .flatMap(ProcessorUtils::typesNamedBy))
+        .flatMap(Function.identity());
+  }
+
+  /**
+   * The accessors of a record's components, in declaration order; none for a type that is not a
+   * record.
+   *
+   * @param record the record; must not be null
+   * @return its accessors
+   * @since 0.6.0
+   */
+  public static Stream<ExecutableElement> accessorsOf(TypeElement record) {
+    return record.getRecordComponents().stream().map(RecordComponentElement::getAccessor);
+  }
+
+  /**
+   * A record's canonical constructor, the one generated code calls to build it; none for a type
+   * that is not a record.
+   *
+   * <p>It is found by its signature, as JLS 8.10.4 defines it: one parameter per component, each of
+   * the component's type, in order. {@link Elements#isCanonicalConstructor} cannot be asked: it
+   * answers false for every constructor of a record read from a class file, which is how a record
+   * from another module arrives. Two constructors cannot share an erasure, so at most one matches.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param record the record; must not be null
+   * @return its canonical constructor
+   * @since 0.6.0
+   */
+  public static Stream<ExecutableElement> canonicalConstructorOf(Types types, TypeElement record) {
+    List<TypeMirror> components =
+        record.getRecordComponents().stream()
+            .map(component -> types.erasure(component.asType()))
+            .toList();
+    return ElementFilter.constructorsIn(record.getEnclosedElements()).stream()
+        .filter(constructor -> erasuresAre(types, constructor.getParameters(), components));
+  }
+
+  /** Whether the parameters' erasures are the given types, one for one and in order. */
+  private static boolean erasuresAre(
+      Types types, List<? extends VariableElement> parameters, List<TypeMirror> erasures) {
+    return parameters.size() == erasures.size()
+        && IntStream.range(0, erasures.size())
+            .allMatch(
+                index ->
+                    types.isSameType(
+                        types.erasure(parameters.get(index).asType()), erasures.get(index)));
+  }
+
+  /**
+   * The method {@code type} declares or inherits under {@code name} that takes no arguments, as
+   * generated code calls a getter, a builder's factory or its terminal method. An overload taking
+   * arguments is another method, which such a call does not reach.
+   *
+   * @param elements the round's element utilities; must not be null
+   * @param type the type the method is called on; must not be null
+   * @param name the method's simple name; must not be null
+   * @return the method, or none where {@code type} has no such method
+   * @since 0.6.0
+   */
+  public static Stream<ExecutableElement> noArgMethodNamed(
+      Elements elements, TypeElement type, String name) {
+    return ElementFilter.methodsIn(elements.getAllMembers(type)).stream()
+        .filter(method -> method.getSimpleName().contentEquals(name))
+        .filter(method -> method.getParameters().isEmpty());
+  }
+
+  /** A class, followed by each class it is nested in, out to its top-level class. */
+  private static Stream<TypeElement> enclosingTypes(TypeElement type) {
+    return Stream.iterate(
+        type,
+        Objects::nonNull,
+        current ->
+            current.getEnclosingElement() instanceof TypeElement enclosing ? enclosing : null);
   }
 
   /**

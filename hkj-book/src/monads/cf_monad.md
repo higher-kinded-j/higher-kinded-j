@@ -1,275 +1,134 @@
-# The CompletableFutureMonad:
-## _Asynchronous Computations with `CompletableFuture`_
+<!-- description: Use Java's CompletableFuture as a monad: chain and recover futures on a CompletableFuturePath, pass them to generic code through MonadError, or choose VTask. -->
+
+# CompletableFuture: Asynchronous Results
+
+_Keep Java's own `CompletableFuture`, with an Effect Path and a `MonadError` instance._
+
+~~~admonish abstract title="CompletableFuture at a glance"
+| | |
+|---|---|
+| **Models** | Java's asynchronous result, already running |
+| **Replaces** | Nothing: it is Java's own type |
+| **Effect Path** | `CompletableFuturePath`, shown in [On a `CompletableFuturePath`](#on-a-completablefuturepath) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:cf_monad}}
+| **Choose it when** | An API gives you a future, or the work is already running on another thread; otherwise [VTask](vtask_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to compose asynchronous operations functionally
-- Using MonadError capabilities for async error handling and recovery
-- Building non-blocking workflows with `map`, `flatMap`, and `handleErrorWith`
-- Integration with EitherT for combining async operations with typed errors
-- Real-world patterns for resilient microservice communication
+- Say when a `CompletableFuture`'s work starts, and how that differs from `IO` and `VTask`
+- Recover from a failed lookup on a `CompletableFuturePath`, and say why retrying needs the work, not the future
+- Combine futures that are already running through `CompletableFuture`'s `MonadError` instance
+- Say what the instance's error handler receives, and what widening a future costs
 ~~~
 
-~~~ admonish example title="See Example Code:"
- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [CompletableFutureBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java)**: the page includes it, so the build compiles and runs it. [CompletableFutureBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBookTest.java) holds what the page says each method does.
 ~~~
 
-## The Problem: Async Composition Without Structure
+---
 
-Java's `CompletableFuture` is powerful, but composing multiple async operations quickly becomes unwieldy. Consider a typical microservice scenario (fetching a user, looking up their subscription, then calculating a discount):
+## Java's own type {#javas-own-type}
+
+`java.util.concurrent.CompletableFuture` is how much of Java hands back a result that is not ready yet. The work behind a future has usually started by the time you hold it, often on another thread, where an [IO](io_monad.md) or a [VTask](vtask_monad.md) waits until you run it. Its own methods, such as `thenApply`, `thenCompose` and `exceptionallyCompose`, already chain and recover. Higher-Kinded-J adds an Effect Path, `CompletableFuturePath`, with recovery, timeouts and conversions for application code. It also adds a `MonadError` instance, so that a method written once for any container accepts a future.
+
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// Traditional CompletableFuture chaining
-CompletableFuture<Discount> result =
-    userService.findUser(userId)
-        .thenCompose(user ->
-            subscriptionService.getSubscription(user.subscriptionId())
-                .thenCompose(sub ->
-                    pricingService.calculateDiscount(user, sub)
-                        .exceptionally(ex -> Discount.none())));
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.concurrent.CompletableFuture;
+import org.higherkindedj.example.book.optics.cast.Order;
 ```
 
-Each level of `thenCompose` indents further. Error handling with `exceptionally` or `handle` dangles awkwardly at the end, applies only to the innermost stage, and loses type information: every error becomes a generic `Throwable`. If you need different recovery strategies for different failures, you end up with nested `try`/`catch` inside your lambdas, and the functional style collapses.
+Pricing an order in euros needs two lookups, each from a slow service, and `supplyAsync` starts each on another thread at once. `rateServiceDown` stands in for the rate service failing:
 
-The `CompletableFutureMonad` gives you a structured alternative: standard `map`, `flatMap`, and `handleErrorWith` operations that compose cleanly, and the ability to write generic code that works across *any* monadic type, not just `CompletableFuture`.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:lookups}}
+```
 
-## Core Components
+## On a `CompletableFuturePath` {#on-a-completablefuturepath}
 
-The simulation for `CompletableFuture` involves these key pieces:
+`Path.future` puts a future on a `CompletableFuturePath`. `recover` gives a value in place of a failure, here `CACHED_RATE`, 1.15, the rate to use when the rate service cannot answer. `parZipWith` joins the result with another Path's, and `join()` waits for the answer. `via` chains a step that needs the previous result, as `thenCompose` does, and [Migration Cookbook: Recipe 4](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) turns a nested chain into one. These are the extra imports:
 
-| Component | Role |
-|-----------|------|
-| `CompletableFuture<A>` | Standard Java async computation |
-| `CompletableFutureKind<A>` | HKT marker (`Kind<CompletableFutureKind.Witness, A>`): enables generic type class programming |
-| `CompletableFutureKindHelper` | Bridge utilities: `widen()`, `narrow()`, and `join()` for blocking extraction |
-| `CompletableFutureMonad` | Implements `MonadError<CompletableFutureKind.Witness, Throwable>`: provides `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` |
+<!-- verify -->
+```java
+import org.higherkindedj.hkt.effect.CompletableFuturePath;
+import org.higherkindedj.hkt.effect.Path;
+```
 
-~~~admonish note title="How the Operations Map"
-The type class operations correspond directly to `CompletableFuture` methods you already know:
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:path}}
+```
 
-| Type Class Operation | CompletableFuture Equivalent |
-|---------------------|------------------------------|
+`ORDER` is worth 92.50 in pounds and shipping costs 7.99, so the live rate gives (92.50 + 7.99) × 1.17 = 117.57:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:path_outcome}}
+```
+
+A `CompletableFuturePath` also times out with `withTimeout`. `toEitherPath()` waits for the future, then holds a failure as a `Left`. A future that has failed stays failed, so to try failed work again, start it with `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)`, which runs the supplier again. A future that completes with `null` fails the Path, which catches every `CompletableFuture<Void>` from `runAsync` or `allOf`: map one to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`.
+
+## Methods {#methods}
+
+`CompletableFuture`'s own methods are the JDK's. The library adds these:
+
+| Method | What it does |
+|---|---|
+| `Path.future(future)`, `Path.futureAsync(supplier)` | Put a future on a `CompletableFuturePath`, or start one |
+| `Path.futureCompleted(value)`, `Path.futureFailed(exception)` | Build a Path that has already succeeded, or failed with an `Exception` |
+| `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)` | Start work, and run the supplier again after a failure |
+| `map(f)`, `via(f)`, `recover(f)` | Change the value, chain a step, or give a value in place of a failure |
+| `parZipWith(other, f)`, `race(other)` | Join two Paths' results, or keep whichever succeeds first, failing only if both fail |
+| `withTimeout(duration)` | Fails the Path if the future has not completed in time |
+| `join()`, `toEitherPath()` | Wait for the result, or wait and then hold a failure as a `Left` |
+| `FUTURE.widen(future)`, `FUTURE.narrow(kind)`, `FUTURE.join(kind)` | Move a future in and out of `Kind`, or wait for one |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes a `CompletableFuture` through its `MonadError` instance, whose error type is `Throwable`, as [MonadError](../functional/monad_error.md) shows. Each operation is one of the future's own methods:
+
+| Instance operation | `CompletableFuture` method |
+|---|---|
 | `map(f, fa)` | `thenApply(f)` |
 | `flatMap(f, fa)` | `thenCompose(f)` |
-| `ap(ff, fa)` | `thenCombine(ff, (a, f) -> f.apply(a))` |
+| `ap(ff, fa)`, and `map2` to `map5` | `thenCombine`, completing once both have |
 | `of(value)` | `completedFuture(value)` |
-| `raiseError(ex)` | `failedFuture(ex)` |
+| `raiseError(error)` | `failedFuture(error)` |
 | `handleErrorWith(fa, handler)` | `exceptionallyCompose(handler)` |
 
-The difference is that these operations work through the `Kind` abstraction, so your code becomes reusable across *any* monadic type: swap `CompletableFuture` for `IO`, `Either`, or `VTask` without changing the logic.
-~~~
-
-## Working with CompletableFutureMonad
-
-The following examples build on a running scenario: an async service that fetches user data, validates subscriptions, and handles failures gracefully.
-
-~~~admonish example title="Creating Instances"
-
-- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
+These are the extra imports:
 
 <!-- verify -->
 ```java
-public void createExample() {
-   // Get the MonadError instance
-   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
+import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
+import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
 
-   // --- Lift a pure value into an already-completed future ---
-   Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("Success!");
-
-   // --- Create a failed future from an exception ---
-   RuntimeException error = new RuntimeException("Something went wrong");
-   Kind<CompletableFutureKind.Witness, String> failureKind = futureMonad.raiseError(error);
-
-   // --- Wrap an existing CompletableFuture ---
-   CompletableFuture<Integer> existingFuture = CompletableFuture.supplyAsync(() -> {
-      try {
-         TimeUnit.MILLISECONDS.sleep(20);
-      } catch (InterruptedException e) { /* ignore */ }
-      return 123;
-   });
-   Kind<CompletableFutureKind.Witness, Integer> wrappedExisting = FUTURE.widen(existingFuture);
-
-   CompletableFuture<Integer> failedExisting = new CompletableFuture<>();
-   failedExisting.completeExceptionally(new IllegalArgumentException("Bad input"));
-   Kind<CompletableFutureKind.Witness, Integer> wrappedFailed = FUTURE.widen(failedExisting);
-
-   // Unwrap back to CompletableFuture at system boundaries
-   CompletableFuture<String> unwrappedSuccess = FUTURE.narrow(successKind);
-   CompletableFuture<String> unwrappedFailure = FUTURE.narrow(failureKind);
-}
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.future.CompletableFutureKind;
+import org.higherkindedj.hkt.instances.Instances;
 ```
-~~~
-
-~~~admonish example title="Composing with map, flatMap, and ap"
-
-- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
-
-These examples show how the type class instance composes async operations: the same `map`/`flatMap` vocabulary you use with `Either`, `IO`, or any other monad.
-
-<!-- verify -->
-```java
-public void monadExample() {
-   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
-
-   // --- map: transform the result when it completes ---
-   Kind<CompletableFutureKind.Witness, Integer> initialValueKind = futureMonad.of(10);
-   Kind<CompletableFutureKind.Witness, String> mappedKind = futureMonad.map(
-           value -> "Result: " + value,
-           initialValueKind
-   );
-   System.out.println("Map Result: " + FUTURE.join(mappedKind)); // Output: Result: 10
-
-   // --- flatMap: sequence async operations that depend on previous results ---
-   Function<String, Kind<CompletableFutureKind.Witness, String>> asyncStep2 =
-           input -> FUTURE.widen(
-                   CompletableFuture.supplyAsync(() -> input + " -> Step2 Done")
-           );
-
-   Kind<CompletableFutureKind.Witness, String> flatMappedKind = futureMonad.flatMap(
-           asyncStep2,
-           mappedKind // "Result: 10" feeds into asyncStep2
-   );
-   System.out.println("FlatMap Result: " + FUTURE.join(flatMappedKind));
-   // Output: Result: 10 -> Step2 Done
-
-   // --- ap: apply a function from one future to a value from another ---
-   Kind<CompletableFutureKind.Witness, Function<Integer, String>> funcKind =
-           futureMonad.of(i -> "FuncResult:" + i);
-   Kind<CompletableFutureKind.Witness, Integer> valKind = futureMonad.of(25);
-
-   Kind<CompletableFutureKind.Witness, String> apResult = futureMonad.ap(funcKind, valKind);
-   System.out.println("Ap Result: " + FUTURE.join(apResult)); // Output: FuncResult:25
-
-   // --- map2: combine two independent futures ---
-   Kind<CompletableFutureKind.Witness, Integer> f1 = futureMonad.of(5);
-   Kind<CompletableFutureKind.Witness, String> f2 = futureMonad.of("abc");
-
-   BiFunction<Integer, String, String> combine = (i, s) -> s + i;
-   Kind<CompletableFutureKind.Witness, String> map2Result = futureMonad.map2(f1, f2, combine);
-   System.out.println("Map2 Result: " + FUTURE.join(map2Result)); // Output: abc5
-}
-```
-~~~
-
-~~~admonish example title="Recovering from Failures with handleErrorWith"
-
-- [CompletableFutureExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/future/CompletableFutureExample.java)
-
-This is where `CompletableFutureMonad` shines. Unlike `exceptionally` which returns a plain value, `handleErrorWith` returns a *new* `Kind`, so recovery itself can be asynchronous.
-
-<!-- verify -->
-```java
- public void errorHandlingExample(){
-   MonadError<CompletableFutureKind.Witness, Throwable> futureMonad = Instances.monadError(completableFuture());
-
-   Kind<CompletableFutureKind.Witness, String> failedKind =
-           futureMonad.raiseError(new IllegalStateException("Processing Failed"));
-
-   // Recovery handler: inspect the error and return a new async computation
-   Function<Throwable, Kind<CompletableFutureKind.Witness, String>> recoveryHandler =
-           error -> {
-              if (error instanceof IllegalStateException) {
-                 // Recovery can itself be async
-                 return FUTURE.widen(CompletableFuture.supplyAsync(() ->
-                         "Recovered from: " + error.getMessage()));
-              }
-              // Re-raise anything we can't handle
-              return futureMonad.raiseError(
-                      new RuntimeException("Recovery failed", error));
-           };
-
-   // Apply the handler: transforms the failed future into a recovered one
-   Kind<CompletableFutureKind.Witness, String> recovered =
-           futureMonad.handleErrorWith(failedKind, recoveryHandler);
-   System.out.println(FUTURE.join(recovered));
-   // Output: Recovered from: Processing Failed
-
-   // Success values pass through untouched - the handler is never called
-   Kind<CompletableFutureKind.Witness, String> successKind = futureMonad.of("All Good");
-   Kind<CompletableFutureKind.Witness, String> handledSuccess =
-           futureMonad.handleErrorWith(successKind, recoveryHandler);
-   System.out.println(FUTURE.join(handledSuccess));
-   // Output: All Good
-}
-```
-
-The handler receives the *cause* of the failure, unwrapped from `CompletionException` when necessary. This lets you pattern-match on specific exception types and choose recovery strategies (retry, fallback, or re-raise) all within the same compositional pipeline.
-
-When you don't need the cause and just want a constant fallback, the [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) are more concise: `futureMonad.recover(failedKind, "Default")`. Note `recoverWith` evaluates its fallback eagerly, so keep `handleErrorWith` when the recovery future is expensive and should only start on failure.
-~~~
-
----
-
-## Back to the One-Liner
-
-The Foundations one-liner is synchronous, but the same skeleton works unchanged when the repository operations are asynchronous:
 
 ```java
-FUTURE.widen(repo.findAsync(id))
-    .toEitherPath()
-    .focus().attributes().at(key)
-    .modify(spec::validateAndCoerce)
-    .flatMap(node -> FUTURE.widen(repo.saveAsync(node)));
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:kind}}
 ```
 
-`CompletableFutureMonad.flatMap` is the layer dispatched here, and it sequences the asynchronous steps without us writing a single `thenCompose` by hand. Failures (a `CompletionException` carrying our domain error, or a network blip) flow through `MonadError` recovery the same way `Either` errors do in the synchronous version. One mental model, two execution profiles.
+`map2` neither starts nor waits for its futures: both lookups were already running, and the future it gives completes once both have. `FUTURE.join` is what waits.
 
-See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture and [VTask](./vtask_monad.md) when structured concurrency on virtual threads is the better fit.
+The handler given to `handleErrorWith` receives the exception that failed the future, not the `CompletionException` the JDK wraps it in. `FUTURE.join` rethrows that exception too when it is unchecked; a checked one stays wrapped. A constant fallback is shorter with [`recover` or `recoverWith`](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith), which build their fallback before the call, so a fallback future runs even when the first one succeeds.
 
-## When to Use CompletableFutureMonad
+`CompletableFuture` is a JDK class, so it cannot implement `CompletableFutureKind`: `FUTURE.widen` wraps it in a small holder object each time, and `narrow` unwraps it. The instance's `of(null)` keeps the JDK's `null`, where a `CompletableFuturePath` fails.
 
-| Scenario | Use |
-|----------|-----|
-| Writing generic code that works across monads | `CompletableFutureMonad`: your logic programs against `Kind<F, A>` |
-| Composing async workflows with typed error propagation | Combine with [EitherT](../transformers/eithert_transformer.md) (see the [Order Workflow](../hkts/order-walkthrough.md)) |
-| Straightforward async pipelines in application code | Prefer [CompletableFuturePath](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for fluent API |
-| Virtual-thread concurrency | Consider [VTaskPath](../monads/vtask_monad.md) instead |
+## When to use `CompletableFuture` {#when-to-use-completablefuture}
 
-~~~admonish important title="Key Points"
-- `CompletableFutureMonad` implements `MonadError<CompletableFutureKind.Witness, Throwable>`, giving you `map`, `flatMap`, `of`, `ap`, `raiseError`, and `handleErrorWith` over async computations.
-- `handleErrorWith` is the key differentiator: recovery can itself be asynchronous, unlike `exceptionally` which forces synchronous fallback.
-- Use `CompletableFutureKindHelper.join()` to block and extract results at system boundaries (tests, `main` methods). Avoid calling it mid-pipeline.
-- For the HKT bridge: `widen()` wraps a `CompletableFuture` into `Kind`, `narrow()` unwraps it back. Both are low-cost cast operations.
-~~~
-
----
-
-~~~admonish tip title="Effect Path Alternative"
-For most application-level use cases, prefer **CompletableFuturePath** which wraps `CompletableFuture` and provides:
-
-- Fluent composition with `map`, `via`, `recover`
-- Seamless integration with the [Focus DSL](../optics/focus_dsl.md) for structural navigation
-- A consistent API shared across all effect types
-
-<!-- verify -->
-```java
-// Instead of manual Kind chaining:
-Kind<CompletableFutureKind.Witness, User> user = FUTURE.widen(findUser(id));
-Kind<CompletableFutureKind.Witness, Order> order = futureMonad.flatMap(
-    u -> FUTURE.widen(createOrder(u)), user);
-
-// Use CompletableFuturePath for cleaner composition:
-CompletableFuturePath<Order> orderPath = CompletableFuturePath.fromFuture(findUser(id))
-    .via(u -> CompletableFuturePath.fromFuture(createOrder(u)));
-```
-
-A `CompletableFuturePath` always gives a value, so a future that completes with null fails the path. Map a `runAsync` future to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`. The path holds a future that depends on the one given, and cancelling the path's future cancels the given one too. `CompletableFutureMonad` keeps the JDK's null.
-
-See [Migration Cookbook: Recipe 4](../effect/migration_cookbook.md#recipe-4-completablefuture-nesting-to-completablefuturepath) for a complete before/after walkthrough, and [Effect Path Overview](../effect/effect_path_overview.md) for the complete guide.
-~~~
-
-~~~admonish example title="Benchmarks"
-CompletableFuture has dedicated JMH benchmarks measuring async composition overhead, error recovery, and chain depth. Key expectations:
-
-- **`of` / `raiseError`** are very fast: they wrap already-completed futures with no thread scheduling
-- **`flatMap` chains** add minimal overhead beyond the underlying `thenCompose` cost
-- **`handleErrorWith`** matches `exceptionallyCompose` performance while providing stronger composition guarantees
-
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*CompletableFutureBenchmark.*"
-```
-See [Benchmarks & Performance](../benchmarks.md) for full details, expected ratios, and how to interpret results.
-~~~
+| You need | Use |
+|---|---|
+| To work with APIs that already give you a `CompletableFuture` | `CompletableFuture`, with `CompletableFuturePath` or its instance |
+| Work that waits until you run it, on virtual threads, alone or concurrently | [VTask](vtask_monad.md) |
+| A side effect that waits until you run it, on the calling thread | [IO](io_monad.md) |
+| A value worked out once and kept, with no side effect | [Lazy](lazy_monad.md) |
+| Typed errors inside an asynchronous result | The [EitherT](../transformers/eithert_transformer.md) transformer |
 
 ---
 

@@ -15,6 +15,9 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -54,6 +57,14 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * @param present the condition under which {@code value} is written, where there is one
    */
   record WireValue(CodeBlock value, Optional<CodeBlock> present) {}
+
+  /**
+   * The constructors and methods of the wire that an Impl crossing it may call: a record's
+   * accessors and canonical constructor, or a bean's accessors and whatever constructs it. A wider
+   * set only widens where a suppression lands, so every accessor is given, whichever way the tier
+   * crosses the wire.
+   */
+  Stream<ExecutableElement> calledMembers(Elements elements, Types types);
 
   /** The wire's components in declaration order. */
   List<WireComponent> components();
@@ -163,6 +174,13 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /** A record wire: positional accessors and canonical-constructor construction. */
   record RecordShape(TypeElement element, List<WireComponent> components) implements WireShape {
 
+    @Override
+    public Stream<ExecutableElement> calledMembers(Elements elements, Types types) {
+      return Stream.concat(
+          ProcessorUtils.accessorsOf(element),
+          ProcessorUtils.canonicalConstructorOf(types, element));
+    }
+
     /**
      * The record build body: {@code return new W(v0, v1, ...)} in component order, each value
      * handed over whatever it is, a {@code null} included.
@@ -247,6 +265,19 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     @Override
     public List<WireComponent> components() {
       return properties.stream().map(BeanProperty::asWireComponent).toList();
+    }
+
+    @Override
+    public Stream<ExecutableElement> calledMembers(Elements elements, Types types) {
+      return Stream.of(
+              properties.stream()
+                  .flatMap(BeanProperty::readNames)
+                  .flatMap(name -> ProcessorUtils.noArgMethodNamed(elements, element, name)),
+              properties.stream()
+                  .flatMap(property -> property.write().stream())
+                  .flatMap(site -> site.calls(elements, element)),
+              strategy.stream().flatMap(frame -> frame.calls(elements, element)))
+          .flatMap(Function.identity());
     }
 
     /**
@@ -424,6 +455,18 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     WireComponent asWireComponent() {
       return new WireComponent(name, type, getter, field);
     }
+
+    /**
+     * The names of the methods a read of this property calls: its getter, and for a message field
+     * the {@code hasX()} that tells whether it is set and its oneof's case getter.
+     */
+    Stream<String> readNames() {
+      return Stream.of(
+              getter.stream(),
+              field.flatMap(MessageField::presence).stream(),
+              field.flatMap(MessageField::oneof).map(OneofMember::caseGetter).stream())
+          .flatMap(Function.identity());
+    }
   }
 
   /**
@@ -475,6 +518,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      */
     CodeBlock write(String receiver, CodeBlock value);
 
+    /** The methods the write calls, on {@code bean} or on the builder that writes it. */
+    Stream<ExecutableElement> calls(Elements elements, TypeElement bean);
+
     /**
      * {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. It keeps
      * the method as declared, so what its parameter says about {@code null} can be read. The
@@ -487,6 +533,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       @Override
       public CodeBlock write(String receiver, CodeBlock value) {
         return CodeBlock.of("$L.$L($L)", receiver, method.getSimpleName(), value);
+      }
+
+      @Override
+      public Stream<ExecutableElement> calls(Elements elements, TypeElement bean) {
+        return Stream.of(method);
       }
 
       /** The one parameter the write hands its value to. */
@@ -509,6 +560,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       public CodeBlock write(String receiver, CodeBlock value) {
         return CodeBlock.of("$L.$L($L)", receiver, method.getSimpleName(), value);
       }
+
+      @Override
+      public Stream<ExecutableElement> calls(Elements elements, TypeElement bean) {
+        return Stream.of(method);
+      }
     }
 
     /**
@@ -522,6 +578,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       public CodeBlock write(String receiver, CodeBlock value) {
         CodeBlock fill = CodeBlock.of("$L.$L().addAll($L)", receiver, getter, value);
         return nullable ? CodeBlock.of("if ($L.$L() != null) $L", receiver, getter, fill) : fill;
+      }
+
+      @Override
+      public Stream<ExecutableElement> calls(Elements elements, TypeElement bean) {
+        return ProcessorUtils.noArgMethodNamed(elements, bean, getter);
       }
     }
   }
@@ -543,6 +604,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     /** The closing statement that returns the built wire. */
     CodeBlock epilogue();
 
+    /** The constructor or methods the frame calls to create the target and finish it. */
+    Stream<ExecutableElement> calls(Elements elements, TypeElement bean);
+
     /**
      * Public no-args constructor plus per-property writes: {@code var w = new W(); w.setX(...);
      * return w;}. A property may write through a setter or, for a getter-only {@code List}, the
@@ -563,6 +627,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       @Override
       public CodeBlock epilogue() {
         return CodeBlock.builder().addStatement("return wire").build();
+      }
+
+      @Override
+      public Stream<ExecutableElement> calls(Elements elements, TypeElement bean) {
+        return ElementFilter.constructorsIn(bean.getEnclosedElements()).stream()
+            .filter(constructor -> constructor.getParameters().isEmpty());
       }
     }
 
@@ -587,6 +657,14 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       @Override
       public CodeBlock epilogue() {
         return CodeBlock.builder().addStatement("return b.$L()", buildMethod).build();
+      }
+
+      @Override
+      public Stream<ExecutableElement> calls(Elements elements, TypeElement bean) {
+        return Stream.concat(
+            ProcessorUtils.noArgMethodNamed(elements, bean, factory),
+            ProcessorUtils.noArgMethodNamed(
+                elements, (TypeElement) builderType.asElement(), buildMethod));
       }
     }
   }

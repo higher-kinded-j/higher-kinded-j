@@ -787,11 +787,12 @@ public final class CompletableFuturePath<A>
 
   /**
    * The exception {@link #recover(Function)} hands to its function. A {@link CompletionException}
-   * is unwrapped to its cause. Any other {@link Exception}, including cancellation, is returned as
-   * it is. An {@link Error} is wrapped in a {@link RuntimeException}.
+   * is unwrapped to its cause when it has one. Any other {@link Exception}, including cancellation,
+   * is returned as it is. An {@link Error} is wrapped in a {@link RuntimeException}.
    */
   private static Exception unwrapException(Throwable ex) {
-    Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+    Throwable cause =
+        ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
     if (cause instanceof Exception e) {
       return e;
     }
