@@ -5,10 +5,12 @@ package org.higherkindedj.hkt.effect.context;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.VTaskContextAssert.assertThatVTaskContext;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
@@ -406,6 +408,28 @@ class VTaskContextTest {
       Integer result = context.runOrElseGet(ex -> -1);
 
       assertThat(result).isEqualTo(-1);
+    }
+
+    @Test
+    @DisplayName("runOrElseGet() hands its handler a checked exception as thrown")
+    void runOrElseGetHandsTheHandlerTheCheckedException() {
+      IOException feedDown = new IOException("feed down");
+      VTaskContext<Integer> context =
+          VTaskContext.of(
+              () -> {
+                throw feedDown;
+              });
+      AtomicReference<Throwable> seen = new AtomicReference<>();
+
+      Integer result =
+          context.runOrElseGet(
+              error -> {
+                seen.set(error);
+                return -1;
+              });
+
+      assertThat(result).isEqualTo(-1);
+      assertThat(seen.get()).isSameAs(feedDown);
     }
 
     @Test

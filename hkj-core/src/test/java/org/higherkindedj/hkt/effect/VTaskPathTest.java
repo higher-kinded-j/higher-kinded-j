@@ -6,15 +6,20 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 import static org.higherkindedj.hkt.assertions.VTaskPathAssert.assertThatVTaskPath;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
@@ -172,7 +177,10 @@ class VTaskPathTest {
                 throw new Exception("checked error");
               });
 
-      assertThatVTaskPath(path).fails().withExceptionType(VTaskExecutionException.class);
+      assertThatThrownBy(path::unsafeRun)
+          .isInstanceOf(VTaskExecutionException.class)
+          .cause()
+          .hasMessage("checked error");
     }
 
     @Test
@@ -608,6 +616,185 @@ class VTaskPathTest {
           Path.vtaskPure(TEST_VALUE).handleErrorWith(ex -> Path.vtaskPure("fallback"));
 
       assertThatVTaskPath(path).succeeds().hasValue(TEST_VALUE);
+    }
+  }
+
+  @Nested
+  @DisplayName("A checked exception reaches each handler as the task threw it")
+  class CheckedExceptionTests {
+
+    private final IOException feedDown = new IOException("feed down");
+
+    private VTaskPath<String> failing() {
+      return Path.vtask(
+          () -> {
+            throw feedDown;
+          });
+    }
+
+    @Test
+    @DisplayName("runSafe(), asTry() and toTryPath() hold the exception, as run().runSafe() does")
+    void runSafeHoldsTheTasksOwnException() {
+      assertThat(failing().runSafe()).isEqualTo(Try.failure(feedDown));
+      assertThat(failing().asTry().unsafeRun()).isEqualTo(Try.failure(feedDown));
+      assertThat(failing().toTryPath().run()).isEqualTo(Try.failure(feedDown));
+      assertThat(failing().run().runSafe()).isEqualTo(Try.failure(feedDown));
+    }
+
+    @Test
+    @DisplayName("catching() maps the exception itself, after via() and then() too")
+    void catchingMapsTheTasksOwnException() {
+      assertThat(failing().catching(error -> error).unsafeRun()).isEqualTo(Either.left(feedDown));
+      assertThat(
+              Path.vtaskPure("order")
+                  .via(order -> failing())
+                  .via(quote -> Path.vtaskPure(quote + "!"))
+                  .catching(error -> error)
+                  .unsafeRun())
+          .isEqualTo(Either.left(feedDown));
+      assertThat(Path.vtaskExec(() -> {}).then(this::failing).catching(error -> error).unsafeRun())
+          .isEqualTo(Either.left(feedDown));
+      assertThat(failing().then(() -> Path.vtaskPure("next")).runSafe())
+          .isEqualTo(Try.failure(feedDown));
+    }
+
+    @Test
+    @DisplayName("handleError() after via() receives the exception itself")
+    void handleErrorAfterViaReceivesTheTasksOwnException() {
+      VTaskPath<String> recovered =
+          failing()
+              .via(quote -> Path.vtaskPure(quote + "!"))
+              .handleError(error -> error == feedDown ? "the same exception" : "a wrapper");
+
+      assertThat(recovered.unsafeRun()).isEqualTo("the same exception");
+    }
+
+    @Test
+    @DisplayName("guarantee() runs its finaliser and passes the exception on as thrown")
+    void guaranteePassesTheTasksOwnExceptionOn() {
+      AtomicInteger finalised = new AtomicInteger();
+
+      assertThat(failing().guarantee(finalised::incrementAndGet).runSafe())
+          .isEqualTo(Try.failure(feedDown));
+      assertThat(finalised).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("unsafeRun() still wraps it, since it cannot throw a checked exception")
+    void unsafeRunStillWrapsIt() {
+      assertThatThrownBy(failing().via(quote -> Path.vtaskPure(quote + "!"))::unsafeRun)
+          .isInstanceOf(VTaskExecutionException.class)
+          .cause()
+          .isSameAs(feedDown);
+    }
+
+    @Test
+    @DisplayName("runSafe() lets an Error propagate, as Effectful's runSafe does")
+    void runSafeLetsAnErrorPropagate() {
+      VTaskPath<String> path =
+          Path.vtask(
+              () -> {
+                throw new OutOfMemoryError("test error");
+              });
+
+      assertThatThrownBy(path::runSafe).isInstanceOf(OutOfMemoryError.class);
+    }
+
+    @Test
+    @DisplayName("catching() and runSafe() keep an interrupt, setting the interrupt status again")
+    void catchingAndRunSafeKeepAnInterrupt() {
+      InterruptedException stopped = new InterruptedException("stopped");
+      VTaskPath<String> interrupted =
+          Path.vtask(
+              () -> {
+                throw stopped;
+              });
+      try {
+        assertThat(interrupted.catching(error -> error).unsafeRun())
+            .isEqualTo(Either.left(stopped));
+        assertThat(Thread.interrupted()).isTrue();
+        assertThat(interrupted.runSafe()).isEqualTo(Try.failure(stopped));
+        assertThat(Thread.interrupted()).isTrue();
+      } finally {
+        Thread.interrupted(); // leave the test thread's interrupt status clear
+      }
+    }
+
+    @Test
+    @DisplayName("an interrupt through via(), then() or guarantee() keeps the status for a handler")
+    void anInterruptThroughAStepKeepsTheStatus() {
+      VTaskPath<String> interrupted =
+          Path.vtask(
+              () -> {
+                throw new InterruptedException("stopped");
+              });
+      List<VTaskPath<String>> steps =
+          List.of(
+              interrupted.via(value -> Path.vtaskPure(value + "!")),
+              Path.vtaskExec(() -> {}).then(() -> interrupted),
+              interrupted.guarantee(() -> {}));
+      try {
+        for (VTaskPath<String> step : steps) {
+          assertThat(step.handleError(error -> "recovered").unsafeRun()).isEqualTo("recovered");
+          assertThat(Thread.interrupted()).isTrue();
+        }
+      } finally {
+        Thread.interrupted(); // leave the test thread's interrupt status clear
+      }
+    }
+
+    @Test
+    @DisplayName("guarantee() suppresses a failing finaliser onto the task's own exception")
+    void guaranteeSuppressesOntoTheTasksOwnException() {
+      IllegalStateException finaliserFailed = new IllegalStateException("finaliser failed");
+      VTaskPath<String> guarded =
+          failing()
+              .guarantee(
+                  () -> {
+                    throw finaliserFailed;
+                  });
+
+      assertThat(guarded.runSafe()).isEqualTo(Try.failure(feedDown));
+      assertThat(feedDown.getSuppressed()).containsExactly(finaliserFailed);
+      assertThatThrownBy(guarded::unsafeRun)
+          .isInstanceOf(VTaskExecutionException.class)
+          .cause()
+          .isSameAs(feedDown);
+    }
+
+    @Test
+    @DisplayName("withRetry() after via() retries on the checked exception it is told to")
+    void withRetryAfterViaRetriesOnTheCheckedException() {
+      AtomicInteger attempts = new AtomicInteger();
+      VTaskPath<String> flaky =
+          Path.vtaskPure("order")
+              .via(
+                  order ->
+                      Path.vtask(
+                          () -> {
+                            attempts.incrementAndGet();
+                            throw new IOException("feed down");
+                          }));
+
+      Try<String> outcome =
+          flaky
+              .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(1)).retryOn(IOException.class))
+              .runSafe();
+
+      assertThat(outcome.isFailure()).isTrue();
+      assertThat(attempts).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("runAsync() and run().runSafe() after via() carry the exception itself")
+    void runAsyncAfterViaCarriesTheException() {
+      VTaskPath<String> chained = failing().via(quote -> Path.vtaskPure(quote + "!"));
+
+      assertThatThrownBy(() -> chained.runAsync().join())
+          .isInstanceOf(CompletionException.class)
+          .cause()
+          .isSameAs(feedDown);
+      assertThat(chained.run().runSafe()).isEqualTo(Try.failure(feedDown));
     }
   }
 
@@ -1150,8 +1337,8 @@ class VTaskPathTest {
                   })
               .withTimeout(Duration.ofMillis(50));
       try {
-        // Observe through the underlying VTask: runSafe preserves the checked TimeoutException
-        // (the path-level runSafe wraps it in VTaskExecutionException per VTask.run()).
+        // Both runSafe()s hold the checked TimeoutException itself
+        assertThatVTaskPath(stuck).fails().withExceptionType(TimeoutException.class);
         assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
       } finally {
         never.countDown(); // unblock the losing computation - withTimeout does not interrupt it

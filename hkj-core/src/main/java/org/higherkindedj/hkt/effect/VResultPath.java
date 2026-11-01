@@ -37,11 +37,10 @@ import org.higherkindedj.hkt.vtask.VTask;
  * A fluent path wrapper for asynchronous computations that may fail with a typed, domain error.
  *
  * <p>{@code VResultPath} represents the stacked shape {@code VTask<Either<E, A>>}: deferred work
- * that executes on a virtual thread and completes with either a success value ({@code Right}) or a
- * typed failure ({@code Left}). It reads as "an {@link EitherPath} that happens to be
- * asynchronous", providing the same vocabulary ({@code map}/{@code via} on the success channel,
- * {@code mapError}/{@code recover} on the error channel) without any {@code Kind} or transformer
- * ceremony surfacing.
+ * that may block, and completes with either a success value ({@code Right}) or a typed failure
+ * ({@code Left}). It reads as "an {@link EitherPath} that happens to be asynchronous", providing
+ * the same vocabulary ({@code map}/{@code via} on the success channel, {@code mapError}/{@code
+ * recover} on the error channel) without any {@code Kind} or transformer ceremony surfacing.
  *
  * <p><b>Note on the name:</b> there is no {@code Result} type in higher-kinded-j — the carrier is
  * {@link Either}{@code <E, A>}. The name describes the shape: an asynchronous <i>result</i> that is

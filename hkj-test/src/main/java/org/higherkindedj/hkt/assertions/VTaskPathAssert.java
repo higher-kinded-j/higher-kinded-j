@@ -16,8 +16,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Custom AssertJ assertions for {@link VTaskPath} instances.
  *
- * <p>Since VTaskPath represents a lazy computation that executes on virtual threads, these
- * assertions execute the path once on first use and cache the result for subsequent assertions.
+ * <p>Since VTaskPath represents a lazy computation, these assertions execute the path once, through
+ * {@link VTaskPath#runSafe()}, on first use and cache the result for subsequent assertions. A
+ * failure is the exception the computation threw, a checked one included.
  *
  * <h2>Usage Examples:</h2>
  *

@@ -30,15 +30,27 @@ import org.jspecify.annotations.Nullable;
 /**
  * A fluent path wrapper for {@link VTask} values.
  *
- * <p>{@code VTaskPath} provides a chainable API for composing deferred computations that execute on
- * Java virtual threads. It implements {@link Effectful} to provide methods for executing the
- * deferred computation.
+ * <p>{@code VTaskPath} provides a chainable API for composing deferred computations, which may
+ * block or throw checked exceptions. It implements {@link Effectful} to provide methods for
+ * executing the deferred computation.
  *
  * <h2>Virtual Threads</h2>
  *
- * <p>VTaskPath leverages Java's virtual threads for lightweight concurrency. Virtual threads are
- * managed by the JVM and can scale to millions of concurrent tasks with minimal memory overhead.
- * This makes VTaskPath ideal for I/O-bound workloads.
+ * <p>{@link #unsafeRun()} and {@link #runSafe()} run the computation on the calling thread, as
+ * {@link VTask#run()} does. {@link #runAsync()} runs it on a new virtual thread, and {@link
+ * #zipWith}, {@link #zipWith3}, {@link #parZipWith} and {@link #race} run their paths on virtual
+ * threads, at the same time. Virtual threads are managed by the JVM and can scale to millions of
+ * concurrent tasks with minimal memory overhead, which suits I/O-bound workloads.
+ *
+ * <h2>Failures</h2>
+ *
+ * <p>Every operation that observes a failure, such as {@link #handleError}, {@link #catching},
+ * {@link #runSafe()} or {@link #toTryPath()}, sees the exception the computation threw, a checked
+ * one included. Only {@link #unsafeRun()}, which cannot throw a checked exception, wraps one in a
+ * {@link org.higherkindedj.hkt.vtask.VTaskExecutionException}, and so does the {@code IOPath} that
+ * {@link #toIOPath()} gives, since an {@code IO} cannot throw one either. An {@link
+ * InterruptedException} sets the thread's interrupt status again as it passes each step, so a
+ * handler that recovers from it does not lose the cancellation.
  *
  * <h2>Creating VTaskPath instances</h2>
  *
@@ -83,9 +95,10 @@ import org.jspecify.annotations.Nullable;
  * key differences are:
  *
  * <ul>
- *   <li>{@code VTaskPath} executes on virtual threads, enabling massive concurrency
+ *   <li>{@code VTaskPath}'s {@code zipWith} runs both paths at the same time on virtual threads,
+ *       and {@code IOPath}'s one after another
  *   <li>{@code VTaskPath} provides parallel combinators via {@link org.higherkindedj.hkt.vtask.Par}
- *   <li>{@code IOPath} uses the calling thread for execution
+ *   <li>{@code VTaskPath}'s computation may throw a checked exception, and {@code IOPath}'s may not
  * </ul>
  *
  * @param <A> the type of the value produced by the computation
@@ -105,10 +118,30 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
 
   // ===== Effectful implementation =====
 
+  /**
+   * Runs the computation on the calling thread, blocking until it completes.
+   *
+   * <p>An unchecked exception is thrown as it is. A checked exception is wrapped in a {@link
+   * org.higherkindedj.hkt.vtask.VTaskExecutionException}, as {@link VTask#run()} wraps one.
+   *
+   * @return the computation's result
+   */
   @Override
   A unsafeRun();
 
-  // runSafe() uses the default implementation from Effectful interface
+  /**
+   * Runs the computation on the calling thread, holding its failure in a {@code Try}.
+   *
+   * <p>The failure is the exception the computation threw, a checked one included, as {@code
+   * run().runSafe()} holds it. An {@link InterruptedException} sets the interrupt status again. An
+   * {@link Error} propagates, as {@link Effectful#runSafe()} lets it. A {@code Success} always
+   * holds a value, so a computation that returns null gives a {@code Failure} holding a {@link
+   * NullPointerException}.
+   *
+   * @return a {@code Try} holding the result or the exception
+   */
+  @Override
+  Try<A> runSafe();
 
   /**
    * Executes this VTaskPath asynchronously on a virtual thread.
@@ -302,13 +335,12 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    *
    * <p>Two caveats inherited from {@link org.higherkindedj.hkt.vtask.VTask#timeout}: the losing
    * computation is <em>not</em> interrupted, and a {@code TimeoutException} thrown inside the
-   * computation is indistinguishable from the budget expiring. Note the observation channel: {@code
-   * run().runSafe()} preserves the checked {@code TimeoutException}, while the path-level {@code
-   * unsafeRun()}/{@code runSafe()} wrap it per {@code VTask.run()} conventions. An interrupt of the
-   * caller is passed on to the computation, and the {@code InterruptedException} surfaces once it
-   * stops, or the budget runs out: as thrown from {@code run()}, held by {@code run().runSafe()},
-   * and wrapped by the path-level {@code unsafeRun()}/{@code runSafe()}. Each of the last three
-   * sets the interrupt status.
+   * computation is indistinguishable from the budget expiring. {@code runSafe()} and {@code
+   * run().runSafe()} hold the checked {@code TimeoutException} itself, while {@code unsafeRun()}
+   * wraps it per {@code VTask.run()} conventions. An interrupt of the caller is passed on to the
+   * computation, and the {@code InterruptedException} surfaces once it stops, or the budget runs
+   * out: as thrown from {@code run()}, held by {@code runSafe()} and {@code run().runSafe()}, and
+   * wrapped by {@code unsafeRun()}. Each of the last three sets the interrupt status.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget
@@ -338,8 +370,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * Wraps the result in an Either, catching exceptions.
    *
    * <p>Success produces {@code Either.right(value)}; failure produces {@code Either.left(mapped)}.
-   * A Right always holds a value, so a task that returns null is treated as a failure: the mapper
-   * sees a {@link NullPointerException}.
+   * The mapper sees the exception the task threw, a checked one included, and an {@link
+   * InterruptedException} sets the interrupt status again. A Right always holds a value, so a task
+   * that returns null is treated as a failure: the mapper sees a {@link NullPointerException}.
    *
    * @param exceptionMapper function to map exceptions to the left type; must not be null, and must
    *     not return null; a null result fails the path with a NullPointerException when it runs
@@ -360,7 +393,8 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * Wraps the result in a Try. A Success always holds a value, so a task that returns null gives a
    * Failure holding a {@link NullPointerException}.
    *
-   * @return a new VTaskPath that always succeeds with a Try
+   * @return a new VTaskPath that succeeds with a Try, unless an {@link Error} propagates, as {@link
+   *     #runSafe()} lets it
    */
   VTaskPath<Try<A>> asTry();
 
@@ -381,8 +415,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    *
    * <p>If this task fails and the finaliser throws too, the task's exception is the one thrown,
    * with the finaliser's suppressed onto it; if only the finaliser throws, its exception is thrown.
-   * The finaliser runs with the thread's interrupt status cleared, whether the task failed or
-   * succeeded, and the status is restored afterwards.
+   * {@link #unsafeRun()} wraps a checked exception, so there the finaliser's is suppressed onto the
+   * wrapper's cause. The finaliser runs with the thread's interrupt status cleared, whether the
+   * task failed or succeeded, and the status is restored afterwards.
    *
    * @param finalizer the finaliser to run; must not be null
    * @return a new VTaskPath with guaranteed finalisation
@@ -436,11 +471,11 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * <ul>
    *   <li>Integrate VTask-based code with existing IOPath pipelines
    *   <li>Use IOPath-specific features like {@code bracket} or {@code withResource}
-   *   <li>Execute VTask computations on the calling thread instead of a virtual thread
    * </ul>
    *
-   * <p><b>Note:</b> Unlike VTask which executes on virtual threads, the resulting IOPath will
-   * execute on whatever thread calls {@code unsafeRun()}.
+   * <p><b>Note:</b> an {@code IO} cannot throw a checked exception, so one that the computation
+   * throws reaches the IOPath wrapped in a {@link
+   * org.higherkindedj.hkt.vtask.VTaskExecutionException}.
    *
    * <p>Example:
    *

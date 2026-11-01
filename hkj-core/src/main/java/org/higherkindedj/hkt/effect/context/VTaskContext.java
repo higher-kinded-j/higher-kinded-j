@@ -18,7 +18,8 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
- * Effect context for computations that execute on virtual threads.
+ * Effect context for deferred computations that may block, run alone or at the same time as others
+ * on virtual threads.
  *
  * <p>VTaskContext provides a user-friendly Layer 2 API for working with {@link VTaskPath}. It wraps
  * VTask computations with convenient factory methods and chainable operations, hiding the
@@ -27,7 +28,8 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <h2>Key Features</h2>
  *
  * <ul>
- *   <li><b>Virtual Thread Execution:</b> Computations run on lightweight virtual threads
+ *   <li><b>Virtual Thread Execution:</b> {@link #runAsync()} runs a computation on a lightweight
+ *       virtual thread; {@link #run()} and the other run methods use the calling thread
  *   <li><b>Lazy Evaluation:</b> Computations are deferred until explicitly executed
  *   <li><b>Error Recovery:</b> Built-in error handling with {@link #recover} and {@link
  *       #recoverWith}
@@ -379,7 +381,8 @@ public final class VTaskContext<A> {
   /**
    * Executes the computation and returns the result, throwing on failure.
    *
-   * <p>If the computation fails, the exception is wrapped in a RuntimeException and thrown.
+   * <p>An unchecked exception is thrown as it is, and a checked one wrapped in a {@link
+   * org.higherkindedj.hkt.vtask.VTaskExecutionException}, as {@link VTask#run()} wraps one.
    *
    * @return the success value
    * @throws RuntimeException if the computation fails
@@ -407,6 +410,8 @@ public final class VTaskContext<A> {
   /**
    * Executes the computation and returns the result, or applies a handler on failure.
    *
+   * <p>The handler receives the exception the computation threw, a checked one included.
+   *
    * @param errorHandler the function to apply to the error to produce a value; must not be null,
    *     and must not return null
    * @return the success value or the result of the error handler
@@ -414,11 +419,12 @@ public final class VTaskContext<A> {
    */
   public A runOrElseGet(Function<? super Throwable, ? extends A> errorHandler) {
     Objects.requireNonNull(errorHandler, "errorHandler must not be null");
-    try {
-      return path.unsafeRun();
-    } catch (Exception e) {
-      return Objects.requireNonNull(errorHandler.apply(e), "errorHandler must not return null");
-    }
+    return path.runSafe()
+        .foldFailureFirst(
+            error ->
+                Objects.requireNonNull(
+                    errorHandler.apply(error), "errorHandler must not return null"),
+            value -> value);
   }
 
   // ===== Access to Underlying Path =====

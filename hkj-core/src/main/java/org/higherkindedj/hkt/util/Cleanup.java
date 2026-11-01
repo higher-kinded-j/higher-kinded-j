@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.util;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -54,6 +53,24 @@ public final class Cleanup {
   }
 
   /**
+   * Work that gives a value, and may throw a checked exception, as a {@code VTask} step may.
+   *
+   * @param <A> the type of the work's result
+   * @param <X> the type of exception the work may throw
+   */
+  @FunctionalInterface
+  public interface Work<A extends @Nullable Object, X extends Throwable> {
+
+    /**
+     * Runs the work.
+     *
+     * @return the work's result
+     * @throws X if the work fails
+     */
+    A get() throws X;
+  }
+
+  /**
    * Runs {@code work}, then {@code cleanup}, whether the work succeeded or failed. If the work
    * fails, its failure is rethrown once the cleanup has run, with anything the cleanup throws
    * suppressed onto it. If the work succeeds, a failure of the cleanup is the one thrown. Either
@@ -62,10 +79,12 @@ public final class Cleanup {
    * @param work the work to run
    * @param cleanup the cleanup to run after it
    * @param <A> the type of the work's result
+   * @param <X> the type of exception the work may throw
    * @return the work's result
+   * @throws X what the work throws
    */
-  public static <A extends @Nullable Object> A guarantee(
-      Supplier<? extends A> work, Runnable cleanup) {
+  public static <A extends @Nullable Object, X extends Throwable> A guarantee(
+      Work<? extends A, X> work, Runnable cleanup) throws X {
     A result;
     try {
       result = work.get();
