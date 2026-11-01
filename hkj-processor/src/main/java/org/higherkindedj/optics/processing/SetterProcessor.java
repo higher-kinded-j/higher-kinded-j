@@ -154,7 +154,8 @@ public class SetterProcessor extends AbstractProcessor {
                 recordTypeName,
                 componentTypeName.box())
             // The setter type and the record's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(setterTypeName);
 
@@ -202,7 +203,8 @@ public class SetterProcessor extends AbstractProcessor {
                 parameterName,
                 componentName,
                 recordTypeName)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(recordTypeName)
             .addParameter(recordTypeName, "source")

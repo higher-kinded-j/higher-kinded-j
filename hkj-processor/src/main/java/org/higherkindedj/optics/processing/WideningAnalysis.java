@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
@@ -23,6 +25,7 @@ import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.OpticExpressionResolver;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -724,9 +727,21 @@ public final class WideningAnalysis {
    */
   public static List<AnnotationSpec> warningSuppression(
       RecordComponentElement component, TypeElement record, List<Step> steps) {
-    return ProcessorUtils.warningSuppression(
-        ProcessorUtils.namesRawType(component.asType(), record),
-        steps.stream().anyMatch(step -> step.undenotableContainer() != null));
+    List<TypeMirror> written =
+        Stream.concat(
+                Stream.of(component.asType(), record.asType()),
+                record.getTypeParameters().stream()
+                    .flatMap(parameter -> parameter.getBounds().stream()))
+            .toList();
+    return ProcessorUtils.suppression(
+        Stream.of(
+                ProcessorUtils.rawTypesOf(written).stream(),
+                ProcessorUtils.deprecationNamedBy(written),
+                steps.stream().anyMatch(step -> step.undenotableContainer() != null)
+                    ? Stream.of(Lint.UNCHECKED)
+                    : Stream.<Lint>empty())
+            .flatMap(Function.identity())
+            .toList());
   }
 
   /** A widening through one of the stock {@code Affines} or {@code EachInstances} factories. */

@@ -618,6 +618,87 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The one {@code @SuppressWarnings} a generated optic member carries for the types it writes out
+   * or infers: {@code rawtypes} as {@link #rawTypesSuppression(List)} describes, and {@code
+   * deprecation} or {@code removal} when {@link #typesNamedBy} finds a deprecated class among them.
+   *
+   * <p>The deprecation is the author's, as a raw type is: they chose the deprecated container or
+   * element type by declaring the component, where javac reports it to them and their own
+   * suppression answers for it. The generated file is a compilation unit of its own, which that
+   * suppression does not reach, so a member naming the type answers for it itself. Deprecation is
+   * read from the {@code @Deprecated} annotation; a class deprecated only by a javadoc tag is not
+   * found.
+   *
+   * @param types the types the member may write out or infer; a wider set only widens where the
+   *     suppression lands; must not be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(List<? extends TypeMirror> types) {
+    return suppression(
+        Stream.concat(rawTypesOf(types).stream(), deprecationNamedBy(types)).toList());
+  }
+
+  /**
+   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
+   * also redeclares {@code owner}'s type parameters and names {@code owner} itself, so a raw or
+   * deprecated bound, or a deprecated {@code owner}, reaches it even where {@code written} names
+   * none.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param owner the type whose type parameters the member redeclares and which it names; must not
+   *     be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(
+      TypeMirror written, TypeElement owner) {
+    List<TypeMirror> redeclared = withBounds(written, owner.getTypeParameters());
+    return suppression(
+        Stream.concat(
+                rawTypesOf(redeclared).stream(),
+                deprecationNamedBy(
+                    Stream.concat(redeclared.stream(), Stream.of(owner.asType())).toList()))
+            .toList());
+  }
+
+  /**
+   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
+   * redeclares the given type parameters, bounds and all.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param redeclared the type parameters the member redeclares; must not be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(
+      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
+    return writtenTypesSuppression(withBounds(written, redeclared));
+  }
+
+  /**
+   * The deprecation categories raised by writing these types out: those of the deprecated classes
+   * {@link #typesNamedBy} finds, each once, in {@link Lint}'s order.
+   *
+   * @param types the types written out; must not be null
+   * @return the categories raised, as a stream
+   * @since 0.6.0
+   */
+  public static Stream<Lint> deprecationNamedBy(List<? extends TypeMirror> types) {
+    return types.stream()
+        .flatMap(ProcessorUtils::typesNamedBy)
+        .map(ProcessorUtils::deprecationOf)
+        .flatMap(Optional::stream)
+        .distinct();
+  }
+
+  /** The category using a class raises, or none for one that is not deprecated. */
+  private static Optional<Lint> deprecationOf(Element element) {
+    return Optional.ofNullable(element.getAnnotation(Deprecated.class))
+        .map(deprecated -> deprecated.forRemoval() ? Lint.REMOVAL : Lint.DEPRECATION);
+  }
+
+  /**
    * The classes and interfaces generated code names when it writes a type out: the type's own, its
    * type arguments', a wildcard's bound's and an array's component's, and every class each is
    * nested in, since a qualified name such as {@code Api.PersonV1Dto} names {@code Api} as well.
