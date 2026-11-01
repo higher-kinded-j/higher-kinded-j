@@ -782,11 +782,7 @@ public final class CompletableFuturePath<A>
    * given that cause, so this returns it. Any other throwable is returned as it is.
    */
   private static Throwable withoutJoinCancellation(Throwable thrown) {
-    if (thrown instanceof CancellationException cancelled
-        && cancelled.getCause() instanceof Exception cause) {
-      return cause;
-    }
-    return thrown;
+    return thrown instanceof CancellationException cancelled ? cancelled.getCause() : thrown;
   }
 
   /**

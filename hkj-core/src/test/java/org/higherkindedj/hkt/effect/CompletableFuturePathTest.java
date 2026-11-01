@@ -939,6 +939,19 @@ class CompletableFuturePathTest {
       Throwable failure = result.foldFailureFirst(cause -> cause, value -> null);
       assertThat(failure).isSameAs(error);
     }
+
+    @Test
+    @DisplayName("toTryPath() keeps a CompletionException that has no cause")
+    void toTryPathKeepsACauselessCompletionException() {
+      CompletionException causeless = new CompletionException("no cause", null);
+      CompletableFuture<String> future = new CompletableFuture<>();
+      future.completeExceptionally(causeless);
+
+      TryPath<String> result = CompletableFuturePath.fromFuture(future).toTryPath();
+
+      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      assertThat(failure).isSameAs(causeless);
+    }
   }
 
   @Nested
