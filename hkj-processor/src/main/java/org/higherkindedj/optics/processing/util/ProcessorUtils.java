@@ -481,7 +481,7 @@ public final class ProcessorUtils {
    * for one, casts an instance typed for a container's element to the raw or wildcard {@code
    * Optional}, {@code Maybe}, {@code List}, {@code Set}, {@code Collection} or {@code Kind} a
    * component declares: reading through it gives that element, and writing builds a new container
-   * that the declaration admits. {@link #warningSuppression} merges that {@code unchecked} with any
+   * that the declaration admits. {@code @GenerateFocus} merges that {@code unchecked} with any
    * {@code rawtypes} the member needs. A generator may also refuse for a reason of its own:
    * {@code @PathVia} refuses a raw type in a bridged signature because the bridge builds its Path
    * from the effect's type arguments, while answering for a raw bound on its class.
@@ -522,39 +522,6 @@ public final class ProcessorUtils {
    */
   public static boolean namesRawType(List<? extends TypeMirror> types) {
     return types.stream().anyMatch(type -> firstRawIn(type) != null);
-  }
-
-  /**
-   * Whether a member generated around a type that redeclares {@code owner}'s type parameters names
-   * a raw type, in the type or in one of those bounds.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param owner the type whose type parameters the member redeclares; must not be null
-   * @return true when the type or one of those bounds names a raw type
-   * @since 0.5.0
-   */
-  public static boolean namesRawType(TypeMirror written, TypeElement owner) {
-    return namesRawType(withBounds(written, owner.getTypeParameters()));
-  }
-
-  /**
-   * The one {@code @SuppressWarnings} a generated member carries: {@code rawtypes} for a raw type
-   * it restates, as {@link #rawTypesSuppression(List)} describes, and {@code unchecked} for a cast
-   * of its own that its generator answers for. A declaration takes one {@code SuppressWarnings}, so
-   * a member needing both carries them as one array, written the way an author would write it.
-   *
-   * @param rawTypes whether the member restates a raw type
-   * @param unchecked whether the member writes such a cast
-   * @return the suppression, or no annotations when neither applies
-   * @since 0.5.0
-   */
-  public static List<AnnotationSpec> warningSuppression(boolean rawTypes, boolean unchecked) {
-    return suppression(
-        Stream.of(
-                Optional.of(Lint.RAWTYPES).filter(_ -> rawTypes),
-                Optional.of(Lint.UNCHECKED).filter(_ -> unchecked))
-            .flatMap(Optional::stream)
-            .toList());
   }
 
   /**
@@ -845,42 +812,6 @@ public final class ProcessorUtils {
         Objects::nonNull,
         current ->
             current.getEnclosingElement() instanceof TypeElement enclosing ? enclosing : null);
-  }
-
-  /**
-   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
-   * {@code owner}'s type parameters as well as naming a type of its own: it writes those bounds out
-   * too, so a raw bound reaches it even where the type it is generated around names none.
-   *
-   * <p>Callers pass the type the member is generated around, not the one it finally writes. Which
-   * of the two a generator emits, a component or the element it widens to, is that generator's
-   * detail, and asking the wider question only widens where the suppression lands.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param owner the type whose type parameters the member redeclares; must not be null
-   * @return the suppression when the type or one of those bounds names a raw type, else no
-   *     annotations
-   * @since 0.4.11
-   */
-  public static List<AnnotationSpec> rawTypesSuppression(TypeMirror written, TypeElement owner) {
-    return rawTypesSuppression(written, owner.getTypeParameters());
-  }
-
-  /**
-   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
-   * the given type parameters as well as naming a type of its own. It serves a member that
-   * redeclares more than one type's parameters, such as those {@link #typeParametersInScope}
-   * returns.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param redeclared the type parameters the member redeclares, bounds and all; must not be null
-   * @return the suppression when the type or one of those bounds names a raw type, else no
-   *     annotations
-   * @since 0.4.11
-   */
-  public static List<AnnotationSpec> rawTypesSuppression(
-      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
-    return rawTypesSuppression(withBounds(written, redeclared));
   }
 
   /** A type with the bounds of the type parameters a member redeclares beside it. */
