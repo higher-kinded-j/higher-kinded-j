@@ -96,7 +96,8 @@ public interface Monoid<A> extends Semigroup<A> {
   /**
    * Combines a value with itself {@code n} times using this Monoid's combine operation.
    *
-   * <p>If {@code n} is 0, returns the empty value. If {@code n} is 1, returns the value itself.
+   * <p>If {@code n} is 0, returns the empty value. If {@code n} is 1, returns a value equal to
+   * {@code value}.
    *
    * @param value The value to combine (non-null).
    * @param n The number of times to combine (must be non-negative).
@@ -116,8 +117,10 @@ public interface Monoid<A> extends Semigroup<A> {
       if ((k & 1) == 1) { // if k is odd
         result = combine(result, current);
       }
-      current = combine(current, current);
       k >>= 1; // k = k / 2
+      if (k > 0) { // a further doubling would be unused once no bits remain
+        current = combine(current, current);
+      }
     }
     return result;
   }

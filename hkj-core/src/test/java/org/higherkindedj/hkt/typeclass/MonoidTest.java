@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BinaryOperator;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
@@ -223,6 +224,37 @@ class MonoidTest {
       Double result = doubleMultiplication.combineN(2.0, 3);
 
       assertThat(result).isEqualTo(8.0); // 2.0 * 2.0 * 2.0
+    }
+
+    @Test
+    @DisplayName("should double only while a bit of n remains")
+    void shouldNotDoubleAfterTheLastBit() {
+      AtomicInteger calls = new AtomicInteger();
+      Monoid<Integer> counting =
+          Monoid.of(
+              0,
+              (left, right) -> {
+                calls.incrementAndGet();
+                return left + right;
+              });
+
+      assertCombineCount(counting, calls, 1, 5, 1);
+      assertCombineCount(counting, calls, 2, 10, 2);
+      assertCombineCount(counting, calls, 3, 15, 3);
+      assertCombineCount(counting, calls, 4, 20, 3);
+      assertCombineCount(counting, calls, 8, 40, 4);
+    }
+
+    private static void assertCombineCount(
+        Monoid<Integer> counting,
+        AtomicInteger calls,
+        int n,
+        int expectedResult,
+        int expectedCalls) {
+      calls.set(0);
+
+      assertThat(counting.combineN(5, n)).as("combineN(5, %d)", n).isEqualTo(expectedResult);
+      assertThat(calls.get()).as("combine calls for n = %d", n).isEqualTo(expectedCalls);
     }
   }
 
