@@ -1,457 +1,225 @@
-# The VTask Effect:
-## _Virtual Thread-Based Concurrency_
+<!-- description: Run blocking Java work on virtual threads with VTask: compose it on a VTaskPath, run lookups at the same time with Par, and keep typed errors on VResultPath. -->
+
+# VTask: Deferred Tasks and Virtual Threads
+
+_Describe work that may block, then run it when you choose, alone or alongside other work._
+
+<!-- source: Rob Pike, "Concurrency is not Parallelism", a talk at Heroku's Waza conference, 11 January 2012; slide text checked against go.dev/talks/2012/waza.slide -->
+> _"Concurrency is about dealing with lots of things at once. Parallelism is about doing lots of things at once."_
+>
+> — Rob Pike, *Concurrency is not Parallelism*
+
+A `VTask` is built for the dealing. `Par` and `Scope` can keep thousands of tasks waiting on replies at once, each on a virtual thread, while only as many run at any moment as the machine has cores.
+
+~~~admonish abstract title="VTask at a glance"
+| | |
+|---|---|
+| **Models** | Work that may block or fail, described now and run when you choose, alone or at the same time as other work |
+| **Replaces** | A `Callable` submitted to an `ExecutorService`, and the `Future` you wait on |
+| **Effect Path** | [`VTaskPath`](../effect/path_vtask.md), and [`VResultPath`](../effect/path_vresult.md) for a typed error |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:vtask_monad}}
+| **Choose it when** | The work throws a checked exception, or should run at the same time as other work; otherwise [IO](io_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How VTask enables lightweight concurrent programming with virtual threads
-- Building lazy, composable concurrent computations
-- Using `run()`, `runSafe()`, and `runAsync()` for task execution
-- Error handling and recovery with functional patterns
-- Parallel composition using the `Par` combinator utilities
+- Describe work that blocks or throws a checked exception, and run it when you choose
+- Run two lookups at the same time on a `VTaskPath`, and recover from one that fails
+- Keep a refusal the caller expects as a typed `Left`, not an exception, on a `VResultPath`
+- Say which thread runs a task, and what `run()`, `runSafe()` and `runAsync()` do with a failure
+- Use `VTask` in generic code through its `MonadError` instance
 ~~~
 
-~~~admonish warning title="Preview API Notice"
-VTask uses Java's **structured concurrency APIs** (JEP 505/525), which are currently in **preview** status. These APIs are stable and production-ready, but the underlying Java APIs may see minor changes before final release, expected in a near-future Java version.
-
-Higher-Kinded-J's `Scope`, `ScopeJoiner`, and `Resource` abstractions provide a buffer against such changes; your code uses HKJ's stable API whilst we handle any necessary adaptations to the underlying preview features.
+~~~admonish example title="See Example Code"
+**The code on this page is [VTaskBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java)**: the page includes it, so the build compiles and runs it. [VTaskBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vtask/VTaskBookTest.java) holds what the page says each method does.
 ~~~
 
-> *"Sometimes abstraction and encapsulation are at odds with performance (although not nearly as often as many developers believe), but it is always a good practice first to make your code right, and then make it fast."*
-> — **Brian Goetz**, *Java Concurrency in Practice*
+---
 
-## The Abstraction Tax
+## Describing work that may block {#describing-work-that-may-block}
 
-For two decades, Java developers have wrestled with an uncomfortable trade-off in concurrent programming. The clean abstractions that make code maintainable, encapsulating complexity behind simple interfaces and composing small pieces into larger wholes, seemed fundamentally at odds with the realities of thread-based concurrency. Platform threads are expensive: each consumes a megabyte or more of stack memory, and the operating system imposes hard limits on how many can exist simultaneously. This scarcity forced developers to abandon straightforward designs in favour of complex thread pool management, callback pyramids, and reactive streams that obscured business logic beneath infrastructure concerns.
+In plain Java, you run blocking work on another thread by submitting a `Callable` to an `ExecutorService`. With `Executors.newVirtualThreadPerTaskExecutor()`, each task gets a [virtual thread](https://openjdk.org/jeps/444) of its own, which costs little while it waits. The work starts as soon as you submit it, and `Future.get()` makes you catch `InterruptedException` and `ExecutionException`. A `VTask<A>` holds a `Callable` that nothing has run yet. You compose tasks first, and choose afterwards how to run them. `run()` runs a task on the calling thread, `runAsync()` on a virtual thread of its own, and `Par` at the same time as other tasks. A `Callable` may throw a checked exception, which the `Supplier` behind an [IO](io_monad.md) cannot.
 
-The result was a generation of concurrent code optimised for machines rather than humans. Developers learned to hoard threads jealously, to batch operations artificially, and to transform naturally sequential logic into convoluted state machines. The abstraction tax seemed unavoidable; you could have clean code or performant code, but not both.
-
-> *"Virtual threads are not faster threads: they are cheaper threads. This means that you can have a lot more of them, and that changes how you structure programs."*
-> — **Brian Goetz**, Java Language Architect at Oracle
-
-## A New Economics of Concurrency
-
-Java 21 introduced virtual threads through Project Loom, and Java 25 refined the model with structured concurrency. Virtual threads fundamentally alter the economics: managed by the JVM rather than the operating system, they consume mere kilobytes rather than megabytes. An application can spawn millions of virtual threads without exhausting resources. Suddenly, the "abstraction tax" evaporates. Developers can write code that is *both* right and fast, using straightforward, blocking-style code that the runtime multiplexes efficiently across a small pool of carrier threads.
-
-But cheaper threads alone do not solve the compositional problem: how do we build complex concurrent programs from smaller, reusable pieces while maintaining testability and referential transparency? This is where `VTask` enters the picture. Rather than executing effects immediately, `VTask` represents computations as *descriptions*: recipes that can be transformed, composed, and combined before execution. This separation of description from execution is the key insight that enables functional programming's approach to effects: we reason about what our program will do, compose smaller computations into larger ones, and defer execution until the boundary of our pure core.
-
-## Purpose
-
-The `VTask<A>` type in Higher-Kinded-J represents a lazy computation that, when executed, runs on a Java virtual thread and produces a value of type `A`. It is the primary effect type for virtual thread-based concurrency, bridging functional programming patterns with Java's modern concurrency primitives.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         VTask<A>                                │
-│                                                                 │
-│   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────┐   │
-│   │ describe │ -> │  compose │ -> │ transform│ -> │ execute │   │
-│   │  effect  │    │  effects │    │  results │    │   on    │   │
-│   │          │    │          │    │          │    │ virtual │   │
-│   │          │    │          │    │          │    │ thread  │   │
-│   └──────────┘    └──────────┘    └──────────┘    └─────────┘   │
-│                                                                 │
-│   Lazy                                     Deferred Execution   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Key Characteristics:**
-
-* **Laziness:** Effects are not executed upon creation. A `VTask` is a description of *what to do*, not an immediate action.
-* **Virtual Threads:** Computations execute on virtual threads, enabling millions of concurrent tasks with minimal memory overhead.
-* **Structured Concurrency:** Uses Java 25's `StructuredTaskScope` for proper cancellation and error propagation.
-* **Composability:** Operations chain seamlessly using `map`, `flatMap`, and parallel combinators.
-* **HKT Integration:** `VTask<A>` directly extends `VTaskKind<A>`, participating in Higher-Kinded-J's type class hierarchy.
-
-## Core Architecture
-
-```
-                    ┌─────────────────┐
-                    │   VTaskKind<A>  │  (HKT marker interface)
-                    │   Kind<W, A>    │
-                    └────────┬────────┘
-                             │ extends
-                             ▼
-                    ┌─────────────────┐
-                    │    VTask<A>     │  (functional interface)
-                    │   execute(): A  │
-                    └────────┬────────┘
-                             │
-           ┌─────────────────┼─────────────────┐
-           │                 │                 │
-           ▼                 ▼                 ▼
-    ┌────────────┐    ┌────────────┐    ┌────────────┐
-    │ VTaskMonad │    │VTaskFunctor│    │    Par     │
-    │  flatMap   │    │    map     │    │  parallel  │
-    │    of      │    │            │    │ combinators│
-    │ raiseError │    │            │    │            │
-    └────────────┘    └────────────┘    └────────────┘
-```
-
-The VTask ecosystem consists of:
-
-1. **`VTask<A>`**: The core functional interface. An `execute()` method describes the computation; execution methods (`run()`, `runSafe()`, `runAsync()`) actually perform it.
-
-2. **`VTaskKind<A>`**: The HKT marker interface enabling `VTask` to work with type classes like `Functor`, `Monad`, and `MonadError`.
-
-3. **`VTaskKindHelper`**: Utility for conversions between `VTask<A>` and `Kind<VTaskKind.Witness, A>`.
-
-4. **`VTaskMonad`**: Implements `MonadError<VTaskKind.Witness, Throwable>`, providing `map`, `flatMap`, `of`, `raiseError`, and `handleErrorWith`.
-
-5. **`Par`**: Static utilities for parallel execution using `StructuredTaskScope`.
-
-## How to Use `VTask<A>`
-
-~~~admonish title="Creating Instances"
-
-VTask provides several factory methods for creating computations:
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
+import java.io.IOException;
+import java.math.BigDecimal;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.VTaskPath;
+```
+
+Pricing an order in euros needs two lookups, the exchange rate and a courier's quote, and neither service is called until you run the task. Each call blocks until its service answers, and may throw an `IOException`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:services}}
+```
+
+## On a `VTaskPath` {#on-a-vtaskpath}
+
+Application code holds tasks on a `VTaskPath`. `Path.vtask` puts a `Callable` on one, `via` chains a step that needs the previous result, and `map` changes the value, as on every Path. `handleError` gives a value in place of a failure, here `CACHED_RATE`, a stored rate of 1.15 for when the rate service cannot answer. `parZipWith` runs two tasks at the same time and joins their results:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:path}}
+```
+
+~~~admonish warning title="A preview API"
+`parZipWith` runs its tasks through `Par`, which with [`Scope`](vtask_scope.md) and `ScopeJoiner` is built on Java 25's structured concurrency API, [JEP 505](https://openjdk.org/jeps/505), a preview feature. Their class files are marked as using it. Code that names `Par`, `Scope` or `ScopeJoiner` needs `--enable-preview` to compile and to run. Code that reaches them only through a Path, such as a `VTaskPath`'s `zipWith`, `zipWith3`, `parZipWith` or `race`, compiles without it and needs it when it runs. The [HKJ Gradle plugin](../tooling/gradle_plugin.md) adds it by default. The JDK's API may change in a later release; your code calls the library's types, not the JDK's.
+~~~
+
+`LIVE_RATES` and `RATES_DOWN` stand in for the rate service, answering 1.17 or failing. `COURIER` stands in for the courier, which quotes 7.99 and counts its quotes in `QUOTES`. `ORDER` is worth 92.50 in pounds, and `inEuros` adds the shipping and converts the sum, so the live rate gives (92.50 + 7.99) × 1.17 = 117.57:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:path_outcome}}
+```
+
+Building the path asks neither service. `unsafeRun()` waits on the calling thread while both lookups run. It is where the work happens, so call it once, at the edge of the application. Each run asks the services again. On a `VTaskPath`, `zipWith` runs both paths at once too, as `parZipWith` does.
+
+A `VTaskPath` also gives up waiting with `timeout(duration)`, and retries with `withRetry`, as [VTaskPath](../effect/path_vtask.md) shows. A task that times out is not interrupted: it keeps running, unobserved. To cancel it as well, fork it into a [`Scope`](vtask_scope.md) with a timeout.
+
+## A refusal as a value, on a `VResultPath` {#on-a-vresultpath}
+
+An exception suits a failure nobody plans for, such as a service that is down. A refusal the caller expects belongs in the result. A `VResultPath<E, A>` holds a `VTask<Either<E, A>>`, and works as an [EitherPath](../effect/path_either.md) whose steps may block: `via` stops at the first `Left`, and `recover` and `mapError` work on the error. The courier refuses to collect an order that has already shipped. These are the extra imports, with `OrderError`, the order service's refusals, from the [Either](either_monad.md#failure-as-a-value) page:
+
+<!-- verify -->
+```java
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.effect.VResultPath;
+import org.higherkindedj.hkt.either.Either;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:vresult}}
+```
+
+`SHIPPED` is `ORDER` once it has shipped. `run()` gives the `VTask`, and running that gives the `Either`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:vresult_outcome}}
+```
+
+`withTimeout(duration, onTimeout)` gives a typed `Left` when the time runs out, and, like a `VTaskPath`'s `timeout`, leaves the task running, so a booking can still complete after the caller has its `Left`. A `VResultPath`'s `zipWith` runs its paths one after another and stops at the first `Left`. To run typed work at the same time, see [VResultPath](../effect/path_vresult.md#outcome-aware-structured-concurrency).
+
+## Running a task {#running-a-task}
+
+`VTaskPath.run()` hands you the `VTask` inside, without running it. That `VTask` runs in one of three ways. Its `run()` runs it on the calling thread and waits. `runSafe()` does the same, and holds a failure in a [Try](try_monad.md); prefer it in code that handles failures as values. `runAsync()` starts it on a new virtual thread and returns a `CompletableFuture`. Running a task does not move it to a virtual thread: `main` runs on a platform thread, an ordinary thread the operating system schedules, and `run()` keeps the task there. Only `runAsync()`, `timeout`, `Par` and `Scope` move work to a virtual thread. These are the extra imports:
+
+<!-- verify -->
+```java
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
-
-// From a Callable - the primary way to capture effects
-VTask<String> fetchData = VTask.of(() -> httpClient.get("https://api.example.com"));
-
-// From a Supplier using delay
-VTask<Integer> randomValue = VTask.delay(() -> new Random().nextInt(100));
-
-// Immediate success (the "pure" operation)
-VTask<String> pureValue = VTask.succeed("Hello, VTask!");
-
-// Immediate failure
-VTask<String> failed = VTask.fail(new RuntimeException("Something went wrong"));
-
-// From a Runnable (returns Unit)
-VTask<Unit> logAction = VTask.exec(() -> System.out.println("Logging..."));
-
-// Marking blocking operations (documentation hint)
-VTask<byte[]> readFile = VTask.blocking(() -> Files.readAllBytes(path));
 ```
 
-**Important:** Creating a `VTask` does nothing. The computation is only executed when you call `run()`, `runSafe()`, or `runAsync()`.
-~~~
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:threads}}
+```
 
-~~~admonish title="Executing Tasks"
+On a failure, a `VTask`'s `runSafe()` holds the exception the task threw, a checked one included:
 
-VTask offers three execution methods:
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:failures}}
+```
+
+`run()` throws an unchecked exception as it is. It declares no checked exception, so it wraps a checked one in a `VTaskExecutionException`, whose `getCause()` gives the original. The future from `runAsync()` fails with the task's exception: `join()` throws it wrapped in a `CompletionException`, and `get()` in an `ExecutionException`.
+
+## Running tasks at the same time {#parallel-composition-with-par}
+
+`Par` runs tasks at the same time, each on a virtual thread of its own, and waits for them all. `map2` and `zip` join two tasks, and `all` a list of them. `traverse` runs the task a function gives for each item of a list. `race` keeps the first task to succeed and cancels the rest. `Par.all` is close to `ExecutorService.invokeAll`, and `race` to `invokeAny`. What `Par` adds is that when one task fails, `map2`, `zip`, `all` and `traverse` cancel the others and fail with its exception. `parZipWith` on a `VTaskPath` runs its two tasks through `Par.map2`. These are the extra imports:
 
 <!-- verify -->
 ```java
-VTask<Integer> computation = VTask.of(() -> 42);
-
-// 1. run() - throws on failure
-//    Checked exceptions are wrapped in VTaskExecutionException;
-//    RuntimeException and AppError are thrown directly.
-try {
-    Integer result = computation.run();
-    System.out.println("Result: " + result);
-} catch (VTaskExecutionException e) {
-    // Checked exception wrapped - original available via e.getCause()
-    System.err.println("Wrapped: " + e.getCause().getMessage());
-} catch (RuntimeException e) {
-    System.err.println("Failed: " + e.getMessage());
-}
-
-// 2. runSafe() - returns Try<A> for safe error handling
-Try<Integer> tryResult = computation.runSafe();
-tryResult.match(
-    value -> System.out.println("Success: " + value),
-    error -> System.err.println("Failure: " + error.getMessage())
-);
-
-// 3. runAsync() - returns CompletableFuture<A> for async composition
-CompletableFuture<Integer> future = computation.runAsync();
-future.thenAccept(value -> System.out.println("Async result: " + value));
-```
-
-The `runSafe()` method is preferred for most use cases as it captures failures in a `Try`, maintaining functional error handling.
-~~~
-
-~~~admonish title="Transforming Values (map)"
-
-Use `map` to transform the result without changing the effect structure:
-
-<!-- verify -->
-```java
-VTask<String> greeting = VTask.succeed("world");
-VTask<String> message = greeting.map(name -> "Hello, " + name + "!");
-// When run: "Hello, world!"
-
-VTask<Integer> length = message.map(String::length);
-// When run: 13
-```
-
-If the mapping function throws, the VTask fails with that exception.
-~~~
-
-~~~admonish title="Chaining Operations (flatMap)"
-
-Use `flatMap` to sequence dependent computations:
-
-<!-- verify -->
-```java
-VTask<User> fetchUser = VTask.of(() -> userService.getById(userId));
-VTask<Profile> fetchProfile = fetchUser.flatMap(user ->
-    VTask.of(() -> profileService.getForUser(user)));
-VTask<String> displayName = fetchProfile.flatMap(profile ->
-    VTask.succeed(profile.getDisplayName()));
-
-// All three operations execute in sequence when run
-String name = displayName.run();
-```
-
-The `via` method is an alias for `flatMap`:
-
-<!-- verify -->
-```java
-VTask<String> result = fetchUser
-    .via(user -> VTask.of(() -> profileService.getForUser(user)))
-    .via(profile -> VTask.succeed(profile.getDisplayName()));
-```
-~~~
-
----
-
-### A Task Always Gives a Value {#a-task-always-gives-a-value}
-
-A `VTask` that succeeds gives a value, never `null`. `VTask.succeed(null)` throws `NullPointerException` at the call. A callable, supplier, `map` function or recovery function that returns null fails the task when it runs, and the exception names that function, as in `callable must not return null`.
-
-<!-- verify -->
-```java
-// Nothing to return: give Unit.INSTANCE, as VTask.exec does
-VTask<Unit> logged = VTask.of(() -> {
-    System.out.println("Fetched " + userId);
-    return Unit.INSTANCE;
-});
-
-// A value that may be missing: say so with a Maybe
-VTask<Maybe<String>> nickname = VTask.of(() -> Maybe.fromNullable(System.getenv("NICKNAME")));
-```
-
-So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. `run()` and `runAsync()` refuse a null from a task written by hand as a lambda, too.
-
-The factories and functions of every lazy type follow the same rule: `IO`, `VStream`, `State`, `Reader`, `Writer`, `Lazy`, `Trampoline`, `Free` and `Context`, and every Effect Path over one. A stream refuses a null element. A nullness checker flags a hand-written `IO` or `Reader` lambda that returns null, and an `IOPath` refuses one when it runs. Only [`Id`](./identity.md) holds a null, since every optic's `modify` runs through it. A `CompletableFuture` outside a Path keeps the JDK's null too.
-
----
-
-### Error Handling
-
-~~~admonish title="recover and recoverWith"
-
-Handle failures gracefully with recovery functions:
-
-<!-- verify -->
-```java
-VTask<Config> loadConfig = VTask.of(() -> configService.load());
-
-// recover: transform failure to success value
-VTask<Config> withDefault = loadConfig.recover(error -> Config.defaultConfig());
-
-// recoverWith: transform failure to another VTask
-VTask<Config> withFallback = loadConfig.recoverWith(error ->
-    VTask.of(() -> loadFallbackConfig()));
-
-// mapError: transform the exception type
-VTask<Config> withBetterError = loadConfig.mapError(error ->
-    new ConfigException("Failed to load configuration", error));
-```
-~~~
-
-~~~admonish title="Using VTaskMonad for Generic Error Handling"
-
-For HKT-compatible error handling:
-
-<!-- verify -->
-```java
-MonadError<VTaskKind.Witness, Throwable> monad = Instances.monadError(vtask());
-
-Kind<VTaskKind.Witness, String> taskKind = VTASK.widen(VTask.fail(new IOException("Network error")));
-
-Kind<VTaskKind.Witness, String> recovered = monad.handleErrorWith(
-    taskKind,
-    error -> monad.of("Default value")
-);
-
-String result = VTASK.narrow(recovered).run(); // "Default value"
-```
-
-This handler ignores the error and returns a constant, so the type-class [`recover`/`recoverWith` shortcuts](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) express it directly: `monad.recover(taskKind, "Default value")`. These are the generic, instance-level forms; they are distinct from the fluent `VTask.recover(fn)` / `VTask.recoverWith(fn)` methods shown earlier, which take a function of the error.
-~~~
-
----
-
-### Timeouts
-
-~~~admonish title="Adding Timeouts"
-
-Fail fast when operations take too long:
-
-<!-- verify -->
-```java
-VTask<Data> slowOperation = VTask.of(() -> {
-    Thread.sleep(5000);
-    return fetchData();
-});
-
-VTask<Data> withTimeout = slowOperation.timeout(Duration.ofSeconds(2));
-
-// Option 1: Use runSafe() for functional error handling (preferred)
-Try<Data> result = withTimeout.runSafe();
-result.match(
-    data -> System.out.println("Got data: " + data),
-    error -> System.err.println("Operation timed out: " + error.getMessage())
-);
-
-// Option 2: Use run() - TimeoutException is wrapped in VTaskExecutionException
-try {
-    withTimeout.run();
-} catch (VTaskExecutionException e) {
-    if (e.getCause() instanceof TimeoutException) {
-        System.err.println("Operation timed out!");
-    }
-}
-```
-~~~
-
----
-
-## Parallel Composition with Par {#parallel-composition-with-par}
-
-The `Par` utility class provides combinators for executing VTasks concurrently:
-
-```
-┌───────────────────────────────────────────────────────────┐
-│                    Par Combinators                        │
-│                                                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │   zip    │  │   map2   │  │   all    │  │   race   │   │
-│  │  (A, B)  │  │ (A,B)->R │  │ [A]->A[] │  │ first A  │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-│                                                           │
-│  All use StructuredTaskScope for proper lifecycle         │
-└───────────────────────────────────────────────────────────┘
-```
-
-~~~admonish example title="Parallel Execution Examples"
-
-<!-- verify -->
-```java
+import java.util.Collections;
 import org.higherkindedj.hkt.vtask.Par;
-
-// zip: combine two tasks into a tuple
-VTask<User> userTask = VTask.of(() -> fetchUser(id));
-VTask<Profile> profileTask = VTask.of(() -> fetchProfile(id));
-
-VTask<Par.Tuple2<User, Profile>> both = Par.zip(userTask, profileTask);
-Par.Tuple2<User, Profile> result = both.run();
-// Both execute in parallel!
-
-// map2: combine two tasks with a function
-VTask<UserProfile> combined = Par.map2(
-    userTask,
-    profileTask,
-    (user, profile) -> new UserProfile(user, profile)
-);
-
-// all: execute a list of tasks in parallel
-List<VTask<Integer>> tasks = List.of(
-    VTask.of(() -> compute(1)),
-    VTask.of(() -> compute(2)),
-    VTask.of(() -> compute(3))
-);
-VTask<List<Integer>> allResults = Par.all(tasks);
-
-// race: return first successful result
-VTask<String> fastest = Par.race(List.of(
-    VTask.of(() -> fetchFromServer1()),
-    VTask.of(() -> fetchFromServer2()),
-    VTask.of(() -> fetchFromServer3())
-));
-
-// traverse: apply function to list, execute results in parallel
-List<Integer> ids = List.of(1, 2, 3, 4, 5);
-VTask<List<User>> users = Par.traverse(ids, id -> VTask.of(() -> fetchUser(id)));
 ```
-~~~
 
----
+`COURIERS` holds three couriers, which quote 7.99, 6.50 and 9.20. The three quotes take as long as the slowest of them, not the three added together:
 
-## Advanced Topics
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:par}}
+```
 
-For more complex concurrent patterns, VTask provides additional APIs documented in their own pages:
+## Creating instances {#creating-instances}
 
-~~~admonish tip title="Structured Concurrency"
-**[Scope and ScopeJoiner](vtask_scope.md)** - Fluent API for coordinating concurrent tasks with configurable joining strategies:
-- `allSucceed` - Wait for all tasks to complete successfully
-- `anySucceed` - Return first success, cancel others
-- `firstComplete` - Return first result regardless of outcome, and cancel the rest
-- `accumulating` - Collect all errors using `Validated`
-~~~
+`VTask.of(callable)` describes work that may throw any exception, and `VTask.delay(supplier)` work that throws no checked exception. `VTask.exec(runnable)` describes work that gives [`Unit`](../hkts/core-concepts.md#unit). `VTask.succeed(value)` and `VTask.fail(exception)` give a task that has already succeeded or failed. `VTask.blocking(callable)` is `of` under a name that says the work blocks, and runs the same.
 
-~~~admonish tip title="Resource Management"
-**[Resource](vtask_resource.md)** - Safe resource management using the bracket pattern:
-- Guaranteed cleanup on success, failure, or cancellation
-- Composable with `flatMap` and `and`
-- Integrates seamlessly with Scope for concurrent resource management
-~~~
+On a Path, `Path.vtask` matches `of`, `Path.vtaskExec` matches `exec`, `Path.vtaskPure` matches `succeed` and `Path.vtaskFail` matches `fail`, and `Path.vtaskPath(task)` takes a `VTask` you already have. For a `VResultPath`, they are `Path.vresultDefer`, `Path.vresultRight`, `Path.vresultLeft` and `Path.vresult(task)`.
 
----
+### A task always gives a value {#a-task-always-gives-a-value}
 
-## VTask vs IO
+A `VTask` that succeeds gives a value, never `null`. `VTask.succeed(null)` throws `NullPointerException` at the call. A callable, supplier, `map` function or recovery function that returns null fails the task when it runs, and the exception names that function, as in `callable must not return null`. A task with nothing to return gives `Unit.INSTANCE`, as `VTask.exec` does, and one whose value may be missing says so with a `Maybe`. These are the extra imports:
 
-`VTask` and `IO` serve similar purposes but with different execution models:
+<!-- verify -->
+```java
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.maybe.Maybe;
+```
 
-| Aspect | VTask | IO |
-|--------|-------|-----|
-| **Thread Model** | Virtual threads | Caller's thread |
-| **Parallelism** | Built-in via `Par`, `Scope` | Manual composition |
-| **Structured Concurrency** | Yes, with `Scope` and `Resource` | No |
-| **Async Support** | `runAsync()` returns `CompletableFuture` | No built-in async |
-| **Error Type** | `Throwable` | `Throwable` |
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:values}}
+```
 
-Choose `VTask` when:
-- You need lightweight concurrency at scale
-- You want structured concurrency with proper cancellation
-- Parallel execution with `Par` or `Scope` is valuable
+So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. `VTask` is itself a functional interface, so you can write a task as a lambda; `run()`, `runSafe()` and `runAsync()` refuse a null from one of those too.
 
-Choose `IO` when:
-- Single-threaded execution is sufficient
-- You want explicit control over which thread runs the computation
-- You're building a library that shouldn't impose thread choices
+The factories and functions of every lazy type follow the same rule: `IO`, `VStream`, `State`, `Reader`, `Writer`, `Lazy`, `Trampoline`, `Free` and `Context`, and every Effect Path over one. A stream refuses a null element. A nullness checker flags a hand-written `IO` or `Reader` lambda that returns null, and an `IOPath` refuses one when it runs. Only [`Id`](identity.md) holds a null, since every optic's `modify` runs through it. A `CompletableFuture` outside a Path keeps the JDK's null too.
 
----
+## Methods {#methods}
 
-~~~admonish info title="Key Takeaways"
-* **Laziness:** VTask describes computations without executing them; nothing runs until you call `run()`, `runSafe()`, or `runAsync()`
-* **Virtual Threads:** Execution happens on lightweight JVM-managed threads, enabling millions of concurrent tasks
-* **Composition:** Use `map` for transformations, `flatMap` for dependent chains, and `Par` combinators for parallel execution
-* **Error Handling:** Prefer `runSafe()` to capture failures in `Try`; use `recover` and `recoverWith` for graceful fallbacks
-* **Structured Concurrency:** Use `StructuredTaskScope` via Par combinators for proper task lifecycle management
-~~~
+| Method | What it does |
+|---|---|
+| `VTask.of(callable)`, `delay(supplier)`, `exec(runnable)` | Describe work; nothing runs until the task does |
+| `VTask.succeed(value)`, `VTask.fail(exception)` | Give a task that has already succeeded or failed |
+| `map(f)`, `flatMap(f)`, `via(f)`, `then(next)` | Build a new task, running nothing |
+| `recover(f)`, `recoverWith(f)`, `mapError(f)` | Give a value or another task in place of a failure, or change the exception |
+| `timeout(duration)` | Runs the task on a virtual thread of its own, and fails with a `TimeoutException` if it has not finished in time, leaving it running |
+| `run()`, `runSafe()` | Run the task on the calling thread, throwing its failure or holding it in a `Try` |
+| `runAsync()` | Starts the task on a new virtual thread, and returns a `CompletableFuture` |
+| `Par.map2`, `zip`, `all`, `traverse`, `race` | Run tasks at the same time, each on a virtual thread |
+| `Path.vtask(callable)`, `Path.vresultDefer(supplier)` | Put work on a `VTaskPath`, or on a `VResultPath` |
+| `VTASK.widen(task)`, `VTASK.narrow(kind)`, `VTASK.run(kind)` | Move a task in and out of `Kind`, or run one |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `VTask` through its `MonadError` instance, a `VTaskMonad`, from `Instances.monadError(vtask())`. Its error type is `Throwable`, as [MonadError](../functional/monad_error.md) shows. The instance works over `Kind<VTaskKind.Witness, A>`, so you widen a task to pass it in, and run the result with `VTASK.run`. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.vtask;
+import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.vtask.VTaskKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:kind}}
+```
+
+The handler receives the exception the task threw. This one ignores it and gives a constant, which the instance's [`recover`](../functional/monad_error.md#constant-fallbacks-recover-and-recoverwith) says directly, given the widened task and `CACHED_RATE`. Those instance-level forms take the `Kind` first. The fluent `recover` on a `VTask` takes a function of the exception.
+
+The instance's `ap`, and `map2` to `map5`, run their tasks one after another, so a failure in the first stops the second from running; `Par` runs tasks at the same time. Widening allocates nothing: `VTask` implements `VTaskKind` itself, so `widen` checks for `null` and returns the same object.
+
+## When to use `VTask` {#when-to-use-vtask}
+
+| You need | Use |
+|---|---|
+| Work that may block or throw a checked exception, run when you choose | `VTask`, on a `VTaskPath` in application code |
+| Two or more tasks at the same time, each on a virtual thread | `parZipWith`, or `Par` |
+| A refusal the caller expects, as a typed `Left` rather than an exception | `VResultPath` |
+| Tasks that start and end together, joined the way you choose | [Structured Concurrency](vtask_scope.md) |
+| A resource released however the work ends | [Resource Management](vtask_resource.md) |
+| A side effect with no checked exception, never run alongside other work | [IO](io_monad.md) |
+| Work already started, from an API that gives you a future | [CompletableFuture](cf_monad.md) |
+| Many values, produced one at a time | [VStream](vstream.md) |
 
 ~~~admonish info title="Hands-On Learning"
-Practise VTask fundamentals in [TutorialVTask](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTask.java) (9 exercises), part of the [VTask journey](../tutorials/concurrency/vtask_journey.md).
+Practise `VTask` in [TutorialVTask](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTask.java) (9 exercises), and `VTaskPath` in [TutorialVTaskPath](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTaskPath.java) (9 exercises), both part of the [VTask journey](../tutorials/concurrency/vtask_journey.md).
 ~~~
 
-~~~admonish example title="Benchmarks"
-VTask has dedicated JMH benchmarks measuring construction, execution, map/flatMap chains, deep recursion, and parallel combinators. Run them with:
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskParBenchmark.*"
-```
-See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks against IO, and how to interpret results.
-~~~
-
-~~~admonish tip title="See Also"
-- [Structured Concurrency](vtask_scope.md) - Scope and ScopeJoiner for advanced task coordination
-- [Resource Management](vtask_resource.md) - Bracket pattern for safe resource handling
-- [IO](io_monad.md) - The platform thread-based effect type for single-threaded scenarios
-- [Monad](../functional/monad.md) - Understanding the `flatMap` abstraction
-- [MonadError](../functional/monad_error.md) - Error handling patterns with `raiseError` and `handleErrorWith`
-~~~
-
-~~~admonish abstract title="Further Reading"
-- [JEP 444: Virtual Threads](https://openjdk.org/jeps/444) - The official OpenJDK specification for virtual threads in Java 21+
-- [Virtual Threads, Structured Concurrency, and Scoped Values](https://www.amazon.com/Virtual-Threads-Structured-Concurrency-Scoped/dp/B0D5TTFSJ1) - Ron Veen & David Vlijmincx (Apress, 2024) - Comprehensive guide to Project Loom features
-~~~
+**Benchmarks:** `VTaskBenchmark` and `VTaskPathBenchmark` measure building and running tasks, and `VTaskParBenchmark` the `Par` combinators. `VTaskVsIOBenchmark` and `VTaskVsPlatformThreadsBenchmark` compare `VTask` with `IO` and with a pool of platform threads. [Benchmarks & Performance](../benchmarks.md) says how to run them.
 
 ---
 
