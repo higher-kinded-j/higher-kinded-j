@@ -543,6 +543,16 @@ class NonDetPathTest {
     }
 
     @Test
+    @DisplayName("foldLeft() throws NullPointerException when f is null")
+    void foldLeftThrowsWhenFunctionNull() {
+      NonDetPath<Integer> path = NonDetPath.of(1, 2, 3);
+
+      assertThatThrownBy(() -> path.foldLeft(0, null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessageContaining("f must not be null");
+    }
+
+    @Test
     @DisplayName("foldRight() folds from right")
     void foldRightFoldsFromRight() {
       NonDetPath<String> path = NonDetPath.of("a", "b", "c");
