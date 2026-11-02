@@ -212,7 +212,7 @@ public final class IsoProcessor extends AbstractProcessor {
     final FieldSpec isoField =
         FieldSpec.builder(isoTypeName, methodName, PUBLIC, STATIC, FINAL)
             // The field restates the Iso the annotated method declares, raw arguments and all.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(typeArguments))
+            .addAnnotations(ProcessorUtils.writtenTypesSuppression(typeArguments))
             .initializer("$T.$L()", ClassName.get(classElement), methodName)
             .build();
 

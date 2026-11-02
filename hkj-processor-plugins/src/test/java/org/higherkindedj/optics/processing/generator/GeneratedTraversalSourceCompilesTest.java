@@ -336,7 +336,7 @@ class GeneratedTraversalSourceCompilesTest {
         import java.util.Set;
 
         @GenerateTraversals
-        @SuppressWarnings({"rawtypes", "unchecked"})
+        @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
         public record Holder(%s) {}
         """
             .formatted(components));

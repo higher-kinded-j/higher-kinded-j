@@ -481,7 +481,7 @@ public final class ProcessorUtils {
    * for one, casts an instance typed for a container's element to the raw or wildcard {@code
    * Optional}, {@code Maybe}, {@code List}, {@code Set}, {@code Collection} or {@code Kind} a
    * component declares: reading through it gives that element, and writing builds a new container
-   * that the declaration admits. {@link #warningSuppression} merges that {@code unchecked} with any
+   * that the declaration admits. {@code @GenerateFocus} merges that {@code unchecked} with any
    * {@code rawtypes} the member needs. A generator may also refuse for a reason of its own:
    * {@code @PathVia} refuses a raw type in a bridged signature because the bridge builds its Path
    * from the effect's type arguments, while answering for a raw bound on its class.
@@ -522,39 +522,6 @@ public final class ProcessorUtils {
    */
   public static boolean namesRawType(List<? extends TypeMirror> types) {
     return types.stream().anyMatch(type -> firstRawIn(type) != null);
-  }
-
-  /**
-   * Whether a member generated around a type that redeclares {@code owner}'s type parameters names
-   * a raw type, in the type or in one of those bounds.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param owner the type whose type parameters the member redeclares; must not be null
-   * @return true when the type or one of those bounds names a raw type
-   * @since 0.5.0
-   */
-  public static boolean namesRawType(TypeMirror written, TypeElement owner) {
-    return namesRawType(withBounds(written, owner.getTypeParameters()));
-  }
-
-  /**
-   * The one {@code @SuppressWarnings} a generated member carries: {@code rawtypes} for a raw type
-   * it restates, as {@link #rawTypesSuppression(List)} describes, and {@code unchecked} for a cast
-   * of its own that its generator answers for. A declaration takes one {@code SuppressWarnings}, so
-   * a member needing both carries them as one array, written the way an author would write it.
-   *
-   * @param rawTypes whether the member restates a raw type
-   * @param unchecked whether the member writes such a cast
-   * @return the suppression, or no annotations when neither applies
-   * @since 0.5.0
-   */
-  public static List<AnnotationSpec> warningSuppression(boolean rawTypes, boolean unchecked) {
-    return suppression(
-        Stream.of(
-                Optional.of(Lint.RAWTYPES).filter(_ -> rawTypes),
-                Optional.of(Lint.UNCHECKED).filter(_ -> unchecked))
-            .flatMap(Optional::stream)
-            .toList());
   }
 
   /**
@@ -615,6 +582,87 @@ public final class ProcessorUtils {
         .distinct()
         .sorted()
         .toList();
+  }
+
+  /**
+   * The one {@code @SuppressWarnings} a generated optic member carries for the types it writes out
+   * or infers: {@code rawtypes} as {@link #rawTypesSuppression(List)} describes, and {@code
+   * deprecation} or {@code removal} when {@link #typesNamedBy} finds a deprecated class among them.
+   *
+   * <p>The deprecation is the author's, as a raw type is: they chose the deprecated container or
+   * element type by declaring the component, where javac reports it to them and their own
+   * suppression answers for it. The generated file is a compilation unit of its own, which that
+   * suppression does not reach, so a member naming the type answers for it itself. Deprecation is
+   * read from the {@code @Deprecated} annotation; a class deprecated only by a javadoc tag is not
+   * found.
+   *
+   * @param types the types the member may write out or infer; a wider set only widens where the
+   *     suppression lands; must not be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(List<? extends TypeMirror> types) {
+    return suppression(
+        Stream.concat(rawTypesOf(types).stream(), deprecationNamedBy(types)).toList());
+  }
+
+  /**
+   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
+   * also redeclares {@code owner}'s type parameters and names {@code owner} itself, so a raw or
+   * deprecated bound, or a deprecated {@code owner}, reaches it even where {@code written} names
+   * none.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param owner the type whose type parameters the member redeclares and which it names; must not
+   *     be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(
+      TypeMirror written, TypeElement owner) {
+    List<TypeMirror> redeclared = withBounds(written, owner.getTypeParameters());
+    return suppression(
+        Stream.concat(
+                rawTypesOf(redeclared).stream(),
+                deprecationNamedBy(
+                    Stream.concat(redeclared.stream(), Stream.of(owner.asType())).toList()))
+            .toList());
+  }
+
+  /**
+   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
+   * redeclares the given type parameters, bounds and all.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param redeclared the type parameters the member redeclares; must not be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> writtenTypesSuppression(
+      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
+    return writtenTypesSuppression(withBounds(written, redeclared));
+  }
+
+  /**
+   * The deprecation categories raised by writing these types out: those of the deprecated classes
+   * {@link #typesNamedBy} finds, each once, in {@link Lint}'s order.
+   *
+   * @param types the types written out; must not be null
+   * @return the categories raised, as a stream
+   * @since 0.6.0
+   */
+  public static Stream<Lint> deprecationNamedBy(List<? extends TypeMirror> types) {
+    return types.stream()
+        .flatMap(ProcessorUtils::typesNamedBy)
+        .map(ProcessorUtils::deprecationOf)
+        .flatMap(Optional::stream)
+        .distinct();
+  }
+
+  /** The category using a class raises, or none for one that is not deprecated. */
+  private static Optional<Lint> deprecationOf(Element element) {
+    return Optional.ofNullable(element.getAnnotation(Deprecated.class))
+        .map(deprecated -> deprecated.forRemoval() ? Lint.REMOVAL : Lint.DEPRECATION);
   }
 
   /**
@@ -764,42 +812,6 @@ public final class ProcessorUtils {
         Objects::nonNull,
         current ->
             current.getEnclosingElement() instanceof TypeElement enclosing ? enclosing : null);
-  }
-
-  /**
-   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
-   * {@code owner}'s type parameters as well as naming a type of its own: it writes those bounds out
-   * too, so a raw bound reaches it even where the type it is generated around names none.
-   *
-   * <p>Callers pass the type the member is generated around, not the one it finally writes. Which
-   * of the two a generator emits, a component or the element it widens to, is that generator's
-   * detail, and asking the wider question only widens where the suppression lands.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param owner the type whose type parameters the member redeclares; must not be null
-   * @return the suppression when the type or one of those bounds names a raw type, else no
-   *     annotations
-   * @since 0.4.11
-   */
-  public static List<AnnotationSpec> rawTypesSuppression(TypeMirror written, TypeElement owner) {
-    return rawTypesSuppression(written, owner.getTypeParameters());
-  }
-
-  /**
-   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
-   * the given type parameters as well as naming a type of its own. It serves a member that
-   * redeclares more than one type's parameters, such as those {@link #typeParametersInScope}
-   * returns.
-   *
-   * @param written the type the member is generated around; must not be null
-   * @param redeclared the type parameters the member redeclares, bounds and all; must not be null
-   * @return the suppression when the type or one of those bounds names a raw type, else no
-   *     annotations
-   * @since 0.4.11
-   */
-  public static List<AnnotationSpec> rawTypesSuppression(
-      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
-    return rawTypesSuppression(withBounds(written, redeclared));
   }
 
   /** A type with the bounds of the type parameters a member redeclares beside it. */

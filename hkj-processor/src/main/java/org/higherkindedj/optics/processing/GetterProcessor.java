@@ -154,7 +154,8 @@ public class GetterProcessor extends AbstractProcessor {
                 recordTypeName,
                 componentTypeName.box())
             // The getter type and the record's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(getterTypeName);
 
@@ -190,7 +191,8 @@ public class GetterProcessor extends AbstractProcessor {
                 componentName,
                 recordTypeName,
                 componentName)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(componentTypeName)
             .addParameter(recordTypeName, "source");

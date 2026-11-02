@@ -15,6 +15,8 @@ import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -31,6 +33,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInf
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticMethodInfo;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -175,7 +178,22 @@ public class SpecInterfaceGenerator {
             || typeParameters.stream()
                 .flatMap(parameter -> parameter.getBounds().stream())
                 .anyMatch(bound -> ProcessorUtils.firstRawIn(bound) != null);
-    methodBuilder.addAnnotations(ProcessorUtils.warningSuppression(rawTypes, unchecked));
+    List<TypeMirror> written =
+        Stream.concat(
+                Stream.of(sourceType, focusType),
+                Stream.concat(
+                    Stream.ofNullable(checkedLens)
+                        .map(_ -> opticMethod.traversalHintInfo().lensFocus()),
+                    typeParameters.stream().flatMap(parameter -> parameter.getBounds().stream())))
+            .toList();
+    methodBuilder.addAnnotations(
+        ProcessorUtils.suppression(
+            Stream.of(
+                    Stream.of(Lint.RAWTYPES).filter(_ -> rawTypes),
+                    Stream.of(Lint.UNCHECKED).filter(_ -> unchecked),
+                    ProcessorUtils.deprecationNamedBy(written))
+                .flatMap(Function.identity())
+                .toList()));
 
     // Generate method body based on optic kind
     CodeBlock body =
