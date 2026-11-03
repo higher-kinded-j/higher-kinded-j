@@ -154,6 +154,7 @@ The `with*` vocabulary is available across the Path family, so resilience compos
 | `retry(maxAttempts, initialDelay)` convenience | ✓ | ✓ | · | · |
 | `withTimeout(duration)` | ✓ | ✓ | · | · |
 | `withTimeout(duration, onTimeout)`: timeout as a typed `Left` | · | · | ✓ | ✓ |
+| `detachOnCancel()`: a timeout fails on time, without waiting for the computation to stop | ✓ | ✓ | ✓ | · |
 | `withCircuitBreaker(breaker)` | ✓ | ✓ | ✓ | ✓ |
 | `withCircuitBreaker(breaker, onOpen)`: rejection as a typed `Left` | · | · | ✓ | ✓ |
 | `withBulkhead(bulkhead)` | ✓ | ✓ | ✓ | ✓ |

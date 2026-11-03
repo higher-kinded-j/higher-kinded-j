@@ -304,6 +304,11 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   }
 
   @Override
+  public VTaskPath<A> detachOnCancel() {
+    return new DefaultVTaskPath<>(value.detachOnCancel());
+  }
+
+  @Override
   public VTaskPath<A> withCircuitBreaker(CircuitBreaker circuitBreaker) {
     Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
     return new DefaultVTaskPath<>(circuitBreaker.protect(value));

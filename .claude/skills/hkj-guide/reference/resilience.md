@@ -29,6 +29,11 @@ IOPath<Response> resilient = Path.io(() -> httpClient.get(url))
 `IOPath` / `VTaskPath` take the plain four: `withRetry(policy)`, `withTimeout(duration)`,
 `withCircuitBreaker(breaker)`, `withBulkhead(bulkhead)`.
 
+A timeout interrupts the computation and fails once it has stopped. A call blocked where an
+interrupt cannot reach it (`CompletableFuture.join()`, `Lock.lock()`, `synchronized`) holds the
+failure back. To fail at the deadline anyway, put `.detachOnCancel()` before `withTimeout`, or
+protect `task.detachOnCancel()` with a breaker; the work is interrupted but not waited for.
+
 `EitherPath` is eager (there is no effect left to re-run), so its combinators are static and take a
 thunk that rebuilds the step:
 

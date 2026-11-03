@@ -766,7 +766,9 @@ public final class VResultPath<E, A>
    * {@code TimeoutException} thrown by code <em>inside</em> the pipeline is indistinguishable from
    * the budget running out, so it is also mapped to {@code onTimeout}. An interrupt of the caller
    * is passed on to the computation, and its {@code InterruptedException} is thrown once the
-   * computation stops; it is not mapped to {@code onTimeout}.
+   * computation stops; it is not mapped to {@code onTimeout}. To give the typed timeout when the
+   * budget runs out instead, whether or not the computation can stop at once, time out {@link
+   * #detachOnCancel()}.
    *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not
@@ -788,6 +790,19 @@ public final class VResultPath<E, A>
                                 Objects.requireNonNull(
                                     onTimeout.get(), "onTimeout must not return null")))
                         : VTask.fail(failure)));
+  }
+
+  /**
+   * Returns a path that gives up on this computation when cancelled, rather than wait for it to
+   * stop, as {@link VTask#detachOnCancel()} describes: the computation is interrupted, and the
+   * cancellation takes effect at once. {@code detachOnCancel().withTimeout(duration, onTimeout)}
+   * gives its typed timeout when the budget runs out, even over a call that blocks where an
+   * interrupt cannot reach it.
+   *
+   * @return a path that stops waiting for this computation when cancelled (non-null)
+   */
+  public VResultPath<E, A> detachOnCancel() {
+    return fromVTask(run().detachOnCancel());
   }
 
   /**

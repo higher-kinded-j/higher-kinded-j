@@ -305,6 +305,18 @@ public final class VTaskContext<A> {
     return new VTaskContext<>(path.timeout(duration));
   }
 
+  /**
+   * Creates a new VTaskContext that gives up on this computation when cancelled, rather than wait
+   * for it to stop, as {@link VTask#detachOnCancel()} describes. {@code
+   * detachOnCancel().timeout(duration)} fails when the time runs out, even over a call that blocks
+   * where an interrupt cannot reach it.
+   *
+   * @return a VTaskContext that stops waiting for this computation when cancelled
+   */
+  public VTaskContext<A> detachOnCancel() {
+    return new VTaskContext<>(path.detachOnCancel());
+  }
+
   // ===== Resilience Methods =====
 
   /**

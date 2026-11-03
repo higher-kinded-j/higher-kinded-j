@@ -388,6 +388,39 @@ class CircuitBreakerTest {
     }
 
     @Test
+    @DisplayName("a detached call that ignores the interrupt counts when callTimeout runs out")
+    void detachedCallCountsWhenTheCallTimeoutRunsOut() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .callTimeout(Duration.ofMillis(20))
+                  .build());
+      CountDownLatch release = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTask<String> hungCall =
+          VTask.of(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                } catch (InterruptedException ignored) {
+                  // this call ignores a cancellation, and finishes once released
+                }
+                release.await(5, TimeUnit.SECONDS);
+                finished.set(true);
+                return "finished";
+              });
+      try {
+        assertThatThrownBy(breaker.protect(hungCall.detachOnCancel())::execute)
+            .isInstanceOf(TimeoutException.class);
+        assertThat(finished).as("the call is still running").isFalse();
+        assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      } finally {
+        release.countDown();
+      }
+    }
+
+    @Test
     @DisplayName("circuit remains OPEN before open duration elapses")
     void remainsOpenBeforeDuration() {
       CircuitBreakerConfig config =

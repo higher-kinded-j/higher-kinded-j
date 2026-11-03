@@ -130,7 +130,8 @@ public record CircuitBreakerConfig(
     /**
      * Sets the timeout applied to each protected call. A call slower than this is interrupted, and
      * fails with a {@code TimeoutException} once it has stopped, as {@code VTask.timeout()}
-     * describes.
+     * describes. A call that ignores the interrupt fails when the time runs out only if the
+     * protected task is {@code task.detachOnCancel()}.
      *
      * @param timeout the call timeout; must not be null
      * @return this builder

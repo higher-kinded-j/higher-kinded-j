@@ -8,6 +8,9 @@ import static org.higherkindedj.hkt.assertions.VTaskContextAssert.assertThatVTas
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -306,6 +309,33 @@ class VTaskContextTest {
       assertThatNullPointerException()
           .isThrownBy(() -> context.timeout(null))
           .withMessageContaining("duration must not be null");
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().timeout() fails when the time runs out, before the task stops")
+    void detachedTimeoutFailsWhenTheTimeRunsOut() {
+      CountDownLatch release = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTaskContext<Integer> held =
+          VTaskContext.of(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                } catch (InterruptedException ignored) {
+                  // this task ignores a cancellation, and finishes once released
+                }
+                release.await(5, TimeUnit.SECONDS);
+                finished.set(true);
+                return TEST_INT;
+              });
+      try {
+        assertThatVTaskContext(held.detachOnCancel().timeout(Duration.ofMillis(20)))
+            .fails()
+            .withExceptionType(TimeoutException.class);
+        assertThat(finished).as("the task is still running").isFalse();
+      } finally {
+        release.countDown();
+      }
     }
   }
 

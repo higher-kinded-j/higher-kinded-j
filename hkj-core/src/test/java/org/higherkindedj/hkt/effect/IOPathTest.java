@@ -8,6 +8,7 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1303,6 +1304,45 @@ class IOPathTest {
       assertThatExceptionOfType(CompletionException.class)
           .isThrownBy(stuck::unsafeRun)
           .withCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("detachOnCancel() gives the computation's value")
+    void detachOnCancelGivesTheValue() {
+      assertThat(Path.io(() -> 1).detachOnCancel().unsafeRun()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().withTimeout() fails when the budget runs out, before it stops")
+    void detachedTimeoutFailsWhenTheBudgetRunsOut() {
+      CountDownLatch release = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean(false);
+      IOPath<Integer> held =
+          Path.io(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                } catch (InterruptedException ignored) {
+                  // this computation ignores a cancellation, and finishes once released
+                }
+                try {
+                  release.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                finished.set(true);
+                return 1;
+              });
+      try {
+        assertThatExceptionOfType(CompletionException.class)
+            .isThrownBy(held.detachOnCancel().withTimeout(Duration.ofMillis(20))::unsafeRun)
+            .havingCause()
+            .isInstanceOf(TimeoutException.class)
+            .satisfies(timeout -> assertThat(timeout.getSuppressed()).isEmpty());
+        assertThat(finished).as("the computation is still running").isFalse();
+      } finally {
+        release.countDown();
+      }
     }
 
     @Test

@@ -395,8 +395,8 @@ public interface VTask<A> extends VTaskKind<A> {
    * cannot reach it, such as in {@code CompletableFuture.join()}, {@code Lock.lock()} or entering a
    * {@code synchronized} block, holds the failure back until it finishes. So never wait on a
    * timeout while holding a lock or monitor its task needs: the task cannot finish, and the timeout
-   * waits for it. To stop waiting at the time limit and leave the task running instead, time out
-   * the future from {@link #runAsync()}, as {@code CompletableFuturePath.withTimeout} does.
+   * waits for it. To fail at the time limit instead, and leave the interrupted task to stop on its
+   * own, time out {@link #detachOnCancel()}: {@code task.detachOnCancel().timeout(duration)}.
    *
    * <p>An interrupt of the thread waiting for the result is passed on to this task in the same way:
    * the new task waits for it to stop, then throws the {@link InterruptedException} whatever this
@@ -417,17 +417,7 @@ public interface VTask<A> extends VTaskKind<A> {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
       CompletableFuture<A> outcome = new CompletableFuture<>();
-      Thread running =
-          Thread.ofVirtual()
-              .start(
-                  () -> {
-                    try {
-                      outcome.complete(execute());
-                    } catch (Throwable t) {
-                      // get() removes exactly this layer, so the task's own exception arrives as is
-                      outcome.completeExceptionally(new CompletionException(t));
-                    }
-                  });
+      Thread running = startCompleting(outcome);
       try {
         return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
       } catch (TimeoutException e) {
@@ -442,6 +432,56 @@ public interface VTask<A> extends VTaskKind<A> {
         throw afterCancelling(running, outcome, e);
       }
     };
+  }
+
+  /**
+   * Creates a new task that runs this one and gives up on it when cancelled, rather than wait for
+   * it to stop.
+   *
+   * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
+   * bindings, and the new task waits for its result or failure, which passes through as thrown.
+   * When the thread waiting is interrupted, by a {@link #timeout}, a {@link Scope} or anything
+   * else, this task is interrupted too, and the new task throws the {@link InterruptedException} at
+   * once. This task then stops on its own, and anything it returns or throws after that goes
+   * unreported.
+   *
+   * <p>Use it where a cancellation must take effect on time even if this task cannot stop at once,
+   * such as a call that blocks where an interrupt cannot reach it. Under {@code timeout}, the
+   * failure then arrives when the time runs out: {@code task.detachOnCancel().timeout(duration)}.
+   * Under a {@code CircuitBreaker}, a call slower than its {@code callTimeout} counts as a failure
+   * when the time runs out, so the breaker can open. The task may still be running once the caller
+   * has moved on, so detach only work whose leftovers are harmless: a task that holds a resource,
+   * or whose effect someone must see, should stop when interrupted instead.
+   *
+   * @return A new {@code VTask<A>} that stops waiting for this task when cancelled. Never null.
+   */
+  default VTask<A> detachOnCancel() {
+    return () -> {
+      CompletableFuture<A> outcome = new CompletableFuture<>();
+      Thread running = startCompleting(outcome);
+      try {
+        return outcome.get();
+      } catch (ExecutionException e) {
+        throw e.getCause();
+      } catch (InterruptedException e) {
+        running.interrupt();
+        throw e;
+      }
+    };
+  }
+
+  /** Starts this task on a new virtual thread that completes {@code outcome} with its result. */
+  private Thread startCompleting(CompletableFuture<A> outcome) {
+    return Thread.ofVirtual()
+        .start(
+            () -> {
+              try {
+                outcome.complete(execute());
+              } catch (Throwable t) {
+                // get() removes exactly this layer, so the task's own exception arrives as is
+                outcome.completeExceptionally(new CompletionException(t));
+              }
+            });
   }
 
   /**

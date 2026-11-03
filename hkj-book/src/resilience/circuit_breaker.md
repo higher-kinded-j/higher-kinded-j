@@ -70,6 +70,8 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 
 The `recordFailure` predicate is important: not every exception means the service is unhealthy. A `400 Bad Request` or a business validation error reflects a problem with the *request*, not the *service*. Only count failures that indicate the service itself is struggling. A cancelled call counts as neither a success nor a failure, whatever `recordFailure` says, and its `InterruptedException` passes through.
 
+A call slower than `callTimeout` counts once it has stopped, so a call that hangs where an interrupt cannot reach it would keep the circuit closed. Protect `call.detachOnCancel()` instead, and the breaker counts the call when the time runs out, as [VTaskPath](../effect/path_vtask.md#timeouts) shows.
+
 ## Creating a Circuit Breaker
 
 <!-- verify -->

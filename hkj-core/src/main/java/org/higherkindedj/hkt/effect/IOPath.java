@@ -746,8 +746,9 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * thread, so caller {@code ThreadLocal}s and {@code ScopedValue} bindings are not visible inside
    * it. An interrupt of the caller is passed on to the computation: once it stops, this path fails
    * with a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
-   * interrupt status set. To land a timeout on the typed channel instead, use {@link
-   * EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   * interrupt status set. To fail when the budget runs out instead, whether or not the computation
+   * can stop at once, time out {@link #detachOnCancel()}. To land a timeout on the typed channel
+   * instead, use {@link EitherPath#withTimeout(Supplier, Duration, Supplier)}.
    *
    * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
    * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()
@@ -770,6 +771,20 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
                                 ? VTask.fail(new CompletionException(timeout))
                                 : VTask.fail(failure))
                     .run()));
+  }
+
+  /**
+   * Returns an IOPath that gives up on this computation when cancelled, rather than wait for it to
+   * stop, as {@link VTask#detachOnCancel()} describes: the computation runs on a fresh virtual
+   * thread and is interrupted, and the cancellation takes effect at once, as a {@code
+   * VTaskExecutionException} wrapping the {@code InterruptedException}, with the interrupt status
+   * set. {@code detachOnCancel().withTimeout(duration)} fails when the budget runs out, even over a
+   * call that blocks where an interrupt cannot reach it.
+   *
+   * @return an IOPath that stops waiting for this computation when cancelled
+   */
+  public IOPath<A> detachOnCancel() {
+    return new IOPath<>(IO.delay(() -> VTask.of(this::unsafeRun).detachOnCancel().run()));
   }
 
   /**

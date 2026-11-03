@@ -343,13 +343,25 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * wraps it per {@code VTask.run()} conventions. An interrupt of the caller is passed on to the
    * computation, and the {@code InterruptedException} surfaces once it stops: as thrown from {@code
    * run()}, held by {@code runSafe()} and {@code run().runSafe()}, and wrapped by {@code
-   * unsafeRun()}. Each of the last three sets the interrupt status.
+   * unsafeRun()}. Each of the last three sets the interrupt status. To fail when the budget runs
+   * out instead, whether or not the computation can stop at once, time out {@link
+   * #detachOnCancel()}.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget
    * @throws NullPointerException if duration is null
    */
   VTaskPath<A> withTimeout(Duration duration);
+
+  /**
+   * Returns a VTaskPath that gives up on this computation when cancelled, rather than wait for it
+   * to stop, as {@link VTask#detachOnCancel()} describes: the computation is interrupted, and the
+   * cancellation takes effect at once. {@code detachOnCancel().withTimeout(duration)} fails when
+   * the budget runs out, even over a call that blocks where an interrupt cannot reach it.
+   *
+   * @return a new VTaskPath that stops waiting for this computation when cancelled
+   */
+  VTaskPath<A> detachOnCancel();
 
   /**
    * Returns a VTaskPath protected by the given circuit breaker.

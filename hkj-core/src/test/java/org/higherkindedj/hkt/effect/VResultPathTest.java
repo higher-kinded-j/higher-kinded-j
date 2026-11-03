@@ -9,7 +9,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1448,6 +1450,36 @@ class VResultPathTest {
       Either<String, String> result =
           stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
       assertThatEither(result).isLeft().hasLeft("took too long");
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().withTimeout() gives its Left when the budget runs out")
+    void detachedTimeoutGivesItsLeftWhenTheBudgetRunsOut() {
+      CountDownLatch release = new CountDownLatch(1);
+      AtomicBoolean finished = new AtomicBoolean(false);
+      Callable<Either<String, Integer>> held =
+          () -> {
+            try {
+              Thread.sleep(5000);
+            } catch (InterruptedException ignored) {
+              // this task ignores a cancellation, and finishes once released
+            }
+            release.await(5, TimeUnit.SECONDS);
+            finished.set(true);
+            return Either.<String, Integer>right(1);
+          };
+      try {
+        Either<String, Integer> result =
+            VResultPath.fromVTask(VTask.of(held))
+                .detachOnCancel()
+                .withTimeout(Duration.ofMillis(20), () -> "took too long")
+                .run()
+                .run();
+        assertThatEither(result).isLeft().hasLeft("took too long");
+        assertThat(finished).as("the computation is still running").isFalse();
+      } finally {
+        release.countDown();
+      }
     }
 
     @Test

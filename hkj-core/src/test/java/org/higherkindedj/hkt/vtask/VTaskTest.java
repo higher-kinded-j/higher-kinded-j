@@ -579,6 +579,71 @@ class VTaskTest {
           });
     }
 
+    /** A task that ignores a cancellation, then finishes once released, within five seconds. */
+    private record HeldTask(
+        CountDownLatch interrupted, CountDownLatch release, AtomicBoolean finished) {
+
+      HeldTask() {
+        this(new CountDownLatch(1), new CountDownLatch(1), new AtomicBoolean(false));
+      }
+
+      VTask<Integer> task() {
+        return VTask.of(
+            () -> {
+              try {
+                Thread.sleep(5000);
+              } catch (InterruptedException ignored) {
+                interrupted.countDown(); // this task ignores a cancellation
+              }
+              release.await(5, TimeUnit.SECONDS);
+              finished.set(true);
+              return TEST_VALUE;
+            });
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "detachOnCancel() gives the task's value, and passes its failure through as thrown")
+    void detachOnCancelPassesTheOutcomeThrough() {
+      IOException disk = new IOException("disk");
+
+      assertThat(VTask.succeed(TEST_VALUE).detachOnCancel().run()).isEqualTo(TEST_VALUE);
+      assertThatThrownBy(VTask.<Integer>fail(disk).detachOnCancel()::execute).isSameAs(disk);
+    }
+
+    @Test
+    @DisplayName(
+        "detachOnCancel() under timeout() fails when the time runs out, before the task stops")
+    void detachedTimeoutFailsWhenTheTimeRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      try {
+        assertThatThrownBy(held.task().detachOnCancel().timeout(Duration.ofMillis(20))::execute)
+            .isInstanceOf(TimeoutException.class)
+            .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+        assertThat(held.finished()).as("the task is still running").isFalse();
+        assertThat(held.interrupted().await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        held.release().countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("detachOnCancel() throws an interrupt of the caller at once, and passes it on")
+    void detachOnCancelThrowsTheCallersInterruptAtOnce() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      Thread.currentThread().interrupt();
+      try {
+        assertThatThrownBy(held.task().detachOnCancel()::execute)
+            .isInstanceOf(InterruptedException.class);
+        assertThat(held.finished()).as("the task is still running").isFalse();
+        assertThat(held.interrupted().await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        Thread.interrupted();
+        held.release().countDown();
+      }
+    }
+
     @Test
     @DisplayName("timeout() allows fast tasks to complete")
     void timeoutAllowsFastTasksToComplete() {
