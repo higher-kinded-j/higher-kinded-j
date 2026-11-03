@@ -187,6 +187,7 @@ class BookExampleOutputTest {
           Map.entry("TryBook", 10),
           Map.entry("ValidatedAssemblyBook", 3),
           Map.entry("ValidatedBook", 10),
+          Map.entry("VStreamBook", 12),
           Map.entry("VTaskBook", 10),
           Map.entry("WhyHktBook", 3),
           Map.entry("WorkingWithKindBook", 3));

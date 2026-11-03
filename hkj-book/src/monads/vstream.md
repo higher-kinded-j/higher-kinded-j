@@ -1,520 +1,280 @@
-# VStream: Lazy Pull-Based Streaming on Virtual Threads
-## _Consumer-Driven Pipelines That Wait Until You're Ready_
+<!-- description: Lazy pull-based streams in Java with VStream: read a paged API one page at a time, transform elements with tasks, recover a failed element. -->
+
+# VStream: Lazy Pull-Based Streams
+
+_A sequence of elements, each produced by a task only when you ask for it._
+
+<!-- source: Dan Powell, the archivist in Archive 81, the podcast by Marc Sollinger and Daniel Powell (Dead Signals, 2016); the wording has not been checked against a transcript -->
+> _"Tape after tape. You don't get the whole story at once. You pull the next one, press play, and hope you're ready for what comes out."_
+>
+> — Dan Powell, *Archive 81*
+
+Dan Powell's archive is a pull-based stream: no tape plays itself, and nothing moves until he reaches for the next one. A `VStream` works the same way. Each element comes from a task, which runs only when you pull it, and which may block or fail.
+
+~~~admonish abstract title="VStream at a glance"
+| | |
+|---|---|
+| **Models** | A sequence of elements, each produced by a task only when the consumer pulls it |
+| **Replaces** | A loop over a paged or blocking source, or a Java `Stream` or `Iterator` built over one |
+| **Effect Path** | [`VStreamPath`](../effect/path_vstream.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:vstream}}
+| **Choose it when** | Elements arrive one at a time from work that may block or fail; otherwise [List](list_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How VStream provides lazy, pull-based streaming with virtual thread execution
-- The Step protocol: Emit, Done, and Skip
-- Factory methods for creating streams from various sources
-- Transformation combinators: map, flatMap, filter, take
-- Terminal operations: toList, fold, exists, find
-- Error handling and recovery patterns
-- How VStream compares to Java Stream and StreamPath
+- Read a paged source one page at a time, fetching a page only when the stream reaches it
+- Say what a pull gives back, and why a stream answers some pulls with a `Skip`
+- Transform elements with functions and with tasks, and collect them with a terminal operation
+- Give a value in place of a failed element, or keep what was read when the source fails
+- Say which thread runs a pull, and where virtual threads come in
 ~~~
-
-> *"Tape after tape. You don't get the whole story at once. You pull the next one, press play, and hope you're ready for what comes out."*
-> — **Dan Powell**, *Archive 81*
 
 ~~~admonish example title="See Example Code"
-[VStreamBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/vstream/VStreamBasicExample.java)
-~~~
-
-## The Problem: Streams That Won't Wait
-
-Dan Powell's archive is a pull-based stream: no tape plays itself, nothing advances until
-he reaches for the next cassette. Java's `Stream` works the other way around. It pushes
-elements whether you are ready or not, blocks a platform thread on every I/O call, and
-falls apart the moment the data source is infinite or each element costs a network
-round-trip. Once the pipeline starts, the consumer has no way to slow it down.
-
-That eager-push model creates real problems. A paginated API that returns thousands of
-pages will eagerly fetch all of them, even if the caller only needs the first ten. A
-sensor feed that never ends will blow up any terminal operation that tries to collect
-results. And because each blocked `Stream` operation pins a platform thread, scaling to
-thousands of concurrent streams means thousands of expensive OS threads sitting idle
-while they wait for data.
-
-## The Solution: Pull One Element at a Time
-
-`VStream<A>` works like Dan's archive. Each pull returns a `VTask<Step<A>>`, a single
-element produced lazily on a virtual thread. The consumer controls the pace. The stream
-waits. Infinite sequences, paginated APIs, slow upstream services: none of these are a
-problem when you only process one element at a time and the thread model scales to
-millions of concurrent tasks.
-
-```
-  Push Model (Java Stream)              Pull Model (VStream)
-  ========================              =====================
-
-  ┌────────┐         ┌──────────┐      ┌──────────┐         ┌────────┐
-  │ Source │ ──▶──▶─▶│ Consumer │      │ Consumer │◀────────│ Source │
-  └────────┘         └──────────┘      └─────┬────┘         └────────┘
-                                             │ pull()            ▲
-  Source drives the pace.                    ▼                   │
-  Consumer must keep up.              VTask<Step<A>>        one element
-  Blocks a platform thread.           (virtual thread)     at a time
-  No backpressure.
-                                       Consumer drives the pace.
-                                       One virtual thread per pull.
-                                       Natural backpressure.
-```
-
-**Package**: `org.higherkindedj.hkt.vstream`
-**Module**: `hkj-core`
-
----
-
-## The Pull Protocol: Step
-
-Every pull from a VStream answers exactly one question: *what happened when I asked for the next element?* The answer is always one of three cases, represented by the `Step<A>` sealed interface:
-
-```java
-sealed interface Step<A> {
-    record Emit<A>(A value, VStream<A> tail) implements Step<A> {}
-    record Done<A>()                          implements Step<A> {}
-    record Skip<A>(VStream<A> tail)           implements Step<A> {}
-}
-```
-
-```
-                            pull()
-                              │
-                              ▼
-                       ┌─────────────┐
-                       │ VTask<Step> │  (runs on virtual thread)
-                       └──────┬──────┘
-                              │
-           ┌──────────────────┼──────────────────┐
-           │                  │                  │
-           ▼                  ▼                  ▼
-    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-    │    Emit     │    │    Skip     │    │    Done     │
-    │ value, tail │    │    tail     │    │             │
-    └──────┬──────┘    └──────┬──────┘    └─────────────┘
-           │                  │                  │
-           ▼                  ▼                  ▼
-      Yield value,       Advance to          Stream
-      continue from      tail (zero          exhausted,
-      tail               allocation)         stop pulling
-```
-
-| Step | Meaning |
-|------|---------|
-| `Emit(value, tail)` | Here is a value, never null, and here is the rest of the stream |
-| `Done()` | The stream is exhausted; stop pulling |
-| `Skip(tail)` | No value this time (e.g. filtered out); advance to the tail |
-
-Why `Skip`? Consider a `filter` that rejects 90% of elements. Without `Skip`, the stream would need to allocate and discard wrapper objects for every rejected element. `Skip` short-circuits that: the pipeline simply advances to the next pull without producing anything, keeping memory allocation tight.
-
----
-
-## Where Does Your Data Come From?
-
-VStream provides factory methods that cover the most common sources. All of them are lazy: nothing is produced until a terminal operation triggers evaluation.
-
-### From Values You Already Have
-
-<!-- verify -->
-```java
-// Single element
-VStream<String> single = VStream.of("hello");
-
-// Multiple elements (varargs)
-VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5);
-
-// From an existing list (lazy; does not copy)
-VStream<String> fromList = VStream.fromList(List.of("a", "b", "c"));
-
-// Integer range [start, end)
-VStream<Integer> range = VStream.range(1, 6); // 1, 2, 3, 4, 5
-
-// Empty stream
-VStream<Integer> empty = VStream.empty();
-```
-
-A stream never holds a null element. `VStream.of(null)` throws at the call, and a null in a list, iterator or Java `Stream` fails the stream when that element is pulled: `VStream.fromList element cannot be null`. A function given to `map`, `zipWith` or `recover` that returns null fails it too, closing what the stream opened. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
-
-### From Sequences That Never End
-
-The pull model means infinite sources are perfectly safe. The consumer decides when to stop.
-
-<!-- verify -->
-```java
-// Infinite sequence from seed and step function
-VStream<Integer> powersOf2 = VStream.iterate(1, n -> n * 2);
-// 1, 2, 4, 8, 16, 32, ...
-
-// Infinite sequence from supplier
-VStream<Double> randoms = VStream.generate(Math::random);
-
-// Infinite repetition of a single value
-VStream<String> hellos = VStream.repeat("hello");
-```
-
-~~~admonish warning title="Infinite Streams"
-Infinite streams require a limiting operation such as `take()` or `takeWhile()` before
-any terminal operation that consumes all elements (like `toList()` or `fold()`).
-Short-circuiting terminal operations like `exists()` and `find()` are safe to use
-directly on infinite streams.
-~~~
-
-### From Effectful Sources (Paginated APIs, Databases, etc.)
-
-This is where VStream really separates itself from Java `Stream`. The `unfold()` factory
-creates a stream by repeatedly applying an effectful function to a state, producing
-elements until `Optional.empty()` signals the end. Each step runs inside a `VTask`, so
-network calls, database queries, and file reads all happen on virtual threads without
-blocking the caller.
-
-<!-- verify -->
-```java
-// Paginated API: fetch pages until the server says "no more"
-VStream<String> pages = VStream.unfold(1, page ->
-    VTask.of(() -> {
-        if (page > 3) return Optional.empty();
-        String data = fetchPage(page);
-        return Optional.of(new VStream.Seed<>(data, page + 1));
-    }));
-```
-
-The `Seed<A, S>` record carries both the emitted value and the next state:
-
-```java
-public record Seed<A, S>(A value, S next) {}
-```
-
-Each call to the unfold function advances the state and either emits a value or signals completion:
-
-```
-  unfold(1, fetchPage)
-
-  State: 1 ──▶ fetchPage(1) ──▶ Seed("page1", 2) ──▶ Emit("page1")
-  State: 2 ──▶ fetchPage(2) ──▶ Seed("page2", 3) ──▶ Emit("page2")
-  State: 3 ──▶ fetchPage(3) ──▶ Seed("page3", 4) ──▶ Emit("page3")
-  State: 4 ──▶ fetchPage(4) ──▶ Optional.empty()  ──▶ Done
-```
-
----
-
-## Shaping the Data You Need
-
-All transformation operations are lazy. They describe a new pipeline without producing any elements. No work happens until a terminal operation pulls through the chain.
-
-### map
-
-Transform each element:
-
-<!-- verify -->
-```java
-List<String> result = VStream.of(1, 2, 3)
-    .map(n -> "#" + n)
-    .toList().run();
-// ["#1", "#2", "#3"]
-```
-
-### filter
-
-Keep only elements matching a predicate. Rejected elements produce a `Skip` step internally, avoiding unnecessary allocation:
-
-<!-- verify -->
-```java
-List<Integer> evens = VStream.range(1, 11)
-    .filter(n -> n % 2 == 0)
-    .toList().run();
-// [2, 4, 6, 8, 10]
-```
-
-### flatMap
-
-Replace each element with a sub-stream and flatten the results. This is the monadic
-bind operation for VStream:
-
-<!-- verify -->
-```java
-List<Integer> result = VStream.of(1, 2, 3)
-    .flatMap(n -> VStream.of(n, n * 10))
-    .toList().run();
-// [1, 10, 2, 20, 3, 30]
-```
-
-The `via()` method is an alias for `flatMap`, consistent with the FocusDSL vocabulary.
-
-### take and takeWhile
-
-These operations give the consumer explicit control over how much data to pull. They are the safety valve for infinite streams.
-
-<!-- verify -->
-```java
-// First 5 elements of an infinite stream
-List<Integer> first5 = VStream.iterate(1, n -> n + 1)
-    .take(5).toList().run();
-// [1, 2, 3, 4, 5]
-
-// Elements while condition holds
-List<Integer> small = VStream.iterate(1, n -> n * 2)
-    .takeWhile(n -> n < 100).toList().run();
-// [1, 2, 4, 8, 16, 32, 64]
-```
-
-### Composing Pipelines
-
-Operations chain naturally into lazy pipelines. Each stage pulls from the previous one, and the entire chain processes elements one at a time. The consumer (on the left) drives everything:
-
-```
-  ┌──────────┐  pull  ┌─────────┐  pull  ┌────────┐  pull  ┌────────────┐  pull  ┌────────────┐
-  │ toList() │◀───────│ take(5) │◀───────│ map(×3)│◀───────│filter(even)│◀───────│range(1,100)│
-  └──────────┘        └─────────┘        └────────┘        └────────────┘        └────────────┘
-       │                                                          │                     │
-       │   range emits 1 ·········································· Skip (odd) ◀── Emit(1)
-       │   range emits 2 ········· filter passes ·· Emit(2) ◀──── Emit(2)  ◀── Emit(2)
-       │                           map: 2 × 3 = 6                 take: 1 of 5
-       ◀── Emit(6) ◀── Emit(6) ◀─ Emit(6) ◀──────────────────────────────────────────────
-       │
-       │   ... continues until take has collected 5 elements, then stops.
-       ▼
-  [6, 12, 18, 24, 30]
-```
-
-<!-- verify -->
-```java
-List<Integer> result = VStream.range(1, 100)
-    .filter(n -> n % 2 == 0)   // keep evens
-    .map(n -> n * 3)            // multiply by 3
-    .take(5)                    // first 5 results
-    .toList().run();
-// [6, 12, 18, 24, 30]
-```
-
-No element is produced until `toList().run()` triggers evaluation. The pipeline pulls only as many elements as needed, then stops.
-
----
-
-## Collecting Results
-
-Terminal operations consume the stream and return a `VTask` that must be `run()` to
-execute. All terminal operations use iterative loops for stack safety.
-
-| Operation | Return Type | Description |
-|-----------|-------------|-------------|
-| `toList()` | `VTask<List<A>>` | Collect all elements |
-| `fold(seed, op)` | `VTask<A>` | Left fold with seed |
-| `foldLeft(seed, fn)` | `VTask<B>` | Left fold with accumulator |
-| `headOption()` | `VTask<Optional<A>>` | First element or empty |
-| `lastOption()` | `VTask<Optional<A>>` | Last element or empty |
-| `count()` | `VTask<Long>` | Count elements |
-| `exists(predicate)` | `VTask<Boolean>` | Any match (short-circuits) |
-| `forAll(predicate)` | `VTask<Boolean>` | All match (short-circuits) |
-| `find(predicate)` | `VTask<Optional<A>>` | First matching element |
-| `forEach(consumer)` | `VTask<Unit>` | Side effect per element |
-| `drain()` | `VTask<Unit>` | Consume and discard all elements |
-
-### Fold Example
-
-<!-- verify -->
-```java
-Integer sum = VStream.of(1, 2, 3, 4, 5)
-    .fold(0, Integer::sum).run();
-// 15
-```
-
-### Short-Circuiting: Stopping Early on Infinite Streams
-
-`exists()` and `forAll()` stop pulling as soon as the result is determined. This makes
-them safe even on infinite streams, because the pull model means the producer never runs
-ahead of the consumer:
-
-<!-- verify -->
-```java
-// Safe: stops as soon as 42 is found
-Boolean found = VStream.iterate(0, n -> n + 1)
-    .exists(n -> n == 42).run();
-// true
-```
-
----
-
-## Merging Multiple Streams
-
-### Concatenation
-
-Append one stream after another. The second stream is not touched until the first is exhausted:
-
-<!-- verify -->
-```java
-VStream<Integer> combined = VStream.of(1, 2).concat(VStream.of(3, 4));
-// [1, 2, 3, 4]
-```
-
-### Zip
-
-Pair elements positionally. Stops at the shorter stream, so it is safe to zip a finite stream with an infinite one:
-
-<!-- verify -->
-```java
-List<String> zipped = VStream.of("a", "b", "c")
-    .zipWith(VStream.of(1, 2, 3), (s, n) -> s + n)
-    .toList().run();
-// ["a1", "b2", "c3"]
-```
-
-### Interleave
-
-Alternate elements from two streams:
-
-<!-- verify -->
-```java
-List<Integer> interleaved = VStream.of(1, 3, 5)
-    .interleave(VStream.of(2, 4, 6))
-    .toList().run();
-// [1, 2, 3, 4, 5, 6]
-```
-
----
-
-## When Things Go Wrong
-
-Real-world streams encounter failures: a network timeout on page 47, a malformed record in a CSV, a rate-limited API. VStream integrates with VTask's error model so that each individual pull can fail and recover independently, without tearing down the entire pipeline.
-
-```
-  pull ──▶ VTask succeeds ──▶ Emit(value) ──▶ continue pulling
-                                                       │
-  pull ──▶ VTask fails ───────────────────────────────▶│
-              │                                        │
-              ├── recover(e -> fallback)               │
-              │      └──▶ Emit(fallback) ─────────────▶│
-              │                                        │
-              ├── recoverWith(e -> altStream)          │
-              │      └──▶ switch to altStream ────────▶│
-              │                                        │
-              └── no recovery                          │
-                   └──▶ VTask propagates error         ▼
-                                                   next pull
-```
-
-### recover
-
-Replace a failed pull with a recovery value:
-
-<!-- verify -->
-```java
-List<String> result = VStream.<String>fail(new RuntimeException("oops"))
-    .recover(e -> "recovered: " + e.getMessage())
-    .toList().run();
-// ["recovered: oops"]
-```
-
-### recoverWith
-
-Replace a failed pull with a fallback stream:
-
-<!-- verify -->
-```java
-List<String> result = VStream.<String>fail(new RuntimeException("primary failed"))
-    .recoverWith(e -> VStream.of("fallback-1", "fallback-2"))
-    .toList().run();
-// ["fallback-1", "fallback-2"]
-```
-
-### mapError
-
-Transform errors without recovering, useful for wrapping low-level exceptions into domain-specific ones:
-
-<!-- verify -->
-```java
-VStream<String> mapped = VStream.<String>fail(new RuntimeException("original"))
-    .mapError(e -> new IllegalStateException("wrapped: " + e.getMessage()));
-```
-
-~~~admonish note title="Per-Pull Recovery"
-Recovery applies per-pull, not per-stream. Each element pull can independently fail and
-recover. After recovery, the stream continues from the recovery point.
+**The code on this page is [VStreamBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java)**: the page includes it, so the build compiles and runs it. [VStreamBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vstream/VStreamBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## Proving Laziness: Nothing Runs Until You Say So
+## Reading a feed one page at a time {#reading-a-feed-one-page-at-a-time}
 
-If you are sceptical about lazy evaluation, here is the proof. Building a pipeline does
-zero work. Only the terminal operation triggers element production:
+An order service hands out its orders a page at a time, and each page is a call that blocks and may throw an `IOException`. In plain Java you would write a loop that fetches the next page until one comes back empty. A Java `Stream` or `Iterator` built over that loop is lazy too, but it can be read only once. The lambdas you pass to its `map` and `filter` cannot throw the feed's `IOException`. Nothing in it can give a value in place of one failed element, or keep what was read when the feed fails. A `VStream<A>` describes the sequence instead. It produces nothing until a terminal operation runs it, and you can run it as often as you like.
+
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-AtomicInteger evaluations = new AtomicInteger(0);
-
-// Pipeline construction: no elements produced yet
-VStream<Integer> pipeline = VStream.generate(evaluations::incrementAndGet)
-    .filter(n -> n % 2 == 0)
-    .map(n -> n * 100)
-    .take(5);
-
-System.out.println(evaluations.get()); // 0
-
-// Terminal operation triggers evaluation
-List<Integer> result = pipeline.toList().run();
-System.out.println(evaluations.get()); // 10 (pulled 10 to get 5 evens)
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import org.higherkindedj.example.book.foundations.OrderPage;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 ```
 
-The counter stays at zero after pipeline construction. It only advances when `toList().run()` starts pulling, and it stops at exactly 10 because `take(5)` combined with a 50% filter pass rate means only 10 pulls are needed.
+The feed gives an `OrderPage`, and a courier quotes for delivering an order:
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderPage.java:order_page}}
+```
 
-## Choosing the Right Streaming Tool
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:services}}
+```
 
-| Aspect | VStream | Java Stream | StreamPath |
-|--------|---------|-------------|------------|
-| Evaluation | Lazy, pull-based | Lazy, push-based | `Path.stream` reads at construction; `Path.streamIterate`, `StreamPath.fromSupplier`, `StreamPath.iterate`, and `StreamPath.generate` read per run; pipeline rebuilt per terminal operation |
-| Execution | Virtual threads (VTask) | Platform threads | Synchronous |
-| Reusability | Reusable | Single-use | Reusable |
-| Infinite streams | Yes (take, takeWhile) | Yes (limit) | Yes, from `Path.streamIterate` (`take`, `takeWhile`) |
-| Error handling | recover, recoverWith | Exceptions | Via effect type |
-| HKT integration | Yes (Functor, Monad, Traverse) | No | Yes |
-| Effect composition | VTask per pull | None | Via Path API |
+`VStream.unfold` builds a stream from a state, here the next page number, and a function giving a task for each state. The task gives a `VStream.Seed`, holding the element and the next state, or `Optional.empty()` to end. `flatMap` turns each page into its orders:
 
-**Use VStream when** you need lazy streaming with virtual thread execution, effectful
-element production (e.g., paginated API calls), or infinite stream support with
-backpressure through pull-based consumption.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:orders}}
+```
 
-**Use StreamPath when** you have an already-materialised list or a pure generator such as
-`Path.streamIterate` (which you can limit with `take` and `takeWhile`), and want fluent Path API
-composition with optics integration.
+`ORDERS` holds six orders, four of them paid. `PagedFeed` serves them two to a page, and records each page it is asked for. Taking the first two paid customers reads two pages, and the third is never fetched:
 
-**Use Java Stream when** you need standard library compatibility and do not require
-virtual thread integration or error recovery.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:first_paid}}
+```
 
----
+Building `paidCustomers` fetches nothing. Each run reads the feed again from the first page. `fetched()` keeps every page asked for, so the last list holds the first run's pages 1 and 2, then the second run's pages 1 to 4, where the empty page 4 ends the stream.
 
-~~~admonish info title="Key Takeaways"
-* **VStream is lazy**: no elements are produced until a terminal operation runs
-* **Pull-based**: the consumer drives evaluation, providing natural backpressure
-* **Virtual thread execution**: each pull returns a VTask, leveraging virtual threads
-* **Step protocol**: Emit (value + continuation), Done (exhausted), Skip (efficient filtering)
-* **Stack-safe**: all terminal operations use iterative loops; flatMap handles deep chains
-* **Composable**: map, flatMap, filter, take chain lazily into pipelines
-* **Error recovery**: recover and recoverWith handle failures at the stream level
+## What a pull gives {#what-a-pull-gives}
+
+`VStream` is a functional interface whose one abstract method, `pull()`, returns a `VTask<Step<A>>`. Running that task gives one of three steps:
+
+| Step | Means |
+|---|---|
+| `Emit(value, tail)` | Here is an element, never null, and `tail` is the rest of the stream |
+| `Skip(tail)` | No element this time; pull `tail` next |
+| `Done()` | The stream has ended |
+
+A terminal operation is a loop that pulls, keeps each emitted value, and moves on to the tail. This is the loop that `take(2).toList()` runs over the feed:
+
+```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
+sequenceDiagram
+    accTitle: The pulls that take two paid customers from the feed
+    accDescr: toList pulls seven times. The first pull fetches page 1 and comes back as a Skip. The second gives Ada. The third reaches Grace, whom the filter rejects, and the fourth the end of page 1; both come back as Skips. The fifth fetches page 2 and is a Skip, and the sixth gives Alan. On the seventh pull, take has its two elements, so it answers Done and closes the rest of the stream.
+    participant L as toList
+    participant T as take(2)
+    participant F as filter(paid)
+    participant O as orders
+    L->>O: pull 1
+    Note over O: fetches page 1
+    O-->>L: Skip
+    L->>O: pull 2
+    O-->>L: Emit Ada
+    L->>O: pull 3
+    O-->>F: Emit Grace
+    F-->>L: Skip: Grace has not paid
+    L->>O: pull 4
+    O-->>L: Skip: page 1 is done
+    L->>O: pull 5
+    Note over O: fetches page 2
+    O-->>L: Skip
+    L->>O: pull 6
+    O-->>L: Emit Alan
+    L->>T: pull 7
+    T-->>L: Done, and closes the rest
+```
+
+Each arrow ends at the operator that answers it. `orders` is the `unfold` and `flatMap`, and `map` is left out, since it passes every step straight on. Page 2 is fetched only when pull 5 reaches it, and page 3 never is. When `filter` rejects Grace, it answers `Skip` rather than pulling again itself, and `flatMap` answers `Skip` as it starts or finishes each page. The loop in `toList` does the pulling again, so however many orders a filter rejects, the stack does not grow. On the pull after its second element, `take` answers `Done` and closes the rest of the stream, so a finaliser upstream, such as a `bracket`'s release, runs.
+
+## Creating a stream {#creating-a-stream}
+
+| Factory | Gives |
+|---|---|
+| `VStream.of(a, b, …)`, `fromList(list)` | The elements given; `fromList` reads the list when pulled, without copying it |
+| `range(from, to)` | The integers from `from` up to, not including, `to` |
+| `iterate(seed, f)`, `generate(supplier)`, `repeat(value)` | A stream without end, which `take` or `takeWhile` limits |
+| `unfold(state, f)` | An element and the next state from a task, until it gives `Optional.empty()` |
+| `fromIterator(iterator)`, `fromStream(stream)` | The elements of an iterator or a Java `Stream`, which a run uses up: a later run carries on where the last one stopped |
+| `defer(supplier)` | A stream built afresh each time it runs |
+| `empty()`, `fail(error)` | A stream that ends at once, or fails at its first pull |
+| `bracket(acquire, use, release)` | A stream that holds a resource while it is read, as [Resource-Safe Streaming](vstream_resources.md) shows |
+
+A stream never holds a null element. `VStream.of(null)` throws at the call, and a null in a list, iterator or Java `Stream` fails the stream when that element is pulled, naming the factory, as in `VStream.fromList element cannot be null`. A function given to `map`, `zipWith` or `recover` that returns null fails it too, closing what the stream opened. [A Task Always Gives a Value](vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
+## Shaping a stream {#shaping-a-stream}
+
+`map` changes each element with a function, and `mapTask` with a task, which may block or fail. Here a courier quotes for each paid order:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:quotes}}
+```
+
+Every operator is lazy: `shippingQuotes` asks the courier nothing until the stream runs, and then only for the orders a pull reaches. `COURIER` quotes 4.99 for every order, so `fold` adds four quotes:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:quotes_outcome}}
+```
+
+The other operators are lazy in the same way:
+
+| Operator | Gives |
+|---|---|
+| `filter(p)` | The elements that match `p` |
+| `take(n)`, `takeWhile(p)` | The first `n` elements, or those before the first that fails `p`; the rest is then closed |
+| `drop(n)`, `dropWhile(p)` | The elements after the first `n`, or from the first that fails `p` |
+| `distinct()` | Each element once |
+| `flatMap(f)`, `via(f)` | The elements of the stream `f` gives for each element, one stream after another |
+| `concat(other)` | This stream's elements, then `other`'s, which is not pulled until this one ends |
+| `zipWith(other, f)` | `f` of each pair, stopping at the shorter stream, so the other may be endless |
+| `interleave(other)` | An element from each stream in turn |
+| `chunk(size)` | Batches of up to `size` elements, as [Parallel Operations](vstream_parallel.md#chunking-operations) shows |
+
+~~~admonish warning title="An endless stream needs a limit"
+`iterate`, `generate` and `repeat` never end, so `toList`, `fold` and `count` on one never return. Limit it first with `take` or `takeWhile`. `exists` and `find` stop at the first match, so they end on an endless stream too, provided a match comes.
 ~~~
+
+## Running a stream {#running-a-stream}
+
+A terminal operation gives a `VTask`, and nothing is read until that task runs:
+
+| Operation | Gives |
+|---|---|
+| `toList()` | Every element |
+| `fold(identity, op)`, `foldLeft(initial, f)` | One value built from every element |
+| `headOption()`, `lastOption()`, `find(p)` | The first, the last, or the first matching element, as an `Optional` |
+| `count()`, `exists(p)`, `forAll(p)` | How many elements, or whether one or all of them match |
+| `forEach(action)` | `Unit`, after running `action` on each element |
+| `drain()` | `Unit`, after reading every element |
+| `runSafe()` | Every element, or the failure, in a [Try](try_monad.md) |
+
+The pulls run on the thread that runs the terminal operation's task. `runAsync()` starts reading at once, on a virtual thread of its own, and gives a `CompletableFuture` of every element:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:threads}}
+```
+
+`VStreamPar` runs the tasks for several elements at the same time, each on a virtual thread, as [Parallel Operations](vstream_parallel.md) shows.
+
+## When an element fails {#when-an-element-fails}
+
+`PATCHY_COURIER` quotes as `COURIER` does, except for Edsger, whose address it does not serve. A failed task fails the stream at that element, and `runSafe()` holds the exception the task threw. `recover` gives a value in its place, and the stream carries on with the next order. This is the extra import:
+
+<!-- verify -->
+```java
+import org.higherkindedj.hkt.trymonad.Try;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:failures}}
+```
+
+`run()` throws the failure instead, wrapping a checked one as [Running a task](vtask_monad.md#running-a-task) describes.
+
+When the source itself fails, there is nothing to carry on with. A feed that goes down at page 2 fails the stream there. `recoverWith` puts another stream in place of the rest, here an empty one, so the orders read before the outage are kept:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:outage}}
+```
+
+| Operator | When a pull fails |
+|---|---|
+| `recover(f)` | Gives `f`'s value. After a failed `mapTask` task, the stream carries on with the next element; after any other failure, it ends |
+| `recoverWith(f)` | Reads the stream `f` gives in place of the rest |
+| `mapError(f)` | Fails with the exception `f` gives instead |
+| `onError(action)` | Runs `action`, then fails as before |
+
+Each acts on a failure at whichever element it happens, not only the first. `recoverWith`, and `recover` when it ends the stream, close the stream they stop reading, so a finaliser upstream runs.
+
+~~~admonish warning title="Put recover straight after its mapTask"
+When `recover` carries on after a failed `mapTask` task, it resumes from that task's next element. An operator between the two, other than `mapError` or `onError`, is left out of the rest of the stream. In `mapTask(quote).filter(cheap).recover(f)`, the quotes after the failure skip the `filter`.
+~~~
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `VStream.of`, `fromList`, `range`, `iterate`, `unfold`, `defer` | Describe a stream; nothing is read until it runs |
+| `map(f)`, `mapTask(f)`, `flatMap(f)`, `via(f)` | Change each element with a function or a task, or put a stream in its place |
+| `filter(p)`, `take(n)`, `takeWhile(p)`, `drop(n)`, `dropWhile(p)`, `distinct()` | Choose which elements go on |
+| `concat(other)`, `zipWith(other, f)`, `interleave(other)` | Combine two streams |
+| `recover(f)`, `recoverWith(f)`, `mapError(f)`, `onError(action)` | Handle a failed pull |
+| `onFinalize(task)`, `bracket(acquire, use, release)` | Run cleanup however the stream ends |
+| `toList()`, `fold`, `headOption()`, `find(p)`, `exists(p)`, `count()`, `forEach(action)`, `runSafe()` | Give a `VTask` that runs the stream |
+| `runAsync()` | Start running the stream on a virtual thread, giving a `CompletableFuture` |
+| `pull()` | Give a task for the next step |
+| `VSTREAM.widen(stream)`, `VSTREAM.narrow(kind)` | Move a stream in and out of `Kind` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `VStream` through its instances. `Instances.monad(vstream())` gives a `VStreamMonad`, whose `flatMap` puts a stream in place of each element. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.vstream;
+import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.vstream.VStreamKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:kind}}
+```
+
+Widening allocates nothing: `VStream` implements `VStreamKind` itself, so `widen` hands back the same stream, and `narrow` checks it is one. [HKT and Type Classes](vstream_hkt.md) covers the other instances, and what `ap` and `orElse` mean for a stream.
+
+## When to use `VStream` {#choosing-the-right-streaming-tool}
+
+| You need | Use |
+|---|---|
+| Elements one at a time from work that blocks or fails, such as a paged API | `VStream`, on a [`VStreamPath`](../effect/path_vstream.md) in application code |
+| The tasks for several elements at the same time | [Parallel Operations](vstream_parallel.md) |
+| A connection or file held open while the stream is read | [Resource-Safe Streaming](vstream_resources.md) |
+| Values already in memory | [List](list_monad.md), or a Java [Stream](stream_monad.md) for a pipeline read once |
+| Values that cannot fail, in a pipeline you run more than once | `StreamPath`, in the [Effect Path cheatsheet](../cheatsheet.md) |
+| Elements from a `Flow.Publisher`, or handed to one | [Advanced Features](vstream_advanced.md) |
+| One value from work that may block | [VTask](vtask_monad.md) |
 
 ~~~admonish info title="Hands-On Learning"
-Practise VStream basics in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises).
+Practise `VStream` in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises).
 ~~~
 
-~~~admonish example title="Benchmarks"
-VStream has a dedicated JMH benchmark suite measuring construction, combinator pipelines, terminal operations, and comparison with raw Java Streams. Run it with:
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
-```
-See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
-~~~
-
-
-~~~admonish tip title="See Also"
-- [HKT and Type Classes](vstream_hkt.md) - VStream's type class instances for generic programming
-- [Parallel Operations](vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
-- [Performance](vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
-- [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
-- [VTask](vtask_monad.md) - The single-value effect type that powers VStream pulls
-- [VTaskPath](../effect/path_vtask.md) - Fluent Path API wrapper for VTask
-- [Stream](stream_monad.md) - Eager list-based streaming
-- [Each Type Class](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
-~~~
+**Benchmarks:** `VStreamBenchmark` measures building streams, their operators and terminal operations, and compares them with Java's `Stream`. [Performance](vstream_performance.md) reads its results, and [Benchmarks](../benchmarks.md) says how to run it.
 
 ---
 

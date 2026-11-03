@@ -76,7 +76,7 @@ public VStream<PriceTick> ticks() {
 Key points:
 - The stream is **infinite**, so use `.take(n)` to limit consumption
 - The function returns `Optional<Seed<A, S>>`; returning `Optional.empty()` ends the stream
-- The `VTask` wrapper means each tick generation runs on a virtual thread
+- The `VTask` wrapper means each tick is generated only when the stream is pulled, and may block or fail
 - Deterministic with a fixed seed, useful for reproducible tests
 
 <!-- verify -->
