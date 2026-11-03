@@ -57,7 +57,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
 ```
     ┌───────────────────────────────────────────────────────────────┐
     │ 1. Timeout (outermost)                                        │
-    │    Bounds total elapsed time across all retry attempts        │
+    │    Cancels all of it, retries included, when time runs out    │
     │                                                               │
     │   ┌───────────────────────────────────────────────────────┐   │
     │   │ 2. Bulkhead                                           │   │
@@ -81,7 +81,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
 ```
 
 This ordering ensures:
-- The **timeout** bounds the entire operation, including all retries and wait times
+- The **timeout** cancels the entire operation, including all retries and wait times, when its time runs out
 - The **bulkhead** prevents too many concurrent operations from even starting
 - **Retry** re-attempts the inner operation, each attempt independently
 - The **circuit breaker** evaluates each attempt, and `CircuitOpenException` naturally stops retry (since it is not a retryable exception by default)
@@ -166,7 +166,7 @@ The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughou
 - A business `Left` is a value, not a fault: it is **never retried** by default, and it **never trips a circuit breaker** (only thrown exceptions count as failures).
 - The typed `withRetry(retryOn, policy)` overload opts selected transient errors in; on exhaustion the **last `Left`** is returned, staying on the typed channel.
 - The `onTimeout` / `onOpen` / `onFull` overloads land timeouts, open-circuit rejections, and bulkhead rejections as typed `Left`s instead of thrown exceptions.
-- A timeout interrupts the computation, and returns the typed timeout once it has stopped, so nothing is left running behind it. A computation that ignores interruption holds the `Left` back until it finishes, as in a [`Scope` with a `timeout`](../monads/vtask_scope.md#timing-a-scope-out).
+- A timeout interrupts the computation, and returns the typed timeout once it has stopped, so the computation is not left running behind it. A computation that ignores interruption, or blocks where an interrupt cannot reach it, holds the `Left` back until it finishes, as in a [`Scope` with a `timeout`](../monads/vtask_scope.md#timing-a-scope-out).
 
 On `IOPath` and `VTaskPath` there is no typed channel, so `withTimeout(duration)` surfaces the timeout on the failure channel (`IOPath` fails with a `CompletionException` wrapping the `TimeoutException`; `VTaskPath` fails with the `TimeoutException` itself), and breaker/bulkhead rejections propagate as exceptions.
 

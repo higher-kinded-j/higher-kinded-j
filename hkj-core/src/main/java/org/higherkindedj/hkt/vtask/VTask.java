@@ -5,14 +5,17 @@ package org.higherkindedj.hkt.vtask;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -382,21 +385,29 @@ public interface VTask<A> extends VTaskKind<A> {
    *
    * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
    * bindings. When the time runs out, this task is interrupted, and the new task fails with a
-   * {@link TimeoutException} once it has stopped, so its cleanup has run and nothing is left
-   * running. So the duration says when this task is cancelled, not when the caller gets control
-   * back: a task that ignores interruption holds the failure back until it finishes, as in a {@link
-   * Scope} that times out. A task that finishes after the time runs out still fails with the {@code
-   * TimeoutException}. A {@code TimeoutException} this task throws itself is reported as the time
-   * running out too. Any other failure passes through as thrown.
+   * {@link TimeoutException} once it has stopped, so its cleanup has run and it is not left
+   * running. A duration of zero or less runs out at once. A task that finishes after the time runs
+   * out still fails with the {@code TimeoutException}. A {@code TimeoutException} this task throws
+   * itself is reported as the time running out too. Any other failure passes through as thrown.
+   *
+   * <p>The duration says when this task is cancelled, not when the caller gets control back, as in
+   * a {@link Scope} that times out. A task that ignores interruption, or blocks where an interrupt
+   * cannot reach it, such as in {@code CompletableFuture.join()}, {@code Lock.lock()} or entering a
+   * {@code synchronized} block, holds the failure back until it finishes. So never wait on a
+   * timeout while holding a lock or monitor its task needs: the task cannot finish, and the timeout
+   * waits for it. To stop waiting at the time limit and leave the task running instead, time out
+   * the future from {@link #runAsync()}, as {@code CompletableFuturePath.withTimeout} does.
    *
    * <p>An interrupt of the thread waiting for the result is passed on to this task in the same way:
    * the new task waits for it to stop, then throws the {@link InterruptedException} whatever this
    * task returns.
    *
-   * <p>Either way, a failure this task throws while it stops, other than an {@code
-   * InterruptedException}, such as a failed rollback, is added to the new task's exception as
-   * suppressed. A further interrupt while the new task waits does not cut the wait short: it sets
-   * the thread's interrupt status again.
+   * <p>Either way, a failure this task throws while it stops, such as a failed rollback, is added
+   * to the new task's exception as suppressed. An {@code InterruptedException}, bare or wrapped by
+   * {@link #run()} in a {@link VTaskExecutionException}, only echoes the cancellation, so it is not
+   * added, though the failures suppressed on it are, such as those a nested timeout kept. A further
+   * interrupt while the new task waits does not cut the wait short: it sets the thread's interrupt
+   * status again.
    *
    * @param duration The time after which this task is cancelled. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
@@ -420,7 +431,7 @@ public interface VTask<A> extends VTaskKind<A> {
       try {
         return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
       } catch (TimeoutException e) {
-        throw onceStopped(
+        throw afterCancelling(
             running, outcome, new TimeoutException("VTask timed out after " + duration));
       } catch (ExecutionException e) {
         if (e.getCause() instanceof TimeoutException) {
@@ -428,26 +439,42 @@ public interface VTask<A> extends VTaskKind<A> {
         }
         throw e.getCause();
       } catch (InterruptedException e) {
-        throw onceStopped(running, outcome, e);
+        throw afterCancelling(running, outcome, e);
       }
     };
   }
 
   /**
    * Interrupts the thread running a task, waits for the task to stop, and returns {@code failure}
-   * with a failure the task threw meanwhile, such as a failed rollback, added as suppressed. An
-   * {@code InterruptedException} from the task only echoes the cancellation, so it is not added.
-   * The wait ignores further interrupts, and sets the interrupt status again for one that arrives.
+   * with what the task threw meanwhile, such as a failed rollback, added as suppressed. The wait
+   * ignores further interrupts, and sets the interrupt status again for one that arrives.
    */
-  private static <X extends Throwable> X onceStopped(
+  private static <X extends Throwable> X afterCancelling(
       Thread running, CompletableFuture<?> outcome, X failure) {
     running.interrupt();
     outcome
         .handle((value, thrown) -> Optional.ofNullable(thrown).map(Throwable::getCause))
         .join()
-        .filter(late -> !(late instanceof InterruptedException))
-        .ifPresent(failure::addSuppressed);
+        .stream()
+        .flatMap(VTask::keptFrom)
+        .forEach(late -> Cleanup.suppress(failure, late));
     return failure;
+  }
+
+  /**
+   * What to keep of a failure a cancelled task threw: the failure itself, or, for an {@code
+   * InterruptedException} that only echoes the cancellation, bare or as {@link #run()} wraps it,
+   * the failures suppressed on it.
+   */
+  private static Stream<Throwable> keptFrom(Throwable late) {
+    return switch (late) {
+      case InterruptedException echo -> Arrays.stream(echo.getSuppressed());
+      case VTaskExecutionException wrapper
+          when wrapper.getCause() instanceof InterruptedException echo ->
+          Stream.concat(
+              Arrays.stream(wrapper.getSuppressed()), Arrays.stream(echo.getSuppressed()));
+      default -> Stream.of(late);
+    };
   }
 
   // ===== ERROR HANDLING =====

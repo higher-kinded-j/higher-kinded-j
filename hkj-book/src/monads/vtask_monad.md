@@ -76,7 +76,7 @@ Application code holds tasks on a `VTaskPath`. `Path.vtask` puts a `Callable` on
 
 Building the path asks neither service. `unsafeRun()` waits on the calling thread while both lookups run. It is where the work happens, so call it once, at the edge of the application. Each run asks the services again. On a `VTaskPath`, `zipWith` runs both paths at once too, as `parZipWith` does.
 
-A `VTaskPath` also cancels a slow task with `timeout(duration)`, and retries with `withRetry`, as [VTaskPath](../effect/path_vtask.md) shows. When the time runs out, the task is interrupted, and the `TimeoutException` arrives once it has stopped, so nothing is left running. A task that ignores interruption holds the failure back until it finishes.
+A `VTaskPath` also cancels a slow task with `timeout(duration)`, and retries with `withRetry`, as [VTaskPath](../effect/path_vtask.md) shows. When the time runs out, the task is interrupted, and the `TimeoutException` arrives once it has stopped, so the task is not left running. A task that ignores interruption, or blocks in `CompletableFuture.join()`, which an interrupt cannot reach, holds the failure back until it finishes.
 
 ## A refusal as a value, on a `VResultPath` {#on-a-vresultpath}
 

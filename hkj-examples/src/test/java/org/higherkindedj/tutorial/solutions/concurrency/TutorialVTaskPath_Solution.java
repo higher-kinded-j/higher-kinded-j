@@ -299,8 +299,8 @@ public class TutorialVTaskPath_Solution {
 
     /**
      * Why this is idiomatic: parallel fetches + timeout + fallback. {@code Par.map2} runs the two
-     * fetches concurrently; {@code timeout} bounds total time; {@code handleError} provides an
-     * empty dashboard when anything fails.
+     * fetches concurrently; {@code timeout} cancels them when time runs out; {@code handleError}
+     * provides an empty dashboard when anything fails.
      *
      * <p>Alternative: sequential fetches with manual timeout tracking. Brittle; the operator stack
      * provides the same semantics declaratively.

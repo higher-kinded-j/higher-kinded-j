@@ -714,7 +714,8 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    * the typed timeout is returned once it has stopped, so a step that ignores interruption holds
    * the {@code Left} back until it finishes. An interrupted step may still have had an effect, such
    * as a payment that reached the gateway, so the {@code Left} means its outcome is unknown, not
-   * that it did not happen. A {@code TimeoutException} thrown by code <em>inside</em> the step is
+   * that it did not happen, and it does not carry a failure the step threw while it stopped, such
+   * as a failed rollback. A {@code TimeoutException} thrown by code <em>inside</em> the step is
    * indistinguishable from the budget running out, so it is also mapped to {@code onTimeout}; and
    * the step runs on a fresh virtual thread, so caller {@code ThreadLocal}s and {@code ScopedValue}
    * bindings are not visible inside it. An interrupt of the caller is passed on to the step: once

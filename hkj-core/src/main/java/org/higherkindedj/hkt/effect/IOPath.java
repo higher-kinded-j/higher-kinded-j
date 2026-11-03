@@ -633,7 +633,9 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * Races this IOPath against another, returning the first to complete.
    *
    * <p>Both IOPaths are executed concurrently, and the result of whichever completes first is
-   * returned. The other computation is cancelled if possible.
+   * returned. The other computation is not interrupted: each side runs in a {@code
+   * CompletableFuture}, so the loser runs on in the background. {@link VTaskPath#race} interrupts
+   * its loser.
    *
    * <p>Example:
    *
@@ -663,7 +665,7 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
 
                 A result = winner.get();
 
-                // Cancel the loser (best effort)
+                // Settle both futures; cancel(true) cannot interrupt the work behind them
                 futureA.cancel(true);
                 futureB.cancel(true);
 

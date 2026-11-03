@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -153,7 +154,7 @@ class VTaskBookTest {
           Path.vtask(
               () -> {
                 try {
-                  new CountDownLatch(1).await();
+                  Thread.sleep(5000); // until the timeout interrupts it
                   return "late";
                 } finally {
                   stopped.set(true);
@@ -174,7 +175,7 @@ class VTaskBookTest {
           Path.vtask(
               () -> {
                 try {
-                  new CountDownLatch(1).await();
+                  Thread.sleep(5000);
                 } catch (InterruptedException ignored) {
                   // this task ignores a cancellation, and carries on
                 }
@@ -184,6 +185,26 @@ class VTaskBookTest {
               });
 
       Try<String> outcome = stubborn.timeout(Duration.ofMillis(10)).run().runSafe();
+
+      assertThatTry(outcome).isFailure().hasExceptionOfType(TimeoutException.class);
+      assertThat(finished).isTrue();
+    }
+
+    @Test
+    @DisplayName("a timed-out task blocked in CompletableFuture.join() holds the failure back")
+    void aTaskInJoinHoldsTheFailureBack() {
+      CompletableFuture<String> reply =
+          new CompletableFuture<String>().completeOnTimeout("late", 100, TimeUnit.MILLISECONDS);
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTaskPath<String> waiting =
+          Path.vtask(
+              () -> {
+                String answer = reply.join(); // an interrupt cannot reach this wait
+                finished.set(true);
+                return answer;
+              });
+
+      Try<String> outcome = waiting.timeout(Duration.ofMillis(10)).run().runSafe();
 
       assertThatTry(outcome).isFailure().hasExceptionOfType(TimeoutException.class);
       assertThat(finished).isTrue();
@@ -237,7 +258,7 @@ class VTaskBookTest {
               VTask.of(
                   () -> {
                     try {
-                      new CountDownLatch(1).await();
+                      Thread.sleep(5000); // until the timeout interrupts it
                       return Either.<OrderError, String>right("collection booked");
                     } finally {
                       stopped.set(true);

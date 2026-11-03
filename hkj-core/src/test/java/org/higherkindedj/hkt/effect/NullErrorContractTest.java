@@ -240,12 +240,11 @@ class NullErrorContractTest {
     @Test
     @DisplayName("VResultPath.withTimeout")
     void vresultPathWithTimeout() {
-      CountDownLatch never = new CountDownLatch(1);
       VResultPath<String, Integer> stuck =
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await(); // until the timeout interrupts it
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return Either.right(1);
                   }));
       assertThatNullPointerException()
@@ -370,7 +369,7 @@ class NullErrorContractTest {
 
   private static void await(CountDownLatch latch) {
     try {
-      latch.await();
+      latch.await(5, TimeUnit.SECONDS); // bounded, so a lost signal cannot hang the test
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }

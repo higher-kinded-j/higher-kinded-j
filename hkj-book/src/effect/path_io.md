@@ -184,7 +184,7 @@ The full `with*` vocabulary chains directly on the path (retry, time budget, cir
 IOPath<String> resilient = Path.io(() -> callFlakyService())
     .retry(5, Duration.ofMillis(100))                        // exponential backoff convenience
     .withRetry(RetryPolicy.fixed(3, Duration.ofMillis(50)))  // policy-driven retry
-    .withTimeout(Duration.ofSeconds(2))                      // bound the elapsed time
+    .withTimeout(Duration.ofSeconds(2))                      // cancel it when time runs out
     .withCircuitBreaker(serviceBreaker)                      // shared breaker per dependency
     .withBulkhead(serviceBulkhead);                          // cap concurrent callers
 ```

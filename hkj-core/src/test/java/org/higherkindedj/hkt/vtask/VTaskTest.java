@@ -549,6 +549,36 @@ class VTaskTest {
   @DisplayName("Timeout")
   class TimeoutTests {
 
+    /**
+     * A task that ignores a cancellation, carries on for a while, and then sets {@code finished}.
+     */
+    private static VTask<Integer> ignoringCancellation(AtomicBoolean finished) {
+      return VTask.of(
+          () -> {
+            try {
+              Thread.sleep(5000);
+            } catch (InterruptedException ignored) {
+              // this task ignores a cancellation, and carries on
+            }
+            Thread.sleep(100);
+            finished.set(true);
+            return TEST_VALUE;
+          });
+    }
+
+    /** A task that throws {@code failure} when it is cancelled, as a failed rollback would. */
+    private static VTask<Integer> failingOnCancellation(RuntimeException failure) {
+      return VTask.of(
+          () -> {
+            try {
+              Thread.sleep(5000);
+              return TEST_VALUE;
+            } catch (InterruptedException e) {
+              throw failure;
+            }
+          });
+    }
+
     @Test
     @DisplayName("timeout() allows fast tasks to complete")
     void timeoutAllowsFastTasksToComplete() {
@@ -556,20 +586,6 @@ class VTaskTest {
       VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
 
       assertThat(withTimeout.run()).isEqualTo(TEST_VALUE);
-    }
-
-    @Test
-    @DisplayName("timeout() fails slow tasks")
-    void timeoutFailsSlowTasks() {
-      VTask<Integer> slowTask =
-          VTask.of(
-              () -> {
-                Thread.sleep(5000);
-                return TEST_VALUE;
-              });
-      VTask<Integer> withTimeout = slowTask.timeout(Duration.ofMillis(50));
-
-      assertThatVTask(withTimeout).fails().withExceptionType(TimeoutException.class);
     }
 
     @Test
@@ -657,20 +673,8 @@ class VTaskTest {
     @DisplayName("timeout() waits for a task that ignores the interrupt, which delays the failure")
     void timeoutWaitsForATaskThatIgnoresTheInterrupt() {
       AtomicBoolean finished = new AtomicBoolean(false);
-      VTask<Integer> stubbornTask =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                  // this task ignores a cancellation, and carries on
-                }
-                Thread.sleep(100);
-                finished.set(true);
-                return TEST_VALUE;
-              });
 
-      assertThatThrownBy(stubbornTask.timeout(Duration.ofMillis(20))::execute)
+      assertThatThrownBy(ignoringCancellation(finished).timeout(Duration.ofMillis(20))::execute)
           .isInstanceOf(TimeoutException.class);
       assertThat(finished).as("the task has finished, and its value is not returned").isTrue();
     }
@@ -679,18 +683,9 @@ class VTaskTest {
     @DisplayName("timeout() keeps a failure the task throws once the time runs out as suppressed")
     void timeoutKeepsAFailureAfterExpiryAsSuppressed() {
       IllegalStateException rollbackFailed = new IllegalStateException("rollback failed");
-      VTask<Integer> slowTask =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                  return TEST_VALUE;
-                } catch (InterruptedException e) {
-                  throw rollbackFailed;
-                }
-              });
 
-      assertThatThrownBy(slowTask.timeout(Duration.ofMillis(20))::execute)
+      assertThatThrownBy(
+              failingOnCancellation(rollbackFailed).timeout(Duration.ofMillis(20))::execute)
           .isInstanceOf(TimeoutException.class)
           .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
     }
@@ -746,25 +741,41 @@ class VTaskTest {
     @DisplayName("an outer timeout() fails only once an inner one's task has stopped")
     void outerTimeoutWaitsForTheInnerTask() {
       AtomicBoolean finished = new AtomicBoolean(false);
-      VTask<Integer> stubbornTask =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                  // this task ignores a cancellation, and carries on past the inner time limit
-                }
-                Thread.sleep(100);
-                finished.set(true);
-                return TEST_VALUE;
-              });
+      // The task carries on past the inner time limit too
+      VTask<Integer> inner = ignoringCancellation(finished).timeout(Duration.ofMillis(50));
+
+      assertThatThrownBy(inner.timeout(Duration.ofMillis(20))::execute)
+          .isInstanceOf(TimeoutException.class)
+          .hasMessage("VTask timed out after PT0.02S");
+      assertThat(finished).isTrue();
+    }
+
+    @Test
+    @DisplayName("an outer timeout() keeps a failed rollback that a nested timeout kept")
+    void outerTimeoutKeepsANestedTimeoutsLateFailure() {
+      IllegalStateException rollbackFailed = new IllegalStateException("rollback failed");
+      VTask<Integer> nested = failingOnCancellation(rollbackFailed).timeout(Duration.ofSeconds(10));
+      // run() reports the nested timeout's InterruptedException wrapped
+      VTask<Integer> nestedThroughRun = VTask.of(nested::run);
+
+      assertThatThrownBy(nested.timeout(Duration.ofMillis(20))::execute)
+          .isInstanceOf(TimeoutException.class)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
+      assertThatThrownBy(nestedThroughRun.timeout(Duration.ofMillis(20))::execute)
+          .isInstanceOf(TimeoutException.class)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
+    }
+
+    @Test
+    @DisplayName("timeout() keeps a wrapped failure that is not a cancellation as suppressed")
+    void timeoutKeepsAWrappedFailureThatIsNotACancellation() {
+      VTaskExecutionException rollbackFailed =
+          new VTaskExecutionException(new IOException("rollback failed"));
 
       assertThatThrownBy(
-              stubbornTask.timeout(Duration.ofMillis(50)).timeout(Duration.ofMillis(20))::execute)
+              failingOnCancellation(rollbackFailed).timeout(Duration.ofMillis(20))::execute)
           .isInstanceOf(TimeoutException.class)
-          .hasMessage("VTask timed out after PT0.02S")
-          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
-      assertThat(finished).isTrue();
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
     }
 
     @Test
@@ -813,20 +824,11 @@ class VTaskTest {
     @DisplayName("timeout() keeps a failure the cancelled task throws as suppressed")
     void timeoutKeepsLateFailureAsSuppressed() {
       IllegalStateException rollbackFailed = new IllegalStateException("rollback failed");
-      VTask<Integer> slowTask =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(3000);
-                  return TEST_VALUE;
-                } catch (InterruptedException e) {
-                  throw rollbackFailed;
-                }
-              });
 
       Thread.currentThread().interrupt();
       try {
-        assertThatThrownBy(slowTask.timeout(Duration.ofSeconds(10))::execute)
+        assertThatThrownBy(
+                failingOnCancellation(rollbackFailed).timeout(Duration.ofSeconds(10))::execute)
             .isInstanceOf(InterruptedException.class)
             .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(rollbackFailed));
       } finally {
@@ -839,19 +841,7 @@ class VTaskTest {
         "timeout() waits past the time limit for a task that ignores an interrupt of the caller")
     void timeoutWaitsForATaskThatIgnoresTheCallersInterrupt() {
       AtomicBoolean finished = new AtomicBoolean(false);
-      VTask<Integer> stubbornTask =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                  // this task ignores a cancellation, and carries on past the time limit
-                }
-                Thread.sleep(100);
-                finished.set(true);
-                return TEST_VALUE;
-              });
-      VTask<Integer> withTimeout = stubbornTask.timeout(Duration.ofMillis(20));
+      VTask<Integer> withTimeout = ignoringCancellation(finished).timeout(Duration.ofMillis(20));
 
       Thread.currentThread().interrupt();
       try {

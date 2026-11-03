@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1328,11 +1327,10 @@ class VTaskPathTest {
     @Test
     @DisplayName("an exceeded budget fails with TimeoutException")
     void exceededBudgetFailsWithTimeoutException() {
-      CountDownLatch never = new CountDownLatch(1);
       VTaskPath<Integer> stuck =
           Path.vtask(
                   () -> {
-                    never.await(); // until the timeout interrupts it
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return 1;
                   })
               .withTimeout(Duration.ofMillis(50));

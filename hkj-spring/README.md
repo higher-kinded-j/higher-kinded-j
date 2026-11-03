@@ -133,7 +133,7 @@ hkj:
 
   # Virtual thread configuration (VTaskPath and VStreamPath)
   virtual-threads:
-    default-timeout-ms: 30000     # VTask timeout (30s)
+    default-timeout-ms: 30000     # VTaskPath response timeout (30s)
     stream-timeout-ms: 60000      # VStream timeout (60s, 0 = no timeout)
 ```
 

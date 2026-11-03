@@ -1438,12 +1438,11 @@ class VResultPathTest {
     @Test
     @DisplayName("withTimeout: a timeout becomes the designated typed error, on the railway")
     void withTimeoutBecomesTypedError() {
-      CountDownLatch never = new CountDownLatch(1);
       VResultPath<String, String> stuck =
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await(); // until the timeout interrupts it
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return Either.right("unreachable");
                   }));
       Either<String, String> result =

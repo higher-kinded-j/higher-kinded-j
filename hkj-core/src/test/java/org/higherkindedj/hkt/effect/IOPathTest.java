@@ -1289,12 +1289,11 @@ class IOPathTest {
     @Test
     @DisplayName("withTimeout: an exceeded budget surfaces CompletionException(TimeoutException)")
     void withTimeoutSurfacesCompletionException() {
-      CountDownLatch never = new CountDownLatch(1);
       IOPath<Integer> stuck =
           Path.io(
                   () -> {
                     try {
-                      never.await(); // until the timeout interrupts it
+                      Thread.sleep(5000); // until the timeout interrupts it
                     } catch (InterruptedException e) {
                       Thread.currentThread().interrupt();
                     }

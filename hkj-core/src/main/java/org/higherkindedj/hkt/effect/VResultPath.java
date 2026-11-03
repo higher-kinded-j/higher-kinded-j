@@ -761,11 +761,12 @@ public final class VResultPath<E, A>
    * and the typed timeout is returned once it has stopped, so a computation that ignores
    * interruption holds the {@code Left} back until it finishes. An interrupted computation may
    * still have had an effect, so the {@code Left} means its outcome is unknown; a {@link
-   * #bracketOutcome} inside it releases what it acquired. A {@code TimeoutException} thrown by code
-   * <em>inside</em> the pipeline is indistinguishable from the budget running out, so it is also
-   * mapped to {@code onTimeout}. An interrupt of the caller is passed on to the computation, and
-   * its {@code InterruptedException} is thrown once the computation stops; it is not mapped to
-   * {@code onTimeout}.
+   * #bracketOutcome} inside it runs its release before the {@code Left} arrives. The {@code Left}
+   * does not carry a failure the computation threw while it stopped, such as a failed rollback. A
+   * {@code TimeoutException} thrown by code <em>inside</em> the pipeline is indistinguishable from
+   * the budget running out, so it is also mapped to {@code onTimeout}. An interrupt of the caller
+   * is passed on to the computation, and its {@code InterruptedException} is thrown once the
+   * computation stops; it is not mapped to {@code onTimeout}.
    *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not

@@ -156,13 +156,17 @@ class ResilienceBuilderTest {
     @Test
     @DisplayName("A timeout that runs out during a retry leaves no attempt running")
     void timeoutOverRetryLeavesNoAttemptRunning() {
+      AtomicInteger attempts = new AtomicInteger(0);
       AtomicInteger running = new AtomicInteger(0);
       VTask<String> task =
           VTask.of(
               () -> {
+                if (attempts.incrementAndGet() == 1) {
+                  throw new IllegalStateException("upstream 503");
+                }
                 running.incrementAndGet();
                 try {
-                  Thread.sleep(5000);
+                  Thread.sleep(5000); // the retry blocks until the timeout interrupts it
                   return "finished";
                 } finally {
                   running.decrementAndGet();
@@ -172,12 +176,11 @@ class ResilienceBuilderTest {
       VTask<String> resilient =
           Resilience.<String>builder(task)
               .withRetry(shortRetry(3))
-              .withTimeout(Duration.ofMillis(20))
+              .withTimeout(Duration.ofMillis(100))
               .build();
 
-      assertThatThrownBy(resilient::execute)
-          .isInstanceOf(TimeoutException.class)
-          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+      assertThatThrownBy(resilient::execute).isInstanceOf(TimeoutException.class);
+      assertThat(attempts).as("attempts started").hasValue(2);
       assertThat(running).as("attempts still running").hasValue(0);
     }
 

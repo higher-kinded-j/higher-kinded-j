@@ -17,7 +17,8 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <p>When multiple patterns are combined, they are applied in this order (outermost to innermost):
  *
  * <ol>
- *   <li><b>Timeout</b> (outermost) bounds total elapsed time
+ *   <li><b>Timeout</b> (outermost) cancels the whole operation, retries included, when its time
+ *       runs out
  *   <li><b>Bulkhead</b> limits concurrent access to the protected resource
  *   <li><b>Retry</b> retries the inner operation on failure
  *   <li><b>Circuit Breaker</b> (innermost) each attempt checks circuit state

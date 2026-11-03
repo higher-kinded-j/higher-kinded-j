@@ -318,7 +318,7 @@ Bulkhead vs VStreamPar: Bulkhead is per-service (shared across callers). VStream
 
 ### Correct Ordering (outermost to innermost)
 
-1. **Timeout**: bounds total elapsed time including retries
+1. **Timeout**: cancels the whole operation, retries included, when its time runs out
 2. **Bulkhead**: limits concurrent access
 3. **Retry**: re-attempts on transient failure
 4. **Circuit Breaker**: each attempt checks circuit state (innermost)
