@@ -350,6 +350,28 @@ class ScopeJoinerTest {
       // The original winner still stands.
       assertThat(joiner.result()).isEqualTo(Either.right("won"));
     }
+
+    @Test
+    @DisplayName("a Left does not end the race, so a later Right still wins (deterministic)")
+    @SuppressWarnings("preview")
+    void leftDoesNotEndTheRace() throws Throwable {
+      StructuredTaskScope.Subtask<Either<String, String>> left;
+      StructuredTaskScope.Subtask<Either<String, String>> right;
+      try (var scope =
+          StructuredTaskScope.open(ScopeJoiner.<Either<String, String>>allSucceed().joiner())) {
+        left = scope.fork(() -> Either.<String, String>left("no van"));
+        right = scope.fork(() -> Either.<String, String>right("won"));
+        scope.join();
+      }
+
+      StructuredTaskScope.Joiner<Either<String, String>, Either<List<String>, String>> joiner =
+          ScopeJoiner.<String, String>firstSuccessEither().joiner();
+
+      // Completions delivered Left first: the Left neither wins nor cancels the rest.
+      assertThat(joiner.onComplete(left)).isFalse();
+      assertThat(joiner.onComplete(right)).isTrue();
+      assertThat(joiner.result()).isEqualTo(Either.right("won"));
+    }
   }
 
   @Nested

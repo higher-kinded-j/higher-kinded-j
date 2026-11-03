@@ -255,6 +255,25 @@ class ResourceBookTest {
     }
 
     @Test
+    @DisplayName(
+        "a later finaliser runs when an earlier one throws, and the earlier one's exception is kept")
+    void aLaterFinaliserRunsAfterAFailedOne() {
+      List<String> ran = new ArrayList<>();
+      IllegalStateException firstFailed = new IllegalStateException("first finaliser failed");
+      Resource<String> handle =
+          Resource.make(() -> "handle", _ -> ran.add("release"))
+              .withFinalizer(
+                  () -> {
+                    ran.add("first finaliser");
+                    throw firstFailed;
+                  })
+              .withFinalizer(() -> ran.add("later finaliser"));
+
+      assertThatTry(handle.useSync(String::length).runSafe()).hasException(firstFailed);
+      assertThat(ran).containsExactly("release", "first finaliser", "later finaliser");
+    }
+
+    @Test
     @DisplayName("onFailure actions run before the release, most recently added first")
     void onFailureRunsBeforeTheRelease() {
       List<String> ledger = new ArrayList<>();
