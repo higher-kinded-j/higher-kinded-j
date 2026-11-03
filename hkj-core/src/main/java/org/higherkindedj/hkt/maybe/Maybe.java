@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
+import static org.higherkindedj.hkt.util.validation.Operation.FROM_EITHER;
 import static org.higherkindedj.hkt.util.validation.Operation.JUST;
 import static org.higherkindedj.hkt.util.validation.Operation.TO_EITHER;
 
@@ -94,6 +95,29 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    */
   static <T> Maybe<T> fromOptional(Optional<T> optional) {
     return optional.isPresent() ? just(optional.get()) : nothing();
+  }
+
+  /**
+   * Converts an {@link Either} to a {@code Maybe}, keeping the {@link Either.Right Right} value and
+   * discarding the {@link Either.Left Left} value.
+   *
+   * <p>If the {@code Either} is {@link Either.Right Right}, returns a {@link Just} containing its
+   * value. If it is {@link Either.Left Left}, returns {@link Nothing}.
+   *
+   * @param either the {@code Either} to convert, which must be non-null.
+   * @param <T> the type of the right value.
+   * @return a {@code Maybe} containing the right value if present, otherwise {@code Nothing}.
+   * @throws NullPointerException if {@code either} is {@code null}.
+   */
+  static <T> Maybe<T> fromEither(Either<?, ? extends T> either) {
+    Validation.function().require(either, "either", FROM_EITHER);
+
+    if (either.isRight()) {
+      T value = either.getRight();
+      return just(value);
+    }
+
+    return nothing();
   }
 
   /**
