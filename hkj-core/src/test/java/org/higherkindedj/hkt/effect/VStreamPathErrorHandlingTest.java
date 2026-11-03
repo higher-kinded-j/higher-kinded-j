@@ -22,6 +22,13 @@ import org.junit.jupiter.api.Test;
 @DisplayName("VStreamPath Error Handling Tests")
 class VStreamPathErrorHandlingTest {
 
+  /** Elements 10 and 20, then a failure at the third element. */
+  private static VStreamPath<Integer> failsAtThird() {
+    return Path.vstreamFromList(List.of(1, 2, 3))
+        .mapTask(
+            n -> n == 3 ? VTask.fail(new IllegalStateException("line 3")) : VTask.succeed(n * 10));
+  }
+
   @Nested
   @DisplayName("recover()")
   class RecoverTests {
@@ -97,6 +104,15 @@ class VStreamPathErrorHandlingTest {
     }
 
     @Test
+    @DisplayName("switches to the fallback stream when a later element fails")
+    void switchesWhenALaterElementFails() {
+      VStreamPath<Integer> recovered =
+          failsAtThird().recoverWith(ex -> Path.vstreamFromList(List.of(-1)));
+
+      assertThat(recovered.toList().unsafeRun()).containsExactly(10, 20, -1);
+    }
+
+    @Test
     @DisplayName("fallback stream can be empty")
     void fallbackStreamCanBeEmpty() {
       VStreamPath<String> stream = Path.vstream(VStream.fail(new RuntimeException("error")));
@@ -134,6 +150,17 @@ class VStreamPathErrorHandlingTest {
       assertThatThrownBy(() -> mapped.toList().unsafeRun())
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("mapped: original");
+    }
+
+    @Test
+    @DisplayName("transforms the error of a later element")
+    void transformsALaterError() {
+      VStreamPath<Integer> mapped =
+          failsAtThird().mapError(ex -> new UnsupportedOperationException("mapped"));
+
+      assertThatThrownBy(() -> mapped.toList().unsafeRun())
+          .isInstanceOf(UnsupportedOperationException.class)
+          .hasMessage("mapped");
     }
 
     @Test
@@ -184,6 +211,18 @@ class VStreamPathErrorHandlingTest {
 
       assertThat(observed.get()).isNotNull();
       assertThat(observed.get()).hasMessageContaining("observed error");
+    }
+
+    @Test
+    @DisplayName("observes the error of a later element")
+    void observesALaterError() {
+      AtomicReference<Throwable> observed = new AtomicReference<>();
+
+      VStreamPath<Integer> withObserver = failsAtThird().onError(observed::set);
+
+      assertThatThrownBy(() -> withObserver.toList().unsafeRun())
+          .isInstanceOf(IllegalStateException.class);
+      assertThat(observed.get()).hasMessage("line 3");
     }
 
     @Test

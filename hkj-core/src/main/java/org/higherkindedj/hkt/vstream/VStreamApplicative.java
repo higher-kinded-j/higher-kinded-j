@@ -99,7 +99,7 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
     VStream<B> result =
         DeferredStream.deferring(
             () -> {
-              List<A> values = aStream.toList().run();
+              List<A> values = Executing.executed(aStream.toList());
               return fStream.flatMap(f -> VStream.fromList(values).map(f));
             },
             fStream,

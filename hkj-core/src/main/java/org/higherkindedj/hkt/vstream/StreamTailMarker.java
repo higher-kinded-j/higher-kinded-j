@@ -5,7 +5,9 @@ package org.higherkindedj.hkt.vstream;
 /**
  * Package-private marker attached as a suppressed exception by {@link VStream#mapTask} to carry the
  * remaining stream tail through a per-element VTask failure. This allows {@link VStream#recover} to
- * continue processing subsequent elements after recovering from a single element's error.
+ * continue processing subsequent elements after recovering from a single element's error. {@link
+ * VStream#mapError} and {@link VStream#onError} attach another, holding the tail with themselves
+ * applied, and the latest marker is the one read.
  *
  * <p>By using a suppressed exception rather than wrapping, the original exception type is preserved
  * for callers that do not use {@code recover()}.

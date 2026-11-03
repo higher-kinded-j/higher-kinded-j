@@ -186,16 +186,16 @@ public final class VStreamReactive {
     return new VStream<>() {
       @Override
       public VTask<VStream.Step<A>> pull() {
-        return VTask.of(
-            () -> {
-              Signal<A> signal = queue.take();
-              return switch (signal) {
-                case Signal.Element<A> e ->
-                    new VStream.Step.Emit<>(e.value(), pullFromQueue(queue, upstream));
-                case Signal.Complete<A> _ -> new VStream.Step.Done<>();
-                case Signal.Error<A> err -> throw wrapIfChecked(err.error());
-              };
-            });
+        return () -> {
+          Signal<A> signal = queue.take();
+          return switch (signal) {
+            case Signal.Element<A> e ->
+                new VStream.Step.Emit<>(e.value(), pullFromQueue(queue, upstream));
+            case Signal.Complete<A> _ -> new VStream.Step.Done<>();
+            // The publisher's error, as it gave it
+            case Signal.Error<A> err -> throw err.error();
+          };
+        };
       }
 
       @Override
@@ -209,12 +209,6 @@ public final class VStreamReactive {
             });
       }
     };
-  }
-
-  private static RuntimeException wrapIfChecked(Throwable t) {
-    if (t instanceof RuntimeException re) return re;
-    if (t instanceof Error e) throw e;
-    return new RuntimeException(t);
   }
 
   /**
@@ -360,7 +354,7 @@ public final class VStreamReactive {
     }
 
     /** Pulls and delivers elements while there is demand. Called holding {@code reading}. */
-    private void readWhileDemanded() {
+    private void readWhileDemanded() throws Throwable {
       while (demand.get() > 0) {
         VStream.Step<A> step = pullUnlessCancelled();
         if (step == null) {
@@ -409,7 +403,7 @@ public final class VStreamReactive {
      * before or during the pull; a step pulled meanwhile is moved past, so closing reaches what is
      * left. Called holding {@code reading}.
      */
-    private VStream.@Nullable Step<A> pullUnlessCancelled() {
+    private VStream.@Nullable Step<A> pullUnlessCancelled() throws Throwable {
       VStream.Step<A> step;
       // Published before the cancelled check, so a cancel either stops the pull here or
       // interrupts it; once it is cleared, a cancel can no longer interrupt this thread
@@ -419,7 +413,7 @@ public final class VStreamReactive {
           return null;
         }
         pulled = true;
-        step = current.pull().run();
+        step = Executing.executed(current.pull());
       } finally {
         puller = null;
       }

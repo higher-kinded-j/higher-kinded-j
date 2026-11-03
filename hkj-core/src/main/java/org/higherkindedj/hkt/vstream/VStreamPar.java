@@ -146,7 +146,7 @@ public final class VStreamPar {
               return VStream.empty();
             }
             // Process batch in parallel, preserving order
-            results = processBatchOrdered(batch, f).run();
+            results = Executing.executed(processBatchOrdered(batch, f));
           } catch (Throwable t) {
             // Close where the batch got to, which its start may not reach
             Closing.closeAfterFailure(tailHolder.get(), t);
@@ -213,7 +213,7 @@ public final class VStreamPar {
               return VStream.empty();
             }
             // Process batch in parallel, collecting in completion order
-            results = processBatchUnordered(batch, f).run();
+            results = Executing.executed(processBatchUnordered(batch, f));
           } catch (Throwable t) {
             // Close where the batch got to, which its start may not reach
             Closing.closeAfterFailure(tailHolder.get(), t);
@@ -378,7 +378,7 @@ public final class VStreamPar {
     try {
       while (!cancelled.get()) {
         VStream<A> current = Objects.requireNonNull(positions.get(index));
-        VStream.Step<A> step = current.pull().run();
+        VStream.Step<A> step = Executing.executed(current.pull());
         switch (step) {
           case VStream.Step.Emit<A> e -> {
             positions.set(index, e.tail());
@@ -393,10 +393,12 @@ public final class VStreamPar {
         }
       }
       return null;
-    } catch (InterruptedException ie) {
-      Thread.currentThread().interrupt();
-      return null;
     } catch (Throwable t) {
+      // The merge sets cancelled before it interrupts a source, so the interrupt it causes goes
+      // unreported below; one that stopped the source's own pull before then is its failure
+      if (t instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       VStream<?> rest = Closing.markedRest(t);
       if (rest != null) {
         carried.add(rest);
@@ -472,35 +474,36 @@ public final class VStreamPar {
     return new VStream<>() {
       @Override
       public VTask<VStream.Step<A>> pull() {
-        return VTask.of(
-            () -> {
-              try {
-                MergeSignal<A> signal = queue.take();
-                return switch (signal) {
-                  case MergeSignal.Element<A> e ->
-                      new VStream.Step.Emit<>(
-                          e.value(), mergeFromQueue(queue, remainingSources, cancelled, producer));
-                  case MergeSignal.SourceDone<A> _ -> {
-                    int newRemaining = remainingSources - 1;
-                    if (newRemaining <= 0) {
-                      yield new VStream.Step.Done<>();
-                    }
-                    yield new VStream.Step.Skip<>(
-                        mergeFromQueue(queue, newRemaining, cancelled, producer));
-                  }
-                  case MergeSignal.SourceError<A> err -> {
-                    // Stop this run before failing, since a consumer reading through a stream
-                    // that keeps nothing it built has nothing that reaches it
-                    RuntimeException failure = handleFailedCause(err.cause());
-                    Closing.runAfterFailure(close(), failure);
-                    throw failure;
-                  }
-                };
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException("Merge interrupted", e);
+        return () -> {
+          MergeSignal<A> signal;
+          try {
+            signal = queue.take();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Merge interrupted", e);
+          }
+          return switch (signal) {
+            case MergeSignal.Element<A> e ->
+                new VStream.Step.Emit<>(
+                    e.value(), mergeFromQueue(queue, remainingSources, cancelled, producer));
+            case MergeSignal.SourceDone<A> _ -> {
+              int newRemaining = remainingSources - 1;
+              if (newRemaining <= 0) {
+                yield new VStream.Step.Done<>();
               }
-            });
+              yield new VStream.Step.Skip<>(
+                  mergeFromQueue(queue, newRemaining, cancelled, producer));
+            }
+            case MergeSignal.SourceError<A> err -> {
+              // Stop this run before failing, since a consumer reading through a stream that
+              // keeps nothing it built has nothing that reaches it. The failure is the source's
+              // own, an InterruptedException included, so it is thrown outside the take's catch
+              Throwable failure = err.cause();
+              Closing.runAfterFailure(close(), failure);
+              throw failure;
+            }
+          };
+        };
       }
 
       @Override
@@ -586,54 +589,15 @@ public final class VStreamPar {
   }
 
   /**
-   * Unwraps a {@link StructuredTaskScope.FailedException} into the appropriate unchecked exception.
-   *
-   * <p>The cause is inspected and re-thrown as follows:
-   *
-   * <ul>
-   *   <li>{@link RuntimeException} — thrown directly
-   *   <li>{@link Error} — thrown directly
-   *   <li>Checked exception — wrapped in a new {@link RuntimeException}
-   * </ul>
-   *
-   * @param e The FailedException to unwrap. Must not be null.
-   * @return A {@link RuntimeException} wrapping a checked exception cause (only reached when the
-   *     cause is a checked exception).
-   */
-  @SuppressWarnings("preview")
-  private static RuntimeException handleFailedException(StructuredTaskScope.FailedException e) {
-    return handleFailedCause(e.getCause());
-  }
-
-  /**
-   * Unwraps a {@link Throwable} into the appropriate unchecked exception.
-   *
-   * <ul>
-   *   <li>{@link RuntimeException} — returned directly
-   *   <li>{@link Error} — thrown directly
-   *   <li>Checked exception — wrapped in a new {@link RuntimeException}
-   * </ul>
-   */
-  private static RuntimeException handleFailedCause(Throwable cause) {
-    if (cause instanceof RuntimeException re) {
-      return re;
-    }
-    if (cause instanceof Error err) {
-      throw err;
-    }
-    return new RuntimeException(cause);
-  }
-
-  /**
    * Pulls up to {@code count} elements from the stream, storing them in the batch list and moving
    * the tail holder past each step, so it holds the position reached if a pull fails.
    *
    * @return true if the stream is exhausted (Done), false if more elements remain.
    */
   private static <A> boolean pullBatch(
-      AtomicReference<VStream<A>> tailHolder, List<A> batch, int count) {
+      AtomicReference<VStream<A>> tailHolder, List<A> batch, int count) throws Throwable {
     for (int i = 0; i < count; i++) {
-      VStream.Step<A> step = tailHolder.get().pull().run();
+      VStream.Step<A> step = Executing.executed(tailHolder.get().pull());
       switch (step) {
         case VStream.Step.Emit<A> e -> {
           batch.add(e.value());
@@ -655,29 +619,28 @@ public final class VStreamPar {
   @SuppressWarnings("preview")
   private static <A, B> VTask<List<B>> processBatchOrdered(
       List<A> batch, Function<? super A, VTask<B>> f) {
-    return VTask.of(
-        () -> {
-          try (var scope = StructuredTaskScope.open()) {
-            List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(batch.size());
+    return () -> {
+      try (var scope = StructuredTaskScope.open()) {
+        List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(batch.size());
 
-            for (A element : batch) {
-              VTask<B> task = f.apply(element);
-              Objects.requireNonNull(task, "function returned null task for element: " + element);
-              subtasks.add(scope.fork(task.asCallable()));
-            }
+        for (A element : batch) {
+          VTask<B> task = f.apply(element);
+          Objects.requireNonNull(task, "function returned null task for element: " + element);
+          subtasks.add(scope.fork(task.asCallable()));
+        }
 
-            scope.join();
+        scope.join();
 
-            List<B> results = new ArrayList<>(subtasks.size());
-            for (var subtask : subtasks) {
-              // A task written by hand can still return null
-              results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
-            }
-            return results;
-          } catch (StructuredTaskScope.FailedException e) {
-            throw handleFailedException(e);
-          }
-        });
+        List<B> results = new ArrayList<>(subtasks.size());
+        for (var subtask : subtasks) {
+          // A task written by hand can still return null
+          results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
+        }
+        return results;
+      } catch (StructuredTaskScope.FailedException e) {
+        throw e.getCause();
+      }
+    };
   }
 
   /**
@@ -690,29 +653,28 @@ public final class VStreamPar {
   @SuppressWarnings("preview")
   private static <A, B> VTask<List<B>> processBatchUnordered(
       List<A> batch, Function<? super A, VTask<B>> f) {
-    return VTask.of(
-        () -> {
-          try (var scope = StructuredTaskScope.open()) {
-            List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(batch.size());
+    return () -> {
+      try (var scope = StructuredTaskScope.open()) {
+        List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(batch.size());
 
-            for (A element : batch) {
-              VTask<B> task = f.apply(element);
-              Objects.requireNonNull(task, "function returned null task for element: " + element);
-              subtasks.add(scope.fork(task.asCallable()));
-            }
+        for (A element : batch) {
+          VTask<B> task = f.apply(element);
+          Objects.requireNonNull(task, "function returned null task for element: " + element);
+          subtasks.add(scope.fork(task.asCallable()));
+        }
 
-            scope.join();
+        scope.join();
 
-            // Collect results — subtask.get() throws if the subtask failed
-            List<B> results = new ArrayList<>(subtasks.size());
-            for (var subtask : subtasks) {
-              // A task written by hand can still return null
-              results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
-            }
-            return results;
-          } catch (StructuredTaskScope.FailedException e) {
-            throw handleFailedException(e);
-          }
-        });
+        // Collect results — subtask.get() throws if the subtask failed
+        List<B> results = new ArrayList<>(subtasks.size());
+        for (var subtask : subtasks) {
+          // A task written by hand can still return null
+          results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
+        }
+        return results;
+      } catch (StructuredTaskScope.FailedException e) {
+        throw e.getCause();
+      }
+    };
   }
 }

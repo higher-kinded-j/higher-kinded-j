@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -63,32 +64,56 @@ final class Closing {
 
   /**
    * The rest of the stream a {@link VStream#mapTask} failure carries, from which {@link
-   * VStream#recover} resumes, or null if the failure carries none. A checked failure carries it
-   * inside the {@link VTaskExecutionException} that {@link VTask#run()} wraps it in.
+   * VStream#recover} resumes, or null if the failure carries none. A failure carries it itself, or,
+   * when a stream written outside this package pulled it with {@link VTask#run()}, inside the
+   * {@link VTaskExecutionException} that wraps a checked one.
    */
   static @Nullable VStream<?> markedRest(Throwable failure) {
-    Throwable marked =
-        failure instanceof VTaskExecutionException
-            ? Objects.requireNonNullElse(failure.getCause(), failure)
-            : failure;
-    for (Throwable suppressed : marked.getSuppressed()) {
+    VStream<?> rest = restMarkedOn(failure);
+    if (rest == null && failure instanceof VTaskExecutionException) {
+      rest = restMarkedOn(Objects.requireNonNullElse(failure.getCause(), failure));
+    }
+    return rest;
+  }
+
+  /**
+   * The rest the latest marker on a failure holds, so an exception thrown at more than one element
+   * resumes from where it last failed.
+   */
+  private static @Nullable VStream<?> restMarkedOn(Throwable failure) {
+    VStream<?> rest = null;
+    for (Throwable suppressed : failure.getSuppressed()) {
       if (suppressed instanceof StreamTailMarker marker) {
-        return marker.remainingTail();
+        rest = marker.remainingTail();
       }
     }
-    return null;
+    return rest;
+  }
+
+  /**
+   * The error an operator fails with in place of a failure, made to carry the rest of the stream
+   * the failure carries, with the operator applied to it again. A {@link VStream#recover} after the
+   * operator then resumes through it, and whatever stops at the failure still closes that rest.
+   */
+  static Throwable carryingRest(
+      Throwable failure, Throwable replacement, UnaryOperator<VStream<?>> continuing) {
+    VStream<?> rest = markedRest(failure);
+    if (rest != null) {
+      replacement.addSuppressed(new StreamTailMarker(continuing.apply(rest)));
+    }
+    return replacement;
   }
 
   /**
    * Runs a cleanup task after a failure, as {@link Cleanup#afterFailure} runs cleanup: a failure of
    * the cleanup is suppressed onto the original, which the caller goes on to throw, and an
-   * interrupt that stopped the reading does not cut the cleanup short. The task runs through {@link
-   * VTask#run()}, so a checked failure is suppressed wrapped in a {@link VTaskExecutionException},
-   * as a stream's finalisers report one when they run after a successful read, and an {@code
-   * InterruptedException} sets the interrupt status.
+   * interrupt that stopped the reading does not cut the cleanup short. The cleanup's failure is
+   * suppressed as it threw it, a checked one included, as a stream's finalisers report one when
+   * they run after a successful read, and an {@code InterruptedException} sets the interrupt
+   * status.
    */
   static void runAfterFailure(VTask<?> cleanup, Throwable failure) {
-    Cleanup.afterFailure(failure, () -> cleanup.run());
+    Cleanup.afterFailure(failure, () -> Executing.executed(cleanup));
   }
 
   /**
