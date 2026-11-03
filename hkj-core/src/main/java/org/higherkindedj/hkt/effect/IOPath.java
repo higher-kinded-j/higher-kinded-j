@@ -736,12 +736,13 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * Returns an IOPath that fails if this computation does not complete within the given duration.
    *
    * <p>On timeout the computation fails with a {@link CompletionException} wrapping a {@link
-   * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. Two
-   * caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
-   * interrupted; a {@code TimeoutException} thrown inside the computation is indistinguishable from
-   * the budget expiring; and the computation runs on a fresh virtual thread, so caller {@code
-   * ThreadLocal}s and {@code ScopedValue} bindings are not visible inside it. An interrupt of the
-   * caller is passed on to the computation: once it stops, or the budget runs out, this path fails
+   * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. As {@link
+   * VTask#timeout} describes, the computation is interrupted when the budget runs out, and this
+   * path fails once it has stopped, so a computation that ignores interruption holds the failure
+   * back until it finishes. A {@code TimeoutException} thrown inside the computation is
+   * indistinguishable from the budget running out, and the computation runs on a fresh virtual
+   * thread, so caller {@code ThreadLocal}s and {@code ScopedValue} bindings are not visible inside
+   * it. An interrupt of the caller is passed on to the computation: once it stops, this path fails
    * with a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
    * interrupt status set. To land a timeout on the typed channel instead, use {@link
    * EitherPath#withTimeout(Supplier, Duration, Supplier)}.

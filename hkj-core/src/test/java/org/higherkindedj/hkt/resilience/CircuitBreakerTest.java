@@ -14,6 +14,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.core.ConditionFactory;
@@ -352,6 +354,37 @@ class CircuitBreakerTest {
           .isInstanceOfSatisfying(
               CircuitOpenException.class,
               open -> assertThat(open.retryAfter()).isGreaterThan(Duration.ofDays(365)));
+    }
+
+    @Test
+    @DisplayName("a call slower than callTimeout is interrupted, and counts once it has stopped")
+    void interruptsACallSlowerThanTheCallTimeout() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .callTimeout(Duration.ofMillis(20))
+                  .build());
+      AtomicBoolean interrupted = new AtomicBoolean(false);
+      AtomicBoolean cleanedUp = new AtomicBoolean(false);
+      VTask<String> slowCall =
+          VTask.of(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                  return "finished";
+                } catch (InterruptedException e) {
+                  interrupted.set(true);
+                  throw e;
+                } finally {
+                  cleanedUp.set(true);
+                }
+              });
+
+      assertThatThrownBy(breaker.protect(slowCall)::execute).isInstanceOf(TimeoutException.class);
+      assertThat(interrupted).isTrue();
+      assertThat(cleanedUp).isTrue();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
     }
 
     @Test

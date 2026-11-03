@@ -293,7 +293,10 @@ public final class VTaskContext<A> {
    * Creates a new VTaskContext that fails if this computation does not complete within the
    * specified duration.
    *
-   * @param duration the maximum time to wait; must not be null
+   * <p>When the time runs out, the computation is interrupted, and the new context fails with a
+   * {@code TimeoutException} once it has stopped, as {@link VTask#timeout} describes.
+   *
+   * @param duration the time after which the computation is cancelled; must not be null
    * @return a VTaskContext with timeout behaviour
    * @throws NullPointerException if duration is null
    */

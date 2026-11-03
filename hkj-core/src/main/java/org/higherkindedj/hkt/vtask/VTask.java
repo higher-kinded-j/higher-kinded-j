@@ -381,26 +381,30 @@ public interface VTask<A> extends VTaskKind<A> {
    * Creates a new task that fails if this task does not complete within the specified duration.
    *
    * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
-   * bindings. When the time runs out, the new task fails with a {@link TimeoutException}, and this
-   * task is not interrupted: it keeps running unobserved. A {@code TimeoutException} this task
-   * throws itself is reported as the time running out too. Any other failure passes through as
-   * thrown.
+   * bindings. When the time runs out, this task is interrupted, and the new task fails with a
+   * {@link TimeoutException} once it has stopped, so its cleanup has run and nothing is left
+   * running. So the duration says when this task is cancelled, not when the caller gets control
+   * back: a task that ignores interruption holds the failure back until it finishes, as in a {@link
+   * Scope} that times out. A task that finishes after the time runs out still fails with the {@code
+   * TimeoutException}. A {@code TimeoutException} this task throws itself is reported as the time
+   * running out too. Any other failure passes through as thrown.
    *
-   * <p>An interrupt of the thread waiting for the result is passed on to this task. The new task
-   * then waits for this task to stop, though not past the time limit, so its cleanup can run, and
-   * throws the {@link InterruptedException} whatever this task returns. A failure this task throws
-   * meanwhile, other than an {@code InterruptedException}, is added to it as suppressed. A further
-   * interrupt during that wait sets the thread's interrupt status again.
+   * <p>An interrupt of the thread waiting for the result is passed on to this task in the same way:
+   * the new task waits for it to stop, then throws the {@link InterruptedException} whatever this
+   * task returns.
    *
-   * @param duration The maximum time to wait. Must not be null.
+   * <p>Either way, a failure this task throws while it stops, other than an {@code
+   * InterruptedException}, such as a failed rollback, is added to the new task's exception as
+   * suppressed. A further interrupt while the new task waits does not cut the wait short: it sets
+   * the thread's interrupt status again.
+   *
+   * @param duration The time after which this task is cancelled. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
    * @throws NullPointerException if {@code duration} is null.
    */
   default VTask<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
-      long budget = TimeUnit.NANOSECONDS.convert(duration);
-      long start = System.nanoTime();
       CompletableFuture<A> outcome = new CompletableFuture<>();
       Thread running =
           Thread.ofVirtual()
@@ -414,28 +418,36 @@ public interface VTask<A> extends VTaskKind<A> {
                     }
                   });
       try {
-        return outcome.get(budget, TimeUnit.NANOSECONDS);
+        return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
       } catch (TimeoutException e) {
-        throw new TimeoutException("VTask timed out after " + duration);
+        throw onceStopped(
+            running, outcome, new TimeoutException("VTask timed out after " + duration));
       } catch (ExecutionException e) {
         if (e.getCause() instanceof TimeoutException) {
           throw new TimeoutException("VTask timed out after " + duration);
         }
         throw e.getCause();
       } catch (InterruptedException e) {
-        running.interrupt();
-        // Wait for the task to stop, ignoring further interrupts, but not past the time limit, and
-        // keep a failure it throws meanwhile, such as a failed rollback
-        long left = Math.max(budget, 0L) - (System.nanoTime() - start);
-        outcome
-            .handle((value, failure) -> Optional.ofNullable(failure).map(Throwable::getCause))
-            .completeOnTimeout(Optional.empty(), left, TimeUnit.NANOSECONDS)
-            .join()
-            .filter(late -> !(late instanceof InterruptedException))
-            .ifPresent(e::addSuppressed);
-        throw e;
+        throw onceStopped(running, outcome, e);
       }
     };
+  }
+
+  /**
+   * Interrupts the thread running a task, waits for the task to stop, and returns {@code failure}
+   * with a failure the task threw meanwhile, such as a failed rollback, added as suppressed. An
+   * {@code InterruptedException} from the task only echoes the cancellation, so it is not added.
+   * The wait ignores further interrupts, and sets the interrupt status again for one that arrives.
+   */
+  private static <X extends Throwable> X onceStopped(
+      Thread running, CompletableFuture<?> outcome, X failure) {
+    running.interrupt();
+    outcome
+        .handle((value, thrown) -> Optional.ofNullable(thrown).map(Throwable::getCause))
+        .join()
+        .filter(late -> !(late instanceof InterruptedException))
+        .ifPresent(failure::addSuppressed);
+    return failure;
   }
 
   // ===== ERROR HANDLING =====

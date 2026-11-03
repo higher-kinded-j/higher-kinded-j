@@ -76,7 +76,7 @@ Application code holds tasks on a `VTaskPath`. `Path.vtask` puts a `Callable` on
 
 Building the path asks neither service. `unsafeRun()` waits on the calling thread while both lookups run. It is where the work happens, so call it once, at the edge of the application. Each run asks the services again. On a `VTaskPath`, `zipWith` runs both paths at once too, as `parZipWith` does.
 
-A `VTaskPath` also gives up waiting with `timeout(duration)`, and retries with `withRetry`, as [VTaskPath](../effect/path_vtask.md) shows. A task that times out is not interrupted: it keeps running, unobserved. To cancel it as well, fork it into a [`Scope`](vtask_scope.md) with a timeout.
+A `VTaskPath` also cancels a slow task with `timeout(duration)`, and retries with `withRetry`, as [VTaskPath](../effect/path_vtask.md) shows. When the time runs out, the task is interrupted, and the `TimeoutException` arrives once it has stopped, so nothing is left running. A task that ignores interruption holds the failure back until it finishes.
 
 ## A refusal as a value, on a `VResultPath` {#on-a-vresultpath}
 
@@ -100,7 +100,7 @@ import org.higherkindedj.hkt.either.Either;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:vresult_outcome}}
 ```
 
-`withTimeout(duration, onTimeout)` gives a typed `Left` when the time runs out, and, like a `VTaskPath`'s `timeout`, leaves the task running, so a booking can still complete after the caller has its `Left`. A `VResultPath`'s `zipWith` runs its paths one after another and stops at the first `Left`. To run typed work at the same time, see [VResultPath](../effect/path_vresult.md#outcome-aware-structured-concurrency).
+`withTimeout(duration, onTimeout)` gives a typed `Left` when the time runs out. Like a `VTaskPath`'s `timeout`, it interrupts the task and waits for it to stop first. An interrupted booking may already have reached the courier, so the `Left` says the outcome is unknown, not that nothing was booked. A `VResultPath`'s `zipWith` runs its paths one after another and stops at the first `Left`. To run typed work at the same time, see [VResultPath](../effect/path_vresult.md#outcome-aware-structured-concurrency).
 
 ## Running a task {#running-a-task}
 
@@ -172,7 +172,7 @@ The factories and functions of every lazy type follow the same rule: `IO`, `VStr
 | `VTask.succeed(value)`, `VTask.fail(exception)` | Give a task that has already succeeded or failed |
 | `map(f)`, `flatMap(f)`, `via(f)`, `then(next)` | Build a new task, running nothing |
 | `recover(f)`, `recoverWith(f)`, `mapError(f)` | Give a value or another task in place of a failure, or change the exception |
-| `timeout(duration)` | Runs the task on a virtual thread of its own, and fails with a `TimeoutException` if it has not finished in time, leaving it running |
+| `timeout(duration)` | Runs the task on a virtual thread of its own; if it has not finished in time, interrupts it and fails with a `TimeoutException` once it has stopped |
 | `run()`, `runSafe()` | Run the task on the calling thread, throwing its failure or holding it in a `Try` |
 | `runAsync()` | Starts the task on a new virtual thread, and returns a `CompletableFuture` |
 | `Par.map2`, `zip`, `all`, `traverse`, `race` | Run tasks at the same time, each on a virtual thread |

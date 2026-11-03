@@ -1332,17 +1332,13 @@ class VTaskPathTest {
       VTaskPath<Integer> stuck =
           Path.vtask(
                   () -> {
-                    never.await();
+                    never.await(); // until the timeout interrupts it
                     return 1;
                   })
               .withTimeout(Duration.ofMillis(50));
-      try {
-        // Both runSafe()s hold the checked TimeoutException itself
-        assertThatVTaskPath(stuck).fails().withExceptionType(TimeoutException.class);
-        assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
-      } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
-      }
+      // Both runSafe()s hold the checked TimeoutException itself
+      assertThatVTaskPath(stuck).fails().withExceptionType(TimeoutException.class);
+      assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
     }
 
     @Test

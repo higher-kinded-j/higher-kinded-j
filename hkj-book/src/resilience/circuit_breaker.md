@@ -65,7 +65,7 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 | `failureThreshold` | 5 | Consecutive failures before the circuit opens |
 | `successThreshold` | 1 | Successful probes in HALF_OPEN before closing |
 | `openDuration` | 60s | How long the circuit stays open |
-| `callTimeout` | 10s | Timeout applied to each protected call |
+| `callTimeout` | 10s | Timeout applied to each protected call: a slower call is interrupted, and fails once it has stopped |
 | `recordFailure` | all exceptions | Predicate determining which exceptions count |
 
 The `recordFailure` predicate is important: not every exception means the service is unhealthy. A `400 Bad Request` or a business validation error reflects a problem with the *request*, not the *service*. Only count failures that indicate the service itself is struggling. A cancelled call counts as neither a success nor a failure, whatever `recordFailure` says, and its `InterruptedException` passes through.

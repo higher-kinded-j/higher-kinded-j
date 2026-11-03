@@ -1443,15 +1443,11 @@ class VResultPathTest {
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await();
+                    never.await(); // until the timeout interrupts it
                     return Either.right("unreachable");
                   }));
-      Either<String, String> result;
-      try {
-        result = stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
-      } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
-      }
+      Either<String, String> result =
+          stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
       assertThatEither(result).isLeft().hasLeft("took too long");
     }
 

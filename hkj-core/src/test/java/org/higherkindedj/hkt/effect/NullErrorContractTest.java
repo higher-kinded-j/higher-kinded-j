@@ -138,21 +138,17 @@ class NullErrorContractTest {
     @DisplayName("EitherPath.withTimeout")
     void eitherPathWithTimeout() {
       CountDownLatch never = new CountDownLatch(1);
-      try {
-        assertThatNullPointerException()
-            .isThrownBy(
-                () ->
-                    EitherPath.<String, Integer>withTimeout(
-                        () -> {
-                          await(never);
-                          return Path.right(1);
-                        },
-                        SHORT,
-                        () -> null))
-            .withMessage("onTimeout must not return null");
-      } finally {
-        never.countDown(); // withTimeout does not interrupt the losing computation
-      }
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  EitherPath.<String, Integer>withTimeout(
+                      () -> {
+                        await(never); // until the timeout interrupts it
+                        return Path.right(1);
+                      },
+                      SHORT,
+                      () -> null))
+          .withMessage("onTimeout must not return null");
     }
 
     @Test
@@ -249,16 +245,12 @@ class NullErrorContractTest {
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await();
+                    never.await(); // until the timeout interrupts it
                     return Either.right(1);
                   }));
-      try {
-        assertThatNullPointerException()
-            .isThrownBy(() -> stuck.withTimeout(SHORT, () -> null).run().run())
-            .withMessage("onTimeout must not return null");
-      } finally {
-        never.countDown(); // withTimeout does not interrupt the losing computation
-      }
+      assertThatNullPointerException()
+          .isThrownBy(() -> stuck.withTimeout(SHORT, () -> null).run().run())
+          .withMessage("onTimeout must not return null");
     }
 
     @Test

@@ -475,6 +475,10 @@ public final class CompletableFuturePath<A>
    * TimeoutException. This path is left as it is: its future mirrors into the new path's, as {@link
    * #fromFuture} describes, so the timeout completes only the new path.
    *
+   * <p>The work behind the future is not interrupted: a {@code CompletableFuture} has no hold on
+   * the thread that completes it, so that work runs on unobserved. To cancel the work when the time
+   * runs out, run it as a {@link VTaskPath} and use {@link VTaskPath#withTimeout(Duration)}.
+   *
    * @param timeout the maximum duration; must not be null
    * @return a new CompletableFuturePath with timeout
    * @throws NullPointerException if timeout is null

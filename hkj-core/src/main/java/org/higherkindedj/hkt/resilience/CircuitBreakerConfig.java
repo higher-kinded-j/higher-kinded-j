@@ -27,7 +27,9 @@ import java.util.function.Predicate;
  * @param failureThreshold failures in the closed state before the circuit opens
  * @param successThreshold successes in the half-open state before the circuit closes
  * @param openDuration how long the circuit stays open before transitioning to half-open
- * @param callTimeout timeout applied to each protected call via {@code VTask.timeout()}
+ * @param callTimeout timeout applied to each protected call via {@code VTask.timeout()}: a call
+ *     slower than this is interrupted, and fails with a {@code TimeoutException} once it has
+ *     stopped
  * @param recordFailure predicate that determines which exceptions count as failures
  * @see CircuitBreaker
  */
@@ -126,7 +128,9 @@ public record CircuitBreakerConfig(
     }
 
     /**
-     * Sets the timeout applied to each protected call.
+     * Sets the timeout applied to each protected call. A call slower than this is interrupted, and
+     * fails with a {@code TimeoutException} once it has stopped, as {@code VTask.timeout()}
+     * describes.
      *
      * @param timeout the call timeout; must not be null
      * @return this builder

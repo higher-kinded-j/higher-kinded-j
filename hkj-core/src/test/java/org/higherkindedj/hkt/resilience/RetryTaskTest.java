@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.vtask.Scope;
@@ -144,6 +145,34 @@ class RetryTaskTest {
       List<Integer> retried = Retry.retryTask(join, RetryPolicy.fixed(3, Duration.ZERO)).run();
 
       assertThat(retried).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("retryTask() over a timeout starts each attempt once the one before has stopped")
+    void retryOverATimeoutLeavesNoAttemptRunning() {
+      AtomicInteger running = new AtomicInteger();
+      AtomicInteger mostAtOnce = new AtomicInteger();
+      VTask<Integer> slowAttempt =
+          VTask.of(
+              () -> {
+                mostAtOnce.accumulateAndGet(running.incrementAndGet(), Math::max);
+                try {
+                  Thread.sleep(5000);
+                  return 1;
+                } finally {
+                  running.decrementAndGet();
+                }
+              });
+      VTask<Integer> retried =
+          Retry.retryTask(
+              slowAttempt.timeout(Duration.ofMillis(20)), RetryPolicy.fixed(3, Duration.ZERO));
+
+      assertThatThrownBy(retried::run)
+          .isInstanceOf(RetryExhaustedException.class)
+          .hasMessageContaining("3 attempts")
+          .hasCauseInstanceOf(TimeoutException.class);
+      assertThat(mostAtOnce).as("attempts running at once").hasValue(1);
+      assertThat(running).as("attempts still running").hasValue(0);
     }
   }
 

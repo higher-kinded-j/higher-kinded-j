@@ -1294,20 +1294,16 @@ class IOPathTest {
           Path.io(
                   () -> {
                     try {
-                      never.await();
+                      never.await(); // until the timeout interrupts it
                     } catch (InterruptedException e) {
                       Thread.currentThread().interrupt();
                     }
                     return 1;
                   })
               .withTimeout(Duration.ofMillis(50));
-      try {
-        assertThatExceptionOfType(CompletionException.class)
-            .isThrownBy(stuck::unsafeRun)
-            .withCauseInstanceOf(TimeoutException.class);
-      } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
-      }
+      assertThatExceptionOfType(CompletionException.class)
+          .isThrownBy(stuck::unsafeRun)
+          .withCauseInstanceOf(TimeoutException.class);
     }
 
     @Test

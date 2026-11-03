@@ -710,13 +710,15 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    * result is {@code Left} of the designated typed error - a timeout stays on the railway instead
    * of becoming a thrown {@code TimeoutException}.
    *
-   * <p>Caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
-   * interrupted - it keeps running unobserved after the typed timeout is returned; a {@code
-   * TimeoutException} thrown by code <em>inside</em> the step is indistinguishable from the budget
-   * expiring, so it is also mapped to {@code onTimeout}; and the step runs on a fresh virtual
-   * thread, so caller {@code ThreadLocal}s and {@code ScopedValue} bindings are not visible inside
-   * it. An interrupt of the caller is passed on to the step: once the step stops, or the budget
-   * runs out, this method throws a {@code VTaskExecutionException} wrapping the {@code
+   * <p>As {@link VTask#timeout} describes, the step is interrupted when the budget runs out, and
+   * the typed timeout is returned once it has stopped, so a step that ignores interruption holds
+   * the {@code Left} back until it finishes. An interrupted step may still have had an effect, such
+   * as a payment that reached the gateway, so the {@code Left} means its outcome is unknown, not
+   * that it did not happen. A {@code TimeoutException} thrown by code <em>inside</em> the step is
+   * indistinguishable from the budget running out, so it is also mapped to {@code onTimeout}; and
+   * the step runs on a fresh virtual thread, so caller {@code ThreadLocal}s and {@code ScopedValue}
+   * bindings are not visible inside it. An interrupt of the caller is passed on to the step: once
+   * the step stops, this method throws a {@code VTaskExecutionException} wrapping the {@code
    * InterruptedException}, with the interrupt status set.
    *
    * @param step the computation to bound; must not be null

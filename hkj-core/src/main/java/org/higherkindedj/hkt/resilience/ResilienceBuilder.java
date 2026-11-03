@@ -121,7 +121,9 @@ public final class ResilienceBuilder<A> {
   }
 
   /**
-   * Adds a timeout for the entire protected operation.
+   * Adds a timeout for the entire protected operation, retries included. When it runs out, the
+   * operation is interrupted, and fails with a {@code TimeoutException} once it has stopped, as
+   * {@link VTask#timeout} describes, so no attempt is left running behind it.
    *
    * @param duration the timeout duration; must not be null
    * @return this builder

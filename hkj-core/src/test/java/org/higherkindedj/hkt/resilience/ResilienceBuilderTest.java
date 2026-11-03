@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -150,6 +151,34 @@ class ResilienceBuilderTest {
 
       assertThat(result).isEqualTo("hello");
       assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("A timeout that runs out during a retry leaves no attempt running")
+    void timeoutOverRetryLeavesNoAttemptRunning() {
+      AtomicInteger running = new AtomicInteger(0);
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                running.incrementAndGet();
+                try {
+                  Thread.sleep(5000);
+                  return "finished";
+                } finally {
+                  running.decrementAndGet();
+                }
+              });
+
+      VTask<String> resilient =
+          Resilience.<String>builder(task)
+              .withRetry(shortRetry(3))
+              .withTimeout(Duration.ofMillis(20))
+              .build();
+
+      assertThatThrownBy(resilient::execute)
+          .isInstanceOf(TimeoutException.class)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+      assertThat(running).as("attempts still running").hasValue(0);
     }
 
     @Test

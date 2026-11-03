@@ -333,14 +333,16 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * <p>This is the {@code with*} family form of {@link #timeout(Duration)} - the two are aliases
    * sharing one {@code VTask.timeout} lowering.
    *
-   * <p>Two caveats inherited from {@link org.higherkindedj.hkt.vtask.VTask#timeout}: the losing
-   * computation is <em>not</em> interrupted, and a {@code TimeoutException} thrown inside the
-   * computation is indistinguishable from the budget expiring. {@code runSafe()} and {@code
-   * run().runSafe()} hold the checked {@code TimeoutException} itself, while {@code unsafeRun()}
-   * wraps it per {@code VTask.run()} conventions. An interrupt of the caller is passed on to the
-   * computation, and the {@code InterruptedException} surfaces once it stops, or the budget runs
-   * out: as thrown from {@code run()}, held by {@code runSafe()} and {@code run().runSafe()}, and
-   * wrapped by {@code unsafeRun()}. Each of the last three sets the interrupt status.
+   * <p>As {@link org.higherkindedj.hkt.vtask.VTask#timeout} describes, the computation is
+   * interrupted when the budget runs out, and the {@code TimeoutException} arrives once it has
+   * stopped, so a computation that ignores interruption holds the failure back until it finishes. A
+   * {@code TimeoutException} thrown inside the computation is indistinguishable from the budget
+   * running out. {@code runSafe()} and {@code run().runSafe()} hold the checked {@code
+   * TimeoutException} itself, while {@code unsafeRun()} wraps it per {@code VTask.run()}
+   * conventions. An interrupt of the caller is passed on to the computation, and the {@code
+   * InterruptedException} surfaces once it stops: as thrown from {@code run()}, held by {@code
+   * runSafe()} and {@code run().runSafe()}, and wrapped by {@code unsafeRun()}. Each of the last
+   * three sets the interrupt status.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget

@@ -155,7 +155,7 @@ EitherPath<OrderError, Reservation> reserved = EitherPath.withRetry(
     policy);
 
 // Typed time budget: the timeout arrives as Left(onTimeout.get()), not a
-// thrown TimeoutException. The losing computation is not interrupted.
+// thrown TimeoutException, once the interrupted step has stopped.
 EitherPath<OrderError, Receipt> charged = EitherPath.withTimeout(
     () -> chargePayment(order),
     Duration.ofSeconds(10),
