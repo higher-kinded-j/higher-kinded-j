@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -579,29 +580,6 @@ class VTaskTest {
           });
     }
 
-    /** A task that ignores a cancellation, then finishes once released, within five seconds. */
-    private record HeldTask(
-        CountDownLatch interrupted, CountDownLatch release, AtomicBoolean finished) {
-
-      HeldTask() {
-        this(new CountDownLatch(1), new CountDownLatch(1), new AtomicBoolean(false));
-      }
-
-      VTask<Integer> task() {
-        return VTask.of(
-            () -> {
-              try {
-                Thread.sleep(5000);
-              } catch (InterruptedException ignored) {
-                interrupted.countDown(); // this task ignores a cancellation
-              }
-              release.await(5, TimeUnit.SECONDS);
-              finished.set(true);
-              return TEST_VALUE;
-            });
-      }
-    }
-
     @Test
     @DisplayName(
         "detachOnCancel() gives the task's value, and passes its failure through as thrown")
@@ -618,13 +596,14 @@ class VTaskTest {
     void detachedTimeoutFailsWhenTheTimeRunsOut() throws InterruptedException {
       HeldTask held = new HeldTask();
       try {
-        assertThatThrownBy(held.task().detachOnCancel().timeout(Duration.ofMillis(20))::execute)
+        assertThatThrownBy(
+                held.task(TEST_VALUE).detachOnCancel().timeout(Duration.ofMillis(20))::execute)
             .isInstanceOf(TimeoutException.class)
             .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
         assertThat(held.finished()).as("the task is still running").isFalse();
-        assertThat(held.interrupted().await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
-        held.release().countDown();
+        held.release();
       }
     }
 
@@ -634,13 +613,13 @@ class VTaskTest {
       HeldTask held = new HeldTask();
       Thread.currentThread().interrupt();
       try {
-        assertThatThrownBy(held.task().detachOnCancel()::execute)
+        assertThatThrownBy(held.task(TEST_VALUE).detachOnCancel()::execute)
             .isInstanceOf(InterruptedException.class);
         assertThat(held.finished()).as("the task is still running").isFalse();
-        assertThat(held.interrupted().await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
         Thread.interrupted();
-        held.release().countDown();
+        held.release();
       }
     }
 
@@ -684,13 +663,30 @@ class VTaskTest {
     @Test
     @DisplayName("timeout() reports a TimeoutException from the task as the time running out")
     void timeoutReportsTasksOwnTimeoutAsExpiry() {
-      VTask<Integer> task = VTask.fail(new TimeoutException("the task's own"));
-      VTask<Integer> withTimeout = task.timeout(Duration.ofSeconds(1));
+      TimeoutException own = new TimeoutException("the task's own");
+      VTask<Integer> withTimeout = VTask.<Integer>fail(own).timeout(Duration.ofSeconds(1));
 
-      assertThatVTask(withTimeout)
-          .fails()
-          .withExceptionType(TimeoutException.class)
-          .withMessage("VTask timed out after PT1S");
+      assertThatThrownBy(withTimeout::execute)
+          .isInstanceOf(TimeoutException.class)
+          .hasMessage("VTask timed out after PT1S")
+          .hasCause(own);
+    }
+
+    @Test
+    @DisplayName(
+        "timeout() keeps a nested timeout that ran out first, and what it kept, as the cause")
+    void timeoutKeepsANestedTimeoutThatRanOutFirst() {
+      IllegalStateException rollbackFailed = new IllegalStateException("rollback failed");
+      VTask<Integer> nested = failingOnCancellation(rollbackFailed).timeout(Duration.ofMillis(20));
+
+      assertThatThrownBy(nested.timeout(Duration.ofSeconds(10))::execute)
+          .isInstanceOf(TimeoutException.class)
+          .hasMessage("VTask timed out after PT10S")
+          .satisfies(
+              e -> {
+                assertThat(e.getCause()).hasMessage("VTask timed out after PT0.02S");
+                assertThat(e.getCause().getSuppressed()).containsExactly(rollbackFailed);
+              });
     }
 
     @Test

@@ -8,8 +8,6 @@ import static org.higherkindedj.hkt.assertions.VTaskContextAssert.assertThatVTas
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -313,28 +312,19 @@ class VTaskContextTest {
 
     @Test
     @DisplayName("detachOnCancel().timeout() fails when the time runs out, before the task stops")
-    void detachedTimeoutFailsWhenTheTimeRunsOut() {
-      CountDownLatch release = new CountDownLatch(1);
-      AtomicBoolean finished = new AtomicBoolean(false);
-      VTaskContext<Integer> held =
-          VTaskContext.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                  // this task ignores a cancellation, and finishes once released
-                }
-                release.await(5, TimeUnit.SECONDS);
-                finished.set(true);
-                return TEST_INT;
-              });
+    void detachedTimeoutFailsWhenTheTimeRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
       try {
-        assertThatVTaskContext(held.detachOnCancel().timeout(Duration.ofMillis(20)))
+        assertThatVTaskContext(
+                VTaskContext.fromVTask(held.task(TEST_INT))
+                    .detachOnCancel()
+                    .timeout(Duration.ofMillis(20)))
             .fails()
             .withExceptionType(TimeoutException.class);
-        assertThat(finished).as("the task is still running").isFalse();
+        assertThat(held.finished()).as("the task is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
-        release.countDown();
+        held.release();
       }
     }
   }

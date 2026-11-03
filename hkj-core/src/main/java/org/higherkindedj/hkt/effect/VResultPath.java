@@ -794,10 +794,14 @@ public final class VResultPath<E, A>
 
   /**
    * Returns a path that gives up on this computation when cancelled, rather than wait for it to
-   * stop, as {@link VTask#detachOnCancel()} describes: the computation is interrupted, and the
-   * cancellation takes effect at once. {@code detachOnCancel().withTimeout(duration, onTimeout)}
-   * gives its typed timeout when the budget runs out, even over a call that blocks where an
-   * interrupt cannot reach it.
+   * stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread, which does not see the caller's {@code ScopedValue} bindings; when the wait is
+   * cancelled, it is interrupted, and the cancellation takes effect at once. Apply it inside the
+   * timeout or breaker: {@code detachOnCancel().withTimeout(duration, onTimeout)} gives its typed
+   * timeout when the budget runs out, even over a call that blocks where an interrupt cannot reach
+   * it, while {@code withTimeout(duration, onTimeout).detachOnCancel()} changes nothing for that
+   * timeout. A {@link #bracketOutcome} inside a detached path runs its release once the use stops,
+   * which may be after the cancellation has been reported.
    *
    * @return a path that stops waiting for this computation when cancelled (non-null)
    */
@@ -862,7 +866,9 @@ public final class VResultPath<E, A>
    * <p>The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a pipeline slower than that - even
    * one that would have produced a {@code Left} - counts as a breaker failure and surfaces as a
-   * defect wrapping the checked {@code TimeoutException}.
+   * defect wrapping the checked {@code TimeoutException}. The pipeline is interrupted, and counts
+   * once it has stopped; to count one that cannot stop at once when the time runs out, chain {@code
+   * detachOnCancel().withCircuitBreaker(breaker)}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return a new path protected by the breaker (non-null)

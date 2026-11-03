@@ -720,7 +720,9 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    * the step runs on a fresh virtual thread, so caller {@code ThreadLocal}s and {@code ScopedValue}
    * bindings are not visible inside it. An interrupt of the caller is passed on to the step: once
    * the step stops, this method throws a {@code VTaskExecutionException} wrapping the {@code
-   * InterruptedException}, with the interrupt status set.
+   * InterruptedException}, with the interrupt status set. For a step that cannot stop at once, use
+   * a {@link VResultPath} and {@code detachOnCancel().withTimeout(duration, onTimeout)}, which
+   * gives the typed timeout when the budget runs out.
    *
    * @param step the computation to bound; must not be null
    * @param duration the time budget; must not be null

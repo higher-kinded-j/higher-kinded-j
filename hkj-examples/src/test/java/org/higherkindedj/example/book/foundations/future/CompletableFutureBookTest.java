@@ -17,6 +17,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Kind;
@@ -219,6 +222,32 @@ class CompletableFutureBookTest {
                       .withTimeout(Duration.ofMillis(10))
                       .join())
           .isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    @DisplayName("withTimeout leaves the work behind the future running")
+    void withTimeoutLeavesTheWorkRunning() throws InterruptedException {
+      CountDownLatch release = new CountDownLatch(1);
+      CountDownLatch finished = new CountDownLatch(1);
+      AtomicBoolean interrupted = new AtomicBoolean(false);
+      CompletableFuture<String> work =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  release.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                  interrupted.set(true);
+                }
+                finished.countDown();
+                return "late";
+              });
+
+      assertThatThrownBy(() -> Path.future(work).withTimeout(Duration.ofMillis(10)).join())
+          .isInstanceOf(RuntimeException.class);
+      release.countDown();
+
+      assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(interrupted).isFalse();
     }
   }
 }

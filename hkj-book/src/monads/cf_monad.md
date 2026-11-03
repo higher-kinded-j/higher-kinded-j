@@ -67,7 +67,7 @@ import org.higherkindedj.hkt.effect.Path;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:path_outcome}}
 ```
 
-A `CompletableFuturePath` also times out with `withTimeout`. `toEitherPath()` waits for the future, then holds a failure as a `Left`. A future that has failed stays failed, so to try failed work again, start it with `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)`, which runs the supplier again. A future that completes with `null` fails the Path, which catches every `CompletableFuture<Void>` from `runAsync` or `allOf`: map one to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`.
+A `CompletableFuturePath` also times out with `withTimeout`, which fails the Path but leaves the work behind the future running, since a future cannot interrupt it. `toEitherPath()` waits for the future, then holds a failure as a `Left`. A future that has failed stays failed, so to try failed work again, start it with `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)`, which runs the supplier again. A future that completes with `null` fails the Path, which catches every `CompletableFuture<Void>` from `runAsync` or `allOf`: map one to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`.
 
 ## Methods {#methods}
 
@@ -80,7 +80,7 @@ A `CompletableFuturePath` also times out with `withTimeout`. `toEitherPath()` wa
 | `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)` | Start work, and run the supplier again after a failure |
 | `map(f)`, `via(f)`, `recover(f)` | Change the value, chain a step, or give a value in place of a failure |
 | `parZipWith(other, f)`, `race(other)` | Join two Paths' results, or keep whichever succeeds first, failing only if both fail |
-| `withTimeout(duration)` | Fails the Path if the future has not completed in time |
+| `withTimeout(duration)` | Fails the Path if the future has not completed in time; the work behind it runs on |
 | `join()`, `toEitherPath()` | Wait for the result, or wait and then hold a failure as a `Left` |
 | `FUTURE.widen(future)`, `FUTURE.narrow(kind)`, `FUTURE.join(kind)` | Move a future in and out of `Kind`, or wait for one |
 

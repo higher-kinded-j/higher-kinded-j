@@ -267,6 +267,19 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    */
   VTaskPath<A> timeout(Duration duration);
 
+  /**
+   * Returns a VTaskPath that gives up on this computation when cancelled, rather than wait for it
+   * to stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread, which does not see the caller's {@code ScopedValue} bindings; when the wait is
+   * cancelled, it is interrupted, and the cancellation takes effect at once. Apply it inside the
+   * timeout or breaker: {@code detachOnCancel().withTimeout(duration)} fails when the budget runs
+   * out, even over a call that blocks where an interrupt cannot reach it, while {@code
+   * withTimeout(duration).detachOnCancel()} changes nothing for that timeout.
+   *
+   * @return a new VTaskPath that stops waiting for this computation when cancelled
+   */
+  VTaskPath<A> detachOnCancel();
+
   // ===== Focus Bridge Methods =====
 
   /**
@@ -354,17 +367,11 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
   VTaskPath<A> withTimeout(Duration duration);
 
   /**
-   * Returns a VTaskPath that gives up on this computation when cancelled, rather than wait for it
-   * to stop, as {@link VTask#detachOnCancel()} describes: the computation is interrupted, and the
-   * cancellation takes effect at once. {@code detachOnCancel().withTimeout(duration)} fails when
-   * the budget runs out, even over a call that blocks where an interrupt cannot reach it.
-   *
-   * @return a new VTaskPath that stops waiting for this computation when cancelled
-   */
-  VTaskPath<A> detachOnCancel();
-
-  /**
    * Returns a VTaskPath protected by the given circuit breaker.
+   *
+   * <p>A computation slower than the breaker's {@code callTimeout} is interrupted, and counts as a
+   * failure once it has stopped. To count one that cannot stop at once when the time runs out,
+   * chain {@code detachOnCancel().withCircuitBreaker(breaker)}.
    *
    * @param circuitBreaker the circuit breaker; must not be null
    * @return a new VTaskPath with circuit breaker protection

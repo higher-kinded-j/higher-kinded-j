@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.core.ConditionFactory;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -389,34 +390,22 @@ class CircuitBreakerTest {
 
     @Test
     @DisplayName("a detached call that ignores the interrupt counts when callTimeout runs out")
-    void detachedCallCountsWhenTheCallTimeoutRunsOut() {
+    void detachedCallCountsWhenTheCallTimeoutRunsOut() throws InterruptedException {
       CircuitBreaker breaker =
           CircuitBreaker.create(
               CircuitBreakerConfig.builder()
                   .failureThreshold(1)
                   .callTimeout(Duration.ofMillis(20))
                   .build());
-      CountDownLatch release = new CountDownLatch(1);
-      AtomicBoolean finished = new AtomicBoolean(false);
-      VTask<String> hungCall =
-          VTask.of(
-              () -> {
-                try {
-                  Thread.sleep(5000);
-                } catch (InterruptedException ignored) {
-                  // this call ignores a cancellation, and finishes once released
-                }
-                release.await(5, TimeUnit.SECONDS);
-                finished.set(true);
-                return "finished";
-              });
+      HeldTask held = new HeldTask();
       try {
-        assertThatThrownBy(breaker.protect(hungCall.detachOnCancel())::execute)
+        assertThatThrownBy(breaker.protect(held.task("finished").detachOnCancel())::execute)
             .isInstanceOf(TimeoutException.class);
-        assertThat(finished).as("the call is still running").isFalse();
+        assertThat(held.finished()).as("the call is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
         assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
       } finally {
-        release.countDown();
+        held.release();
       }
     }
 

@@ -193,12 +193,13 @@ class VTaskBookTest {
     @Test
     @DisplayName("a timed-out task blocked in CompletableFuture.join() holds the failure back")
     void aTaskInJoinHoldsTheFailureBack() {
-      CompletableFuture<String> reply =
-          new CompletableFuture<String>().completeOnTimeout("late", 100, TimeUnit.MILLISECONDS);
       AtomicBoolean finished = new AtomicBoolean(false);
       VTaskPath<String> waiting =
           Path.vtask(
               () -> {
+                CompletableFuture<String> reply =
+                    new CompletableFuture<String>()
+                        .completeOnTimeout("late", 100, TimeUnit.MILLISECONDS);
                 String answer = reply.join(); // an interrupt cannot reach this wait
                 finished.set(true);
                 return answer;

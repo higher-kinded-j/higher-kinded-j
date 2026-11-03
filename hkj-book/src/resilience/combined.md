@@ -160,14 +160,14 @@ The `with*` vocabulary is available across the Path family, so resilience compos
 | `withBulkhead(bulkhead)` | ✓ | ✓ | ✓ | ✓ |
 | `withBulkhead(bulkhead, onFull)`: rejection as a typed `Left` | · | · | ✓ | ✓ |
 
-(✓ = available; · = not applicable on that carrier.)
+(✓ = available; · = not applicable on that carrier.) An `EitherPath` step that cannot stop at once fails on time as a `VResultPath` with `detachOnCancel().withTimeout(duration, onTimeout)`.
 
 The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughout, backed by one shared retry implementation:
 
 - A business `Left` is a value, not a fault: it is **never retried** by default, and it **never trips a circuit breaker** (only thrown exceptions count as failures).
 - The typed `withRetry(retryOn, policy)` overload opts selected transient errors in; on exhaustion the **last `Left`** is returned, staying on the typed channel.
 - The `onTimeout` / `onOpen` / `onFull` overloads land timeouts, open-circuit rejections, and bulkhead rejections as typed `Left`s instead of thrown exceptions.
-- A timeout interrupts the computation, and returns the typed timeout once it has stopped, so the computation is not left running behind it. A computation that ignores interruption, or blocks where an interrupt cannot reach it, holds the `Left` back until it finishes, as in a [`Scope` with a `timeout`](../monads/vtask_scope.md#timing-a-scope-out).
+- A timeout interrupts the computation, and returns the typed timeout once it has stopped, so the computation is not left running behind it. A computation that ignores interruption, or blocks where an interrupt cannot reach it, holds the `Left` back until it finishes; on `VResultPath`, [`detachOnCancel()`](../effect/path_vtask.md#timeouts) gives it on time instead.
 
 On `IOPath` and `VTaskPath` there is no typed channel, so `withTimeout(duration)` surfaces the timeout on the failure channel (`IOPath` fails with a `CompletionException` wrapping the `TimeoutException`; `VTaskPath` fails with the `TimeoutException` itself), and breaker/bulkhead rejections propagate as exceptions.
 

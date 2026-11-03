@@ -10,11 +10,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,6 +19,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
@@ -1344,27 +1342,17 @@ class VTaskPathTest {
 
     @Test
     @DisplayName("detachOnCancel().withTimeout() fails when the budget runs out, before it stops")
-    void detachedTimeoutFailsWhenTheBudgetRunsOut() {
-      CountDownLatch release = new CountDownLatch(1);
-      AtomicBoolean finished = new AtomicBoolean(false);
-      Callable<Integer> held =
-          () -> {
-            try {
-              Thread.sleep(5000);
-            } catch (InterruptedException ignored) {
-              // this task ignores a cancellation, and finishes once released
-            }
-            release.await(5, TimeUnit.SECONDS);
-            finished.set(true);
-            return 1;
-          };
+    void detachedTimeoutFailsWhenTheBudgetRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
       try {
-        assertThatVTaskPath(Path.vtask(held).detachOnCancel().withTimeout(Duration.ofMillis(20)))
+        assertThatVTaskPath(
+                Path.vtaskPath(held.task(1)).detachOnCancel().withTimeout(Duration.ofMillis(20)))
             .fails()
             .withExceptionType(TimeoutException.class);
-        assertThat(finished).as("the computation is still running").isFalse();
+        assertThat(held.finished()).as("the computation is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
-        release.countDown();
+        held.release();
       }
     }
 

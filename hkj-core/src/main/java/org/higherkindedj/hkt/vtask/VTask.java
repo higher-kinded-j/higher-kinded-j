@@ -386,9 +386,11 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
    * bindings. When the time runs out, this task is interrupted, and the new task fails with a
    * {@link TimeoutException} once it has stopped, so its cleanup has run and it is not left
-   * running. A duration of zero or less runs out at once. A task that finishes after the time runs
-   * out still fails with the {@code TimeoutException}. A {@code TimeoutException} this task throws
-   * itself is reported as the time running out too. Any other failure passes through as thrown.
+   * running. A duration of zero or less runs out at once, so the new task fails unless this task
+   * has already finished. A task that finishes after the time runs out still fails with the {@code
+   * TimeoutException}. A {@code TimeoutException} this task throws itself is reported as the time
+   * running out too, with that exception as its cause, so what a nested timeout kept is not lost.
+   * Any other failure passes through as thrown.
    *
    * <p>The duration says when this task is cancelled, not when the caller gets control back, as in
    * a {@link Scope} that times out. A task that ignores interruption, or blocks where an interrupt
@@ -405,9 +407,10 @@ public interface VTask<A> extends VTaskKind<A> {
    * <p>Either way, a failure this task throws while it stops, such as a failed rollback, is added
    * to the new task's exception as suppressed. An {@code InterruptedException}, bare or wrapped by
    * {@link #run()} in a {@link VTaskExecutionException}, only echoes the cancellation, so it is not
-   * added, though the failures suppressed on it are, such as those a nested timeout kept. A further
-   * interrupt while the new task waits does not cut the wait short: it sets the thread's interrupt
-   * status again.
+   * added, though the failures suppressed on it are, such as those a nested timeout kept. A layer
+   * that reports the interrupt as its own failure, as a retry interrupted between attempts reports
+   * a {@code RetryExhaustedException}, is kept like any other failure. A further interrupt while
+   * the new task waits does not cut the wait short: it sets the thread's interrupt status again.
    *
    * @param duration The time after which this task is cancelled. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.
@@ -424,8 +427,10 @@ public interface VTask<A> extends VTaskKind<A> {
         throw afterCancelling(
             running, outcome, new TimeoutException("VTask timed out after " + duration));
       } catch (ExecutionException e) {
-        if (e.getCause() instanceof TimeoutException) {
-          throw new TimeoutException("VTask timed out after " + duration);
+        if (e.getCause() instanceof TimeoutException own) {
+          TimeoutException expired = new TimeoutException("VTask timed out after " + duration);
+          expired.initCause(own);
+          throw expired;
         }
         throw e.getCause();
       } catch (InterruptedException e) {
@@ -446,12 +451,18 @@ public interface VTask<A> extends VTaskKind<A> {
    * unreported.
    *
    * <p>Use it where a cancellation must take effect on time even if this task cannot stop at once,
-   * such as a call that blocks where an interrupt cannot reach it. Under {@code timeout}, the
-   * failure then arrives when the time runs out: {@code task.detachOnCancel().timeout(duration)}.
-   * Under a {@code CircuitBreaker}, a call slower than its {@code callTimeout} counts as a failure
-   * when the time runs out, so the breaker can open. The task may still be running once the caller
-   * has moved on, so detach only work whose leftovers are harmless: a task that holds a resource,
-   * or whose effect someone must see, should stop when interrupted instead.
+   * such as a call that blocks where an interrupt cannot reach it. Apply it inside what cancels:
+   * under {@code task.detachOnCancel().timeout(duration)} the failure arrives when the time runs
+   * out, and under {@code breaker.protect(task.detachOnCancel())} a call slower than the breaker's
+   * {@code callTimeout} counts as a failure then, so the breaker can open. The other order, {@code
+   * task.timeout(duration).detachOnCancel()}, changes nothing for that timeout.
+   *
+   * <p>The task may still be running once the caller has moved on, so detach only work whose
+   * leftovers are harmless: a task that holds a resource, or whose effect someone must see, should
+   * stop when interrupted instead. A bulkhead around a detached task gives its permit back when the
+   * task is cancelled, so the leftover no longer counts against the bulkhead's limit, and each
+   * retry after a timeout can leave one more running. Where the limit must hold, detach the
+   * protected task instead: {@code bulkhead.protect(task).detachOnCancel()}.
    *
    * @return A new {@code VTask<A>} that stops waiting for this task when cancelled. Never null.
    */

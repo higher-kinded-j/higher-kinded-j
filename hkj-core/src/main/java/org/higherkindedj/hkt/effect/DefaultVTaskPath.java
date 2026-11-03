@@ -251,6 +251,11 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     return new DefaultVTaskPath<>(value.timeout(duration));
   }
 
+  @Override
+  public VTaskPath<A> detachOnCancel() {
+    return new DefaultVTaskPath<>(value.detachOnCancel());
+  }
+
   // ===== Focus Bridge Methods =====
 
   @Override
@@ -301,11 +306,6 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public VTaskPath<A> withTimeout(Duration duration) {
     return timeout(duration); // alias: the with* family form of timeout(Duration)
-  }
-
-  @Override
-  public VTaskPath<A> detachOnCancel() {
-    return new DefaultVTaskPath<>(value.detachOnCancel());
   }
 
   @Override

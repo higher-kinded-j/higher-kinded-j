@@ -775,11 +775,13 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
 
   /**
    * Returns an IOPath that gives up on this computation when cancelled, rather than wait for it to
-   * stop, as {@link VTask#detachOnCancel()} describes: the computation runs on a fresh virtual
-   * thread and is interrupted, and the cancellation takes effect at once, as a {@code
-   * VTaskExecutionException} wrapping the {@code InterruptedException}, with the interrupt status
-   * set. {@code detachOnCancel().withTimeout(duration)} fails when the budget runs out, even over a
-   * call that blocks where an interrupt cannot reach it.
+   * stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread; when the wait is cancelled, it is interrupted, and the cancellation takes effect at
+   * once, as a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
+   * interrupt status set. Apply it inside the timeout or breaker: {@code
+   * detachOnCancel().withTimeout(duration)} fails when the budget runs out, even over a call that
+   * blocks where an interrupt cannot reach it, while {@code withTimeout(duration).detachOnCancel()}
+   * changes nothing for that timeout.
    *
    * @return an IOPath that stops waiting for this computation when cancelled
    */
@@ -795,8 +797,10 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * failure budget. The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a computation slower than that
    * counts as a breaker failure and surfaces as a {@code VTaskExecutionException} wrapping the
-   * checked {@code TimeoutException}. The computation runs on a fresh virtual thread (see the
-   * {@link #withTimeout(Duration)} caveats).
+   * checked {@code TimeoutException}, once the interrupted computation has stopped; to count one
+   * that cannot stop at once when the time runs out, chain {@code
+   * detachOnCancel().withCircuitBreaker(breaker)}. The computation runs on a fresh virtual thread
+   * (see the {@link #withTimeout(Duration)} caveats).
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return an IOPath protected by the breaker
