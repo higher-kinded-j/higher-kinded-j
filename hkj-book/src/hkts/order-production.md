@@ -92,7 +92,7 @@ EitherPath<OrderError, Receipt> charged =
         () -> OrderError.SystemError.timeout("paymentService.charge"));
 ```
 
-One caveat: the timed-out computation is not interrupted, so on a non-idempotent step like payment, `Left(timeout)` means the outcome is *unknown*: reconcile, do not blindly retry. See [Resilience Patterns](../resilience/ch_intro.md) for the full path-native combinator surface (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`) and the per-carrier availability table.
+One caveat: the timeout interrupts the charge, but the charge may already have reached the payment provider. So on a non-idempotent step like payment, `Left(timeout)` means the outcome is *unknown*: reconcile, do not blindly retry. See [Resilience Patterns](../resilience/ch_intro.md) for the full path-native combinator surface (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`) and the per-carrier availability table.
 
 ---
 

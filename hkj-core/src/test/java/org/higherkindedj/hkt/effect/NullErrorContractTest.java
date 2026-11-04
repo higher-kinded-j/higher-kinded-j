@@ -138,21 +138,17 @@ class NullErrorContractTest {
     @DisplayName("EitherPath.withTimeout")
     void eitherPathWithTimeout() {
       CountDownLatch never = new CountDownLatch(1);
-      try {
-        assertThatNullPointerException()
-            .isThrownBy(
-                () ->
-                    EitherPath.<String, Integer>withTimeout(
-                        () -> {
-                          await(never);
-                          return Path.right(1);
-                        },
-                        SHORT,
-                        () -> null))
-            .withMessage("onTimeout must not return null");
-      } finally {
-        never.countDown(); // withTimeout does not interrupt the losing computation
-      }
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  EitherPath.<String, Integer>withTimeout(
+                      () -> {
+                        await(never); // until the timeout interrupts it
+                        return Path.right(1);
+                      },
+                      SHORT,
+                      () -> null))
+          .withMessage("onTimeout must not return null");
     }
 
     @Test
@@ -244,21 +240,16 @@ class NullErrorContractTest {
     @Test
     @DisplayName("VResultPath.withTimeout")
     void vresultPathWithTimeout() {
-      CountDownLatch never = new CountDownLatch(1);
       VResultPath<String, Integer> stuck =
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await();
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return Either.right(1);
                   }));
-      try {
-        assertThatNullPointerException()
-            .isThrownBy(() -> stuck.withTimeout(SHORT, () -> null).run().run())
-            .withMessage("onTimeout must not return null");
-      } finally {
-        never.countDown(); // withTimeout does not interrupt the losing computation
-      }
+      assertThatNullPointerException()
+          .isThrownBy(() -> stuck.withTimeout(SHORT, () -> null).run().run())
+          .withMessage("onTimeout must not return null");
     }
 
     @Test
@@ -378,7 +369,7 @@ class NullErrorContractTest {
 
   private static void await(CountDownLatch latch) {
     try {
-      latch.await();
+      latch.await(5, TimeUnit.SECONDS); // bounded, so a lost signal cannot hang the test
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }

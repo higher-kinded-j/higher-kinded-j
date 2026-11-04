@@ -57,7 +57,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
 ```
     ┌───────────────────────────────────────────────────────────────┐
     │ 1. Timeout (outermost)                                        │
-    │    Bounds total elapsed time across all retry attempts        │
+    │    Cancels all of it, retries included, when time runs out    │
     │                                                               │
     │   ┌───────────────────────────────────────────────────────┐   │
     │   │ 2. Bulkhead                                           │   │
@@ -81,7 +81,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
 ```
 
 This ordering ensures:
-- The **timeout** bounds the entire operation, including all retries and wait times
+- The **timeout** cancels the entire operation, including all retries and wait times, when its time runs out
 - The **bulkhead** prevents too many concurrent operations from even starting
 - **Retry** re-attempts the inner operation, each attempt independently
 - The **circuit breaker** evaluates each attempt, and `CircuitOpenException` naturally stops retry (since it is not a retryable exception by default)
@@ -154,19 +154,20 @@ The `with*` vocabulary is available across the Path family, so resilience compos
 | `retry(maxAttempts, initialDelay)` convenience | ✓ | ✓ | · | · |
 | `withTimeout(duration)` | ✓ | ✓ | · | · |
 | `withTimeout(duration, onTimeout)`: timeout as a typed `Left` | · | · | ✓ | ✓ |
+| `detachOnCancel()`: a timeout fails on time, without waiting for the computation to stop | ✓ | ✓ | ✓ | · |
 | `withCircuitBreaker(breaker)` | ✓ | ✓ | ✓ | ✓ |
 | `withCircuitBreaker(breaker, onOpen)`: rejection as a typed `Left` | · | · | ✓ | ✓ |
 | `withBulkhead(bulkhead)` | ✓ | ✓ | ✓ | ✓ |
 | `withBulkhead(bulkhead, onFull)`: rejection as a typed `Left` | · | · | ✓ | ✓ |
 
-(✓ = available; · = not applicable on that carrier.)
+(✓ = available; · = not applicable on that carrier.) An `EitherPath` step that cannot stop at once fails on time as a `VResultPath` with `detachOnCancel().withTimeout(duration, onTimeout)`.
 
 The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughout, backed by one shared retry implementation:
 
 - A business `Left` is a value, not a fault: it is **never retried** by default, and it **never trips a circuit breaker** (only thrown exceptions count as failures).
 - The typed `withRetry(retryOn, policy)` overload opts selected transient errors in; on exhaustion the **last `Left`** is returned, staying on the typed channel.
 - The `onTimeout` / `onOpen` / `onFull` overloads land timeouts, open-circuit rejections, and bulkhead rejections as typed `Left`s instead of thrown exceptions.
-- Timeouts do **not** interrupt the losing computation; it keeps running unobserved after the typed timeout is returned, so bound its side effects accordingly. A [`Scope` with a `timeout`](../monads/vtask_scope.md#timing-a-scope-out) interrupts its subtasks instead.
+- A timeout interrupts the computation, and returns the typed timeout once it has stopped, so the computation is not left running behind it. A computation that ignores interruption, or blocks where an interrupt cannot reach it, holds the `Left` back until it finishes; on `VResultPath`, [`detachOnCancel()`](../effect/path_vtask.md#timeouts) gives it on time instead.
 
 On `IOPath` and `VTaskPath` there is no typed channel, so `withTimeout(duration)` surfaces the timeout on the failure channel (`IOPath` fails with a `CompletionException` wrapping the `TimeoutException`; `VTaskPath` fails with the `TimeoutException` itself), and breaker/bulkhead rejections propagate as exceptions.
 
@@ -217,7 +218,7 @@ EitherPath<OrderError, Shipment> workflow =
 The layering inside the inventory step follows [the correct order](#the-ordering-problem): the breaker is inside the retry, so each attempt is individually recorded, and the `transientError` predicate refuses to retry an open-circuit rejection (the typed analogue of excluding `CircuitOpenException` from a retry predicate).
 
 ~~~admonish warning title="A Timeout Is Not a Rollback"
-Since a timed-out computation is not interrupted, `Left(timeout)` on the payment step means the charge's outcome is *unknown*, not that it did not happen. Never respond to a payment timeout by simply retrying; reconcile with the payment provider, or use a [Saga](saga.md) to compensate.
+An interrupt stops the payment step, but the charge may already have reached the payment provider. So `Left(timeout)` on that step means the charge's outcome is *unknown*, not that it did not happen. Never respond to a payment timeout by simply retrying; reconcile with the payment provider, or use a [Saga](saga.md) to compensate.
 ~~~
 
 The same shape works on the async railway: `VResultPath` carries these combinators as instance methods, and **fluent order is nesting order**: each combinator wraps everything chained before it, so the earlier combinator sits inside. `.withCircuitBreaker(breaker, onOpen).withRetry(retryOn, policy)` therefore keeps the breaker innermost, each attempt individually recorded, with the retry predicate refusing the open-circuit `Left` exactly as above. Chaining the breaker *after* the retry instead is a deliberate simplification the combinators' own documentation offers: an open circuit is then never retried against without any predicate, at the cost of the breaker seeing the whole retry loop as a single call. The order example's [`ConfigurableOrderWorkflow`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/ConfigurableOrderWorkflow.java) applies this per-step discipline in full: retry confined to an idempotent pre-flight, the committing phase given a single attempt under a typed timeout; see [Order Workflow: Production Patterns](../hkts/order-production.md).
@@ -315,7 +316,7 @@ PaymentResult result = chargePayment.run();
 * **Order is meaning**: the timeout, outermost of the protection layers, bounds everything including waits (a `withFallback` recovery runs after it, outside the budget); the breaker innermost sees every attempt individually; retry inside a breaker misreports health
 * **The builder makes the right order the only order**: call `with*` in any sequence and `ResilienceBuilder` layers them correctly
 * **Grant resilience per step, not per workflow**: idempotent steps earn retry and a breaker; non-idempotent steps get only a typed time budget and no automatic retry
-* **A typed timeout is not a rollback**: the losing computation keeps running unobserved, so a payment timeout means *unknown*, and the answer is reconciliation or a [Saga](saga.md), never a blind retry
+* **A typed timeout is not a rollback**: the interrupted charge may already have reached the provider, so a payment timeout means *unknown*, and the answer is reconciliation or a [Saga](saga.md), never a blind retry
 ~~~
 
 ~~~admonish tip title="See Also"

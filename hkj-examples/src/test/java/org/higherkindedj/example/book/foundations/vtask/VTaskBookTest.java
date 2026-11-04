@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -146,23 +147,68 @@ class VTaskBookTest {
     }
 
     @Test
-    @DisplayName("a timed-out task keeps running, unobserved")
-    void aTimedOutTaskKeepsRunning() throws InterruptedException {
-      CountDownLatch release = new CountDownLatch(1);
-      CountDownLatch finished = new CountDownLatch(1);
+    @DisplayName("a timed-out task is interrupted, and fails once it has stopped")
+    void aTimedOutTaskIsInterrupted() {
+      AtomicBoolean stopped = new AtomicBoolean(false);
       VTaskPath<String> slow =
           Path.vtask(
               () -> {
-                release.await();
-                finished.countDown();
-                return "late";
+                try {
+                  Thread.sleep(5000); // until the timeout interrupts it
+                  return "late";
+                } finally {
+                  stopped.set(true);
+                }
               });
 
       Try<String> outcome = slow.timeout(Duration.ofMillis(10)).run().runSafe();
-      release.countDown();
 
       assertThatTry(outcome).isFailure().hasExceptionOfType(TimeoutException.class);
-      assertThat(finished.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(stopped).as("nothing is left running").isTrue();
+    }
+
+    @Test
+    @DisplayName("a timed-out task that ignores the interrupt holds the failure back")
+    void aTaskThatIgnoresTheInterruptHoldsTheFailureBack() {
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTaskPath<String> stubborn =
+          Path.vtask(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                } catch (InterruptedException ignored) {
+                  // this task ignores a cancellation, and carries on
+                }
+                Thread.sleep(50);
+                finished.set(true);
+                return "late";
+              });
+
+      Try<String> outcome = stubborn.timeout(Duration.ofMillis(10)).run().runSafe();
+
+      assertThatTry(outcome).isFailure().hasExceptionOfType(TimeoutException.class);
+      assertThat(finished).isTrue();
+    }
+
+    @Test
+    @DisplayName("a timed-out task blocked in CompletableFuture.join() holds the failure back")
+    void aTaskInJoinHoldsTheFailureBack() {
+      AtomicBoolean finished = new AtomicBoolean(false);
+      VTaskPath<String> waiting =
+          Path.vtask(
+              () -> {
+                CompletableFuture<String> reply =
+                    new CompletableFuture<String>()
+                        .completeOnTimeout("late", 100, TimeUnit.MILLISECONDS);
+                String answer = reply.join(); // an interrupt cannot reach this wait
+                finished.set(true);
+                return answer;
+              });
+
+      Try<String> outcome = waiting.timeout(Duration.ofMillis(10)).run().runSafe();
+
+      assertThatTry(outcome).isFailure().hasExceptionOfType(TimeoutException.class);
+      assertThat(finished).isTrue();
     }
 
     @Test
@@ -205,27 +251,28 @@ class VTaskBookTest {
     }
 
     @Test
-    @DisplayName("withTimeout gives a typed Left, and leaves the task running")
-    void withTimeoutLeavesTheTaskRunning() throws InterruptedException {
-      CountDownLatch release = new CountDownLatch(1);
-      CountDownLatch booked = new CountDownLatch(1);
+    @DisplayName("withTimeout gives a typed Left once the interrupted task has stopped")
+    void withTimeoutStopsTheTaskBeforeItsLeft() {
+      AtomicBoolean stopped = new AtomicBoolean(false);
       VResultPath<OrderError, String> slow =
           Path.vresult(
               VTask.of(
                   () -> {
-                    release.await();
-                    booked.countDown();
-                    return Either.<OrderError, String>right("collection booked");
+                    try {
+                      Thread.sleep(5000); // until the timeout interrupts it
+                      return Either.<OrderError, String>right("collection booked");
+                    } finally {
+                      stopped.set(true);
+                    }
                   }));
 
       Either<OrderError, String> outcome =
           slow.withTimeout(Duration.ofMillis(10), () -> OrderError.notFound(ORDER.id()))
               .run()
               .run();
-      release.countDown();
 
       assertThat(outcome).isEqualTo(Either.left(OrderError.notFound(ORDER.id())));
-      assertThat(booked.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(stopped).isTrue();
     }
   }
 

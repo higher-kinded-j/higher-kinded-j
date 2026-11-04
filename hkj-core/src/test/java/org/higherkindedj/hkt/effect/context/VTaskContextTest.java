@@ -8,12 +8,14 @@ import static org.higherkindedj.hkt.assertions.VTaskContextAssert.assertThatVTas
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VTaskPath;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -306,6 +308,24 @@ class VTaskContextTest {
       assertThatNullPointerException()
           .isThrownBy(() -> context.timeout(null))
           .withMessageContaining("duration must not be null");
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().timeout() fails when the time runs out, before the task stops")
+    void detachedTimeoutFailsWhenTheTimeRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      try {
+        assertThatVTaskContext(
+                VTaskContext.fromVTask(held.task(TEST_INT))
+                    .detachOnCancel()
+                    .timeout(Duration.ofMillis(20)))
+            .fails()
+            .withExceptionType(TimeoutException.class);
+        assertThat(held.finished()).as("the task is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
+      } finally {
+        held.release();
+      }
     }
   }
 

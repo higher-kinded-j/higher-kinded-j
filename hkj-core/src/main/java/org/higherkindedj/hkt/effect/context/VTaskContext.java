@@ -293,13 +293,31 @@ public final class VTaskContext<A> {
    * Creates a new VTaskContext that fails if this computation does not complete within the
    * specified duration.
    *
-   * @param duration the maximum time to wait; must not be null
+   * <p>When the time runs out, the computation is interrupted, and the new context fails with a
+   * {@code TimeoutException} once it has stopped, as {@link VTask#timeout} describes. To fail when
+   * the time runs out instead, whether or not the computation can stop at once, time out {@link
+   * #detachOnCancel()}.
+   *
+   * @param duration the time after which the computation is cancelled; must not be null
    * @return a VTaskContext with timeout behaviour
    * @throws NullPointerException if duration is null
    */
   public VTaskContext<A> timeout(Duration duration) {
     Objects.requireNonNull(duration, "duration must not be null");
     return new VTaskContext<>(path.timeout(duration));
+  }
+
+  /**
+   * Creates a new VTaskContext that gives up on this computation when cancelled, rather than wait
+   * for it to stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh
+   * virtual thread, which does not see the caller's {@code ScopedValue} bindings. Apply it inside
+   * the timeout: {@code detachOnCancel().timeout(duration)} fails when the time runs out, even over
+   * a call that blocks where an interrupt cannot reach it.
+   *
+   * @return a VTaskContext that stops waiting for this computation when cancelled
+   */
+  public VTaskContext<A> detachOnCancel() {
+    return new VTaskContext<>(path.detachOnCancel());
   }
 
   // ===== Resilience Methods =====

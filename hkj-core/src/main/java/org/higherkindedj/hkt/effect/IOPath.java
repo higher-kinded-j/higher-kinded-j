@@ -633,7 +633,9 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * Races this IOPath against another, returning the first to complete.
    *
    * <p>Both IOPaths are executed concurrently, and the result of whichever completes first is
-   * returned. The other computation is cancelled if possible.
+   * returned. The other computation is not interrupted: each side runs in a {@code
+   * CompletableFuture}, so the loser runs on in the background. {@link VTaskPath#race} interrupts
+   * its loser.
    *
    * <p>Example:
    *
@@ -663,7 +665,7 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
 
                 A result = winner.get();
 
-                // Cancel the loser (best effort)
+                // Settle both futures; cancel(true) cannot interrupt the work behind them
                 futureA.cancel(true);
                 futureB.cancel(true);
 
@@ -736,15 +738,18 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * Returns an IOPath that fails if this computation does not complete within the given duration.
    *
    * <p>On timeout the computation fails with a {@link CompletionException} wrapping a {@link
-   * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. Two
-   * caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
-   * interrupted; a {@code TimeoutException} thrown inside the computation is indistinguishable from
-   * the budget expiring; and the computation runs on a fresh virtual thread, so caller {@code
-   * ThreadLocal}s and {@code ScopedValue} bindings are not visible inside it. An interrupt of the
-   * caller is passed on to the computation: once it stops, or the budget runs out, this path fails
-   * with a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
-   * interrupt status set. To land a timeout on the typed channel instead, use {@link
-   * EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. As {@link
+   * VTask#timeout} describes, the computation is interrupted when the budget runs out, and this
+   * path fails once it has stopped, so a computation that ignores interruption holds the failure
+   * back until it finishes. A {@code TimeoutException} thrown inside the computation is reported as
+   * the budget running out too, with that exception as its cause, where the budget's own has none.
+   * The computation runs on a fresh virtual thread, so caller {@code ThreadLocal}s and {@code
+   * ScopedValue} bindings are not visible inside it. An interrupt of the caller is passed on to the
+   * computation: once it stops, this path fails with a {@code VTaskExecutionException} wrapping the
+   * {@code InterruptedException}, with the interrupt status set. To fail when the budget runs out
+   * instead, whether or not the computation can stop at once, time out {@link #detachOnCancel()}.
+   * To land a timeout on the typed channel instead, use {@link EitherPath#withTimeout(Supplier,
+   * Duration, Supplier)}.
    *
    * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
    * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()
@@ -770,6 +775,22 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
   }
 
   /**
+   * Returns an IOPath that gives up on this computation when cancelled, rather than wait for it to
+   * stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread; when the wait is cancelled, it is interrupted, and the cancellation takes effect at
+   * once, as a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
+   * interrupt status set. Apply it inside the timeout or breaker: {@code
+   * detachOnCancel().withTimeout(duration)} fails when the budget runs out, even over a call that
+   * blocks where an interrupt cannot reach it, while {@code withTimeout(duration).detachOnCancel()}
+   * changes nothing for that timeout.
+   *
+   * @return an IOPath that stops waiting for this computation when cancelled
+   */
+  public IOPath<A> detachOnCancel() {
+    return new IOPath<>(IO.delay(() -> VTask.of(this::unsafeRun).detachOnCancel().run()));
+  }
+
+  /**
    * Returns an IOPath that executes through the circuit breaker: failures trip the circuit, and
    * while it is open the computation is rejected immediately with {@link CircuitOpenException}.
    *
@@ -777,8 +798,10 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * failure budget. The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a computation slower than that
    * counts as a breaker failure and surfaces as a {@code VTaskExecutionException} wrapping the
-   * checked {@code TimeoutException}. The computation runs on a fresh virtual thread (see the
-   * {@link #withTimeout(Duration)} caveats).
+   * checked {@code TimeoutException}, once the interrupted computation has stopped; to count one
+   * that cannot stop at once when the time runs out, chain {@code
+   * detachOnCancel().withCircuitBreaker(breaker)}. The computation runs on a fresh virtual thread
+   * (see the {@link #withTimeout(Duration)} caveats).
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return an IOPath protected by the breaker

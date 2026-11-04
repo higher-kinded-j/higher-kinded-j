@@ -9,6 +9,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.
 - **A `@GenerateFocus` message that offers a navigator asks first for the renames it needs.** Following its fix line no longer leads into another note or error.
 - **A `@GenerateMapping` bean refusal's fix line compiles once followed**, and names the near miss it passed over, such as `setx(int)` beside `Integer getX()`.
+- **A timeout cancels the task it timed out, as a `Scope`'s timeout does**, so a retried timeout leaves no attempt running.
 ~~~
 
 ---
@@ -47,6 +48,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A `VStream`'s `recoverWith`, `mapError` and `onError` act on a failure at any element** ([#1029](https://github.com/higher-kinded-j/higher-kinded-j/issues/1029)). They acted on the first pull only, and so did `VStreamPath`'s. A later `recover` still resumes from the element after the failure, and one exception thrown at several elements no longer sends it back to the first. See [VStream](../monads/vstream.md).
 - **A `VStream` fails with the exception its task threw** ([#1410](https://github.com/higher-kinded-j/higher-kinded-j/pull/1410)). A checked one, such as an `IOException` from `mapTask`, a finaliser or a publisher, reached every terminal operation inside a `VTaskExecutionException`, or a `RuntimeException` from `parEvalMap`, `parEvalMapUnordered` and `merge`. `run()`, and the conversions that call it such as `toListPath()`, still wrap it.
 - **A `VTaskPath` hands every handler the exception its task threw** ([#1396](https://github.com/higher-kinded-j/higher-kinded-j/pull/1396)). A checked one, such as an `IOException`, reached `runSafe`, `catching` and `toTryPath`, and any step after `via`, `then` or `guarantee`, wrapped in a `VTaskExecutionException`, so a retry on `IOException` gave up at once. Only `unsafeRun()`, which cannot throw one, still wraps it. See [VTaskPath](../effect/path_vtask.md#running-tasks).
+- **A timeout cancels the task it timed out, as a `Scope`'s timeout does** ([#1372](https://github.com/higher-kinded-j/higher-kinded-j/issues/1372)). When the time runs out, `VTask.timeout` interrupts the task and fails once it has stopped, so a retry over a timeout leaves no attempt running. Every `withTimeout` but `CompletableFuturePath`'s builds on it, as do `ResilienceBuilder` and the circuit breaker's `callTimeout`. See [VTaskPath](../effect/path_vtask.md#timeouts).
+- **`detachOnCancel()` lets a timeout fail on time over work that cannot stop at once** ([#1372](https://github.com/higher-kinded-j/higher-kinded-j/issues/1372)). The work is still interrupted, but nothing waits for it, so a call blocked where an interrupt cannot reach it still fails at the deadline, and a circuit breaker can open. It is on `VTask`, `IOPath`, `VTaskPath`, `VResultPath` and `VTaskContext`. See [Timeouts](../effect/path_vtask.md#timeouts).
 
 ---
 
@@ -109,6 +112,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A `VStream` hands over a checked exception as its task threw it** ([#1410](https://github.com/higher-kinded-j/higher-kinded-j/pull/1410)). Code that called `getCause()` on a `VTaskExecutionException` from `runSafe`, or on a `RuntimeException` from `parEvalMap`, `parEvalMapUnordered`, `merge` or `fromPublisher`, now receives the exception itself, as it does from a finaliser. `run()` still wraps one.
 - **A `VTaskPath` handler sees a checked exception as its task threw it** ([#1396](https://github.com/higher-kinded-j/higher-kinded-j/pull/1396)). Code that called `getCause()` on a `VTaskExecutionException` now receives the exception itself. That holds in `runSafe` and `catching`, in a handler or retry after `via`, in the future from `runAsync()`, and in `VTaskContext.runOrElseGet` and `StreamTraversal.modifyVTask`. `unsafeRun()` still wraps one.
 - **`recover`, `recoverWith`, `mapError` and `toEitherPath` on a `CompletableFuturePath` keep a `CompletionException` that has no cause** ([#1398](https://github.com/higher-kinded-j/higher-kinded-j/issues/1398)). A handler that was given an empty `RuntimeException` now gets the `CompletionException`.
+- **A timed-out task is interrupted, and the timeout waits for it to stop** ([#1372](https://github.com/higher-kinded-j/higher-kinded-j/issues/1372)). A task blocked in `CompletableFuture.join()`, or otherwise out of an interrupt's reach, holds the failure back until it finishes, and an interrupt of the caller now waits for it too. To fail at the time limit, as before, time out `task.detachOnCancel()`.
 
 ### What stops a build that compiled {#build-changes}
 

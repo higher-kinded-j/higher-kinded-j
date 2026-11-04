@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,6 +19,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
@@ -1328,20 +1328,31 @@ class VTaskPathTest {
     @Test
     @DisplayName("an exceeded budget fails with TimeoutException")
     void exceededBudgetFailsWithTimeoutException() {
-      CountDownLatch never = new CountDownLatch(1);
       VTaskPath<Integer> stuck =
           Path.vtask(
                   () -> {
-                    never.await();
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return 1;
                   })
               .withTimeout(Duration.ofMillis(50));
+      // Both runSafe()s hold the checked TimeoutException itself
+      assertThatVTaskPath(stuck).fails().withExceptionType(TimeoutException.class);
+      assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().withTimeout() fails when the budget runs out, before it stops")
+    void detachedTimeoutFailsWhenTheBudgetRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
       try {
-        // Both runSafe()s hold the checked TimeoutException itself
-        assertThatVTaskPath(stuck).fails().withExceptionType(TimeoutException.class);
-        assertThatVTask(stuck.run()).whenRun().fails().withExceptionType(TimeoutException.class);
+        assertThatVTaskPath(
+                Path.vtaskPath(held.task(1)).detachOnCancel().withTimeout(Duration.ofMillis(20)))
+            .fails()
+            .withExceptionType(TimeoutException.class);
+        assertThat(held.finished()).as("the computation is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+        held.release();
       }
     }
 

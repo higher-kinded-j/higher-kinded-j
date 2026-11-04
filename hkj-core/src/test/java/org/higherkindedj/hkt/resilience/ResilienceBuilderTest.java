@@ -7,9 +7,11 @@ import static org.assertj.core.api.Assertions.*;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -150,6 +152,74 @@ class ResilienceBuilderTest {
 
       assertThat(result).isEqualTo("hello");
       assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("A timeout that runs out during a retry leaves no attempt running")
+    void timeoutOverRetryLeavesNoAttemptRunning() {
+      AtomicInteger attempts = new AtomicInteger(0);
+      AtomicInteger running = new AtomicInteger(0);
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                if (attempts.incrementAndGet() == 1) {
+                  throw new IllegalStateException("upstream 503");
+                }
+                running.incrementAndGet();
+                try {
+                  Thread.sleep(5000); // the retry blocks until the timeout interrupts it
+                  return "finished";
+                } finally {
+                  running.decrementAndGet();
+                }
+              });
+
+      VTask<String> resilient =
+          Resilience.<String>builder(task)
+              .withRetry(shortRetry(3))
+              .withTimeout(Duration.ofMillis(200))
+              .build();
+
+      assertThatThrownBy(resilient::execute).isInstanceOf(TimeoutException.class);
+      assertThat(attempts).as("attempts started").hasValue(2);
+      assertThat(running).as("attempts still running").hasValue(0);
+    }
+
+    @Test
+    @DisplayName("A timeout over a detached task fails when it runs out, before the task stops")
+    void timeoutOverADetachedTaskFailsWhenItRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      VTask<String> resilient =
+          Resilience.<String>builder(held.task("finished").detachOnCancel())
+              .withRetry(shortRetry(3))
+              .withTimeout(Duration.ofMillis(20))
+              .build();
+
+      try {
+        assertThatThrownBy(resilient::execute).isInstanceOf(TimeoutException.class);
+        assertThat(held.finished()).as("the task is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
+      } finally {
+        held.release();
+      }
+    }
+
+    @Test
+    @DisplayName("A timeout during a retry's back-off keeps the retry's report as suppressed")
+    void timeoutDuringBackOffKeepsTheRetrysReport() {
+      VTask<String> resilient =
+          Resilience.<String>builder(VTask.fail(new IllegalStateException("upstream 503")))
+              .withRetry(RetryPolicy.fixed(3, Duration.ofSeconds(5)))
+              .withTimeout(Duration.ofMillis(20))
+              .build();
+
+      assertThatThrownBy(resilient::execute)
+          .isInstanceOf(TimeoutException.class)
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .singleElement()
+                      .isInstanceOf(RetryExhaustedException.class));
     }
 
     @Test

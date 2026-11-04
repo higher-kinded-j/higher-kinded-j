@@ -21,7 +21,10 @@ import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1289,24 +1292,64 @@ class IOPathTest {
     @Test
     @DisplayName("withTimeout: an exceeded budget surfaces CompletionException(TimeoutException)")
     void withTimeoutSurfacesCompletionException() {
-      CountDownLatch never = new CountDownLatch(1);
       IOPath<Integer> stuck =
           Path.io(
                   () -> {
                     try {
-                      never.await();
+                      Thread.sleep(5000); // until the timeout interrupts it
                     } catch (InterruptedException e) {
                       Thread.currentThread().interrupt();
                     }
                     return 1;
                   })
               .withTimeout(Duration.ofMillis(50));
+      assertThatExceptionOfType(CompletionException.class)
+          .isThrownBy(stuck::unsafeRun)
+          .withCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("detachOnCancel() gives the computation's value")
+    void detachOnCancelGivesTheValue() {
+      assertThat(Path.io(() -> 1).detachOnCancel().unsafeRun()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().withTimeout() fails when the budget runs out, before it stops")
+    void detachedTimeoutFailsWhenTheBudgetRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      VTask<Integer> task = held.task(1);
       try {
         assertThatExceptionOfType(CompletionException.class)
-            .isThrownBy(stuck::unsafeRun)
-            .withCauseInstanceOf(TimeoutException.class);
+            .isThrownBy(
+                Path.io(task::run).detachOnCancel().withTimeout(Duration.ofMillis(20))::unsafeRun)
+            .havingCause()
+            .isInstanceOf(TimeoutException.class)
+            .satisfies(timeout -> assertThat(timeout.getSuppressed()).isEmpty());
+        assertThat(held.finished()).as("the computation is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
       } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
+        held.release();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "detachOnCancel() fails at once when the caller is interrupted, with the status set")
+    void detachOnCancelFailsAtOnceOnAnInterrupt() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      VTask<Integer> task = held.task(1);
+      Thread.currentThread().interrupt();
+      try {
+        assertThatExceptionOfType(VTaskExecutionException.class)
+            .isThrownBy(Path.io(task::run).detachOnCancel()::unsafeRun)
+            .withCauseInstanceOf(InterruptedException.class);
+        assertThat(Thread.interrupted()).as("the interrupt status is set").isTrue();
+        assertThat(held.finished()).as("the computation is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
+      } finally {
+        Thread.interrupted();
+        held.release();
       }
     }
 

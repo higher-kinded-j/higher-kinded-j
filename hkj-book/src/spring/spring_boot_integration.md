@@ -918,7 +918,7 @@ For VTaskPath and VStreamPath operations (no pool sizing needed):
 ```yaml
 hkj:
   virtual-threads:
-    default-timeout-ms: 30000          # VTask timeout (default: 30s)
+    default-timeout-ms: 30000          # VTaskPath response timeout (default: 30s)
     stream-timeout-ms: 60000           # VStream timeout (default: 60s, 0 = no timeout)
 ```
 
