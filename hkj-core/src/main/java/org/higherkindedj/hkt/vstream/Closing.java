@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -91,15 +92,35 @@ final class Closing {
   }
 
   /**
-   * The error an operator fails with in place of a failure, made to carry the rest of the stream
-   * the failure carries, with the operator applied to it again. A {@link VStream#recover} after the
-   * operator then resumes through it, and whatever stops at the failure still closes that rest.
+   * Makes a failure carry the rest of the stream, for {@link VStream#recover} to resume from, or
+   * for whatever stops at the failure to close. A failure with suppression disabled cannot carry
+   * it, so the rest is closed at once, and a {@code recover} ends the stream there.
+   */
+  static void carry(Throwable failure, VStream<?> rest) {
+    StreamTailMarker marker = new StreamTailMarker(rest);
+    failure.addSuppressed(marker);
+    if (!Arrays.asList(failure.getSuppressed()).contains(marker)) {
+      runAfterFailure(rest.close(), failure);
+    }
+  }
+
+  /**
+   * The error an operator fails with in place of a failure: what its function gives, or what the
+   * function throws. That error carries the rest of the stream the failure carries, with the
+   * operator applied to it again. A {@link VStream#recover} after the operator then resumes through
+   * it, and whatever stops at the failure still closes that rest.
    */
   static Throwable carryingRest(
-      Throwable failure, Throwable replacement, UnaryOperator<VStream<?>> continuing) {
+      Throwable failure, UnaryOperator<Throwable> replacing, UnaryOperator<VStream<?>> continuing) {
+    Throwable replacement;
+    try {
+      replacement = replacing.apply(failure);
+    } catch (Throwable thrown) {
+      replacement = thrown;
+    }
     VStream<?> rest = markedRest(failure);
     if (rest != null) {
-      replacement.addSuppressed(new StreamTailMarker(continuing.apply(rest)));
+      carry(replacement, continuing.apply(rest));
     }
     return replacement;
   }

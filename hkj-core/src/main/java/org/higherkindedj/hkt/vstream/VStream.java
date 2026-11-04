@@ -569,7 +569,7 @@ public interface VStream<A> extends VStreamKind<A> {
                         yield task.map(b -> (Step<B>) new Step.Emit<>(b, tail))
                             .recoverWith(
                                 error -> {
-                                  error.addSuppressed(new StreamTailMarker(tail));
+                                  Closing.carry(error, tail);
                                   return VTask.fail(error);
                                 });
                       }
@@ -1293,8 +1293,9 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Recovers from a failed pull by replacing the error with a value. Recovery applies per-pull: if
    * a single element's pull fails, the recovery value is emitted and the stream continues. It
-   * continues from the element after a failed {@link #mapTask} task; any other failure ends the
-   * stream after the recovery value, and what this stream was reading is closed.
+   * continues from the element after a failed {@link #mapTask} task, unless the task's failure has
+   * suppression disabled, so it cannot carry the rest. Any other failure ends the stream after the
+   * recovery value, and what this stream was reading is closed.
    *
    * @param recoveryFunction A function that produces a recovery value from the error. Must not be
    *     null. It must not return null.
@@ -1381,7 +1382,8 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Transforms the error of any failed pull using the given function. The new error keeps the rest
    * of the stream that a failed {@link #mapTask} task carries, with this mapping still applied, so
-   * a {@link #recover} after this resumes from the next element.
+   * a {@link #recover} after this resumes from the next element. If {@code f} throws, the stream
+   * fails with what it threw, which keeps the rest in the same way.
    *
    * @param f A function that transforms the error. Must not be null. It must not return null.
    * @return A new {@code VStream} with transformed errors. Never null.
@@ -1406,7 +1408,7 @@ public interface VStream<A> extends VStreamKind<A> {
                 error ->
                     Closing.carryingRest(
                         error,
-                        Objects.requireNonNull(f.apply(error), "f must not return null"),
+                        e -> Objects.requireNonNull(f.apply(e), "f must not return null"),
                         rest -> rest.mapError(f)));
       }
     };
@@ -1414,7 +1416,8 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Observes the error of any failed pull without modifying it. Useful for logging. A {@link
-   * #recover} after this resumes with the observer still applied.
+   * #recover} after this resumes with the observer still applied. If the action throws, the stream
+   * fails with what it threw, which keeps the rest of the stream as {@link #mapError} does.
    *
    * @param action The action to perform on errors. Must not be null.
    * @return A new {@code VStream} that observes errors. Never null.
@@ -1436,10 +1439,14 @@ public interface VStream<A> extends VStreamKind<A> {
                       case Step.Done<A> d -> d;
                     })
             .mapError(
-                error -> {
-                  action.accept(error);
-                  return Closing.carryingRest(error, error, rest -> rest.onError(action));
-                });
+                error ->
+                    Closing.carryingRest(
+                        error,
+                        e -> {
+                          action.accept(e);
+                          return e;
+                        },
+                        rest -> rest.onError(action)));
       }
     };
   }

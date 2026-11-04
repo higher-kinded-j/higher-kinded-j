@@ -204,6 +204,43 @@ class VStreamErrorReportingTest {
     }
 
     @Test
+    @DisplayName("mapError and onError whose function throws keep the rest, so recover resumes")
+    void throwingMapErrorAndOnErrorKeepTheRest() {
+      List<String> recovered = new ArrayList<>();
+
+      List<Integer> afterMapError =
+          failsAt(2)
+              .mapError(
+                  _ -> {
+                    throw new UnsupportedOperationException("mapper failed");
+                  })
+              .recover(
+                  e -> {
+                    recovered.add(e.getMessage());
+                    return -1;
+                  })
+              .toList()
+              .run();
+      List<Integer> afterOnError =
+          failsAt(2)
+              .onError(
+                  _ -> {
+                    throw new UnsupportedOperationException("observer failed");
+                  })
+              .recover(
+                  e -> {
+                    recovered.add(e.getMessage());
+                    return -1;
+                  })
+              .toList()
+              .run();
+
+      assertThat(afterMapError).containsExactly(10, -1, 30);
+      assertThat(afterOnError).containsExactly(10, -1, 30);
+      assertThat(recovered).containsExactly("mapper failed", "observer failed");
+    }
+
+    @Test
     @DisplayName("mapError refuses a null error")
     void mapErrorRefusesNull() {
       assertThat(failureOf(failsAt(2).mapError(_ -> null).toList()))

@@ -102,6 +102,19 @@ class VStreamCloseAndReplayTest {
             x == element ? VTask.fail(new IllegalStateException("pull failed")) : VTask.succeed(x));
   }
 
+  /** The source, with a pull that fails at the given element with an {@link Unsuppressible}. */
+  private static VStream<Integer> unsuppressibleAt(int element, VStream<Integer> source) {
+    return source.mapTask(
+        x -> x == element ? VTask.fail(new Unsuppressible("pull failed")) : VTask.succeed(x));
+  }
+
+  /** An error with suppression disabled, so it cannot carry the rest of a stream. */
+  private static final class Unsuppressible extends RuntimeException {
+    Unsuppressible(String message) {
+      super(message, null, /* enableSuppression= */ false, /* writableStackTrace= */ false);
+    }
+  }
+
   /** A two-element stream whose finaliser fails with a checked exception. */
   private static VStream<Integer> checkedFinaliser() {
     return VStream.of(1, 2)
@@ -1089,6 +1102,64 @@ class VStreamCloseAndReplayTest {
 
       assertThatThrownBy(() -> stream.toList().run())
           .isInstanceOf(UnsupportedOperationException.class);
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("mapError whose function throws or returns null keeps the rest, so it is closed")
+    void failingMapErrorKeepsTheRestToClose() {
+      AtomicInteger throwingRuns = new AtomicInteger();
+      AtomicInteger nullRuns = new AtomicInteger();
+
+      VStream<Integer> throwing =
+          pullFailingAt(1, deferredFinalised(throwingRuns)).mapError(_ -> boom());
+      VStream<Integer> returningNull =
+          pullFailingAt(1, deferredFinalised(nullRuns)).mapError(_ -> null);
+
+      assertThatThrownBy(() -> throwing.toList().run()).hasMessage("function failed");
+      assertThatThrownBy(() -> returningNull.toList().run()).hasMessage("f must not return null");
+      assertThat(throwingRuns).hasValue(1);
+      assertThat(nullRuns).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("onError whose observer throws keeps the rest, so it is closed")
+    void throwingOnErrorKeepsTheRestToClose() {
+      AtomicInteger runs = new AtomicInteger();
+
+      VStream<Integer> stream = pullFailingAt(1, deferredFinalised(runs)).onError(_ -> boom());
+
+      assertThatThrownBy(() -> stream.toList().run()).hasMessage("function failed");
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a mapTask task failing with an error that cannot suppress closes the rest at once")
+    void unsuppressibleTaskFailureClosesTheRest() {
+      AtomicInteger stoppedRuns = new AtomicInteger();
+      AtomicInteger recoveredRuns = new AtomicInteger();
+
+      VStream<Integer> stopped = unsuppressibleAt(1, deferredFinalised(stoppedRuns));
+      // with no rest to resume from, recover ends the stream after the recovery value
+      List<Integer> recovered =
+          unsuppressibleAt(1, deferredFinalised(recoveredRuns)).recover(_ -> -1).toList().run();
+
+      assertThatThrownBy(() -> stopped.toList().run()).isInstanceOf(Unsuppressible.class);
+      assertThat(stoppedRuns).hasValue(1);
+      assertThat(recovered).containsExactly(-1);
+      assertThat(recoveredRuns).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("mapError to an error that cannot suppress closes the rest at once")
+    void mapErrorToAnUnsuppressibleErrorClosesTheRest() {
+      AtomicInteger runs = new AtomicInteger();
+
+      VStream<Integer> stream =
+          pullFailingAt(1, deferredFinalised(runs)).mapError(_ -> new Unsuppressible("mapped"));
+
+      assertThatThrownBy(() -> stream.toList().run()).hasMessage("mapped");
       assertThat(runs).hasValue(1);
     }
 
