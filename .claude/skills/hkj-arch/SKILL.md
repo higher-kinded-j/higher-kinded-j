@@ -79,7 +79,7 @@ You are helping a developer structure their Java 25 application using the "funct
 |----------|-----------------|
 | `IOPath<A>` | Deferred side effects (file I/O, network) |
 | `VTaskPath<A>` | Virtual thread concurrency |
-| `VStreamPath<A>` | Lazy streaming on virtual threads |
+| `VStreamPath<A>` | Lazy streaming of effectful elements |
 | `CompletableFuturePath<A>` | Async operations |
 | `EffectBoundary<F>` | Interpret-and-execute boundary for Free monad programs |
 | `TestBoundary<F>` | Pure boundary for deterministic testing (Id monad) |

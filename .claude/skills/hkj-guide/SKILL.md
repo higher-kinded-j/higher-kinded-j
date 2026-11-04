@@ -63,7 +63,7 @@ Additional considerations:
 - **Virtual thread concurrency**: `VTaskPath`
 - **Virtual threads + a typed domain error**: `VResultPath` (`VTask<Either<E, A>>`)
 - **Success that may carry warnings**: `EitherOrBothPath`
-- **Lazy streaming on virtual threads**: `VStreamPath`
+- **Lazy streaming of effectful elements**: `VStreamPath`
 - **Stack-safe recursion**: `TrampolinePath`
 - **Dependency injection / config**: `ReaderPath`
 - **Logging / audit trail**: `WriterPath`

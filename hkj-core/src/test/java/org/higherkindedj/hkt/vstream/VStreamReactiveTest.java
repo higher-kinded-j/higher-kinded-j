@@ -14,6 +14,7 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1170,8 +1171,8 @@ class VStreamReactiveTest {
   }
 
   @Nested
-  @DisplayName("wrapIfChecked Coverage")
-  class WrapIfCheckedTests {
+  @DisplayName("A publisher's error fails the stream as the publisher gave it")
+  class PublisherErrorTests {
 
     @Test
     @DisplayName("publisher error with Error subclass is thrown directly")
@@ -1189,8 +1190,8 @@ class VStreamReactiveTest {
     }
 
     @Test
-    @DisplayName("publisher error with checked exception is wrapped in RuntimeException")
-    void publisherErrorWithCheckedExceptionIsWrapped() {
+    @DisplayName("publisher error with checked exception arrives unwrapped")
+    void publisherErrorWithCheckedExceptionIsNotWrapped() {
       SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
 
       VStream<String> stream = VStreamReactive.fromPublisher(publisher, 16);
@@ -1198,9 +1199,15 @@ class VStreamReactiveTest {
       Thread.startVirtualThread(
           () -> publisher.closeExceptionally(new IOException("checked error")));
 
-      assertThatThrownBy(() -> stream.toList().run())
-          .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(IOException.class);
+      Try<List<String>> result = stream.toList().runSafe();
+
+      assertThat(result)
+          .isInstanceOfSatisfying(
+              Try.Failure.class,
+              failure ->
+                  assertThat(failure.cause())
+                      .isInstanceOf(IOException.class)
+                      .hasMessage("checked error"));
     }
   }
 

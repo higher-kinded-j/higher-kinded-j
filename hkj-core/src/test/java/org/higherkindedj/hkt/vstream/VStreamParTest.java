@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -787,8 +788,8 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("parEvalMap() wraps checked exception in RuntimeException")
-    void parEvalMapWrapsCheckedException() {
+    @DisplayName("parEvalMap() fails with a task's checked exception as it was thrown")
+    void parEvalMapKeepsCheckedException() {
       VStream<Integer> stream = VStream.of(1);
 
       VStream<Integer> result =
@@ -801,9 +802,11 @@ class VStreamParTest {
                         throw new IOException("checked exception");
                       }));
 
-      assertThatThrownBy(() -> result.toList().run())
-          .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(IOException.class);
+      // runSafe keeps a failure as it was thrown, so it shows nothing wrapped it
+      assertThat(result.toList().runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class,
+              failure -> assertThat(failure.cause()).isInstanceOf(IOException.class));
     }
 
     @Test
@@ -827,8 +830,8 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("parEvalMapUnordered() wraps checked exception in RuntimeException")
-    void parEvalMapUnorderedWrapsCheckedException() {
+    @DisplayName("parEvalMapUnordered() fails with a task's checked exception as it was thrown")
+    void parEvalMapUnorderedKeepsCheckedException() {
       VStream<Integer> stream = VStream.of(1);
 
       VStream<Integer> result =
@@ -841,9 +844,11 @@ class VStreamParTest {
                         throw new IOException("checked exception");
                       }));
 
-      assertThatThrownBy(() -> result.toList().run())
-          .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(IOException.class);
+      // runSafe keeps a failure as it was thrown, so it shows nothing wrapped it
+      assertThat(result.toList().runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class,
+              failure -> assertThat(failure.cause()).isInstanceOf(IOException.class));
     }
 
     @Test
@@ -953,42 +958,36 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("consumeSource InterruptedException path via thread interrupt flag")
+    @DisplayName("a source interrupted before the merge stops fails the merge with the interrupt")
     void consumeSourceInterruptedExceptionPath() {
-      // A source that sets the interrupt flag on its subtask thread.
-      // The next queue.put() in consumeSource will throw InterruptedException
-      // because lockInterruptibly() checks the flag before acquiring.
-      // consumeSource catches it, restores the flag, and returns null.
-      //
-      // Because the interrupted source never sends SourceDone, the consumer
-      // would block on queue.take(). We use a second, normally-failing source
-      // that runs after a small delay so the consumer sees SourceError and exits.
+      // A source that sets the interrupt flag on its subtask thread, so the next queue.put() in
+      // consumeSource throws InterruptedException. The merge has not set cancelled, so the
+      // interrupt is reported as the source's failure, and the interrupted source sends no
+      // SourceDone for the consumer to wait on.
       VStream<Integer> interruptor =
           () ->
               VTask.of(
                   () -> {
                     Thread.currentThread().interrupt();
-                    // Returning Emit triggers queue.put() in consumeSource,
-                    // which throws InterruptedException due to the set flag.
                     return new VStream.Step.Emit<>(1, VStream.empty());
                   });
 
-      VStream<Integer> failAfterDelay =
-          () ->
-              VTask.of(
-                  () -> {
-                    Thread.sleep(100); // give interruptor time to trigger IE
-                    throw new RuntimeException("delayed failure");
-                  });
+      VStream<Integer> result = VStreamPar.merge(interruptor, VStream.of(2));
 
-      VStream<Integer> result = VStreamPar.merge(interruptor, failAfterDelay);
-
-      assertThatThrownBy(() -> result.toList().run()).isInstanceOf(RuntimeException.class);
+      try {
+        assertThat(result.toList().runSafe())
+            .isInstanceOfSatisfying(
+                Try.Failure.class,
+                failure -> assertThat(failure.cause()).isInstanceOf(InterruptedException.class));
+      } finally {
+        // runSafe sets the interrupt status again for the InterruptedException it holds
+        Thread.interrupted();
+      }
     }
 
     @Test
-    @DisplayName("merge wraps checked exception from source in RuntimeException")
-    void mergeWrapsCheckedExceptionFromSource() {
+    @DisplayName("merge fails with a source's checked exception as it was thrown")
+    void mergeKeepsCheckedExceptionFromSource() {
       VStream<Integer> checkedFail =
           () ->
               VTask.of(
@@ -999,9 +998,11 @@ class VStreamParTest {
 
       VStream<Integer> result = VStreamPar.merge(checkedFail, good);
 
-      assertThatThrownBy(() -> result.toList().run())
-          .isInstanceOf(RuntimeException.class)
-          .hasCauseInstanceOf(IOException.class);
+      // runSafe keeps a failure as it was thrown, so it shows nothing wrapped it
+      assertThat(result.toList().runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class,
+              failure -> assertThat(failure.cause()).isInstanceOf(IOException.class));
     }
 
     @Test
@@ -1037,10 +1038,10 @@ class VStreamParTest {
     @DisplayName("merge scope thread catch block exercised via background thread interruption")
     void mergeScopeThreadCatchBlock() throws InterruptedException {
       // Exercise the catch(Exception) in merge's background scope thread AND
-      // the catch(InterruptedException) in consumeSource by interrupting the
+      // the interrupt handling in consumeSource's catch by interrupting the
       // background scope thread. When the scope thread is interrupted during
-      // scope.join(), the scope shuts down and interrupts its subtask threads.
-      // The subtask threads' consumeSource hits catch(InterruptedException).
+      // scope.join(), the scope shuts down and interrupts its subtask threads,
+      // whose consumeSource catches the InterruptedException.
       // The scope thread hits catch(Exception) with the InterruptedException.
       //
       // Strategy: capture the subtask thread, derive its parent scope thread

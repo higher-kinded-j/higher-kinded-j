@@ -18,7 +18,7 @@ import org.higherkindedj.hkt.vstream.VStreamPar;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
- * Effect context for lazy, pull-based streaming on virtual threads.
+ * Effect context for lazy, pull-based streaming of effectful elements.
  *
  * <p>VStreamContext provides a user-friendly Layer 2 API for working with {@link VStreamPath}. It
  * wraps VStream computations with convenient factory methods and chainable operations, hiding the
@@ -27,7 +27,8 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <h2>Key Features</h2>
  *
  * <ul>
- *   <li><b>Virtual Thread Execution:</b> Stream elements are produced on virtual threads
+ *   <li><b>Threads:</b> Elements are produced on the thread that runs the terminal task, and {@link
+ *       #parEvalMap} runs them on virtual threads
  *   <li><b>Lazy Evaluation:</b> No elements are produced until a terminal operation is called
  *   <li><b>Bounded Parallel Processing:</b> {@link #parEvalMap} for concurrent element
  *       transformation

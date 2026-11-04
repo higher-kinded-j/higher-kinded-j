@@ -113,7 +113,7 @@ Three ways to model "this computation produces multiple values."
 
 **[`Stream<A>`](./stream_monad.md)**: HKT bridge to `java.util.stream.Stream`. Lazy and potentially infinite, but **single-use**: consuming a stream exhausts it. Use for large or generated sequences where you don't want everything in memory at once.
 
-**[`VStream<A>`](./vstream.md)**: Virtual-thread reactive stream (JDK 21+). Backpressure, parallel operations, structured concurrency. Think of it as a modern, concurrent alternative to `Stream` for data pipelines that need to fan out across virtual threads.
+**[`VStream<A>`](./vstream.md)**: A lazy, pull-based stream whose elements come from tasks. The consumer sets the pace, an element's failure can be recovered, and parallel operations fan out across virtual threads. Think of it as a `Stream` for pipelines whose elements block or fail.
 
 ### Recursion & DSL Types
 
