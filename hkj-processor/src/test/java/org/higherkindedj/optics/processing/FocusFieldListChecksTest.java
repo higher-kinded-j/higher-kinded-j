@@ -103,6 +103,17 @@ class FocusFieldListChecksTest {
                   + " \"Items\" from includeFields on Showcase.",
               "@GenerateFocus(includeFields = {\"items\", \"featured\"})",
               null),
+          // Past a nearer name the list holds, the next nearest component is offered.
+          new Row(
+              "Tote",
+              "Addr items, Addr itemz",
+              "@GenerateFocus(includeFields = {\"items\", \"itens\"})",
+              Diagnostic.Kind.ERROR,
+              "\"itens\"",
+              "Did you mean 'itemz'? Found on Tote: [items, itemz]. Replace \"itens\" with"
+                  + " \"itemz\" in includeFields on Tote.",
+              "@GenerateFocus(includeFields = {\"items\", \"itemz\"})",
+              null),
           // A name includeFields could give no navigator is not offered either.
           new Row(
               "Parcel",
