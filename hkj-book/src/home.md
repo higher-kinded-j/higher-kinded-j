@@ -429,7 +429,7 @@ Twenty-one Path types share one vocabulary. Most applications start with `Either
 | `OptionalPath<A>` | Bridge for Java's standard `Optional` |
 | `FreePath<F, A>` / `FreeApPath<F, A>` | DSL building and interpretation |
 | `VTaskPath<A>` | Virtual thread-based concurrency with Par combinators |
-| `VStreamPath<A>` | Lazy pull-based streaming on virtual threads |
+| `VStreamPath<A>` | Lazy pull-based streaming of effectful elements |
 
 Each Path wraps its underlying effect and shares the railway vocabulary its effect supports, from `map` and `via` to recovery and the bridge to the Focus DSL. See [Core Paths](effect/effect_path_overview.md) for the railway model behind them.
 ~~~

@@ -375,8 +375,8 @@ public class MarketDataDemo {
     System.out.println("  primary feed fails.\n");
 
     // Simulate a primary feed that can't connect (fails on first pull).
-    // VStream.recoverWith wraps the first pull, so it handles connection failures
-    // by seamlessly switching to the fallback feed.
+    // VStream.recoverWith handles a failure at any pull, here a connection failure,
+    // by switching to the fallback feed.
     VStream<PriceTick> primaryFeed =
         VStream.fail(new RuntimeException("NYSE feed: Connection refused"));
 

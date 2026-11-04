@@ -122,6 +122,7 @@ import org.higherkindedj.hkt.effect.Path;
 | `Maybe.just(value)`, `Maybe.nothing()` | Build a `Just`, throwing `NullPointerException` for `null`, or `Nothing` |
 | `Maybe.fromNullable(value)` | Gives `Nothing` for `null`, and a `Just` otherwise |
 | `Maybe.fromOptional(optional)`, `toOptional()` | Convert from and to Java's `Optional` |
+| `Maybe.fromEither(either)` | Keeps a `Right`'s value as a `Just`, and gives `Nothing` for a `Left`, dropping its error |
 | `isJust()`, `isNothing()` | Say which case it holds |
 | `map(f)` | Changes a `Just`'s value; a function that returns `null` gives `Nothing` |
 | `flatMap(f)` | Runs a step that gives a `Maybe` on a `Just`'s value; `Nothing` passes through |

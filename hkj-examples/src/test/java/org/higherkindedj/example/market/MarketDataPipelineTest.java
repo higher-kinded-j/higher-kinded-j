@@ -344,8 +344,8 @@ class MarketDataPipelineTest {
     @Test
     @DisplayName("recovers from feed failure with fallback stream")
     void recoversWithFallback() {
-      // VStream.recoverWith wraps only the first pull, so it handles the case where
-      // a feed fails to connect entirely. The fallback stream takes over completely.
+      // A feed that fails to connect fails its first pull, and VStream.recoverWith
+      // switches to the fallback stream, which takes over completely.
       VStream<PriceTick> failingFeed =
           VStream.fail(new RuntimeException("NYSE feed: Connection refused"));
 

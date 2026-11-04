@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
  * A fluent path wrapper for {@link VStream} values.
  *
  * <p>{@code VStreamPath} provides a chainable API for composing lazy, pull-based streaming
- * computations that execute on virtual threads. It implements {@link Chainable} to support monadic
- * composition within the Effect Path ecosystem.
+ * computations whose elements are produced by tasks. It implements {@link Chainable} to support
+ * monadic composition within the Effect Path ecosystem.
  *
  * <h2>Relationship to VStream</h2>
  *
@@ -86,8 +86,9 @@ import org.jspecify.annotations.Nullable;
  * <h2>Comparison with StreamPath</h2>
  *
  * <ul>
- *   <li>{@code VStreamPath} - Lazy, pull-based, virtual thread execution, effectful elements
- *   <li>{@code StreamPath} - Materialises internally, no virtual thread integration
+ *   <li>{@code VStreamPath} - Lazy, pull-based, effectful elements, parallel operations on virtual
+ *       threads
+ *   <li>{@code StreamPath} - Materialises internally, no effect type for its elements
  * </ul>
  *
  * @param <A> the type of elements in the stream

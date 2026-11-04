@@ -1,317 +1,166 @@
-# Resource Management with Bracket Pattern
-## _Safe Acquisition and Release for VTask_
+<!-- description: Bracket pattern for Java VTasks with Resource: acquire, use and release a connection however the task ends, like try-with-resources, and roll back on failure. -->
+
+# Resource: Acquire, Use and Release
+
+_Acquire something, use it, and release it however the work ends._
+
+<!-- source: Seamus Heaney, "Scaffolding", in Death of a Naturalist (Faber and Faber, 1966); line checked against the text on poets.org -->
+> _"And yet all this comes down when the job's done"_
+>
+> — Seamus Heaney, *Scaffolding*
+
+A `Resource` is that scaffolding: put up before the work, and taken down after it, even when the job fails.
 
 ~~~admonish info title="What You'll Learn"
-- Using `Resource` for safe resource management in concurrent computations
-- Creating resources from `AutoCloseable`, explicit acquire/release, and pure values
-- Composing multiple resources with `flatMap` and `and`
-- Using one `Resource` many times, nested or at once
-- Adding finalisers, and cleanup that runs only when the use fails
-- Integrating resources with `Scope` for concurrent resource management
+- Describe how to acquire and release something, and use it in a `VTask` that releases it when the task is done
+- Say what is reported when the use fails, the release fails, or both do
+- Compose resources that release in reverse order, and use one `Resource` many times
+- Add finalisers, and an action that runs only when the use fails, such as a rollback
+- Hold a resource while a `Scope`'s tasks use it
 ~~~
-
-> *"Resource acquisition is initialization... the point is to tie the lifecycle of a resource to the lifetime of a local object."*
-> — **Bjarne Stroustrup**, creator of C++, on the RAII pattern that inspired functional bracket semantics
 
 ~~~admonish example title="See Example Code"
-[VTaskResourceExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/VTaskResourceExample.java)
+**The code on this page is [ResourceBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java)**: the page includes it, so the build compiles and runs it. [ResourceBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/resource/ResourceBookTest.java) holds what the page says each method does.
 ~~~
-
-The `Resource` type provides safe resource management for VTask computations, implementing the bracket pattern (acquire-use-release). Resources are always released, even when exceptions occur or tasks are cancelled.
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Resource Lifecycle                            │
-│                                                                  │
-│  ┌─────────┐    ┌───────────┐    ┌─────────┐                     │
-│  │ Acquire │ →  │    Use    │ →  │ Release │  (guaranteed)       │
-│  │ resource│    │ resource  │    │ resource│                     │
-│  └─────────┘    └───────────┘    └─────────┘                     │
-│                       │                ↑                         │
-│                       └── on success ──┘                         │
-│                       └── on failure ──┘                         │
-│                       └── on cancel  ──┘                         │
-└──────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
-## Creating Resources
+## Acquire, use, release {#acquire-use-release}
 
-~~~admonish example title="Basic Resource Creation"
+Java's try-with-resources closes a resource when its block ends. A [`VTask`](vtask_monad.md) describes work that runs later, so a `try` around building one closes the resource before the work has started. A `Resource<A>` describes how to acquire an `A` and how to release it. `use` gives a `VTask` that, each time it runs, acquires, runs the task you give it, and releases what it acquired, whether that task succeeded, failed or was cancelled. This is the acquire-use-release, or bracket, pattern.
+
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.vtask.Resource;
 import org.higherkindedj.hkt.vtask.VTask;
-
-// Create a Resource from AutoCloseable (most common pattern)
-Resource<Connection> connResource = Resource.fromAutoCloseable(
-    () -> dataSource.getConnection()
-);
-
-// Use the resource - automatically closed after use
-VTask<List<User>> users = connResource.use(conn ->
-    VTask.of(() -> userDao.findAll(conn))
-);
-
-// Run the task - resource is managed automatically
-List<User> result = users.run();
-
-// Create a Resource with explicit acquire/release
-Resource<FileChannel> fileResource = Resource.make(
-    () -> FileChannel.open(path, StandardOpenOption.READ),
-    channel -> {
-        try { channel.close(); }
-        catch (Exception e) { /* log and ignore */ }
-    }
-);
-
-// Use a pure value (no resource management needed)
-Resource<Config> configResource = Resource.pure(loadedConfig);
 ```
-~~~
 
-### Factory Methods {#factory-methods}
+Booking a courier happens on a session, which is opened first and must be closed after. `Session` stands in for one, and logs what happens to it:
 
-| Method | Description | Use Case |
-|--------|-------------|----------|
-| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable`, closing it after each use | Database connections, streams, channels |
-| `make(acquire, release)` | Explicit acquire and release functions | Custom resources, locks, external handles |
-| `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialised values |
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:session}}
+```
 
-A `Resource` never holds null. An `acquire` that returns null, `pure(null)`, or a `map` function that returns null fails the use with `NullPointerException`. Hold a value that may be absent as a `Maybe`, and acquire it with `make`.
+`ORDER` is a paid order:
 
-An exception from `close()` fails the use, so a writer whose final flush fails does not report success. [Exception Safety](#exception-safety) says how it is reported.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:use}}
+```
 
----
+Building the task opens nothing. Each run opens a session, books on it, and closes it, so running `booking` again opens `session-2`. `useSync(f)` does the same with a plain function rather than one that gives a task.
 
-## Using Resources
+```mermaid
+stateDiagram-v2
+    accTitle: What happens to a resource during one use
+    accDescr: A use acquires the resource. If the acquire fails, nothing is held, and nothing is released. Otherwise the resource is held while its task runs. If the task succeeds, the release runs. If the task fails or is cancelled, the onFailure actions run first, then the release. The finalisers run after the release, and the use ends with the task's result or its failure.
+    state "the acquire failed" as NotHeld
+    state "held" as Held
+    state "the task succeeded" as Succeeded
+    state "the task failed or was cancelled" as Failed
+    state "the onFailure actions ran" as RolledBack
+    state "released" as Released
+    [*] --> NotHeld
+    NotHeld --> [*] : nothing to release
+    [*] --> Held : acquire
+    Held --> Succeeded
+    Held --> Failed
+    Failed --> RolledBack
+    Succeeded --> Released : release
+    RolledBack --> Released : release
+    Released --> [*] : finalisers
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    class Held domain
+    class Succeeded step
+    class Released step
+    class NotHeld error
+    class Failed error
+    class RolledBack error
+```
 
-The `use` method runs a computation with the acquired resource and guarantees release:
+The diagram shows that every way out of a held resource passes through its release, after the [`onFailure` actions](#onfailure-callback) when the task fails, and before the [finalisers](#finalizer-behaviour). If the acquire fails, nothing is held, so neither the release, the `onFailure` actions nor the finalisers run.
+
+### Creating a resource {#factory-methods}
+
+| Factory | What it describes | For |
+|---|---|---|
+| `Resource.fromAutoCloseable(acquire)` | An `AutoCloseable`, closed after each use | Connections, sessions, streams, channels |
+| `Resource.make(acquire, release)` | An acquire and a release of your own | Locks, handles, anything without `close()` |
+| `Resource.pure(value)` | A value with nothing to release | Configuration, or a constant in a composition |
+
+The acquire is a `Callable`, so it may throw a checked exception. A `Resource` never holds null: `pure(null)` throws at the call, and an acquire or a `map` function that returns null fails the use with a `NullPointerException`. Hold a value that may be absent as a `Maybe`, and acquire it with `make`.
+
+## When the use fails {#exception-safety}
+
+The session is closed whatever happens to the booking. These are the extra imports:
 
 <!-- verify -->
 ```java
-Resource<Connection> connResource = Resource.fromAutoCloseable(
-    () -> dataSource.getConnection()
-);
-
-// The function receives the acquired resource
-// Release happens automatically when the VTask completes
-VTask<Integer> count = connResource.use(conn ->
-    VTask.of(() -> {
-        try (var stmt = conn.createStatement();
-             var rs = stmt.executeQuery("SELECT COUNT(*) FROM users")) {
-            rs.next();
-            return rs.getInt(1);
-        }
-    })
-);
-
-// Resource is acquired when run() is called
-// Resource is released when the computation completes (success or failure)
-int userCount = count.run();
+import java.io.IOException;
+import org.higherkindedj.hkt.trymonad.Try;
 ```
 
-### Exception Safety {#exception-safety}
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:failure}}
+```
 
-If the use function throws, the resource is still released:
+When the release throws as well, the use's failure is still the one reported, and the release's exception is suppressed onto it, as try-with-resources does. After a successful use, a release that throws fails the use with its own exception, so a writer whose final flush fails does not report success.
+
+For `fromAutoCloseable`, the release is `close()`, which may throw a checked exception. The task that `use` returns reports it as it reports any checked failure: `run()` throws it wrapped in a `VTaskExecutionException`, and `runSafe()` holds it unwrapped.
+
+A cancelled use is a failed one, so its resource is released too. The release runs with the thread's interrupt status cleared, so a cancellation does not cut a blocking release short, and the status is restored afterwards.
+
+## Composing resources {#composing-resources}
+
+`and` holds two resources at once, acquiring them in order and releasing them in reverse. `flatMap` acquires a second resource from the first, as try-with-resources nests a statement inside its connection, and releases the second first. Releasing in reverse means a resource that depends on another is released before the one it depends on. If a later acquire fails, the ones already held are released before the failure is reported. These are the extra imports:
 
 <!-- verify -->
 ```java
-VTask<String> riskyOperation = connResource.use(conn ->
-    VTask.of(() -> {
-        if (someCondition) {
-            throw new RuntimeException("Something went wrong");
-        }
-        return "Success";
-    })
-);
-
-// Even though the computation throws, the connection is closed
-Try<String> result = riskyOperation.runSafe();
-// result.isFailure() == true
-// connection is closed
+import org.higherkindedj.hkt.vtask.Par;
 ```
 
-If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. After a successful use, a release that throws fails the use with its own exception.
-
-For `fromAutoCloseable`, the release is `close()`, which may throw a checked exception. The task that `use` returns reports it as it reports any checked failure: `run()` throws it wrapped in a `VTaskExecutionException`, and `runSafe()` returns it unwrapped in a `Try.Failure`. A `Resource` composed with `flatMap` or `and` reports a failed release as a `RuntimeException` instead, whose cause is the exception from the outermost release that threw.
-
-### Using One Resource Many Times {#using-one-resource-many-times}
-
-A `Resource` holds nothing itself. Each `use` acquires its own resource and releases exactly that one. So build a `Resource` once and use it wherever it is needed: once per request, on several threads at once, or one use nested inside another. This holds however the `Resource` was composed.
-
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:many_uses}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:compose}}
 ```
 
-The nested use opens a second connection, and each use closes the one it opened, innermost first. The `map` makes this a composed `Resource`, and its release still receives the value `acquire` returned.
+`and` gives a `Par.Tuple2`, a preview class, so code that calls `and` needs `--enable-preview`, whether or not it names `Par`, as the [VTask](vtask_monad.md#on-a-vtaskpath) page explains. `and(second, third)` holds three at once, as a `Par.Tuple3`. A `Resource` composed with `flatMap` or `and` reports a failed release as a `RuntimeException`, whose cause is the exception from the outermost release that threw.
 
----
+`map(f)` changes the value a resource gives, and its release still receives the value the acquire returned. `map` takes a plain `Function`, so a checked exception has to be handled inside `f`.
 
-## Composing Resources
+## Using one resource many times {#using-one-resource-many-times}
 
-Resources compose naturally, acquiring in order and releasing in reverse (LIFO). A composed `Resource` can be used many times too, as [Using One Resource Many Times](#using-one-resource-many-times) shows.
+A `Resource` holds nothing itself. Each `use` acquires its own resource and releases exactly that one. So build a `Resource` once and use it wherever it is needed: once per request, on several threads at once, or one use nested inside another. This holds however the `Resource` was composed:
 
-<!-- verify -->
 ```java
-// Chain resource acquisition with flatMap
-Resource<PreparedStatement> stmtResource = connResource.flatMap(conn ->
-    Resource.fromAutoCloseable(() -> conn.prepareStatement(sql))
-);
-
-// Combine two independent resources with and()
-Resource<Par.Tuple2<Connection, FileChannel>> combined =
-    connResource.and(fileResource);
-
-combined.use(tuple -> {
-    Connection conn = tuple.first();
-    FileChannel file = tuple.second();
-    return VTask.of(() -> processData(conn, file));
-}).run();
-// fileResource released first, then connResource
-
-// Combine three resources
-Resource<Par.Tuple3<Connection, PreparedStatement, ResultSet>> triple =
-    connResource.and(stmtResource, resultSetResource);
-
-// Transform resource value with map. `map` takes a plain Function, so a checked
-// exception has to be dealt with here rather than propagated.
-Resource<String> connectionInfo = connResource.map(conn -> {
-    try {
-        return conn.getMetaData().getURL();
-    } catch (SQLException e) {
-        throw new IllegalStateException("Cannot read connection metadata", e);
-    }
-});
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:many_uses}}
 ```
 
-### Composition Methods
+The nested use opens a second session, and each use closes the one it opened, innermost first. The use sees each session's id, and the release still closes the `Session` itself.
 
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `map(f)` | `Resource<A> → (A → B) → Resource<B>` | Transform the resource value |
-| `flatMap(f)` | `Resource<A> → (A → Resource<B>) → Resource<B>` | Chain dependent resources |
-| `and(other)` | `Resource<A> → Resource<B> → Resource<Tuple2<A,B>>` | Combine two resources |
-| `and(r2, r3)` | `Resource<A> → Resource<B> → Resource<C> → Resource<Tuple3<A,B,C>>` | Combine three resources |
+## Finalisers {#finalizer-behaviour}
 
-### Release Order
+`withFinalizer(action)` adds an action that runs after the release:
 
-When composing resources, release order is the reverse of acquisition (LIFO):
-
-<!-- verify -->
 ```java
-Resource<A> ra = Resource.make(acquireA, releaseA);
-Resource<B> rb = Resource.make(acquireB, releaseB);
-Resource<C> rc = Resource.make(acquireC, releaseC);
-
-// Acquisition order: A, then B, then C
-// Release order: C, then B, then A
-Resource<Tuple3<A, B, C>> combined = ra.and(rb, rc);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:finalisers}}
 ```
 
-This ensures that resources depending on other resources are released first.
+Finalisers run in the order they were added, and each runs even when the release, or an earlier finaliser, throws. When the release and a finaliser both throw, the release's exception is reported, with the finaliser's suppressed onto it.
 
----
+## Rolling back on failure {#onfailure-callback}
 
-## Resource Finalisers {#resource-finalizers}
-
-Add cleanup actions that run after the primary release:
-
-<!-- verify -->
-```java
-Resource<Connection> withLogging = connResource
-    .withFinalizer(() -> logger.info("Connection released"));
-
-// Cleanup runs even if release throws
-Resource<Lock> lockResource = Resource.make(
-    () -> { lock.lock(); return lock; },
-    Lock::unlock
-).withFinalizer(() -> metrics.recordLockRelease());
-```
-
-### Finaliser Behaviour {#finalizer-behaviour}
-
-- **Finalisers run after the primary release.**
-- **Finalisers run in the order they were added.**
-- **A finaliser runs even when the release throws.**
-- **A finaliser runs even when an earlier finaliser throws.**
-- **When the release and a finaliser both throw, the release's exception is reported.** The finaliser's exception is suppressed onto it.
+`onFailure(action)` adds an action that runs when the use fails, before the release. It receives the acquired resource, so it can undo partial work, such as rolling back a transaction. When the use succeeds, only the release runs:
 
 ```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:finalisers}}
-```
-
----
-
-## Resource + Scope Integration
-
-Resources work seamlessly with Scope for structured concurrent resource management:
-
-<!-- verify -->
-```java
-Resource<Connection> conn1 = Resource.fromAutoCloseable(() -> pool.getConnection());
-Resource<Connection> conn2 = Resource.fromAutoCloseable(() -> pool.getConnection());
-
-// Use resources within a scope
-VTask<List<String>> parallelQueries = conn1.and(conn2).use(conns ->
-    Scope.<String>allSucceed()
-        .fork(VTask.of(() -> query(conns.first(), sql1)))
-        .fork(VTask.of(() -> query(conns.second(), sql2)))
-        .join()
-);
-
-// Both connections released after scope completes
-List<String> results = parallelQueries.run();
-```
-
-### Real-World Example: Transaction with Multiple Resources
-
-<!-- verify -->
-```java
-Resource<Connection> connResource = Resource.make(
-    () -> {
-        Connection conn = dataSource.getConnection();
-        conn.setAutoCommit(false);
-        return conn;
-    },
-    conn -> {
-        try { conn.close(); } catch (Exception e) { /* ignore */ }
-    }
-).onFailure(conn -> {
-    try { conn.rollback(); } catch (Exception e) { /* ignore */ }
-});
-
-VTask<OrderResult> processOrder = connResource.use(conn ->
-    Scope.<Unit>allSucceed()
-        .fork(VTask.exec(() -> updateInventory(conn, order)))
-        .fork(VTask.exec(() -> chargePayment(conn, order)))
-        .fork(VTask.exec(() -> sendNotification(conn, order)))
-        .join()
-        .flatMap(_ -> VTask.of(() -> {
-            conn.commit();
-            return new OrderResult(order.id(), "SUCCESS");
-        }))
-);
-
-// If any step fails:
-// 1. Scope cancels remaining tasks
-// 2. onFailure rolls the transaction back
-// 3. Connection is closed
-Try<OrderResult> result = processOrder.runSafe();
-```
-
----
-
-## Error Handling in Resources
-
-### onFailure Callback {#onfailure-callback}
-
-`onFailure` adds an action that runs when the use fails, before the release. It receives the acquired resource, so it can undo partial work, such as rolling back a transaction. When the use succeeds, only the release runs.
-
-```java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:on_failure}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:on_failure}}
 ```
 
 The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use` throws, or the task it returns fails. A cancelled task fails too. A step composed after `onFailure` counts as well, when it fails while the resource is held:
@@ -321,41 +170,45 @@ The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is
 
 The action runs before its `Resource`'s release and before the finalisers added to it. Actions added one after another run most recently added first. If an action throws, the release still runs, and the use's failure is still the one reported.
 
-### Combining with VTask Error Handling
+## With a `Scope` {#with-a-scope}
+
+A resource can be held while a [`Scope`](vtask_scope.md)'s tasks use it, and is released once the scope has joined them all. This is the extra import:
 
 <!-- verify -->
 ```java
-VTask<Data> robust = connResource.use(conn ->
-    VTask.of(() -> fetchData(conn))
-        .recover(error -> {
-            logger.warn("Fetch failed, using cache", error);
-            return cachedData;
-        })
-);
-// Connection is released regardless of whether recover was invoked
+import org.higherkindedj.hkt.vtask.Scope;
 ```
 
----
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/resource/ResourceBook.java:with_scope}}
+```
 
-~~~admonish info title="Key Takeaways"
-* **Resource** implements the bracket pattern: acquire-use-release with guaranteed cleanup
-* **fromAutoCloseable** wraps standard Java resources; **make** handles custom acquire/release
-* **Composition** with `flatMap` and `and` maintains proper release ordering (LIFO)
-* **Each use acquires its own resource**, so one `Resource` can be used many times, nested or at once
-* **onFailure** runs an action before the release when the use fails
-* **Finalisers** add cleanup actions that run even if release throws
-* **Scope integration** enables concurrent computations with safe resource management
-* **Exception safety** ensures resources are released even when computations fail
-~~~
+A resource the tasks share must be safe to use from several threads at once, as the session's log is here. Add an `onFailure` rollback, as in [Rolling back on failure](#onfailure-callback), and this shape runs a transaction's steps at the same time. When one step fails, the scope cancels the others, the rollback runs, then the release.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Resource.fromAutoCloseable(acquire)`, `make(acquire, release)`, `pure(value)` | Describe a resource, acquiring nothing |
+| `use(f)` | Gives a `VTask` that acquires, runs the task `f` gives for the resource, and releases |
+| `useSync(f)` | The same, where `f` gives a plain value rather than a task |
+| `map(f)` | Changes the value the resource gives |
+| `flatMap(f)`, `and(other)`, `and(second, third)` | Hold resources together, releasing them in reverse order |
+| `withFinalizer(action)` | Runs `action` after the release |
+| `onFailure(action)` | Runs `action` on the resource when the use fails, before the release |
+
+## When to use `Resource` {#when-to-use-resource}
+
+| You need | Use |
+|---|---|
+| Something acquired and released around a `VTask`, however it ends | `Resource` |
+| A resource used within one block of ordinary code | Java's try-with-resources |
+| Cleanup after a task, with nothing to acquire | [`guarantee`](../effect/capabilities.md#effectful-io) on a `VTaskPath` |
+| The same around an `IO` | [`bracket` or `withResource`](../effect/path_io.md) on an `IOPath` |
+| A release that sees whether a typed result succeeded | [`bracketOutcome`](../effect/path_vresult.md) on a `VResultPath` |
 
 ~~~admonish info title="Hands-On Learning"
-Practise Resource patterns in [TutorialResource](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialResource.java) (10 exercises), part of the [Scope & Resource journey](../tutorials/concurrency/scope_resource_journey.md).
-~~~
-
-~~~admonish tip title="See Also"
-- [VTask Monad](vtask_monad.md) - Core VTask type and basic operations
-- [Structured Concurrency](vtask_scope.md) - Scope and ScopeJoiner for task coordination
-- [IO Monad](io_monad.md) - Platform thread-based alternative with similar patterns
+Practise `Resource` in [TutorialResource](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialResource.java) (10 exercises), part of the [Scope & Resource journey](../tutorials/concurrency/scope_resource_journey.md).
 ~~~
 
 ---
