@@ -37,7 +37,7 @@ Dan Powell's archive is a pull-based stream: no tape plays itself, and nothing m
 
 ## Reading a feed one page at a time {#reading-a-feed-one-page-at-a-time}
 
-An order service hands out its orders a page at a time, and each page is a call that blocks and may throw an `IOException`. In plain Java you would write a loop that fetches the next page until one comes back empty. A Java `Stream` or `Iterator` built over that loop is lazy too, but it can be read only once. The lambdas you pass to its `map` and `filter` cannot throw the feed's `IOException`. Nothing in it can give a value in place of one failed element, or keep what was read when the feed fails. A `VStream<A>` describes the sequence instead. It produces nothing until a terminal operation runs it, and you can run it as often as you like.
+An order service hands out its orders a page at a time, and each page is a call that blocks and may throw an `IOException`. In plain Java you would write a loop that fetches the next page until one comes back empty. A Java `Stream` or `Iterator` built over that loop is lazy too, but it can be read only once. The lambdas you pass to its `map` and `filter` cannot throw the feed's `IOException`. Nothing in it can give a value in place of one failed element, or keep what was read when the feed fails. A `VStream<A>` describes the sequence instead. It produces nothing until a terminal operation runs it, and you can run it as often as you like. Only a stream read from an iterator or a Java `Stream` gives its elements once, since a run uses up its source.
 
 The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
@@ -211,7 +211,7 @@ When the source itself fails, there is nothing to carry on with. A feed that goe
 
 | Operator | When a pull fails |
 |---|---|
-| `recover(f)` | Gives `f`'s value. After a failed `mapTask` task, the stream carries on with the next element; after any other failure, it ends |
+| `recover(f)` | Gives `f`'s value. After a failed `mapTask` task, the stream carries on with the next element, unless the exception that reaches `recover` has suppression disabled; after any other failure, it ends |
 | `recoverWith(f)` | Reads the stream `f` gives in place of the rest |
 | `mapError(f)` | Fails with the exception `f` gives instead |
 | `onError(action)` | Runs `action`, then fails as before |
