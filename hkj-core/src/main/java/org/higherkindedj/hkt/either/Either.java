@@ -6,8 +6,10 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -412,6 +414,50 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    */
   static <L, R> Either<L, R> right(R value) {
     return new Right<>(value);
+  }
+
+  /**
+   * Converts an {@link Optional} to an {@code Either}, with {@code ifEmpty} as the {@link Left}
+   * value when the {@code Optional} is empty.
+   *
+   * @param optional The non-null {@code Optional} to convert.
+   * @param ifEmpty The non-null value for the {@link Left} case. It is checked even when {@code
+   *     optional} is present.
+   * @param <L> The type of the {@link Left} value.
+   * @param <R> The type of the {@link Right} value.
+   * @return A {@link Right} holding the {@code Optional}'s value if it is present, or a {@link
+   *     Left} holding {@code ifEmpty} if it is empty.
+   * @throws NullPointerException if {@code optional} or {@code ifEmpty} is null.
+   */
+  static <L, R> Either<L, R> fromOptional(Optional<? extends R> optional, L ifEmpty) {
+    Validation.function().require(optional, "optional", FROM_OPTIONAL);
+    Validation.coreType().requireError(ifEmpty, Either.class, FROM_OPTIONAL);
+
+    return optional.isPresent() ? Either.right(optional.get()) : Either.left(ifEmpty);
+  }
+
+  /**
+   * Converts an {@link Optional} to an {@code Either}, calling {@code ifEmpty} for the {@link Left}
+   * value only when the {@code Optional} is empty.
+   *
+   * @param optional The non-null {@code Optional} to convert.
+   * @param ifEmpty The non-null supplier of the {@link Left} value. It is checked even when {@code
+   *     optional} is present, and must not return null.
+   * @param <L> The type of the {@link Left} value.
+   * @param <R> The type of the {@link Right} value.
+   * @return A {@link Right} holding the {@code Optional}'s value if it is present, or a {@link
+   *     Left} holding the supplied value if it is empty.
+   * @throws NullPointerException if {@code optional} or {@code ifEmpty} is null, or if {@code
+   *     ifEmpty} returns null when {@code optional} is empty.
+   */
+  static <L, R> Either<L, R> fromOptional(
+      Optional<? extends R> optional, Supplier<? extends L> ifEmpty) {
+    Validation.function().require(optional, "optional", FROM_OPTIONAL);
+    Validation.function().require(ifEmpty, "ifEmpty", FROM_OPTIONAL);
+
+    return optional.isPresent()
+        ? Either.right(optional.get())
+        : Either.left(Objects.requireNonNull(ifEmpty.get(), "ifEmpty must not return null"));
   }
 
   /**

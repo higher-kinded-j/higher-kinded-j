@@ -115,7 +115,7 @@ A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(n
 | `ifLeft(action)`, `ifRight(action)` | Run an action for the side it holds |
 | `getLeft()`, `getRight()` | Return that side's value, or throw `NoSuchElementException` |
 
-A `Maybe` becomes an `Either` with `toEither(error)`, and a `Validated` with `toEither()`.
+A `Maybe` becomes an `Either` with `toEither(error)`, a `Validated` with `toEither()`, and an `Optional` with `Either.fromOptional(optional, error)`.
 
 ## Working with Kind {#working-with-kind}
 
