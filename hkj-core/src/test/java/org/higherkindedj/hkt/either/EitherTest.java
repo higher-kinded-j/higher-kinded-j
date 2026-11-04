@@ -367,6 +367,93 @@ class EitherTest extends EitherTestBase {
   }
 
   @Nested
+  @DisplayName("orElse() Method - Value and Null Other")
+  @SuppressWarnings("DataFlowIssue")
+  class OrElseMethodTests {
+
+    @Test
+    @DisplayName("orElse() returns the Right value, or other on a Left")
+    void orElseReturnsRightValueOrOther() {
+      assertThatEither(rightInstance).isRight().hasRight(rightValue);
+      assertThat(rightInstance.orElse(0)).isEqualTo(rightValue);
+
+      assertThatEither(leftInstance).isLeft().hasLeft(leftValue);
+      assertThat(leftInstance.orElse(0)).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("orElse() rejects a null other on a Right and on a Left")
+    void orElseRejectsNullOtherOnBothSides() {
+      ValidationTestBuilder.create()
+          .assertFunctionNull(() -> rightInstance.orElse(null), "other", Operation.OR_ELSE)
+          .assertFunctionNull(() -> leftInstance.orElse(null), "other", Operation.OR_ELSE)
+          .execute();
+    }
+  }
+
+  @Nested
+  @DisplayName("orElseGet() Method - Recovery and Null Handling")
+  @SuppressWarnings("DataFlowIssue")
+  class OrElseGetMethodTests {
+
+    @Test
+    @DisplayName("orElseGet() returns the Right value and does not call recovery")
+    void orElseGetReturnsRightValueWithoutCallingRecovery() {
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      assertThatEither(rightInstance).isRight().hasRight(rightValue);
+      assertThat(
+              rightInstance.orElseGet(
+                  error -> {
+                    called.set(true);
+                    return 0;
+                  }))
+          .isEqualTo(rightValue);
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("orElseGet() returns the result of recovery applied to the Left error")
+    void orElseGetAppliesRecoveryToLeftError() {
+      List<String> seen = new ArrayList<>();
+
+      assertThatEither(leftInstance).isLeft().hasLeft(leftValue);
+      assertThat(
+              leftInstance.orElseGet(
+                  error -> {
+                    seen.add(error);
+                    return 7;
+                  }))
+          .isEqualTo(7);
+      assertThat(seen).containsExactly(leftValue);
+    }
+
+    @Test
+    @DisplayName("orElseGet() rejects a null recovery on a Right and on a Left")
+    void orElseGetRejectsNullRecoveryOnBothSides() {
+      ValidationTestBuilder.create()
+          .assertFunctionNull(
+              () -> rightInstance.orElseGet(null), "recovery", Operation.OR_ELSE_GET)
+          .assertFunctionNull(() -> leftInstance.orElseGet(null), "recovery", Operation.OR_ELSE_GET)
+          .execute();
+    }
+
+    @Test
+    @DisplayName("orElseGet() rejects a recovery that returns null on a Left")
+    void orElseGetRejectsNullResultOnLeft() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> leftInstance.orElseGet(error -> null))
+          .withMessage("recovery must not return null");
+    }
+
+    @Test
+    @DisplayName("orElseGet() on a Right does not call a recovery that returns null")
+    void orElseGetOnRightDoesNotCallNullReturningRecovery() {
+      assertThat(rightInstance.orElseGet(error -> null)).isEqualTo(rightValue);
+    }
+  }
+
+  @Nested
   @DisplayName("map() Method - Comprehensive Right-Biased Testing")
   @SuppressWarnings("DataFlowIssue")
   class MapMethodTests {
