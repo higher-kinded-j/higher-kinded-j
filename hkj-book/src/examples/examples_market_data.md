@@ -122,10 +122,12 @@ the full pipeline from smaller pieces that each work in isolation.
 ### Bounded Concurrency Without Backpressure
 
 VStream is pull-based: the consumer drives evaluation by requesting elements. The parallel
-operations add bounded concurrency on top of this pull model. At most `concurrency` elements
-are in flight at any time. Because virtual threads block cheaply, no explicit backpressure
-protocol is needed; if the consumer is slow, the producer simply blocks until the consumer
-pulls the next element.
+operations add bounded concurrency on top of this pull model. `parEvalMap` and
+`parEvalMapUnordered` hold at most `concurrency` elements in flight at any time. Because virtual
+threads block cheaply, no explicit backpressure protocol is needed; if the consumer is slow, the
+producer simply blocks until the consumer pulls the next element. `merge` is the exception: it
+reads each source as fast as the source gives elements, and holds those not yet pulled without a
+limit.
 
 ### Structured Concurrency Throughout
 

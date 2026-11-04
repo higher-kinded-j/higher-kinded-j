@@ -25,6 +25,7 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 @DisplayName("VStreamPar Parallel Combinators Test Suite")
 class VStreamParTest {
@@ -353,6 +354,438 @@ class VStreamParTest {
               .run();
 
       assertThat(result).containsExactlyInAnyOrder(1, 2, 3);
+    }
+  }
+
+  @Nested
+  @DisplayName("parEvalMapUnordered() emits each result as its task completes")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  class CompletionOrder {
+
+    /** A task that waits on a latch until it is interrupted, and records that it was. */
+    private VTask<Integer> waitsUntilCancelled(int n, AtomicBoolean cancelled) {
+      return VTask.of(
+          () -> {
+            try {
+              new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+              cancelled.set(true);
+              throw e;
+            }
+            return n;
+          });
+    }
+
+    @Test
+    @DisplayName("fast results come before a slow one, which closing the stream cancels")
+    void fastResultsComeFirst() {
+      AtomicBoolean slowCancelled = new AtomicBoolean();
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(1, 2, 3, 4),
+              4,
+              n -> n == 1 ? waitsUntilCancelled(n, slowCancelled) : VTask.succeed(n));
+
+      List<Integer> firstThree = results.take(3).toList().run();
+
+      assertThat(firstThree).containsExactlyInAnyOrder(2, 3, 4);
+      assertThat(slowCancelled).isTrue();
+    }
+
+    @Test
+    @DisplayName("two slow tasks four places apart run at the same time")
+    void slowTasksRunTogether() throws Exception {
+      CountDownLatch bothStarted = new CountDownLatch(2);
+      CountDownLatch release = new CountDownLatch(1);
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.range(1, 9),
+              4,
+              n ->
+                  n == 1 || n == 5
+                      ? VTask.of(
+                          () -> {
+                            bothStarted.countDown();
+                            release.await();
+                            return n;
+                          })
+                      : VTask.succeed(n));
+
+      var all = results.runAsync();
+      try {
+        assertThat(bothStarted.await(5, TimeUnit.SECONDS)).isTrue();
+      } finally {
+        release.countDown();
+      }
+
+      assertThat(all.get(5, TimeUnit.SECONDS)).containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8);
+    }
+
+    @Test
+    @DisplayName("a consumer that stops pulling stops the reading once concurrency results wait")
+    void aStoppedConsumerStopsTheReading() {
+      AtomicInteger read = new AtomicInteger();
+      AtomicReference<Thread> reader = new AtomicReference<>();
+      VStream<Integer> endless =
+          VStream.iterate(1, n -> n + 1)
+              .peek(
+                  _ -> {
+                    reader.set(Thread.currentThread());
+                    read.incrementAndGet();
+                  });
+      VStream<Integer> results = VStreamPar.parEvalMapUnordered(endless, 3, VTask::succeed);
+
+      VStream.Step<Integer> first = results.pull().run();
+      try {
+        // Three read ahead, and one more once the consumer took a result; then the reader waits
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .until(() -> read.get() == 4 && reader.get().getState() == Thread.State.WAITING);
+
+        assertThat(read).hasValue(4);
+      } finally {
+        ((VStream.Step.Emit<Integer>) first).tail().close().run();
+      }
+    }
+
+    @Test
+    @DisplayName("the result whose task completes first comes first")
+    void completionOrder() {
+      CountDownLatch firstTaken = new CountDownLatch(1);
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(1, 2),
+              2,
+              n ->
+                  n == 1
+                      ? VTask.of(
+                          () -> {
+                            firstTaken.await();
+                            return n;
+                          })
+                      : VTask.succeed(n));
+
+      VStream.Step<Integer> first = results.pull().run();
+      firstTaken.countDown();
+      VStream.Step<Integer> second = ((VStream.Step.Emit<Integer>) first).tail().pull().run();
+
+      assertThat(((VStream.Step.Emit<Integer>) first).value()).isEqualTo(2);
+      assertThat(((VStream.Step.Emit<Integer>) second).value()).isEqualTo(1);
+      assertThat(((VStream.Step.Emit<Integer>) second).tail().pull().run())
+          .isInstanceOf(VStream.Step.Done.class);
+    }
+
+    @Test
+    @DisplayName("a pulled VTask run twice starts two runs, each with the same first step")
+    void aPulledTaskRunsTwice() {
+      VTask<VStream.Step<Integer>> pulled =
+          VStreamPar.parEvalMapUnordered(VStream.of(1, 2, 3), 1, n -> VTask.succeed(n * 10)).pull();
+
+      VStream.Step<Integer> once = pulled.run();
+      VStream.Step<Integer> twice = pulled.run();
+
+      assertThat(((VStream.Step.Emit<Integer>) once).value()).isEqualTo(10);
+      assertThat(((VStream.Step.Emit<Integer>) twice).value()).isEqualTo(10);
+      assertThat(((VStream.Step.Emit<Integer>) once).tail().toList().run()).containsExactly(20, 30);
+      assertThat(((VStream.Step.Emit<Integer>) twice).tail().toList().run())
+          .containsExactly(20, 30);
+    }
+
+    @Test
+    @DisplayName("closing the stream after a pull closes that run's source")
+    void closingTheHeadClosesTheRun() {
+      AtomicInteger finalised = new AtomicInteger();
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.iterate(1, n -> n + 1).onFinalize(VTask.exec(finalised::incrementAndGet)),
+              2,
+              VTask::succeed);
+
+      results.pull().run();
+      results.close().run();
+
+      assertThat(finalised).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a failure to close the source is suppressed onto a task's failure")
+    void aFailedReleaseIsSuppressed() {
+      IllegalStateException releaseFailed = new IllegalStateException("release failed");
+      IOException noQuote = new IOException("no courier quote");
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.iterate(1, n -> n + 1)
+                  .onFinalize(
+                      VTask.of(
+                          () -> {
+                            throw releaseFailed;
+                          })),
+              2,
+              n -> n == 2 ? VTask.fail(noQuote) : VTask.succeed(n));
+
+      Try<List<Integer>> outcome = results.toList().runSafe();
+
+      Throwable cause = ((Try.Failure<List<Integer>>) outcome).cause();
+      assertThat(cause).isSameAs(noQuote);
+      assertThat(cause.getSuppressed()).contains(releaseFailed);
+    }
+
+    @Test
+    @DisplayName("the tasks do not see the caller's ScopedValue bindings, as parEvalMap's do")
+    void scopedValuesAreNotInherited() throws Exception {
+      ScopedValue<String> trace = ScopedValue.newInstance();
+
+      List<Boolean> unordered =
+          ScopedValue.where(trace, "order-run")
+              .call(
+                  () ->
+                      VStreamPar.parEvalMapUnordered(
+                              VStream.of(1), 1, _ -> VTask.of(trace::isBound))
+                          .toList()
+                          .run());
+      List<Boolean> ordered =
+          ScopedValue.where(trace, "order-run")
+              .call(
+                  () ->
+                      VStreamPar.parEvalMap(VStream.of(1), 1, _ -> VTask.of(trace::isBound))
+                          .toList()
+                          .run());
+
+      assertThat(unordered).containsExactly(false);
+      assertThat(ordered).containsExactly(true);
+    }
+
+    @Test
+    @DisplayName(
+        "each run reads the source afresh, and closing after the end releases nothing more")
+    void eachRunReadsAfresh() {
+      AtomicInteger finalised = new AtomicInteger();
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(1, 2, 3).onFinalize(VTask.exec(finalised::incrementAndGet)),
+              2,
+              n -> VTask.succeed(n * 10));
+
+      assertThat(results.toList().run()).containsExactlyInAnyOrder(10, 20, 30);
+      assertThat(results.toList().run()).containsExactlyInAnyOrder(10, 20, 30);
+      assertThat(results.close().runSafe().isSuccess()).isTrue();
+      // Once for each run that read to the end, and not again for the close
+      assertThat(finalised).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("a failed task cancels the tasks still running and closes the source")
+    void aFailureCancelsTheRest() {
+      AtomicBoolean slowCancelled = new AtomicBoolean();
+      AtomicInteger finalised = new AtomicInteger();
+      IOException noQuote = new IOException("no courier quote");
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              // Endless, so only the failure can close it
+              VStream.iterate(1, n -> n + 1).onFinalize(VTask.exec(finalised::incrementAndGet)),
+              3,
+              n ->
+                  switch (n) {
+                    case 1 -> waitsUntilCancelled(n, slowCancelled);
+                    case 2 -> VTask.fail(noQuote);
+                    default -> VTask.succeed(n);
+                  });
+
+      Try<List<Integer>> outcome = results.toList().runSafe();
+
+      assertThat(outcome.isFailure()).isTrue();
+      assertThat(((Try.Failure<List<Integer>>) outcome).cause()).isSameAs(noQuote);
+      assertThat(slowCancelled).isTrue();
+      assertThat(finalised).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a failed tail fails with the same exception each time it is pulled")
+    void aFailedTailFailsTheSame() {
+      IllegalStateException failed = new IllegalStateException("second failed");
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(1, 2), 1, n -> n == 2 ? VTask.fail(failed) : VTask.succeed(n));
+
+      VStream.Step<Integer> first = results.pull().run();
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) first).tail();
+
+      assertThatThrownBy(() -> rest.pull().run()).isSameAs(failed);
+      assertThatThrownBy(() -> rest.pull().run()).isSameAs(failed);
+    }
+
+    @Test
+    @DisplayName("closing while the source is being read stops the read and closes the source")
+    void closingStopsARead() throws InterruptedException {
+      CountDownLatch reading = new CountDownLatch(1);
+      AtomicInteger finalised = new AtomicInteger();
+      VStream<Integer> source =
+          VStream.of(1, 2, 3, 4)
+              .onFinalize(VTask.exec(finalised::incrementAndGet))
+              .mapTask(
+                  n ->
+                      n == 2
+                          ? VTask.of(
+                              () -> {
+                                reading.countDown();
+                                Thread.sleep(60_000);
+                                return n;
+                              })
+                          : VTask.succeed(n));
+      VStream<Integer> results = VStreamPar.parEvalMapUnordered(source, 4, VTask::succeed);
+
+      VStream.Step<Integer> first = results.pull().run();
+      reading.await();
+
+      assertThat(((VStream.Step.Emit<Integer>) first).tail().close().runSafe().isSuccess())
+          .isTrue();
+      assertThat(finalised).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a read that swallows the interrupt still stops, and the scope cancels the rest")
+    void aSwallowedInterruptStillStops() throws InterruptedException {
+      CountDownLatch reading = new CountDownLatch(1);
+      AtomicInteger read = new AtomicInteger();
+      AtomicBoolean secondCancelled = new AtomicBoolean();
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              swallowingAtThree(reading, read),
+              4,
+              n -> n == 2 ? waitsUntilCancelled(n, secondCancelled) : VTask.succeed(n));
+
+      VStream.Step<Integer> first = results.pull().run();
+      reading.await();
+      ((VStream.Step.Emit<Integer>) first).tail().close().run();
+
+      assertThat(read).hasValue(3);
+      assertThat(secondCancelled).isTrue();
+    }
+
+    @Test
+    @DisplayName("a failure during a read that swallows the interrupt still cancels the rest")
+    void aFailureDuringASwallowedReadStops() {
+      CountDownLatch reading = new CountDownLatch(1);
+      AtomicInteger read = new AtomicInteger();
+      AtomicBoolean secondCancelled = new AtomicBoolean();
+      IOException noQuote = new IOException("no courier quote");
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              swallowingAtThree(reading, read),
+              4,
+              n ->
+                  switch (n) {
+                    case 1 ->
+                        VTask.of(
+                            () -> {
+                              reading.await();
+                              throw noQuote;
+                            });
+                    case 2 -> waitsUntilCancelled(n, secondCancelled);
+                    default -> VTask.succeed(n);
+                  });
+
+      Try<List<Integer>> outcome = results.toList().runSafe();
+
+      assertThat(((Try.Failure<List<Integer>>) outcome).cause()).isSameAs(noQuote);
+      assertThat(read).hasValue(3);
+      assertThat(secondCancelled).isTrue();
+    }
+
+    /**
+     * One to four, whose read of the third element signals {@code reading}, waits, and carries on
+     * when interrupted, as code that swallows an interrupt does.
+     */
+    private VStream<Integer> swallowingAtThree(CountDownLatch reading, AtomicInteger read) {
+      return VStream.of(1, 2, 3, 4)
+          .mapTask(
+              n ->
+                  n == 3
+                      ? VTask.of(
+                          () -> {
+                            reading.countDown();
+                            try {
+                              Thread.sleep(60_000);
+                            } catch (InterruptedException e) {
+                              // carries on, as some code does
+                            }
+                            return n;
+                          })
+                      : VTask.succeed(n))
+          .peek(_ -> read.incrementAndGet());
+    }
+
+    @Test
+    @DisplayName("closing part-way fails with what closing the source throws, the first time")
+    void closingReportsAFailedRelease() {
+      IllegalStateException releaseFailed = new IllegalStateException("release failed");
+      VStream<Integer> source =
+          VStream.iterate(1, n -> n + 1)
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        throw releaseFailed;
+                      }));
+      VStream<Integer> results = VStreamPar.parEvalMapUnordered(source, 2, VTask::succeed);
+
+      VStream.Step<Integer> first = results.pull().run();
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) first).tail();
+
+      assertThatThrownBy(() -> rest.close().run()).isSameAs(releaseFailed);
+      assertThat(rest.close().runSafe().isSuccess()).isTrue();
+      assertThat(rest.pull().run()).isInstanceOf(VStream.Step.Done.class);
+    }
+
+    @Test
+    @DisplayName("a close interrupted while it waits for the reader returns with the status set")
+    void anInterruptedCloseReturns() throws Exception {
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(1, 2),
+              2,
+              n ->
+                  n == 1
+                      ? VTask.of(
+                          () -> {
+                            started.countDown();
+                            // Waits out the scope's cancellation, so closing waits for it
+                            while (true) {
+                              try {
+                                release.await();
+                                return n;
+                              } catch (InterruptedException e) {
+                                // keeps waiting
+                              }
+                            }
+                          })
+                      : VTask.succeed(n));
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) results.pull().run()).tail();
+      started.await();
+      AtomicReference<Try<Unit>> closed = new AtomicReference<>();
+      AtomicBoolean interruptedAfter = new AtomicBoolean();
+
+      Thread closer =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    closed.set(rest.close().runSafe());
+                    interruptedAfter.set(Thread.currentThread().isInterrupted());
+                  });
+      try {
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .until(() -> closer.getState() == Thread.State.WAITING);
+        closer.interrupt();
+        closer.join(5_000);
+      } finally {
+        release.countDown();
+      }
+
+      assertThat(closed.get().isSuccess()).isTrue();
+      assertThat(interruptedAfter).isTrue();
     }
   }
 
@@ -1461,8 +1894,8 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("pullBatch() handles Skip steps from filtered source in parEvalMapUnordered")
-    void pullBatchHandlesSkipStepsInParEvalMapUnordered() {
+    @DisplayName("parEvalMapUnordered() reads past the Skip steps of a filtered source")
+    void parEvalMapUnorderedReadsPastSkipSteps() {
       VStream<Integer> filtered = VStream.of(1, 2, 3, 4, 5, 6).filter(n -> n > 4);
 
       VStream<Integer> result =
@@ -1484,14 +1917,16 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("processBatchUnordered() throws when function returns null task")
+    @DisplayName("parEvalMapUnordered() fails when its function returns a null task")
     @SuppressWarnings("DataFlowIssue") // the mapper deliberately returns null
-    void processBatchUnorderedThrowsOnNullTask() {
+    void parEvalMapUnorderedThrowsOnNullTask() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 
       VStream<Integer> result = VStreamPar.parEvalMapUnordered(stream, 3, _ -> null);
 
-      assertThatThrownBy(() -> result.toList().run()).isInstanceOf(NullPointerException.class);
+      assertThatThrownBy(() -> result.toList().run())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("function returned null task for element: 1");
     }
 
     @Test
