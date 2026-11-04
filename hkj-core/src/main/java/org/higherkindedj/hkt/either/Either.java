@@ -417,17 +417,19 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   }
 
   /**
-   * Converts an Optional to an Either, using the provided value for the Left case if the Optional
-   * is empty.
+   * Converts an {@link Optional} to an {@code Either}, with {@code ifEmpty} as the {@link Left}
+   * value when the {@code Optional} is empty.
    *
-   * @param optional The non-null Optional to convert.
-   * @param ifEmpty The non-null value to use for the Left case if the Optional is empty.
-   * @param <L> The type of the Left value.
-   * @param <R> The type of the Right value.
-   * @return Right containing the Optional value, or Left containing ifEmpty.
+   * @param optional The non-null {@code Optional} to convert.
+   * @param ifEmpty The non-null value for the {@link Left} case. It is checked even when {@code
+   *     optional} is present.
+   * @param <L> The type of the {@link Left} value.
+   * @param <R> The type of the {@link Right} value.
+   * @return A {@link Right} holding the {@code Optional}'s value if it is present, or a {@link
+   *     Left} holding {@code ifEmpty} if it is empty.
+   * @throws NullPointerException if {@code optional} or {@code ifEmpty} is null.
    */
   static <L, R> Either<L, R> fromOptional(Optional<? extends R> optional, L ifEmpty) {
-
     Validation.function().require(optional, "optional", FROM_OPTIONAL);
     Validation.coreType().requireError(ifEmpty, Either.class, FROM_OPTIONAL);
 
@@ -435,18 +437,21 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   }
 
   /**
-   * Converts an Optional to an Either, using the provided supplier to generate the Left value if
-   * the Optional is empty.
+   * Converts an {@link Optional} to an {@code Either}, calling {@code ifEmpty} for the {@link Left}
+   * value only when the {@code Optional} is empty.
    *
-   * @param optional The non-null Optional to convert.
-   * @param ifEmpty The non-null supplier of the Left value.
-   * @param <L> The type of the Left value.
-   * @param <R> The type of the Right value.
-   * @return Right containing the Optional value, or Left containing the supplied value.
+   * @param optional The non-null {@code Optional} to convert.
+   * @param ifEmpty The non-null supplier of the {@link Left} value. It is checked even when {@code
+   *     optional} is present, and must not return null.
+   * @param <L> The type of the {@link Left} value.
+   * @param <R> The type of the {@link Right} value.
+   * @return A {@link Right} holding the {@code Optional}'s value if it is present, or a {@link
+   *     Left} holding the supplied value if it is empty.
+   * @throws NullPointerException if {@code optional} or {@code ifEmpty} is null, or if {@code
+   *     ifEmpty} returns null when {@code optional} is empty.
    */
   static <L, R> Either<L, R> fromOptional(
       Optional<? extends R> optional, Supplier<? extends L> ifEmpty) {
-
     Validation.function().require(optional, "optional", FROM_OPTIONAL);
     Validation.function().require(ifEmpty, "ifEmpty", FROM_OPTIONAL);
 

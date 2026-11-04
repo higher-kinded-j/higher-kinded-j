@@ -165,7 +165,8 @@ class EitherTest extends EitherTestBase {
     @DisplayName("fromOptional validates null Optional")
     void validatesNullOptional() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, "Age not found"));
+          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, "Age not found"))
+          .withMessage("optional for fromOptional cannot be null");
     }
 
     @Test
@@ -174,17 +175,20 @@ class EitherTest extends EitherTestBase {
       Optional<Integer> optional = Optional.of(25);
 
       assertThatNullPointerException()
-          .isThrownBy(() -> Either.fromOptional(optional, (String) null));
+          .isThrownBy(() -> Either.fromOptional(optional, (String) null))
+          .withMessage("Either.fromOptional error cannot be null");
 
       assertThatNullPointerException()
-          .isThrownBy(() -> Either.fromOptional(Optional.<Integer>empty(), (String) null));
+          .isThrownBy(() -> Either.fromOptional(Optional.<Integer>empty(), (String) null))
+          .withMessage("Either.fromOptional error cannot be null");
     }
 
     @Test
     @DisplayName("fromOptional validates null supplier")
     void validatesNullSupplier() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Either.fromOptional(Optional.of(25), (Supplier<String>) null));
+          .isThrownBy(() -> Either.fromOptional(Optional.of(25), (Supplier<String>) null))
+          .withMessage("ifEmpty for fromOptional cannot be null");
     }
 
     @Test
@@ -199,7 +203,8 @@ class EitherTest extends EitherTestBase {
     @DisplayName("fromOptional(Supplier) validates null Optional")
     void validatesNullOptionalWithSupplier() {
       assertThatNullPointerException()
-          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, () -> "Age not found"));
+          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, () -> "Age not found"))
+          .withMessage("optional for fromOptional cannot be null");
     }
   }
 
