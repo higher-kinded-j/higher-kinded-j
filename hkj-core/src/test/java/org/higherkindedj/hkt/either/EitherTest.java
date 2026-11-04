@@ -195,7 +195,6 @@ class EitherTest extends EitherTestBase {
           .withMessage("ifEmpty must not return null");
     }
 
-
     @Test
     @DisplayName("fromOptional(Supplier) validates null Optional")
     void validatesNullOptionalWithSupplier() {
