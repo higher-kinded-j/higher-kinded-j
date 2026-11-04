@@ -35,8 +35,8 @@ import org.higherkindedj.hkt.trampoline.TrampolineKind;
 import org.higherkindedj.hkt.trampoline.TrampolineMonad;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.trymonad.TryMonad;
+import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamKind;
-import org.higherkindedj.hkt.vstream.VStreamMonad;
 import org.higherkindedj.hkt.vtask.VTaskKind;
 import org.higherkindedj.hkt.vtask.VTaskMonad;
 
@@ -132,9 +132,9 @@ public final class Witnesses {
     return new Of<>(VTaskMonad.INSTANCE);
   }
 
-  /** Token for {@code VStream} ({@link VStreamMonad#INSTANCE}). */
+  /** Token for {@code VStream} ({@link VStreamAlternative#INSTANCE}, also its monad). */
   public static Of<VStreamKind.Witness> vstream() {
-    return new Of<>(VStreamMonad.INSTANCE);
+    return new Of<>(VStreamAlternative.INSTANCE);
   }
 
   /** Token for {@code Lazy} ({@link LazyMonad#INSTANCE}). */
