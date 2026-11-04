@@ -41,9 +41,9 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li><b>Laziness:</b> Elements are produced on demand only when pulled.
  *   <li><b>Pull-based:</b> The consumer drives evaluation by calling {@link #pull()}.
- *   <li><b>Threads:</b> A pull runs on the thread that runs the terminal operation's task, and
- *       starts no thread of its own. {@link #runAsync()} runs the stream on a virtual thread, and
- *       {@link VStreamPar} processes elements on virtual threads at the same time.
+ *   <li><b>Threads:</b> A pull runs on the thread that runs the terminal operation's task. {@link
+ *       #runAsync()} runs the stream on a virtual thread, and a stream from {@link VStreamPar}
+ *       starts virtual threads as it is pulled, to process elements at the same time.
  *   <li><b>Failures:</b> A terminal operation fails with the exception a pulled task threw, a
  *       checked one included, which {@link VTask#runSafe()} keeps as it is and {@link VTask#run()}
  *       wraps in a {@link org.higherkindedj.hkt.vtask.VTaskExecutionException}.
@@ -83,8 +83,9 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Pulls the next step from this stream. This is the core operation: the consumer calls {@code
-   * pull()} to request the next element. The returned {@link VTask} is lazy: it runs on the thread
-   * that runs it, and starts no thread of its own.
+   * pull()} to request the next element. The returned {@link VTask} is lazy, and runs on the thread
+   * that runs it. A stream from {@link VStreamPar} also starts virtual threads as it is pulled, to
+   * run its elements' tasks or read its sources.
    *
    * <p>The returned {@link Step} is one of:
    *
