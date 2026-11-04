@@ -9,6 +9,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Represents a value of one of two possible types: {@link Left} or {@link Right}. {@code Either} is
@@ -413,6 +415,50 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   static <L, R> Either<L, R> right(R value) {
     return new Right<>(value);
   }
+
+    /**
+     * Converts an Optional to an Either, using the provided value for the Left case
+     * if the Optional is empty.
+     *
+     * @param optional The non-null Optional to convert.
+     * @param ifEmpty The non-null value to use for the Left case if the Optional is empty.
+     * @param <L> The type of the Left value.
+     * @param <R> The type of the Right value.
+     * @return Right containing the Optional value, or Left containing ifEmpty.
+     */
+    static <L, R> Either<L, R> fromOptional(
+            Optional<? extends R> optional, L ifEmpty) {
+
+        Validation.function().require(optional, "optional", FROM_OPTIONAL);
+        Validation.coreType().requireError(ifEmpty, Either.class, FROM_OPTIONAL);
+
+        return optional.isPresent()
+                ? Either.right(optional.get())
+                : Either.left(ifEmpty);
+    }
+
+    /**
+     * Converts an Optional to an Either, using the provided supplier to generate
+     * the Left value if the Optional is empty.
+     *
+     * @param optional The non-null Optional to convert.
+     * @param ifEmpty The non-null supplier of the Left value.
+     * @param <L> The type of the Left value.
+     * @param <R> The type of the Right value.
+     * @return Right containing the Optional value, or Left containing the supplied value.
+     */
+    static <L, R> Either<L, R> fromOptional(
+            Optional<? extends R> optional, Supplier<? extends L> ifEmpty) {
+
+        Validation.function().require(optional, "optional", FROM_OPTIONAL);
+        Validation.function().require(ifEmpty, "ifEmpty", FROM_OPTIONAL);
+
+        return optional.isPresent()
+                ? Either.right(optional.get())
+                : Either.left(
+                Objects.requireNonNull(
+                        ifEmpty.get(), "ifEmpty must not return null"));
+    }
 
   /**
    * Reinterprets an {@code Either<L, ? extends R>} as an {@code Either<L, R>}.

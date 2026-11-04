@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
@@ -93,6 +94,113 @@ class EitherTest extends EitherTestBase {
 
       assertThatEither(leftAssignment).isLeft().hasLeftNonNull().hasLeft("error");
       assertThatEither(rightAssignment).isRight().hasRightNonNull().hasRight(42);
+    }
+  }
+
+  @Nested
+  @DisplayName("fromOptional() Factory Methods")
+  @SuppressWarnings("DataFlowIssue")
+  class FromOptionalTests {
+
+    @Test
+    @DisplayName("fromOptional() returns Right when Optional is present")
+    void returnsRightWhenPresent() {
+      Optional<Integer> optional = Optional.of(25);
+
+      Either<String, Integer> result = Either.fromOptional(optional, "Age not found");
+
+      assertThatEither(result).isRight().hasRight(25);
+    }
+
+    @Test
+    @DisplayName("fromOptional() returns Left when Optional is empty")
+    void returnsLeftWhenEmpty() {
+      Optional<Integer> optional = Optional.empty();
+
+      Either<String, Integer> result = Either.fromOptional(optional, "Age not found");
+
+      assertThatEither(result).isLeft().hasLeft("Age not found");
+    }
+
+    @Test
+    @DisplayName("fromOptional(Supplier) returns Right without calling supplier")
+    void supplierIsNotCalledWhenPresent() {
+      AtomicBoolean supplierCalled = new AtomicBoolean(false);
+
+      Optional<Integer> optional = Optional.of(25);
+
+      Either<String, Integer> result =
+          Either.fromOptional(
+              optional,
+              () -> {
+                supplierCalled.set(true);
+                return "Age not found";
+              });
+
+      assertThatEither(result).isRight().hasRight(25);
+      assertThat(supplierCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fromOptional(Supplier) returns Left when empty")
+    void supplierIsCalledWhenEmpty() {
+      AtomicBoolean supplierCalled = new AtomicBoolean(false);
+
+      Optional<Integer> optional = Optional.empty();
+
+      Either<String, Integer> result =
+          Either.fromOptional(
+              optional,
+              () -> {
+                supplierCalled.set(true);
+                return "Age not found";
+              });
+
+      assertThatEither(result).isLeft().hasLeft("Age not found");
+
+      assertThat(supplierCalled).isTrue();
+    }
+
+    @Test
+    @DisplayName("fromOptional validates null Optional")
+    void validatesNullOptional() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, "Age not found"));
+    }
+
+    @Test
+    @DisplayName("fromOptional validates null error value")
+    void validatesNullError() {
+      Optional<Integer> optional = Optional.of(25);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional(optional, (String) null));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional(Optional.<Integer>empty(), (String) null));
+    }
+
+    @Test
+    @DisplayName("fromOptional validates null supplier")
+    void validatesNullSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional(Optional.of(25), (Supplier<String>) null));
+    }
+
+    @Test
+    @DisplayName("fromOptional rejects supplier returning null")
+    void rejectsNullSupplierResult() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional(Optional.<Integer>empty(), () -> null))
+          .withMessage("ifEmpty must not return null");
+    }
+
+
+    @Test
+    @DisplayName("fromOptional(Supplier) validates null Optional")
+    void validatesNullOptionalWithSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Either.fromOptional((Optional<Integer>) null, () -> "Age not found"));
     }
   }
 

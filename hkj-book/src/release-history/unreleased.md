@@ -33,6 +33,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Effect Paths {#effect-paths}
 
+- **`Either` gains `fromOptional`** ([#1406](https://github.com/higher-kinded-j/higher-kinded-j/issues/1406)): converts a present Java `Optional` to `Right` and an empty one to `Left`, accepting either a direct error value or a supplier for the error.
 - **javac checks each chain step's kind of Path and error type** ([#1314](https://github.com/higher-kinded-j/higher-kinded-j/issues/1314)). A step passed to `via` or another chaining method must be the chain's own kind of Path, so a mismatch is a compile error rather than an exception at run time. A step may still fail with a variant of the chain's error. See [The Family Parameter](../effect/capabilities.md#the-family-parameter).
 - **`EitherPath` gains `ensure`** ([#1338](https://github.com/higher-kinded-j/higher-kinded-j/issues/1338)): `ensure(test, onFail)` keeps a success whose value passes `test` and turns any other success into a failure built from its value, so a guard no longer needs an `if` returning a `Left`. See [EitherPath](../effect/path_either.md#error-handling).
 - **`TrampolinePath` and `FreePath` combine three paths with `zipWith3`** ([#1302](https://github.com/higher-kinded-j/higher-kinded-j/issues/1302)): both already combined two paths with `zipWith`. The three-way combine stays lazy until `run()` or `foldMap`, so a deep chain stays stack-safe. See [Combinable (Applicative)](../effect/capabilities.md#combinable-applicative).
