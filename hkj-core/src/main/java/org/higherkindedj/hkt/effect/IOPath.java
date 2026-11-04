@@ -741,14 +741,15 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
    * TimeoutException} - the same surfacing as {@link CompletableFuturePath#withTimeout}. As {@link
    * VTask#timeout} describes, the computation is interrupted when the budget runs out, and this
    * path fails once it has stopped, so a computation that ignores interruption holds the failure
-   * back until it finishes. A {@code TimeoutException} thrown inside the computation is
-   * indistinguishable from the budget running out, and the computation runs on a fresh virtual
-   * thread, so caller {@code ThreadLocal}s and {@code ScopedValue} bindings are not visible inside
-   * it. An interrupt of the caller is passed on to the computation: once it stops, this path fails
-   * with a {@code VTaskExecutionException} wrapping the {@code InterruptedException}, with the
-   * interrupt status set. To fail when the budget runs out instead, whether or not the computation
-   * can stop at once, time out {@link #detachOnCancel()}. To land a timeout on the typed channel
-   * instead, use {@link EitherPath#withTimeout(Supplier, Duration, Supplier)}.
+   * back until it finishes. A {@code TimeoutException} thrown inside the computation is reported as
+   * the budget running out too, with that exception as its cause, where the budget's own has none.
+   * The computation runs on a fresh virtual thread, so caller {@code ThreadLocal}s and {@code
+   * ScopedValue} bindings are not visible inside it. An interrupt of the caller is passed on to the
+   * computation: once it stops, this path fails with a {@code VTaskExecutionException} wrapping the
+   * {@code InterruptedException}, with the interrupt status set. To fail when the budget runs out
+   * instead, whether or not the computation can stop at once, time out {@link #detachOnCancel()}.
+   * To land a timeout on the typed channel instead, use {@link EitherPath#withTimeout(Supplier,
+   * Duration, Supplier)}.
    *
    * <p>When combining with {@link #withRetry(RetryPolicy)}, note the wrapping: a retry predicate
    * must match the {@code CompletionException} (e.g. {@code policy.retryIf(t -> t.getCause()

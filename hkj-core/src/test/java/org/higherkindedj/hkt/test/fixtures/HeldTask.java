@@ -8,8 +8,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
- * A task that ignores a cancellation and finishes only once the test releases it, within five
- * seconds.
+ * A task that ignores a cancellation and finishes only once the test releases it. If the test has
+ * not released it within five seconds, it fails instead, so a test that forgets to release it does
+ * not leave it running, and it never reports a finish the test did not allow.
  *
  * <p>It shows whether a cancellation waited for its task: while the task is held, {@link
  * #finished()} stays false, and {@link #sawInterrupt()} tells whether the task was interrupted.
@@ -23,7 +24,7 @@ public final class HeldTask {
 
   /**
    * A task that sleeps until interrupted, ignores the interrupt, and gives {@code value} once
-   * released.
+   * released. Not released within five seconds, it fails with an {@link IllegalStateException}.
    *
    * @param value what the task gives once released
    * @param <A> the type of the value
@@ -37,7 +38,9 @@ public final class HeldTask {
           } catch (InterruptedException ignored) {
             interrupted.countDown(); // this task ignores a cancellation
           }
-          released.await(5, TimeUnit.SECONDS);
+          if (!released.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("the test did not release this task within 5 seconds");
+          }
           finished.set(true);
           return value;
         });

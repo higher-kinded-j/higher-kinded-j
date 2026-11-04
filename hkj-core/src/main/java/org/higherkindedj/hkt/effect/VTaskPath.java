@@ -351,14 +351,14 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * <p>As {@link VTask#timeout} describes, the computation is interrupted when the budget runs out,
    * and the {@code TimeoutException} arrives once it has stopped, so a computation that ignores
    * interruption holds the failure back until it finishes. A {@code TimeoutException} thrown inside
-   * the computation is indistinguishable from the budget running out. {@code runSafe()} and {@code
-   * run().runSafe()} hold the checked {@code TimeoutException} itself, while {@code unsafeRun()}
-   * wraps it per {@code VTask.run()} conventions. An interrupt of the caller is passed on to the
-   * computation, and the {@code InterruptedException} surfaces once it stops: as thrown from {@code
-   * run()}, held by {@code runSafe()} and {@code run().runSafe()}, and wrapped by {@code
-   * unsafeRun()}. Each of the last three sets the interrupt status. To fail when the budget runs
-   * out instead, whether or not the computation can stop at once, time out {@link
-   * #detachOnCancel()}.
+   * the computation is reported as the budget running out too, with that exception as its cause,
+   * where the budget's own has none. {@code runSafe()} and {@code run().runSafe()} hold the checked
+   * {@code TimeoutException} itself, while {@code unsafeRun()} wraps it per {@code VTask.run()}
+   * conventions. An interrupt of the caller is passed on to the computation, and the {@code
+   * InterruptedException} surfaces once it stops: as thrown from {@code run()}, held by {@code
+   * runSafe()} and {@code run().runSafe()}, and wrapped by {@code unsafeRun()}. Each of the last
+   * three sets the interrupt status. To fail when the budget runs out instead, whether or not the
+   * computation can stop at once, time out {@link #detachOnCancel()}.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget

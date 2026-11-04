@@ -841,6 +841,41 @@ class VTaskTest {
 
     @Test
     @DisplayName(
+        "timeout() over a Resource whose use keeps the interrupt status lets its release run in full")
+    void timeoutLetsAReleaseAfterAReturningUseRunInFull() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> connection =
+          Resource.make(
+              () -> "connection",
+              _ -> {
+                try {
+                  Thread.sleep(50); // a release that blocks, as closing a connection can
+                  released.set(true);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+              });
+      VTask<String> use =
+          connection.use(
+              c ->
+                  VTask.of(
+                      () -> {
+                        try {
+                          Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                          Thread.currentThread().interrupt(); // keeps the status, and returns
+                        }
+                        return c;
+                      }));
+
+      assertThatThrownBy(use.timeout(Duration.ofMillis(20))::execute)
+          .isInstanceOf(TimeoutException.class)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+      assertThat(released).as("the interrupt did not reach the release").isTrue();
+    }
+
+    @Test
+    @DisplayName(
         "timeout() passes an interrupt of the waiting thread on, and throws it once the task stops")
     void timeoutPassesInterruptOnAndWaitsForTheTask() throws InterruptedException {
       CountDownLatch started = new CountDownLatch(1);

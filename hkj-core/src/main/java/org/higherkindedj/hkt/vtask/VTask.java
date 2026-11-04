@@ -406,11 +406,14 @@ public interface VTask<A> extends VTaskKind<A> {
    *
    * <p>Either way, a failure this task throws while it stops, such as a failed rollback, is added
    * to the new task's exception as suppressed. An {@code InterruptedException}, bare or wrapped by
-   * {@link #run()} in a {@link VTaskExecutionException}, only echoes the cancellation, so it is not
-   * added, though the failures suppressed on it are, such as those a nested timeout kept. A layer
-   * that reports the interrupt as its own failure, as a retry interrupted between attempts reports
-   * a {@code RetryExhaustedException}, is kept like any other failure. A further interrupt while
-   * the new task waits does not cut the wait short: it sets the thread's interrupt status again.
+   * {@link #run()} in a {@link VTaskExecutionException}, only echoes the cancellation, wherever in
+   * this task the interrupt landed, so it is not added, though the failures suppressed on it are,
+   * such as those a nested timeout kept. A {@link Resource} clears the interrupt status before a
+   * release that follows a use that returned, so the interrupt reaches that release only if it
+   * lands while the release runs. A layer that reports the interrupt as its own failure, as a retry
+   * interrupted between attempts reports a {@code RetryExhaustedException}, is kept like any other
+   * failure. A further interrupt while the new task waits does not cut the wait short: it sets the
+   * thread's interrupt status again.
    *
    * @param duration The time after which this task is cancelled. Must not be null.
    * @return A new {@code VTask<A>} with timeout behaviour. Never null.

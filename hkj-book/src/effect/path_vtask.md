@@ -231,7 +231,7 @@ Put it inside the timeout: `withTimeout(d).detachOnCancel()` changes nothing for
 
 Detach only work whose leftovers are harmless, since it may still be running after the caller has moved on. A cancelled detached call no longer counts against a bulkhead's limit, and each retry after a timeout can leave one more behind.
 
-A `TimeoutException` thrown inside the computation is indistinguishable from the budget running out. A cancellation reaches it too: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops. The path's `unsafeRun()` reports it wrapped in `VTaskExecutionException`, and `runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
+A `TimeoutException` thrown inside the computation is reported as the budget running out too, with that exception as its cause, where the budget's own has none. A cancellation reaches it too: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops. The path's `unsafeRun()` reports it wrapped in `VTaskExecutionException`, and `runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
 
 ---
 
