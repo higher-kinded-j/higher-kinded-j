@@ -1,6 +1,18 @@
 # Upgrading
 
-Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.6.0](#removals-in-060) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.7.0](#removals-in-070) and [Removals in 0.6.0](#removals-in-060) list the APIs due to go in those releases, with the recipe that migrates each, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+
+---
+
+## Removals in 0.7.0 {#removals-in-070}
+
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build. Each gave the list `toList()` gives: a stream is read one pull at a time, so it ran nothing in parallel. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` recipe runs the recipe the table names, and marks each call it cannot rewrite safely, as [0.7.0 deprecation migration](../tooling/openrewrite.md#070-deprecation-migration) explains.
+
+| Deprecated | Since | Use instead | Recipe |
+|---|---|---|---|
+| `VStreamPar.parCollect(stream, batchSize)` | 0.6.0 | `stream.toList()` | `ReplaceParCollectWithToListRecipe` |
+| `VStreamPath.parCollect(batchSize)` | 0.6.0 | `toList()` on the path | `ReplaceParCollectWithToListRecipe` |
+| `PathOps.parCollectVStream(path, batchSize)` | 0.6.0 | `path.toList()` | `ReplaceParCollectWithToListRecipe` |
 
 ---
 
