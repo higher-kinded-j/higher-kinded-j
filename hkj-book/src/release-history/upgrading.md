@@ -6,11 +6,14 @@ Sections run newest first: start at the top and read down to the section for the
 
 ## Removals in 0.7.0 {#removals-in-070}
 
-Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build.
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build. The `parCollect` forms each gave the list `toList()` gives: a stream is read one pull at a time, so they ran nothing in parallel. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` recipe runs the recipe the table names, and marks each call it cannot rewrite safely, as [0.7.0 deprecation migration](../tooling/openrewrite.md#070-deprecation-migration) explains.
 
 | Deprecated | Since | Use instead | Recipe |
 |---|---|---|---|
 | `VStream.closeAfterFailure(stream, failure)` | 0.6.0 | `stream.close()`; a failed `mapTask` task gives a `Step.Fail`, whose tail you close as an `Emit`'s | By hand |
+| `VStreamPar.parCollect(stream, batchSize)` | 0.6.0 | `stream.toList()` | `ReplaceParCollectWithToListRecipe` |
+| `VStreamPath.parCollect(batchSize)` | 0.6.0 | `toList()` on the path | `ReplaceParCollectWithToListRecipe` |
+| `PathOps.parCollectVStream(path, batchSize)` | 0.6.0 | `path.toList()` | `ReplaceParCollectWithToListRecipe` |
 
 ---
 

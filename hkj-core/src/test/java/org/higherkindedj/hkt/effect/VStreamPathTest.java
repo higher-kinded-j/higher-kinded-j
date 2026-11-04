@@ -1048,13 +1048,25 @@ class VStreamPathTest {
     }
 
     @Test
-    @DisplayName("parCollect() collects correctly")
+    @DisplayName("parCollect() collects every element, as toList() does")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
     void parCollectCollectsCorrectly() {
       VStreamPath<Integer> path = Path.vstreamOf(1, 2, 3, 4, 5);
 
       VTaskPath<List<Integer>> result = path.parCollect(2);
 
       assertThat(result.unsafeRun()).containsExactly(1, 2, 3, 4, 5);
+    }
+
+    @Test
+    @DisplayName("parCollect() refuses a batch size that is not positive")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
+    void parCollectRefusesANonPositiveBatchSize() {
+      VStreamPath<Integer> path = Path.vstreamOf(1);
+
+      assertThatThrownBy(() -> path.parCollect(0))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("batchSize must be positive, got: 0");
     }
 
     @Test

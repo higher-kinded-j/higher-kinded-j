@@ -73,7 +73,7 @@ mvn rewrite:run      # apply changes
 
 ## Recipe Catalogue
 
-Five recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
+Six recipe groups are shipped; each one has a composite that runs every recipe in the group, plus individual recipes you can activate on their own.
 
 | Group | Composite | Mode |
 |-------|-----------|------|
@@ -82,6 +82,7 @@ Five recipe groups are shipped; each one has a composite that runs every recipe 
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers whose elements have a field named like a path method |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | rewrites source, and marks calls a typed form does not fit |
 | 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | rewrites source |
+| 0.7.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | rewrites source, and marks calls whose batch size is computed |
 
 ### Arity migration (0.2.x to 0.3.0)
 
@@ -231,10 +232,37 @@ Two shapes are left to you:
 - **Code that chains or combines through a capability type.** A step passed to `via`, `then`, `zipWith`, `recoverWith` or `orElse`, or the other path passed to `zipWithAccum`, `zipWith3Accum`, `andAlso` or `andThen`, must belong to the same family. Declare the family as a type parameter shared by both, as in `<P, E, A> Accumulating<P, E, A>`.
 - **The supertype and `zipWith` of a class that implements `Combinable`.** Name its own class as the family, as a generated `@PathSource` Path does: `Combinable<MyPath<?>, A>`, with `zipWith` taking a `Combinable<? extends MyPath<?>, B>`. The recipe rewrites the class's other members.
 
+### 0.7.0 deprecation migration {#070-deprecation-migration}
+
+Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements. `parCollect` gives the list `toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel, and [Parallel Operations](../monads/vstream_parallel.md) shows where parallel work goes instead.
+
+Run it before your build moves to 0.7.0, with `hkj-openrewrite` 0.6.x on the rewrite classpath, since 0.7.0 removes the methods it matches. `toList()` compiles against 0.4.x and later, so the rewritten code builds on the release you are on.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | Composite; runs the recipe below |
+| `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` becomes `stream.toList()`, and `path.parCollect(n)` and `PathOps.parCollectVStream(path, n)` become `path.toList()`. A stream that binds less tightly than a method call, such as `first ? a : b`, is put in parentheses |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0")
+}
+```
+
+The recipe marks each call the rewrite could change or break, and `rewriteRun` leaves the mark in the source as a `/*~~(…)~~>*/` comment, to remove once the call is replaced:
+
+- **A batch size that is computed**, such as `parCollect(stream, size())`, since `toList()` takes none. Keep what computing it does, then call `toList()`.
+- **A batch size that is not positive**, for which `parCollect` throws `IllegalArgumentException` and `toList()` does not.
+- **A stream whose type the call infers**, such as `VStream.of(1, 2)` where a `VTask<List<Number>>` is wanted. As the receiver of `toList()`, it would be inferred on its own, as a `VStream<Integer>`. Write its type arguments, as in `VStream.<Number>of(1, 2)`.
+- **A `null`, a lambda or a method reference as the stream**, none of which can be the receiver of `toList()`.
+- **A method reference to `parCollect`**: call `toList()` in a lambda instead.
+
+`parCollect` reads an interrupt between batches, and `toList()` does not check for one between pulls. So bound an endless stream whose pulls never block, with `take`, before you put a timeout on its `toList()`.
+
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Five groups, three modes.** Arity migration, the 0.5.0 and 0.6.0 deprecations and the Path family rewrite source, apart from the marks the two deprecation groups leave for you. The effect algebra helpers only flag call sites, because their targets are user-specific generated code.
+* **Six groups, three modes.** Arity migration, the 0.5.0, 0.6.0 and 0.7.0 deprecations and the Path family rewrite source, apart from the marks the three deprecation groups leave for you. The effect algebra helpers only flag call sites, because their targets are user-specific generated code.
 * **Always dry-run first.** `rewriteDryRun` (Gradle) or `mvn rewrite:dryRun` (Maven) shows the diff; `rewriteRun` applies it.
 * **Use the composite recipe.** Activating a group's composite runs the whole group and avoids ordering mistakes; the individual recipes are there when you need finer control.
 * **Recipe coverage tracks the library.** The same migrations also surface as compile-time checks in `hkj-checker`; pick whichever feedback loop fits the team.

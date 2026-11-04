@@ -4,7 +4,7 @@ Automated refactoring recipes for [Higher-Kinded-J](https://higher-kinded-j.gith
 to perform version migrations and to surface code that should adopt newer, safer APIs — without
 hand-editing every call site.
 
-The module ships five recipe groups:
+The module ships six recipe groups:
 
 | Group | Composite recipe | What it does |
 |-------|------------------|--------------|
@@ -13,6 +13,7 @@ The module ships five recipe groups:
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal or changed in 0.5.0 |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | Migrates APIs deprecated in 0.5.0 for removal in 0.6.0 |
 | 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | Adds the Path family to code that names a capability interface, such as `Chainable<A>` |
+| 0.7.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | Migrates APIs deprecated in 0.6.0 for removal in 0.7.0 |
 
 ## Quick Start
 
@@ -259,6 +260,30 @@ rewrite {
 ```
 
 ---
+
+
+### 0.7.0 deprecation migration
+
+Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements:
+`VStreamPar.parCollect(stream, batchSize)`, `VStreamPath.parCollect(batchSize)` and
+`PathOps.parCollectVStream(path, batchSize)` become `toList()` on the stream, which gives the same
+list, since a stream is read one pull at a time and `parCollect` runs nothing in parallel. The
+recipe marks, rather than rewrites, a call whose batch size is computed or not a positive literal,
+whose stream argument has a type the call infers (write its type arguments, as in
+`VStream.<Number>of(1, 2)`), or whose stream is `null` or a lambda, and a method reference to
+`parCollect`. Each mark says how to replace the call. Run it with `hkj-openrewrite` 0.6.x before the project moves
+to 0.7.0, which removes the methods it matches. `toList()` compiles against 0.4.x and later.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | **Composite** — runs the recipe below |
+| `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` → `stream.toList()`, `path.parCollect(n)` → `path.toList()`, `PathOps.parCollectVStream(path, n)` → `path.toList()` |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0")
+}
+```
 
 ## Need help?
 

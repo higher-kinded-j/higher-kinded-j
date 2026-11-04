@@ -1416,6 +1416,7 @@ class VStreamParTest {
 
   @Nested
   @DisplayName("parCollect() Tests")
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   class ParCollect {
 
     @Test
@@ -2379,6 +2380,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parCollect() propagates errors from source stream")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
     void parCollectPropagatesErrors() {
       VStream<Integer> stream =
           VStream.of(1, 2, 3)
@@ -2443,6 +2445,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parCollect() with single element")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
     void parCollectSingleElement() {
       VStream<Integer> stream = VStream.of(42);
 
@@ -2451,6 +2454,7 @@ class VStreamParTest {
 
     @Test
     @DisplayName("parCollect() with batch size larger than stream")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
     void parCollectBatchSizeLargerThanStream() {
       VStream<Integer> stream = VStream.of(1, 2, 3);
 

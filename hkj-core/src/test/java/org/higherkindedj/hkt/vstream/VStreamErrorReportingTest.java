@@ -253,6 +253,7 @@ class VStreamErrorReportingTest {
     }
   }
 
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   static Stream<Arguments> terminalOperations() {
     return Stream.of(
         terminal("toList", VStream::toList),

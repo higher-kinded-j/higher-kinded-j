@@ -347,12 +347,6 @@ public class VStreamBenchmark {
         .run();
   }
 
-  /** Parallel collect with batch size of 10. */
-  @Benchmark
-  public List<Integer> parCollectBatch10() {
-    return VStreamPar.parCollect(prebuiltStream, 10).run();
-  }
-
   // ========== Chunking Operations (Stage 5) ==========
 
   /** Chunk then process: groups of 10. */

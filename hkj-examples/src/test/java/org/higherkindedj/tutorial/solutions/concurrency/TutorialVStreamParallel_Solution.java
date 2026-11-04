@@ -213,23 +213,22 @@ public class TutorialVStreamParallel_Solution {
     }
 
     /**
-     * Why this is idiomatic: {@code parCollect(stream, parallelism)} drains the stream into a list
-     * using a bounded pool. Returns a {@code VTask<List>} so the collection itself is composable.
+     * Why this is idiomatic: the work for each element runs in {@code parEvalMap}'s function, up to
+     * three at once, and {@code toList()} collects the results in the elements' order. It returns a
+     * {@code VTask<List>}, so the collection itself is composable.
      *
-     * <p>Alternative: {@code stream.toList().run()} for sequential collection. The parallel form
-     * earns its keep when each element is expensive to produce.
-     *
-     * <p>Common wrong attempt: assume the bounded pool changes the result type. The result is still
-     * a {@code List}; only the production path is concurrent.
+     * <p>Common wrong attempt: reach for a parallel collect. A stream is read one pull at a time,
+     * so collecting it runs nothing in parallel; only the work given to {@code parEvalMap} does.
      */
     @Test
-    @DisplayName("Exercise 8: Parallel collect")
-    void exercise8_parallelCollect() {
+    @DisplayName("Exercise 8: Collect the results of parallel work")
+    void exercise8_collectParallelWork() {
       VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5);
 
-      List<Integer> result = VStreamPar.parCollect(numbers, 3).run();
+      List<Integer> result =
+          VStreamPar.parEvalMap(numbers, 3, n -> VTask.succeed(n * 10)).toList().run();
 
-      assertThat(result).containsExactly(1, 2, 3, 4, 5);
+      assertThat(result).containsExactly(10, 20, 30, 40, 50);
     }
   }
 }
