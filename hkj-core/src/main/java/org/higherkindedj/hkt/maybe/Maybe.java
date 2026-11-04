@@ -112,12 +112,7 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
   static <T> Maybe<T> fromEither(Either<?, ? extends T> either) {
     Validation.function().require(either, "either", FROM_EITHER);
 
-    if (either.isRight()) {
-      T value = either.getRight();
-      return just(value);
-    }
-
-    return nothing();
+    return either.isRight() ? just(either.getRight()) : nothing();
   }
 
   /**
