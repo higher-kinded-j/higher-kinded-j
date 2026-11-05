@@ -38,6 +38,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`has no navigator over its`](#generatefocus-no-navigator-over-elements) | **Note.** A record that writes `generateNavigators = true` leaves a container of navigable records unwidened |
 | [`has no AffineForm`, `has no TraversalForm`](#generatefocus-no-form) | **Note.** A record that writes `generateNavigators = true` reaches a record with a field named like a wider path's own method, so a hop from that path returns the plain path |
 | [`which is not a component of`](#generatefocus-field-list-unknown-name) | `includeFields`, `excludeFields` or `widenFields` names a field the record does not have |
+| [`names "y" again`](#generatefocus-field-list-duplicate-name) | **Warning.** A field list writes a name it has written already |
 | [`whose field has no navigator`](#generatefocus-includefields-no-navigator) | **Warning.** `includeFields` names a component that has no navigator |
 | [`changes nothing, because`](#generatefocus-field-list-unread) | **Warning.** A field list the record's other settings never read |
 | [`is widened without it`, `holds no container widenFields widens`](#generatefocus-widenfields-cannot-widen) | **Warning.** A `widenFields` name whose path widening cannot change |
@@ -600,10 +601,10 @@ Note: @GenerateFocus: the navigator for 'Channel.feed' has no TraversalForm. A T
 
 `includeFields`, `excludeFields` or `widenFields` names a field the record does not have: a typo, or a name a rename left behind. In `includeFields` it costs the most, since a non-empty list gives navigators only to the fields it names, so a list whose only name is a typo leaves every field without one.
 
-**Fix.** Write the component's name. Where one is close, the message offers it: a near misspelling, a different case such as `"Positions"`, or an accessor spelling such as `"getAddress"`. Take out a name that is no longer wanted.
+**Fix.** Write the component's name. Where one is close, the message offers it: a near misspelling, a different case such as `"Positions"`, or an accessor spelling such as `"getAddress"`, asking first for any rename that the field's navigator needs. Take out a name that is no longer wanted.
 
 ~~~admonish note title="Why" collapsible=true
-The lists hold strings, which javac cannot check against the record, so the processor does. A name that matched nothing would otherwise change nothing, and say nothing about it. The message lists the components it found, so a name with no near miss can be put right from the message alone.
+The lists hold strings, which javac cannot check against the record, so the processor does. A name that matched nothing would otherwise change nothing, and say nothing about it. The message lists the components it found, so a name with no near miss can be put right from the message alone. An offer that led to another message would only move the problem along, so each offer is checked as the corrected list would be.
 ~~~
 
 ~~~admonish example title="A declaration that produces it"
@@ -618,6 +619,38 @@ record Hawker(String name, Kiosk kiosk) {}
 
 ```
 error: @GenerateFocus: includeFields on Hawker names "kisok", which is not a component of Hawker. includeFields gives navigators only to the components it names, so a name that matches none gives no component a navigator. Did you mean 'kiosk'? Found on Hawker: [name, kiosk]. Replace "kisok" with "kiosk" in includeFields on Hawker.
+```
+~~~
+
+~~~admonish info title="Which field the message offers"
+The message offers only a field that the list can use and that it does not name already, so following the offer draws no further error or warning. Where the nearest field is ruled out, the next nearest is offered, and where none is near, the message lists the components to choose from.
+
+- A name the list holds already is never offered. After a rename that left the old string behind, offering it would [write the name twice](#generatefocus-field-list-duplicate-name) and leave the renamed field without its navigator.
+- `includeFields` is offered only a field that can have a navigator, so never a `String`, which would draw the [no-navigator warning](#generatefocus-includefields-no-navigator).
+- `widenFields` is offered only a field whose container widening changes, so never a `String` or a `List`, which would draw the [cannot-widen warning](#generatefocus-widenfields-cannot-widen), and never a container whose wildcard refuses widening. Beside `widenCollections = true` it is offered nothing, since that widens every field already.
+- Two names that match none are never offered the same field. A name that differs from a field's only in case, or spells its accessor, such as `"getItems"`, is offered it first, and then each misspelling in the order written.
+- Another field's name may differ from the offered one's only in the case of its first letter. Where the offer would give the field a navigator whose class name that field's navigator has, the fix asks for one of the two to be [renamed first](#generatefocus-navigator-shares-class-name).
+- Widening the offered field may give it a navigator into a record with a field named like a method of the widened path, such as `last`. Under `generateNavigators = true` that is [an error](#generatefocus-navigator-cannot-navigate), so the fix asks for that rename first. On the default the navigator is only [declined with a note](#generatefocus-no-navigator-into).
+~~~
+
+### "@GenerateFocus: includeFields on X names "y" again" (a warning) {#generatefocus-field-list-duplicate-name}
+
+`includeFields`, `excludeFields` or `widenFields` writes a name it has written already. A list reads each name once, so the copy changes nothing. It usually comes from a hand edit after a rename, or from two changes to the list merged together.
+
+**Fix.** Remove the copy the warning points at. The warning is reported at each later copy, and any other message about the name is reported at the first only, so following every fix line leaves the name written once.
+
+~~~admonish example title="A declaration that draws it"
+<!-- verify:reports "includeFields on Hawker names "kiosk" again" -->
+```java
+@GenerateFocus
+record Kiosk(String town) {}
+
+@GenerateFocus(includeFields = {"kiosk", "kiosk"})
+record Hawker(String name, Kiosk kiosk) {}
+```
+
+```
+warning: @GenerateFocus: includeFields on Hawker names "kiosk" again. includeFields reads each name once, so a name written again changes nothing. Remove the repeated "kiosk" from includeFields on Hawker.
 ```
 ~~~
 
