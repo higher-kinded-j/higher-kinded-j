@@ -6,6 +6,7 @@ import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -376,6 +377,27 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * @throws NullPointerException if {@code action} is null (checked by implementations).
    */
   void ifRight(Consumer<? super R> action);
+
+  /**
+   * Drops the Left value, returning an {@link Optional} of the Right value.
+   *
+   * <p>Returns {@code Optional.of(getRight())} for a Right, and {@code Optional.empty()} for a
+   * Left.
+   *
+   * @return an {@link Optional} containing the Right value, or empty if this is a Left
+   */
+  default Optional<R> toOptional() {
+    return isRight() ? Optional.of(getRight()) : Optional.empty();
+  }
+
+  /**
+   * Turns a Left into a Right and the other way round.
+   *
+   * @return an {@link Either} with the type parameters swapped
+   */
+  default Either<R, L> swap() {
+    return isRight() ? Either.left(getRight()) : Either.right(getLeft());
+  }
 
   // --- Static Factory Methods ---
 

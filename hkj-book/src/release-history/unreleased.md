@@ -12,6 +12,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ~~~
 
 ---
+### Added
+- Added `toOptional()` and `swap()` to `Either` (#1404)
 
 ## Mapping {#mapping}
 
