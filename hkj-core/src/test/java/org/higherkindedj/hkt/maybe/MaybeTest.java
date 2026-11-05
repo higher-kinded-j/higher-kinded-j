@@ -482,6 +482,42 @@ class MaybeTest extends MaybeTestBase {
   }
 
   @Nested
+  @DisplayName("fromEither")
+  @SuppressWarnings("DataFlowIssue") // null passed deliberately to verify rejection
+  class FromEither {
+
+    @Test
+    @DisplayName("fromEither() converts Right to Just")
+    void fromEitherRightToJust() {
+      assertThatMaybe(Maybe.fromEither(Either.<String, Integer>right(42))).isJust().hasValue(42);
+    }
+
+    @Test
+    @DisplayName("fromEither() converts Left to Nothing")
+    void fromEitherLeftToNothing() {
+      assertThatMaybe(Maybe.fromEither(Either.<String, Integer>left("error"))).isNothing();
+    }
+
+    @Test
+    @DisplayName("fromEither() rejects null")
+    void fromEitherRejectsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Maybe.fromEither(null))
+          .withMessage("either for fromEither cannot be null");
+    }
+
+    @Test
+    @DisplayName("fromEither() round-trips through toEither()")
+    void fromEitherRoundTripsWithToEither() {
+      Maybe<Integer> just = Maybe.just(42);
+      Maybe<Integer> nothing = Maybe.nothing();
+
+      assertThat(Maybe.fromEither(just.toEither("absent"))).isEqualTo(just);
+      assertThat(Maybe.fromEither(nothing.toEither("absent"))).isEqualTo(nothing);
+    }
+  }
+
+  @Nested
   @DisplayName("JDK Bridges - toOptional and stream")
   class JdkBridgeTests {
 

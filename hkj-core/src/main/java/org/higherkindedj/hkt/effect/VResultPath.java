@@ -757,13 +757,18 @@ public final class VResultPath<E, A>
    * {@code Left} of the designated typed error - a timeout stays on the railway instead of becoming
    * a thrown {@code TimeoutException}.
    *
-   * <p>Two caveats inherited from {@link VTask#timeout}: the losing computation is <em>not</em>
-   * interrupted - it keeps running unobserved after the typed timeout is returned (bound its side
-   * effects accordingly, e.g. with {@link #bracketOutcome}); and a {@code TimeoutException} thrown
-   * by code <em>inside</em> the pipeline is indistinguishable from the budget expiring, so it is
-   * also mapped to {@code onTimeout}. An interrupt of the caller is passed on to the computation,
-   * and its {@code InterruptedException} is thrown once the computation stops, or the budget runs
-   * out; it is not mapped to {@code onTimeout}.
+   * <p>As {@link VTask#timeout} describes, the computation is interrupted when the budget runs out,
+   * and the typed timeout is returned once it has stopped, so a computation that ignores
+   * interruption holds the {@code Left} back until it finishes. An interrupted computation may
+   * still have had an effect, so the {@code Left} means its outcome is unknown; a {@link
+   * #bracketOutcome} inside it runs its release before the {@code Left} arrives. The {@code Left}
+   * does not carry a failure the computation threw while it stopped, such as a failed rollback. A
+   * {@code TimeoutException} thrown by code <em>inside</em> the pipeline is indistinguishable from
+   * the budget running out, so it is also mapped to {@code onTimeout}. An interrupt of the caller
+   * is passed on to the computation, and its {@code InterruptedException} is thrown once the
+   * computation stops; it is not mapped to {@code onTimeout}. To give the typed timeout when the
+   * budget runs out instead, whether or not the computation can stop at once, time out {@link
+   * #detachOnCancel()}.
    *
    * @param duration the time budget; must not be null
    * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not
@@ -785,6 +790,23 @@ public final class VResultPath<E, A>
                                 Objects.requireNonNull(
                                     onTimeout.get(), "onTimeout must not return null")))
                         : VTask.fail(failure)));
+  }
+
+  /**
+   * Returns a path that gives up on this computation when cancelled, rather than wait for it to
+   * stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread, which does not see the caller's {@code ScopedValue} bindings; when the wait is
+   * cancelled, it is interrupted, and the cancellation takes effect at once. Apply it inside the
+   * timeout or breaker: {@code detachOnCancel().withTimeout(duration, onTimeout)} gives its typed
+   * timeout when the budget runs out, even over a call that blocks where an interrupt cannot reach
+   * it, while {@code withTimeout(duration, onTimeout).detachOnCancel()} changes nothing for that
+   * timeout. A {@link #bracketOutcome} inside a detached path runs its release once the use stops,
+   * which may be after the cancellation has been reported.
+   *
+   * @return a path that stops waiting for this computation when cancelled (non-null)
+   */
+  public VResultPath<E, A> detachOnCancel() {
+    return fromVTask(run().detachOnCancel());
   }
 
   /**
@@ -844,7 +866,9 @@ public final class VResultPath<E, A>
    * <p>The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a pipeline slower than that - even
    * one that would have produced a {@code Left} - counts as a breaker failure and surfaces as a
-   * defect wrapping the checked {@code TimeoutException}.
+   * defect wrapping the checked {@code TimeoutException}. The pipeline is interrupted, and counts
+   * once it has stopped; to count one that cannot stop at once when the time runs out, chain {@code
+   * detachOnCancel().withCircuitBreaker(breaker)}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
    * @return a new path protected by the breaker (non-null)

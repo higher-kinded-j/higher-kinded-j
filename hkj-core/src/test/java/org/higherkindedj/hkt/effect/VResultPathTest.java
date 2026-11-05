@@ -25,6 +25,7 @@ import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
@@ -1438,21 +1439,35 @@ class VResultPathTest {
     @Test
     @DisplayName("withTimeout: a timeout becomes the designated typed error, on the railway")
     void withTimeoutBecomesTypedError() {
-      CountDownLatch never = new CountDownLatch(1);
       VResultPath<String, String> stuck =
           VResultPath.fromVTask(
               VTask.of(
                   () -> {
-                    never.await();
+                    Thread.sleep(5000); // until the timeout interrupts it
                     return Either.right("unreachable");
                   }));
-      Either<String, String> result;
-      try {
-        result = stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
-      } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
-      }
+      Either<String, String> result =
+          stuck.withTimeout(Duration.ofMillis(50), () -> "took too long").run().run();
       assertThatEither(result).isLeft().hasLeft("took too long");
+    }
+
+    @Test
+    @DisplayName("detachOnCancel().withTimeout() gives its Left when the budget runs out")
+    void detachedTimeoutGivesItsLeftWhenTheBudgetRunsOut() throws InterruptedException {
+      HeldTask held = new HeldTask();
+      try {
+        Either<String, Integer> result =
+            VResultPath.fromVTask(held.task(Either.<String, Integer>right(1)))
+                .detachOnCancel()
+                .withTimeout(Duration.ofMillis(20), () -> "took too long")
+                .run()
+                .run();
+        assertThatEither(result).isLeft().hasLeft("took too long");
+        assertThat(held.finished()).as("the computation is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
+      } finally {
+        held.release();
+      }
     }
 
     @Test

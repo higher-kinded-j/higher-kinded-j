@@ -1078,24 +1078,18 @@ class EitherPathTest {
     @Test
     @DisplayName("withTimeout: an exceeded budget produces the typed Left")
     void timeoutProducesTypedLeft() {
-      CountDownLatch never = new CountDownLatch(1);
-      EitherPath<String, Integer> result;
-      try {
-        result =
-            EitherPath.withTimeout(
-                () -> {
-                  try {
-                    never.await();
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                  }
-                  return Path.right(1);
-                },
-                Duration.ofMillis(50),
-                () -> "took too long");
-      } finally {
-        never.countDown(); // unblock the losing computation - withTimeout does not interrupt it
-      }
+      EitherPath<String, Integer> result =
+          EitherPath.withTimeout(
+              () -> {
+                try {
+                  Thread.sleep(5000); // until the timeout interrupts it
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                return Path.right(1);
+              },
+              Duration.ofMillis(50),
+              () -> "took too long");
       assertThat(result.run().getLeft()).isEqualTo("took too long");
     }
 

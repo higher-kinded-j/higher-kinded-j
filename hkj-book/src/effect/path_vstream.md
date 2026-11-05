@@ -1,9 +1,9 @@
 # VStreamPath
 
-`VStreamPath<A>` wraps `VStream<A>` for **lazy, pull-based streaming on virtual
-threads**. It brings VStream's consumer-driven evaluation model into the Effect
-Path API, letting you compose stream pipelines with the same fluent syntax used by
-VTaskPath, IOPath, and every other path type.
+`VStreamPath<A>` wraps `VStream<A>` for **lazy, pull-based streaming**, with
+parallel operations on virtual threads. It brings VStream's consumer-driven
+evaluation model into the Effect Path API, letting you compose stream pipelines
+with the same fluent syntax used by VTaskPath, IOPath, and every other path type.
 
 > *"The stream of time sweeps away errors, and leaves the truth for the inheritance of posterity."*
 >
@@ -367,14 +367,14 @@ A null element is left out, since the stream's element type is non-null; a `Trav
 |--------|-------------|------------|-----------|
 | **Values** | Zero or more, lazy | Zero or more; eager via `Path.stream`; per run via `Path.streamIterate`, `StreamPath.fromSupplier`, `StreamPath.iterate`, and `StreamPath.generate` | Exactly one, deferred |
 | **Evaluation** | Pull-based (lazy) | Deferred, rebuilt for each terminal operation | Deferred |
-| **Execution** | Virtual threads | Synchronous | Virtual threads |
+| **Execution** | The thread that runs the terminal task; parallel operations on virtual threads | Synchronous | The thread that runs the task; `runAsync` on a virtual thread |
 | **Infinite sources** | Yes | Yes, from `Path.streamIterate` (`take`, `takeWhile`) | N/A |
 | **Terminal result** | VTaskPath | Direct access | Direct access |
 | **Backpressure** | Natural (pull model) | N/A (synchronous) | N/A (single value) |
 | **Reusability** | Reusable | Reusable | Reusable |
 
 **Choose VStreamPath when:**
-- You need lazy streaming with virtual thread execution
+- You need lazy streaming whose elements come from tasks
 - Elements come from effectful sources (paginated APIs, databases, sensors)
 - The data source may be infinite
 - You want natural backpressure through pull-based consumption
@@ -428,7 +428,7 @@ Try<List<String>> result = task.runSafe();
 - [VStream HKT](../monads/vstream_hkt.md) - Type class instances for generic programming
 - [Parallel Operations](../monads/vstream_parallel.md) - parEvalMap, merge, chunking, and concurrency control
 - [Performance](../monads/vstream_performance.md) - Benchmarks, overhead characteristics, and optimisation tips
-- [VTaskPath](path_vtask.md) - Single-value virtual thread path (terminal operations return this)
+- [VTaskPath](path_vtask.md) - Single-value deferred task path (terminal operations return this)
 - [StreamPath](../monads/stream_monad.md) - Reusable Java Stream path, rebuilt for each terminal operation
 - [Effect Path Overview](effect_path_overview.md) - How all path types fit together
 - [Focus-Effect Integration](focus_integration.md) - Optics meet Effect Path

@@ -216,7 +216,22 @@ VTaskPath<Data> guarded = Path.vtask(() -> fetchData())
     .withBulkhead(serviceBulkhead);
 ```
 
-Two caveats inherited from `VTask.timeout`: the losing computation is *not* interrupted (it keeps running unobserved after the timeout is reported), and a `TimeoutException` thrown inside the computation is indistinguishable from the budget expiring. To interrupt it instead, fork it into a `Scope` with a `timeout`, as in `Scope.<Data>anySucceed().timeout(d).fork(task).join()`. A cancellation does reach it: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops, or the time runs out. The path's `unsafeRun()` reports it wrapped in `VTaskExecutionException`, and `runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
+When the time runs out, the computation is interrupted, and the `TimeoutException` arrives once it has stopped, so the computation is not left running. A computation that ignores interruption holds the failure back until it finishes, as in a [`Scope` with a `timeout`](../monads/vtask_scope.md#timing-a-scope-out). So does one blocked where an interrupt cannot reach it, such as in `CompletableFuture.join()`, `Lock.lock()` or a `synchronized` block. Never wait on a timeout while holding a lock the computation needs: it cannot finish, and the timeout waits for it.
+
+To fail when the time runs out instead, put `detachOnCancel()` before the timeout. The computation is still interrupted, but nothing waits for it to stop:
+
+<!-- verify -->
+```java
+VTaskPath<Data> onTime = Path.vtask(() -> fetchData())
+    .detachOnCancel()
+    .withTimeout(Duration.ofSeconds(2));
+```
+
+Put it inside the timeout: `withTimeout(d).detachOnCancel()` changes nothing for that timeout. A [circuit breaker](../resilience/circuit_breaker.md) guarding a call that can hang works the same way: protect the detached call, and the breaker counts it when its `callTimeout` runs out.
+
+Detach only work whose leftovers are harmless, since it may still be running after the caller has moved on. A cancelled detached call no longer counts against a bulkhead's limit, and each retry after a timeout can leave one more behind.
+
+A `TimeoutException` thrown inside the computation is reported as the budget running out too, with that exception as its cause, where the budget's own has none. A cancellation reaches it too: when the thread waiting for the result is interrupted, so is the computation, and the timeout throws `InterruptedException` once it stops. The path's `unsafeRun()` reports it wrapped in `VTaskExecutionException`, and `runSafe()` holds the `InterruptedException` itself; each sets the interrupt status. To land the timeout as a typed `Left` instead of a failure, use [`VResultPath.withTimeout(duration, onTimeout)`](path_vresult.md#resilience). See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table.
 
 ---
 

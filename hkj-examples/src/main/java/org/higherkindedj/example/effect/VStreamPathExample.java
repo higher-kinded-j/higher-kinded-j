@@ -17,7 +17,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
 
 /**
- * Examples demonstrating VStreamPath for lazy, pull-based streaming on virtual threads.
+ * Examples demonstrating VStreamPath for lazy, pull-based streaming of effectful elements.
  *
  * <p>VStreamPath wraps VStream to provide a fluent Effect Path API for composing lazy stream
  * pipelines. All intermediate operations are lazy; execution is deferred until a terminal operation
@@ -44,7 +44,7 @@ import org.higherkindedj.optics.focus.FocusPath;
 public class VStreamPathExample {
 
   public static void main(String[] args) {
-    System.out.println("=== VStreamPath: Lazy Streaming on Virtual Threads ===\n");
+    System.out.println("=== VStreamPath: Lazy Streaming of Effectful Elements ===\n");
 
     factoryMethods();
     lazyComposition();

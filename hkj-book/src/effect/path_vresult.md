@@ -104,7 +104,7 @@ VResultPath<OrderError, Reservation> guarded =
 - **`withRetry(retryOn, policy)`**: railway-aware; additionally retries a `Left` that `retryOn` selects (e.g. a transient `SystemError`); on exhaustion the **last `Left`** is returned, keeping the error on the typed channel.
 - **`withCircuitBreaker(breaker[, onOpen])`**: a `Left` never trips the breaker (it is a successfully computed value); only defects count. With `onOpen`, an open-circuit rejection lands as a typed `Left` instead of a defect.
 - **`withBulkhead(bulkhead[, onFull])`**: bounds how many callers run the computation concurrently; with `onFull`, a rejection lands as a typed `Left`.
-- **`withTimeout(duration, onTimeout)`**: as above, the timeout becomes the designated typed error, on the railway. The losing computation is not interrupted.
+- **`withTimeout(duration, onTimeout)`**: as above, the timeout becomes the designated typed error, on the railway. The computation is interrupted, and the `Left` arrives once it has stopped. Put `detachOnCancel()` before it for the `Left` on time, as [VTaskPath](path_vtask.md#timeouts) explains.
 
 Because the path is lazy, protection wraps the *computation*: apply the combinators before the boundary `run()`. Do not wrap non-idempotent steps (a payment) in retry. See [Resilience Patterns](../resilience/ch_intro.md) for the per-carrier availability table and per-step guidance.
 

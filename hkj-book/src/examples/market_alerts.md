@@ -205,8 +205,8 @@ rate-limiting by the exchange itself. When NYSE goes down, the pipeline shouldn'
 it should fail over to a backup feed.
 
 **HKJ features:**
-- `VStream.recoverWith(error -> fallbackStream)`: switches to a fallback stream when the
-  first pull fails - chained directly on the stream, no wrapper class needed
+- `VStream.recoverWith(error -> fallbackStream)`: switches to a fallback stream when a
+  pull fails - chained directly on the stream, no wrapper class needed
 - For per-task protection (retry budgets, circuit breakers, bulkheads), the path types
   chain the `with*` combinators directly - see
   [Path-Native Resilience](../resilience/combined.md#path-native-resilience-per-step-protection)
@@ -239,12 +239,12 @@ VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed
 </div>
 
 ~~~admonish note title="recoverWith Semantics"
-`recoverWith` wraps the **first pull** of the stream. If the primary feed fails to connect
-(first pull throws), recovery kicks in and the fallback stream takes over entirely. This
-models connection-failure scenarios, the most common failure mode for exchange feeds.
+`recoverWith` acts on whichever pull fails. If the primary feed fails to connect, or drops
+part-way through, the fallback stream replaces the rest of it. This models connection
+failures, the most common failure mode for exchange feeds.
 
-For per-element recovery (mid-stream errors), use `recover(error -> recoveryValue)` instead,
-which recursively wraps every pull in the stream.
+To replace one failed element with a value and carry on, map the element through a task with
+`mapTask` and follow it with `recover(error -> recoveryValue)` instead.
 ~~~
 
 ~~~admonish note title="Design Decision: Why recoverWith over retry?"

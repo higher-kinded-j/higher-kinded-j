@@ -167,12 +167,13 @@ public class ConfigurableOrderWorkflow {
     // for the retry loop, then EitherPath.withTimeout so ONE time budget bounds the whole loop —
     // while the commit gets EitherPath.withTimeout alone.
     //
-    // Note on timeout semantics: EitherPath.withTimeout does NOT interrupt the losing work (the
-    // old hand-rolled executor cancelled it best-effort). After a commit timeout the
-    // reserve -> payment -> ... sequence may still complete unobserved; the timeout Left is a
-    // reporting decision, not a rollback. Compensating a partially-applied commit (e.g. refunding
-    // a charge when a later step fails) would use a Saga across reserve -> pay -> ship; that needs
-    // an Either-aware Saga on the Path stack and is tracked as future work.
+    // Note on timeout semantics: EitherPath.withTimeout interrupts the commit when its budget runs
+    // out, and returns the timeout Left once the commit has stopped. A step that finished before
+    // the interrupt, such as a reservation, stays done, and the step it interrupts, such as a
+    // charge, may already have taken effect: the timeout Left is a reporting decision, not a
+    // rollback. Compensating a partially-applied commit (e.g. refunding a charge
+    // when a later step fails) would use a Saga across reserve -> pay -> ship; an Either-aware Saga
+    // on the Path stack is not supported yet.
     var preflightTimeout = timeoutConfig.inventoryTimeout();
     var commitTimeout =
         timeoutConfig

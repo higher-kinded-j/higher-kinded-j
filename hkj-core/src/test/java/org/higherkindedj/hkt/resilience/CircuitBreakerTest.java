@@ -14,9 +14,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.core.ConditionFactory;
+import org.higherkindedj.hkt.test.fixtures.HeldTask;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -352,6 +355,58 @@ class CircuitBreakerTest {
           .isInstanceOfSatisfying(
               CircuitOpenException.class,
               open -> assertThat(open.retryAfter()).isGreaterThan(Duration.ofDays(365)));
+    }
+
+    @Test
+    @DisplayName("a call slower than callTimeout is interrupted, and counts once it has stopped")
+    void interruptsACallSlowerThanTheCallTimeout() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .callTimeout(Duration.ofMillis(20))
+                  .build());
+      AtomicBoolean interrupted = new AtomicBoolean(false);
+      AtomicBoolean cleanedUp = new AtomicBoolean(false);
+      VTask<String> slowCall =
+          VTask.of(
+              () -> {
+                try {
+                  Thread.sleep(5000);
+                  return "finished";
+                } catch (InterruptedException e) {
+                  interrupted.set(true);
+                  throw e;
+                } finally {
+                  cleanedUp.set(true);
+                }
+              });
+
+      assertThatThrownBy(breaker.protect(slowCall)::execute).isInstanceOf(TimeoutException.class);
+      assertThat(interrupted).isTrue();
+      assertThat(cleanedUp).isTrue();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName("a detached call that ignores the interrupt counts when callTimeout runs out")
+    void detachedCallCountsWhenTheCallTimeoutRunsOut() throws InterruptedException {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .callTimeout(Duration.ofMillis(20))
+                  .build());
+      HeldTask held = new HeldTask();
+      try {
+        assertThatThrownBy(breaker.protect(held.task("finished").detachOnCancel())::execute)
+            .isInstanceOf(TimeoutException.class);
+        assertThat(held.finished()).as("the call is still running").isFalse();
+        assertThat(held.sawInterrupt()).isTrue();
+        assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      } finally {
+        held.release();
+      }
     }
 
     @Test

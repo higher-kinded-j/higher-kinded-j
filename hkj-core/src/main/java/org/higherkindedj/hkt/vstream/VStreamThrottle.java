@@ -75,7 +75,7 @@ public final class VStreamThrottle {
       @Override
       public VTask<Step<A>> pull() {
         return () -> {
-          Step<A> step = upstream.pull().run();
+          Step<A> step = Executing.executed(upstream.pull());
           if (step instanceof Step.Done) {
             return step;
           }
@@ -125,7 +125,7 @@ public final class VStreamThrottle {
       @Override
       public VTask<Step<A>> pull() {
         return () -> {
-          Step<A> step = upstream.pull().run();
+          Step<A> step = Executing.executed(upstream.pull());
           if (step instanceof Step.Done) {
             return step;
           }

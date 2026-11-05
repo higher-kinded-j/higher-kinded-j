@@ -102,6 +102,19 @@ class VStreamCloseAndReplayTest {
             x == element ? VTask.fail(new IllegalStateException("pull failed")) : VTask.succeed(x));
   }
 
+  /** The source, with a pull that fails at the given element with an {@link Unsuppressible}. */
+  private static VStream<Integer> unsuppressibleAt(int element, VStream<Integer> source) {
+    return source.mapTask(
+        x -> x == element ? VTask.fail(new Unsuppressible("pull failed")) : VTask.succeed(x));
+  }
+
+  /** An error with suppression disabled, so it cannot carry the rest of a stream. */
+  private static final class Unsuppressible extends RuntimeException {
+    Unsuppressible(String message) {
+      super(message, null, /* enableSuppression= */ false, /* writableStackTrace= */ false);
+    }
+  }
+
   /** A two-element stream whose finaliser fails with a checked exception. */
   private static VStream<Integer> checkedFinaliser() {
     return VStream.of(1, 2)
@@ -660,8 +673,9 @@ class VStreamCloseAndReplayTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("org.higherkindedj.hkt.vstream.VStreamCloseAndReplayTest#checkedFailurePaths")
-    @DisplayName("a checked failure from a finaliser arrives wrapped, whichever path runs it")
-    void checkedFinaliserFailureIsWrapped(Function<VStream<Integer>, VTask<?>> op) {
+    @DisplayName(
+        "a checked failure from a finaliser arrives as it was thrown, whichever path runs it")
+    void checkedFinaliserFailureIsNotWrapped(Function<VStream<Integer>, VTask<?>> op) {
       // runSafe keeps a failure as it was thrown, so it shows whether the path wrapped it
       Try<?> result = op.apply(checkedFinaliser()).runSafe();
 
@@ -670,8 +684,8 @@ class VStreamCloseAndReplayTest {
               Try.Failure.class,
               failure ->
                   assertThat(failure.cause())
-                      .isInstanceOf(VTaskExecutionException.class)
-                      .hasCauseInstanceOf(IOException.class));
+                      .isInstanceOf(IOException.class)
+                      .hasMessage("finaliser failed"));
     }
   }
 
@@ -1003,7 +1017,7 @@ class VStreamCloseAndReplayTest {
     void checkedFailureClosesCarriedRest() {
       AtomicInteger runs = new AtomicInteger();
 
-      // run() wraps the checked failure, which is the one carrying the rest
+      // the checked failure carries the rest, and run() wraps it on the way out
       VStream<Integer> stream =
           deferredFinalised(runs).mapTask(x -> VTask.fail(new IOException("pull failed")));
 
@@ -1018,12 +1032,148 @@ class VStreamCloseAndReplayTest {
     void recoverWithClosesCarriedRest() {
       AtomicInteger released = new AtomicInteger();
 
-      // recoverWith acts on the first pull, so the task fails there
       List<Integer> recovered =
           pullFailingAt(1, bracketed(released)).recoverWith(e -> VStream.of(-1)).toList().run();
 
       assertThat(recovered).containsExactly(-1);
       assertThat(released).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("recoverWith closes the rest a later failed mapTask task carries")
+    void recoverWithClosesTheRestOfALaterFailure() {
+      AtomicInteger runs = new AtomicInteger();
+
+      List<Integer> recovered =
+          pullFailingAt(2, deferredFinalised(runs)).recoverWith(e -> VStream.of(-1)).toList().run();
+
+      assertThat(recovered).containsExactly(1, -1);
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("recoverWith closes the stream it gives up when the failure carries no rest")
+    void recoverWithClosesWhatItGivesUp() {
+      AtomicInteger released = new AtomicInteger();
+
+      List<Integer> recovered =
+          bracketed(released)
+              .flatMap(
+                  n ->
+                      n == 2
+                          ? VStream.<Integer>fail(new IllegalStateException("bad"))
+                          : VStream.of(n))
+              .recoverWith(e -> VStream.of(-1))
+              .toList()
+              .run();
+
+      assertThat(recovered).containsExactly(1, -1);
+      assertThat(released).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("recover closes the stream it ends when the failure carries no rest")
+    void recoverClosesWhatItEnds() {
+      AtomicInteger released = new AtomicInteger();
+
+      List<Integer> recovered =
+          bracketed(released)
+              .flatMap(
+                  n ->
+                      n == 2
+                          ? VStream.<Integer>fail(new IllegalStateException("bad"))
+                          : VStream.of(n))
+              .recover(e -> -1)
+              .toList()
+              .run();
+
+      assertThat(recovered).containsExactly(1, -1);
+      assertThat(released).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("mapError keeps the rest a later failed mapTask task carries, so it is closed")
+    void mapErrorKeepsTheRestToClose() {
+      AtomicInteger runs = new AtomicInteger();
+
+      VStream<Integer> stream =
+          pullFailingAt(2, deferredFinalised(runs))
+              .mapError(e -> new UnsupportedOperationException("mapped"));
+
+      assertThatThrownBy(() -> stream.toList().run())
+          .isInstanceOf(UnsupportedOperationException.class);
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("mapError whose function throws or returns null keeps the rest, so it is closed")
+    void failingMapErrorKeepsTheRestToClose() {
+      AtomicInteger throwingRuns = new AtomicInteger();
+      AtomicInteger nullRuns = new AtomicInteger();
+
+      VStream<Integer> throwing =
+          pullFailingAt(1, deferredFinalised(throwingRuns)).mapError(_ -> boom());
+      VStream<Integer> returningNull =
+          pullFailingAt(1, deferredFinalised(nullRuns)).mapError(_ -> null);
+
+      assertThatThrownBy(() -> throwing.toList().run()).hasMessage("function failed");
+      assertThatThrownBy(() -> returningNull.toList().run()).hasMessage("f must not return null");
+      assertThat(throwingRuns).hasValue(1);
+      assertThat(nullRuns).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("onError whose observer throws keeps the rest, so it is closed")
+    void throwingOnErrorKeepsTheRestToClose() {
+      AtomicInteger runs = new AtomicInteger();
+
+      VStream<Integer> stream = pullFailingAt(1, deferredFinalised(runs)).onError(_ -> boom());
+
+      assertThatThrownBy(() -> stream.toList().run()).hasMessage("function failed");
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a mapTask task failing with an error that cannot suppress closes the rest at once")
+    void unsuppressibleTaskFailureClosesTheRest() {
+      AtomicInteger stoppedRuns = new AtomicInteger();
+      AtomicInteger recoveredRuns = new AtomicInteger();
+
+      VStream<Integer> stopped = unsuppressibleAt(1, deferredFinalised(stoppedRuns));
+      // with no rest to resume from, recover ends the stream after the recovery value
+      List<Integer> recovered =
+          unsuppressibleAt(1, deferredFinalised(recoveredRuns)).recover(_ -> -1).toList().run();
+
+      assertThatThrownBy(() -> stopped.toList().run()).isInstanceOf(Unsuppressible.class);
+      assertThat(stoppedRuns).hasValue(1);
+      assertThat(recovered).containsExactly(-1);
+      assertThat(recoveredRuns).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("mapError to an error that cannot suppress closes the rest at once")
+    void mapErrorToAnUnsuppressibleErrorClosesTheRest() {
+      AtomicInteger runs = new AtomicInteger();
+
+      VStream<Integer> stream =
+          pullFailingAt(1, deferredFinalised(runs)).mapError(_ -> new Unsuppressible("mapped"));
+
+      assertThatThrownBy(() -> stream.toList().run()).hasMessage("mapped");
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a finaliser's checked failure is suppressed onto the failure as it was thrown")
+    void checkedCleanupFailureIsSuppressedUnwrapped() {
+      VStream<Integer> stream = pullFailingAt(1, checkedFinaliser());
+
+      assertThatThrownBy(() -> stream.toList().run())
+          .isInstanceOf(IllegalStateException.class)
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .anySatisfy(s -> assertThat(s).isInstanceOf(IOException.class)));
     }
 
     @Test

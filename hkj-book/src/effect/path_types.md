@@ -110,8 +110,8 @@ typed domain error rather than an exception, reach for
 You have data arriving from paginated APIs, sensors, or infinite sequences,
 and you want to process it lazily without materialising everything in memory.
 
-**Reach for [`VStreamPath`](path_vstream.md)** for pull-based streaming on virtual
-threads. Elements are produced one at a time, the consumer controls the pace,
+**Reach for [`VStreamPath`](path_vstream.md)** for pull-based streaming of
+effectful elements. Elements are produced one at a time, the consumer controls the pace,
 and terminal operations bridge back to `VTaskPath`.
 
 ### _"I need stack-safe recursion"_
@@ -155,7 +155,7 @@ own signatures, [generate a Path class for it with `@PathSource`](path_source.md
 | [`IOPath<A>`](path_io.md) | `IO<A>` | `Throwable` | **Deferred** | Side effects |
 | [`VTaskPath<A>`](path_vtask.md) | `VTask<A>` | `Throwable` | **Deferred** | Virtual thread concurrency |
 | [`VResultPath<E, A>`](path_vresult.md) | `VTask<Either<E, A>>` | `E` (typed) | **Deferred** | Async work with a typed domain error |
-| [`VStreamPath<A>`](path_vstream.md) | `VStream<A>` | Via VTask | **Lazy pull** | Lazy streaming on virtual threads |
+| [`VStreamPath<A>`](path_vstream.md) | `VStream<A>` | Via VTask | **Lazy pull** | Lazy streaming of effectful elements |
 | [`ValidationPath<E, A>`](path_validation.md) | `Validated<E, A>` | `E` (accumulated) | Immediate | Form validation |
 | [`EitherOrBothPath<L, A>`](path_either_or_both.md) | `EitherOrBoth<L, A>` | `L` (fatal, or non-fatal warnings alongside a value) | Immediate | Success that may carry warnings |
 | [`IdPath<A>`](path_id.md) | `Id<A>` | None (always succeeds) | Immediate | Pure values |
@@ -193,7 +193,7 @@ These types describe computations without executing them:
 - **[IOPath](path_io.md)** - Side effects, runs when you call `unsafeRun()`
 - **[VTaskPath](path_vtask.md)** - Virtual thread concurrency, runs when you call `run()`
 - **[VResultPath](path_vresult.md)** - Async work with a typed domain error (`VTask<Either<E, A>>`)
-- **[VStreamPath](path_vstream.md)** - Lazy pull-based streaming on virtual threads
+- **[VStreamPath](path_vstream.md)** - Lazy pull-based streaming of effectful elements
 - **[TrampolinePath](path_trampoline.md)** - Stack-safe recursion
 
 ### DSL Building
@@ -220,7 +220,7 @@ These types support building domain-specific languages:
 | Side effects to defer | `IOPath` | Lazy, referential transparency |
 | Concurrent operations at scale | `VTaskPath` | Virtual threads, simple blocking code |
 | Async operation with a typed error | `VResultPath` | Virtual threads plus a typed error channel |
-| Lazy streaming with virtual threads | `VStreamPath` | Pull-based, infinite-safe, backpressure |
+| Lazy streaming of effectful elements | `VStreamPath` | Pull-based, infinite-safe, backpressure |
 | Need ALL validation errors | `ValidationPath` | Error accumulation |
 | Bridging Java's Optional | `OptionalPath` | Stdlib compatibility |
 | Always succeeds, pure value | `IdPath` | Generic/testing contexts |

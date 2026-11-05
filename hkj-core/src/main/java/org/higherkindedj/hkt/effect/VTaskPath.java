@@ -257,13 +257,28 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * duration.
    *
    * <p>Alias of {@link #withTimeout(Duration)}, which is the {@code with*} family form shared with
-   * the other path types; both delegate to the same {@code VTask.timeout} lowering.
+   * the other path types; both delegate to the same {@code VTask.timeout} lowering. When the time
+   * runs out, the computation is interrupted, and the path fails once it has stopped, as {@link
+   * #withTimeout(Duration)} describes.
    *
-   * @param duration the maximum time to wait; must not be null
+   * @param duration the time after which the computation is cancelled; must not be null
    * @return a VTaskPath with timeout behaviour
    * @throws NullPointerException if duration is null
    */
   VTaskPath<A> timeout(Duration duration);
+
+  /**
+   * Returns a VTaskPath that gives up on this computation when cancelled, rather than wait for it
+   * to stop, as {@link VTask#detachOnCancel()} describes. The computation runs on a fresh virtual
+   * thread, which does not see the caller's {@code ScopedValue} bindings; when the wait is
+   * cancelled, it is interrupted, and the cancellation takes effect at once. Apply it inside the
+   * timeout or breaker: {@code detachOnCancel().withTimeout(duration)} fails when the budget runs
+   * out, even over a call that blocks where an interrupt cannot reach it, while {@code
+   * withTimeout(duration).detachOnCancel()} changes nothing for that timeout.
+   *
+   * @return a new VTaskPath that stops waiting for this computation when cancelled
+   */
+  VTaskPath<A> detachOnCancel();
 
   // ===== Focus Bridge Methods =====
 
@@ -333,14 +348,17 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * <p>This is the {@code with*} family form of {@link #timeout(Duration)} - the two are aliases
    * sharing one {@code VTask.timeout} lowering.
    *
-   * <p>Two caveats inherited from {@link org.higherkindedj.hkt.vtask.VTask#timeout}: the losing
-   * computation is <em>not</em> interrupted, and a {@code TimeoutException} thrown inside the
-   * computation is indistinguishable from the budget expiring. {@code runSafe()} and {@code
-   * run().runSafe()} hold the checked {@code TimeoutException} itself, while {@code unsafeRun()}
-   * wraps it per {@code VTask.run()} conventions. An interrupt of the caller is passed on to the
-   * computation, and the {@code InterruptedException} surfaces once it stops, or the budget runs
-   * out: as thrown from {@code run()}, held by {@code runSafe()} and {@code run().runSafe()}, and
-   * wrapped by {@code unsafeRun()}. Each of the last three sets the interrupt status.
+   * <p>As {@link VTask#timeout} describes, the computation is interrupted when the budget runs out,
+   * and the {@code TimeoutException} arrives once it has stopped, so a computation that ignores
+   * interruption holds the failure back until it finishes. A {@code TimeoutException} thrown inside
+   * the computation is reported as the budget running out too, with that exception as its cause,
+   * where the budget's own has none. {@code runSafe()} and {@code run().runSafe()} hold the checked
+   * {@code TimeoutException} itself, while {@code unsafeRun()} wraps it per {@code VTask.run()}
+   * conventions. An interrupt of the caller is passed on to the computation, and the {@code
+   * InterruptedException} surfaces once it stops: as thrown from {@code run()}, held by {@code
+   * runSafe()} and {@code run().runSafe()}, and wrapped by {@code unsafeRun()}. Each of the last
+   * three sets the interrupt status. To fail when the budget runs out instead, whether or not the
+   * computation can stop at once, time out {@link #detachOnCancel()}.
    *
    * @param duration the time budget; must not be null
    * @return a new VTaskPath bounded by the time budget
@@ -350,6 +368,10 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
 
   /**
    * Returns a VTaskPath protected by the given circuit breaker.
+   *
+   * <p>A computation slower than the breaker's {@code callTimeout} is interrupted, and counts as a
+   * failure once it has stopped. To count one that cannot stop at once when the time runs out,
+   * chain {@code detachOnCancel().withCircuitBreaker(breaker)}.
    *
    * @param circuitBreaker the circuit breaker; must not be null
    * @return a new VTaskPath with circuit breaker protection

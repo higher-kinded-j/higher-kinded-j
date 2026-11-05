@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
-import java.util.function.Supplier;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 
@@ -25,12 +24,12 @@ final class DeferredStream<A> implements VStream<A> {
   }
 
   /**
-   * A stream the supplier builds afresh each time its pulled {@code VTask} runs, reading from the
-   * given inputs, which closing it closes. Operators that keep state between pulls build on this,
-   * so each run has its own state.
+   * A stream the task builds afresh each time its pulled {@code VTask} runs, reading from the given
+   * inputs, which closing it closes. Operators that keep state between pulls build on this, so each
+   * run has its own state. A failure of the task fails the pull as the task threw it.
    */
-  static <A> VStream<A> deferring(Supplier<VStream<A>> supplier, VStream<?>... inputs) {
-    return new DeferredStream<>(VTask.delay(supplier), inputs);
+  static <A> VStream<A> deferring(VTask<VStream<A>> build, VStream<?>... inputs) {
+    return new DeferredStream<>(build, inputs);
   }
 
   @Override

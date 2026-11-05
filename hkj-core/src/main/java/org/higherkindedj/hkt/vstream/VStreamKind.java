@@ -10,10 +10,10 @@ import org.higherkindedj.hkt.WitnessArity;
  * Kind interface marker for the VStream type in Higher-Kinded-J. Represents VStream as a type
  * constructor 'F' in {@code Kind<F, A>}. The witness type F is VStreamKind.Witness.
  *
- * <p>{@code VStream} is a lazy, pull-based streaming abstraction that executes element production
- * on virtual threads via {@link org.higherkindedj.hkt.vtask.VTask}. This HKT encoding enables
- * VStream to participate in polymorphic, type-class-based programming alongside VTask, Maybe,
- * Either, and other HKT-encoded types.
+ * <p>{@code VStream} is a lazy, pull-based streaming abstraction whose elements are produced by
+ * {@link org.higherkindedj.hkt.vtask.VTask}s. This HKT encoding enables VStream to participate in
+ * polymorphic, type-class-based programming alongside VTask, Maybe, Either, and other HKT-encoded
+ * types.
  *
  * @param <A> The type of elements produced by the VStream.
  * @see org.higherkindedj.hkt.Kind

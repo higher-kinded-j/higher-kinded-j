@@ -113,7 +113,11 @@ public final class CircuitBreaker {
    * CircuitBreakerConfig#recordFailure()} predicate, the failure is recorded. If the circuit is
    * open, the task is immediately rejected with {@link CircuitOpenException}.
    *
-   * <p>The call timeout from the configuration is applied using {@code VTask.timeout()}.
+   * <p>The call timeout from the configuration is applied using {@code VTask.timeout()}: a call
+   * slower than that is interrupted, and its {@code TimeoutException} is offered to {@link
+   * CircuitBreakerConfig#recordFailure()} once the call has stopped. For a call that can hang where
+   * an interrupt cannot reach it, protect {@code task.detachOnCancel()}, so that the failure is
+   * recorded when the time runs out and the circuit can open.
    *
    * <p>A call cancelled by an interrupt counts as neither a success nor a failure, whatever {@link
    * CircuitBreakerConfig#recordFailure()} says, since it tells nothing about the protected service.

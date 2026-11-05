@@ -638,9 +638,11 @@ IOPath<Config> fastest = primary.race(backup);
 ```
 
 ~~~admonish warning title="Race Caveats"
-The losing computation is *not* cancelled (Java limitation). It continues
-running in the background. Use `race` for idempotent operations where
-completing the loser is acceptable.
+The losing computation is *not* cancelled: each side runs in a
+`CompletableFuture`, which cannot interrupt the work behind it, so the loser
+continues running in the background. Use `race` for idempotent operations
+where completing the loser is acceptable, or race `VTaskPath`s, whose `race`
+takes the first success and interrupts the other.
 ~~~
 
 ### raceIO for Multiple Competitors

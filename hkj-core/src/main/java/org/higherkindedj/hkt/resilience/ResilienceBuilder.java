@@ -15,7 +15,8 @@ import org.jspecify.annotations.Nullable;
  * the builder:
  *
  * <ol>
- *   <li><b>Timeout</b> (outermost) bounds total elapsed time
+ *   <li><b>Timeout</b> (outermost) cancels the whole operation, retries included, when its time
+ *       runs out
  *   <li><b>Bulkhead</b> limits concurrent access to the protected resource
  *   <li><b>Retry</b> retries the inner operation on failure
  *   <li><b>Circuit Breaker</b> (innermost) each attempt checks circuit state
@@ -121,7 +122,16 @@ public final class ResilienceBuilder<A> {
   }
 
   /**
-   * Adds a timeout for the entire protected operation.
+   * Adds a timeout for the entire protected operation, retries included. When it runs out, the
+   * operation is interrupted, and fails with a {@code TimeoutException} once it has stopped, as
+   * {@link VTask#timeout} describes, so no attempt is left running behind it. If it runs out during
+   * a retry's back-off, the retry's own report of the interrupt, a {@code RetryExhaustedException},
+   * is kept as suppressed, and a bulkhead wait's {@code BulkheadFullException} likewise.
+   *
+   * <p>To fail when the time runs out instead, whether or not the attempt can stop at once, build
+   * from {@code Resilience.builder(task.detachOnCancel())}. An attempt cancelled that way may run
+   * on: it no longer counts against a bulkhead's limit, and each retry can leave one more behind,
+   * as {@link VTask#detachOnCancel()} explains.
    *
    * @param duration the timeout duration; must not be null
    * @return this builder

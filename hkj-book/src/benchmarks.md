@@ -172,7 +172,7 @@ EitherBenchmark.leftMap                    thrpt   20  89.123 ± 1.234  ops/us
 | VTask ~10-30% slower than IO for simple ops | Expected virtual thread overhead |
 | VTask blocking I/O 10x+ faster than platform threads at scale | Virtual thread scheduler scaling |
 | Deep chain (50+ steps) completes without error | Stack safety is intact |
-| VStream slower than Java Stream | Expected; virtual thread + pull overhead |
+| VStream slower than Java Stream | Expected; each pull is a task, which adds overhead |
 | parEvalMap scales with concurrency for I/O | Parallel pipeline working correctly |
 | Scope joiners similar speed to Par.all | Minimal Scope abstraction cost |
 | Wrapper overhead < 15% | Acceptable Path wrapper cost |
@@ -222,7 +222,7 @@ The blocking I/O numbers come from `VTaskVsPlatformThreadsBenchmark`. Platform t
 
 ### VStream
 
-VStream's pull-based model adds overhead per element compared to Java Stream's push model, but provides laziness, virtual thread execution, and error recovery that Java Stream cannot.
+VStream's pull-based model adds overhead per element compared to Java Stream's push model, but provides laziness, effectful elements, parallel operations on virtual threads, and error recovery that Java Stream cannot.
 
 | Comparison | Expected |
 |------------|----------|

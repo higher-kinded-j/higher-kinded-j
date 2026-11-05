@@ -27,10 +27,10 @@ import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A lazy, pull-based streaming abstraction that executes element production on virtual threads via
- * {@link VTask}. {@code VStream} fills the gap between {@link VTask} (single-value effect on
- * virtual threads) and Java's {@code Stream} (single-use, no virtual thread integration), enabling
- * composable, effectful streaming pipelines.
+ * A lazy, pull-based streaming abstraction whose elements are produced by {@link VTask}s. {@code
+ * VStream} fills the gap between {@link VTask} (a single deferred value) and Java's {@code Stream}
+ * (single-use, with no effect type for its elements), enabling composable, effectful streaming
+ * pipelines.
  *
  * <p>A {@code VStream<A>} does not produce any elements when created. It acts as a description or
  * "recipe" for a stream that will be evaluated only when a terminal operation is called. Each
@@ -41,8 +41,12 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li><b>Laziness:</b> Elements are produced on demand only when pulled.
  *   <li><b>Pull-based:</b> The consumer drives evaluation by calling {@link #pull()}.
- *   <li><b>Virtual Threads:</b> Each pull executes via {@link VTask}, leveraging virtual threads
- *       for scalable concurrent processing.
+ *   <li><b>Threads:</b> A pull runs on the thread that runs the terminal operation's task. {@link
+ *       #runAsync()} runs the stream on a virtual thread, and a stream from {@link VStreamPar}
+ *       starts virtual threads as it is pulled, to process elements at the same time.
+ *   <li><b>Failures:</b> A terminal operation fails with the exception a pulled task threw, a
+ *       checked one included, which {@link VTask#runSafe()} keeps as it is and {@link VTask#run()}
+ *       wraps in a {@link org.higherkindedj.hkt.vtask.VTaskExecutionException}.
  *   <li><b>Composability:</b> Rich set of combinators ({@link #map}, {@link #flatMap}, {@link
  *       #filter}, {@link #take}, etc.) that preserve laziness.
  *   <li><b>Reusability:</b> Unlike Java streams, a {@code VStream} can be pulled multiple times,
@@ -79,8 +83,9 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Pulls the next step from this stream. This is the core operation: the consumer calls {@code
-   * pull()} to request the next element. The returned {@link VTask} is lazy and executes on a
-   * virtual thread when run.
+   * pull()} to request the next element. The returned {@link VTask} is lazy, and runs on the thread
+   * that runs it. A stream from {@link VStreamPar} also starts virtual threads as it is pulled, to
+   * run its elements' tasks or read its sources.
    *
    * <p>The returned {@link Step} is one of:
    *
@@ -485,7 +490,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   static <A> VStream<A> defer(Supplier<VStream<A>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return DeferredStream.deferring(supplier);
+    return DeferredStream.deferring(VTask.delay(supplier));
   }
 
   // =====================================================================
@@ -565,7 +570,7 @@ public interface VStream<A> extends VStreamKind<A> {
                         yield task.map(b -> (Step<B>) new Step.Emit<>(b, tail))
                             .recoverWith(
                                 error -> {
-                                  error.addSuppressed(new StreamTailMarker(tail));
+                                  Closing.carry(error, tail);
                                   return VTask.fail(error);
                                 });
                       }
@@ -791,7 +796,7 @@ public interface VStream<A> extends VStreamKind<A> {
 
           try {
             while (batch.size() < size) {
-              Step<A> step = current.pull().run();
+              Step<A> step = Executing.executed(current.pull());
               switch (step) {
                 case Step.Emit<A> e -> {
                   batch.add(e.value());
@@ -843,7 +848,7 @@ public interface VStream<A> extends VStreamKind<A> {
           VStream<A> current = self;
           try {
             while (true) {
-              Step<A> step = current.pull().run();
+              Step<A> step = Executing.executed(current.pull());
               switch (step) {
                 case Step.Emit<A> e -> {
                   // Start building a chunk with this first element
@@ -1051,29 +1056,28 @@ public interface VStream<A> extends VStreamKind<A> {
    * @return A {@link VTask} that produces the list of all elements. Never null.
    */
   default VTask<List<A>> toList() {
-    return VTask.of(
-        () -> {
-          List<A> result = new ArrayList<>();
-          VStream<A> current = this;
-          try {
-            while (true) {
-              Step<A> step = current.pull().run();
-              switch (step) {
-                case Step.Emit<A> e -> {
-                  result.add(e.value());
-                  current = e.tail();
-                }
-                case Step.Skip<A> s -> current = s.tail();
-                case Step.Done<A> _ -> {
-                  return Collections.unmodifiableList(result);
-                }
-              }
+    return () -> {
+      List<A> result = new ArrayList<>();
+      VStream<A> current = this;
+      try {
+        while (true) {
+          Step<A> step = Executing.executed(current.pull());
+          switch (step) {
+            case Step.Emit<A> e -> {
+              result.add(e.value());
+              current = e.tail();
             }
-          } catch (Throwable t) {
-            Closing.closeAfterFailure(current, t);
-            throw t;
+            case Step.Skip<A> s -> current = s.tail();
+            case Step.Done<A> _ -> {
+              return Collections.unmodifiableList(result);
+            }
           }
-        });
+        }
+      } catch (Throwable t) {
+        Closing.closeAfterFailure(current, t);
+        throw t;
+      }
+    };
   }
 
   /**
@@ -1111,29 +1115,28 @@ public interface VStream<A> extends VStreamKind<A> {
    * null.
    */
   private <B> VTask<B> folding(B initial, BiFunction<B, A, B> f, String nullResult) {
-    return VTask.of(
-        () -> {
-          B acc = initial;
-          VStream<A> current = this;
-          try {
-            while (true) {
-              Step<A> step = current.pull().run();
-              switch (step) {
-                case Step.Emit<A> e -> {
-                  current = e.tail();
-                  acc = Objects.requireNonNull(f.apply(acc, e.value()), nullResult);
-                }
-                case Step.Skip<A> s -> current = s.tail();
-                case Step.Done<A> _ -> {
-                  return acc;
-                }
-              }
+    return () -> {
+      B acc = initial;
+      VStream<A> current = this;
+      try {
+        while (true) {
+          Step<A> step = Executing.executed(current.pull());
+          switch (step) {
+            case Step.Emit<A> e -> {
+              current = e.tail();
+              acc = Objects.requireNonNull(f.apply(acc, e.value()), nullResult);
             }
-          } catch (Throwable t) {
-            Closing.closeAfterFailure(current, t);
-            throw t;
+            case Step.Skip<A> s -> current = s.tail();
+            case Step.Done<A> _ -> {
+              return acc;
+            }
           }
-        });
+        }
+      } catch (Throwable t) {
+        Closing.closeAfterFailure(current, t);
+        throw t;
+      }
+    };
   }
 
   /**
@@ -1144,7 +1147,7 @@ public interface VStream<A> extends VStreamKind<A> {
    *     null.
    */
   default VTask<Optional<A>> headOption() {
-    return VTask.of(() -> firstStop(this, Optional::of, Optional.empty()));
+    return () -> firstStop(this, Optional::of, Optional.empty());
   }
 
   /**
@@ -1156,29 +1159,28 @@ public interface VStream<A> extends VStreamKind<A> {
    *     null.
    */
   default VTask<Optional<A>> lastOption() {
-    return VTask.of(
-        () -> {
-          Optional<A> last = Optional.empty();
-          VStream<A> current = this;
-          try {
-            while (true) {
-              Step<A> step = current.pull().run();
-              switch (step) {
-                case Step.Emit<A> e -> {
-                  last = Optional.of(e.value());
-                  current = e.tail();
-                }
-                case Step.Skip<A> s -> current = s.tail();
-                case Step.Done<A> _ -> {
-                  return last;
-                }
-              }
+    return () -> {
+      Optional<A> last = Optional.empty();
+      VStream<A> current = this;
+      try {
+        while (true) {
+          Step<A> step = Executing.executed(current.pull());
+          switch (step) {
+            case Step.Emit<A> e -> {
+              last = Optional.of(e.value());
+              current = e.tail();
             }
-          } catch (Throwable t) {
-            Closing.closeAfterFailure(current, t);
-            throw t;
+            case Step.Skip<A> s -> current = s.tail();
+            case Step.Done<A> _ -> {
+              return last;
+            }
           }
-        });
+        }
+      } catch (Throwable t) {
+        Closing.closeAfterFailure(current, t);
+        throw t;
+      }
+    };
   }
 
   /**
@@ -1202,8 +1204,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VTask<Boolean> exists(Predicate<? super A> predicate) {
     Objects.requireNonNull(predicate, "predicate must not be null");
-    return VTask.of(
-        () -> firstStop(this, a -> predicate.test(a) ? Boolean.TRUE : null, Boolean.FALSE));
+    return () -> firstStop(this, a -> predicate.test(a) ? Boolean.TRUE : null, Boolean.FALSE);
   }
 
   /**
@@ -1218,8 +1219,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VTask<Boolean> forAll(Predicate<? super A> predicate) {
     Objects.requireNonNull(predicate, "predicate must not be null");
-    return VTask.of(
-        () -> firstStop(this, a -> predicate.test(a) ? null : Boolean.FALSE, Boolean.TRUE));
+    return () -> firstStop(this, a -> predicate.test(a) ? null : Boolean.FALSE, Boolean.TRUE);
   }
 
   /**
@@ -1233,8 +1233,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VTask<Optional<A>> find(Predicate<? super A> predicate) {
     Objects.requireNonNull(predicate, "predicate must not be null");
-    return VTask.of(
-        () -> firstStop(this, a -> predicate.test(a) ? Optional.of(a) : null, Optional.empty()));
+    return () -> firstStop(this, a -> predicate.test(a) ? Optional.of(a) : null, Optional.empty());
   }
 
   /**
@@ -1246,28 +1245,27 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VTask<Unit> forEach(Consumer<? super A> action) {
     Objects.requireNonNull(action, "action must not be null");
-    return VTask.of(
-        () -> {
-          VStream<A> current = this;
-          try {
-            while (true) {
-              Step<A> step = current.pull().run();
-              switch (step) {
-                case Step.Emit<A> e -> {
-                  current = e.tail();
-                  action.accept(e.value());
-                }
-                case Step.Skip<A> s -> current = s.tail();
-                case Step.Done<A> _ -> {
-                  return Unit.INSTANCE;
-                }
-              }
+    return () -> {
+      VStream<A> current = this;
+      try {
+        while (true) {
+          Step<A> step = Executing.executed(current.pull());
+          switch (step) {
+            case Step.Emit<A> e -> {
+              current = e.tail();
+              action.accept(e.value());
             }
-          } catch (Throwable t) {
-            Closing.closeAfterFailure(current, t);
-            throw t;
+            case Step.Skip<A> s -> current = s.tail();
+            case Step.Done<A> _ -> {
+              return Unit.INSTANCE;
+            }
           }
-        });
+        }
+      } catch (Throwable t) {
+        Closing.closeAfterFailure(current, t);
+        throw t;
+      }
+    };
   }
 
   /**
@@ -1295,7 +1293,10 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Recovers from a failed pull by replacing the error with a value. Recovery applies per-pull: if
-   * a single element's pull fails, the recovery value is emitted and the stream continues.
+   * a single element's pull fails, the recovery value is emitted and the stream continues. It
+   * continues from the element after a failed {@link #mapTask} task, unless the task's failure has
+   * suppression disabled, so it cannot carry the rest. Any other failure ends the stream after the
+   * recovery value, and what this stream was reading is closed.
    *
    * @param recoveryFunction A function that produces a recovery value from the error. Must not be
    *     null. It must not return null.
@@ -1322,6 +1323,11 @@ public interface VStream<A> extends VStreamKind<A> {
                 error -> {
                   @SuppressWarnings("unchecked") // the rest of this stream, which mapTask carried
                   VStream<A> marked = (VStream<A>) Closing.markedRest(error);
+                  if (marked == null) {
+                    // Nothing carries the rest, so the stream ends here: close what this was
+                    // reading
+                    Closing.closeAfterFailure(upstream, error);
+                  }
                   VStream<A> tail =
                       marked == null ? VStream.empty() : marked.recover(recoveryFunction);
                   return new Step.Emit<>(
@@ -1334,11 +1340,12 @@ public interface VStream<A> extends VStreamKind<A> {
   }
 
   /**
-   * Recovers from a failed pull by substituting a recovery stream. Recovery applies per-pull: if a
-   * single element's pull fails, the recovery stream replaces the remainder.
+   * Recovers from a failed pull by substituting a recovery stream. Recovery applies per-pull: if
+   * any element's pull fails, the recovery stream replaces the remainder, and what this stream was
+   * reading is closed. A failure of the recovery stream itself is not recovered.
    *
    * @param recoveryFunction A function that produces a recovery stream from the error. Must not be
-   *     null.
+   *     null. It must not return null.
    * @return A new {@code VStream} with per-pull error recovery. Never null.
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
@@ -1350,20 +1357,36 @@ public interface VStream<A> extends VStreamKind<A> {
       public VTask<Step<A>> pull() {
         return upstream
             .pull()
+            .map(
+                step ->
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          (Step<A>)
+                              new Step.Emit<>(e.value(), e.tail().recoverWith(recoveryFunction));
+                      case Step.Skip<A> s ->
+                          (Step<A>) new Step.Skip<>(s.tail().recoverWith(recoveryFunction));
+                      case Step.Done<A> d -> d;
+                    })
             .recoverWith(
                 error -> {
-                  // The recovery replaces the rest of the stream, so close what a failure carries
-                  Closing.closeMarkedRest(error);
-                  return recoveryFunction.apply(error).pull();
+                  // The recovery replaces the rest of the stream, so close what this was reading,
+                  // and the rest a failure carries
+                  Closing.closeAfterFailure(upstream, error);
+                  return Objects.requireNonNull(
+                          recoveryFunction.apply(error), "recoveryFunction must not return null")
+                      .pull();
                 });
       }
     };
   }
 
   /**
-   * Transforms errors from failed pulls using the given function.
+   * Transforms the error of any failed pull using the given function. The new error keeps the rest
+   * of the stream that a failed {@link #mapTask} task carries, with this mapping still applied, so
+   * a {@link #recover} after this resumes from the next element. If {@code f} throws, the stream
+   * fails with what it threw, which keeps the rest in the same way.
    *
-   * @param f A function that transforms the error. Must not be null.
+   * @param f A function that transforms the error. Must not be null. It must not return null.
    * @return A new {@code VStream} with transformed errors. Never null.
    * @throws NullPointerException if {@code f} is null.
    */
@@ -1372,13 +1395,30 @@ public interface VStream<A> extends VStreamKind<A> {
     return new DerivedStream<A, A>(this) {
       @Override
       public VTask<Step<A>> pull() {
-        return upstream.pull().mapError(f);
+        return upstream
+            .pull()
+            .map(
+                step ->
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          (Step<A>) new Step.Emit<>(e.value(), e.tail().mapError(f));
+                      case Step.Skip<A> s -> (Step<A>) new Step.Skip<>(s.tail().mapError(f));
+                      case Step.Done<A> d -> d;
+                    })
+            .mapError(
+                error ->
+                    Closing.carryingRest(
+                        error,
+                        e -> Objects.requireNonNull(f.apply(e), "f must not return null"),
+                        rest -> rest.mapError(f)));
       }
     };
   }
 
   /**
-   * Observes errors from failed pulls without modifying them. Useful for logging.
+   * Observes the error of any failed pull without modifying it. Useful for logging. A {@link
+   * #recover} after this resumes with the observer still applied. If the action throws, the stream
+   * fails with what it threw, which keeps the rest of the stream as {@link #mapError} does.
    *
    * @param action The action to perform on errors. Must not be null.
    * @return A new {@code VStream} that observes errors. Never null.
@@ -1391,11 +1431,23 @@ public interface VStream<A> extends VStreamKind<A> {
       public VTask<Step<A>> pull() {
         return upstream
             .pull()
+            .map(
+                step ->
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          (Step<A>) new Step.Emit<>(e.value(), e.tail().onError(action));
+                      case Step.Skip<A> s -> (Step<A>) new Step.Skip<>(s.tail().onError(action));
+                      case Step.Done<A> d -> d;
+                    })
             .mapError(
-                error -> {
-                  action.accept(error);
-                  return error;
-                });
+                error ->
+                    Closing.carryingRest(
+                        error,
+                        e -> {
+                          action.accept(e);
+                          return e;
+                        },
+                        rest -> rest.onError(action)));
       }
     };
   }
@@ -1501,7 +1553,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * consumer holds rather than the returned stream, since the latest consumption may be another
    * thread's. If the finaliser itself throws an exception and the stream also failed, the original
    * error is preserved and the finaliser error is added as a suppressed exception. Otherwise a
-   * finaliser that throws fails the operation that completed or closed the stream.
+   * finaliser that throws fails the operation that completed or closed the stream with the
+   * exception it threw, a checked one included.
    *
    * <p>The finaliser runs with the thread's interrupt status cleared, and the status is restored
    * afterwards, so a finaliser that blocks is not cut short when the reading was cancelled. The
@@ -1557,13 +1610,14 @@ public interface VStream<A> extends VStreamKind<A> {
    * it was reading, as every terminal operation does.
    */
   private static <A, R> R firstStop(
-      VStream<A> stream, Function<? super A, ? extends @Nullable R> stop, R atEnd) {
+      VStream<A> stream, Function<? super A, ? extends @Nullable R> stop, R atEnd)
+      throws Throwable {
     VStream<A> current = stream;
     R result;
     try {
       search:
       while (true) {
-        Step<A> step = current.pull().run();
+        Step<A> step = Executing.executed(current.pull());
         switch (step) {
           case Step.Emit<A> e -> {
             current = e.tail();
@@ -1583,7 +1637,7 @@ public interface VStream<A> extends VStreamKind<A> {
       throw t;
     }
     // Stopping before the end, so close what is left unread
-    current.close().run();
+    Executing.executed(current.close());
     return result;
   }
 
@@ -1603,7 +1657,7 @@ public interface VStream<A> extends VStreamKind<A> {
 
           try {
             while (true) {
-              Step<A> step = current.pull().run();
+              Step<A> step = Executing.executed(current.pull());
               switch (step) {
                 case Step.Emit<A> e -> {
                   // Past this element before testing it, so a predicate that throws closes the rest
@@ -2034,8 +2088,8 @@ final class FinalizedStream<A> implements VStream<A> {
       }
       try {
         if (released.compareAndSet(false, true)) {
-          // run() wraps a checked failure, as the finaliser at the end of the stream does
-          Cleanup.withInterruptCleared(finalizer::run);
+          // The finaliser's failure is reported as it threw it, as at the end of the stream
+          Cleanup.withInterruptCleared(() -> Executing.executed(finalizer));
         }
       } catch (Throwable t) {
         failure = Cleanup.keep(failure, t);
@@ -2059,19 +2113,24 @@ final class FinalizedStream<A> implements VStream<A> {
         // A source that fails as it is pulled still reaches the recovery that runs the finaliser
         VTask<Step<A>> pullTask = VTask.delay(source::pull).flatMap(task -> task);
         return pullTask
-            .<Step<A>>map(
+            .<Step<A>>flatMap(
                 step ->
                     switch (step) {
                       case Step.Emit<A> e ->
-                          new Step.Emit<>(e.value(), consumption(e.tail(), finalizer, released));
+                          VTask.succeed(
+                              new Step.Emit<>(
+                                  e.value(), consumption(e.tail(), finalizer, released)));
                       case Step.Skip<A> s ->
-                          new Step.Skip<>(consumption(s.tail(), finalizer, released));
-                      case Step.Done<A> _ -> {
-                        if (released.compareAndSet(false, true)) {
-                          Cleanup.withInterruptCleared(finalizer::run);
-                        }
-                        yield new Step.Done<A>();
-                      }
+                          VTask.succeed(
+                              new Step.Skip<>(consumption(s.tail(), finalizer, released)));
+                      // A task of its own, so the finaliser's failure is reported as it threw it
+                      case Step.Done<A> _ ->
+                          () -> {
+                            if (released.compareAndSet(false, true)) {
+                              Cleanup.withInterruptCleared(() -> Executing.executed(finalizer));
+                            }
+                            return new Step.Done<A>();
+                          };
                     })
             .recoverWith(
                 error ->
