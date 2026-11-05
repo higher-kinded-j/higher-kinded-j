@@ -147,13 +147,15 @@ a field a navigator, such as a note to widen a container, asks for one of the tw
 first where its change alone would end there.
 
 The names in `includeFields`, `excludeFields` and `widenFields` are checked against the record's
-components: one that matches none is an error offering the component it meant. A list that changes
-nothing warns: `excludeFields` beside a non-empty `includeFields`, `includeFields` or
-`excludeFields` with `generateNavigators = false`, `widenFields` beside `widenCollections = true`, or a `widenFields`
-name whose field is already widened (a `List`, an `Optional`) or holds no container (a `String`).
-An `includeFields` name whose field has no navigator warns too: a `String`, a record without
-`@GenerateFocus` or a container of one, or a `Map` of `@GenerateFocus` records left unwidened (add it
-to `widenFields`). A field that already draws a note, such as a `Box<?>`, gets no warning.
+components: one that matches none is an error offering the component it meant, among those the list
+can use and does not name already, with any rename its navigator needs first. A name written twice
+in one list warns at each later copy. A list that changes nothing warns: `excludeFields` beside a
+non-empty `includeFields`, `includeFields` or `excludeFields` with `generateNavigators = false`,
+`widenFields` beside `widenCollections = true`, or a `widenFields` name whose field is already
+widened (a `List`, an `Optional`) or holds no container (a `String`). An `includeFields` name whose
+field has no navigator warns too: a `String`, a record without `@GenerateFocus` or a container of
+one, or a `Map` of `@GenerateFocus` records left unwidened (add it to `widenFields`). A field that
+already draws a note, such as a `Box<?>`, gets no warning.
 
 The nested record may live in a dependency, provided that module ran hkj-processor: the navigator
 composes the `Focus` class the dependency published, whichever processor version built it. A

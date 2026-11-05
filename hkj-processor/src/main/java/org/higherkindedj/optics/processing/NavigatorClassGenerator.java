@@ -361,6 +361,99 @@ public class NavigatorClassGenerator {
   }
 
   /**
+   * What a field list's fix line asks to be renamed before it names a component.
+   *
+   * @param reason the sentences saying why, each after a space
+   * @param renames the fields to rename, as the fix line writes them after "Rename"
+   * @param aside the words to follow the component's name where the fix line writes it, since the
+   *     name it writes may then be the component's new one
+   */
+  record RenameFirst(String reason, String renames, String aside) {}
+
+  /**
+   * What a fix line that names this component in {@code includeFields} must ask to be renamed
+   * first, where the navigator the list would give it needs a rename: either of two fields whose
+   * navigators would share a class name. Asked of a component the list does not name yet, and that
+   * {@link #isNavigatorField} accepts.
+   *
+   * @param record the record whose {@code includeFields} the fix line changes
+   * @param component the component the fix line names
+   * @return what to rename first, or empty where naming it needs no rename
+   */
+  Optional<RenameFirst> renameBeforeIncluding(
+      TypeElement record, RecordComponentElement component) {
+    return renameBefore(
+        record,
+        component,
+        methodPath(record, component),
+        "A navigator for '" + component.getSimpleName() + "'");
+  }
+
+  /**
+   * What a fix line that names this component in {@code widenFields} must ask to be renamed first,
+   * where widening would give it a navigator that needs a rename: the fields of the record it
+   * reaches named like the widened path's own methods, and either of two fields whose navigators
+   * would share a class name. Asked of a component whose method stops short at a container the
+   * record leaves whole; widening gives it a navigator only where the record's other lists let it
+   * have one.
+   *
+   * @param record the record whose {@code widenFields} the fix line changes
+   * @param component the component the fix line names
+   * @return what to rename first, or empty where naming it needs no rename
+   */
+  Optional<RenameFirst> renameBeforeWidening(TypeElement record, RecordComponentElement component) {
+    return shouldGenerateNavigator(record, component)
+        ? renameBefore(record, component, widenedPath(record, component), "Widened, its navigator")
+        : Optional.empty();
+  }
+
+  /**
+   * What must be renamed before a change gives a component a navigator over this path, so that
+   * following it alone does not lead to the error for a target field named like one of the path's
+   * methods, or to the shared-class-name note or error. Empty where navigators are off, where the
+   * path reaches no record a navigator into can be instantiated, or where nothing needs renaming.
+   * On a record that leaves navigators to the default, a navigator whose target has such a field is
+   * declined with a note, so the change gives it none to rename for.
+   *
+   * @param path the path the component's method would have after the change
+   * @param navigator the words the sentence about such a target field opens with
+   */
+  private Optional<RenameFirst> renameBefore(
+      TypeElement record, RecordComponentElement component, MethodPath path, String navigator) {
+    Target target = instantiableTarget(record, path);
+    if (!focusSettings(record).generateNavigators() || target == null) {
+      return Optional.empty();
+    }
+    List<String> clashes = inheritedNames(path.tier(), target);
+    if (!clashes.isEmpty() && !writesAttribute(record, "generateNavigators")) {
+      return Optional.empty();
+    }
+    String targetName = target.record().getSimpleName().toString();
+    Optional<RecordComponentElement> namesake =
+        namesake(record, component, freedByRenaming(record, target.record(), clashes));
+    String reason =
+        (clashes.isEmpty() ? "" : " " + clashSentence(navigator, path.tier(), targetName, clashes))
+            + sharedNameSentence(record, component, namesake);
+    return renamedFirst(record, component, targetName, clashes, namesake)
+        .map(renames -> new RenameFirst(reason, renames, orItsNewName(namesake)));
+  }
+
+  /**
+   * Whether {@code includeFields} can give a component a navigator: its method reaches a navigable
+   * record into which a navigator can be instantiated, and that record has no field named like one
+   * of the navigator's own methods. A navigator that would share its class name with another
+   * field's is still one, given the rename {@link #renameBeforeIncluding} asks for.
+   *
+   * @param record the record that declares the component
+   * @param component the component
+   * @return true when naming it in {@code includeFields} can give it a navigator
+   */
+  boolean isNavigatorField(TypeElement record, RecordComponentElement component) {
+    Target target = unfilteredTarget(record, component);
+    return target != null && inheritedNames(methodPath(record, component).tier(), target).isEmpty();
+  }
+
+  /**
    * The sentence, after a space, saying why a fix line asks for one of two fields to be renamed
    * first: the navigator it offers one would share its class name with the other's, which has a
    * navigator or would gain one from the same change. Empty where there is no such field.
@@ -911,8 +1004,15 @@ public class NavigatorClassGenerator {
    * else, and a container the record leaves whole keeps its method's path with no navigator.
    */
   private Target unfilteredTarget(TypeElement record, RecordComponentElement component) {
-    Target target =
-        navigableElement(methodPath(record, component).focus(), companionPackage(record));
+    return instantiableTarget(record, methodPath(record, component));
+  }
+
+  /**
+   * The navigable record a path of one of the record's components focuses on, where a navigator
+   * into it can be instantiated; null otherwise.
+   */
+  private Target instantiableTarget(TypeElement record, MethodPath path) {
+    Target target = navigableElement(path.focus(), companionPackage(record));
     return target == null || !target.instantiable() ? null : target;
   }
 
@@ -1348,15 +1448,17 @@ public class NavigatorClassGenerator {
    * {@code includeFields} names, navigators turned off, since an empty {@code includeFields}
    * filters nothing. The list goes with them, since no list is read once navigators are off, and
    * one left behind draws a warning. A field {@code includeFields} leaves out has no navigator to
-   * keep from it, so where the list is written it names the field.
+   * keep from it, so where the list is written it names the field. A name the list writes again
+   * counts once, as the list reads it.
    */
   private static String keepPlainPath(TypeElement record, String component) {
-    List<String> included = Arrays.asList(focusSettings(record).includeFields());
+    List<String> included =
+        Arrays.stream(focusSettings(record).includeFields()).distinct().toList();
     if (included.isEmpty()) {
       return addToFieldList(record, "excludeFields", component);
     }
     if (included.size() > 1) {
-      return FocusFieldListChecks.removeName(record, "includeFields", component);
+      return removeName(record, "includeFields", component);
     }
     return writesAttribute(record, "generateNavigators")
         ? "remove includeFields and replace generateNavigators = true with generateNavigators ="
@@ -1392,6 +1494,19 @@ public class NavigatorClassGenerator {
             + aside
             + " to @GenerateFocus on "
             + record.getSimpleName();
+  }
+
+  /**
+   * The words a fix line uses to take one name out of a list that holds others, shared with the
+   * field-list checks so that the two spell it alike.
+   *
+   * @param record the record whose annotation writes the list
+   * @param attribute the list's attribute name
+   * @param name the name to take out
+   * @return the words, starting in lower case
+   */
+  static String removeName(TypeElement record, String attribute, String name) {
+    return "remove \"" + name + "\" from " + attribute + " on " + record.getSimpleName();
   }
 
   /**
@@ -2091,29 +2206,24 @@ public class NavigatorClassGenerator {
     String recordName = record.getSimpleName().toString();
     String name = component.getSimpleName().toString();
     String elementName = element.record().getSimpleName().toString();
-    List<String> clashes = inheritedNames(widened.tier(), element);
-    Optional<RecordComponentElement> namesake =
-        namesake(record, component, freedByRenaming(record, element.record(), clashes));
+    Optional<RenameFirst> rename =
+        renameBefore(record, component, widened, "Widened, its navigator");
     String reason =
         "A navigator steps into a container only where the record widens it, and "
             + recordName
             + " does not widen '"
             + name
             + "'."
-            + (clashes.isEmpty()
-                ? ""
-                : " "
-                    + clashSentence("Widened, its navigator", widened.tier(), elementName, clashes))
-            + sharedNameSentence(record, component, namesake);
+            + rename.map(RenameFirst::reason).orElse("");
     String widen =
-        addToFieldList(record, "widenFields", name, orItsNewName(namesake))
+        addToFieldList(record, "widenFields", name, rename.map(RenameFirst::aside).orElse(""))
             + " to navigate into its elements";
     String fix =
-        renamedFirst(record, component, elementName, clashes, namesake)
+        rename
             .map(
-                renames ->
+                first ->
                     "Rename "
-                        + renames
+                        + first.renames()
                         + ", then "
                         + widen
                         + ", or "
@@ -2247,19 +2357,11 @@ public class NavigatorClassGenerator {
               + ProcessorUtils.simpleTypeName(component.asType())
               + ". It needs a @GenerateFocus record or a supported container of one.";
       if (hasOtherIncludedNavigator(record, component)) {
-        fix =
-            ProcessorUtils.capitalise(
-                    FocusFieldListChecks.removeName(record, "includeFields", name))
-                + ".";
+        fix = ProcessorUtils.capitalise(removeName(record, "includeFields", name)) + ".";
       } else {
         List<String> candidates =
             record.getRecordComponents().stream()
-                .filter(
-                    candidate -> {
-                      Target target = unfilteredTarget(record, candidate);
-                      return target != null
-                          && inheritedNames(methodPath(record, candidate).tier(), target).isEmpty();
-                    })
+                .filter(candidate -> isNavigatorField(record, candidate))
                 .map(candidate -> candidate.getSimpleName().toString())
                 .toList();
         fix =
@@ -2268,9 +2370,7 @@ public class NavigatorClassGenerator {
                     + recordName
                     + "."
                 : !firstReplacementName(record).equals(name)
-                    ? ProcessorUtils.capitalise(
-                            FocusFieldListChecks.removeName(record, "includeFields", name))
-                        + "."
+                    ? ProcessorUtils.capitalise(removeName(record, "includeFields", name)) + "."
                     : "Replace \""
                         + name
                         + "\" in includeFields on "
@@ -2310,11 +2410,13 @@ public class NavigatorClassGenerator {
     AnnotationValue included = ProcessorUtils.getAnnotationValue(annotation, "includeFields");
     String explanation = reason;
     String correction = fix;
+    // A name written again draws a warning of its own, so this one is told at the first.
     ((List<?>) included.getValue())
         .stream()
             .map(AnnotationValue.class::cast)
             .filter(entry -> name.equals(entry.getValue()))
-            .forEach(
+            .findFirst()
+            .ifPresent(
                 entry ->
                     Diagnostics.reportAt(
                         processingEnv.getMessager(),
