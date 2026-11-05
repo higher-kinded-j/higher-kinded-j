@@ -127,6 +127,7 @@ public final class OpticPrograms {
    */
   private static <S extends @Nullable Object, A extends @Nullable Object>
       Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
+    Validation.function().require(traversal, "optic", CONSTRUCTION);
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {

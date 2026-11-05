@@ -187,9 +187,23 @@ final class OpticOpLawFixtures {
                 () -> new OpticOp.ModifyAll<>(TEAM, MEMBER_NAMES, null, Function.identity())));
   }
 
+  /** Exists and All built with a null predicate, which their constructors reject. */
+  static Stream<Arguments> withoutPredicate() {
+    return Stream.of(
+        Arguments.of(
+            "Exists",
+            (ThrowingCallable)
+                () -> new OpticOp.Exists<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())),
+        Arguments.of(
+            "All",
+            (ThrowingCallable)
+                () -> new OpticOp.All<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())));
+  }
+
   /**
-   * Factories passed a null optic, modifier or predicate. {@code get} on a lens rejects the lens
-   * before converting it; the others reach the record.
+   * Factories passed a null optic, modifier or predicate. {@code get} on a lens, and each factory
+   * that takes a {@code Traversal}, rejects the optic before converting it; the others reach the
+   * record.
    */
   static Stream<Arguments> nullComponentsInPrograms() {
     return Stream.of(
@@ -210,19 +224,30 @@ final class OpticOpLawFixtures {
         Arguments.of(
             "get(Lens)",
             "optic",
-            (ThrowingCallable) () -> OpticPrograms.get(ALICE, (Lens<Person, String>) null)));
-  }
-
-  /** Exists and All built with a null predicate, which their constructors reject. */
-  static Stream<Arguments> withoutPredicate() {
-    return Stream.of(
+            (ThrowingCallable) () -> OpticPrograms.get(ALICE, (Lens<Person, String>) null)),
         Arguments.of(
-            "Exists",
-            (ThrowingCallable)
-                () -> new OpticOp.Exists<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())),
+            "preview(Traversal)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.preview(TEAM, (Traversal<Team, String>) null)),
         Arguments.of(
-            "All",
+            "getAll(Traversal)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.getAll(TEAM, (Traversal<Team, String>) null)),
+        Arguments.of(
+            "exists(Traversal)",
+            "optic",
             (ThrowingCallable)
-                () -> new OpticOp.All<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())));
+                () -> OpticPrograms.exists(TEAM, (Traversal<Team, String>) null, "Bob"::equals)),
+        Arguments.of(
+            "all(Traversal)",
+            "optic",
+            (ThrowingCallable)
+                () ->
+                    OpticPrograms.all(
+                        TEAM, (Traversal<Team, String>) null, name -> !name.isEmpty())),
+        Arguments.of(
+            "count(Traversal)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.count(TEAM, (Traversal<Team, String>) null)));
   }
 }
