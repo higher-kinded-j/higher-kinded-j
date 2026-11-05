@@ -1199,6 +1199,7 @@ class EitherTest extends EitherTestBase {
     void toOptionalOnRightIsPresentWithValue() {
       assertThat(Either.right(42).toOptional()).contains(42);
     }
+
     @DisplayName("toOptional() on a Left is empty")
     @Test
     void toOptionalOnLeftIsEmpty() {
@@ -1214,11 +1215,13 @@ class EitherTest extends EitherTestBase {
     void swapOnLeftGivesRightOfSameValue() {
       assertThatEither(Either.<String, Integer>left("error").swap()).isRight().hasRight("error");
     }
+
     @DisplayName("swap() turns a Right into a Left of the same value")
     @Test
     void swapOnRightGivesLeftOfSameValue() {
       assertThatEither(Either.<String, Integer>right(42).swap()).isLeft().hasLeft(42);
     }
+
     @DisplayName("swap() twice gives back an equal Either")
     @Test
     void swappingTwiceGivesBackEqualEither() {
