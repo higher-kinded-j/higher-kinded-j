@@ -99,7 +99,7 @@ A `switch` over the two cases reads the result, and the compiler checks that eve
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:creating}}
 ```
 
-A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(null)` and a `map` whose function returns `null` throw `NullPointerException`, as [Values, never null](../hkts/core-concepts.md#values-never-null) says. `orElse(null)` and a null `orElseGet` recovery throw it on a `Right` and on a `Left`. A recovery that returns `null` throws on a `Left`, the only side that calls it. A step with nothing to return gives `Unit.INSTANCE`.
+A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(null)`, `orElse(null)` and a `map` or `orElseGet` whose function returns `null` throw `NullPointerException`, as [Values, never null](../hkts/core-concepts.md#values-never-null) says. A step with nothing to return gives `Unit.INSTANCE`.
 
 ## Methods {#methods}
 

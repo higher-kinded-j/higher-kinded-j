@@ -141,7 +141,7 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * org.higherkindedj.hkt.effect.EitherPath#orElse(java.util.function.Supplier) orElse} there tries
    * an alternative path; see {@link #orElseGet(Function)}.
    *
-   * @param other the non-null value to return if this is a {@link Left}. Checked even when this is
+   * @param other The non-null value to return if this is a {@link Left}. Checked even when this is
    *     a {@link Right}, so a null fails on both sides.
    * @return the {@link Right} value, or {@code other}. Never null.
    * @throws NullPointerException if {@code other} is null.
@@ -167,7 +167,7 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    * org.higherkindedj.hkt.effect.EitherPath#orElse(java.util.function.Supplier) orElse} there tries
    * an alternative path; see {@link #orElse(Object)}.
    *
-   * @param recovery the non-null function applied to the {@link Left} error. Checked even when this
+   * @param recovery The non-null function applied to the {@link Left} error. Checked even when this
    *     is a {@link Right}, and not called then. Must not return null.
    * @return the {@link Right} value, or {@code recovery}'s result. Never null.
    * @throws NullPointerException if {@code recovery} is null, or if this is a {@link Left} and

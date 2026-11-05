@@ -374,10 +374,7 @@ class EitherTest extends EitherTestBase {
     @Test
     @DisplayName("orElse() returns the Right value, or other on a Left")
     void orElseReturnsRightValueOrOther() {
-      assertThatEither(rightInstance).isRight().hasRight(rightValue);
       assertThat(rightInstance.orElse(0)).isEqualTo(rightValue);
-
-      assertThatEither(leftInstance).isLeft().hasLeft(leftValue);
       assertThat(leftInstance.orElse(0)).isEqualTo(0);
     }
 
@@ -401,7 +398,6 @@ class EitherTest extends EitherTestBase {
     void orElseGetReturnsRightValueWithoutCallingRecovery() {
       AtomicBoolean called = new AtomicBoolean(false);
 
-      assertThatEither(rightInstance).isRight().hasRight(rightValue);
       assertThat(
               rightInstance.orElseGet(
                   error -> {
@@ -417,7 +413,6 @@ class EitherTest extends EitherTestBase {
     void orElseGetAppliesRecoveryToLeftError() {
       List<String> seen = new ArrayList<>();
 
-      assertThatEither(leftInstance).isLeft().hasLeft(leftValue);
       assertThat(
               leftInstance.orElseGet(
                   error -> {
