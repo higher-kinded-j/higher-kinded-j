@@ -91,7 +91,7 @@ A `switch` over the two cases reads the result, and the compiler checks that eve
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:describe}}
 ```
 
-`fold(onLeft, onRight)` does the same with two functions, when both sides give one type. `getLeft` and `getRight` throw `NoSuchElementException` on the wrong side, so keep them for tests.
+`fold(onLeft, onRight)` does the same with two functions, when both sides give one type. `orElse(other)` returns a `Right`'s value or `other`, and `orElseGet(recovery)` builds that fallback from the `Left`'s error. `getLeft` and `getRight` throw `NoSuchElementException` on the wrong side, so keep them for tests.
 
 ## Creating instances {#creating-instances}
 
@@ -99,7 +99,7 @@ A `switch` over the two cases reads the result, and the compiler checks that eve
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/either/EitherBook.java:creating}}
 ```
 
-A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(null)` and a `map` whose function returns `null` throw `NullPointerException`, as [Values, never null](../hkts/core-concepts.md#values-never-null) says. A step with nothing to return gives `Unit.INSTANCE`.
+A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(null)`, `orElse(null)` and a `map` or `orElseGet` whose function returns `null` throw `NullPointerException`, as [Values, never null](../hkts/core-concepts.md#values-never-null) says. A step with nothing to return gives `Unit.INSTANCE`.
 
 ## Methods {#methods}
 
@@ -112,6 +112,7 @@ A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(n
 | `mapLeft(f)` | Changes a `Left`'s error; a `Right` passes through |
 | `bimap(onLeft, onRight)` | Changes whichever side it holds |
 | `fold(onLeft, onRight)` | Turns either side into one result |
+| `orElse(other)`, `orElseGet(recovery)` | Return a `Right`'s value, or a fallback |
 | `ifLeft(action)`, `ifRight(action)` | Run an action for the side it holds |
 | `getLeft()`, `getRight()` | Return that side's value, or throw `NoSuchElementException` |
 

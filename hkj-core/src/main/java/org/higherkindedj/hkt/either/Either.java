@@ -134,6 +134,55 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
   }
 
   /**
+   * Returns the value if this is a {@link Right}, otherwise {@code other}.
+   *
+   * <p>An {@link org.higherkindedj.hkt.effect.EitherPath} calls this fallback {@link
+   * org.higherkindedj.hkt.effect.EitherPath#getOrElse(Object) getOrElse}, because {@link
+   * org.higherkindedj.hkt.effect.EitherPath#orElse(java.util.function.Supplier) orElse} there tries
+   * an alternative path; see {@link #orElseGet(Function)}.
+   *
+   * @param other The non-null value to return if this is a {@link Left}. Checked even when this is
+   *     a {@link Right}, so a null fails on both sides.
+   * @return the {@link Right} value, or {@code other}. Never null.
+   * @throws NullPointerException if {@code other} is null.
+   */
+  default R orElse(R other) {
+    Validation.function().require(other, "other", OR_ELSE);
+    return switch (this) {
+      case Left<L, R> _ -> other;
+      case Right<L, R>(var rightValue) -> rightValue;
+    };
+  }
+
+  /**
+   * Returns the value if this is a {@link Right}. If this is a {@link Left}, returns the result of
+   * applying {@code recovery} to the error. {@code recovery} is called only for a {@link Left}.
+   *
+   * <p>Passing the error differs from {@link
+   * org.higherkindedj.hkt.maybe.Maybe#orElseGet(java.util.function.Supplier) Maybe.orElseGet},
+   * which takes a supplier because a {@code Nothing} carries nothing.
+   *
+   * <p>An {@link org.higherkindedj.hkt.effect.EitherPath} calls a value fallback {@link
+   * org.higherkindedj.hkt.effect.EitherPath#getOrElse(Object) getOrElse}, because {@link
+   * org.higherkindedj.hkt.effect.EitherPath#orElse(java.util.function.Supplier) orElse} there tries
+   * an alternative path; see {@link #orElse(Object)}.
+   *
+   * @param recovery The non-null function applied to the {@link Left} error. Checked even when this
+   *     is a {@link Right}, and not called then. Must not return null.
+   * @return the {@link Right} value, or {@code recovery}'s result. Never null.
+   * @throws NullPointerException if {@code recovery} is null, or if this is a {@link Left} and
+   *     {@code recovery} returns null.
+   */
+  default R orElseGet(Function<? super L, ? extends R> recovery) {
+    Validation.function().require(recovery, "recovery", OR_ELSE_GET);
+    return switch (this) {
+      case Left<L, R>(var leftValue) ->
+          Objects.requireNonNull(recovery.apply(leftValue), "recovery must not return null");
+      case Right<L, R>(var rightValue) -> rightValue;
+    };
+  }
+
+  /**
    * If this is a {@link Right}, applies the given mapping function to its value, returning a new
    * {@code Either.Right} containing the result. If this is a {@link Left}, it returns the original
    * {@link Left} instance unchanged.
