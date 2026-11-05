@@ -1191,31 +1191,35 @@ class EitherTest extends EitherTestBase {
     }
   }
 
+  @DisplayName("toOptional() Method")
   @Nested
   class ToOptionalTests {
+    @DisplayName("toOptional() on a Right is present with the value")
     @Test
     void toOptionalOnRightIsPresentWithValue() {
       assertThat(Either.right(42).toOptional()).contains(42);
     }
-
+    @DisplayName("toOptional() on a Left is empty")
     @Test
     void toOptionalOnLeftIsEmpty() {
       assertThat(Either.left("error").toOptional()).isEmpty();
     }
   }
 
+  @DisplayName("swap() Method")
   @Nested
   class SwapTests {
+    @DisplayName("swap() turns a Left into a Right of the same value")
     @Test
     void swapOnLeftGivesRightOfSameValue() {
       assertThatEither(Either.<String, Integer>left("error").swap()).isRight().hasRight("error");
     }
-
+    @DisplayName("swap() turns a Right into a Left of the same value")
     @Test
     void swapOnRightGivesLeftOfSameValue() {
       assertThatEither(Either.<String, Integer>right(42).swap()).isLeft().hasLeft(42);
     }
-
+    @DisplayName("swap() twice gives back an equal Either")
     @Test
     void swappingTwiceGivesBackEqualEither() {
       Either<String, Integer> left = Either.left("error");

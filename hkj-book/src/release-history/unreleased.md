@@ -12,10 +12,6 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A timeout cancels the task it timed out, as a `Scope`'s timeout does**, so a retried timeout leaves no attempt running.
 ~~~
 
----
-### Added
-- Added `toOptional()` and `swap()` to `Either` (#1404)
-
 ## Mapping {#mapping}
 
 - **A bean property's fix line compiles once followed** ([#1149](https://github.com/higher-kinded-j/higher-kinded-j/issues/1149)). The setter offered for `eMails` is `seteMails`, not `setEMails`. A rename to a keyword such as `default` is offered no marker, and a marker replaces the spec's own rename. A near miss such as `setx(int)` beside `Integer getX()` is named. See [When an unpaired accessor is refused](../mapping/rules.md#unpaired-accessors).
@@ -45,6 +41,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`Maybe.fromEither` converts an `Either` to a `Maybe`** ([#1405](https://github.com/higher-kinded-j/higher-kinded-j/issues/1405)): a `Right` becomes `Just` with its value, while a `Left` becomes `Nothing`, discarding the left value.
 - **`Either` gains `fromOptional`** ([#1406](https://github.com/higher-kinded-j/higher-kinded-j/issues/1406)): converts a present Java `Optional` to `Right` and an empty one to `Left`, accepting either a direct error value or a supplier for the error.
 - **`Either` gains `orElse` and `orElseGet`** ([#1407](https://github.com/higher-kinded-j/higher-kinded-j/issues/1407)). `orElse(other)` returns a `Right`'s value or `other`, and `orElseGet(recovery)` builds it from the error. A null argument is refused on a `Right` and on a `Left`, and a recovery that returns null is refused on a `Left`. A path uses `getOrElse`, because `orElse` there tries another path. See [Reading an Either](../monads/either_monad.md#reading-an-either).
+- - **`Either` gains `toOptional` and `swap`** ([#1404](https://github.com/higher-kinded-j/higher-kinded-j/issues/1404)). `toOptional()` keeps a `Right`'s value, and gives an empty `Optional` for a `Left`. `swap()` turns a `Left` into a `Right` and back, as `EitherPath.swap()` does.
 - **A `Selective` of your own runs only the branch its condition picks** ([#1358](https://github.com/higher-kinded-j/higher-kinded-j/pull/1358)). The default `whenS` ran its effect for a false condition, and the default `ifS` ran both branches. Both now leave the choice to `select`: one that keeps its contract skips what the condition does not pick, and one built from `ap` still runs every effect. See [Selective](../functional/selective.md).
 - **`mapError` on `MaybePath`, `TryPath` and `CompletableFuturePath` carries the mapped error** ([#1332](https://github.com/higher-kinded-j/higher-kinded-j/issues/1332)): `recover` after it sees that error, where it used to see the old one. A success is a `Right` and the mapper is not called. `MaybePath` and `TryPath` return an `EitherPath`. `CompletableFuturePath` returns a `VResultPath`. See [Recoverable (MonadError)](../effect/capabilities.md#recoverable-monaderror).
 - **`toEitherPath`, `toMaybePath` and `toTryPath` follow `recover` on a failed `CompletableFuturePath`** ([#1354](https://github.com/higher-kinded-j/higher-kinded-j/issues/1354)). A cancelled future gives `Left` of its `CancellationException`, or `Nothing`, instead of throwing. `toTryPath` holds the exception the future failed with, not a `CompletionException` around it.

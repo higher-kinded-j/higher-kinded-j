@@ -111,8 +111,10 @@ A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(n
 | `flatMap(f)` | Runs a step that can fail on a `Right`'s value; a `Left` passes through |
 | `mapLeft(f)` | Changes a `Left`'s error; a `Right` passes through |
 | `bimap(onLeft, onRight)` | Changes whichever side it holds |
+| `swap()` | Turns a `Left` into a `Right`, and a `Right` into a `Left` |
 | `fold(onLeft, onRight)` | Turns either side into one result |
 | `orElse(other)`, `orElseGet(recovery)` | Return a `Right`'s value, or a fallback |
+| `toOptional()` | Gives a `Right`'s value as an `Optional`, or an empty one for a `Left` |
 | `ifLeft(action)`, `ifRight(action)` | Run an action for the side it holds |
 | `getLeft()`, `getRight()` | Return that side's value, or throw `NoSuchElementException` |
 

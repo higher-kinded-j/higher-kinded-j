@@ -428,26 +428,35 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    */
   void ifRight(Consumer<? super R> action);
 
-  /**
-   * Drops the Left value, returning an {@link Optional} of the Right value.
-   *
-   * <p>Returns {@code Optional.of(getRight())} for a Right, and {@code Optional.empty()} for a
-   * Left.
-   *
-   * @return an {@link Optional} containing the Right value, or empty if this is a Left
-   */
-  default Optional<R> toOptional() {
-    return isRight() ? Optional.of(getRight()) : Optional.empty();
-  }
+    /**
+     * Converts this {@code Either} to an {@link Optional}, keeping a {@link Right}'s value and
+     * dropping a {@link Left}'s error.
+     *
+     * <p>A {@link Left} gives {@link Optional#empty()}, so its error is lost; {@link #fold(Function,
+     * Function)} keeps it. A {@link Right} never holds {@code null}, so its value is never lost.
+     *
+     * @return An {@code Optional} holding the {@link Right} value, or {@link Optional#empty()} if
+     *     this is a {@link Left}. Never {@code null}.
+     */
+    default Optional<R> toOptional() {
+        return switch (this) {
+            case Left<L, R> _ -> Optional.empty();
+            case Right<L, R>(var rightValue) -> Optional.of(rightValue);
+        };
+    }
 
-  /**
-   * Turns a Left into a Right and the other way round.
-   *
-   * @return an {@link Either} with the type parameters swapped
-   */
-  default Either<R, L> swap() {
-    return isRight() ? Either.left(getRight()) : Either.right(getLeft());
-  }
+    /**
+     * Swaps the sides: a {@link Left} becomes a {@link Right} holding the same value, and a {@link
+     * Right} becomes a {@link Left}. Swapping twice gives back an equal {@code Either}.
+     *
+     * @return An {@code Either} with its sides swapped. Never {@code null}.
+     */
+    default Either<R, L> swap() {
+        return switch (this) {
+            case Left<L, R>(var leftValue) -> Either.right(leftValue);
+            case Right<L, R>(var rightValue) -> Either.left(rightValue);
+        };
+    }
 
   // --- Static Factory Methods ---
 
