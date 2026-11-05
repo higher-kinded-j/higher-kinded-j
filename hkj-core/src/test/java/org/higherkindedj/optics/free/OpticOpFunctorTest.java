@@ -101,6 +101,43 @@ class OpticOpFunctorTest {
   }
 
   @Nested
+  @DisplayName("Null components")
+  class NullComponentTests {
+
+    @ParameterizedTest(name = "{0} rejects a null optic")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#withoutOptic")
+    void recordRejectsNullOptic(String label, ThrowingCallable construct) {
+      assertThatNullPointerException()
+          .isThrownBy(construct)
+          .withMessage("optic for construction cannot be null");
+    }
+
+    @ParameterizedTest(name = "{0} rejects a null modifier")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#withoutModifier")
+    void recordRejectsNullModifier(String label, ThrowingCallable construct) {
+      assertThatNullPointerException()
+          .isThrownBy(construct)
+          .withMessage("modifier for construction cannot be null");
+    }
+
+    @ParameterizedTest(name = "{0} rejects a null predicate")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#withoutPredicate")
+    void recordRejectsNullPredicate(String label, ThrowingCallable construct) {
+      assertThatNullPointerException()
+          .isThrownBy(construct)
+          .withMessage("predicate for construction cannot be null");
+    }
+
+    @ParameterizedTest(name = "{0} rejects a null {1}")
+    @MethodSource("org.higherkindedj.optics.free.OpticOpLawFixtures#nullComponentsInPrograms")
+    void programRejectsNullComponent(String label, String component, ThrowingCallable construct) {
+      assertThatNullPointerException()
+          .isThrownBy(construct)
+          .withMessage(component + " for construction cannot be null");
+    }
+  }
+
+  @Nested
   @DisplayName("Interpreting")
   class InterpretingTests {
 

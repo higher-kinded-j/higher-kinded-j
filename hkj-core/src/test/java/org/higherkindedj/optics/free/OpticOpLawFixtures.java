@@ -13,6 +13,7 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.optics.Fold;
+import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
@@ -128,5 +129,100 @@ final class OpticOpLawFixtures {
                 () -> new OpticOp.All<>(TEAM, MEMBER_NAMES_FOLD, name -> !name.isEmpty(), null)),
         Arguments.of(
             "Count", (ThrowingCallable) () -> new OpticOp.Count<>(TEAM, MEMBER_NAMES_FOLD, null)));
+  }
+
+  /** Each kind built with a null optic, which its constructor rejects. */
+  static Stream<Arguments> withoutOptic() {
+    return Stream.of(
+        Arguments.of(
+            "Get", (ThrowingCallable) () -> new OpticOp.Get<>(ALICE, null, Function.identity())),
+        Arguments.of(
+            "Preview",
+            (ThrowingCallable) () -> new OpticOp.Preview<>(TEAM, null, Function.identity())),
+        Arguments.of(
+            "GetAll",
+            (ThrowingCallable) () -> new OpticOp.GetAll<>(TEAM, null, Function.identity())),
+        Arguments.of(
+            "Set",
+            (ThrowingCallable) () -> new OpticOp.Set<>(ALICE, null, "Bob", Function.identity())),
+        Arguments.of(
+            "SetAll",
+            (ThrowingCallable) () -> new OpticOp.SetAll<>(TEAM, null, "Anon", Function.identity())),
+        Arguments.of(
+            "Modify",
+            (ThrowingCallable)
+                () ->
+                    new OpticOp.Modify<Person, String, Person>(
+                        ALICE, null, String::toUpperCase, Function.identity())),
+        Arguments.of(
+            "ModifyAll",
+            (ThrowingCallable)
+                () ->
+                    new OpticOp.ModifyAll<Team, String, Team>(
+                        TEAM, null, String::toUpperCase, Function.identity())),
+        Arguments.of(
+            "Exists",
+            (ThrowingCallable)
+                () -> new OpticOp.Exists<>(TEAM, null, "Bob"::equals, Function.identity())),
+        Arguments.of(
+            "All",
+            (ThrowingCallable)
+                () ->
+                    new OpticOp.All<Team, String, Boolean>(
+                        TEAM, null, name -> !name.isEmpty(), Function.identity())),
+        Arguments.of(
+            "Count",
+            (ThrowingCallable) () -> new OpticOp.Count<>(TEAM, null, Function.identity())));
+  }
+
+  /** Modify and ModifyAll built with a null modifier, which their constructors reject. */
+  static Stream<Arguments> withoutModifier() {
+    return Stream.of(
+        Arguments.of(
+            "Modify",
+            (ThrowingCallable) () -> new OpticOp.Modify<>(ALICE, NAME, null, Function.identity())),
+        Arguments.of(
+            "ModifyAll",
+            (ThrowingCallable)
+                () -> new OpticOp.ModifyAll<>(TEAM, MEMBER_NAMES, null, Function.identity())));
+  }
+
+  /**
+   * Factories passed a null optic, modifier or predicate. {@code get} on a lens rejects the lens
+   * before converting it; the others reach the record.
+   */
+  static Stream<Arguments> nullComponentsInPrograms() {
+    return Stream.of(
+        Arguments.of(
+            "get(Getter)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.get(ALICE, (Getter<Person, String>) null)),
+        Arguments.of(
+            "count(Fold)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.count(TEAM, (Fold<Team, String>) null)),
+        Arguments.of(
+            "exists",
+            "predicate",
+            (ThrowingCallable) () -> OpticPrograms.exists(TEAM, MEMBER_NAMES_FOLD, null)),
+        Arguments.of(
+            "modify", "modifier", (ThrowingCallable) () -> OpticPrograms.modify(ALICE, NAME, null)),
+        Arguments.of(
+            "get(Lens)",
+            "optic",
+            (ThrowingCallable) () -> OpticPrograms.get(ALICE, (Lens<Person, String>) null)));
+  }
+
+  /** Exists and All built with a null predicate, which their constructors reject. */
+  static Stream<Arguments> withoutPredicate() {
+    return Stream.of(
+        Arguments.of(
+            "Exists",
+            (ThrowingCallable)
+                () -> new OpticOp.Exists<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())),
+        Arguments.of(
+            "All",
+            (ThrowingCallable)
+                () -> new OpticOp.All<>(TEAM, MEMBER_NAMES_FOLD, null, Function.identity())));
   }
 }
