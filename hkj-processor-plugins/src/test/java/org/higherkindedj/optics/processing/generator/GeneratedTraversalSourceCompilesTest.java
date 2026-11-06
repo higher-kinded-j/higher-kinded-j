@@ -170,7 +170,8 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedMap<String, Leaf>",
               "ImmutableList<Leaf>",
               "io.vavr.collection.List<Leaf>",
-              "HashBag<Leaf>"),
+              "HashBag<Leaf>",
+              "HashMultiSet<Leaf>"),
           shape(
               "wildcard in a third-party container",
               "Leaf",
@@ -179,7 +180,8 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedMap<String, ? extends Leaf>",
               "ImmutableList<? extends Leaf>",
               "io.vavr.collection.List<? extends Leaf>",
-              "HashBag<? extends Leaf>"));
+              "HashBag<? extends Leaf>",
+              "HashMultiSet<? extends Leaf>"));
 
   static Stream<Arguments> shapes() {
     return SHAPES.stream().map(shape -> Arguments.of(shape.label(), shape));
@@ -320,6 +322,7 @@ class GeneratedTraversalSourceCompilesTest {
 
         import com.google.common.collect.ImmutableList;
         import org.apache.commons.collections4.bag.HashBag;
+        import org.apache.commons.collections4.multiset.HashMultiSet;
         import org.eclipse.collections.api.list.MutableList;
         import org.higherkindedj.hkt.either.Either;
         import org.higherkindedj.hkt.maybe.Maybe;

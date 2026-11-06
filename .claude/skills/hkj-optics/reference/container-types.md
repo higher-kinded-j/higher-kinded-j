@@ -54,6 +54,7 @@ All Eclipse Collections types have cardinality `ZERO_OR_MORE`.
 | `io.vavr.collection.List<A>`      | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> List.ofAll(list))`       |
 | `io.vavr.collection.Set<A>`       | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> HashSet.ofAll(list))`    |
 | `HashBag<A>`                       | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashBag::new)`                   |
+| `HashMultiSet<A>`                  | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashMultiSet::new)`              |
 | `UnmodifiableList<A>`              | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
 
 All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`.

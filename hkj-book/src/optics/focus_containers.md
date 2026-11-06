@@ -131,7 +131,7 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag`, `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
 | `ImmutableList`, `ImmutableSet` | Guava | `EachInstances.fromIterableCollecting(...)` |
 | `List`, `Set` | Vavr | `EachInstances.fromIterableCollecting(...)` |
-| `HashBag`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
+| `HashBag`, `HashMultiSet`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
 | `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
 | `PMap`, `PSortedMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
 
