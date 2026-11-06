@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import java.util.Objects;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 
 /**
  * How the streams in this package run a task of their own inside a task they give, such as a pull
@@ -20,6 +21,16 @@ final class Executing {
    * it refuses a null result, and sets the interrupt status again for an {@link
    * InterruptedException}.
    */
+  /**
+   * Whether a failure is an interrupt: an {@link InterruptedException}, bare or as {@link
+   * VTask#run()} wraps it. An interrupt stops a stream, rather than failing one element.
+   */
+  static boolean isInterrupt(Throwable failure) {
+    return failure instanceof InterruptedException
+        || (failure instanceof VTaskExecutionException wrapped
+            && wrapped.getCause() instanceof InterruptedException);
+  }
+
   static <A> A executed(VTask<A> task) throws Throwable {
     try {
       return Objects.requireNonNull(

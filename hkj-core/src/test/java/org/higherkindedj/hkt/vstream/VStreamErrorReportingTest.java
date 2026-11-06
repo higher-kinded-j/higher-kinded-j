@@ -112,7 +112,7 @@ class VStreamErrorReportingTest {
     }
 
     @Test
-    @DisplayName("mapError keeps the rest a mapTask failure carries, so recover still resumes")
+    @DisplayName("mapError keeps a failed mapTask element in its place, so recover goes on")
     void mapErrorKeepsTheRest() {
       List<Throwable> recovered = new ArrayList<>();
 
@@ -133,16 +133,6 @@ class VStreamErrorReportingTest {
     @DisplayName("mapError that gives back the same failure keeps its rest")
     void mapErrorGivingTheSameFailure() {
       assertThat(failsAt(2).mapError(e -> e).recover(_ -> -1).toList().run())
-          .containsExactly(10, -1, 30);
-    }
-
-    @Test
-    @DisplayName("mapError to an error carrying an older rest resumes from this failure's rest")
-    void mapErrorOverAnOlderRest() {
-      IllegalStateException alreadyCarrying = new IllegalStateException("carries an older rest");
-      alreadyCarrying.addSuppressed(new StreamTailMarker(VStream.of(99)));
-
-      assertThat(failsAt(2).mapError(_ -> alreadyCarrying).recover(_ -> -1).toList().run())
           .containsExactly(10, -1, 30);
     }
 

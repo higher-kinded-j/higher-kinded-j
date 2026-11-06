@@ -334,13 +334,11 @@ public final class VStreamReactive {
             try {
               readWhileDemanded();
             } catch (Throwable t) {
+              // A cancel meanwhile closes the stream itself, the rest after a failed element
+              // included
               if (cancelled.compareAndSet(false, true)) {
                 Closing.runAfterFailure(closeRemaining(), t);
-                Closing.closeMarkedRest(t);
                 subscriber.onError(t);
-              } else {
-                // A cancel closes the stream, but not the rest a failed mapTask task carries
-                Closing.closeMarkedRest(t);
               }
             } finally {
               reading.unlock();
@@ -367,6 +365,11 @@ public final class VStreamReactive {
             subscriber.onNext(e.value());
           }
           case VStream.Step.Skip<A> s -> current = s.tail();
+          case VStream.Step.Fail<A> failed -> {
+            // The drain's catch closes the stream after the failed element and signals onError
+            current = failed.tail();
+            throw failed.error();
+          }
           case VStream.Step.Done<A> _ -> {
             cancelled.set(true);
             subscriber.onComplete();
@@ -388,6 +391,10 @@ public final class VStreamReactive {
             return;
           }
           case VStream.Step.Skip<A> s -> current = s.tail();
+          case VStream.Step.Fail<A> failed -> {
+            current = failed.tail();
+            throw failed.error();
+          }
           case VStream.Step.Emit<A> e -> {
             // Buffer this element for future demand
             current = DerivedStream.concatContinuing(VStream.of(e.value()), e.tail());
@@ -429,6 +436,7 @@ public final class VStreamReactive {
       return switch (step) {
         case VStream.Step.Emit<A> e -> e.tail();
         case VStream.Step.Skip<A> s -> s.tail();
+        case VStream.Step.Fail<A> failed -> failed.tail();
         case VStream.Step.Done<A> _ -> current;
       };
     }

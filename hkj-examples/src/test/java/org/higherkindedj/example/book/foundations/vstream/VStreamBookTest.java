@@ -70,6 +70,10 @@ class VStreamBookTest {
               steps.add("Skip" + fetched);
               yield new VStream.Step.Skip<>(recording(skip.tail(), feed, steps));
             }
+            case VStream.Step.Fail<A> failed -> {
+              steps.add("Fail " + failed.error().getMessage() + fetched);
+              yield new VStream.Step.Fail<>(failed.error(), recording(failed.tail(), feed, steps));
+            }
             case VStream.Step.Done<A> done -> {
               steps.add("Done");
               yield done;
@@ -236,18 +240,17 @@ class VStreamBookTest {
     }
 
     @Test
-    @DisplayName("an operator between mapTask and recover is left out after the recovery")
+    @DisplayName(
+        "an operator between mapTask and recover applies to the elements after the failure")
     void operatorBetweenMapTaskAndRecover() {
-      List<Integer> recovered =
+      VStream<Integer> odd =
           VStream.of(1, 2, 3, 4, 5, 6)
               .mapTask(n -> n == 2 ? VTask.fail(new IOException("line 2")) : VTask.succeed(n))
-              .filter(n -> n % 2 == 1)
-              .recover(error -> -1)
-              .toList()
-              .run();
+              .filter(n -> n % 2 == 1);
 
-      // 4 and 6 come from mapTask's rest, past the filter, as the page's warning says
-      assertThat(recovered).containsExactly(1, -1, 3, 4, 5, 6);
+      // The filter still tests 4 and 6, and take counts the failed element, as the page's note says
+      assertThat(odd.recover(error -> -1).toList().run()).containsExactly(1, -1, 3, 5);
+      assertThat(odd.take(3).recover(error -> -1).toList().run()).containsExactly(1, -1, 3);
     }
   }
 
