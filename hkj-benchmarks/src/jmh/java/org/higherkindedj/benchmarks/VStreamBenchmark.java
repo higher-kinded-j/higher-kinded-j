@@ -232,6 +232,33 @@ public class VStreamBenchmark {
     return result.toList().run();
   }
 
+  // ========== Element Tasks and Recovery ==========
+
+  /** mapTask execution: a task for each element, none of which fails. */
+  @Benchmark
+  public List<Integer> mapTaskExecution() {
+    return prebuiltStream.mapTask(VTask::succeed).toList().run();
+  }
+
+  /**
+   * A task that fails at every fifth element, through a map and a filter, recovered: the recovery
+   * goes on through both operators.
+   */
+  @Benchmark
+  public List<Integer> recoverThroughOperators() {
+    return prebuiltStream
+        .mapTask(
+            x ->
+                x % 5 == 0
+                    ? VTask.<Integer>fail(new IllegalStateException("element"))
+                    : VTask.succeed(x))
+        .map(x -> x * 2)
+        .filter(x -> x % 3 != 0)
+        .recover(_ -> -1)
+        .toList()
+        .run();
+  }
+
   // ========== Comparison Baselines (Raw Java Stream) ==========
 
   /** Baseline: raw Java Stream map + collect. */

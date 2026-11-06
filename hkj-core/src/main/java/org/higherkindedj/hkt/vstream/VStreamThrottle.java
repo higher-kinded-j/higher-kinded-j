@@ -74,33 +74,43 @@ public final class VStreamThrottle {
     return new DerivedStream<A, A>(stream) {
       @Override
       public VTask<Step<A>> pull() {
-        return () -> {
-          Step<A> step = Executing.executed(upstream.pull());
-          if (step instanceof Step.Done) {
-            return step;
-          }
-          if (step instanceof Step.Skip<A> skip) {
-            return new Step.Skip<>(throttleWithState(skip.tail(), maxElements, windowNanos, state));
-          }
+        return () ->
+            switch (Executing.executed(upstream.pull())) {
+              case Step.Emit<A> emit -> {
+                WindowState next = paced(emit.tail());
+                yield new Step.Emit<>(
+                    emit.value(), throttleWithState(emit.tail(), maxElements, windowNanos, next));
+              }
+              case Step.Skip<A> skip ->
+                  new Step.Skip<>(throttleWithState(skip.tail(), maxElements, windowNanos, state));
+              // A failed element holds its place, so it is paced as an element is
+              case Step.Fail<A> failed -> {
+                WindowState next = paced(failed.tail());
+                yield new Step.Fail<>(
+                    failed.error(),
+                    throttleWithState(failed.tail(), maxElements, windowNanos, next));
+              }
+              case Step.Done<A> done -> done;
+            };
+      }
 
-          Step.Emit<A> emit = (Step.Emit<A>) step;
-          long now = System.nanoTime();
-          WindowState next;
-          if (state.emitted() == 0 || now - state.windowStart() >= windowNanos) {
-            // A new window, opened by this emission
-            next = new WindowState(now, 1);
-          } else if (state.emitted() >= maxElements) {
-            // The window is full: wait for it to end, then start the next with this emission
-            waitHolding(Duration.ofNanos(windowNanos - (now - state.windowStart())), emit.tail());
-            next = new WindowState(System.nanoTime(), 1);
-          } else {
-            // Within the window and under the limit
-            next = new WindowState(state.windowStart(), state.emitted() + 1);
-          }
-
-          return new Step.Emit<>(
-              emit.value(), throttleWithState(emit.tail(), maxElements, windowNanos, next));
-        };
+      /**
+       * Waits, if the window is full, before passing on an element whose rest only this step holds,
+       * and gives the window its tail goes on with.
+       */
+      private WindowState paced(VStream<A> rest) throws InterruptedException {
+        long now = System.nanoTime();
+        if (state.emitted() == 0 || now - state.windowStart() >= windowNanos) {
+          // A new window, opened by this emission
+          return new WindowState(now, 1);
+        }
+        if (state.emitted() >= maxElements) {
+          // The window is full: wait for it to end, then start the next with this emission
+          waitHolding(Duration.ofNanos(windowNanos - (now - state.windowStart())), rest);
+          return new WindowState(System.nanoTime(), 1);
+        }
+        // Within the window and under the limit
+        return new WindowState(state.windowStart(), state.emitted() + 1);
       }
     };
   }
@@ -124,19 +134,20 @@ public final class VStreamThrottle {
     return new DerivedStream<A, A>(stream) {
       @Override
       public VTask<Step<A>> pull() {
-        return () -> {
-          Step<A> step = Executing.executed(upstream.pull());
-          if (step instanceof Step.Done) {
-            return step;
-          }
-          if (step instanceof Step.Skip<A> skip) {
-            return new Step.Skip<>(metered(skip.tail(), interval));
-          }
-
-          Step.Emit<A> emit = (Step.Emit<A>) step;
-          waitHolding(interval, emit.tail());
-          return new Step.Emit<>(emit.value(), metered(emit.tail(), interval));
-        };
+        return () ->
+            switch (Executing.executed(upstream.pull())) {
+              case Step.Emit<A> emit -> {
+                waitHolding(interval, emit.tail());
+                yield new Step.Emit<>(emit.value(), metered(emit.tail(), interval));
+              }
+              case Step.Skip<A> skip -> new Step.Skip<>(metered(skip.tail(), interval));
+              // A failed element holds its place, so it waits as an element does
+              case Step.Fail<A> failed -> {
+                waitHolding(interval, failed.tail());
+                yield new Step.Fail<>(failed.error(), metered(failed.tail(), interval));
+              }
+              case Step.Done<A> done -> done;
+            };
       }
     };
   }

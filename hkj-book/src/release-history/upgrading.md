@@ -1,6 +1,16 @@
 # Upgrading
 
-Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.6.0](#removals-in-060) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.7.0](#removals-in-070) and [Removals in 0.6.0](#removals-in-060) list the APIs due to go in those releases, with the recipe that migrates each, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+
+---
+
+## Removals in 0.7.0 {#removals-in-070}
+
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build.
+
+| Deprecated | Since | Use instead | Recipe |
+|---|---|---|---|
+| `VStream.closeAfterFailure(stream, failure)` | 0.6.0 | `stream.close()`; a failed `mapTask` task gives a `Step.Fail`, whose tail you close as an `Emit`'s | By hand |
 
 ---
 

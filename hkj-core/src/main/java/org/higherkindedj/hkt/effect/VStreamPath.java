@@ -500,7 +500,9 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Recovers from stream errors by providing a fallback value.
    *
-   * <p>If pulling an element fails, the recovery function produces a replacement.
+   * <p>After a failed {@link #mapTask} task, the recovery value takes the failed element's place,
+   * and the stream goes on from the next element. After any other failure, the stream ends after
+   * the recovery value. {@link VStream#recover} describes it in full.
    *
    * @param recovery the recovery function; must not be null, and must not return null
    * @return a new VStreamPath with error recovery
@@ -572,12 +574,14 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
    *
    * <ul>
    *   <li>The stream completes normally
-   *   <li>An error occurs during pulling
+   *   <li>An error occurs during pulling; after a failed {@link #mapTask} task further up, when the
+   *       stream after the failure ends or is closed
    *   <li>The stream stops early, through {@link #take(long)} or {@link #headOption()} for example,
    *       or is closed
    * </ul>
    *
-   * <p>Delegates to {@link VStream#onFinalize(VTask)}.
+   * <p>Delegates to {@link VStream#onFinalize(VTask)}, which describes when it runs after a
+   * failure.
    *
    * @param finalizer the VTask to execute on stream completion or error; must not be null
    * @return a new VStreamPath with the finaliser attached
