@@ -200,6 +200,7 @@ class CardinalityTest {
     }
 
     @Test
+    @DisplayName("ApacheHashMultiSetGenerator should have ZERO_OR_MORE cardinality")
     void apacheHashMultiSetGeneratorCardinality() {
       assertEquals(Cardinality.ZERO_OR_MORE, new ApacheHashMultiSetGenerator().getCardinality());
     }

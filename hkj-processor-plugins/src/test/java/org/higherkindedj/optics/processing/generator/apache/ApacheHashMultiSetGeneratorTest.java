@@ -20,22 +20,22 @@ public class ApacheHashMultiSetGeneratorTest {
         JavaFileObjects.forSourceString(
             "com.example.Article",
             """
-                                    package com.example;
+                       package com.example;
 
-                                    import org.higherkindedj.optics.annotations.GenerateTraversals;
-                                    import org.apache.commons.collections4.multiset.HashMultiSet;
+                       import org.higherkindedj.optics.annotations.GenerateTraversals;
+                       import org.apache.commons.collections4.multiset.HashMultiSet;
 
-                                    @GenerateTraversals
-                                    public record Article(long id, HashMultiSet<String> keywords) {}
-                                    """);
+                       @GenerateTraversals
+                       public record Article(long id, HashMultiSet<String> keywords) {}
+                       """);
 
     final String expectedBody =
         """
-                        final var sourceList = new ArrayList<>(source.keywords());
-                        final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-                        final var effectOfConvertBack = applicative.map(newList -> new HashMultiSet<>(newList), effectOfList);
-                        return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
-                        """;
+               final var sourceList = new ArrayList<>(source.keywords());
+               final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
+               final var effectOfConvertBack = applicative.map(newList -> new HashMultiSet<>(newList), effectOfList);
+               return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
+               """;
 
     var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
 
