@@ -104,6 +104,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 - **Of two withers for one getter, `@ImportOptics` sets through the capitalised spelling** ([#1148](https://github.com/higher-kinded-j/higher-kinded-j/issues/1148)): the lens for a class with both `withEMail` and `witheMail` beside `eMail()` set through whichever the class declared first. It now sets through `withEMail`, and a note names `witheMail`, which a spec interface's `@Wither` can choose.
 - **An optic interpreter that wraps each result in `Free.pure` skips the operation's continuation** ([#1154](https://github.com/higher-kinded-j/higher-kinded-j/issues/1154)): a program from `OpticPrograms` runs as before, but a function mapped onto an `OpticOp`, through `OpticOpFunctor` or `Free.translate`, is not applied. Hand the result to `op.k()` and return what it gives.
+- **A null optic, modifier or predicate fails when the program is built** ([#1315](https://github.com/higher-kinded-j/higher-kinded-j/issues/1315)). Each `OpticOp` record throws `NullPointerException`, and so does an `OpticPrograms` factory that builds one. It used to fail only when an interpreter ran the program. The validating interpreter no longer reports one as a failed operation. `set` and `setAll` still accept a null new value.
 
 #### Effect Paths {#runtime-effect-paths}
 
