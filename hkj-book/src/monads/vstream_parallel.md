@@ -172,16 +172,18 @@ Then it closes each source that had not finished, so each source's finalisers ru
 failing stops the merge the same way. A source finaliser that fails while the merge closes is
 dropped, since the merge has already stopped.
 
-### parCollect: Parallel Batch Collection
+### parCollect (deprecated) {#parcollect-parallel-batch-collection}
 
-Terminal operation that collects all elements using parallel batch processing.
-Delegates to `parEvalMap` with an identity function, pulling elements in batches of
-`batchSize` that are processed concurrently:
+`parCollect(stream, batchSize)` is deprecated for removal in 0.7.0. It gives the list
+`stream.toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel.
+Do the work you want run in parallel inside the task that `parEvalMap`'s function returns,
+with `VTask.of`, then collect with `toList()`:
 
 <!-- verify -->
 ```java
-VTask<List<Integer>> result = VStreamPar.parCollect(stream, 10);
-List<Integer> collected = result.run();
+VTask<List<Integer>> doubled =
+    VStreamPar.parEvalMap(stream, 10, n -> VTask.of(() -> n * 2)).toList();
+List<Integer> collected = doubled.run();
 ```
 
 ---

@@ -30,9 +30,8 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link #parEvalMapUnordered(VStream, int, Function)} - Apply effectful function with
  *       bounded concurrency, emitting each result as its task completes
  *   <li>{@link #parEvalFlatMap(VStream, int, Function)} - Apply stream-producing function with
- *       bounded concurrency, interleaving results
+ *       bounded concurrency, reading the streams it gives one after another, in order
  *   <li>{@link #merge(List)} - Merge multiple streams concurrently
- *   <li>{@link #parCollect(VStream, int)} - Collect all elements in parallel batches
  * </ul>
  *
  * <p><b>Backpressure model:</b> VStream is pull-based; the consumer drives evaluation by requesting
@@ -69,10 +68,13 @@ import org.jspecify.annotations.Nullable;
  * <p><b>Concurrency guidance:</b>
  *
  * <ul>
- *   <li>For I/O-bound tasks (API calls, database queries): use higher concurrency (8-64)
- *   <li>For CPU-bound tasks: use concurrency matching available processors
- *   <li>For mixed workloads: start with 4-8 and tune based on benchmarks
- *   <li>Concurrency of 1 is equivalent to sequential {@code mapTask}
+ *   <li>For tasks that wait on I/O, such as calls to another service: the number of calls that
+ *       service accepts at once, since virtual threads make the waiting cheap
+ *   <li>For tasks that compute: no more than {@code Runtime.getRuntime().availableProcessors()},
+ *       which is how many virtual threads run at once by default
+ *   <li>A concurrency of 1 runs one task at a time, as {@code mapTask} does, but each on a virtual
+ *       thread. Unlike {@code mapTask}'s, a failed task ends the stream, so a {@link
+ *       VStream#recover} after it ends there
  * </ul>
  *
  * @see VStream
@@ -516,8 +518,8 @@ public final class VStreamPar {
   }
 
   /**
-   * Collects all elements from a stream using parallel batch processing. Elements are pulled in
-   * batches of {@code batchSize} and each batch is processed concurrently via {@link #parEvalMap}.
+   * Collects all elements from a stream, giving the list {@link VStream#toList()} gives. The
+   * elements are read one at a time, a batch of {@code batchSize} between checks for an interrupt.
    *
    * <p>This is a terminal operation that produces a {@link VTask} containing the collected list.
    * Elements in the result list are in the same order as in the source stream.
@@ -527,19 +529,26 @@ public final class VStreamPar {
    *
    * @param <A> The type of elements in the stream.
    * @param stream The source stream. Must not be null.
-   * @param batchSize The number of elements to pull and process concurrently per batch. Must be
+   * @param batchSize The number of elements to read between checks for an interrupt. Must be
    *     positive.
    * @return A {@link VTask} that produces a list of all elements.
    * @throws NullPointerException if stream is null.
    * @throws IllegalArgumentException if batchSize is not positive.
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
+   *     so the source's elements are produced one after another whatever the batch size, and this
+   *     runs nothing in parallel. Use {@link VStream#toList()}, which gives the same list. To run
+   *     each element's work in parallel, do the work inside the task that the function you give
+   *     {@link #parEvalMap} or {@link #parEvalMapUnordered} returns, as in {@code n -> VTask.of(()
+   *     -> work(n))}, and collect with {@code toList()}. Unlike this method, {@code toList()} does
+   *     not stop for an interrupt between pulls, so bound an endless stream whose pulls never
+   *     block, with {@link VStream#take(long)}, before you time it out.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public static <A> VTask<List<A>> parCollect(VStream<A> stream, int batchSize) {
     Objects.requireNonNull(stream, "stream must not be null");
     if (batchSize <= 0) {
       throw new IllegalArgumentException("batchSize must be positive, got: " + batchSize);
     }
-
-    // Delegate to parEvalMap with identity, which genuinely processes each batch concurrently
     return parEvalMap(stream, batchSize, VTask::succeed).toList();
   }
 

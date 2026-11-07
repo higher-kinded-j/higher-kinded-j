@@ -1615,7 +1615,7 @@ public final class PathOps {
   }
 
   /**
-   * Collects all elements from a VStreamPath in parallel batches.
+   * Collects all elements from a VStreamPath, giving the list {@link VStreamPath#toList()} gives.
    *
    * <p>This is a terminal operation that produces a VTaskPath containing the collected list.
    * Elements in the result are in the same order as the source stream.
@@ -1624,12 +1624,23 @@ public final class PathOps {
    * VStreamPath#take(long)} first.
    *
    * @param stream the VStreamPath to collect; must not be null
-   * @param batchSize the number of elements per batch; must be positive
+   * @param batchSize the number of elements to read between checks for an interrupt; must be
+   *     positive
    * @param <A> the element type
    * @return a VTaskPath that produces the list of all elements
    * @throws NullPointerException if stream is null
    * @throws IllegalArgumentException if batchSize is not positive
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
+   *     so this runs nothing in parallel. Use {@link VStreamPath#toList()}, which gives the same
+   *     list. To run each element's work in parallel, do the work inside the task that the function
+   *     you give {@link VStreamPath#parEvalMap} or {@link VStreamPath#parEvalMapUnordered} returns,
+   *     as in {@code n -> VTask.of(() -> work(n))}, and collect with {@code toList()}. Unlike this
+   *     method, {@code toList()} does not stop for an interrupt between pulls, so bound an endless
+   *     stream whose pulls never block, with {@link VStreamPath#take(long)}, before you time it
+   *     out.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // delegates to the deprecated method until its removal
   public static <A> VTaskPath<List<A>> parCollectVStream(VStreamPath<A> stream, int batchSize) {
     Objects.requireNonNull(stream, "stream must not be null");
     return stream.parCollect(batchSize);

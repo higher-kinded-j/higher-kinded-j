@@ -230,25 +230,29 @@ public class TutorialVStreamParallel {
     }
 
     /**
-     * Exercise 8: Parallel collect
+     * Exercise 8: Collect the results of parallel work
      *
-     * <p>VStreamPar.parCollect() is a terminal operation that collects all elements in parallel
-     * batches. It returns a VTask containing the collected list.
+     * <p>A stream is read one pull at a time, so collecting it cannot run anything in parallel. The
+     * parallel part is the work done for each element. Do it inside the task parEvalMap's function
+     * returns, with VTask.of, so it runs on the task's own thread: VTask.succeed(n * 10) would do
+     * the multiplication before the task starts. Then collect with toList(), which returns a VTask
+     * containing the list.
      *
-     * <p>Task: Use parCollect with batchSize=3 to collect all elements.
+     * <p>Task: Use parEvalMap with concurrency 3 to multiply each number by 10, then collect the
+     * results.
      *
-     * <p>Hint: VStreamPar.parCollect(stream, 3).run()
+     * <p>Hint: VStreamPar.parEvalMap(numbers, 3, n -> VTask.of(() -> n * 10)).toList().run()
      */
     @Test
-    @DisplayName("Exercise 8: Parallel collect")
-    void exercise8_parallelCollect() {
+    @DisplayName("Exercise 8: Collect the results of parallel work")
+    void exercise8_collectParallelWork() {
       // Given
       // VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5);
 
-      // TODO: Use parCollect to collect all elements
+      // TODO: Multiply each number by 10 with parEvalMap, then collect the results
       List<Integer> result = answerRequired();
 
-      assertThat(result).containsExactly(1, 2, 3, 4, 5);
+      assertThat(result).containsExactly(10, 20, 30, 40, 50);
     }
   }
 
@@ -264,7 +268,7 @@ public class TutorialVStreamParallel {
    *   <li>How to use mapChunked for batch transformations
    *   <li>How to use chunkWhile for grouping consecutive elements
    *   <li>How to merge multiple streams concurrently
-   *   <li>How to use parCollect for parallel terminal collection
+   *   <li>How to collect the results of parallel work with toList
    * </ul>
    *
    * <p>See the solution file TutorialVStreamParallel_Solution.java for answers.

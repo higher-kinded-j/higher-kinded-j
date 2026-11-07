@@ -1,0 +1,32 @@
+# Higher-Kinded-J 0.7.0 Migration Recipes
+# MigrateDeprecationsTo0_7_0 rewrites usages of APIs deprecated in 0.6.0 for
+# removal in 0.7.0 to their replacements: VStreamPar.parCollect(stream, n),
+# VStreamPath.parCollect(n) and PathOps.parCollectVStream(path, n) become
+# toList() on the stream.
+#
+# Run it with hkj-openrewrite 0.6.x before the project moves to 0.7.0: it
+# matches the deprecated signatures, which 0.7.0 removes. toList() compiles
+# against 0.4.x and later.
+#
+# Usage:
+#   rewrite {
+#     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0")
+#   }
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0
+displayName: Migrate Higher-Kinded-J APIs deprecated for removal in 0.7.0
+description: >-
+  Rewrites call sites of Higher-Kinded-J methods deprecated in 0.6.0 for
+  removal in 0.7.0 to their replacements. VStreamPar.parCollect(stream,
+  batchSize), VStreamPath.parCollect(batchSize) and
+  PathOps.parCollectVStream(path, batchSize) become toList() on the stream,
+  which gives the same list. A call whose batch size is computed is marked
+  rather than rewritten, since toList() would drop the computation.
+tags:
+  - higher-kinded-j
+  - migration
+  - deprecation
+recipeList:
+  - org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe
