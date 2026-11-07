@@ -496,6 +496,18 @@ int value = answer.get();
 
 ---
 
+## ListPath
+
+**Definition:** A path over `List<A>` with the usual list monad behaviour. `via` flat-maps each element and joins the results. `zipWith` pairs elements by position, so the shorter list sets the length: `[1, 2]` zipped with `[a, b]` gives `[(1, a), (2, b)]`. That is the difference from `NonDetPath`, whose `zipWith` takes every combination. `run()` returns the `List`.
+
+**Factories:** `Path.listPath(list)`, `Path.listPath(a, b, ...)`, `Path.listPathPure(value)`, `Path.listPathEmpty()` and `Path.listPathRange(from, to)`.
+
+**Operations:** `map`, `via`, `filter`, `take`, `drop`, `foldLeft`, `foldMap` and `headOption()`.
+
+**Related:** [Cheat Sheet](../cheatsheet.md), [Path](#path), [NonDetPath](#nondetpath), [StreamPath](#streampath), [Foldable and Traverse](../functional/foldable_and_traverse.md)
+
+---
+
 ## mapK
 
 **Definition:** A method on each effect algebra record that composes the continuation function with a new transformation. The generated Functor delegates to `mapK` rather than using unsafe casts. Analogous to `Stream.map` but applied to a single instruction rather than a collection.
@@ -523,6 +535,18 @@ record ReadLine<A>(Function<String, A> k) implements ConsoleOp<A> {
 **Factories:** `Path.just(value)`, `Path.nothing()`, and `Path.maybe(value)` for either a nullable value or an existing `Maybe`.
 
 **Related:** [MaybePath documentation](../effect/path_maybe.md), [Path](#path), [Maybe](data-effects.md#maybe), [OptionalPath](#optionalpath), [EitherPath](#eitherpath)
+
+---
+
+## NonDetPath
+
+**Definition:** A path over `List<A>` read as a computation with several possible results. `zipWith` gives every combination (a Cartesian product), where `ListPath.zipWith` pairs elements by position: `[1, 2]` zipped with `[a, b]` gives `[(1, a), (1, b), (2, a), (2, b)]`. `run()` returns the `List`. With `when()` guards in a `ForPath` comprehension, it suits search problems.
+
+**Factories:** `Path.list(list)`, `Path.list(a, b, ...)`, `Path.listPure(value)` and `Path.listEmpty()`.
+
+**Operations:** `map`, `via`, `filter`, `take`, `drop`, `concat`, `foldLeft` and `foldMap`.
+
+**Related:** [NonDetPath examples](../effect/forpath_examples.md#nondetpath-nondeterministic-choice), [Path](#path), [ListPath](#listpath)
 
 ---
 
@@ -721,6 +745,18 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 
 ---
 
+## StreamPath
+
+**Definition:** A path over `Stream<A>` that can be run more than once: it keeps a supplier and builds a fresh stream for each terminal operation. Steps such as `map` and `filter` run only then. `Path.stream(stream)` reads the stream into a list at once, so start an infinite sequence with `Path.streamIterate` and limit it with `take`. `run()` returns the `Stream`.
+
+**Factories:** `Path.stream(stream)`, `Path.streamFromList(list)`, `Path.streamPure(value)`, `Path.streamEmpty()` and `Path.streamIterate(seed, f)`.
+
+**Operations:** `map`, `via`, `filter`, `take`, `drop`, `sorted`, `foldLeft`, `foldMap`, `toList()` and `count()`.
+
+**Related:** [Cheat Sheet](../cheatsheet.md), [Path](#path), [ListPath](#listpath), [VStreamPath](#vstreampath)
+
+---
+
 ## TrampolinePath
 
 **Definition:** A path over `Trampoline<A>`: a stack-safe recursive computation. Deep recursion runs in a loop instead of growing the call stack. `run()` returns the value.
@@ -790,6 +826,18 @@ VTask<Either<OrderError, OrderResult>> carrier = process(req).run();    // run i
 **Two channels, kept apart:** a business failure travels in the value channel as `Left`, whilst an unexpected defect stays on the `VTask` channel. The outcome-aware structured-concurrency combinators (`firstSuccess`, `allSucceed`, `allSucceedAccumulating`, `withTimeout`, `bracketOutcome`) preserve that split, and the `with*` resilience combinators are railway-aware.
 
 **Related:** [VResultPath](../effect/path_vresult.md), [Path](#path), [Railway-Oriented Programming](#railway-oriented-programming), [Either](data-effects.md#either), [Resilience Combinators](concurrency.md#resilience-combinators)
+
+---
+
+## VStreamPath
+
+**Definition:** A path over `VStream<A>`: a lazy stream, pulled one element at a time on virtual threads. Terminal operations such as `toList()` return a `VTaskPath`, so the result is deferred too. `run()` returns the underlying `VStream`.
+
+**Factories:** `Path.vstream(vstream)`, `Path.vstreamOf(a, b, ...)`, `Path.vstreamFromList(list)`, `Path.vstreamRange(from, to)` and `Path.vstreamIterate(seed, f)`.
+
+**Operations:** `map`, `via`, `filter`, `take`, `parEvalMap(n, f)`, `chunk(size)` and `toList()`.
+
+**Related:** [VStreamPath documentation](../effect/path_vstream.md), [Path](#path), [StreamPath](#streampath), [VTaskPath](#vtaskpath), [VStream](../monads/vstream.md)
 
 ---
 
