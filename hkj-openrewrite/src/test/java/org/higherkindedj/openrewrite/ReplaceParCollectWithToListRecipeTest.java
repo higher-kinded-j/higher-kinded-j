@@ -204,6 +204,27 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
     }
 
     @Test
+    @DisplayName("a primitive batch-size parameter is rewritten, since reading it cannot throw")
+    void primitiveParameter() {
+      rewriteRun(
+          java(
+              usage(
+                  STREAM_IMPORTS,
+                  """
+                      VTask<List<Integer>> all(VStream<Integer> orders, int batch) {
+                          return VStreamPar.parCollect(orders, batch);
+                      }
+                  """),
+              usage(
+                  STREAM_IMPORTS_WITHOUT_PAR,
+                  """
+                      VTask<List<Integer>> all(VStream<Integer> orders, int batch) {
+                          return orders.toList();
+                      }
+                  """)));
+    }
+
+    @Test
     @DisplayName("a conditional or a cast stream is put in parentheses")
     void parenthesesWhereNeeded() {
       rewriteRun(
@@ -291,7 +312,7 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
   class Marked {
 
     @Test
-    @DisplayName("a computed batch size")
+    @DisplayName("a batch size whose evaluation may do something or throw")
     void computedBatchSize() {
       rewriteRun(
           java(
@@ -315,6 +336,14 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
                       VTask<List<Integer>> again(VStream<Integer> orders) {
                           return VStreamPar.parCollect(orders, config().batch);
                       }
+
+                      VTask<List<Integer>> boxed(VStream<Integer> orders, Integer size) {
+                          return VStreamPar.parCollect(orders, size);
+                      }
+
+                      VTask<List<Integer>> through(VStream<Integer> orders, Usage other) {
+                          return VStreamPar.parCollect(orders, other.batch);
+                      }
                   """),
               usage(
                   STREAM_IMPORTS,
@@ -330,11 +359,19 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
                       int batch = 4;
 
                       VTask<List<Integer>> all(VStream<Integer> orders) {
-                          return /*~~(Not rewritten: the batch size is computed, and toList() takes none; keep what computing it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, size());
+                          return /*~~(Not rewritten: evaluating the batch size may do something or throw, such as a call or unboxing an Integer, and toList() takes none; keep what it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, size());
                       }
 
                       VTask<List<Integer>> again(VStream<Integer> orders) {
-                          return /*~~(Not rewritten: the batch size is computed, and toList() takes none; keep what computing it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, config().batch);
+                          return /*~~(Not rewritten: evaluating the batch size may do something or throw, such as a call or unboxing an Integer, and toList() takes none; keep what it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, config().batch);
+                      }
+
+                      VTask<List<Integer>> boxed(VStream<Integer> orders, Integer size) {
+                          return /*~~(Not rewritten: evaluating the batch size may do something or throw, such as a call or unboxing an Integer, and toList() takes none; keep what it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, size);
+                      }
+
+                      VTask<List<Integer>> through(VStream<Integer> orders, Usage other) {
+                          return /*~~(Not rewritten: evaluating the batch size may do something or throw, such as a call or unboxing an Integer, and toList() takes none; keep what it does, then call toList() on the stream)~~>*/VStreamPar.parCollect(orders, other.batch);
                       }
                   """)));
     }
@@ -390,7 +427,7 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
     }
 
     @Test
-    @DisplayName("a null or lambda stream, which cannot be the receiver of toList()")
+    @DisplayName("a null or lambda stream, or a conditional with one, which cannot be a receiver")
     void noReceiver() {
       rewriteRun(
           java(
@@ -404,6 +441,10 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
                       VTask<List<Integer>> lambda() {
                           return VStreamPar.parCollect(() -> VTask.succeed(new VStream.Step.Done<>()), 4);
                       }
+
+                      VTask<List<Integer>> branch(boolean none, VStream<Integer> orders) {
+                          return VStreamPar.parCollect(none ? () -> VTask.succeed(new VStream.Step.Done<>()) : orders, 4);
+                      }
                   """),
               usage(
                   STREAM_IMPORTS,
@@ -414,6 +455,39 @@ class ReplaceParCollectWithToListRecipeTest implements RewriteTest {
 
                       VTask<List<Integer>> lambda() {
                           return /*~~(Not rewritten: a null, a lambda or a method reference cannot be the receiver of toList())~~>*/VStreamPar.parCollect(() -> VTask.succeed(new VStream.Step.Done<>()), 4);
+                      }
+
+                      VTask<List<Integer>> branch(boolean none, VStream<Integer> orders) {
+                          return /*~~(Not rewritten: a null, a lambda or a method reference cannot be the receiver of toList())~~>*/VStreamPar.parCollect(none ? () -> VTask.succeed(new VStream.Step.Done<>()) : orders, 4);
+                      }
+                  """)));
+    }
+
+    @Test
+    @DisplayName("a static parCollect called through an expression, which the rewrite would drop")
+    void throughAnExpression() {
+      rewriteRun(
+          java(
+              usage(
+                  STREAM_IMPORTS,
+                  """
+                      VStreamPar holder() {
+                          return null;
+                      }
+
+                      VTask<List<Integer>> all(VStream<Integer> orders) {
+                          return holder().parCollect(orders, 4);
+                      }
+                  """),
+              usage(
+                  STREAM_IMPORTS,
+                  """
+                      VStreamPar holder() {
+                          return null;
+                      }
+
+                      VTask<List<Integer>> all(VStream<Integer> orders) {
+                          return /*~~(Not rewritten: the static parCollect is called through an expression, which the rewrite would drop; keep what the expression does, then call toList() on the stream)~~>*/holder().parCollect(orders, 4);
                       }
                   """)));
     }

@@ -213,12 +213,14 @@ public class TutorialVStreamParallel_Solution {
     }
 
     /**
-     * Why this is idiomatic: the work for each element runs in {@code parEvalMap}'s function, up to
-     * three at once, and {@code toList()} collects the results in the elements' order. It returns a
-     * {@code VTask<List>}, so the collection itself is composable.
+     * Why this is idiomatic: the work for each element runs inside the task {@code parEvalMap}'s
+     * function returns, up to three at once, and {@code toList()} collects the results in the
+     * elements' order. It returns a {@code VTask<List>}, so the collection itself is composable.
      *
-     * <p>Common wrong attempt: reach for a parallel collect. A stream is read one pull at a time,
-     * so collecting it runs nothing in parallel; only the work given to {@code parEvalMap} does.
+     * <p>Common wrong attempts: reach for a parallel collect, or write {@code VTask.succeed(n *
+     * 10)}. A stream is read one pull at a time, so collecting it runs nothing in parallel, and
+     * {@code VTask.succeed} takes a value already computed, so the multiplication runs before the
+     * task starts. Only the work inside {@code VTask.of} runs on the task's own thread.
      */
     @Test
     @DisplayName("Exercise 8: Collect the results of parallel work")
@@ -226,7 +228,7 @@ public class TutorialVStreamParallel_Solution {
       VStream<Integer> numbers = VStream.of(1, 2, 3, 4, 5);
 
       List<Integer> result =
-          VStreamPar.parEvalMap(numbers, 3, n -> VTask.succeed(n * 10)).toList().run();
+          VStreamPar.parEvalMap(numbers, 3, n -> VTask.of(() -> n * 10)).toList().run();
 
       assertThat(result).containsExactly(10, 20, 30, 40, 50);
     }

@@ -233,13 +233,15 @@ public class TutorialVStreamParallel {
      * Exercise 8: Collect the results of parallel work
      *
      * <p>A stream is read one pull at a time, so collecting it cannot run anything in parallel. The
-     * parallel part is the work done for each element: put it in parEvalMap's function, then
-     * collect with toList(), which returns a VTask containing the list.
+     * parallel part is the work done for each element. Do it inside the task parEvalMap's function
+     * returns, with VTask.of, so it runs on the task's own thread: VTask.succeed(n * 10) would do
+     * the multiplication before the task starts. Then collect with toList(), which returns a VTask
+     * containing the list.
      *
      * <p>Task: Use parEvalMap with concurrency 3 to multiply each number by 10, then collect the
      * results.
      *
-     * <p>Hint: VStreamPar.parEvalMap(numbers, 3, n -> VTask.succeed(n * 10)).toList().run()
+     * <p>Hint: VStreamPar.parEvalMap(numbers, 3, n -> VTask.of(() -> n * 10)).toList().run()
      */
     @Test
     @DisplayName("Exercise 8: Collect the results of parallel work")

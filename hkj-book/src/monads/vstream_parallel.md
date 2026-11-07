@@ -176,12 +176,13 @@ dropped, since the merge has already stopped.
 
 `parCollect(stream, batchSize)` is deprecated for removal in 0.7.0. It gives the list
 `stream.toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel.
-Put the work you want run in parallel in `parEvalMap`'s function, then collect with `toList()`:
+Do the work you want run in parallel inside the task that `parEvalMap`'s function returns,
+with `VTask.of`, then collect with `toList()`:
 
 <!-- verify -->
 ```java
 VTask<List<Integer>> doubled =
-    VStreamPar.parEvalMap(stream, 10, n -> VTask.succeed(n * 2)).toList();
+    VStreamPar.parEvalMap(stream, 10, n -> VTask.of(() -> n * 2)).toList();
 List<Integer> collected = doubled.run();
 ```
 

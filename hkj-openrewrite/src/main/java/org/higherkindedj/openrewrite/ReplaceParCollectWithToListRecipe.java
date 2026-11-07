@@ -39,13 +39,17 @@ import org.openrewrite.marker.SearchResult;
  * instead, with what to do:
  *
  * <ul>
- *   <li>a batch size that is computed, since dropping it drops the computation, or that is not a
- *       positive literal, since {@code toList()} does not throw as {@code parCollect} did;
+ *   <li>a batch size whose evaluation may do something or throw, such as a call, unboxing an {@code
+ *       Integer} or reading a field through a variable, since dropping it drops what it does;
+ *   <li>a batch size written as zero, as a negative number or with a sign, since {@code toList()}
+ *       does not throw as {@code parCollect} did;
  *   <li>a stream argument whose type the call infers, such as {@code VStream.of(1, 2)} where a
  *       {@code VTask<List<Number>>} is wanted: as the receiver of {@code toList()} it would be
  *       inferred on its own, so write its type arguments, as in {@code VStream.<Number>of(1, 2)};
- *   <li>a stream argument that is {@code null}, a lambda or a method reference, which cannot be a
- *       receiver;
+ *   <li>a stream argument that is {@code null}, a lambda or a method reference, or a conditional
+ *       with such a branch, which cannot be a receiver;
+ *   <li>a static form called through an expression, such as {@code holder().parCollect(stream, 4)},
+ *       since the rewrite would drop the expression;
  *   <li>a method reference to one of the three, which has no {@code toList()} form to take its
  *       place: call {@code toList()} in a lambda.
  * </ul>
@@ -71,8 +75,9 @@ public class ReplaceParCollectWithToListRecipe extends Recipe {
               + "org.higherkindedj.hkt.effect.VStreamPath, int)");
 
   private static final String COMPUTED_BATCH_SIZE =
-      "Not rewritten: the batch size is computed, and toList() takes none; keep what computing it"
-          + " does, then call toList() on the stream";
+      "Not rewritten: evaluating the batch size may do something or throw, such as a call or"
+          + " unboxing an Integer, and toList() takes none; keep what it does, then call toList()"
+          + " on the stream";
   private static final String NOT_POSITIVE =
       "Not rewritten: parCollect throws IllegalArgumentException for a batch size that is not"
           + " positive, and toList() does not; call toList() on the stream if the exception is not"
@@ -82,6 +87,9 @@ public class ReplaceParCollectWithToListRecipe extends Recipe {
           + " in VStream.<Number>of(1, 2), then call toList() on it";
   private static final String NO_RECEIVER =
       "Not rewritten: a null, a lambda or a method reference cannot be the receiver of toList()";
+  private static final String THROUGH_AN_EXPRESSION =
+      "Not rewritten: the static parCollect is called through an expression, which the rewrite"
+          + " would drop; keep what the expression does, then call toList() on the stream";
   private static final String METHOD_REFERENCE =
       "Not rewritten: a method reference to a deprecated parCollect; call toList() on the stream"
           + " in a lambda instead";
@@ -126,7 +134,10 @@ public class ReplaceParCollectWithToListRecipe extends Recipe {
           return mi;
         }
 
-        Optional<String> reason = notRewritten(stream, batchSize, staticForm);
+        Optional<String> reason =
+            staticForm && mi.getSelect() != null && !isTypeName(mi.getSelect())
+                ? Optional.of(THROUGH_AN_EXPRESSION)
+                : notRewritten(stream, batchSize, staticForm);
         if (reason.isPresent()) {
           return SearchResult.found(mi, reason.get());
         }
@@ -173,9 +184,7 @@ public class ReplaceParCollectWithToListRecipe extends Recipe {
         }
         if (staticForm) {
           Expression bare = unwrapped(stream);
-          if (bare instanceof J.Literal
-              || bare instanceof J.Lambda
-              || bare instanceof J.MemberReference) {
+          if (cannotBeReceiver(bare)) {
             return Optional.of(NO_RECEIVER);
           }
           if (isInferred(bare)) {
@@ -185,12 +194,45 @@ public class ReplaceParCollectWithToListRecipe extends Recipe {
         return Optional.empty();
       }
 
-      /** A batch size whose evaluation has no effect, so dropping it changes nothing. */
+      /**
+       * A batch size whose evaluation has no effect and cannot throw, so dropping it changes
+       * nothing: a literal, or a primitive variable or static field. Unboxing an {@code Integer}
+       * throws on null, and reading a field through a variable throws when the variable is null.
+       */
       private boolean hasNoEffect(Expression batchSize) {
         return switch (batchSize) {
-          case J.Literal _, J.Identifier _ -> true;
-          case J.FieldAccess field -> hasNoEffect(field.getTarget());
+          case J.Literal _ -> true;
+          case J.Identifier name -> name.getType() instanceof JavaType.Primitive;
+          case J.FieldAccess field ->
+              field.getType() instanceof JavaType.Primitive && isTypeName(field.getTarget());
           case J.Unary unary -> unary.getExpression() instanceof J.Literal;
+          default -> false;
+        };
+      }
+
+      /**
+       * Whether the select of a static call names a type, as {@code VStreamPar.parCollect} does,
+       * rather than being an expression that the call evaluates and the rewrite would drop.
+       */
+      private boolean isTypeName(Expression select) {
+        return switch (select) {
+          case J.Identifier name -> name.getFieldType() == null;
+          case J.FieldAccess access -> access.getName().getFieldType() == null;
+          default -> false;
+        };
+      }
+
+      /**
+       * A stream argument that cannot be the receiver of {@code toList()}: a {@code null}, a lambda
+       * or a method reference, which take their type from the parameter, or a conditional with such
+       * a branch.
+       */
+      private boolean cannotBeReceiver(Expression stream) {
+        return switch (stream) {
+          case J.Literal _, J.Lambda _, J.MemberReference _ -> true;
+          case J.Ternary ternary ->
+              cannotBeReceiver(unwrapped(ternary.getTruePart()))
+                  || cannotBeReceiver(unwrapped(ternary.getFalsePart()));
           default -> false;
         };
       }

@@ -249,15 +249,16 @@ rewrite {
 }
 ```
 
-The recipe marks each call the rewrite could change or break, and `rewriteRun` leaves the mark in the source as a `/*~~(…)~~>*/` comment, to remove once the call is replaced:
+The recipe marks each call the rewrite could change or break with a `/*~~(…)~~>*/` comment, to remove once you replace the call:
 
-- **A batch size that is computed**, such as `parCollect(stream, size())`, since `toList()` takes none. Keep what computing it does, then call `toList()`.
-- **A batch size that is not positive**, for which `parCollect` throws `IllegalArgumentException` and `toList()` does not.
-- **A stream whose type the call infers**, such as `VStream.of(1, 2)` where a `VTask<List<Number>>` is wanted. As the receiver of `toList()`, it would be inferred on its own, as a `VStream<Integer>`. Write its type arguments, as in `VStream.<Number>of(1, 2)`.
-- **A `null`, a lambda or a method reference as the stream**, none of which can be the receiver of `toList()`.
+- **A batch size whose evaluation may do something or throw**, such as `size()`, an unboxed `Integer` or a field read through a variable, since `toList()` takes none. A literal, a primitive variable or a static field is rewritten.
+- **A batch size written as zero, as a negative number or with a sign**, for which `parCollect` throws `IllegalArgumentException` and `toList()` does not.
+- **A stream whose type the call infers**, such as `VStream.of(1, 2)` where a `VTask<List<Number>>` is wanted, which as a receiver would be a `VStream<Integer>`. Write its type arguments, as in `VStream.<Number>of(1, 2)`.
+- **A `null`, a lambda or a method reference as the stream**, or a conditional with one as a branch, none of which can be a receiver.
+- **A static `parCollect` called through an expression**, such as `holder().parCollect(stream, 4)`, whose expression the rewrite would drop.
 - **A method reference to `parCollect`**: call `toList()` in a lambda instead.
 
-`parCollect` reads an interrupt between batches, and `toList()` does not check for one between pulls. So bound an endless stream whose pulls never block, with `take`, before you put a timeout on its `toList()`.
+`parCollect` stops at an interrupt between batches, and `toList()` does not check for one between pulls. So bound an endless stream whose pulls never block with `take` before you time out its `toList()`.
 
 ---
 

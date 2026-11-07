@@ -1632,11 +1632,12 @@ public final class PathOps {
    * @throws IllegalArgumentException if batchSize is not positive
    * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
    *     so this runs nothing in parallel. Use {@link VStreamPath#toList()}, which gives the same
-   *     list. To run each element's work in parallel, put the work in the function you give {@link
-   *     VStreamPath#parEvalMap} or {@link VStreamPath#parEvalMapUnordered}, and collect with {@code
-   *     toList()}. Unlike this method, {@code toList()} does not stop for an interrupt between
-   *     pulls, so bound an endless stream whose pulls never block, with {@link
-   *     VStreamPath#take(long)}, before you time it out.
+   *     list. To run each element's work in parallel, do the work inside the task that the function
+   *     you give {@link VStreamPath#parEvalMap} or {@link VStreamPath#parEvalMapUnordered} returns,
+   *     as in {@code n -> VTask.of(() -> work(n))}, and collect with {@code toList()}. Unlike this
+   *     method, {@code toList()} does not stop for an interrupt between pulls, so bound an endless
+   *     stream whose pulls never block, with {@link VStreamPath#take(long)}, before you time it
+   *     out.
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   @SuppressWarnings("removal") // delegates to the deprecated method until its removal

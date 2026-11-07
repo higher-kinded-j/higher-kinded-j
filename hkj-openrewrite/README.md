@@ -268,10 +268,11 @@ Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their re
 `VStreamPar.parCollect(stream, batchSize)`, `VStreamPath.parCollect(batchSize)` and
 `PathOps.parCollectVStream(path, batchSize)` become `toList()` on the stream, which gives the same
 list, since a stream is read one pull at a time and `parCollect` runs nothing in parallel. The
-recipe marks, rather than rewrites, a call whose batch size is computed or not a positive literal,
-whose stream argument has a type the call infers (write its type arguments, as in
-`VStream.<Number>of(1, 2)`), or whose stream is `null` or a lambda, and a method reference to
-`parCollect`. Each mark says how to replace the call. Run it with `hkj-openrewrite` 0.6.x before the project moves
+recipe marks, rather than rewrites, a call whose batch size may do something or throw when it is
+evaluated, or is written as zero, negative or with a sign; whose stream argument has a type the call
+infers (write its type arguments, as in `VStream.<Number>of(1, 2)`); whose stream is `null`, a
+lambda, or a conditional with one as a branch; or that calls the static form through an expression;
+and a method reference to `parCollect`. Each mark says how to replace the call. Run it with `hkj-openrewrite` 0.6.x before the project moves
 to 0.7.0, which removes the methods it matches. `toList()` compiles against 0.4.x and later.
 
 | Recipe | Change |
