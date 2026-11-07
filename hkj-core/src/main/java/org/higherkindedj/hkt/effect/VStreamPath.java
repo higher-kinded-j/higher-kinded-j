@@ -405,17 +405,25 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   <B> VStreamPath<B> mapChunked(int size, Function<? super NonEmptyList<A>, ? extends List<B>> f);
 
   /**
-   * Collects all elements in parallel batches. This is a terminal operation.
+   * Collects all elements, giving the list {@link #toList()} gives. This is a terminal operation.
    *
    * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parCollect(VStream, int)}.
    *
    * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
    * first.
    *
-   * @param batchSize the number of elements to process per batch; must be positive
+   * @param batchSize the number of elements to read between checks for an interrupt; must be
+   *     positive
    * @return a VTaskPath that produces the list of all elements
    * @throws IllegalArgumentException if batchSize is not positive
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
+   *     so this runs nothing in parallel. Use {@link #toList()}, which gives the same list. To run
+   *     each element's work in parallel, put the work in the function you give {@link #parEvalMap}
+   *     or {@link #parEvalMapUnordered}, and collect with {@code toList()}. Unlike this method,
+   *     {@code toList()} does not stop for an interrupt between pulls, so bound an endless stream
+   *     whose pulls never block, with {@link #take(long)}, before you time it out.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   VTaskPath<List<A>> parCollect(int batchSize);
 
   // ===== Optics focus bridge =====

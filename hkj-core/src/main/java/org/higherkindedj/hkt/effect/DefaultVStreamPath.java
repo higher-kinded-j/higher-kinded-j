@@ -285,6 +285,8 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
     return new DefaultVStreamPath<>(stream.mapChunked(size, f));
   }
 
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   @Override
   public VTaskPath<List<A>> parCollect(int batchSize) {
     return new DefaultVTaskPath<>(VStreamPar.parCollect(stream, batchSize));

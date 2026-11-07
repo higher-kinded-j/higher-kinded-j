@@ -194,10 +194,11 @@ class VStreamPathOpsTest {
 
   @Nested
   @DisplayName("parCollectVStream")
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   class ParCollectVStreamTests {
 
     @Test
-    @DisplayName("collects elements in parallel batches")
+    @DisplayName("collects every element, as toList does")
     void collectsElementsInParallelBatches() {
       VStreamPath<Integer> stream = Path.vstreamOf(1, 2, 3, 4, 5);
 
@@ -222,6 +223,14 @@ class VStreamPathOpsTest {
       assertThatNullPointerException()
           .isThrownBy(() -> PathOps.parCollectVStream(null, 2))
           .withMessageContaining("stream must not be null");
+    }
+
+    @Test
+    @DisplayName("refuses a batch size that is not positive")
+    void refusesANonPositiveBatchSize() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> PathOps.parCollectVStream(Path.vstreamOf(1), 0))
+          .withMessage("batchSize must be positive, got: 0");
     }
   }
 }

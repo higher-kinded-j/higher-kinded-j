@@ -31,6 +31,7 @@ class RecipeCatalogTest {
         "org.higherkindedj.openrewrite.EffectAlgebraMigration",
         "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0",
         "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0",
+        "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0",
         "org.higherkindedj.openrewrite.AddPathFamily",
       })
   void compositeRecipeLoadsAndValidates(String recipeName) {
@@ -57,6 +58,7 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.EffectAlgebraMigration",
             "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0",
             "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0",
+            "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0",
             "org.higherkindedj.openrewrite.AddPathFamily",
             "org.higherkindedj.openrewrite.RenameStateTKindNarrowK",
             "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern",
@@ -83,7 +85,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe",
             "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe",
             "org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe",
-            "org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe");
+            "org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe",
+            "org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe");
   }
 
   @Test
