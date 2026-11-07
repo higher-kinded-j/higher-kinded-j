@@ -28,8 +28,14 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
   /** Package name for Apache Commons Collections list implementations. */
   protected static final String LIST_PACKAGE = PACKAGE + ".list";
 
+  /** Package name for Apache Commons Collections multiset implementations. */
+  protected static final String MULTISET_PACKAGE = PACKAGE + ".multiset";
+
   /** Class name for Apache Commons Collections {@code HashBag}. */
   public static final ClassName HASH_BAG = ClassName.get(BAG_PACKAGE, "HashBag");
+
+  /** Class name for Apache Commons Collections {@code HashMultiSet}. */
+  public static final ClassName HASH_MULTI_SET = ClassName.get(MULTISET_PACKAGE, "HashMultiSet");
 
   /** Class name for Apache Commons Collections {@code UnmodifiableList}. */
   public static final ClassName UNMODIFIABLE_LIST = ClassName.get(LIST_PACKAGE, "UnmodifiableList");

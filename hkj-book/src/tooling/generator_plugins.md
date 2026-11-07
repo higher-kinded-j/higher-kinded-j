@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 31 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
+Higher-Kinded-J ships 32 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
 
 ---
 
@@ -104,7 +104,8 @@ dependencies {
 
 | Type | Notes |
 |------|-------|
-| `HashBag<A>` | |
+| `HashBag<A>` | Deprecated in commons-collections4 4.6.0, which recommends `HashMultiSet` |
+| `HashMultiSet<A>` | |
 | `UnmodifiableList<A>` | |
 
 #### PCollections
@@ -175,7 +176,7 @@ ServiceLoader.load(TraversableGenerator.class)
     ├── OptionalGenerator     (supports Optional<A>)
     ├── EitherGenerator       (supports Either<L, R>)
     ├── GuavaImmutableListGenerator  (supports ImmutableList<A>)
-    └── ... 26 more generators
+    └── ... 27 more generators
 ```
 
 For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type. The exceptions are the five types `@GenerateFocus` recognises by name, which it widens without asking a generator, and a primitive array, which it never widens.
@@ -389,7 +390,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **31 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
+* **32 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns

@@ -22,7 +22,7 @@ The HKJ tooling reports the first kind before your code ever runs, and names the
 
 - **[Diagnostics](diagnostics.md)**: The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 
-- **[Traversal Generator Plugins](generator_plugins.md)**: The 30 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and five third-party libraries (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections). Includes a guide to writing your own generator for custom container types.
+- **[Traversal Generator Plugins](generator_plugins.md)**: The 32 built-in generators that power `@GenerateTraversals`, covering JDK collections, HKJ core types, and five third-party libraries (Eclipse Collections, Guava, Vavr, Apache Commons, PCollections). Includes a guide to writing your own generator for custom container types.
 
 - **[PCollections Integration](pcollections_integration.md)**: Tests, benchmarks, and an example that confirm PCollections persistent collections (`PVector`, `PStack`) compose with the existing `ListKind` infrastructure through `java.util.List` compatibility, with no production code changes.
 
