@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
+import org.higherkindedj.optics.processing.generator.apache.ApacheHashMultiSetGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.CollectionGenerator;
@@ -362,6 +363,21 @@ class GeneratorSpiMethodsTest {
           Set.of(
               "org.higherkindedj.optics.each.EachInstances",
               "org.apache.commons.collections4.bag.HashBag"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("ApacheHashMultiSetGenerator")
+    void apacheHashMultiSet() {
+      var gen = new ApacheHashMultiSetGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableCollecting(HashMultiSet::new)", gen.generateOpticExpression());
+      assertEquals(
+          Set.of(
+              "org.higherkindedj.optics.each.EachInstances",
+              "org.apache.commons.collections4.multiset.HashMultiSet"),
           gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
     }
