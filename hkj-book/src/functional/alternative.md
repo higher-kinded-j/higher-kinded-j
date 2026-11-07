@@ -70,7 +70,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 | `Optional` | `Optional.empty()` | `fa` if it is present, otherwise `fb` | `Instances.alternative(optional())` |
 | `List` | `[]` | `fa`'s elements, then `fb`'s | `Instances.alternative(list())` |
 | `Stream` | An empty stream | `fa`'s elements, then `fb`'s, lazily | `Instances.alternative(stream())` |
-| `VStream` | An empty stream | `fa`'s elements, then `fb`'s, lazily | `VStreamAlternative.INSTANCE`, since `Instances.alternative(vstream())` holds a plain monad |
+| `VStream` | An empty stream | `fa`'s elements, then `fb`'s, lazily | `Instances.alternative(vstream())` |
 
 `MaybeMonad`, `OptionalMonad`, `ListMonad` and `StreamMonad` are each a [MonadZero](monad_zero.md), which extends both `Monad` and `Alternative`.
 
