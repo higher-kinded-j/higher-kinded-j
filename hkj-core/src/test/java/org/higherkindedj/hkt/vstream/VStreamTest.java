@@ -866,7 +866,7 @@ class VStreamTest {
     @Test
     @DisplayName("recover() on mapTask failure continues with remaining elements")
     void recoverOnMapTaskFailureContinuesWithRemaining() {
-      // mapTask attaches a StreamTailMarker as suppressed exception
+      // A failed mapTask task gives a Fail step, which recover replaces
       VStream<String> stream =
           VStream.of(1, 2, 3)
               .mapTask(
@@ -885,31 +885,14 @@ class VStreamTest {
     }
 
     @Test
-    @DisplayName("recover() handles error without StreamTailMarker suppressed exception")
-    void recoverHandlesErrorWithoutStreamTailMarker() {
-      // VStream.fail does not attach a StreamTailMarker, so the false branch
-      // of the instanceof check is exercised
+    @DisplayName("recover() ends the stream after a pull that fails")
+    void recoverEndsTheStreamAfterAFailedPull() {
       VStream<String> stream =
-          VStream.<String>fail(new RuntimeException("no marker")).recover(_ -> "recovered");
+          VStream.<String>fail(new RuntimeException("source down")).recover(_ -> "recovered");
 
       List<String> result = stream.toList().run();
 
-      // Should recover and produce the recovery value, then the stream ends (empty tail)
-      assertThat(result).containsExactly("recovered");
-    }
-
-    @Test
-    @DisplayName("recover() handles error with non-StreamTailMarker suppressed exception")
-    void recoverHandlesErrorWithNonStreamTailMarkerSuppressed() {
-      // Create an error with a suppressed exception that is NOT a StreamTailMarker
-      RuntimeException error = new RuntimeException("main error");
-      error.addSuppressed(new RuntimeException("other suppressed"));
-
-      VStream<String> stream = VStream.<String>fail(error).recover(_ -> "recovered");
-
-      List<String> result = stream.toList().run();
-
-      // Should recover but have empty tail since no StreamTailMarker was found
+      // The recovery value, then the stream ends
       assertThat(result).containsExactly("recovered");
     }
   }

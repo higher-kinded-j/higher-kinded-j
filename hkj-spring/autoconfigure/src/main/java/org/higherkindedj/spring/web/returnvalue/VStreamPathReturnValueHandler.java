@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -188,9 +189,6 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
               // The rest of the stream not yet read, closed on the way out so a timeout, an abort,
               // a disconnect or a failure still runs its finalisers. Empty once the stream ends.
               AtomicReference<VStream<?>> unread = new AtomicReference<>(VStream.empty());
-              // What stopped the stream, which may carry the rest of it that a failed mapTask task
-              // keeps, for closing with unread
-              Exception failure = null;
               boolean owned = false;
               boolean committed = false;
               try {
@@ -232,6 +230,9 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 // early heartbeat element.
                 VStream.Step<?> firstStep = stream.pull().run();
                 unread.set(rest(firstStep));
+                if (firstStep instanceof VStream.Step.Fail<?> failed) {
+                  throw asPullFailure(failed);
+                }
 
                 // Claim the response; if a timeout already owns it, it has settled the request.
                 if (!responseOwned.compareAndSet(false, true)) {
@@ -279,7 +280,6 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 }
                 deferredResult.setResult(null);
               } catch (Exception e) {
-                failure = e;
                 log.error("VStreamPath streaming failed", e);
                 if (metricsService != null) {
                   metricsService.recordVStreamError(e.getClass().getSimpleName());
@@ -304,11 +304,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                   deferredResult.setErrorResult(e);
                 }
               } finally {
-                VTask<Unit> closing =
-                    failure == null
-                        ? unread.get().close()
-                        : VStream.closeAfterFailure(unread.get(), failure);
-                if (closing.runSafe() instanceof Try.Failure<Unit>(Throwable cause)) {
+                if (unread.get().close().runSafe() instanceof Try.Failure<Unit>(Throwable cause)) {
                   // The response is already settled, so there is no one else to tell
                   log.warn("Failed to close the streamed VStream", cause);
                 }
@@ -357,6 +353,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
           elementCount.incrementAndGet();
         }
         case VStream.Step.Skip<?> _ -> {}
+        case VStream.Step.Fail<?> failed -> throw asPullFailure(failed);
         case VStream.Step.Done<?> _ -> {
           return true;
         }
@@ -374,7 +371,22 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
     return switch (step) {
       case VStream.Step.Emit<?> emit -> emit.tail();
       case VStream.Step.Skip<?> skip -> skip.tail();
+      case VStream.Step.Fail<?> failed -> failed.tail();
       case VStream.Step.Done<?> _ -> VStream.empty();
+    };
+  }
+
+  /**
+   * What a failed pull would throw for a failed element's error, as {@link VTask#run()} throws it:
+   * an unchecked one as it is, a checked one wrapped. So the element ends the response as a failed
+   * pull does, and the stream after it is closed on the way out with the rest not yet read. The
+   * error is the element's, not an interrupt of this thread, so the interrupt status is left alone.
+   */
+  private static RuntimeException asPullFailure(VStream.Step.Fail<?> failed) {
+    return switch (failed.error()) {
+      case RuntimeException unchecked -> unchecked;
+      case Error error -> throw error;
+      default -> new VTaskExecutionException(failed.error());
     };
   }
 

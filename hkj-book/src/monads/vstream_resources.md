@@ -122,7 +122,8 @@ The finaliser runs once each time the stream is consumed: when that consumption 
 fails, or stops early. An operation that stops early, such as `take`, `takeWhile`, `zipWith`,
 `headOption`, `find`, `exists` or `forAll`, closes the rest of the stream, and so does a terminal
 operation that fails. Closing reaches every finaliser upstream that the stream has started
-reading, through any operator in between.
+reading, through any operator in between. When a `recover` reads on after a failed `mapTask`
+task, the consumption goes on too, so the finaliser runs when the resumed stream ends.
 Multiple finalisers can be chained; they execute in the order they were attached:
 
 <!-- verify -->
@@ -181,10 +182,10 @@ VStreamPath<String> withCleanup = lines.onFinalize(
 ~~~admonish warning title="Abandoned Streams"
 A finaliser runs when its stream completes, fails or is closed. If you pull steps by hand and
 drop the tail without draining it or calling `close()`, the finaliser never runs. Every terminal
-operation, `take` and `takeWhile` handle this for you. When a pull you make by hand fails, close
-the stream with `VStream.closeAfterFailure(stream, failure)`, which also closes the rest of the
-stream that a failed `mapTask` task carries. Closing a `bracket` head closes only its
-latest run, so if you run its pulled `VTask` more than once, close the tail of each run.
+operation, `take` and `takeWhile` handle this for you. When a pull you make by hand throws, close
+the stream you pulled. A pull you make by hand gives a `Fail` step for a failed `mapTask` task.
+Its tail holds the rest of the stream: close it, or read on from it, as you would an `Emit`'s. Closing a `bracket` head closes only its latest run, so if you run
+its pulled `VTask` more than once, close the tail of each run.
 ~~~
 
 ## Key Takeaways

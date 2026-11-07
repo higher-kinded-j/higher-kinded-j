@@ -239,7 +239,7 @@ VStream<PriceTick> resilientFeed = primaryFeed.recoverWith(error -> fallbackFeed
 </div>
 
 ~~~admonish note title="recoverWith Semantics"
-`recoverWith` acts on whichever pull fails. If the primary feed fails to connect, or drops
+`recoverWith` acts on whichever pull or element fails. If the primary feed fails to connect, or drops
 part-way through, the fallback stream replaces the rest of it. This models connection
 failures, the most common failure mode for exchange feeds.
 
