@@ -1238,6 +1238,7 @@ class VStreamCloseAndReplayTest {
     @DisplayName("parEvalMap and parEvalMapUnordered, when a pull or the function fails")
     void parEvalMapClosesWhereItGotTo() {
       AtomicInteger pulled = new AtomicInteger();
+      AtomicInteger unorderedPulled = new AtomicInteger();
       AtomicInteger ordered = new AtomicInteger();
       AtomicInteger unordered = new AtomicInteger();
       Function<Integer, VTask<Integer>> failsAtTwo =
@@ -1246,16 +1247,27 @@ class VStreamCloseAndReplayTest {
       VStream<Integer> pullFails =
           VStreamPar.parEvalMap(
               VStream.of(0).concat(taskFailingAt(2, finalised(pulled))), 10, VTask::succeed);
+      VStream<Integer> unorderedPullFails =
+          VStreamPar.parEvalMapUnordered(
+              VStream.of(0).concat(taskFailingAt(2, finalised(unorderedPulled))),
+              10,
+              VTask::succeed);
       // A batch of three ends inside the second stream, short of its end
       VStream<Integer> orderedFails =
           VStreamPar.parEvalMap(VStream.of(0).concat(finalised(ordered)), 3, failsAtTwo);
+      // Endless, so only the failure can close it
       VStream<Integer> unorderedFails =
-          VStreamPar.parEvalMapUnordered(VStream.of(0).concat(finalised(unordered)), 3, failsAtTwo);
+          VStreamPar.parEvalMapUnordered(
+              VStream.iterate(0, x -> x + 1).onFinalize(VTask.exec(unordered::incrementAndGet)),
+              3,
+              failsAtTwo);
 
       assertThatThrownBy(() -> pullFails.toList().run()).hasMessage("pull failed");
+      assertThatThrownBy(() -> unorderedPullFails.toList().run()).hasMessage("pull failed");
       assertThatThrownBy(() -> orderedFails.toList().run()).hasMessageContaining("f failed");
       assertThatThrownBy(() -> unorderedFails.toList().run()).hasMessageContaining("f failed");
       assertThat(pulled).hasValue(1);
+      assertThat(unorderedPulled).hasValue(1);
       assertThat(ordered).hasValue(1);
       assertThat(unordered).hasValue(1);
     }
@@ -1309,6 +1321,22 @@ class VStreamCloseAndReplayTest {
       assertThat(emitted(iterate.run())).isEqualTo(0);
       assertThat(emitted(unfold.run())).isEqualTo(0);
       assertThat(List.of(generated.get(), iterated.get(), unfolded.get())).containsOnly(1);
+    }
+
+    @Test
+    @DisplayName("a tail of parEvalMapUnordered gives the same step each time it is pulled")
+    void unorderedTailRepeats() {
+      VStream.Step<Integer> first =
+          VStreamPar.parEvalMapUnordered(VStream.of(1, 2, 3), 1, VTask::succeed).pull().run();
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) first).tail();
+      VTask<VStream.Step<Integer>> next = rest.pull();
+
+      VStream.Step<Integer> second = next.run();
+
+      assertThat(emitted(first)).isEqualTo(1);
+      assertThat(emitted(second)).isEqualTo(2);
+      assertThat(next.run()).isSameAs(second).isSameAs(rest.pull().run());
+      rest.close().run();
     }
 
     @Test
