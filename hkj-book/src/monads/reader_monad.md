@@ -315,7 +315,7 @@ Reader has dedicated JMH benchmarks measuring function composition overhead, env
 - **`ask`** is essentially free: it returns the environment directly
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*ReaderBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*ReaderBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

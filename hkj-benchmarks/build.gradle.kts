@@ -55,18 +55,30 @@ tasks.test {
   onlyIf { project.file("${layout.buildDirectory.get()}/reports/jmh/results.json").exists() }
 }
 
+// A whole-number -P property, or the default when it is not given
+fun intProperty(name: String, default: Int): Int =
+  project.findProperty(name)?.toString()?.let {
+    it.toIntOrNull() ?: throw GradleException("-P$name must be a whole number, got: $it")
+  } ?: default
+
 jmh {
   (project.findProperty("includes") as? String)?.let {
     includes.set(listOf(it))
   }
 
-  // Optimised for fast feedback (~1 minute total)
-  // For rigorous benchmarking, use: ./gradlew jmh -Pjmh.iterations=5 -Pjmh.warmupIterations=3
-  iterations = 1
-  warmupIterations = 1
-  fork = 1
-  timeOnIteration = "200ms"
-  warmup = "200ms"
+  // Optimised for fast feedback (~1 minute total). For a rigorous run, pass
+  // -Pjmh.iterations=5 -Pjmh.warmupIterations=3 -Pjmh.fork=2, and -Pjmh.timeOnIteration and
+  // -Pjmh.warmup to lengthen each iteration, such as -Pjmh.timeOnIteration=1s
+  iterations = intProperty("jmh.iterations", 1)
+  warmupIterations = intProperty("jmh.warmupIterations", 1)
+  fork = intProperty("jmh.fork", 1)
+  timeOnIteration = findProperty("jmh.timeOnIteration")?.toString() ?: "200ms"
+  warmup = findProperty("jmh.warmup")?.toString() ?: "200ms"
+
+  // -Pjmh.profilers=gc, or a comma-separated list such as gc,stack, adds JMH profilers
+  findProperty("jmh.profilers")?.toString()?.let { names ->
+    profilers.set(names.split(',').map(String::trim).filter(String::isNotEmpty))
+  }
 
   // JVM arguments for benchmarks (including preview features for VTask)
   jvmArgs = listOf("-Xms512M", "-Xmx512M", "--enable-preview")
@@ -91,6 +103,18 @@ jmh {
     benchmarkParameters.put("recursionDepth", project.objects.listProperty<String>().value(listOf("10000")))
   }
   // Short mode uses default @Param values (chainDepth=50, recursionDepth=100)
+
+  // -Pjmh.benchmarkParameters.<name>=<values> sets a @Param, such as
+  // -Pjmh.benchmarkParameters.chainDepth=1000, or 100,1000 for both; it wins over benchmarkMode
+  val parameterPrefix = "jmh.benchmarkParameters."
+  project.properties
+    .filterKeys { it.startsWith(parameterPrefix) }
+    .forEach { (key, values) ->
+      benchmarkParameters.put(
+        key.removePrefix(parameterPrefix),
+        project.objects.listProperty<String>()
+          .value(values.toString().split(',').map(String::trim).filter(String::isNotEmpty)))
+    }
 }
 
 tasks {

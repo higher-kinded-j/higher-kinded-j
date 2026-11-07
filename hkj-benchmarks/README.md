@@ -140,7 +140,7 @@ Use these expectations to identify potential problems in benchmark results:
 | Comparison | Expected Result | Explanation |
 |------------|-----------------|-------------|
 | Construction | Very fast (~100+ ops/us) | Lazy wrappers, no materialisation |
-| VStream map vs Java Stream map | VStream slower | Virtual thread + pull overhead |
+| VStream map vs Java Stream map | VStream slower | A task and a step for each pull, on the caller's thread |
 | Deep map chain (50) | Completes without error | MappedStream function composition |
 | Deep flatMap chain (50) | Completes without error | FlatMapStream iterative processing |
 | `existsEarlyMatch` vs `existsNoMatch` | Early match much faster | Short-circuit avoids full traversal |
@@ -234,18 +234,18 @@ Run with GC profiler (`-Pjmh.profilers=gc`) for these:
 ### Run Specific Benchmark Class
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*EitherBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*MaybeBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*IOBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskVsPlatformThreadsBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*EitherBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*MaybeBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*IOBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VStreamBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskVsPlatformThreadsBenchmark.*"
 ```
 
 ### Run Specific Benchmark Method
 
 ```bash
-./gradlew jmh --includes=".*EitherBenchmark.rightChainedOperations.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*EitherBenchmark.rightChainedOperations.*"
 ```
 
 ### Run with GC Profiling
@@ -259,8 +259,19 @@ This shows allocation rates and GC pressure.
 ### Run with Custom Parameters
 
 ```bash
-./gradlew jmh -Pjmh.warmup=3 -Pjmh.iterations=5 -Pjmh.fork=1
+./gradlew :hkj-benchmarks:jmh -Pjmh.warmupIterations=3 -Pjmh.iterations=5 -Pjmh.fork=2
 ```
+
+| Property | Default | Sets |
+|----------|---------|------|
+| `-Pincludes` | every benchmark | A regular expression for the benchmarks to run |
+| `-Pjmh.iterations` | 1 | Measurement iterations |
+| `-Pjmh.warmupIterations` | 1 | Warm-up iterations |
+| `-Pjmh.fork` | 1 | Forked JVMs |
+| `-Pjmh.timeOnIteration`, `-Pjmh.warmup` | `200ms` | The length of each measurement and warm-up iteration |
+| `-Pjmh.profilers` | none | JMH profilers, comma-separated, such as `gc` or `gc,stack` |
+| `-Pjmh.benchmarkParameters.<name>` | the `@Param` values | A `@Param`'s values, comma-separated, such as `-Pjmh.benchmarkParameters.chainDepth=1000` |
+| `-PbenchmarkMode=long` | short | `chainDepth` and `recursionDepth` of 10000 |
 
 ### Run Long/Stress Benchmarks
 

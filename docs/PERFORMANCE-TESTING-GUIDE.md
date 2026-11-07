@@ -453,7 +453,7 @@ public class AbstractionOverheadBenchmark {
 Use JMH's GC profiler:
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=gc
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc
 ```
 
 ### Heap Analysis
@@ -475,7 +475,7 @@ public void memoryPressure() {
 
 ```bash
 # With async-profiler
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=async:output=flamegraph
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=async:output=flamegraph
 ```
 
 ---
@@ -656,7 +656,7 @@ When creating new benchmarks:
 ### With Profiler
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=gc,stack
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc,stack
 ```
 
 ### Quick Run (Development)
