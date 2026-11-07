@@ -1,394 +1,222 @@
-# VStream Parallel Operations: Concurrent Processing on Virtual Threads
-## _Bounded Concurrency, Chunking, and Fail-Fast Error Handling_
+<!-- description: Run several VStream elements' tasks at once with VStreamPar: in order or as each completes, in batches, or merged from several streams. -->
+
+# Parallel Operations: Several Elements at Once
+
+_Run the tasks for several elements at the same time, batch elements for a bulk call, and merge streams._
 
 ~~~admonish info title="What You'll Learn"
-- How to process stream elements concurrently using `VStreamPar`
-- The difference between order-preserving and unordered parallel processing
-- How to use chunking for efficient batch operations
-- Why VStream does not need explicit backpressure
-- How to choose the right concurrency level for your workload
-- Error handling semantics in parallel stream operations
+- Run several elements' tasks at once, up to a limit you set, keeping their order or taking each result as it arrives
+- Say how far each operation reads ahead of the consumer, and which thread reads the source
+- Choose a concurrency, and keep going when one element's task fails
+- Batch elements for a call that takes several at a time
+- Merge streams read at the same time
 ~~~
 
 ~~~admonish example title="See Example Code"
-[VStreamParallelExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/VStreamParallelExample.java)
+**The code on this page is [VStreamParBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java)**: the page includes it, so the build compiles and runs it. [VStreamParBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBookTest.java) holds what the page says each operation does.
 ~~~
 
-## The Problem: Sequential I/O Is Slow
-
-Processing stream elements one at a time is simple but can be painfully slow for
-I/O-bound workloads. If each element requires a 100ms API call and you have 1,000
-elements, sequential processing takes 100 seconds. Traditional approaches (thread pools,
-reactive streams) solve the throughput problem but add complexity: explicit backpressure
-protocols, scheduler configuration, and error handling that is easy to get wrong.
-
-## The Solution: VStreamPar
-
-`VStreamPar` provides parallel combinators that leverage Java 25 virtual threads via
-`StructuredTaskScope`. The API is straightforward:
-
-- Process elements concurrently on virtual threads
-- Limit in-flight elements with bounded concurrency
-- Preserve input order (or emit in completion order for maximum throughput)
-- Fail fast if any element's computation fails, cancelling remaining tasks
-
-<!-- verify -->
-```java
-VStream<String> userIds = VStream.fromList(List.of("u1", "u2", "u3", "u4"));
-
-// Fetch user profiles concurrently, at most 4 in flight at a time
-VStream<UserProfile> profiles = VStreamPar.parEvalMap(
-    userIds, 4,
-    userId -> VTask.of(() -> apiClient.fetchProfile(userId))
-);
-
-List<UserProfile> result = profiles.toList().run();
-// Results are in the same order as input user IDs
-```
-
-**Package**: `org.higherkindedj.hkt.vstream`
-**Module**: `hkj-core`
-
 ---
 
-## Core Operations
+## Several quotes at once {#several-quotes-at-once}
 
-### parEvalMap: Order-Preserving Parallel Map
+`mapTask` runs one element's task at a time, so four courier quotes that each take a second take four seconds. `VStreamPar` runs several at once, each on a virtual thread.
 
-The primary parallel operation. Applies an effectful function to each element with
-bounded concurrency, preserving input order.
-
-**How it works:**
-
-1. Pulls up to `concurrency` elements from the source stream
-2. Forks each element's VTask onto a virtual thread via `StructuredTaskScope`
-3. Collects results in input order
-4. Emits the batch, then pulls the next batch
-5. Repeats until the source stream is exhausted
-
-```
-                          parEvalMap(source, 4, fn)
-
-  Source         Pull batch of 4         StructuredTaskScope          Output
-  ──────         ───────────────         ───────────────────          ──────
-
-  ┌──┬──┬──┬──┬──┬──┬──┬──┐          ┌── VTask(e₁) ──▶ r₁ ──┐
-  │e₈│e₇│e₆│e₅│e₄│e₃│e₂│e₁│──pull──▶├── VTask(e₂) ──▶ r₂ ──┤ collect   ┌──┬──┬──┬──┐
-  └──┴──┴──┴──┴──┴──┴──┴──┘   4     ├── VTask(e₃) ──▶ r₃ ──┤ in order ▶│r₁│r₂│r₃│r₄│
-                                    └── VTask(e₄) ──▶ r₄ ──┘           └──┴──┴──┴──┘
-                                                                               │
-                   pull next 4 ◀───────────────────────────────────────────────┘
-                       │
-                       ▼
-                  ┌── VTask(e₅) ──▶ r₅ ──┐
-                  ├── VTask(e₆) ──▶ r₆ ──┤ collect   ┌──┬──┬──┬──┐
-                  ├── VTask(e₇) ──▶ r₇ ──┤ in order ▶│r₅│r₆│r₇│r₈│
-                  └── VTask(e₈) ──▶ r₈ ──┘           └──┴──┴──┴──┘
-
-  ... repeats until source is exhausted, then Done.
-```
-
-<!-- verify -->
-```java
-VStream<Integer> doubled = VStreamPar.parEvalMap(
-    numbers, 8,
-    n -> VTask.of(() -> expensiveComputation(n))
-);
-// Output order matches input order
-```
-
-A concurrency at least as large as the stream, even `Integer.MAX_VALUE`, still processes
-every element and forks one task per element. The batch list grows as elements arrive, so
-that concurrency does not reserve a slot for every place in it.
-
-### parEvalMapUnordered: Maximum Throughput
-
-When output order does not matter, `parEvalMapUnordered` emits results as they
-complete. This maximises throughput because fast elements are not held back by slow
-ones:
-
-```
-  parEvalMap (ordered)                 parEvalMapUnordered
-  ════════════════════                 ════════════════════
-
-  e₁ ──▶ VTask (slow)  ── 120ms ─┐   e₁ ──▶ VTask (slow)  ── 120ms ──▶ r₁
-  e₂ ──▶ VTask (fast)  ──  20ms ─┤   e₂ ──▶ VTask (fast)  ──  20ms ──▶ r₂
-  e₃ ──▶ VTask (medium)──  60ms ─┤   e₃ ──▶ VTask (medium)──  60ms ──▶ r₃
-                                 │
-               wait for all ◀────┘
-                                      Emit order:  r₂, r₃, r₁
-  Emit order:  r₁, r₂, r₃            (fastest first - 20ms to first result)
-  (input order - 120ms to first result)
-```
-
-<!-- verify -->
-```java
-VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
-    numbers, 8,
-    n -> VTask.of(() -> expensiveComputation(n))
-);
-// Results may be in any order
-```
-
-Up to `concurrency` tasks run at once, and when the consumer takes a result, the next element
-is read and its task starts. The tasks running and the results not yet pulled are never more
-than `concurrency` together, so a slow consumer slows the reading.
-
-### parEvalFlatMap: Parallel Stream Expansion
-
-Applies a stream-producing function to each element with bounded concurrency. Up to
-`concurrency` sub-stream creation calls run in parallel via `parEvalMap`; the resulting
-sub-streams are then concatenated lazily via `flatMap`; sub-stream contents are never
-materialised into intermediate lists:
-
-<!-- verify -->
-```java
-VStream<Order> orders = VStreamPar.parEvalFlatMap(
-    customerIds, 4,
-    customerId -> fetchOrders(customerId) // returns VStream<Order>
-);
-```
-
-### merge: Concurrent Multi-Source Consumption
-
-Combines multiple streams concurrently. Each source stream is consumed on its own
-virtual thread within a `StructuredTaskScope`. Elements are pushed to a shared queue
-as they are produced, so the first element is available as soon as any source produces
-one, without waiting for all sources to finish:
-
-<!-- verify -->
-```java
-VStream<Event> allEvents = VStreamPar.merge(List.of(
-    fetchEventsFromServiceA(),
-    fetchEventsFromServiceB(),
-    fetchEventsFromServiceC()
-));
-// Elements arrive as they become available from any source
-```
-
-When the consumer stops early, with `take(n)` or `headOption()` for example, the merge is
-closed. It interrupts any source still being pulled and waits for the source threads to stop.
-Then it closes each source that had not finished, so each source's finalisers run. A source
-failing stops the merge the same way. A source finaliser that fails while the merge closes is
-dropped, since the merge has already stopped.
-
-### parCollect (deprecated) {#parcollect-parallel-batch-collection}
-
-`parCollect(stream, batchSize)` is deprecated for removal in 0.7.0. It gives the list
-`stream.toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel.
-Do the work you want run in parallel inside the task that `parEvalMap`'s function returns,
-with `VTask.of`, then collect with `toList()`:
-
-<!-- verify -->
-```java
-VTask<List<Integer>> doubled =
-    VStreamPar.parEvalMap(stream, 10, n -> VTask.of(() -> n * 2)).toList();
-List<Integer> collected = doubled.run();
-```
-
----
-
-## Chunking Operations
-
-Chunking groups elements into batches for efficient bulk operations such as database
-inserts or batch API calls.
-
-### chunk(size)
-
-Groups elements into non-empty lists of at most `size` elements. The last chunk may have fewer:
-
-<!-- verify -->
-```java
-VStream<NonEmptyList<Integer>> chunks = VStream.range(1, 11).chunk(3);
-// four chunks: 1 to 3, 4 to 6, 7 to 9, then 10 alone
-```
-
-Each chunk is a [`NonEmptyList`](nonemptylist_monad.md), because a chunk is only emitted once it
-holds an element. So `head()`, `reduce` and `max` on a chunk always give a value, with no empty
-case to handle. An empty stream gives no chunks.
-
-A size at least as large as the stream, even `Integer.MAX_VALUE`, still yields one chunk of
-every element. The batch list grows as elements arrive, so that size does not reserve a slot
-for every place in it.
-
-### chunkWhile(predicate)
-
-Groups consecutive elements while a predicate holds between adjacent pairs. Useful for
-grouping sorted data:
-
-<!-- verify -->
-```java
-VStream<NonEmptyList<Integer>> groups = VStream.of(1, 1, 2, 2, 2, 3)
-    .chunkWhile(Integer::equals);
-// three groups: 1, 1 then 2, 2, 2 then 3
-```
-
-### mapChunked(size, batchFn)
-
-Combines chunking, batch transformation, and flattening into a single operation. The batch
-function receives each chunk as a `NonEmptyList`, so pass `batch.toJavaList()` to an API that
-takes a `List`:
-
-<!-- verify -->
-```java
-VStream<InsertResult> results = recordStream.mapChunked(100, batch -> {
-    return db.batchInsert(batch.toJavaList()); // Process 100 records at a time
-});
-```
-
----
-
-## Combined Patterns
-
-### Chunk then Parallel Process
-
-The most powerful pattern combines chunking with parallel processing. This is ideal for
-bulk I/O operations:
-
-```
-  Chunk then Parallel Process
-  ═══════════════════════════
-
-  recordStream                  chunk(100)                  parEvalMap(4)
-  ────────────                  ──────────                  ─────────────
-
-  r₁ r₂ ... r₁₀₀  ──▶  ┌─────────────────┐          ┌── VTask(batch₁) ──▶ insert₁ ──┐
-  r₁₀₁ ... r₂₀₀   ──▶  │  [r₁..r₁₀₀]     │──┐       ├── VTask(batch₂) ──▶ insert₂ ──┤
-  r₂₀₁ ... r₃₀₀   ──▶  │  [r₁₀₁..r₂₀₀]   │──┼──▶    ├── VTask(batch₃) ──▶ insert₃ ──┤
-  r₃₀₁ ... r₄₀₀   ──▶  │  [r₂₀₁..r₃₀₀]   │──┤       └── VTask(batch₄) ──▶ insert₄ ──┘
-  ...                  │  [r₃₀₁..r₄₀₀]   │──┘              │
-                       │  ...            │          4 batches in flight,
-                       └─────────────────┘          next 4 pulled when done
-```
-
-<!-- verify -->
-```java
-// One element per batch, each holding that batch's results
-VStream<List<InsertResult>> results = VStreamPar.parEvalMap(
-    recordStream.chunk(100), // Group into batches of 100
-    4,                       // Process 4 batches concurrently
-    batch -> VTask.of(() -> db.batchInsert(batch.toJavaList()))
-);
-```
-
-### Image Processing Pipeline
-
-Different pipeline stages can use different concurrency limits to match their
-throughput characteristics:
-
-<!-- verify -->
-```java
-VStreamPath<UploadResult> pipeline =
-    Path.vstream(imageUrls)
-        .parEvalMap(4, url -> VTask.of(() -> download(url)))
-        .map(ImageProcessor::resize)
-        .parEvalMap(2, img -> VTask.of(() -> upload(img)));
-```
-
----
-
-## Backpressure: Why VStream Does Not Need It
-
-Unlike reactive streams (Project Reactor, RxJava), VStream does not need an explicit
-backpressure protocol. Three properties make it unnecessary:
-
-```
-  Why VStream Does Not Need Explicit Backpressure
-  ═══════════════════════════════════════════════
-
-  ┌──────────┐  pull(4)  ┌──────────────────┐  pull   ┌────────┐
-  │ Consumer │◀──────────│  parEvalMap(4)   │◀────────│ Source │
-  │ (slow)   │           │ bounded at 4     │         │        │
-  └──────────┘           └──────────────────┘         └────────┘
-       │                         │
-       │ Consumer busy,          │ At most 4 in flight.
-       │ not pulling.            │ No new pulls until
-       │                         │ consumer asks.
-       ▼                         ▼
-   Source and workers          Virtual threads
-   park (free) until           park while waiting -
-   next pull arrives.          no OS thread consumed.
-```
-
-**Pull-based model.** The consumer drives evaluation. Elements are only produced when
-pulled. If the consumer is slow, the producer simply waits.
-
-**Bounded concurrency.** `parEvalMap` limits in-flight elements. At most `concurrency`
-elements are processed at any time, providing natural rate limiting.
-
-**Virtual threads.** Blocking on a virtual thread is cheap. Unlike platform threads,
-virtual threads do not consume OS resources while blocked. A producer waiting for the
-consumer costs essentially nothing.
-
-### When to Prefer VStream over Reactive Streams
-
-| Characteristic | VStream | Reactive Streams |
-|---|---|---|
-| Backpressure | Implicit (pull-based) | Explicit protocol |
-| Threading model | Virtual threads | Scheduler-based |
-| Error handling | Fail-fast, StructuredTaskScope | Various strategies |
-| Learning curve | Low (sequential-looking code) | Higher |
-| Best for | Virtual-thread-friendly I/O | Event-driven systems |
-
----
-
-## Choosing Concurrency Levels
-
-| Workload Type | Recommended Concurrency | Rationale |
-|---|---|---|
-| I/O-bound (API calls, DB) | 8-64 | Virtual threads handle I/O waiting efficiently |
-| CPU-bound computation | Number of processors | Avoid oversubscription |
-| Mixed I/O and CPU | 4-8 | Balance between the two |
-| Rate-limited APIs | Match rate limit | Avoid exceeding quotas |
-
-A concurrency of 1 is equivalent to sequential `mapTask` processing.
-
----
-
-## Error Handling
-
-All parallel operations use **fail-fast** semantics:
-
-- If any element's computation throws an exception, the entire stream fails
-- Other in-flight tasks are cancelled via `StructuredTaskScope`
-- The original error is preserved and propagated
-
-<!-- verify -->
-```java
-VStream<Integer> result = VStreamPar.parEvalMap(
-    stream, 4,
-    n -> {
-        if (n == 3) return VTask.fail(new RuntimeException("Element 3 failed"));
-        return VTask.succeed(n * 2);
-    }
-);
-
-// Materialising the stream throws RuntimeException("Element 3 failed")
-```
-
----
-
-~~~admonish info title="Key Takeaways"
-* **parEvalMap** preserves input order with bounded concurrency; use for most parallel workloads
-* **parEvalMapUnordered** maximises throughput when order does not matter
-* **chunk** and **mapChunked** enable efficient batch operations (bulk API calls, database inserts)
-* VStream's pull-based model provides **implicit backpressure** without explicit protocols
-* **StructuredTaskScope** ensures proper cancellation and error propagation
-* Choose concurrency based on workload type: higher for I/O-bound, lower for CPU-bound
+~~~admonish warning title="A preview API"
+`VStreamPar` is built on `StructuredTaskScope`, a preview feature in Java 25, so code that names it needs `--enable-preview` to compile and to run. `VStreamPath`'s `parEvalMap` and `parEvalMapUnordered` compile without it and need it when they run, as the [VTask](vtask_monad.md#on-a-vtaskpath) page explains for `VTaskPath`. The [HKJ Gradle plugin](../tooling/gradle_plugin.md) adds it by default.
 ~~~
+
+The code on this page uses the order feed and the `Courier` from the [VStream](vstream.md#reading-a-feed-one-page-at-a-time) page, with these imports:
+
+<!-- verify -->
+```java
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamPar;
+import org.higherkindedj.hkt.vtask.VTask;
+```
+
+The paid orders are the stream to quote for, and `ZONED_COURIER` quotes by where each customer lives, so each quote shows which order it belongs to:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:paid}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:zoned}}
+```
+
+`parEvalMap(stream, concurrency, f)` asks for up to `concurrency` quotes at once, and gives them in the orders' order:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:in_order}}
+```
+
+It works a batch at a time. A pull reads up to `concurrency` elements from the source, forks a task for each, and waits for every task in the batch. It answers that pull with the first result, and answers the pulls after it from the rest of the batch:
+
+```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
+sequenceDiagram
+    accTitle: How parEvalMap answers the pulls for four quotes
+    accDescr: The first pull reads four paid orders from the source, forks a quote task for each, and waits for all four before it answers with the first quote. The next three pulls are answered from the batch. The fifth pull is answered with a Skip to the next batch, and the sixth reads the source again, finds its end, and answers Done.
+    participant L as toList
+    participant P as parEvalMap(4)
+    participant S as paid orders
+    participant Q as quote tasks
+    L->>P: pull 1
+    P->>S: read four orders
+    P->>Q: fork four quotes
+    Q-->>P: all four quotes
+    P-->>L: Emit 4.99
+    L->>P: pulls 2 to 4
+    P-->>L: Emit 6.49, 3.99, 5.49
+    L->>P: pull 5
+    P-->>L: Skip, to the next batch
+    L->>P: pull 6
+    P->>S: read
+    S-->>P: Done
+    P-->>L: Done
+```
+
+The arrows to the right are pulls and forks, and the dashed arrows back are what each gives. A batch's results wait for its slowest task. The source is read again only after every result of the batch has been taken. Pull 5 gives a `Skip` to the next batch, as [What a pull gives](vstream.md#what-a-pull-gives) describes, and pull 6 reads the source and finds its end.
+
+The source is read on the thread that pulls, and each task runs on a virtual thread of its own, which sees the caller's `ScopedValue` bindings. A `concurrency` of 1 runs the tasks one at a time, as `mapTask` does, but each on a virtual thread.
+
+## In order, or as each arrives {#in-order-or-as-each-arrives}
+
+When the order of the results does not matter, `parEvalMapUnordered` gives each one as its task completes, so a slow quote holds back only itself:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:as_they_arrive}}
+```
+
+The quotes arrive in whatever order the courier answers, so the example sorts them to show they are all there.
+
+| | `parEvalMap` | `parEvalMapUnordered` |
+|---|---|---|
+| Order of the results | The elements' order | The order the tasks complete |
+| A slow task holds back | Its whole batch, and the next | Only its own result |
+| Reads ahead of the consumer | A batch of up to `concurrency` elements | Up to `concurrency` elements whose results are not yet pulled |
+| Reads the source on | The thread that pulls | A virtual thread of its own |
+| Tasks see the caller's `ScopedValue` bindings | Yes | No |
+
+`parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way without closing the stream, its thread is left waiting, so close it; `take` and the other operations that stop early close it for you.
+
+`parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order.
+
+## Choosing a concurrency {#choosing-a-concurrency}
+
+For tasks that wait on I/O, such as calls to another service, set `concurrency` to the number of calls that service accepts at once. Virtual threads make the waiting cheap, so the service's limit is the one that counts. For tasks that compute, more than `Runtime.getRuntime().availableProcessors()` gains nothing, since that is how many virtual threads run at once by default. Each stage of a pipeline takes its own `concurrency`, so a stage that downloads can run eight at once and the stage that uploads after it two.
+
+## When a task fails {#when-a-task-fails}
+
+A task that fails cancels the tasks still running, and the stream fails with the task's own exception. `PATCHY_COURIER`, from [When an element fails](vstream.md#when-an-element-fails), quotes 4.99 for every order but cannot quote for Edsger, and `FLAT_RATE` is 9.99:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:failures}}
+```
+
+~~~admonish warning title="recover after a parallel operation ends the stream"
+When one of its own tasks fails, a `recover` after `parEvalMap` or `parEvalMapUnordered` gives one value in place of the failure, then ends the stream. `parEvalMap` loses the rest of the batch, and `parEvalMapUnordered` the tasks still running. To keep every other quote, recover inside each element's task, with `VTask.recover` or `recoverWith`, as `recoveredInside` does.
+~~~
+
+A failed element from further up is handed on instead. When a `mapTask` task fails before the parallel operation, its element passes through as a failure, so a `recover` after the parallel operation gives a value in its place and the stream goes on. `parEvalMap`, `parEvalMapUnordered` and `parEvalFlatMap` all do this, while a merge of several streams ends there. Any other failure further up, such as a `map` that throws, also ends the stream, after the elements read before it.
+
+## Chunking operations {#chunking-operations}
+
+`chunk(size)` groups elements into batches of up to `size`, and `chunkWhile` starts a new batch wherever a test fails between neighbours:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:chunks}}
+```
+
+Each batch is a [`NonEmptyList`](nonemptylist_monad.md), since a chunk is given only once it holds an element, so `head()` and `reduce` on it always have a value. The last chunk may be shorter, and an empty stream gives no chunks. A `size` larger than the stream, even `Integer.MAX_VALUE`, gives one chunk of every element, without reserving room for the rest. A `parEvalMap` `concurrency` that large reads the whole stream as one batch in the same way.
+
+A batch suits a call that takes several elements at once, such as a warehouse that packs a list of orders:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:warehouse}}
+```
+
+`chunk` followed by `parEvalMap` makes one call for each batch, with up to `concurrency` calls at once. The warehouse's `pack` blocks and can throw, so each call runs as a task. `mapChunked(size, f)` suits a function that cannot fail and does not block: it applies `f` to each batch and flattens the lists it gives:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:packed}}
+```
+
+## Merging streams {#merge-concurrent-multi-source-consumption}
+
+`VStreamPar.merge` reads several streams at the same time, each on a virtual thread of its own, and gives each element as it arrives from any of them. The sources' threads do not see the caller's `ScopedValue` bindings:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:merged}}
+```
+
+The order depends on which feed answers first, so the example sorts the names. When the consumer stops early, with `take(n)` or `headOption()` for example, the merge is closed. It interrupts any source still being read and waits for the sources' threads to stop. Then it closes each source that had not finished, so each source's finalisers run. A source failing stops the merge in the same way. A source finaliser that fails while the merge closes is dropped, since the merge has already stopped.
+
+~~~admonish warning title="merge reads ahead without a limit"
+A merge of several streams reads each source as fast as the source gives elements, and holds the elements you have not pulled yet without a limit. A fast endless source and a slow consumer fill memory. Bound an endless source with `take` or `takeWhile` before merging it, or merge sources you read to the end. A merge of one stream is that stream, so it reads no further ahead than that stream does.
+~~~
+
+## How far each operation reads ahead {#how-far-each-operation-reads-ahead}
+
+A `VStream` is read by pulling, so a consumer that stops pulling stops the reading. Each operation reads only so far ahead of it:
+
+| Operation | Reads ahead of the consumer |
+|---|---|
+| `parEvalMap`, `parEvalFlatMap` | One batch of up to `concurrency` elements, at a pull |
+| `parEvalMapUnordered` | Up to `concurrency` elements whose results are not yet pulled |
+| `chunk(size)`, `mapChunked(size, f)` | One batch of up to `size` elements |
+| `merge` of several streams | Every element its sources give, without a limit |
+
+Those bounds are why a `VStream` needs no backpressure protocol, the signal by which a consumer tells a producer how much it can take, of the kind Project Reactor's streams use. When the consumer is slow, the operation waits, and a waiting virtual thread holds no platform thread. A merge of several streams is the exception, as its warning says.
+
+## On a `VStreamPath` {#on-a-vstreampath}
+
+[`VStreamPath`](../effect/path_vstream.md) has `parEvalMap`, `parEvalMapUnordered`, `chunk` and `mapChunked` too:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:path}}
+```
+
+## Collecting the results {#collecting-the-results}
+
+`toList()` collects what a parallel operation gives, as each example on this page does. The work runs in parallel inside the tasks `parEvalMap`'s function returns; collecting is reading the stream, one pull at a time, so it cannot be parallel itself.
+
+`VStreamPar.parCollect(stream, batchSize)`, `VStreamPath.parCollect` and `PathOps.parCollectVStream` are deprecated for removal in 0.7.0. Each gives what `toList()` gives. The [0.7.0 deprecation recipe](../tooling/openrewrite.md#070-deprecation-migration) rewrites each call to `toList()`, and marks any call it cannot rewrite safely.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `VStreamPar.parEvalMap(stream, concurrency, f)` | Runs up to `concurrency` tasks at once, a batch at a time, and keeps the elements' order |
+| `VStreamPar.parEvalMapUnordered(stream, concurrency, f)` | Runs up to `concurrency` tasks at once, and gives each result as its task completes |
+| `VStreamPar.parEvalFlatMap(stream, concurrency, f)` | Builds up to `concurrency` of `f`'s streams at once, and reads them in order |
+| `VStreamPar.merge(streams)`, `VStreamPar.merge(first, second)` | Reads every stream at once, and gives each element as it arrives |
+| `stream.chunk(size)`, `stream.chunkWhile(test)` | Batches of up to `size` elements, or of neighbours that pass the test |
+| `stream.mapChunked(size, f)` | Applies `f` to each batch, and flattens the lists it gives |
+
+## When to use parallel operations {#when-to-use-them}
+
+| You need | Use |
+|---|---|
+| A task for each element, several at once, results in order | `parEvalMap` |
+| The same, each result as soon as it is ready | `parEvalMapUnordered` |
+| One call for several elements | `chunk`, then `parEvalMap` |
+| Elements from several sources as they arrive | `merge`, with endless sources bounded |
+| One task at a time, on the caller's thread | `mapTask`, on the [VStream](vstream.md#shaping-a-stream) page |
+| A few independent tasks, not a stream | [Structured Concurrency](vtask_scope.md) |
 
 ~~~admonish info title="Hands-On Learning"
-Practise parallel VStream patterns in [TutorialVStreamParallel](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamParallel.java) (8 exercises).
+Practise parallel streams in [TutorialVStreamParallel](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamParallel.java) (8 exercises).
 ~~~
 
-~~~admonish tip title="See Also"
-- [VStream](vstream.md) - Core VStream type: factories, combinators, terminal operations
-- [VStream HKT](vstream_hkt.md) - Type class instances for generic programming
-- [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
-- [VTask: Structured Concurrency](vtask_scope.md) - StructuredTaskScope patterns for VTask
-- [Performance](vstream_performance.md) - Benchmark results and optimisation guidance
-- [Benchmarks & Performance](../benchmarks.md) - Full benchmark suite overview
-~~~
+**Benchmarks:** `VStreamBenchmark` measures `parEvalMap`, `parEvalMapUnordered` and the chunking operations. [Performance](vstream_performance.md) says what it measures and how to run it, and [Benchmarks](../benchmarks.md) covers every benchmark.
 
 ---
 
