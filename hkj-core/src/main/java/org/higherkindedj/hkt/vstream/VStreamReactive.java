@@ -6,8 +6,8 @@ import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -22,14 +22,16 @@ import org.jspecify.annotations.Nullable;
  * <h2>toPublisher</h2>
  *
  * <p>Converts a VStream to a {@link Flow.Publisher}. Each subscriber receives all elements.
- * Backpressure is respected: elements are only pulled when the subscriber requests them via {@link
- * Flow.Subscription#request(long)}.
+ * Backpressure is respected: elements are pulled when the subscriber requests them via {@link
+ * Flow.Subscription#request(long)}, and on until the next element or the end, to notice the end of
+ * the stream.
  *
  * <h2>fromPublisher</h2>
  *
- * <p>Converts a {@link Flow.Publisher} to a VStream. The publisher is subscribed to, and incoming
- * elements are buffered in a bounded queue. The VStream's {@code pull()} reads from this queue,
- * providing pull-based access to the push-based source. Closing the VStream cancels the
+ * <p>Converts a {@link Flow.Publisher} to a VStream. Each run of the stream subscribes to the
+ * publisher at its first pull, and buffers the incoming elements in a bounded queue. The VStream's
+ * {@code pull()} reads from this queue, providing pull-based access to the push-based source, and
+ * each element taken asks the publisher for one more. Closing the VStream cancels the run's
  * subscription.
  *
  * <h2>Usage Example</h2>
@@ -59,8 +61,10 @@ public final class VStreamReactive {
    * Converts a {@link VStream} to a {@link Flow.Publisher}.
    *
    * <p>Each subscriber receives all elements from the stream. Backpressure is respected: the stream
-   * is only pulled when the subscriber has outstanding demand. Elements are pulled on virtual
-   * threads.
+   * is pulled while the subscriber has outstanding demand, and when the demand runs out it is
+   * pulled on until it gives an element or ends, so that its end is noticed without more demand. An
+   * element pulled that way is held until the subscriber asks for it. Elements are pulled on
+   * virtual threads.
    *
    * <p>If the stream produces an error, {@link Flow.Subscriber#onError(Throwable)} is called. When
    * the stream completes, {@link Flow.Subscriber#onComplete()} is called.
@@ -87,12 +91,23 @@ public final class VStreamReactive {
   /**
    * Creates a {@link VStream} from a {@link Flow.Publisher} with the specified buffer size.
    *
-   * <p>The publisher is subscribed to immediately. Incoming elements are buffered in a bounded
-   * queue. When the VStream is pulled, elements are taken from this queue. Backpressure is applied
-   * to the publisher by requesting elements in batches based on available buffer space.
+   * <p>Each run of the stream subscribes to the publisher afresh, when its first pull runs, so
+   * building the stream subscribes to nothing, and a stream read twice subscribes twice, as a
+   * {@link VStream#bracket} acquires its resource for each run. A cold publisher sends each run its
+   * elements from the start. A hot one, such as a {@link java.util.concurrent.SubmissionPublisher},
+   * sends a run only what it publishes after the run subscribes, so what it publishes between
+   * building the stream and reading it is lost to that run: publish once the run has subscribed.
    *
-   * <p>Closing the VStream cancels the subscription, so a stream that stops early, through {@link
-   * VStream#take(long)} or {@link VStream#headOption()} for example, stops the publisher.
+   * <p>A run first asks the publisher for {@code bufferSize} elements, and buffers them in a queue
+   * as they arrive. When the stream is pulled, an element is taken from the queue, and the
+   * publisher is asked for one more. So a publisher that keeps to its demand never sends more than
+   * the queue holds, and never waits for the stream to make room.
+   *
+   * <p>Closing the VStream cancels the subscription of its latest run, so a stream that stops
+   * early, through {@link VStream#take(long)} or {@link VStream#headOption()} for example, stops
+   * the publisher, and a pull waiting for an element gives {@code Done}. A tail's pulled {@code
+   * VTask} gives the same step each time it runs; running the head's again starts another run,
+   * which subscribes again. Holding the stream holds nothing a run has read.
    *
    * <p>The Flow rules forbid a null element. If the publisher sends one, the subscription is
    * cancelled, the stream fails with a {@link NullPointerException} when it is pulled that far, and
@@ -110,20 +125,24 @@ public final class VStreamReactive {
     if (bufferSize <= 0) {
       throw new IllegalArgumentException("bufferSize must be positive, got: " + bufferSize);
     }
+    // Each run subscribes at its first pull, and closing the head after a pull cancels that run's
+    // subscription
+    return new RememberingStream<>(VTask.delay(() -> subscribed(publisher, bufferSize)));
+  }
 
-    LinkedBlockingQueue<Signal<A>> queue = new LinkedBlockingQueue<>(bufferSize);
+  /** Subscribes to the publisher for one run, and gives the stream that reads what it sends. */
+  private static <A> VStream<A> subscribed(Flow.Publisher<A> publisher, int bufferSize) {
+    // Room for every element requested and the signal that ends the run, so a publisher that
+    // keeps to its demand never waits for room
+    LinkedBlockingQueue<Signal<A>> queue =
+        new LinkedBlockingQueue<>(bufferSize == Integer.MAX_VALUE ? bufferSize : bufferSize + 1);
     Upstream upstream = new Upstream();
 
     publisher.subscribe(
         new Flow.Subscriber<>() {
-          private Flow.Subscription subscription;
-
           @Override
           public void onSubscribe(Flow.Subscription subscription) {
-            this.subscription = subscription;
-            if (upstream.attach(subscription)) {
-              subscription.request(bufferSize);
-            }
+            upstream.attach(subscription, bufferSize);
           }
 
           @Override
@@ -136,12 +155,18 @@ public final class VStreamReactive {
               onError(refused);
               throw refused;
             }
+            if (upstream.closed()) {
+              // Sent after the stream was closed, so nothing will read it
+              return;
+            }
             try {
+              // The stream asks for one more as it takes each element, not here
               queue.put(new Signal.Element<>(item));
-              subscription.request(1);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              subscription.cancel();
+              upstream.cancel();
+              // Fail the run, rather than leave it waiting for an element that is gone
+              queue.offer(new Signal.Error<>(e));
             }
           }
 
@@ -151,6 +176,7 @@ public final class VStreamReactive {
               queue.put(new Signal.Error<>(throwable));
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
+              queue.offer(new Signal.Error<>(throwable));
             }
           }
 
@@ -160,11 +186,24 @@ public final class VStreamReactive {
               queue.put(new Signal.Complete<>());
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
+              queue.offer(new Signal.Complete<>());
             }
           }
         });
 
-    return pullFromQueue(queue, upstream);
+    // The run's head keeps no step, so a stream held for a run holds nothing the run has read
+    Queued<A> closing = new Queued<>(queue, upstream);
+    return new VStream<>() {
+      @Override
+      public VTask<VStream.Step<A>> pull() {
+        return new Queued<>(queue, upstream).pull();
+      }
+
+      @Override
+      public VTask<Unit> close() {
+        return closing.close();
+      }
+    };
   }
 
   /**
@@ -181,67 +220,163 @@ public final class VStreamReactive {
 
   // ===== Internal helpers =====
 
-  private static <A> VStream<A> pullFromQueue(
-      LinkedBlockingQueue<Signal<A>> queue, Upstream upstream) {
-    return new VStream<>() {
-      @Override
-      public VTask<VStream.Step<A>> pull() {
-        return () -> {
-          Signal<A> signal = queue.take();
-          return switch (signal) {
-            case Signal.Element<A> e ->
-                new VStream.Step.Emit<>(e.value(), pullFromQueue(queue, upstream));
-            case Signal.Complete<A> _ -> new VStream.Step.Done<>();
-            // The publisher's error, as it gave it
-            case Signal.Error<A> err -> throw err.error();
-          };
-        };
-      }
+  /**
+   * A tail of a {@link #fromPublisher} run. Its pull takes the next signal from the run's queue
+   * once, and gives the same step each time it runs; taking an element asks the publisher for one
+   * more, so the queue holds no more than the buffer.
+   */
+  private static final class Queued<A> implements VStream<A> {
 
-      @Override
-      public VTask<Unit> close() {
-        return VTask.delay(
-            () -> {
-              upstream.cancel();
-              // Make room for an element the publisher may be blocked delivering
-              queue.clear();
-              return Unit.INSTANCE;
-            });
+    private final LinkedBlockingQueue<Signal<A>> queue;
+    private final Upstream upstream;
+    private final ReentrantLock lock = new ReentrantLock();
+    // Guarded by lock
+    private VStream.@Nullable Step<A> step;
+    private @Nullable Throwable failure;
+
+    Queued(LinkedBlockingQueue<Signal<A>> queue, Upstream upstream) {
+      this.queue = queue;
+      this.upstream = upstream;
+    }
+
+    @Override
+    public VTask<VStream.Step<A>> pull() {
+      return () -> {
+        lock.lockInterruptibly();
+        try {
+          if (step == null && failure == null) {
+            switch (queue.take()) {
+              case Signal.Element<A> e -> {
+                step = new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream));
+                askForOneMore();
+              }
+              case Signal.Complete<A> _ -> step = new VStream.Step.Done<>();
+              // The publisher's error, as it gave it
+              case Signal.Error<A> err -> failure = err.error();
+            }
+          }
+          if (failure != null) {
+            throw failure;
+          }
+          return Objects.requireNonNull(step);
+        } finally {
+          lock.unlock();
+        }
+      };
+    }
+
+    /**
+     * Asks the publisher for one more. The Flow rules forbid {@code request} to throw, but if it
+     * does, the element just taken is kept and the next pull fails with what it threw.
+     */
+    private void askForOneMore() {
+      try {
+        upstream.request(1);
+      } catch (RuntimeException e) {
+        upstream.cancel();
+        queue.offer(new Signal.Error<>(e));
       }
-    };
+    }
+
+    @Override
+    public VTask<Unit> close() {
+      return VTask.delay(
+          () -> {
+            upstream.cancel();
+            // Make room for an element the publisher may be blocked delivering
+            queue.clear();
+            // Wakes a pull waiting on the queue, and a pull after this gives Done
+            queue.offer(new Signal.Complete<>());
+            return Unit.INSTANCE;
+          });
+    }
   }
 
   /**
-   * The subscription a {@link #fromPublisher} stream reads through, cancelled when the stream is
+   * The subscription a {@link #fromPublisher} run reads through, cancelled when the stream is
    * closed. The publisher may hand the subscription over after the stream is closed, so whichever
    * of the two comes second cancels it.
+   *
+   * <p>The Flow rules ask a subscriber to call its subscription's {@code request} and {@code
+   * cancel} one at a time. The first request comes from {@code onSubscribe}, on whichever thread
+   * the publisher calls it, and the later ones from the thread reading the stream. So each call is
+   * recorded, and whichever thread finds no call in progress makes the calls recorded so far, one
+   * after another. No thread waits for another, and nothing is called holding a lock, so a
+   * publisher that holds a lock of its own while it signals cannot deadlock against the stream.
    */
   private static final class Upstream {
 
-    private final AtomicReference<Flow.@Nullable Subscription> subscription =
-        new AtomicReference<>();
-    private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final AtomicInteger calling = new AtomicInteger();
+    private final AtomicLong pending = new AtomicLong();
+    private volatile boolean cancelRequested;
+    private volatile Flow.@Nullable Subscription subscription;
+    // Read and written only by the thread that holds calling above zero
+    private boolean cancelled;
 
     /**
-     * Records the subscription the publisher handed over.
-     *
-     * @return false if the stream was already closed, in which case the subscription is cancelled
+     * Records the subscription the publisher handed over and asks for the first elements, or
+     * cancels it if the stream was closed first. A second subscription is cancelled, as the Flow
+     * rules ask.
      */
-    boolean attach(Flow.Subscription handedOver) {
-      subscription.set(handedOver);
-      if (cancelled.get()) {
+    void attach(Flow.Subscription handedOver, long first) {
+      if (subscription != null) {
         handedOver.cancel();
-        return false;
+        return;
       }
-      return true;
+      pending.addAndGet(first);
+      subscription = handedOver;
+      call();
     }
 
     void cancel() {
-      if (cancelled.compareAndSet(false, true)) {
-        Flow.Subscription held = subscription.get();
-        if (held != null) {
-          held.cancel();
+      cancelRequested = true;
+      call();
+    }
+
+    /** Whether the stream has been closed, so an element sent now has no reader. */
+    boolean closed() {
+      return cancelRequested;
+    }
+
+    /** Asks the publisher for {@code n} more, unless the stream has been closed. */
+    void request(long n) {
+      pending.addAndGet(n);
+      call();
+    }
+
+    /**
+     * Makes the calls recorded so far, unless another thread is making them, in which case it makes
+     * this one too. A {@code request} or {@code cancel} that throws, which the Flow rules forbid,
+     * ends the calls to this subscription, and is thrown once the calls are made.
+     */
+    private void call() {
+      if (calling.getAndIncrement() != 0) {
+        return;
+      }
+      RuntimeException thrown = null;
+      int missed = 1;
+      do {
+        Flow.Subscription held = subscription;
+        if (held != null && !cancelled) {
+          try {
+            if (cancelRequested) {
+              cancelled = true;
+              held.cancel();
+            } else {
+              long n = pending.getAndSet(0);
+              if (n > 0) {
+                held.request(n);
+              }
+            }
+          } catch (RuntimeException e) {
+            cancelled = true;
+            thrown = e;
+          }
         }
+        missed = calling.addAndGet(-missed);
+      } while (missed != 0);
+      if (thrown != null) {
+        throw thrown;
       }
     }
   }

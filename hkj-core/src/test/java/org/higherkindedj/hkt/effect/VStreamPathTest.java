@@ -15,6 +15,7 @@ import java.util.concurrent.SubmissionPublisher;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -1235,7 +1236,8 @@ class VStreamPathTest {
 
       VStreamPath<String> path = Path.vstreamFromPublisher(publisher, 16);
 
-      Thread.startVirtualThread(
+      whenSubscribed(
+          publisher,
           () -> {
             publisher.submit("x");
             publisher.submit("y");
@@ -1254,7 +1256,8 @@ class VStreamPathTest {
 
       VStreamPath<Integer> path = Path.vstreamFromPublisher(publisher);
 
-      Thread.startVirtualThread(
+      whenSubscribed(
+          publisher,
           () -> {
             publisher.submit(10);
             publisher.close();
@@ -1264,5 +1267,22 @@ class VStreamPathTest {
 
       assertThat(result).containsExactly(10);
     }
+  }
+
+  /**
+   * Publishes once the path's run has subscribed. A run subscribes at its first pull, and a hot
+   * publisher such as {@link SubmissionPublisher} sends a subscriber only what it submits after
+   * that subscriber subscribes.
+   */
+  private static void whenSubscribed(SubmissionPublisher<?> publisher, Runnable publishing) {
+    Thread.startVirtualThread(
+        () -> {
+          for (int waited = 0;
+              publisher.getNumberOfSubscribers() == 0 && waited < 5_000;
+              waited++) {
+            LockSupport.parkNanos(1_000_000);
+          }
+          publishing.run();
+        });
   }
 }

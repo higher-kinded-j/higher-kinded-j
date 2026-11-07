@@ -1608,7 +1608,11 @@ public interface VStream<A> extends VStreamKind<A> {
    *                 ? Optional.empty()
    *                 : Optional.of(new Seed<>(line, r));
    *         })),
-   *     reader -> VTask.exec(() -> reader.close())
+   *     // close() throws IOException, which a Runnable cannot, so VTask.of
+   *     reader -> VTask.of(() -> {
+   *         reader.close();
+   *         return Unit.INSTANCE;
+   *     })
    * );
    * }</pre>
    *

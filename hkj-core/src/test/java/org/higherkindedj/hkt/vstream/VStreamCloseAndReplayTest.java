@@ -2065,13 +2065,19 @@ class VStreamCloseAndReplayTest {
 
     @Test
     @DisplayName("a subscription handed over after the stream is closed is cancelled at once")
-    void lateSubscriptionIsCancelled() {
-      List<Flow.Subscriber<? super Integer>> subscribers = new ArrayList<>();
+    void lateSubscriptionIsCancelled() throws InterruptedException {
+      List<Flow.Subscriber<? super Integer>> subscribers = new CopyOnWriteArrayList<>();
       AtomicBoolean cancelled = new AtomicBoolean();
       AtomicBoolean requested = new AtomicBoolean();
       VStream<Integer> stream = VStreamReactive.fromPublisher(subscribers::add, 16);
+      // A run subscribes at its first pull, which then waits for an element that never comes
+      Thread pulling = Thread.startVirtualThread(() -> stream.pull().runSafe());
+      await().atMost(Duration.ofSeconds(5)).until(() -> pulling.getState() == Thread.State.WAITING);
 
       stream.close().run();
+      // Closing wakes the waiting pull
+      pulling.join(Duration.ofSeconds(5));
+      assertThat(pulling.isAlive()).isFalse();
       subscribers
           .getFirst()
           .onSubscribe(

@@ -1482,8 +1482,8 @@ public final class Path {
    * Creates a VStreamPath from a {@link java.util.concurrent.Flow.Publisher} with the specified
    * buffer size.
    *
-   * <p>The publisher is subscribed to immediately. Incoming elements are buffered. The VStreamPath
-   * pulls from this buffer. Delegates to {@link
+   * <p>Each run subscribes to the publisher afresh, at its first pull, and buffers the incoming
+   * elements; the VStreamPath pulls from this buffer. Delegates to {@link
    * org.higherkindedj.hkt.vstream.VStreamReactive#fromPublisher(java.util.concurrent.Flow.Publisher,
    * int)}.
    *

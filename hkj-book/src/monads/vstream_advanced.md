@@ -33,7 +33,7 @@ public interface StreamTraversal<S, A> {
 - `stream()` returns a lazy `VStream<A>` of focused elements; nothing is materialised
   until the consumer pulls
 - `modify()` applies a pure function to all focused elements, reconstructing the structure
-- `modifyVTask()` applies an effectful function on virtual threads
+- `modifyVTask()` applies an effectful function, and starts no thread of its own: the tasks run on the thread that runs the returned `VTask`, or, for `forVStream()`, on the thread that pulls the stream
 
 ### Built-in Instances
 
@@ -134,10 +134,13 @@ Flow.Publisher<Event> eventPublisher = getEventSource(); // your push-based sour
 VStream<Event> events = VStreamReactive.fromPublisher(eventPublisher, 64);
 ```
 
-The publisher is subscribed to immediately. Incoming elements are buffered in a bounded queue
-(configurable via the `bufferSize` parameter). The VStream pulls from this queue, converting
-push-based delivery to pull-based consumption. Closing the VStream cancels the subscription, so
-`events.take(5)` stops the publisher once it has its five elements.
+Each run of the stream subscribes to the publisher at its first pull, so a stream read twice
+subscribes twice. A hot publisher, such as a `SubmissionPublisher`, sends a run only what it
+publishes after the run subscribes, so publish once the run has subscribed, which
+`getNumberOfSubscribers()` shows. Incoming
+elements are buffered in a queue of `bufferSize`, and each element the VStream takes asks the
+publisher for one more. Closing the VStream cancels the run's subscription, so `events.take(5)`
+stops the publisher once it has its five elements.
 
 The Flow rules forbid a null element, and so does a VStream. A publisher that sends one has its
 subscription cancelled, and the stream fails with `VStream.fromPublisher element cannot be null`.

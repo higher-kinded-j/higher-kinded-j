@@ -3,8 +3,12 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.WeakReference;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -13,12 +17,15 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.SubmissionPublisher;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Tests for {@link VStreamReactive} Flow.Publisher bridge.
@@ -262,6 +269,8 @@ class VStreamReactiveTest {
 
   @Nested
   @DisplayName("fromPublisher")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   class FromPublisherTests {
 
     @Test
@@ -272,7 +281,8 @@ class VStreamReactiveTest {
       VStream<String> stream = VStreamReactive.fromPublisher(publisher, 16);
 
       // Publish elements in background
-      Thread.startVirtualThread(
+      whenSubscribed(
+          publisher,
           () -> {
             publisher.submit("x");
             publisher.submit("y");
@@ -292,7 +302,7 @@ class VStreamReactiveTest {
 
       VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 16);
 
-      Thread.startVirtualThread(publisher::close);
+      whenSubscribed(publisher, publisher::close);
 
       List<Integer> result = stream.toList().run();
 
@@ -306,8 +316,8 @@ class VStreamReactiveTest {
 
       VStream<String> stream = VStreamReactive.fromPublisher(publisher, 16);
 
-      Thread.startVirtualThread(
-          () -> publisher.closeExceptionally(new RuntimeException("pub error")));
+      whenSubscribed(
+          publisher, () -> publisher.closeExceptionally(new RuntimeException("pub error")));
 
       assertThatThrownBy(() -> stream.toList().run()).isInstanceOf(RuntimeException.class);
     }
@@ -320,7 +330,8 @@ class VStreamReactiveTest {
       // Small buffer
       VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 2);
 
-      Thread.startVirtualThread(
+      whenSubscribed(
+          publisher,
           () -> {
             publisher.submit(1);
             publisher.submit(2);
@@ -340,7 +351,8 @@ class VStreamReactiveTest {
 
       VStream<String> stream = VStreamReactive.fromPublisher(publisher);
 
-      Thread.startVirtualThread(
+      whenSubscribed(
+          publisher,
           () -> {
             publisher.submit("a");
             publisher.close();
@@ -349,6 +361,333 @@ class VStreamReactiveTest {
       List<String> result = stream.toList().run();
 
       assertThat(result).containsExactly("a");
+    }
+  }
+
+  /**
+   * Starts a run of the stream on a virtual thread, whose first pull subscribes to its publisher.
+   */
+  private static Thread startRun(VStream<?> stream) {
+    return Thread.startVirtualThread(() -> stream.pull().runSafe());
+  }
+
+  /**
+   * Publishes once the stream's run has subscribed. A run subscribes at its first pull, and a hot
+   * publisher such as {@link SubmissionPublisher} sends a subscriber only what it submits after
+   * that subscriber subscribes.
+   */
+  private static void whenSubscribed(SubmissionPublisher<?> publisher, Runnable publishing) {
+    Thread.startVirtualThread(
+        () -> {
+          await()
+              .atMost(Duration.ofSeconds(5))
+              .pollInterval(Duration.ofMillis(1))
+              .until(() -> publisher.getNumberOfSubscribers() > 0);
+          publishing.run();
+        });
+  }
+
+  /**
+   * A cold publisher of {@code count} integers from 1, sent as they are requested, on the
+   * requesting thread. It counts its subscriptions and the elements requested of it.
+   */
+  private static Flow.Publisher<Integer> counting(
+      int count, AtomicInteger subscriptions, AtomicLong requested, AtomicBoolean cancelled) {
+    return subscriber -> {
+      subscriptions.incrementAndGet();
+      AtomicInteger sent = new AtomicInteger();
+      AtomicBoolean sending = new AtomicBoolean();
+      AtomicLong owed = new AtomicLong();
+      subscriber.onSubscribe(
+          new Flow.Subscription() {
+            @Override
+            public void request(long n) {
+              requested.addAndGet(n);
+              owed.addAndGet(n);
+              // Send on the outermost request only, so a request made from onNext adds to the
+              // demand rather than recursing
+              if (!sending.compareAndSet(false, true)) {
+                return;
+              }
+              try {
+                while (owed.get() > 0 && sent.get() < count && !cancelled.get()) {
+                  owed.decrementAndGet();
+                  subscriber.onNext(sent.incrementAndGet());
+                }
+                if (sent.get() == count && !cancelled.get()) {
+                  subscriber.onComplete();
+                }
+              } finally {
+                sending.set(false);
+              }
+            }
+
+            @Override
+            public void cancel() {
+              cancelled.set(true);
+            }
+          });
+    };
+  }
+
+  @Nested
+  @DisplayName("fromPublisher runs")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  class FromPublisherRuns {
+
+    private final AtomicInteger subscriptions = new AtomicInteger();
+    private final AtomicLong requested = new AtomicLong();
+    private final AtomicBoolean cancelled = new AtomicBoolean();
+
+    @Test
+    @DisplayName("building the stream subscribes to nothing, and its first pull subscribes")
+    void subscribesAtTheFirstPull() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(3, subscriptions, requested, cancelled), 4);
+
+      assertThat(subscriptions).hasValue(0);
+      assertThat(stream.toList().run()).containsExactly(1, 2, 3);
+      assertThat(subscriptions).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("each run subscribes afresh, so a cold publisher's stream reads the same twice")
+    void eachRunSubscribesAfresh() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(3, subscriptions, requested, cancelled), 4);
+
+      assertThat(stream.toList().run()).containsExactly(1, 2, 3);
+      assertThat(stream.toList().run()).containsExactly(1, 2, 3);
+      assertThat(subscriptions).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("a hot publisher sends a run only what it publishes after the run subscribes")
+    void aHotPublisherSendsWhatComesAfter() {
+      SubmissionPublisher<String> publisher = new SubmissionPublisher<>();
+      VStream<String> stream = VStreamReactive.fromPublisher(publisher, 4);
+
+      publisher.submit("before any run");
+      whenSubscribed(
+          publisher,
+          () -> {
+            publisher.submit("after the run subscribed");
+            publisher.close();
+          });
+
+      assertThat(stream.toList().run()).containsExactly("after the run subscribed");
+    }
+
+    @Test
+    @DisplayName("the run asks for bufferSize elements, then one more for each element taken")
+    void demandFollowsWhatIsTaken() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(10, subscriptions, requested, cancelled), 4);
+
+      VStream.Step<Integer> first = stream.pull().run();
+      long afterOneTaken = requested.get();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      VStream.Step<Integer> second = ((VStream.Step.Emit<Integer>) first).tail().pull().run();
+
+      assertThat(second).isInstanceOf(VStream.Step.Emit.class);
+      assertThat(afterOneTaken).isEqualTo(5);
+      assertThat(requested).hasValue(6);
+      stream.close().run();
+    }
+
+    @Test
+    @DisplayName("a pulled VTask gives the same step each time it runs")
+    void aPulledTaskRunsAgain() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(3, subscriptions, requested, cancelled), 4);
+      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) stream.pull().run()).tail();
+
+      VTask<VStream.Step<Integer>> pulled = tail.pull();
+      VStream.Step<Integer> once = pulled.run();
+      VStream.Step<Integer> twice = pulled.run();
+
+      assertThat(((VStream.Step.Emit<Integer>) once).value()).isEqualTo(2);
+      assertThat(twice).isSameAs(once);
+      stream.close().run();
+    }
+
+    @Test
+    @DisplayName("closing the stream after a pull cancels that run's subscription")
+    void closingAfterAPullCancels() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(10, subscriptions, requested, cancelled), 4);
+
+      stream.pull().run();
+      stream.close().run();
+
+      assertThat(cancelled).isTrue();
+    }
+
+    @Test
+    @DisplayName("a tail remembers an error, and throws the same one each time it is pulled")
+    void aTailRemembersAnError() {
+      IOException down = new IOException("the feed is down");
+      Flow.Publisher<Integer> failing =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
+
+                  @Override
+                  public void cancel() {}
+                });
+            subscriber.onNext(1);
+            subscriber.onError(down);
+          };
+      VStream<Integer> stream = VStreamReactive.fromPublisher(failing, 4);
+      VStream.Step<Integer> first = stream.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      VTask<VStream.Step<Integer>> pulled = ((VStream.Step.Emit<Integer>) first).tail().pull();
+
+      Try<VStream.Step<Integer>> once = pulled.runSafe();
+      Try<VStream.Step<Integer>> twice = pulled.runSafe();
+
+      assertThat(((Try.Failure<VStream.Step<Integer>>) once).cause()).isSameAs(down);
+      assertThat(((Try.Failure<VStream.Step<Integer>>) twice).cause()).isSameAs(down);
+    }
+
+    @Test
+    @DisplayName("holding the stream holds nothing a run has read")
+    void holdingTheStreamHoldsNothingRead() {
+      List<WeakReference<Object>> sent = new CopyOnWriteArrayList<>();
+      Flow.Publisher<Object> publisher =
+          subscriber -> {
+            AtomicBoolean done = new AtomicBoolean();
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {
+                    if (done.compareAndSet(false, true)) {
+                      for (int i = 0; i < 3; i++) {
+                        Object element = new byte[1024];
+                        sent.add(new WeakReference<>(element));
+                        subscriber.onNext(element);
+                      }
+                      subscriber.onComplete();
+                    }
+                  }
+
+                  @Override
+                  public void cancel() {}
+                });
+          };
+      VStream<Object> stream = VStreamReactive.fromPublisher(publisher, 4);
+
+      assertThat(stream.count().run()).isEqualTo(3);
+      await()
+          .atMost(Duration.ofSeconds(5))
+          .until(
+              () -> {
+                System.gc();
+                return sent.stream().allMatch(element -> element.get() == null);
+              });
+      Reference.reachabilityFence(stream);
+    }
+
+    @Test
+    @DisplayName("closing the stream wakes a pull that waits for an element, which gives Done")
+    void closingWakesAWaitingPull() throws Exception {
+      Flow.Publisher<Integer> quiet =
+          subscriber ->
+              subscriber.onSubscribe(
+                  new Flow.Subscription() {
+                    @Override
+                    public void request(long n) {}
+
+                    @Override
+                    public void cancel() {}
+                  });
+      VStream<Integer> stream = VStreamReactive.fromPublisher(quiet, 4);
+      AtomicReference<Try<VStream.Step<Integer>>> outcome = new AtomicReference<>();
+      Thread pulling = Thread.startVirtualThread(() -> outcome.set(stream.pull().runSafe()));
+      await().atMost(Duration.ofSeconds(5)).until(() -> pulling.getState() == Thread.State.WAITING);
+
+      stream.close().run();
+      pulling.join(Duration.ofSeconds(5));
+
+      assertThat(outcome.get().isSuccess()).isTrue();
+      assertThat(((Try.Success<VStream.Step<Integer>>) outcome.get()).value())
+          .isInstanceOf(VStream.Step.Done.class);
+    }
+
+    @Test
+    @DisplayName("a buffer of Integer.MAX_VALUE works")
+    void aBufferOfMaxValue() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(
+              counting(3, subscriptions, requested, cancelled), Integer.MAX_VALUE);
+
+      assertThat(stream.toList().run()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("a publisher that holds its own lock while it signals cannot deadlock the stream")
+    void aLockingPublisherCannotDeadlock() {
+      Thread reader = Thread.currentThread();
+      Object lock = new Object();
+      Flow.Publisher<String> locking =
+          subscriber -> {
+            long[] demand = {0};
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {
+                    synchronized (lock) {
+                      demand[0] += n;
+                      lock.notifyAll();
+                    }
+                  }
+
+                  @Override
+                  public void cancel() {}
+                });
+            Thread.startVirtualThread(
+                () -> {
+                  synchronized (lock) {
+                    try {
+                      while (demand[0] == 0) {
+                        lock.wait();
+                      }
+                    } catch (InterruptedException e) {
+                      return;
+                    }
+                    subscriber.onNext("a");
+                    // Still holding the lock, wait until the reader is blocked asking for more,
+                    // then send a null, which makes the stream cancel
+                    while (reader.getState() != Thread.State.BLOCKED) {
+                      Thread.onSpinWait();
+                    }
+                    try {
+                      subscriber.onNext(null);
+                    } catch (NullPointerException refused) {
+                      // The Flow rules: the subscriber throws one back
+                    }
+                  }
+                });
+          };
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> VStreamReactive.fromPublisher(locking, 4).toList().run())
+          .withMessage("VStream.fromPublisher element cannot be null");
+    }
+
+    @Test
+    @DisplayName("closing a stream that was never run cancels nothing, since nothing subscribed")
+    void closingBeforeARunCancelsNothing() {
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(counting(3, subscriptions, requested, cancelled), 4);
+
+      stream.close().run();
+
+      assertThat(subscriptions).hasValue(0);
+      assertThat(stream.toList().run()).containsExactly(1, 2, 3);
     }
   }
 
@@ -1045,9 +1384,11 @@ class VStreamReactiveTest {
                 });
           };
 
-      VStreamReactive.fromPublisher(publisher, 1);
+      // A run subscribes at its first pull, which then waits for an element
+      Thread run = startRun(VStreamReactive.fromPublisher(publisher, 1));
 
       assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+      run.interrupt();
       assertThat(cancelCalled).isTrue();
     }
 
@@ -1076,9 +1417,11 @@ class VStreamReactiveTest {
                 });
           };
 
-      VStreamReactive.fromPublisher(publisher, 1);
+      // A run subscribes at its first pull, which then waits for an element
+      Thread run = startRun(VStreamReactive.fromPublisher(publisher, 1));
 
       assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+      run.interrupt();
       assertThat(wasInterrupted).isTrue();
     }
 
@@ -1107,9 +1450,11 @@ class VStreamReactiveTest {
                 });
           };
 
-      VStreamReactive.fromPublisher(publisher, 1);
+      // A run subscribes at its first pull, which then waits for an element
+      Thread run = startRun(VStreamReactive.fromPublisher(publisher, 1));
 
       assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+      run.interrupt();
       assertThat(wasInterrupted).isTrue();
     }
   }
@@ -1264,13 +1609,14 @@ class VStreamReactiveTest {
 
       VStream<String> stream = VStreamReactive.fromPublisher(publisher, 4);
 
+      // The run subscribes at its first pull, and reads "a" before the null
+      assertThatNullPointerException()
+          .isThrownBy(() -> stream.toList().run())
+          .withMessage("VStream.fromPublisher element cannot be null");
       assertThat(thrownBack.get())
           .isInstanceOf(NullPointerException.class)
           .hasMessage("VStream.fromPublisher element cannot be null");
       assertThat(cancelled).isTrue();
-      assertThatNullPointerException()
-          .isThrownBy(() -> stream.toList().run())
-          .withMessage("VStream.fromPublisher element cannot be null");
     }
 
     @Test
