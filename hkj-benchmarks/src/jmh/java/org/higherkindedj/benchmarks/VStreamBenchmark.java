@@ -32,9 +32,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>Comparison of VStream vs raw Java Stream for equivalent operations
  * </ul>
  *
- * <p>Note: VStream is lazy and pull-based. A pull runs on the thread that runs the terminal
- * operation; only {@code VStreamPar}'s operations start virtual threads. Most combinators build up
- * a description; only terminal operations (toList, foldLeft, etc.) materialise the stream.
+ * <p>Note: VStream is lazy and pull-based. A terminal operation pulls the stream on the thread that
+ * runs it, and {@code VStreamPar}'s operations start virtual threads to pull their sources or run
+ * element tasks. Most combinators build up a description; only terminal operations (toList,
+ * foldLeft, etc.) materialise the stream.
  *
  * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VStreamBenchmark.*"}
  */

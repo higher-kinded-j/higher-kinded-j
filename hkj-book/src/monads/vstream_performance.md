@@ -11,7 +11,7 @@
 
 ~~~admonish example title="Run Benchmarks"
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VStreamBenchmark.*"
 ```
 ~~~
 
@@ -44,7 +44,7 @@ All benchmarks use JMH (Java Microbenchmark Harness) with the following configur
 For GC profiling:
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*" -PjmhProfilers=gc
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VStreamBenchmark.*" -Pjmh.profilers=gc
 ```
 
 ---

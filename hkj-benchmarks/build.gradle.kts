@@ -55,16 +55,30 @@ tasks.test {
   onlyIf { project.file("${layout.buildDirectory.get()}/reports/jmh/results.json").exists() }
 }
 
+// A -P property's text, or null when it is not given. A blank value is refused, since it would
+// quietly fall back to the default
+fun textProperty(name: String): String? =
+  project.findProperty(name)?.toString()?.also {
+    if (it.isBlank()) throw GradleException("-P$name needs a value")
+  }
+
 // A whole-number -P property, or the default when it is not given
 fun intProperty(name: String, default: Int): Int =
-  project.findProperty(name)?.toString()?.let {
+  textProperty(name)?.let {
     it.toIntOrNull() ?: throw GradleException("-P$name must be a whole number, got: $it")
   } ?: default
 
-jmh {
-  (project.findProperty("includes") as? String)?.let {
-    includes.set(listOf(it))
+// A comma-separated -P property's values, or null when it is not given. A property that gives no
+// values, such as -Pjmh.profilers=",", is refused
+fun valuesProperty(name: String): List<String>? =
+  textProperty(name)?.let { text ->
+    text.split(',').map(String::trim).filter(String::isNotEmpty).ifEmpty {
+      throw GradleException("-P$name needs at least one value, got: $text")
+    }
   }
+
+jmh {
+  textProperty("includes")?.let { includes.set(listOf(it)) }
 
   // Optimised for fast feedback (~1 minute total). For a rigorous run, pass
   // -Pjmh.iterations=5 -Pjmh.warmupIterations=3 -Pjmh.fork=2, and -Pjmh.timeOnIteration and
@@ -72,13 +86,11 @@ jmh {
   iterations = intProperty("jmh.iterations", 1)
   warmupIterations = intProperty("jmh.warmupIterations", 1)
   fork = intProperty("jmh.fork", 1)
-  timeOnIteration = findProperty("jmh.timeOnIteration")?.toString() ?: "200ms"
-  warmup = findProperty("jmh.warmup")?.toString() ?: "200ms"
+  timeOnIteration = textProperty("jmh.timeOnIteration") ?: "200ms"
+  warmup = textProperty("jmh.warmup") ?: "200ms"
 
   // -Pjmh.profilers=gc, or a comma-separated list such as gc,stack, adds JMH profilers
-  findProperty("jmh.profilers")?.toString()?.let { names ->
-    profilers.set(names.split(',').map(String::trim).filter(String::isNotEmpty))
-  }
+  valuesProperty("jmh.profilers")?.let { profilers.set(it) }
 
   // JVM arguments for benchmarks (including preview features for VTask)
   jvmArgs = listOf("-Xms512M", "-Xmx512M", "--enable-preview")
@@ -108,12 +120,12 @@ jmh {
   // -Pjmh.benchmarkParameters.chainDepth=1000, or 100,1000 for both; it wins over benchmarkMode
   val parameterPrefix = "jmh.benchmarkParameters."
   project.properties
-    .filterKeys { it.startsWith(parameterPrefix) }
-    .forEach { (key, values) ->
+    .keys
+    .filter { it.startsWith(parameterPrefix) }
+    .forEach { key ->
       benchmarkParameters.put(
         key.removePrefix(parameterPrefix),
-        project.objects.listProperty<String>()
-          .value(values.toString().split(',').map(String::trim).filter(String::isNotEmpty)))
+        project.objects.listProperty<String>().value(valuesProperty(key)))
     }
 }
 

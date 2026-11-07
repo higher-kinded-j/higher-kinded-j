@@ -505,7 +505,7 @@ Every benchmark file should include:
  *   <li>Scaling should be near-linear up to 10,000 concurrent tasks</li>
  * </ul>
  *
- * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh --tests ".*VTaskBenchmark.*"}
+ * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"}
  */
 ```
 
@@ -650,7 +650,7 @@ When creating new benchmarks:
 ### Specific Benchmark
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --tests ".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"
 ```
 
 ### With Profiler
@@ -662,7 +662,7 @@ When creating new benchmarks:
 ### Quick Run (Development)
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhFork=1 -PjmhWarmup=2 -PjmhIterations=3
+./gradlew :hkj-benchmarks:jmh -Pjmh.fork=1 -Pjmh.warmupIterations=2 -Pjmh.iterations=3
 ```
 
 ### Results Location
