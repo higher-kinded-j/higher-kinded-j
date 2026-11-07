@@ -19,9 +19,9 @@ import org.jspecify.annotations.Nullable;
  * Utility class providing parallel combinators for {@link VStream} computations.
  *
  * <p>{@code VStreamPar} provides operations for processing stream elements concurrently using Java
- * 25's virtual threads via {@code StructuredTaskScope}. All operations in this class leverage
- * bounded concurrency to limit the number of in-flight elements, providing natural backpressure
- * without an explicit protocol.
+ * 25's virtual threads via {@code StructuredTaskScope}. Every operation but {@link #merge(List)}
+ * bounds the number of elements in flight, so a slow consumer slows the reading without an explicit
+ * backpressure protocol.
  *
  * <p><b>Key operations:</b>
  *
@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link #parEvalMap(VStream, int, Function)} - Apply effectful function with bounded
  *       concurrency, preserving input order
  *   <li>{@link #parEvalMapUnordered(VStream, int, Function)} - Apply effectful function with
- *       bounded concurrency, emitting in completion order
+ *       bounded concurrency, emitting each result as its task completes
  *   <li>{@link #parEvalFlatMap(VStream, int, Function)} - Apply stream-producing function with
  *       bounded concurrency, interleaving results
  *   <li>{@link #merge(List)} - Merge multiple streams concurrently
@@ -38,9 +38,11 @@ import org.jspecify.annotations.Nullable;
  *
  * <p><b>Backpressure model:</b> VStream is pull-based; the consumer drives evaluation by requesting
  * elements. The parallel operations in this class add bounded concurrency on top of this pull
- * model. At most {@code concurrency} elements are in flight at any time. Because virtual threads
- * block cheaply, no explicit backpressure protocol is needed; if the consumer is slow, the producer
- * simply blocks on a virtual thread until the consumer pulls the next element.
+ * model. {@link #parEvalMap}, and {@link #parEvalFlatMap}, which is built on it, read a batch of up
+ * to {@code concurrency} elements when they are pulled, and {@link #parEvalMapUnordered} keeps no
+ * more than {@code concurrency} tasks and results ahead of the consumer, so a slow consumer slows
+ * the reading. {@link #merge} is the exception: it reads each source as fast as the source gives
+ * elements, and holds those not yet pulled without a limit.
  *
  * <p><b>Error handling:</b> All operations use fail-fast semantics. If any element's computation
  * fails, the entire stream fails and other in-flight tasks are cancelled via {@code
@@ -167,20 +169,27 @@ public final class VStreamPar {
   }
 
   /**
-   * Applies an effectful function to each element with bounded concurrency, emitting results in
-   * completion order rather than input order.
+   * Applies an effectful function to each element with bounded concurrency, emitting each result as
+   * its task completes, so the output is in completion order rather than input order.
    *
-   * <p>This variant maximises throughput by emitting results as soon as they complete, without
-   * waiting for earlier elements to finish. Use this when output order does not matter and you want
-   * the fastest possible throughput.
+   * <p>Up to {@code concurrency} tasks run at once, and each result is emitted as its task
+   * completes, so a slow task holds back only its own result, where {@link #parEvalMap} waits for
+   * the slowest task in each batch. When the consumer takes a result, the next element is read and
+   * its task starts. The tasks running and the results not yet pulled are never more than {@code
+   * concurrency} together, so a consumer that stops pulling stops the reading. The output contains
+   * the same elements as {@code parEvalMap}'s.
    *
-   * <p>The output stream contains exactly the same elements as {@link #parEvalMap}, but potentially
-   * in a different order.
+   * <p>Each run of the pulled {@code VTask} starts a virtual thread that reads the source and forks
+   * each element's task. A tail the stream gives keeps its step, so pulling it again gives the same
+   * step. If a task, the function or a pull from the source fails, the tasks still running are
+   * cancelled, the source is closed where the reading got to, and the stream fails with that
+   * failure. Closing the stream part-way, as {@link VStream#take} does once it has its elements,
+   * cancels the tasks still running and closes the source. A run that is neither read to its end
+   * nor closed leaves its thread waiting, so close the stream you stop reading.
    *
-   * <p>A concurrency at least as large as the stream emits every element, forking one task per
-   * element. The batch list grows as elements arrive, so a concurrency such as {@link
-   * Integer#MAX_VALUE} does not reserve a slot for every place in it before the first element is
-   * read.
+   * <p>The source is read, and the tasks run, on threads this stream starts, which do not see the
+   * caller's {@code ScopedValue} bindings. Bind a value the tasks need inside each task, or use
+   * {@link #parEvalMap}, whose tasks see the caller's bindings.
    *
    * @param <A> The type of elements in the input stream.
    * @param <B> The type of elements in the output stream.
@@ -191,7 +200,6 @@ public final class VStreamPar {
    * @throws NullPointerException if stream or f is null.
    * @throws IllegalArgumentException if concurrency is not positive.
    */
-  @SuppressWarnings("preview")
   public static <A, B> VStream<B> parEvalMapUnordered(
       VStream<A> stream, int concurrency, Function<? super A, VTask<B>> f) {
     Objects.requireNonNull(stream, "stream must not be null");
@@ -199,37 +207,7 @@ public final class VStreamPar {
     if (concurrency <= 0) {
       throw new IllegalArgumentException("concurrency must be positive, got: " + concurrency);
     }
-
-    return DeferredStream.deferring(
-        () -> {
-          // Pull up to concurrency elements from source
-          List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
-          AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
-          boolean done;
-          List<B> results;
-          try {
-            done = pullBatch(tailHolder, batch, concurrency);
-            if (batch.isEmpty()) {
-              return VStream.empty();
-            }
-            // Process batch in parallel, collecting in completion order
-            results = Executing.executed(processBatchUnordered(batch, f));
-          } catch (Throwable t) {
-            // Close where the batch got to, which its start may not reach
-            Closing.closeAfterFailure(tailHolder.get(), t);
-            throw t;
-          }
-
-          VStream<B> batchStream = VStream.fromList(results);
-
-          if (done) {
-            return batchStream;
-          }
-
-          return DerivedStream.concatContinuing(
-              batchStream, parEvalMapUnordered(tailHolder.get(), concurrency, f));
-        },
-        stream);
+    return new CompletionOrderStream<>(stream, concurrency, f);
   }
 
   /**
@@ -283,6 +261,10 @@ public final class VStreamPar {
    * failing, interrupts any source still being pulled, then closes each source that did not finish,
    * on a thread that nothing interrupts, so their finalisers run in full. A source finaliser that
    * fails while the merge closes is dropped, since the merge has already stopped.
+   *
+   * <p>The sources are read on threads the merge starts, which do not see the caller's {@code
+   * ScopedValue} bindings. Each source is read as fast as it gives elements, and the elements not
+   * yet pulled are held without a limit.
    *
    * @param <A> The type of elements in the streams.
    * @param sources The list of streams to merge, which is copied. Must not be null, nor contain
@@ -631,41 +613,6 @@ public final class VStreamPar {
 
         scope.join();
 
-        List<B> results = new ArrayList<>(subtasks.size());
-        for (var subtask : subtasks) {
-          // A task written by hand can still return null
-          results.add(Objects.requireNonNull(subtask.get(), NULL_TASK_RESULT));
-        }
-        return results;
-      } catch (StructuredTaskScope.FailedException e) {
-        throw e.getCause();
-      }
-    };
-  }
-
-  /**
-   * Processes a batch of elements in parallel, collecting results without guaranteeing input order.
-   *
-   * <p>Uses {@link StructuredTaskScope} to fork each element's task and waits for all to complete.
-   * Results are collected via {@link StructuredTaskScope.Subtask#get()}, which correctly propagates
-   * any subtask failure through {@link StructuredTaskScope.FailedException} on {@code join()}.
-   */
-  @SuppressWarnings("preview")
-  private static <A, B> VTask<List<B>> processBatchUnordered(
-      List<A> batch, Function<? super A, VTask<B>> f) {
-    return () -> {
-      try (var scope = StructuredTaskScope.open()) {
-        List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(batch.size());
-
-        for (A element : batch) {
-          VTask<B> task = f.apply(element);
-          Objects.requireNonNull(task, "function returned null task for element: " + element);
-          subtasks.add(scope.fork(task.asCallable()));
-        }
-
-        scope.join();
-
-        // Collect results — subtask.get() throws if the subtask failed
         List<B> results = new ArrayList<>(subtasks.size());
         for (var subtask : subtasks) {
           // A task written by hand can still return null

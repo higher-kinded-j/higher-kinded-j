@@ -362,11 +362,12 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   <B> VStreamPath<B> parEvalMap(int concurrency, Function<? super A, VTask<B>> f);
 
   /**
-   * Applies an effectful function to each element with bounded concurrency, emitting results in
-   * completion order rather than input order.
+   * Applies an effectful function to each element with bounded concurrency, emitting each result as
+   * its task completes, so the output is in completion order rather than input order.
    *
    * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parEvalMapUnordered(VStream,
-   * int, java.util.function.Function)}.
+   * int, Function)}, whose tasks run on threads that do not see the caller's {@code ScopedValue}
+   * bindings.
    *
    * @param concurrency the maximum number of elements to process concurrently; must be positive
    * @param f the effectful function to apply to each element; must not be null
@@ -393,7 +394,7 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Chunks the stream, applies a batch function to each chunk, and flattens the results.
    *
-   * <p>Delegates to {@link VStream#mapChunked(int, java.util.function.Function)}.
+   * <p>Delegates to {@link VStream#mapChunked(int, Function)}.
    *
    * @param size the maximum number of elements per batch; must be positive
    * @param f the batch function to apply to each non-empty chunk; must not be null

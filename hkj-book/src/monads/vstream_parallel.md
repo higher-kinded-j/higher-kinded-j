@@ -130,8 +130,9 @@ VStream<Integer> processed = VStreamPar.parEvalMapUnordered(
 // Results may be in any order
 ```
 
-A concurrency at least as large as the stream still emits every element. Its batch list
-grows as elements arrive, as `parEvalMap`'s does.
+Up to `concurrency` tasks run at once, and when the consumer takes a result, the next element
+is read and its task starts. The tasks running and the results not yet pulled are never more
+than `concurrency` together, so a slow consumer slows the reading.
 
 ### parEvalFlatMap: Parallel Stream Expansion
 
