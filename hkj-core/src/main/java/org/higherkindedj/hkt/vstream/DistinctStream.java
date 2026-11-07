@@ -25,21 +25,23 @@ final class DistinctStream<A> extends DerivedStream<A, A> {
 
   @Override
   public VTask<Step<A>> pull() {
-    return upstream
-        .pull()
-        .map(
-            step ->
-                switch (step) {
-                  case Step.Emit<A> e -> {
-                    Long first = firstSeen.putIfAbsent(e.value(), position);
-                    VStream<A> tail = new DistinctStream<>(e.tail(), position + 1, firstSeen);
-                    yield first == null || first == position
-                        ? new Step.Emit<>(e.value(), tail)
-                        : new Step.Skip<>(tail);
-                  }
-                  case Step.Skip<A> s ->
-                      new Step.Skip<>(new DistinctStream<>(s.tail(), position, firstSeen));
-                  case Step.Done<A> _ -> new Step.Done<>();
-                });
+    return pullMap(
+        step ->
+            switch (step) {
+              case Step.Emit<A> e -> {
+                Long first = firstSeen.putIfAbsent(e.value(), position);
+                VStream<A> tail = new DistinctStream<>(e.tail(), position + 1, firstSeen);
+                yield first == null || first == position
+                    ? new Step.Emit<>(e.value(), tail)
+                    : new Step.Skip<>(tail);
+              }
+              case Step.Skip<A> s ->
+                  new Step.Skip<>(new DistinctStream<>(s.tail(), position, firstSeen));
+              // The failed element takes its position
+              case Step.Fail<A> failed ->
+                  new Step.Fail<>(
+                      failed.error(), new DistinctStream<>(failed.tail(), position + 1, firstSeen));
+              case Step.Done<A> _ -> new Step.Done<>();
+            });
   }
 }

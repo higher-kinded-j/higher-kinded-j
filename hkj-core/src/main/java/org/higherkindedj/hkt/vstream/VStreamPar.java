@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,7 +43,12 @@ import org.jspecify.annotations.Nullable;
  *
  * <p><b>Error handling:</b> All operations use fail-fast semantics. If any element's computation
  * fails, the entire stream fails and other in-flight tasks are cancelled via {@code
- * StructuredTaskScope}.
+ * StructuredTaskScope}. If reading the source fails part-way through a batch, the elements read
+ * before the failure are processed and handed on first, then the stream fails; an interrupt ends it
+ * at once. A failed element, such as one whose {@link VStream#mapTask} task failed further up, is
+ * handed on in the same way, after which the stream goes on, so a {@link VStream#recover} after it
+ * gives a value in its place. {@link #merge} is the exception: it stops every source at a failed
+ * element, as at any other failure.
  *
  * <p><b>Example:</b>
  *
@@ -105,7 +109,11 @@ public final class VStreamPar {
    * <p>Elements are pulled from the source stream in batches of up to {@code concurrency} elements.
    * Each element's {@link VTask} is forked onto a virtual thread via {@code StructuredTaskScope}.
    * Results are collected in the same order as the input elements, then emitted before the next
-   * batch is pulled.
+   * batch is pulled. If reading the source fails part-way through a batch, the elements read before
+   * the failure are processed and emitted first, then the stream fails.
+   *
+   * <p>A task that fails ends the stream, so a {@link VStream#recover} after it ends there too,
+   * where it would step past a failed {@link VStream#mapTask} task.
    *
    * <p>This is the primary parallel processing operation for VStream. Use this when the order of
    * output elements must match the order of input elements.
@@ -134,35 +142,12 @@ public final class VStreamPar {
     }
 
     return DeferredStream.deferring(
-        () -> {
-          // Pull up to concurrency elements from source
-          List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
-          AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
-          boolean done;
-          List<B> results;
-          try {
-            done = pullBatch(tailHolder, batch, concurrency);
-            if (batch.isEmpty()) {
-              return VStream.empty();
-            }
-            // Process batch in parallel, preserving order
-            results = Executing.executed(processBatchOrdered(batch, f));
-          } catch (Throwable t) {
-            // Close where the batch got to, which its start may not reach
-            Closing.closeAfterFailure(tailHolder.get(), t);
-            throw t;
-          }
-
-          VStream<B> batchStream = VStream.fromList(results);
-
-          if (done) {
-            return batchStream;
-          }
-
-          // Recursively process remaining elements
-          return DerivedStream.concatContinuing(
-              batchStream, parEvalMap(tailHolder.get(), concurrency, f));
-        },
+        () ->
+            mapBatch(
+                stream,
+                concurrency,
+                batch -> processBatchOrdered(batch, f),
+                rest -> parEvalMap(rest, concurrency, f)),
         stream);
   }
 
@@ -201,34 +186,12 @@ public final class VStreamPar {
     }
 
     return DeferredStream.deferring(
-        () -> {
-          // Pull up to concurrency elements from source
-          List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
-          AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
-          boolean done;
-          List<B> results;
-          try {
-            done = pullBatch(tailHolder, batch, concurrency);
-            if (batch.isEmpty()) {
-              return VStream.empty();
-            }
-            // Process batch in parallel, collecting in completion order
-            results = Executing.executed(processBatchUnordered(batch, f));
-          } catch (Throwable t) {
-            // Close where the batch got to, which its start may not reach
-            Closing.closeAfterFailure(tailHolder.get(), t);
-            throw t;
-          }
-
-          VStream<B> batchStream = VStream.fromList(results);
-
-          if (done) {
-            return batchStream;
-          }
-
-          return DerivedStream.concatContinuing(
-              batchStream, parEvalMapUnordered(tailHolder.get(), concurrency, f));
-        },
+        () ->
+            mapBatch(
+                stream,
+                concurrency,
+                batch -> processBatchUnordered(batch, f),
+                rest -> parEvalMapUnordered(rest, concurrency, f)),
         stream);
   }
 
@@ -276,8 +239,10 @@ public final class VStreamPar {
    * stream pulls from the queue, so the first element is available as soon as any source produces
    * one — without waiting for all sources to finish.
    *
-   * <p>If any source stream fails, the error is propagated to the consumer and remaining sources
-   * are signalled to stop.
+   * <p>If any source stream fails, at a pull or at a failed element, the error is propagated to the
+   * consumer and remaining sources are signalled to stop. A {@link VStream#recover} after a merge
+   * of several streams therefore ends the stream there, even after a failed {@link VStream#mapTask}
+   * task; a merge of one stream is that stream.
    *
    * <p>Each run of the pulled {@code VTask} starts its own producer. Closing the merge, or a source
    * failing, interrupts any source still being pulled, then closes each source that did not finish,
@@ -332,8 +297,7 @@ public final class VStreamPar {
    *
    * <p>If the background thread is interrupted during {@code scope.join()}, the interrupt flag is
    * restored and the scope is closed via try-with-resources, which stops every subtask. Only then
-   * are the sources that did not finish closed, with the rest of a source that a failed {@link
-   * VStream#mapTask} task carries, so no subtask is still reading one.
+   * are the sources that did not finish closed, so no subtask is still reading one.
    */
   @SuppressWarnings("preview")
   // Package-private for testing (allows direct invocation from same-package tests)
@@ -343,18 +307,17 @@ public final class VStreamPar {
       AtomicBoolean cancelled) {
     AtomicReferenceArray<@Nullable VStream<A>> positions =
         new AtomicReferenceArray<>(streams.size());
-    Queue<VStream<?>> carried = new ConcurrentLinkedQueue<>();
     try (var scope = StructuredTaskScope.open()) {
       for (int i = 0; i < streams.size(); i++) {
         int index = i;
         positions.set(index, streams.get(index));
-        scope.fork(() -> consumeSource(index, positions, carried, queue, cancelled));
+        scope.fork(() -> consumeSource(index, positions, queue, cancelled));
       }
       scope.join();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } finally {
-      closeUnfinished(positions, carried);
+      closeUnfinished(positions);
     }
   }
 
@@ -364,15 +327,13 @@ public final class VStreamPar {
    *
    * <p>On error, the first failure sets the {@code cancelled} flag and pushes a {@link
    * MergeSignal.SourceError} so that the consumer fails fast. Subsequent source errors are
-   * discarded (only the first is reported). The rest of the source that a failed {@link
-   * VStream#mapTask} task carries goes to {@code carried}, to be closed with the source, since a
-   * discarded failure reaches no one else.
+   * discarded (only the first is reported). A failed element stops the merge in the same way, and
+   * the source's position moves past it, so the stream after it is closed with the source.
    */
   @SuppressWarnings("preview")
   private static <A> Void consumeSource(
       int index,
       AtomicReferenceArray<@Nullable VStream<A>> positions,
-      Queue<VStream<?>> carried,
       LinkedBlockingQueue<MergeSignal<A>> queue,
       AtomicBoolean cancelled) {
     try {
@@ -385,6 +346,11 @@ public final class VStreamPar {
             queue.put(new MergeSignal.Element<>(e.value()));
           }
           case VStream.Step.Skip<A> s -> positions.set(index, s.tail());
+          case VStream.Step.Fail<A> failed -> {
+            // A failed element stops the merge, which closes this source from after it
+            positions.set(index, failed.tail());
+            throw failed.error();
+          }
           case VStream.Step.Done<A> _ -> {
             positions.set(index, null);
             queue.put(new MergeSignal.SourceDone<>());
@@ -399,10 +365,6 @@ public final class VStreamPar {
       if (t instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }
-      VStream<?> rest = Closing.markedRest(t);
-      if (rest != null) {
-        carried.add(rest);
-      }
       if (!cancelled.getAndSet(true)) {
         // offer() is non-blocking on an unbounded LinkedBlockingQueue, so it always succeeds
         // and cannot throw InterruptedException (unlike put()).
@@ -413,22 +375,19 @@ public final class VStreamPar {
   }
 
   /**
-   * Closes the sources this merge stopped reading before they finished, then the rests that failed
-   * {@link VStream#mapTask} tasks carry, so their finalisers run. They close on a thread of their
-   * own, which nothing interrupts, so a finaliser that waits is not cut short when the merge is
-   * closed. A failure to close is dropped: the merge has already stopped, or reported the failure
-   * that stopped it.
+   * Closes the sources this merge stopped reading before they finished, so their finalisers run.
+   * They close on a thread of their own, which nothing interrupts, so a finaliser that waits is not
+   * cut short when the merge is closed. A failure to close is dropped: the merge has already
+   * stopped, or reported the failure that stopped it.
    */
-  private static <A> void closeUnfinished(
-      AtomicReferenceArray<@Nullable VStream<A>> positions, Queue<VStream<?>> carried) {
-    List<VStream<?>> unfinished = new ArrayList<>(positions.length() + carried.size());
+  private static <A> void closeUnfinished(AtomicReferenceArray<@Nullable VStream<A>> positions) {
+    List<VStream<?>> unfinished = new ArrayList<>(positions.length());
     for (int i = 0; i < positions.length(); i++) {
       VStream<A> position = positions.get(i);
       if (position != null) {
         unfinished.add(position);
       }
     }
-    unfinished.addAll(carried);
     if (unfinished.isEmpty()) {
       return;
     }
@@ -576,6 +535,57 @@ public final class VStreamPar {
   // ===== Internal helpers =====
 
   /**
+   * One batch of a parallel map: reads up to {@code concurrency} elements, runs their tasks with
+   * {@code process}, and gives their results, then the rest of the stream, which {@code next} maps
+   * in the same way.
+   *
+   * <p>If an element fails while the batch is read, the results for the elements read before it
+   * come first, then the failed element, with {@code next} over the stream after it, so a {@link
+   * VStream#recover} after it goes on from the next element. If reading fails, the results come
+   * first, then the failure, which ends the stream; an interrupt ends it at once, and runs none of
+   * the batch. If a task of the batch fails, that failure comes first, and ends the stream.
+   */
+  private static <A, B> VStream<B> mapBatch(
+      VStream<A> stream,
+      int concurrency,
+      Function<List<A>, VTask<List<B>>> process,
+      Function<VStream<A>, VStream<B>> next)
+      throws Throwable {
+    List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
+    AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
+    Function<List<B>, VStream<B>> after;
+    try {
+      after = pullBatch(tailHolder, batch, concurrency, next);
+    } catch (Throwable readFailure) {
+      // An interrupt stops the stream, so none of the batch runs
+      List<B> results =
+          Executing.isInterrupt(readFailure) ? List.of() : results(batch, process, tailHolder);
+      return DerivedStream.handingOnThenEnding(results, readFailure, tailHolder.get());
+    }
+    return after.apply(results(batch, process, tailHolder));
+  }
+
+  /**
+   * Runs the tasks of a batch with {@code process}. If one fails, the stream is closed where the
+   * batch got to, which its start may not reach, and the failure is rethrown.
+   */
+  private static <A, B> List<B> results(
+      List<A> batch,
+      Function<List<A>, VTask<List<B>>> process,
+      AtomicReference<VStream<A>> tailHolder)
+      throws Throwable {
+    if (batch.isEmpty()) {
+      return List.of();
+    }
+    try {
+      return Executing.executed(process.apply(batch));
+    } catch (Throwable t) {
+      Closing.closeAfterFailure(tailHolder.get(), t);
+      throw t;
+    }
+  }
+
+  /**
    * Initial capacity of a parallel batch. A larger concurrency still forks up to that many tasks;
    * the list grows as elements arrive, so a concurrency such as {@code Integer.MAX_VALUE} does not
    * allocate that many slots before the first element is read.
@@ -592,27 +602,37 @@ public final class VStreamPar {
    * Pulls up to {@code count} elements from the stream, storing them in the batch list and moving
    * the tail holder past each step, so it holds the position reached if a pull fails.
    *
-   * @return true if the stream is exhausted (Done), false if more elements remain.
+   * @return what follows the results of the batch: nothing at the end of the stream, a failed
+   *     element with {@code next} over the stream after it, or, once the batch is full, {@code
+   *     next} over the stream from where it got to
    */
-  private static <A> boolean pullBatch(
-      AtomicReference<VStream<A>> tailHolder, List<A> batch, int count) throws Throwable {
-    for (int i = 0; i < count; i++) {
+  private static <A, B> Function<List<B>, VStream<B>> pullBatch(
+      AtomicReference<VStream<A>> tailHolder,
+      List<A> batch,
+      int count,
+      Function<VStream<A>, VStream<B>> next)
+      throws Throwable {
+    while (true) {
       VStream.Step<A> step = Executing.executed(tailHolder.get().pull());
       switch (step) {
         case VStream.Step.Emit<A> e -> {
           batch.add(e.value());
           tailHolder.set(e.tail());
+          if (batch.size() == count) {
+            return results ->
+                DerivedStream.concatContinuing(VStream.fromList(results), next.apply(e.tail()));
+          }
         }
-        case VStream.Step.Skip<A> s -> {
-          tailHolder.set(s.tail());
-          i--; // Don't count skips
+        case VStream.Step.Skip<A> s -> tailHolder.set(s.tail());
+        case VStream.Step.Fail<A> failed -> {
+          tailHolder.set(failed.tail());
+          return results -> DerivedStream.handingOnThenFailedElement(results, failed, next);
         }
         case VStream.Step.Done<A> _ -> {
-          return true;
+          return VStream::fromList;
         }
       }
     }
-    return false;
   }
 
   /** Processes a batch of elements in parallel using StructuredTaskScope, preserving order. */

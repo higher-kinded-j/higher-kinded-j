@@ -547,7 +547,7 @@ Available profilers:
 | `raceWithImmediateWinner` | Parallel | Race combinator |
 | `highConcurrencyAll` / `highConcurrencyTraverse` | Parallel | High task counts |
 
-### VStreamBenchmark (30 methods)
+### VStreamBenchmark (42 methods)
 
 | Method | Category | Measures |
 |--------|----------|----------|
@@ -562,6 +562,8 @@ Available profilers:
 | `pipelineFilterMap` / `pipelineMapFilterTake` | Composition | Multi-stage pipelines |
 | `deepMapChainConstruction` / `deepMapChainExecution` | Composition | 50-deep map chains |
 | `deepFlatMapChainExecution` | Composition | Stack safety for flatMap chains |
+| `mapTaskExecution` | Execution | A task for each element, none failing |
+| `recoverThroughOperators` | Execution | Failed elements recovered through a `map` and a `filter` |
 | `baselineJavaStream*` | Execution | Raw Java Stream baselines for comparison |
 | `realWorldTransformPipeline` / `realWorldFlatMapFilter` | Composition | ETL-style patterns |
 

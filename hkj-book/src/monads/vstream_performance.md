@@ -75,7 +75,7 @@ Terminal operations (`toList`, `foldLeft`, `count`) execute the full pipeline. E
 element pull involves:
 
 1. A VTask evaluation (virtual thread fork and join)
-2. Pattern matching on the Step ADT (Emit, Skip, Done)
+2. Pattern matching on the Step ADT (Emit, Skip, Fail, Done)
 3. Any user-supplied transformation functions
 
 ```
@@ -94,7 +94,7 @@ element pull involves:
              ▼
   ┌─────────────────────┐
   │  Step pattern match │ ◀── near zero (ADT dispatch)
-  │  Emit / Skip / Done │
+  │ Emit/Skip/Fail/Done │
   └──────────┬──────────┘
              │
              ▼
