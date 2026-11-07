@@ -157,7 +157,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 |------|------|
 | `Functor` / `Applicative` / `Monad` | `Instances.monad(maybe())` (also `functor`, `applicative`) |
 | `MonadError` (Maybe, Optional, Try, Either, ...) | `Instances.monadError(optional())` (`E` inferred from target) |
-| `MonadZero` / `Alternative` (Maybe, Optional, List, Stream) | `Instances.monadZero(list())` / `Instances.alternative(maybe())` |
+| `MonadZero` (Maybe, Optional, List, Stream) / `Alternative` (those and VStream) | `Instances.monadZero(list())` / `Instances.alternative(maybe())` |
 | Phantom-typed (Either, Reader, Context, State) | `Instances.monad(either())` (`L`/`R`/`S` inferred from target) |
 | `Validated` (needs a `Semigroup`) | `Instances.validated(Semigroups.list())` |
 | `Writer` (needs a `Monoid`) | `Instances.writer(Monoids.string())` |
