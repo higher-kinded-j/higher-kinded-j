@@ -162,6 +162,7 @@ class BookExampleOutputTest {
           Map.entry("IOBook", 4),
           Map.entry("JsonApiBook", 4),
           Map.entry("LazyBook", 8),
+          Map.entry("ListBook", 4),
           Map.entry("MaybeBook", 9),
           Map.entry("MergeBook", 2),
           Map.entry("MonadBook", 8),
@@ -186,6 +187,7 @@ class BookExampleOutputTest {
           Map.entry("SparsePatchBook", 5),
           Map.entry("StandardCodecsBook", 2),
           Map.entry("StateBook", 5),
+          Map.entry("StreamBook", 5),
           Map.entry("StructureBook", 11),
           Map.entry("TiersBook", 3),
           Map.entry("TryBook", 10),
@@ -304,7 +306,7 @@ class BookExampleOutputTest {
    * The number of runnable examples must never fall below this. Deleting a {@code main}, or moving
    * an example out of the book package, would otherwise quietly shrink what this gate covers.
    */
-  private static final int MINIMUM_RUNNABLE_EXAMPLES = 71;
+  private static final int MINIMUM_RUNNABLE_EXAMPLES = 73;
 
   private static Example exampleOf(Path source) {
     String text = read(source);
