@@ -275,7 +275,7 @@ Widening allocates nothing: `VStream` implements `VStreamKind` itself, so `widen
 Practise `VStream` in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises).
 ~~~
 
-**Benchmarks:** `VStreamBenchmark` measures building streams, their operators and terminal operations, and compares them with Java's `Stream`. [Performance](vstream_performance.md) reads its results, and [Benchmarks](../benchmarks.md) says how to run it.
+**Benchmarks:** `VStreamBenchmark` measures building streams, their operators and terminal operations, and compares them with Java's `Stream`. [Performance](vstream_performance.md) says what it measures and how to run it, and [Benchmarks](../benchmarks.md) covers every benchmark.
 
 ---
 
