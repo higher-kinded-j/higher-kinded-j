@@ -5,11 +5,15 @@ package org.higherkindedj.hkt.context;
 import static org.assertj.core.api.Assertions.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -1337,17 +1341,30 @@ class ContextTest {
       // This depth would cause StackOverflowError without trampolining
       final int depth = 10_000;
 
+      List<String> received = new ArrayList<>();
       Context<String, Integer> ctx = Context.fail(new RuntimeException("initial"));
       for (int i = 0; i < depth; i++) {
         final int value = i;
-        ctx = ctx.recoverWith(_ -> Context.fail(new RuntimeException("error-" + value)));
+        ctx =
+            ctx.recoverWith(
+                error -> {
+                  received.add(error.getMessage());
+                  return Context.fail(new RuntimeException("error-" + value));
+                });
       }
       // Final recovery to get a value
-      ctx = ctx.recoverWith(_ -> Context.succeed(depth));
+      ctx =
+          ctx.recoverWith(
+              error -> {
+                received.add(error.getMessage());
+                return Context.succeed(depth);
+              });
 
       Integer result = ctx.run();
 
       assertThat(result).isEqualTo(depth);
+      // Each handler ran once, in order, and got the failure before it, not a StackOverflowError
+      assertThat(received).containsExactlyElementsOf(failures("initial", "error-", depth));
     }
 
     @Test
@@ -1356,18 +1373,30 @@ class ContextTest {
     void stackSafety_deepThrowingContinuations() {
       final int depth = 10_000;
 
+      List<Integer> mapped = new ArrayList<>();
+      List<String> received = new ArrayList<>();
       Context<String, Integer> ctx = Context.succeed(0);
       for (int i = 0; i < depth; i++) {
         final int value = i;
         ctx =
             ctx.<Integer>map(
-                    _ -> {
+                    n -> {
+                      mapped.add(n);
                       throw new IllegalStateException("boom-" + value);
                     })
-                .recoverWith(_ -> Context.succeed(value + 1));
+                .recoverWith(
+                    error -> {
+                      received.add(error.getMessage());
+                      return Context.succeed(value + 1);
+                    });
       }
 
       assertThat(ctx.run()).isEqualTo(depth);
+      // Each function ran once, on the value recovered before it, and each recovery got the failure
+      // of the function before it, not a StackOverflowError
+      assertThat(mapped).containsExactlyElementsOf(IntStream.range(0, depth).boxed().toList());
+      assertThat(received)
+          .containsExactlyElementsOf(IntStream.range(0, depth).mapToObj(n -> "boom-" + n).toList());
     }
 
     @Test
@@ -1375,18 +1404,28 @@ class ContextTest {
     void stackSafety_deepThrowingRecoveries() {
       final int depth = 10_000;
 
+      List<String> received = new ArrayList<>();
       Context<String, Integer> ctx = Context.fail(new RuntimeException("initial"));
       for (int i = 0; i < depth; i++) {
         final int value = i;
         ctx =
             ctx.recoverWith(
-                _ -> {
+                error -> {
+                  received.add(error.getMessage());
                   throw new IllegalStateException("handler-" + value);
                 });
       }
-      ctx = ctx.recoverWith(_ -> Context.succeed(depth));
+      ctx =
+          ctx.recoverWith(
+              error -> {
+                received.add(error.getMessage());
+                return Context.succeed(depth);
+              });
 
       assertThat(ctx.run()).isEqualTo(depth);
+      // Each handler ran once, in order, and got the failure of the one before it, not a
+      // StackOverflowError
+      assertThat(received).containsExactlyElementsOf(failures("initial", "handler-", depth));
     }
 
     @Test
@@ -1537,5 +1576,14 @@ class ContextTest {
   @SuppressWarnings("unchecked")
   private static <T extends Throwable, R> R throwUnchecked(Throwable error) throws T {
     throw (T) error;
+  }
+
+  /**
+   * The messages a chain of {@code count} recovery handlers and a final one receive: the first
+   * failure's, then each handler's own, numbered from 0.
+   */
+  private static List<String> failures(String first, String prefix, int count) {
+    return Stream.concat(Stream.of(first), IntStream.range(0, count).mapToObj(n -> prefix + n))
+        .toList();
   }
 }
