@@ -737,13 +737,12 @@ class StateTest extends StateTestBase<Integer> {
     }
   }
 
-  // ==========================================================================
-  // Audit Issue #7: State flatMap chains are not stack-safe
-  // ==========================================================================
-
   @Nested
-  @DisplayName("Stack Safety (audit issue #7)")
+  @DisplayName("Stack Safety")
   class StackSafetyTests {
+
+    // Far deeper than the default thread stack holds when each step nests the previous run
+    private static final int DEPTH = 100_000;
 
     @Test
     @DisplayName("deeply chained flatMap should not StackOverflow")
@@ -753,10 +752,34 @@ class StateTest extends StateTestBase<Integer> {
         state = state.flatMap(n -> State.of(s -> new StateTuple<>(n + 1, s)));
       }
       final State<Integer, Integer> finalState = state;
-      // This will StackOverflow with the current implementation
       StateTuple<Integer, Integer> result = finalState.run(0);
       assertThat(result.state()).isEqualTo(0);
       assertThat(result.value()).isEqualTo(20_000);
+    }
+
+    @Test
+    @DisplayName("a long chain of map calls runs without overflowing the stack")
+    void deepMapChainShouldNotOverflow() {
+      State<Integer, Integer> state = State.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        state = state.map(n -> n + 1);
+      }
+
+      assertThatStateTuple(state.run(7)).hasValue(DEPTH).hasState(7);
+    }
+
+    @Test
+    @DisplayName("map and flatMap calls interleaved thread the state through every step")
+    void interleavedMapAndFlatMapShouldNotOverflow() {
+      State<Integer, Integer> state = State.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        state =
+            i % 2 == 0
+                ? state.map(n -> n + 1)
+                : state.flatMap(n -> State.<Integer>modify(s -> s + 1).map(_ -> n + 1));
+      }
+
+      assertThatStateTuple(state.run(0)).hasValue(DEPTH).hasState(DEPTH / 2);
     }
   }
 }

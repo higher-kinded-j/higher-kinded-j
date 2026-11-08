@@ -63,12 +63,8 @@ public class StateApplicative<S> extends StateFunctor<S>
     State<S, ? extends Function<A, B>> stateF = STATE.narrow(ff);
     State<S, A> stateA = STATE.narrow(fa);
 
-    State<S, B> stateB =
-        State.of(
-            initialState -> {
-              StateTuple<S, ? extends Function<A, B>> resultF = stateF.run(initialState);
-              return stateA.map(resultF.value()).run(resultF.state());
-            });
+    // Through flatMap and map, so a long chain of ap calls runs in State's iterative loop
+    State<S, B> stateB = stateF.flatMap(stateA::map);
 
     return STATE.widen(stateB);
   }

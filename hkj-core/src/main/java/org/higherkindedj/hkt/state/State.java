@@ -67,6 +67,9 @@ public interface State<S, A> extends StateKind<S, A> {
    * }
    * }</pre>
    *
+   * <p>It runs in the same iterative loop as {@link #flatMap}, so a long chain of {@code map} calls
+   * is stack-safe.
+   *
    * @param <B> The type of the new computed value.
    * @param f The non-null function to apply to the current computed value. It must not return null.
    * @return A new non-null {@code State<S, B>} instance with the mapped value and original state
@@ -75,11 +78,10 @@ public interface State<S, A> extends StateKind<S, A> {
    */
   default <B> State<S, B> map(Function<? super A, ? extends B> f) {
     Validation.function().require(f, "f", MAP);
-    return State.of(
-        initialState -> {
-          StateTuple<S, A> result = this.run(initialState);
-          B newValue = Objects.requireNonNull(f.apply(result.value()), "f must not return null");
-          return new StateTuple<>(newValue, result.state());
+    return flatMap(
+        value -> {
+          B newValue = Objects.requireNonNull(f.apply(value), "f must not return null");
+          return s -> new StateTuple<>(newValue, s);
         });
   }
 
@@ -111,7 +113,8 @@ public interface State<S, A> extends StateKind<S, A> {
   }
 
   /**
-   * Internal representation of a flatMap chain that evaluates iteratively to avoid stack overflow.
+   * Internal representation of a flatMap step, which {@link #map} also builds. A chain of them
+   * evaluates iteratively to avoid stack overflow.
    */
   final class FlatMappedState<S, A, B> implements State<S, B> {
     private final State<S, A> source;

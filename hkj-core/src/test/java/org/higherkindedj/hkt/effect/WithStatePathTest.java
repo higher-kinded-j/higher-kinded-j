@@ -512,4 +512,75 @@ class WithStatePathTest {
       assertThat(result.state()).containsExactly("Starting", "Processing", "Done");
     }
   }
+
+  @Nested
+  @DisplayName("Stack Safety")
+  class StackSafetyTests {
+
+    // Far deeper than the default thread stack holds when each step nests the previous run
+    private static final int DEPTH = 100_000;
+
+    private final WithStatePath<Integer, Unit> tick = WithStatePath.modify(s -> s + 1);
+
+    @Test
+    @DisplayName("a long chain of map calls runs without overflowing the stack")
+    void deepMapChain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.map(n -> n + 1);
+      }
+
+      assertThat(path.evalState(0)).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of peek calls sees every value")
+    void deepPeekChain() {
+      int[] seen = {0};
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(1);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.peek(n -> seen[0] += n);
+      }
+
+      assertThat(path.evalState(0)).isEqualTo(1);
+      assertThat(seen[0]).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of zipWith calls threads the state through every step")
+    void deepZipWithChain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.zipWith(tick, (n, _) -> n + 1);
+      }
+
+      var result = path.run(0);
+      assertThat(result.value()).isEqualTo(DEPTH);
+      assertThat(result.state()).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of zipWith3 calls threads the state through every step")
+    void deepZipWith3Chain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.zipWith3(tick, tick, (n, _, _) -> n + 1);
+      }
+
+      var result = path.run(0);
+      assertThat(result.value()).isEqualTo(DEPTH);
+      assertThat(result.state()).isEqualTo(2 * DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of then calls threads the state through every step")
+    void deepThenChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        path = path.then(() -> tick);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
+    }
+  }
 }
