@@ -8,7 +8,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
@@ -136,7 +138,8 @@ public final class VStreamReactive {
     // keeps to its demand never waits for room
     LinkedBlockingQueue<Signal<A>> queue =
         new LinkedBlockingQueue<>(bufferSize == Integer.MAX_VALUE ? bufferSize : bufferSize + 1);
-    Upstream upstream = new Upstream();
+    // A failure the stream finds itself ends the run as the publisher's error would
+    Upstream upstream = new Upstream(failure -> queue.offer(new Signal.Error<>(failure)));
 
     publisher.subscribe(
         new Flow.Subscriber<>() {
@@ -148,11 +151,10 @@ public final class VStreamReactive {
           @Override
           public void onNext(@Nullable A item) {
             if (item == null) {
-              // The Flow rules forbid a null element: fail the stream, and throw to the publisher
+              // The Flow rules forbid a null element: fail the run, and throw to the publisher
               NullPointerException refused =
                   new NullPointerException("VStream.fromPublisher element cannot be null");
-              upstream.cancel();
-              onError(refused);
+              upstream.fail(refused);
               throw refused;
             }
             if (upstream.closed()) {
@@ -164,29 +166,36 @@ public final class VStreamReactive {
               queue.put(new Signal.Element<>(item));
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              upstream.cancel();
               // Fail the run, rather than leave it waiting for an element that is gone
-              queue.offer(new Signal.Error<>(e));
+              upstream.fail(e);
             }
           }
 
           @Override
           public void onError(Throwable throwable) {
-            try {
-              queue.put(new Signal.Error<>(throwable));
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              queue.offer(new Signal.Error<>(throwable));
-            }
+            end(new Signal.Error<>(throwable));
           }
 
           @Override
           public void onComplete() {
+            end(new Signal.Complete<>());
+          }
+
+          /**
+           * Ends the run with the signal, unless the stream has been closed, when nothing will read
+           * it. A close leaves room for one element sent as it closes, and no more, so a signal
+           * kept after the close could wait for room for ever. The Flow rules send signals one at a
+           * time, so a signal after that element sees the close.
+           */
+          private void end(Signal<A> signal) {
+            if (upstream.closed()) {
+              return;
+            }
             try {
-              queue.put(new Signal.Complete<>());
+              queue.put(signal);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              queue.offer(new Signal.Complete<>());
+              queue.offer(signal);
             }
           }
         });
@@ -248,7 +257,7 @@ public final class VStreamReactive {
             switch (queue.take()) {
               case Signal.Element<A> e -> {
                 step = new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream));
-                askForOneMore();
+                upstream.request(1);
               }
               case Signal.Complete<A> _ -> step = new VStream.Step.Done<>();
               // The publisher's error, as it gave it
@@ -265,28 +274,19 @@ public final class VStreamReactive {
       };
     }
 
-    /**
-     * Asks the publisher for one more. The Flow rules forbid {@code request} to throw, but if it
-     * does, the element just taken is kept and the next pull fails with what it threw.
-     */
-    private void askForOneMore() {
-      try {
-        upstream.request(1);
-      } catch (RuntimeException e) {
-        upstream.cancel();
-        queue.offer(new Signal.Error<>(e));
-      }
-    }
-
     @Override
     public VTask<Unit> close() {
       return VTask.delay(
           () -> {
-            upstream.cancel();
-            // Make room for an element the publisher may be blocked delivering
-            queue.clear();
-            // Wakes a pull waiting on the queue, and a pull after this gives Done
-            queue.offer(new Signal.Complete<>());
+            try {
+              upstream.cancel();
+            } finally {
+              // Make room for an element the publisher may be blocked delivering
+              queue.clear();
+              // Wakes a pull waiting on the queue, and a pull after this gives Done, even when the
+              // cancel throws
+              queue.offer(new Signal.Complete<>());
+            }
             return Unit.INSTANCE;
           });
     }
@@ -303,34 +303,50 @@ public final class VStreamReactive {
    * recorded, and whichever thread finds no call in progress makes the calls recorded so far, one
    * after another. No thread waits for another, and nothing is called holding a lock, so a
    * publisher that holds a lock of its own while it signals cannot deadlock against the stream.
+   *
+   * <p>The Flow rules forbid {@code request} and {@code cancel} to throw. A {@code request} that
+   * throws all the same fails the run with what it threw, after the elements already sent,
+   * whichever thread made the call, and the subscription is cancelled. A {@code cancel} that throws
+   * is thrown to the thread that made the call.
    */
   private static final class Upstream {
 
     private final AtomicInteger calling = new AtomicInteger();
     private final AtomicLong pending = new AtomicLong();
+    private final AtomicReference<Flow.@Nullable Subscription> subscription =
+        new AtomicReference<>();
+    // Ends the run with a failure, after the signals already sent
+    private final Consumer<Throwable> failing;
     private volatile boolean cancelRequested;
-    private volatile Flow.@Nullable Subscription subscription;
     // Read and written only by the thread that holds calling above zero
     private boolean cancelled;
 
+    Upstream(Consumer<Throwable> failing) {
+      this.failing = failing;
+    }
+
     /**
      * Records the subscription the publisher handed over and asks for the first elements, or
-     * cancels it if the stream was closed first. A second subscription is cancelled, as the Flow
-     * rules ask.
+     * cancels it if the stream was closed first. Any other subscription is cancelled, as the Flow
+     * rules ask, even one handed over at the same moment.
      */
     void attach(Flow.Subscription handedOver, long first) {
-      if (subscription != null) {
+      if (!subscription.compareAndSet(null, handedOver)) {
         handedOver.cancel();
         return;
       }
-      pending.addAndGet(first);
-      subscription = handedOver;
-      call();
+      request(first);
     }
 
     void cancel() {
       cancelRequested = true;
       call();
+    }
+
+    /** Fails the run with the error, and cancels the subscription. */
+    void fail(Throwable error) {
+      failing.accept(error);
+      cancel();
     }
 
     /** Whether the stream has been closed, so an element sent now has no reader. */
@@ -346,37 +362,45 @@ public final class VStreamReactive {
 
     /**
      * Makes the calls recorded so far, unless another thread is making them, in which case it makes
-     * this one too. A {@code request} or {@code cancel} that throws, which the Flow rules forbid,
-     * ends the calls to this subscription, and is thrown once the calls are made.
+     * this one too. A call that throws ends the calls to this subscription.
      */
     private void call() {
       if (calling.getAndIncrement() != 0) {
         return;
       }
-      RuntimeException thrown = null;
+      RuntimeException cancelFailed = null;
       int missed = 1;
       do {
-        Flow.Subscription held = subscription;
+        Flow.Subscription held = subscription.get();
         if (held != null && !cancelled) {
-          try {
-            if (cancelRequested) {
-              cancelled = true;
+          if (cancelRequested) {
+            cancelled = true;
+            try {
               held.cancel();
-            } else {
+            } catch (RuntimeException e) {
+              cancelFailed = e;
+            }
+          } else {
+            try {
               long n;
               while ((n = pending.getAndSet(0)) > 0) {
                 held.request(n);
               }
+            } catch (RuntimeException requestFailed) {
+              cancelled = true;
+              try {
+                held.cancel();
+              } catch (RuntimeException e) {
+                requestFailed.addSuppressed(e);
+              }
+              failing.accept(requestFailed);
             }
-          } catch (RuntimeException e) {
-            cancelled = true;
-            thrown = e;
           }
         }
         missed = calling.addAndGet(-missed);
       } while (missed != 0);
-      if (thrown != null) {
-        throw thrown;
+      if (cancelFailed != null) {
+        throw cancelFailed;
       }
     }
   }

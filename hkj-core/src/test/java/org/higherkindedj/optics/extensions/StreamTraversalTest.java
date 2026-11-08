@@ -326,13 +326,20 @@ class StreamTraversalTest {
               .andThen(StreamTraversal.<Integer>forVStream())
               .toTraversal();
 
-      List<VStream<Integer>> result =
-          Traversals.modify(nested, x -> x + 1, List.of(VStream.of(1, 2), VStream.of(3)));
+      AtomicInteger firstRead = new AtomicInteger();
+      AtomicInteger secondRead = new AtomicInteger();
+      VStream<Integer> first = VStream.of(1, 2).peek(_ -> firstRead.incrementAndGet());
+      VStream<Integer> second = VStream.of(3).peek(_ -> secondRead.incrementAndGet());
+
+      List<VStream<Integer>> result = Traversals.modify(nested, x -> x + 1, List.of(first, second));
 
       assertThat(result).hasSize(2);
       assertThat(result.get(0).toList().run()).containsExactly(2, 3);
       assertThat(result.get(0).toList().run()).containsExactly(2, 3);
       assertThat(result.get(1).toList().run()).containsExactly(4);
+      // Each inner stream was read once, though its result was read more than once
+      assertThat(firstRead).hasValue(2);
+      assertThat(secondRead).hasValue(1);
     }
 
     @Test
