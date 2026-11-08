@@ -160,7 +160,7 @@ A batch suits a call that takes several elements at once, such as a warehouse th
 The order depends on which feed answers first, so the example sorts the names. When the consumer stops early, with `take(n)` or `headOption()` for example, the merge is closed. It interrupts any source still being read and waits for the sources' threads to stop. Then it closes each source that had not finished, so each source's finalisers run. A source failing stops the merge in the same way. A source finaliser that fails while the merge closes is dropped, since the merge has already stopped.
 
 ~~~admonish warning title="merge reads ahead without a limit"
-A merge of several streams reads each source as fast as the source gives elements, and holds the elements you have not pulled yet without a limit. A fast endless source and a slow consumer fill memory. Bound an endless source with `take` or `takeWhile` before merging it, or merge sources you read to the end. A merge of one stream is that stream, so it reads no further ahead than that stream does.
+A merge of several streams reads each source as fast as the source gives elements, and holds the elements you have not pulled yet without a limit. While the consumer is slower than its sources, the backlog can grow to every element they give, so a fast endless source fills memory, and so can a large finite one. Bound an endless source with `take` or `takeWhile` before merging it, and merge finite sources only when all they give fits in memory. A merge of one stream is that stream, so it reads no further ahead than that stream does.
 ~~~
 
 ## How far each operation reads ahead {#how-far-each-operation-reads-ahead}

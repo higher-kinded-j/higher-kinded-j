@@ -92,7 +92,9 @@ class VStreamParBookTest {
                           () -> {
                             BigDecimal quote = ZONED_COURIER.quote(order);
                             if (isAda(order)) {
-                              othersQuoted.await(5, TimeUnit.SECONDS);
+                              if (!othersQuoted.await(5, TimeUnit.SECONDS)) {
+                                throw new IllegalStateException("the other quotes did not run");
+                              }
                             } else {
                               othersQuoted.countDown();
                             }
@@ -457,12 +459,28 @@ class VStreamParBookTest {
     @DisplayName("gives each element as it arrives, and stopping early interrupts a source")
     void eachAsItArrives() {
       CountDownLatch never = new CountDownLatch(1);
+      // Ken waits for Ada's quote to start, since a source not yet pulled when the merge closes is
+      // never pulled, and so never interrupted
+      CountDownLatch adaStarted = new CountDownLatch(1);
       AtomicBoolean adaCancelled = new AtomicBoolean();
       VStream<String> slow =
           VStream.of(ORDERS.getFirst())
-              .mapTask(order -> heldQuote(order, never, adaCancelled).map(_ -> "Ada"));
+              .mapTask(
+                  order ->
+                      VTask.exec(adaStarted::countDown)
+                          .flatMap(_ -> heldQuote(order, never, adaCancelled))
+                          .map(_ -> "Ada"));
+      VStream<String> fast =
+          VStream.of("Ken")
+              .mapTask(
+                  ken ->
+                      VTask.of(
+                          () -> {
+                            adaStarted.await();
+                            return ken;
+                          }));
 
-      assertThat(VStreamPar.merge(slow, VStream.of("Ken")).headOption().run()).contains("Ken");
+      assertThat(VStreamPar.merge(slow, fast).headOption().run()).contains("Ken");
       assertThat(adaCancelled).isTrue();
     }
 
