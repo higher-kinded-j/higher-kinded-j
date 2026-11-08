@@ -117,8 +117,8 @@ An interpreter is a natural transformation from your algebra to a target monad:
 <!-- verify -->
 ```java
 // Real console interpreter
-NaturalTransformation<ConsoleOp.Witness, IO.Witness> realInterpreter =
-    new NaturalTransformation<>() {
+Natural<ConsoleOp.Witness, IO.Witness> realInterpreter =
+    new Natural<>() {
         @Override
         public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
             return switch ((ConsoleOp<A>) fa) {
@@ -135,8 +135,8 @@ NaturalTransformation<ConsoleOp.Witness, IO.Witness> realInterpreter =
     };
 
 // Test interpreter: the same algebra, answered from canned input
-NaturalTransformation<ConsoleOp.Witness, IO.Witness> testInterpreter =
-    new NaturalTransformation<>() {
+Natural<ConsoleOp.Witness, IO.Witness> testInterpreter =
+    new Natural<>() {
         @Override
         public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
             return switch ((ConsoleOp<A>) fa) {
@@ -157,7 +157,7 @@ FreePath<ConsoleOp.Witness, String> program = greetUser;
 
 // Interpret the whole path in one step
 GenericPath<IO.Witness, String> interpreted =
-    program.foldMapWith(realInterpreter, ioMonad);
+    program.foldMap(realInterpreter, ioMonad);
 
 // Execute
 String result = IOKindHelper.IO_OP.narrow(interpreted.runKind()).unsafeRunSync();
@@ -186,8 +186,8 @@ Free<ConsoleOp.Witness, String> free = program.toFree();
 <!-- verify -->
 ```java
 // One program, two interpreters. Nothing about `greetUser` changes.
-GenericPath<IO.Witness, String> live = greetUser.foldMapWith(realInterpreter, ioMonad);
-GenericPath<IO.Witness, String> underTest = greetUser.foldMapWith(testInterpreter, ioMonad);
+GenericPath<IO.Witness, String> live = greetUser.foldMap(realInterpreter, ioMonad);
+GenericPath<IO.Witness, String> underTest = greetUser.foldMap(testInterpreter, ioMonad);
 
 String answered = IOKindHelper.IO_OP.narrow(underTest.runKind()).unsafeRunSync();
 ```

@@ -222,6 +222,7 @@ class FreeApPathTest {
 
     @Test
     @DisplayName("foldMapWith() interprets using NaturalTransformation")
+    @SuppressWarnings("removal") // tests the deprecated method until its removal
     void foldMapWithInterpretsUsingNaturalTransformation() {
       FreeApPath<MaybeKind.Witness, Integer> path =
           FreeApPath.pure(42, Instances.monadError(maybe()));

@@ -172,22 +172,23 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
   }
 
   /**
-   * Interprets using the effect package's NaturalTransformation.
+   * Interprets this FreeApPath with a {@link NaturalTransformation}, as {@link
+   * #foldMapKind(Natural, Applicative)} does.
    *
    * @param interpreter natural transformation from F to G; must not be null
    * @param targetApplicative the target applicative instance; must not be null
    * @param <G> the target applicative witness type
    * @return the interpreted result as a Kind
    * @throws NullPointerException if interpreter or targetApplicative is null
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A {@code NaturalTransformation} is a
+   *     {@link Natural}, so pass it to {@link #foldMapKind(Natural, Applicative)}. The {@code
+   *     MigrateDeprecationsTo0_7_0} recipe in {@code hkj-openrewrite} renames each call.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // takes the deprecated type until its removal
   public <G extends WitnessArity<TypeArity.Unary>> Kind<G, A> foldMapWith(
       NaturalTransformation<F, G> interpreter, Applicative<G> targetApplicative) {
-    Objects.requireNonNull(interpreter, "interpreter must not be null");
-    Objects.requireNonNull(targetApplicative, "targetApplicative must not be null");
-
-    // Adapt NaturalTransformation to Natural
-    Natural<F, G> adapted = interpreter::apply;
-    return freeAp.foldMap(adapted, targetApplicative);
+    return foldMapKind(interpreter, targetApplicative);
   }
 
   /**

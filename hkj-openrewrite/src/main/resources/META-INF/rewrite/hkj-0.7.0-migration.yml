@@ -2,13 +2,17 @@
 # MigrateDeprecationsTo0_7_0 rewrites usages of APIs deprecated in 0.6.0 for
 # removal in 0.7.0 to their replacements: VStreamPar.parCollect(stream, n),
 # VStreamPath.parCollect(n) and PathOps.parCollectVStream(path, n) become
-# toList() on the stream, and Try.foldFailureFirst and TryPath.foldFailureFirst
-# become fold.
+# toList() on the stream, Try.foldFailureFirst and TryPath.foldFailureFirst
+# become fold, and the effect package's NaturalTransformation becomes Natural,
+# with FreePath.foldMapWith renamed foldMap and FreeApPath.foldMapWith renamed
+# foldMapKind.
 #
 # Run it with hkj-openrewrite 0.6.x while the project is on 0.6.x: it matches
 # the deprecated signatures, which 0.7.0 removes. toList() compiles against
 # 0.4.x and later. fold takes the failure function first only from 0.6.0, so
 # the rename leaves a file alone unless its foldFailureFirst is deprecated.
+# The rewritten Natural code builds on 0.6.x, where GenericPath.mapK takes a
+# Natural and VStreamTransformations returns one.
 #
 # Usage:
 #   rewrite {
@@ -27,7 +31,10 @@ description: >-
   which gives the same list. A call whose batch size is computed is marked
   rather than rewritten, since toList() would drop the computation.
   Try.foldFailureFirst and TryPath.foldFailureFirst become fold, which takes
-  the same two functions in the same order.
+  the same two functions in the same order. Each use of the effect package's
+  NaturalTransformation becomes Natural, which it extends, and
+  FreePath.foldMapWith and FreeApPath.foldMapWith become foldMap and
+  foldMapKind, which take a Natural.
 tags:
   - higher-kinded-j
   - migration
@@ -35,6 +42,7 @@ tags:
 recipeList:
   - org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe
   - org.higherkindedj.openrewrite.RenameTryFoldFailureFirst
+  - org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
@@ -60,4 +68,32 @@ recipeList:
   - org.openrewrite.java.ChangeMethodName:
       methodPattern: org.higherkindedj.hkt.effect.TryPath foldFailureFirst(java.util.function.Function, java.util.function.Function)
       newMethodName: fold
+      ignoreDefinition: true
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural
+displayName: NaturalTransformation -> Natural
+description: >-
+  The effect package's NaturalTransformation, deprecated in 0.6.0 for
+  removal in 0.7.0, extends Natural, which has the same apply and offers
+  andThen, compose and identity too. Every use of the type becomes Natural. FreePath.foldMapWith
+  becomes foldMap and FreeApPath.foldMapWith becomes foldMapKind, which take
+  a Natural and give the same result. Run it while the project is on 0.6.x,
+  where both names exist.
+tags:
+  - higher-kinded-j
+  - deprecation
+recipeList:
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.effect.FreePath foldMapWith(..)
+      newMethodName: foldMap
+      ignoreDefinition: true
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.effect.FreeApPath foldMapWith(..)
+      newMethodName: foldMapKind
+      ignoreDefinition: true
+  - org.openrewrite.java.ChangeType:
+      oldFullyQualifiedTypeName: org.higherkindedj.hkt.effect.NaturalTransformation
+      newFullyQualifiedTypeName: org.higherkindedj.hkt.Natural
       ignoreDefinition: true

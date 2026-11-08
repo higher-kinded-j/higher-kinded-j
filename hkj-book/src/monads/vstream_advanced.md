@@ -179,19 +179,19 @@ collection types:
 <!-- verify -->
 ```java
 // List -> VStream (lazy)
-NaturalTransformation<ListKind.Witness, VStreamKind.Witness> listToVStream =
+Natural<ListKind.Witness, VStreamKind.Witness> listToVStream =
     VStreamTransformations.listToVStream();
 
 // VStream -> List (materialises)
-NaturalTransformation<VStreamKind.Witness, ListKind.Witness> vstreamToList =
+Natural<VStreamKind.Witness, ListKind.Witness> vstreamToList =
     VStreamTransformations.vstreamToList();
 
 // Stream -> VStream (lazy via iterator)
-NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
+Natural<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
     VStreamTransformations.streamToVStream();
 
 // VStream -> Stream (materialises)
-NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> vstreamToStream =
+Natural<VStreamKind.Witness, StreamKind.Witness> vstreamToStream =
     VStreamTransformations.vstreamToStream();
 ```
 
@@ -200,7 +200,7 @@ These compose via `andThen`:
 <!-- verify -->
 ```java
 // Stream -> VStream -> List in one step
-NaturalTransformation<StreamKind.Witness, ListKind.Witness> streamToList =
+Natural<StreamKind.Witness, ListKind.Witness> streamToList =
     streamToVStream.andThen(vstreamToList);
 ```
 

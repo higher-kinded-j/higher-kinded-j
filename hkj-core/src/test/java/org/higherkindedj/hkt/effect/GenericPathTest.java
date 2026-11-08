@@ -14,6 +14,7 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
@@ -885,8 +886,8 @@ class GenericPathTest {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
 
       // Create a natural transformation from Maybe to Either
-      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new Natural<>() {
             @Override
             public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
@@ -909,8 +910,8 @@ class GenericPathTest {
     void mapKTransformsNothingToLeft() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.of(MAYBE.<String>nothing(), MONAD);
 
-      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new Natural<>() {
             @Override
             public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
@@ -929,6 +930,24 @@ class GenericPathTest {
     }
 
     @Test
+    @DisplayName("mapK() still takes a NaturalTransformation, which is a Natural")
+    @SuppressWarnings("removal") // passes the deprecated type until its removal
+    void mapKTakesANaturalTransformation() {
+      GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
+      NaturalTransformation<MaybeKind.Witness, IdKind.Witness> maybeToId =
+          new NaturalTransformation<>() {
+            @Override
+            public <A> Kind<IdKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              return Id.of(MAYBE.narrow(fa).get());
+            }
+          };
+
+      GenericPath<IdKind.Witness, String> transformed = path.mapK(maybeToId, ID_MONAD);
+
+      assertThat(ID.narrow(transformed.runKind()).value()).isEqualTo("hello");
+    }
+
+    @Test
     @DisplayName("mapK() throws NullPointerException when transform is null")
     void mapKThrowsOnNullTransform() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
@@ -943,8 +962,8 @@ class GenericPathTest {
     void mapKThrowsOnNullTargetMonad() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
       // Use a transformation to IdKind (pure Monad, not MonadError) to test the Monad overload
-      NaturalTransformation<MaybeKind.Witness, IdKind.Witness> maybeToId =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, IdKind.Witness> maybeToId =
+          new Natural<>() {
             @Override
             public <A> Kind<IdKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
@@ -962,8 +981,8 @@ class GenericPathTest {
     void mapKWithMonadTransformsWithoutRecovery() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
       // Use a transformation to IdKind (pure Monad, not MonadError)
-      NaturalTransformation<MaybeKind.Witness, IdKind.Witness> maybeToId =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, IdKind.Witness> maybeToId =
+          new Natural<>() {
             @Override
             public <A> Kind<IdKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
@@ -985,8 +1004,8 @@ class GenericPathTest {
     void mapKWithMonadErrorPreservesRecovery() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
 
-      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new Natural<>() {
             @Override
             public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
@@ -1016,8 +1035,8 @@ class GenericPathTest {
     @DisplayName("mapK() with MonadError throws NullPointerException when targetMonadError is null")
     void mapKWithMonadErrorThrowsOnNullTargetMonadError() {
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure("hello", MONAD);
-      NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
-          new NaturalTransformation<>() {
+      Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
+          new Natural<>() {
             @Override
             public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
               Maybe<A> maybe = MAYBE.narrow(fa);
