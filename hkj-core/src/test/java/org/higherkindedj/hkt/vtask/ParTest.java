@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -95,6 +96,19 @@ class ParTest {
       VTask<Par.Tuple2<Integer, Integer>> combined = Par.zip(taskA, taskB);
 
       assertThatVTask(combined).fails().withMessage("Task B failed");
+    }
+
+    @Test
+    @DisplayName("zip() fails with a task's Throwable that is neither an Exception nor an Error")
+    void zipKeepsPlainThrowable() {
+      Throwable odd = new Throwable("neither an Exception nor an Error");
+
+      VTask<Par.Tuple2<Integer, Integer>> combined =
+          Par.zip(VTask.fail(odd), VTask.succeed(TEST_VALUE_B));
+
+      assertThat(combined.runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class, failure -> assertThat(failure.cause()).isSameAs(odd));
     }
 
     @Test

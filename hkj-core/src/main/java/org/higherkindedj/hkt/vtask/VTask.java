@@ -91,25 +91,25 @@ public interface VTask<A> extends VTaskKind<A> {
   /**
    * Returns this VTask as a {@link Callable} for use with {@code StructuredTaskScope.fork()}.
    *
-   * <p>This method wraps the {@link #execute()} method to handle the exception type mismatch
-   * between {@code execute()} (which throws {@code Throwable}) and {@code Callable.call()} (which
-   * throws {@code Exception}).
+   * <p>The callable throws whatever {@link #execute()} throws, unchanged. That includes a {@link
+   * Throwable} that is neither an {@link Exception} nor an {@link Error}, which {@code
+   * Callable.call()} does not declare. So a forked task fails with its own failure, as it does when
+   * run on its own with {@link #runSafe()}.
    *
    * @return A {@link Callable} that invokes this task's execute method. Never null.
    */
   default Callable<A> asCallable() {
-    return () -> {
-      try {
-        return execute();
-      } catch (Exception e) {
-        throw e;
-      } catch (Throwable t) {
-        // Error is unchecked and can be thrown directly
-        if (t instanceof Error) throw (Error) t;
-        // Wrap any other Throwable (rare) in RuntimeException
-        throw new RuntimeException(t);
-      }
-    };
+    return () -> executeUnchecked(this);
+  }
+
+  /** Runs the task, throwing what it throws without declaring it, which a callable cannot do. */
+  @SuppressWarnings("unchecked") // T is erased, so the cast checks nothing
+  private static <A, T extends Throwable> A executeUnchecked(VTask<A> task) throws T {
+    try {
+      return task.execute();
+    } catch (Throwable t) {
+      throw (T) t;
+    }
   }
 
   // ===== FACTORY METHODS =====
