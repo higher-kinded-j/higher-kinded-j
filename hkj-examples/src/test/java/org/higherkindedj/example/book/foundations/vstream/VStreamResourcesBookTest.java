@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -597,8 +599,9 @@ class VStreamResourcesBookTest {
 
     @Test
     @DisplayName("an interrupt that arrives while the release runs, as a timeout's can, reaches it")
-    void aLaterInterruptReachesTheRelease() {
+    void aLaterInterruptReachesTheRelease() throws InterruptedException {
       AtomicBoolean cutShort = new AtomicBoolean();
+      CountDownLatch releasing = new CountDownLatch(1);
       VStream<Integer> slowToClose =
           VStream.bracket(
               VTask.succeed("resource"),
@@ -606,16 +609,22 @@ class VStreamResourcesBookTest {
               _ ->
                   VTask.exec(
                       () -> {
+                        releasing.countDown();
                         try {
                           Thread.sleep(Duration.ofSeconds(5));
                         } catch (InterruptedException e) {
                           cutShort.set(true);
                         }
                       }));
+      Thread reading = Thread.startVirtualThread(() -> slowToClose.toList().runSafe());
 
-      Try<List<Integer>> timedOut = slowToClose.toList().timeout(Duration.ofMillis(50)).runSafe();
+      // Interrupted once the release has begun, as a timeout's interrupt is when it comes then. A
+      // real timeout can come before the release on a busy machine, and is then held back, as the
+      // test before this one shows
+      assertThat(releasing.await(5, TimeUnit.SECONDS)).isTrue();
+      reading.interrupt();
 
-      assertThatTry(timedOut).isFailure();
+      assertThat(reading.join(Duration.ofSeconds(5))).isTrue();
       assertThat(cutShort).isTrue();
     }
   }
