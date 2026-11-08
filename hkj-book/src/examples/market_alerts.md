@@ -385,7 +385,7 @@ benefits:
 
 ~~~admonish tip title="See Also"
 - [Resilience Patterns](../resilience/ch_intro.md): Retry, Circuit Breaker, Bulkhead, Saga
-- [VStream Advanced Features](../monads/vstream_advanced.md): `recoverWith`, `recover`, `onFinalize`
+- [When an element fails](../monads/vstream.md#when-an-element-fails): `recoverWith` and `recover`; [`onFinalize`](../monads/vstream_resources.md#onfinalize-lightweight-cleanup): cleanup for any stream
 - [Structured Concurrency](../monads/vtask_scope.md): `Scope.allSucceed`, `Scope.anySucceed`
 - [Quick Reference](market_reference.md): feature summary table and source file index
 ~~~

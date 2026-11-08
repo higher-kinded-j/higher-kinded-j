@@ -983,7 +983,24 @@
     "monads/writer_monad.html#admonition-before-vs-after": "monads/writer_monad.html#an-audit-log-for-an-order",
     "monads/writer_monad.html#admonition-tell-vs-map-vs-flatmap": "monads/writer_monad.html#methods",
     "monads/writer_monad.html#admonition-key-points": "monads/writer_monad.html#when-to-use-writer",
-    "monads/writer_monad.html#admonition-benchmarks": "monads/writer_monad.html#each-steps-log-joins-the-log-before-it"
+    "monads/writer_monad.html#admonition-benchmarks": "monads/writer_monad.html#each-steps-log-joins-the-log-before-it",
+    "monads/vstream_advanced.html#vstream-advanced-features": "monads/vstream_advanced.html#advanced-features-connecting-vstream-to-other-apis",
+    "monads/vstream_advanced.html#streamtraversal-reactive-interop-natural-transformations-and-vstreamcontext": "monads/vstream_advanced.html#advanced-features-connecting-vstream-to-other-apis",
+    "monads/vstream_advanced.html#core-operations": "monads/vstream_advanced.html#methods",
+    "monads/vstream_advanced.html#built-in-instances": "monads/vstream_advanced.html#streamtraversal-lazy-optics",
+    "monads/vstream_advanced.html#composition": "monads/vstream_advanced.html#streamtraversal-lazy-optics",
+    "monads/vstream_advanced.html#key-difference-from-traversal": "monads/vstream_advanced.html#conversion-to-standard-traversal",
+    "monads/vstream_advanced.html#round-trip": "monads/vstream_advanced.html#publisher-to-vstream",
+    "monads/vstream_advanced.html#path-integration": "monads/vstream_advanced.html#publisher-to-vstream",
+    "monads/vstream_advanced.html#admonition-materialisation": "monads/vstream_advanced.html#natural-transformations",
+    "monads/vstream_advanced.html#creating-contexts": "monads/vstream_advanced.html#vstreamcontext-layer-2-api",
+    "monads/vstream_advanced.html#building-pipelines": "monads/vstream_advanced.html#vstreamcontext-layer-2-api",
+    "monads/vstream_advanced.html#terminal-operations": "monads/vstream_advanced.html#vstreamcontext-layer-2-api",
+    "monads/vstream_advanced.html#monadic-composition": "monads/vstream_advanced.html#vstreamcontext-layer-2-api",
+    "monads/vstream_advanced.html#escape-hatches": "monads/vstream_advanced.html#vstreamcontext-layer-2-api",
+    "monads/vstream_advanced.html#key-takeaways": "monads/vstream_advanced.html#when-to-use-them",
+    "monads/vstream_advanced.html#admonition-key-takeaways": "monads/vstream_advanced.html#when-to-use-them",
+    "monads/vstream_advanced.html#see-also": "monads/vstream_advanced.html#when-to-use-them"
   };
 
   function target() {
