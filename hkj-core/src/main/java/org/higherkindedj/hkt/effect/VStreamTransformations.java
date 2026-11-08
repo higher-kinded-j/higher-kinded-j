@@ -17,9 +17,9 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
 /**
  * Natural transformations between VStream and other collection/effect types.
  *
- * <p>This utility class provides type-safe conversions between VStream and Stream, List, and VTask
- * representations using the {@link NaturalTransformation} abstraction. These transformations
- * preserve element order and satisfy the naturality law:
+ * <p>This utility class provides type-safe conversions between VStream and Java's Stream, and
+ * between VStream and List, using the {@link NaturalTransformation} abstraction. These
+ * transformations preserve element order and satisfy the naturality law:
  *
  * <pre>{@code
  * nt.apply(fa.map(f)) == nt.apply(fa).map(f)
@@ -30,9 +30,13 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
  * <ul>
  *   <li><b>Lazy (non-materialising):</b> {@link #streamToVStream()} and {@link #listToVStream()}
  *       wrap the source without evaluating elements. Safe for large or infinite inputs.
- *   <li><b>Materialising:</b> {@link #vstreamToStream()} and {@link #vstreamToList()} execute the
- *       VStream, collecting all elements. Only safe for finite streams.
+ *   <li><b>Materialising:</b> {@link #vstreamToStream()} and {@link #vstreamToList()} run the
+ *       VStream when {@code apply} is called, on the calling thread, collecting all elements, and
+ *       throw if it fails. Only safe for finite streams.
  * </ul>
+ *
+ * <p>A VStream made by {@link #streamToVStream()} reads a Java Stream, which its first run uses up,
+ * so a second run is empty.
  *
  * <h2>Usage with GenericPath.mapK</h2>
  *

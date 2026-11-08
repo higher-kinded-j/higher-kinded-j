@@ -604,8 +604,9 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Converts this VStreamPath to a {@link java.util.concurrent.Flow.Publisher}.
    *
-   * <p>Each subscriber receives all elements. Backpressure is respected: elements are only pulled
-   * when the subscriber requests them. Delegates to {@link
+   * <p>Each subscriber receives all elements. Backpressure is respected: elements are pulled when
+   * the subscriber requests them, and on until the next element or the end, to notice the end of
+   * the stream. Delegates to {@link
    * org.higherkindedj.hkt.vstream.VStreamReactive#toPublisher(VStream)}.
    *
    * @return a Flow.Publisher that publishes this stream's elements; never null
