@@ -363,8 +363,8 @@ public final class VStreamReactive {
               cancelled = true;
               held.cancel();
             } else {
-              long n = pending.getAndSet(0);
-              if (n > 0) {
+              long n;
+              while ((n = pending.getAndSet(0)) > 0) {
                 held.request(n);
               }
             }

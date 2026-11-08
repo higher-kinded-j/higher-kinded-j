@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import java.io.IOException;
 import java.lang.ref.Reference;
@@ -551,6 +552,114 @@ class VStreamReactiveTest {
 
       assertThat(((Try.Failure<VStream.Step<Integer>>) once).cause()).isSameAs(down);
       assertThat(((Try.Failure<VStream.Step<Integer>>) twice).cause()).isSameAs(down);
+    }
+
+    @Test
+    @DisplayName(
+        "an element sent after the stream is closed is dropped, so it cannot fill the buffer")
+    void anElementSentAfterCloseIsDropped() {
+      AtomicReference<Flow.Subscriber<? super Integer>> reading = new AtomicReference<>();
+      Flow.Publisher<Integer> publisher =
+          subscriber -> {
+            reading.set(subscriber);
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {
+                    if (requested.getAndAdd(n) == 0) {
+                      subscriber.onNext(1);
+                    }
+                  }
+
+                  @Override
+                  public void cancel() {
+                    cancelled.set(true);
+                  }
+                });
+          };
+      VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 1);
+
+      assertThat(stream.pull().run()).isInstanceOf(VStream.Step.Emit.class);
+      stream.close().run();
+      assertThat(cancelled).isTrue();
+
+      // The buffer has room for one element and the end, and the end is already in it, so a
+      // second element kept rather than dropped would block this thread
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(5),
+          () -> {
+            reading.get().onNext(2);
+            reading.get().onNext(3);
+          });
+    }
+
+    @Test
+    @DisplayName("a request that throws fails the run once the element just taken has been read")
+    void aRequestThatThrowsFailsTheRun() {
+      IllegalStateException refused = new IllegalStateException("request refused");
+      Flow.Publisher<Integer> publisher =
+          subscriber ->
+              subscriber.onSubscribe(
+                  new Flow.Subscription() {
+                    private final AtomicInteger calls = new AtomicInteger();
+
+                    @Override
+                    public void request(long n) {
+                      if (calls.getAndIncrement() > 0) {
+                        throw refused;
+                      }
+                      subscriber.onNext(1);
+                    }
+
+                    @Override
+                    public void cancel() {}
+                  });
+      VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 1);
+
+      VStream.Step<Integer> first = stream.pull().run();
+
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      assertThat(((VStream.Step.Emit<Integer>) first).value()).isEqualTo(1);
+      Try<VStream.Step<Integer>> next =
+          ((VStream.Step.Emit<Integer>) first).tail().pull().runSafe();
+      assertThat(next).isEqualTo(Try.failure(refused));
+    }
+
+    @Test
+    @DisplayName("a second onSubscribe is cancelled, and nothing is requested from it")
+    void aSecondSubscriptionIsCancelled() {
+      AtomicBoolean secondRequested = new AtomicBoolean();
+      AtomicBoolean secondCancelled = new AtomicBoolean();
+      Flow.Publisher<Integer> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {
+                    subscriber.onNext(1);
+                    subscriber.onComplete();
+                  }
+
+                  @Override
+                  public void cancel() {}
+                });
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {
+                    secondRequested.set(true);
+                  }
+
+                  @Override
+                  public void cancel() {
+                    secondCancelled.set(true);
+                  }
+                });
+          };
+
+      assertThat(VStreamReactive.fromPublisher(publisher, 4).toList().run()).containsExactly(1);
+      assertThat(secondCancelled).isTrue();
+      assertThat(secondRequested).isFalse();
     }
 
     @Test
