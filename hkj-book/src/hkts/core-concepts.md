@@ -93,7 +93,7 @@ Higher-Kinded-J's own types hold a value, never `null`. They refuse it at the fa
 
 | Type | A `null` value | A `map` function that returns `null` |
 |---|---|---|
-| `Either`, `Try`, `Validated`, `EitherOrBoth`, `NonEmptyList`, `IO`, `VTask`, `Lazy`, `Reader`, `State`, `Writer`, `Free` and `Trampoline` | Refused: `Either.right(null)` and `Instances.monad(either()).of(null)` throw `NullPointerException` | Fails: `Either` throws at once, `Try` gives a `Failure`, and `IO` fails when it runs |
+| `Either`, `Try`, `Validated`, `EitherOrBoth`, `NonEmptyList`, `IO`, `VTask`, `Lazy`, `Reader`, `Context`, `State`, `Writer`, `Free` and `Trampoline` | Refused: `Either.right(null)` and `Instances.monad(either()).of(null)` throw `NullPointerException` | Fails: `Either` throws at once, `Try` gives a `Failure`, and `IO` fails when it runs |
 | `Maybe` | Read as `Nothing` by `Maybe.fromNullable` and by the instance's `of`, though `Maybe.just(null)` throws | Read as `Nothing` |
 | `Id` | Held | Held |
 

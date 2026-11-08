@@ -37,7 +37,7 @@ Read a page when a task calls for its type, such as returning a typed error. [Ch
   - [VStream](vstream.md): A stream that produces each element when pulled, with [HKT and Type Classes](vstream_hkt.md), [Parallel Operations](vstream_parallel.md), [Performance](vstream_performance.md), [Resource-Safe Streaming](vstream_resources.md) and [Advanced Features](vstream_advanced.md)
 - **Environment and state**
   - [Reader](reader_monad.md): A value worked out from settings
-  - [Context](context_scoped.md): Settings read from a Java `ScopedValue`
+  - [Context](context_scoped.md): Request values bound to a `ScopedValue`
   - [State](state_monad.md): A step that reads a state and gives a new one
   - [Writer](writer_monad.md): A value with a log beside it
 - **Collections**
