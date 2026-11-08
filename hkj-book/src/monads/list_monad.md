@@ -208,7 +208,7 @@ List has dedicated JMH benchmarks measuring map, flatMap, and ap composition. Ke
 - **`ap`** produces Cartesian products, O(n*m) where n = functions, m = values
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*ListBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*ListBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details.
 ~~~

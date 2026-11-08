@@ -263,7 +263,7 @@ Writer has dedicated JMH benchmarks measuring log accumulation overhead, Monoid 
 - **Deep chains** scale linearly with the Monoid's `combine` cost
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*WriterBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*WriterBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

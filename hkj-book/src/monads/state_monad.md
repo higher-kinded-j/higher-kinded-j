@@ -393,7 +393,7 @@ State has dedicated JMH benchmarks measuring state threading overhead, compositi
 - State threading adds constant overhead per step regardless of state size
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*StateBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*StateBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

@@ -453,7 +453,7 @@ public class AbstractionOverheadBenchmark {
 Use JMH's GC profiler:
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=gc
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc
 ```
 
 ### Heap Analysis
@@ -475,7 +475,7 @@ public void memoryPressure() {
 
 ```bash
 # With async-profiler
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=async:output=flamegraph
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=async:output=flamegraph
 ```
 
 ---
@@ -505,7 +505,7 @@ Every benchmark file should include:
  *   <li>Scaling should be near-linear up to 10,000 concurrent tasks</li>
  * </ul>
  *
- * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh --tests ".*VTaskBenchmark.*"}
+ * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"}
  */
 ```
 
@@ -650,19 +650,19 @@ When creating new benchmarks:
 ### Specific Benchmark
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --tests ".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"
 ```
 
 ### With Profiler
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhProfilers=gc,stack
+./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc,stack
 ```
 
 ### Quick Run (Development)
 
 ```bash
-./gradlew :hkj-benchmarks:jmh -PjmhFork=1 -PjmhWarmup=2 -PjmhIterations=3
+./gradlew :hkj-benchmarks:jmh -Pjmh.fork=1 -Pjmh.warmupIterations=2 -Pjmh.iterations=3
 ```
 
 ### Results Location
