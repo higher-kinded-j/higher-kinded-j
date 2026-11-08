@@ -194,7 +194,7 @@ class BookExampleOutputTest {
           Map.entry("VStreamBook", 12),
           Map.entry("VStreamHktBook", 10),
           Map.entry("VStreamLinesBook", 1),
-          Map.entry("VStreamParBook", 11),
+          Map.entry("VStreamParBook", 10),
           Map.entry("VStreamResourcesBook", 18),
           Map.entry("VTaskBook", 10),
           Map.entry("WhyHktBook", 3),

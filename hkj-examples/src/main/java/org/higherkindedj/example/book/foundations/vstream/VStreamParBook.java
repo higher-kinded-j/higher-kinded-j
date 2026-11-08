@@ -146,20 +146,11 @@ public final class VStreamParBook {
 
     Try<List<BigDecimal>> held = patchy.toList().runSafe();
     // Failure(java.io.IOException: no courier serves Edsger's address)
-    List<BigDecimal> recoveredAfter = patchy.recover(error -> FLAT_RATE).toList().run();
-    // [9.99]
-    List<BigDecimal> recoveredInside =
-        VStreamPar.parEvalMap(
-                paidOrders(),
-                4,
-                order -> VTask.of(() -> PATCHY_COURIER.quote(order)).recover(error -> FLAT_RATE))
-            .toList()
-            .run();
+    List<BigDecimal> recovered = patchy.recover(error -> FLAT_RATE).toList().run();
     // [4.99, 4.99, 9.99, 4.99]
     // ANCHOR_END: failures
     System.out.println(held);
-    System.out.println(recoveredAfter);
-    System.out.println(recoveredInside);
+    System.out.println(recovered);
 
     // ANCHOR: path
     List<BigDecimal> viaPath =

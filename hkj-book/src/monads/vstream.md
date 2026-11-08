@@ -212,7 +212,7 @@ When the source itself fails, there is nothing to carry on with. A feed that goe
 
 | Operator | When the stream fails |
 |---|---|
-| `recover(f)` | Gives `f`'s value. After a failed `mapTask` task, the stream carries on with the next element. After any other failure, such as a `map` function that throws, a failed source or a failed `parEvalMap` task, it ends |
+| `recover(f)` | Gives `f`'s value. After a failed task, in `mapTask` or a [parallel operation](vstream_parallel.md#when-a-task-fails), the stream carries on with the next element. After any other failure, such as a `map` function that throws or a failed source, it ends |
 | `recoverWith(f)` | Reads the stream `f` gives in place of the rest |
 | `mapError(f)` | Fails with the exception `f` gives instead |
 | `onError(action)` | Runs `action`, then fails as before |

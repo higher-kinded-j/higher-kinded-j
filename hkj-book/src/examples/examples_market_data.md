@@ -137,13 +137,15 @@ All parallelism in the pipeline uses `StructuredTaskScope`:
 - `Scope.allSucceed` forks alert channels within a scope
 - `VStreamPar.merge` forks one consumer per source within a scope
 
-If any task fails, the scope cancels all remaining tasks. No orphaned threads, no leaked
-resources.
+A scope that stops early cancels the tasks still running, so there are no orphaned threads and
+no leaked resources. `Par.map2`, `Scope.allSucceed` and `merge` stop at the first failure, while
+`parEvalMap` makes a failed task a failure in its element's place and lets the rest of the batch
+finish.
 
 ### Fail-Fast Error Handling
 
 Errors propagate immediately at every level:
-- If any enrichment lookup fails, the entire batch fails
+- If an enrichment lookup fails, that tick becomes a typed `MarketError`, which is reported
 - If any risk calculation throws, the pipeline surfaces the error
 - If any alert channel fails, the dispatch for that alert fails
 - If any source stream errors during merge, the merged stream fails
