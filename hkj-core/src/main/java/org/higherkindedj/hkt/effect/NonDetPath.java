@@ -89,35 +89,46 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
   /**
    * Creates a NonDetPath from a list.
    *
-   * @param list the list to wrap; must not be null
+   * @param list the list to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a NonDetPath wrapping the list
-   * @throws NullPointerException if list is null
+   * @throws NullPointerException if list is null, or contains null
    */
   public static <A> NonDetPath<A> of(List<A> list) {
+    Objects.requireNonNull(list, "list must not be null");
+    for (A a : list) {
+      Objects.requireNonNull(a, "list must not contain null");
+    }
     return new NonDetPath<>(list);
   }
 
   /**
    * Creates a NonDetPath from varargs.
    *
-   * @param elements the elements
+   * @param elements the elements; must not be null, and must not contain null
    * @param <A> the element type
    * @return a NonDetPath containing the elements
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> NonDetPath<A> of(A... elements) {
+    Objects.requireNonNull(elements, "elements must not be null");
+    for (A a : elements) {
+      Objects.requireNonNull(a, "elements must not contain null");
+    }
     return new NonDetPath<>(Arrays.asList(elements));
   }
 
   /**
    * Creates a NonDetPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a NonDetPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> NonDetPath<A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new NonDetPath<>(List.of(value));
   }
 
@@ -219,10 +230,18 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
 
   // ===== Composable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NullPointerException if mapper is null or returns null
+   */
   @Override
   public <B> NonDetPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    List<B> mapped = list.stream().map(mapper).collect(Collectors.toList());
+    List<B> mapped =
+        list.stream()
+            .map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null"))
+            .collect(Collectors.toList());
     return new NonDetPath<>(mapped);
   }
 
@@ -235,6 +254,11 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
 
   // ===== Combinable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NullPointerException if other or combiner is null, or the combiner returns null
+   */
   @Override
   public <B, C> NonDetPath<C> zipWith(
       Combinable<? extends NonDetPath<?>, B> other,
@@ -253,7 +277,7 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     List<C> combined = new ArrayList<>();
     for (A a : this.list) {
       for (B b : typedOther.list) {
-        combined.add(combiner.apply(a, b));
+        combined.add(Objects.requireNonNull(combiner.apply(a, b), "combiner must not return null"));
       }
     }
     return new NonDetPath<>(combined);
@@ -271,6 +295,7 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
    * @param <C> the type of the third path's elements
    * @param <D> the type of the combined result
    * @return a new path containing all combinations
+   * @throws NullPointerException if second, third or combiner is null, or the combiner returns null
    */
   public <B, C, D> NonDetPath<D> zipWith3(
       NonDetPath<B> second,
@@ -284,7 +309,8 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     for (A a : this.list) {
       for (B b : second.list) {
         for (C c : third.list) {
-          combined.add(combiner.apply(a, b, c));
+          combined.add(
+              Objects.requireNonNull(combiner.apply(a, b, c), "combiner must not return null"));
         }
       }
     }

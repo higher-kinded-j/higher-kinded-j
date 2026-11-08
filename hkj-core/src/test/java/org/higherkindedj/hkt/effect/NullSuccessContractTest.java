@@ -233,6 +233,50 @@ class NullSuccessContractTest {
           .isThrownBy(() -> logged.zipWith3(logged, logged, (a, b, c) -> null))
           .withMessage("combiner must not return null");
     }
+
+    @Test
+    @DisplayName("a ListPath or NonDetPath names a null element, or the function that returned one")
+    void aListPathNamesTheNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPath.of(Arrays.asList("a", null)))
+          .withMessage("list must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPath.of("a", null))
+          .withMessage("elements must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPath.pure(null))
+          .withMessage("value must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPath.of(1, 2).map(i -> null))
+          .withMessage("mapper must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> ListPath.of(1).zipWith(ListPath.of(2), (a, b) -> null))
+          .withMessage("combiner must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> ListPath.of(1).zipWith3(ListPath.of(2), ListPath.of(3), (a, b, c) -> null))
+          .withMessage("combiner must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NonDetPath.of(Arrays.asList("a", null)))
+          .withMessage("list must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NonDetPath.of("a", null))
+          .withMessage("elements must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NonDetPath.pure(null))
+          .withMessage("value must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NonDetPath.of(1, 2).map(i -> null))
+          .withMessage("mapper must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NonDetPath.of(1).zipWith(NonDetPath.of(2), (a, b) -> null))
+          .withMessage("combiner must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  NonDetPath.of(1).zipWith3(NonDetPath.of(2), NonDetPath.of(3), (a, b, c) -> null))
+          .withMessage("combiner must not return null");
+    }
   }
 
   @Nested
