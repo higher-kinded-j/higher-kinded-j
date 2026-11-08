@@ -583,6 +583,179 @@ class ContextTest {
             .isThrownBy(ctx::run)
             .withMessageContaining("recovery context cannot be null");
       }
+
+      @Test
+      @DisplayName("recoverWith() should recover from a map function that throws")
+      void recoverWith_shouldRecoverFromAThrowingMapFunction() {
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .<String>map(
+                    _ -> {
+                      throw new IllegalStateException("boom");
+                    })
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: boom");
+      }
+
+      @Test
+      @DisplayName("recoverWith() should recover from a flatMap function that throws")
+      void recoverWith_shouldRecoverFromAThrowingFlatMapFunction() {
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .<String>flatMap(
+                    _ -> {
+                      throw new IllegalStateException("boom");
+                    })
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: boom");
+      }
+
+      @Test
+      @DisplayName("recoverWith() should recover from a map function that returns null")
+      @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify the failure
+      void recoverWith_shouldRecoverFromANullMapResult() {
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .map(_ -> (String) null)
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: f must not return null");
+      }
+
+      @Test
+      @DisplayName("recoverWith() should recover from a flatMap function that returns null")
+      @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify the failure
+      void recoverWith_shouldRecoverFromANullFlatMapResult() {
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .<String>flatMap(_ -> null)
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: flatMap function returned null context");
+      }
+
+      @Test
+      @DisplayName("recoverWith() should hand a failing recovery's failure to the next one out")
+      void recoverWith_shouldHandAFailingRecoveryOn() {
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("first"))
+                .<String>recoverWith(
+                    _ -> {
+                      throw new IllegalStateException("second");
+                    })
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: second");
+      }
+
+      @Test
+      @DisplayName(
+          "recoverWith() should throw a failing recovery's failure when nothing is outside")
+      void recoverWith_shouldThrowAFailingRecoverysFailure() {
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("first"))
+                .recoverWith(
+                    _ -> {
+                      throw new IllegalStateException("second");
+                    });
+
+        assertThatIllegalStateException().isThrownBy(ctx::run).withMessage("second");
+      }
+
+      @Test
+      @DisplayName("recoverWith() inside a flatMap should see only the failures inside it")
+      void recoverWith_insideAFlatMapSeesOnlyItsOwnFailures() {
+        AtomicReference<String> inner = new AtomicReference<>();
+        Context<String, String> ctx =
+            Context.<String, Integer>succeed(1)
+                .flatMap(
+                    _ ->
+                        Context.<String, String>fail(new RuntimeException("inside"))
+                            .recoverWith(
+                                e -> {
+                                  inner.set(e.getMessage());
+                                  return Context.succeed("recovered inside");
+                                }))
+                .<String>map(
+                    _ -> {
+                      throw new IllegalStateException("after");
+                    })
+                .recoverWith(e -> Context.succeed("recovered outside: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered outside: after");
+        assertThat(inner).hasValue("inside");
+      }
+
+      @Test
+      @DisplayName("recoverWith() passed over on success should not see a later failure")
+      void recoverWith_passedOverOnSuccessShouldNotSeeALaterFailure() {
+        AtomicBoolean earlierCalled = new AtomicBoolean();
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .recoverWith(
+                    _ -> {
+                      earlierCalled.set(true);
+                      return Context.succeed("earlier");
+                    })
+                .<String>map(
+                    _ -> {
+                      throw new IllegalStateException("after");
+                    })
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: after");
+        assertThat(earlierCalled).isFalse();
+      }
+
+      @Test
+      @DisplayName("recoverWith() should hand a null recovery's failure to the next one out")
+      @SuppressWarnings("DataFlowIssue") // null is returned deliberately to verify the failure
+      void recoverWith_shouldHandANullRecoveryOn() {
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("first"))
+                .recoverWith(_ -> null)
+                .recoverWith(e -> Context.succeed("recovered: " + e.getMessage()));
+
+        assertThat(ctx.run()).isEqualTo("recovered: recovery context cannot be null");
+      }
+
+      @Test
+      @DisplayName("recoverWith() should see the checked exception a failing map function wraps")
+      void recoverWith_shouldUnwrapAMapFunctionsFailure() {
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .map(_ -> Context.<String, String>fail(new IOException("disk full")).run())
+                .recoverWith(e -> Context.succeed(e.getClass().getSimpleName()));
+
+        assertThat(ctx.run()).isEqualTo("IOException");
+      }
+
+      @Test
+      @DisplayName("a checked exception a map function throws reaches run() in a ContextException")
+      void aMapFunctionsCheckedExceptionReachesRunWrapped() {
+        IOException checked = new IOException("disk full");
+        Context<String, String> ctx =
+            Context.<String, String>succeed("value")
+                .map(_ -> ContextTest.<RuntimeException, String>throwUnchecked(checked));
+
+        assertThatThrownBy(ctx::run).isInstanceOf(ContextException.class).hasCause(checked);
+      }
+
+      @Test
+      @DisplayName("recoverWith() should not see a failure in a step after it")
+      void recoverWith_shouldNotSeeALaterFailure() {
+        Context<String, String> ctx =
+            Context.<String, String>fail(new RuntimeException("first"))
+                .recoverWith(_ -> Context.succeed("recovered"))
+                .<String>map(
+                    _ -> {
+                      throw new IllegalStateException("after");
+                    });
+
+        assertThatIllegalStateException().isThrownBy(ctx::run).withMessage("after");
+      }
     }
 
     @Nested
@@ -1178,6 +1351,45 @@ class ContextTest {
     }
 
     @Test
+    @DisplayName(
+        "Stack safety: a deep chain of throwing map functions, each recovered, should not overflow")
+    void stackSafety_deepThrowingContinuations() {
+      final int depth = 10_000;
+
+      Context<String, Integer> ctx = Context.succeed(0);
+      for (int i = 0; i < depth; i++) {
+        final int value = i;
+        ctx =
+            ctx.<Integer>map(
+                    _ -> {
+                      throw new IllegalStateException("boom-" + value);
+                    })
+                .recoverWith(_ -> Context.succeed(value + 1));
+      }
+
+      assertThat(ctx.run()).isEqualTo(depth);
+    }
+
+    @Test
+    @DisplayName("Stack safety: a deep chain of throwing recovery functions should not overflow")
+    void stackSafety_deepThrowingRecoveries() {
+      final int depth = 10_000;
+
+      Context<String, Integer> ctx = Context.fail(new RuntimeException("initial"));
+      for (int i = 0; i < depth; i++) {
+        final int value = i;
+        ctx =
+            ctx.recoverWith(
+                _ -> {
+                  throw new IllegalStateException("handler-" + value);
+                });
+      }
+      ctx = ctx.recoverWith(_ -> Context.succeed(depth));
+
+      assertThat(ctx.run()).isEqualTo(depth);
+    }
+
+    @Test
     @DisplayName("Stack safety: mixed flatMap and recoverWith chain should not overflow")
     void stackSafety_mixedChain() {
       final int depth = 5_000;
@@ -1319,5 +1531,11 @@ class ContextTest {
       assertThat(result).isEqualTo(42);
       assertThat(receivedError.get()).isSameAs(checked);
     }
+  }
+
+  /** Throws {@code error}, checked or not, from a lambda that may not declare it. */
+  @SuppressWarnings("unchecked")
+  private static <T extends Throwable, R> R throwUnchecked(Throwable error) throws T {
+    throw (T) error;
   }
 }
