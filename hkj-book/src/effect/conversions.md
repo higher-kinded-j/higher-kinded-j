@@ -624,7 +624,7 @@ Integer computed = path.getOrElseGet(() -> computeIntDefault());
 boolean succeeded = tryValue.isSuccess();
 
 // Handle both sides, failure first
-String message = tryValue.foldFailureFirst(
+String message = tryValue.fold(
     cause -> "AppError: " + cause.getMessage(),
     ok -> "Value: " + ok);
 ```

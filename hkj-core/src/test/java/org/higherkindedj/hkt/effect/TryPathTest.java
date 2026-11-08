@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -165,21 +166,47 @@ class TryPathTest {
     }
 
     @Test
-    @DisplayName("foldFailureFirst() applies appropriate function")
-    void foldFailureFirstAppliesAppropriateFunction() {
+    @DisplayName("fold() applies appropriate function")
+    void foldAppliesAppropriateFunction() {
       TryPath<Integer> successPath = Path.success(TEST_INT);
       TryPath<Integer> failurePath = Path.failure(TEST_EXCEPTION);
 
       String successResult =
-          successPath.foldFailureFirst(
-              ex -> "error: " + ex.getMessage(), value -> "value: " + value);
+          successPath.fold(ex -> "error: " + ex.getMessage(), value -> "value: " + value);
 
       String failureResult =
-          failurePath.foldFailureFirst(
-              ex -> "error: " + ex.getMessage(), value -> "value: " + value);
+          failurePath.fold(ex -> "error: " + ex.getMessage(), value -> "value: " + value);
 
       assertThat(successResult).isEqualTo("value: 42");
       assertThat(failureResult).isEqualTo("error: test error");
+    }
+
+    @Test
+    @DisplayName("fold() refuses a null mapper")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void foldRefusesANullMapper() {
+      TryPath<Integer> path = Path.success(TEST_INT);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(null, value -> "value"))
+          .withMessage("failureMapper must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(ex -> "error", null))
+          .withMessage("successMapper must not be null");
+    }
+
+    @Test
+    @DisplayName("foldFailureFirst() gives what fold() gives")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
+    void foldFailureFirstGivesWhatFoldGives() {
+      Function<Throwable, String> onFailure = ex -> "error: " + ex.getMessage();
+      Function<Integer, String> onSuccess = value -> "value: " + value;
+
+      for (TryPath<Integer> path :
+          List.of(Path.<Integer>success(TEST_INT), Path.<Integer>failure(TEST_EXCEPTION))) {
+        assertThat(path.foldFailureFirst(onFailure, onSuccess))
+            .isEqualTo(path.fold(onFailure, onSuccess));
+      }
     }
   }
 
@@ -364,7 +391,7 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
                 assertThat(ex.getMessage()).contains("via mapper must return TryPath");
@@ -422,7 +449,7 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
                 assertThat(ex.getMessage()).contains("then supplier must return TryPath");
@@ -645,7 +672,7 @@ class TryPathTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalStateException.class);
                 assertThat(ex.getMessage()).contains("wrapped");

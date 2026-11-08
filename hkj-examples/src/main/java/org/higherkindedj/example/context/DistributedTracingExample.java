@@ -105,7 +105,7 @@ public class DistributedTracingExample {
                     // API Gateway calls Order Service
                     Try<OrderDetails> result = callOrderService("123").runSafe();
 
-                    result.foldFailureFirst(
+                    result.fold(
                         error -> {
                           System.out.println("\nRequest failed: " + error.getMessage());
                           return null;
@@ -158,7 +158,7 @@ public class DistributedTracingExample {
                     List<Object> results =
                         allResults
                             .runSafe()
-                            .foldFailureFirst(
+                            .fold(
                                 e -> {
                                   throw new RuntimeException(e);
                                 },
@@ -243,7 +243,7 @@ public class DistributedTracingExample {
                           InventoryStatus inventory =
                               inventoryTask
                                   .runSafe()
-                                  .foldFailureFirst(
+                                  .fold(
                                       e -> {
                                         throw new RuntimeException(e);
                                       },

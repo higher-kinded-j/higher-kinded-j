@@ -28,7 +28,7 @@ class TryTraversalsTest {
       Try<Integer> result = Traversals.modify(traversal, i -> i * 2, tryValue);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.foldFailureFirst(
+          result.fold(
               error -> {
                 throw new AssertionError("Expected success", error);
               },
@@ -44,7 +44,7 @@ class TryTraversalsTest {
       Try<Integer> result = Traversals.modify(traversal, i -> i * 2, tryValue);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.foldFailureFirst(
+          result.fold(
               failure -> failure,
               success -> {
                 throw new AssertionError();
@@ -84,7 +84,7 @@ class TryTraversalsTest {
               traversal, ex -> new RuntimeException("Wrapped: " + ex.getMessage(), ex), tryValue);
       assertThat(result.isFailure()).isTrue();
       Throwable exception =
-          result.foldFailureFirst(
+          result.fold(
               failure -> failure,
               success -> {
                 throw new AssertionError();
@@ -101,7 +101,7 @@ class TryTraversalsTest {
           Traversals.modify(traversal, ex -> new RuntimeException("Wrapped", ex), tryValue);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.foldFailureFirst(
+          result.fold(
               error -> {
                 throw new AssertionError("Expected success", error);
               },
@@ -212,7 +212,7 @@ class TryTraversalsTest {
       Integer value0 =
           result
               .get(0)
-              .foldFailureFirst(
+              .fold(
                   error -> {
                     throw new AssertionError("Expected success", error);
                   },
@@ -222,7 +222,7 @@ class TryTraversalsTest {
       Integer value2 =
           result
               .get(2)
-              .foldFailureFirst(
+              .fold(
                   error -> {
                     throw new AssertionError("Expected success", error);
                   },
@@ -245,7 +245,7 @@ class TryTraversalsTest {
       Throwable exception0 =
           result
               .get(0)
-              .foldFailureFirst(
+              .fold(
                   failure -> failure,
                   success -> {
                     throw new AssertionError();
@@ -255,7 +255,7 @@ class TryTraversalsTest {
       Integer value1 =
           result
               .get(1)
-              .foldFailureFirst(
+              .fold(
                   error -> {
                     throw new AssertionError("Expected success", error);
                   },
@@ -264,7 +264,7 @@ class TryTraversalsTest {
       Throwable exception2 =
           result
               .get(2)
-              .foldFailureFirst(
+              .fold(
                   failure -> failure,
                   success -> {
                     throw new AssertionError();

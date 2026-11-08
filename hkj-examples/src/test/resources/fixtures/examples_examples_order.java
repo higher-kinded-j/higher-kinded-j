@@ -90,7 +90,7 @@ class Fixture {
   static <A> EitherPath<OrderError, A> toEitherPath(IOPath<A> operation, String operationName) {
     return operation
         .runSafe()
-        .foldFailureFirst(cause -> Path.<OrderError, A>left(systemError()), Path::right);
+        .fold(cause -> Path.<OrderError, A>left(systemError()), Path::right);
   }
 
   // Not a factory call: the snippet that shows the hierarchy declares its own `OrderError`, and

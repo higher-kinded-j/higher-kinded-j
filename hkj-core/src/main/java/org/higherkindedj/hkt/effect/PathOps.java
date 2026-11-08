@@ -318,7 +318,7 @@ public final class PathOps {
     for (TryPath<A> path : paths) {
       Try<A> tryValue = path.run();
       TryPath<List<A>> maybeFailure =
-          tryValue.foldFailureFirst(
+          tryValue.fold(
               ex -> new TryPath<>(Try.failure(ex)),
               a -> {
                 results.add(a);
@@ -351,7 +351,7 @@ public final class PathOps {
       TryPath<B> path = f.apply(item);
       Try<B> tryValue = path.run();
       TryPath<List<B>> maybeFailure =
-          tryValue.foldFailureFirst(
+          tryValue.fold(
               ex -> new TryPath<>(Try.failure(ex)),
               b -> {
                 results.add(b);

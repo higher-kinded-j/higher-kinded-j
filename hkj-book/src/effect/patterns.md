@@ -657,7 +657,7 @@ void shouldCaptureExceptionInRunSafe() {
     Try<String> result = failing.runSafe();
 
     assertThat(result.isFailure()).isTrue();
-    assertThat(result.foldFailureFirst(Throwable::getMessage, value -> value))
+    assertThat(result.fold(Throwable::getMessage, value -> value))
         .isEqualTo("test error");
 }
 ```

@@ -185,7 +185,7 @@ class FocusPathBridgeTest {
       assertThat(result.run().isSuccess()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> null,
               value -> {
                 assertThat(value).isEqualTo("Elm St");
@@ -205,7 +205,7 @@ class FocusPathBridgeTest {
       assertThat(result.run().isSuccess()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> null,
               value -> {
                 assertThat(value).isEqualTo(123);
@@ -225,7 +225,7 @@ class FocusPathBridgeTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(NumberFormatException.class);
                 return null;

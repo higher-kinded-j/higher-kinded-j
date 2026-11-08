@@ -63,7 +63,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.RenameStateTKindNarrowK",
             "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern",
             "org.higherkindedj.openrewrite.RemovePathConfig",
-            "org.higherkindedj.openrewrite.RemoveStateTMonadArgument");
+            "org.higherkindedj.openrewrite.RemoveStateTMonadArgument",
+            "org.higherkindedj.openrewrite.RenameTryFoldFailureFirst");
   }
 
   @Test

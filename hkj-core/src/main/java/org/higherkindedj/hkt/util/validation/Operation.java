@@ -58,6 +58,13 @@ public enum Operation {
   READER("reader"),
   RUN_READER("runReader"),
   FOLD("fold"),
+  /**
+   * The operation {@code Try.foldFailureFirst}, named in its null checks.
+   *
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0, with {@code Try.foldFailureFirst}. Use
+   *     {@link #FOLD}, which {@code Try.fold} reports.
+   */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   FOLD_FAILURE_FIRST("foldFailureFirst"),
   TO_EITHER("toEither"),
   MATCH("match"),

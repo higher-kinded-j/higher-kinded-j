@@ -75,7 +75,7 @@ public record ClientErrorResponse(
         trimmed.chars().allMatch(Character::isDigit)
             ? Try.of(() -> Duration.ofSeconds(Long.parseLong(trimmed)))
             : Try.of(() -> httpDateToDelay(trimmed));
-    return parsed.foldFailureFirst(failure -> Optional.empty(), Optional::of);
+    return parsed.fold(failure -> Optional.empty(), Optional::of);
   }
 
   /** Resolves an HTTP-date {@code Retry-After} against the current time, never negative. */

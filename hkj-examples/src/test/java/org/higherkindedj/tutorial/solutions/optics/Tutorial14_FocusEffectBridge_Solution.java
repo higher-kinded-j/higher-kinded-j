@@ -340,7 +340,7 @@ public class Tutorial14_FocusEffectBridge_Solution {
     // SOLUTION: FocusPath always succeeds
     TryPath<String> nameResult = userPath.focus(namePath);
     assertThat(nameResult.run().isSuccess()).isTrue();
-    String tryResult = nameResult.run().foldFailureFirst(t -> "error", v -> v);
+    String tryResult = nameResult.run().fold(t -> "error", v -> v);
     assertThat(tryResult).isEqualTo("Alice");
 
     TryPath<String> emailPresent =

@@ -42,14 +42,14 @@ import org.jspecify.annotations.Nullable;
  * }
  *
  * Try<Integer> result = parseInt("123");
- * result.foldFailureFirst(
+ * result.fold(
  * error -> { System.err.println("Failed: " + error.getMessage()); return -1; },
  * value -> { System.out.println("Succeeded: " + value); return value; }
  * );
  *
  * Try<Integer> doubled = result.map(v -> v * 2); // Only maps if result was Success
  *
- * Try<String> recovered = parseInt("abc").recover(ex -> "Default Value"); // Will be Success("Default Value")
+ * Try<Integer> recovered = parseInt("abc").recover(ex -> 0); // Will be Success(0)
  *
  * // Using toEither:
  * Either<String, Integer> eitherResult = parseInt("123").toEither(Throwable::getMessage);
@@ -225,9 +225,9 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * re-throws the original {@link Throwable} that caused the failure.
    *
    * <p><b>Caution:</b> This method breaks functional purity by potentially throwing an exception.
-   * It's generally preferred to use methods like {@link #foldFailureFirst(Function, Function)},
-   * {@link #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success
-   * and failure cases without throwing exceptions.
+   * It's generally preferred to use methods like {@link #fold(Function, Function)}, {@link
+   * #orElse(Object)}, {@link #recover(Function)}, or pattern matching to handle both success and
+   * failure cases without throwing exceptions.
    *
    * @return The non-null successful value.
    * @throws Throwable if this is a {@link Failure}, the original exception is thrown.
@@ -265,10 +265,36 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * org.higherkindedj.hkt.validated.Validated#fold(Function, Function)}, and {@link
    * org.higherkindedj.hkt.eitherf.EitherF#fold(Function, Function)}.
    *
-   * <p>Releases before 0.5.0 had a success-first {@code fold(successMapper, failureMapper)}. This
-   * method has a name of its own, so a call written for that {@code fold} fails to compile rather
-   * than running its two functions the wrong way round. It is not called {@code match}, which would
-   * make a lambda ambiguous against {@link #match(Consumer, Consumer)}.
+   * <p>Releases before 0.5.0 had a success-first {@code fold(successMapper, failureMapper)}. A call
+   * written for it compiles against this one wherever each function accepts either argument, as
+   * {@code fold(v -> true, e -> false)} does, and runs the two the wrong way round. A jar compiled
+   * against those releases links to this one too. Run the {@code MigrateDeprecationsTo0_5_0} recipe
+   * on such code while it still compiles against 0.4.x, and rebuild what was compiled against
+   * 0.4.x, as the upgrading guide says.
+   *
+   * @param failureMapper The non-null function to apply if this is a {@link Failure}.
+   * @param successMapper The non-null function to apply if this is a {@link Success}.
+   * @param <U> The target type to which both outcomes are mapped.
+   * @return The result of applying the appropriate mapping function.
+   * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
+   * @since 0.6.0
+   */
+  default <U> U fold(
+      Function<? super Throwable, ? extends U> failureMapper,
+      Function<? super T, ? extends U> successMapper) {
+
+    Validation.function().require(failureMapper, "failureMapper", FOLD);
+    Validation.function().require(successMapper, "successMapper", FOLD);
+
+    return switch (this) {
+      case Success<T>(var value) -> successMapper.apply(value);
+      case Failure<T>(var cause) -> failureMapper.apply(cause);
+    };
+  }
+
+  /**
+   * Applies one of two functions depending on whether this is a {@link Failure} or a {@link
+   * Success}, failure first, as {@link #fold(Function, Function)} does.
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
@@ -276,7 +302,11 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
    * @since 0.4.6
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Use {@link #fold(Function, Function)},
+   *     which takes the same two functions in the same order.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // names the deprecated constant until its removal
   default <U> U foldFailureFirst(
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
@@ -284,10 +314,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
     Validation.function().require(failureMapper, "failureMapper", FOLD_FAILURE_FIRST);
     Validation.function().require(successMapper, "successMapper", FOLD_FAILURE_FIRST);
 
-    return switch (this) {
-      case Success<T>(var value) -> successMapper.apply(value);
-      case Failure<T>(var cause) -> failureMapper.apply(cause);
-    };
+    return fold(failureMapper, successMapper);
   }
 
   /**

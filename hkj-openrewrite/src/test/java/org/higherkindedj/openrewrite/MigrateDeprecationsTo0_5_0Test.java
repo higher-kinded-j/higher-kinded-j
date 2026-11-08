@@ -260,6 +260,31 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
   }
 
   @Test
+  void leavesTheFailureFirstFoldOfLaterReleasesAlone() {
+    // From 0.6.0, fold takes the failure function first; swapping it would run the two reversed
+    rewriteRun(
+        spec ->
+            spec.parser(JavaParser.fromJavaVersion().classpath("hkj-core", "hkj-api", "jspecify")),
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.TryPath;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describe(Try<Integer> t) {
+                    return t.fold(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
+                }
+
+                String describe(TryPath<Integer> p) {
+                    return p.fold(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
+                }
+            }
+            """));
+  }
+
+  @Test
   void leavesUnrelatedMethodsUnchanged() {
     rewriteRun(
         java(
