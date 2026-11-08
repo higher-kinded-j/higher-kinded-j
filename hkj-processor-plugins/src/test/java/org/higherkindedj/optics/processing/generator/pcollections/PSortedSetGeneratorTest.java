@@ -33,7 +33,7 @@ public class PSortedSetGeneratorTest {
         """
         final var sourceList = new ArrayList<>(source.rankedTerms());
         final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-        final var effectOfConvertBack = applicative.map(newList -> TreePSet.from(newList), effectOfList);
+        final var effectOfConvertBack = applicative.map(newList -> TreePSet.from(source.rankedTerms().comparator(), newList), effectOfList);
         return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
         """;
 

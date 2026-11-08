@@ -4,13 +4,16 @@ package org.higherkindedj.optics.processing.generator.eclipse;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import javax.lang.model.element.RecordComponentElement;
-import org.higherkindedj.optics.util.Traversals;
+import java.util.OptionalInt;
 
-/** A base for the Traversable Generation for Sorted Sets from the Eclipse Collections */
+/**
+ * A base for the Traversable Generation for Sorted Sets from the Eclipse Collections.
+ *
+ * <p>Both the traversal and the Focus path rebuild the set with the source's comparator, so a set
+ * kept in a custom order stays in it, and an element with no natural order is sorted as the source
+ * sorted it. A set in natural order has a null comparator, which the factory reads as natural order
+ * again.
+ */
 public abstract class EclipseBaseSortedSetTraversableGenerator
     extends EclipseBaseSingleIterableTraversableGenerator {
 
@@ -41,45 +44,23 @@ public abstract class EclipseBaseSortedSetTraversableGenerator
   }
 
   @Override
-  public CodeBlock generateModifyF(
-      final RecordComponentElement component,
-      final ClassName recordClassName,
-      final List<? extends RecordComponentElement> allComponents) {
+  public String generateOpticExpression() {
+    return "EachInstances.fromIterableRebuilding((source, list) -> "
+        + api.simpleName()
+        + "."
+        + mutability()
+        + ".ofAll(source.comparator(), list))";
+  }
 
-    final String componentName = component.getSimpleName().toString();
-    final String constructorArgs =
-        generateConstructorArgs(componentName, "converted", allComponents);
+  /** A sorted set is ordered by its element. */
+  @Override
+  public OptionalInt getOrderedTypeArgumentIndex() {
+    return OptionalInt.of(0);
+  }
 
-    return CodeBlock.builder()
-        // 1. Convert to Java ArrayList
-        .addStatement(
-            "final var sourceList = source.$L().into(new $T<>(source.$L().size()))",
-            componentName,
-            ArrayList.class,
-            componentName)
-
-        // 2. Call the static helper to traverse the list, yielding Kind<F, List<B>>.
-        .addStatement(
-            "final var effectOfList = $T.traverseList(sourceList, f, applicative)",
-            Traversals.class)
-
-        // 3. Map over the effect to convert the inner List back to our type.
-        .addStatement(
-            "final var effectOfConvertBack = applicative.map("
-                + "newList -> $T.isNull(source.$L().comparator()) ? $T.$L.ofAll(newList) : $T.$L.ofAll(source.$L().comparator(), newList), effectOfList)",
-            Objects.class,
-            componentName,
-            api,
-            immutable ? "immutable" : "mutable",
-            api,
-            immutable ? "immutable" : "mutable",
-            componentName)
-
-        // 4. Map over the final effect to reconstruct the record with the new Set.
-        .addStatement(
-            "return applicative.map(converted -> new $T($L), effectOfConvertBack)",
-            recordTypeName(component, recordClassName),
-            constructorArgs)
-        .build();
+  @Override
+  protected CodeBlock rebuild(final String componentName) {
+    return CodeBlock.of(
+        "$T.$L.ofAll(source.$L().comparator(), newList)", api, mutability(), componentName);
   }
 }

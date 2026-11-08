@@ -40,6 +40,7 @@ Higher-Kinded-J provides factory methods in `Traversals` and dedicated utility c
 | **Optional** | `Traversals.forOptional()` | 0 or 1 | Nullable fields, configuration values |
 | **Map Values** | `Traversals.forMapValues()` | 0 to N | Bulk value transforms, preserving keys |
 | **Persistent/3rd-party Map Values** | `Traversals.forMapValuesCollecting(...)` | 0 to N | Same, for `PMap`, Guava/Eclipse/Vavr maps |
+| **Sorted Map Values** | `Traversals.forMapValuesRebuilding(...)` | 0 to N | Same, keeping a `PSortedMap`'s comparator |
 | **Tuple2 Pairs** | `TupleTraversals.both()` | Exactly 2 | Coordinate systems, min/max pairs |
 
 ---
@@ -250,9 +251,27 @@ Traversal<io.vavr.collection.HashMap<String, Integer>, Integer> vavrValues =
         io.vavr.collection.HashMap::toJavaMap, io.vavr.collection.HashMap::ofAll);
 ```
 
-The same two overloads exist on `EachInstances` for use in the Focus DSL (`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`), which is how `@GenerateFocus` widens `PMap` / `PSortedMap` fields into `TraversalPath`s. See [PCollections Optics](../tooling/pcollections_optics.md).
+The same two overloads exist on `EachInstances` for use in the Focus DSL (`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`), which is how `@GenerateFocus` widens `PMap` fields into `TraversalPath`s. See [PCollections Optics](../tooling/pcollections_optics.md).
 
-> Like `forMapValues()`, the value transformation never touches keys. Sorted-map collectors (`TreePMap::from`, Vavr `TreeMap::ofAll`) re-apply natural ordering; custom comparators are not preserved.
+Like `forMapValues()`, the value transformation never touches keys. A collector sees only the new map, though, so a sorted map rebuilt by `TreePMap::from` falls back to natural key order, and a custom comparator is lost. `forMapValuesRebuilding()` hands its rebuild the source as well, so the comparator carries over, and `forIterableRebuilding()` does the same for a collection such as a sorted set. `EachInstances.mapValuesEachRebuilding` is how `@GenerateFocus` widens a `PSortedMap` field:
+
+<!-- verify -->
+```java
+import java.util.Comparator;
+import java.util.Map;
+import org.pcollections.PSortedMap;
+import org.pcollections.TreePMap;
+
+Traversal<PSortedMap<String, Integer>, Integer> sortedValues =
+    Traversals.forMapValuesRebuilding((source, map) -> TreePMap.from(source.comparator(), map));
+
+PSortedMap<String, Integer> medals =
+    TreePMap.from(Comparator.<String>reverseOrder(), Map.of("gold", 3, "silver", 2));
+PSortedMap<String, Integer> doubled =
+    Traversals.modify(sortedValues, count -> count * 2, medals);   // still in reverse key order
+```
+
+A rebuilding form for a map that is not a `java.util.Map`, such as Vavr's `TreeMap`, is not supported yet.
 
 ---
 
@@ -461,7 +480,7 @@ Tuple2<Integer, String> updatedPair = new Tuple2<>(
 ~~~admonish info title="Key Takeaways"
 * **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
 * **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, and the result keeps the source's iteration order, so a `TreeMap` keeps its order but not its type
-* **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering
+* **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering. `forMapValuesRebuilding()` hands it the source too, so a sorted map keeps its comparator
 * **`TupleTraversals.both()` updates a pair in one pass**: homogeneous pairs stop needing two separate reconstructions
 * **They are ordinary traversals**: everything from `modifyF` effects to `asFold()` queries applies unchanged
 ~~~

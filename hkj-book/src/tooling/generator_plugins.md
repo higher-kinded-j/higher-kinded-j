@@ -62,11 +62,11 @@ dependencies {
 | `ImmutableList<A>` | |
 | `ImmutableSet<A>` | |
 | `ImmutableBag<A>` | |
-| `ImmutableSortedSet<A>` | Preserves natural ordering |
+| `ImmutableSortedSet<A>` | Rebuilt with the source's comparator |
 | `MutableList<A>` | |
 | `MutableSet<A>` | |
 | `MutableBag<A>` | |
-| `MutableSortedSet<A>` | Preserves natural ordering |
+| `MutableSortedSet<A>` | Rebuilt with the source's comparator |
 
 #### Google Guava
 
@@ -121,10 +121,10 @@ dependencies {
 | `org.pcollections.PVector<A>` | Reconstructed via `TreePVector.from(Collection)` |
 | `org.pcollections.PStack<A>` | Reconstructed via `ConsPStack.from(Collection)` |
 | `org.pcollections.PSet<A>` | Reconstructed via `HashTreePSet.from(Collection)` |
-| `org.pcollections.PSortedSet<A>` | Natural ordering only; custom comparators are not preserved |
+| `org.pcollections.PSortedSet<A>` | Reconstructed via `TreePSet.from(Comparator, Collection)`, with the source's comparator |
 | `org.pcollections.PBag<A>` | Reconstructed via `HashTreePBag.from(Collection)` |
 | `org.pcollections.PMap<K, V>` | Value-focused; reconstructed via `HashTreePMap.from(Map)` |
-| `org.pcollections.PSortedMap<K, V>` | Value-focused; natural key ordering only |
+| `org.pcollections.PSortedMap<K, V>` | Value-focused; reconstructed via `TreePMap.from(Comparator, Map)`, with the source's comparator |
 
 ---
 
@@ -233,6 +233,15 @@ public interface TraversableGenerator {
      */
     default int getFocusTypeArgumentIndex() {
         return 0;
+    }
+
+    /**
+     * The type argument the container orders its contents by (0-indexed): a sorted
+     * set's element, a sorted map's key. Default is empty, for a container that keeps
+     * no order of its own. A component with a wildcard there is refused a traversal.
+     */
+    default OptionalInt getOrderedTypeArgumentIndex() {
+        return OptionalInt.empty();
     }
 
     /**
@@ -383,6 +392,8 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
+- **Override `getOrderedTypeArgumentIndex()`** if your container keeps its contents in an order of its own, such as a sorted set's element or a sorted map's key, and its rebuild reuses the source's comparator. A wildcard at that argument is then refused: `@GenerateTraversals` notes the component and generates no traversal, and `@GenerateFocus` rejects it where it widens the component.
+- **Widen a sorted container through `EachInstances.fromIterableRebuilding` or `mapValuesEachRebuilding`** in `generateOpticExpression()`. Their rebuild is handed the source as well, so a Focus path keeps the comparator too.
 - **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
 - **Override `generateOpticExpression()` and `getRequiredImports()`** for the field to widen under `@GenerateFocus`: name the `Affine` or `Each` that reads and rebuilds your container. Without them the Focus path stops at the container.
 - **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements. Compiling it with `-Xlint:cast,unchecked,rawtypes -Werror` and asserting `succeededWithoutWarnings()` catches a warning your users' builds would otherwise report in a file they cannot edit.

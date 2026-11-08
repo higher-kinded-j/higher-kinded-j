@@ -185,7 +185,8 @@ class ThirdPartySpiWideningTest {
       assertGeneratedCodeContains(
           compilation,
           "com.example.LedgerFocus",
-          "EachInstances.mapValuesEachCollecting(map -> TreePMap.from(map))");
+          "EachInstances.mapValuesEachRebuilding((source, map) ->"
+              + " TreePMap.from(source.comparator(), map))");
     }
   }
 }

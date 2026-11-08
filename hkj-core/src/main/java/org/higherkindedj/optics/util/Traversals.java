@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -348,6 +349,10 @@ public final class Traversals {
    *     Traversals.forIterableCollecting(list -> Lists.immutable.ofAll(list));
    * }</pre>
    *
+   * <p>The collector sees the new elements alone. A container that carries more than its elements,
+   * such as a sorted set's comparator, is rebuilt with {@link #forIterableRebuilding}, which also
+   * hands over the source.
+   *
    * @param collector A function that converts a {@code List<A>} back into the container type {@code
    *     C}.
    * @param <C> The container type, which must be {@code Iterable<A>}.
@@ -356,6 +361,40 @@ public final class Traversals {
    */
   public static <C extends Iterable<A>, A extends @Nullable Object>
       Traversal<C, A> forIterableCollecting(final Function<List<A>, C> collector) {
+    return forIterableRebuilding((source, list) -> collector.apply(list));
+  }
+
+  /**
+   * Creates a {@code Traversal} for any {@link Iterable} container type, given a function that
+   * rebuilds the container from the source and a {@link List} of the new elements.
+   *
+   * <p>{@link #forIterableCollecting} rebuilds from the elements alone, which loses whatever else
+   * the source carries. A sorted set's comparator is the usual case: rebuilt from its elements, the
+   * set falls back to natural order, and fails for an element that has none. Here the rebuild
+   * receives the source too, so it can carry the comparator over. The elements arrive in the
+   * source's iteration order.
+   *
+   * <p>The rebuild builds a new container and leaves the source as it was: it reads from the source
+   * only what the elements do not carry, such as its comparator. The list it is handed is
+   * unmodifiable. It runs when the effect runs, which for a deferred effect such as {@code IO} is
+   * after this traversal returns, and runs again each time the effect is run.
+   *
+   * <pre>{@code
+   * // Eclipse Collections MutableSortedSet, keeping its comparator
+   * Traversal<MutableSortedSet<String>, String> sorted =
+   *     Traversals.forIterableRebuilding(
+   *         (source, list) -> SortedSets.mutable.ofAll(source.comparator(), list));
+   * }</pre>
+   *
+   * @param rebuild A function that builds the container type {@code C} from the source and the new
+   *     elements.
+   * @param <C> The container type, which must be {@code Iterable<A>}.
+   * @param <A> The element type.
+   * @return A {@code Traversal} for the elements of the container.
+   * @since 0.6.0
+   */
+  public static <C extends Iterable<A>, A extends @Nullable Object>
+      Traversal<C, A> forIterableRebuilding(final BiFunction<C, List<A>, C> rebuild) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, C> modifyF(
@@ -363,7 +402,7 @@ public final class Traversals {
         final List<A> list = new ArrayList<>();
         source.forEach(list::add);
         Kind<F, List<A>> traversed = traverseList(list, f, applicative);
-        return applicative.map(collector, traversed);
+        return applicative.map(elements -> rebuild.apply(source, elements), traversed);
       }
     };
   }
@@ -521,6 +560,10 @@ public final class Traversals {
    *     Traversals.forMapValuesCollecting(ImmutableMap::copyOf);
    * }</pre>
    *
+   * <p>The collector sees the new map alone. A map that carries more than its entries, such as a
+   * sorted map's comparator, is rebuilt with {@link #forMapValuesRebuilding}, which also hands over
+   * the source.
+   *
    * @param collector A function that converts a {@code Map} back into the map type {@code M}.
    * @param <M> The map type, which must be {@code Map<K, V>}.
    * @param <K> The type of the map's keys.
@@ -529,7 +572,51 @@ public final class Traversals {
    */
   public static <M extends Map<K, V>, K, V extends @Nullable Object>
       Traversal<M, V> forMapValuesCollecting(final Function<Map<K, V>, M> collector) {
-    return forMapValuesCollecting(m -> m, collector);
+    return forMapValuesRebuilding((source, map) -> collector.apply(map));
+  }
+
+  /**
+   * Creates a {@code Traversal} that focuses on every value of a {@link Map}-implementing
+   * container, given a function that rebuilds the container from the source and a {@code
+   * java.util.Map} of the new entries. Companion to {@link #forIterableRebuilding} for non-{@code
+   * Iterable} containers.
+   *
+   * <p>{@link #forMapValuesCollecting(Function)} rebuilds from the new map alone, which loses
+   * whatever else the source carries. A sorted map's comparator is the usual case: rebuilt from its
+   * entries, the map falls back to the keys' natural order, and fails for a key that has none. Here
+   * the rebuild receives the source too, so it can carry the comparator over. The keys are those of
+   * the source, unchanged, and the map handed over is in the source's iteration order.
+   *
+   * <p>The rebuild builds a new map and leaves the source as it was: it reads from the source only
+   * what the entries do not carry, such as its comparator. It runs when the effect runs, which for
+   * a deferred effect such as {@code IO} is after this traversal returns, and runs again each time
+   * the effect is run.
+   *
+   * <pre>{@code
+   * // PCollections PSortedMap, keeping its comparator
+   * Traversal<PSortedMap<String, Integer>, Integer> sortedValues =
+   *     Traversals.forMapValuesRebuilding(
+   *         (source, map) -> TreePMap.from(source.comparator(), map));
+   * }</pre>
+   *
+   * @param rebuild A function that builds the map type {@code M} from the source and the new
+   *     entries.
+   * @param <M> The map type, which must be {@code Map<K, V>}.
+   * @param <K> The type of the map's keys.
+   * @param <V> The type of the map's values.
+   * @return A {@code Traversal} for all values of the map.
+   * @since 0.6.0
+   */
+  public static <M extends Map<K, V>, K, V extends @Nullable Object>
+      Traversal<M, V> forMapValuesRebuilding(final BiFunction<M, Map<K, V>, M> rebuild) {
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, M> modifyF(
+          final Function<V, Kind<F, V>> f, final M source, final Applicative<F> applicative) {
+        final Kind<F, Map<K, V>> traversed = traverseMapValues(source, f, applicative);
+        return applicative.map(entries -> rebuild.apply(source, entries), traversed);
+      }
+    };
   }
 
   /**

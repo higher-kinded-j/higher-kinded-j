@@ -453,8 +453,9 @@ public class EachInstancesExample {
   private static void demonstrateMapValuesEachCollecting() {
     System.out.println("--- Generic Map Values Each (mapValuesEachCollecting) ---");
 
-    // Single-argument overload: M extends Map. Here a TreeMap stands in for a persistent/sorted map
-    // such as PCollections TreePMap (which would use `TreePMap::from`).
+    // Single-argument overload: M extends Map. Here a TreeMap in natural key order stands in for a
+    // persistent map such as PCollections HashTreePMap (which would use `HashTreePMap::from`). A
+    // sorted map with a comparator of its own keeps it through mapValuesEachRebuilding instead.
     Each<TreeMap<String, Integer>, Integer> sortedValues =
         EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
     TreeMap<String, Integer> prices = new TreeMap<>(Map.of("eur", 100, "gbp", 120, "usd", 110));

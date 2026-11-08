@@ -455,6 +455,10 @@ public final class EachInstances {
    *     EachInstances.fromIterableCollecting(ImmutableList::copyOf);
    * }</pre>
    *
+   * <p>The collector sees the new elements alone. A container that carries more than its elements,
+   * such as a sorted set's comparator, is rebuilt with {@link #fromIterableRebuilding}, which also
+   * hands over the source.
+   *
    * @param collector A function that converts a {@code List<A>} back into the container type {@code
    *     C}.
    * @param <C> The container type, which must be {@code Iterable<A>}.
@@ -464,6 +468,43 @@ public final class EachInstances {
   public static <C extends Iterable<A>, A extends @Nullable Object>
       Each<C, A> fromIterableCollecting(Function<List<A>, C> collector) {
     return () -> Traversals.forIterableCollecting(collector);
+  }
+
+  /**
+   * Creates an {@link Each} instance for any {@link Iterable} container type, given a function that
+   * rebuilds the container from the source and a {@link List} of the new elements.
+   *
+   * <p>{@link #fromIterableCollecting} rebuilds from the elements alone, which loses whatever else
+   * the source carries. A sorted set's comparator is the usual case: rebuilt from its elements, the
+   * set falls back to natural order, and fails for an element that has none. Here the rebuild
+   * receives the source too, so it can carry the comparator over. The elements arrive in the
+   * source's iteration order.
+   *
+   * <p>The rebuild builds a new container and leaves the source as it was, as {@link
+   * Traversals#forIterableRebuilding} describes.
+   *
+   * <pre>{@code
+   * // Eclipse Collections MutableSortedSet, keeping its comparator
+   * Each<MutableSortedSet<String>, String> sorted =
+   *     EachInstances.fromIterableRebuilding(
+   *         (source, list) -> SortedSets.mutable.ofAll(source.comparator(), list));
+   *
+   * // PCollections PSortedSet
+   * Each<PSortedSet<String>, String> persistent =
+   *     EachInstances.fromIterableRebuilding(
+   *         (source, list) -> TreePSet.from(source.comparator(), list));
+   * }</pre>
+   *
+   * @param rebuild A function that builds the container type {@code C} from the source and the new
+   *     elements.
+   * @param <C> The container type, which must be {@code Iterable<A>}.
+   * @param <A> The element type.
+   * @return An {@code Each} instance for the container.
+   * @since 0.6.0
+   */
+  public static <C extends Iterable<A>, A extends @Nullable Object>
+      Each<C, A> fromIterableRebuilding(BiFunction<C, List<A>, C> rebuild) {
+    return () -> Traversals.forIterableRebuilding(rebuild);
   }
 
   // ===== Generic Map Values =====
@@ -518,6 +559,10 @@ public final class EachInstances {
    *     EachInstances.mapValuesEachCollecting(ImmutableMap::copyOf);
    * }</pre>
    *
+   * <p>The collector sees the new map alone. A map that carries more than its entries, such as a
+   * sorted map's comparator, is rebuilt with {@link #mapValuesEachRebuilding}, which also hands
+   * over the source.
+   *
    * @param collector A function that converts a {@code Map} back into the map type {@code M}.
    * @param <M> The map type, which must be {@code Map<K, V>}.
    * @param <K> The key type of the map.
@@ -527,5 +572,39 @@ public final class EachInstances {
   public static <M extends Map<K, V>, K, V extends @Nullable Object>
       Each<M, V> mapValuesEachCollecting(Function<Map<K, V>, M> collector) {
     return () -> Traversals.forMapValuesCollecting(collector);
+  }
+
+  /**
+   * Creates an {@link Each} instance for the values of a {@link Map}-implementing container, given
+   * a function that rebuilds the container from the source and a {@code java.util.Map} of the new
+   * entries. Companion to {@link #fromIterableRebuilding} for non-{@code Iterable} containers.
+   *
+   * <p>{@link #mapValuesEachCollecting(Function)} rebuilds from the new map alone, which loses
+   * whatever else the source carries. A sorted map's comparator is the usual case: rebuilt from its
+   * entries, the map falls back to the keys' natural order, and fails for a key that has none. Here
+   * the rebuild receives the source too, so it can carry the comparator over. The keys are those of
+   * the source, unchanged, and the map handed over is in the source's iteration order.
+   *
+   * <p>The rebuild builds a new map and leaves the source as it was, as {@link
+   * Traversals#forMapValuesRebuilding} describes.
+   *
+   * <pre>{@code
+   * // PCollections PSortedMap, keeping its comparator
+   * Each<PSortedMap<String, Integer>, Integer> sortedValues =
+   *     EachInstances.mapValuesEachRebuilding(
+   *         (source, map) -> TreePMap.from(source.comparator(), map));
+   * }</pre>
+   *
+   * @param rebuild A function that builds the map type {@code M} from the source and the new
+   *     entries.
+   * @param <M> The map type, which must be {@code Map<K, V>}.
+   * @param <K> The key type of the map.
+   * @param <V> The value type of the map.
+   * @return An {@code Each} instance for the values of the map.
+   * @since 0.6.0
+   */
+  public static <M extends Map<K, V>, K, V extends @Nullable Object>
+      Each<M, V> mapValuesEachRebuilding(BiFunction<M, Map<K, V>, M> rebuild) {
+    return () -> Traversals.forMapValuesRebuilding(rebuild);
   }
 }

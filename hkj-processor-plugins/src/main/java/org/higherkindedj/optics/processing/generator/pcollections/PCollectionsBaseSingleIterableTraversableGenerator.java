@@ -22,7 +22,9 @@ import org.higherkindedj.optics.util.Traversals;
  * <p>Each PCollections type implements {@link java.util.Collection}, so the source field can be
  * copied directly into a {@link ArrayList} without any library-specific iteration helper. The
  * traversal is performed against that JDK list and the resulting list is fed back through the
- * concrete factory's {@code from(Collection)} method to reconstruct the persistent type.
+ * concrete factory's {@code from(Collection)} method to reconstruct the persistent type. A sorted
+ * collection's generator overrides {@link #rebuild(String)} to hand that factory the source's
+ * comparator too.
  */
 public abstract class PCollectionsBaseSingleIterableTraversableGenerator
     extends BaseTraversableGenerator {
@@ -126,9 +128,8 @@ public abstract class PCollectionsBaseSingleIterableTraversableGenerator
 
         // 3. Convert the inner List back to the PCollections type.
         .addStatement(
-            "final var effectOfConvertBack = applicative.map("
-                + "newList -> $T.from(newList), effectOfList)",
-            constructedType)
+            "final var effectOfConvertBack = applicative.map(newList -> $L, effectOfList)",
+            rebuild(componentName))
 
         // 4. Reconstruct the record with the rebuilt persistent collection.
         .addStatement(
@@ -136,5 +137,16 @@ public abstract class PCollectionsBaseSingleIterableTraversableGenerator
             recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
+  }
+
+  /**
+   * The expression that rebuilds the component's collection from the traversed elements, held in
+   * {@code newList}, with {@code source} the record being traversed.
+   *
+   * @param componentName the name of the record component being rebuilt
+   * @return the expression, by default {@code <constructedType>.from(newList)}
+   */
+  protected CodeBlock rebuild(final String componentName) {
+    return CodeBlock.of("$T.from(newList)", constructedType);
   }
 }

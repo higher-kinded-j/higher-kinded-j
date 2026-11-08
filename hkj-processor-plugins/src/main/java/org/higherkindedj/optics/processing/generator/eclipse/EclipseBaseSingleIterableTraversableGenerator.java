@@ -86,11 +86,10 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
 
   @Override
   public String generateOpticExpression() {
-    String mutability = immutable ? "immutable" : "mutable";
     return "EachInstances.fromIterableCollecting(list -> "
         + api.simpleName()
         + "."
-        + mutability
+        + mutability()
         + ".ofAll(list))";
   }
 
@@ -134,10 +133,8 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfConvertBack = applicative.map("
-                + "newList -> $T.$L.ofAll(newList), effectOfList)",
-            api,
-            immutable ? "immutable" : "mutable")
+            "final var effectOfConvertBack = applicative.map(newList -> $L, effectOfList)",
+            rebuild(componentName))
 
         // 4. Map over the final effect to reconstruct the record with the original type.
         .addStatement(
@@ -145,5 +142,22 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
             recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
+  }
+
+  /**
+   * The expression that rebuilds the component's collection from the traversed elements, held in
+   * {@code newList}, with {@code source} the record being traversed. A sorted set's generator
+   * overrides it to hand the factory the source's comparator too.
+   *
+   * @param componentName the name of the record component being rebuilt
+   * @return the expression, by default {@code <api>.<mutability>.ofAll(newList)}
+   */
+  protected CodeBlock rebuild(final String componentName) {
+    return CodeBlock.of("$T.$L.ofAll(newList)", api, mutability());
+  }
+
+  /** The factory's {@code immutable} or {@code mutable} member, as the target collection needs. */
+  protected final String mutability() {
+    return immutable ? "immutable" : "mutable";
   }
 }

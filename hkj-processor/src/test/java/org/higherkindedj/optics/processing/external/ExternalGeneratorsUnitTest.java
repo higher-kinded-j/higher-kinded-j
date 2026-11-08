@@ -12,6 +12,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -38,12 +39,21 @@ import org.junit.jupiter.api.Test;
 @DisplayName("External generators package-private helpers")
 class ExternalGeneratorsUnitTest {
 
-  /** A stub generator that supports every type, with a configurable focus type argument index. */
+  /**
+   * A stub generator that supports every type, with a configurable focus type argument index and,
+   * for a sorted container's, the index it is ordered by.
+   */
   private static final class StubGenerator implements TraversableGenerator {
     private final int focusIndex;
+    private final OptionalInt orderedIndex;
 
     StubGenerator(int focusIndex) {
+      this(focusIndex, OptionalInt.empty());
+    }
+
+    StubGenerator(int focusIndex, OptionalInt orderedIndex) {
       this.focusIndex = focusIndex;
+      this.orderedIndex = orderedIndex;
     }
 
     @Override
@@ -54,6 +64,11 @@ class ExternalGeneratorsUnitTest {
     @Override
     public int getFocusTypeArgumentIndex() {
       return focusIndex;
+    }
+
+    @Override
+    public OptionalInt getOrderedTypeArgumentIndex() {
+      return orderedIndex;
     }
 
     @Override
@@ -77,6 +92,8 @@ class ExternalGeneratorsUnitTest {
     private TypeName focusTypeForRawContainer;
     private TypeName focusTypeForOutOfRangeIndex;
     private TypeName focusTypeForPrimitive;
+    private TypeName focusTypeForOrderedByWildcard;
+    private TypeName focusTypeForWildcardNotOrderedBy;
     private TypeName parameterisedNameForPrimitive;
 
     @Override
@@ -118,6 +135,8 @@ class ExternalGeneratorsUnitTest {
       List<? extends RecordComponentElement> components = mixed.getRecordComponents();
       TypeMirror itemsType = components.get(0).asType(); // List<String>
       TypeMirror rawItemsType = components.get(1).asType(); // raw List
+      TypeMirror orderedType = components.get(2).asType(); // Map<? extends String, String>
+      TypeMirror valuedType = components.get(3).asType(); // Map<String, ? extends String>
       TypeName mixedTypeName = ClassName.get(mixed);
 
       // 2. Field name matching no record component: the component loop exits without a match.
@@ -148,6 +167,13 @@ class ExternalGeneratorsUnitTest {
       TypeMirror primitiveInt = processingEnv.getTypeUtils().getPrimitiveType(TypeKind.INT);
       focusTypeForPrimitive =
           withStub.getFocusType(primitiveInt, new StubGenerator(0), "com.example");
+      // A generator ordering its container by the key, as a sorted map's does: a wildcard there
+      // leaves the traversal out, and one in the value it focuses does not.
+      StubGenerator orderedByKey = new StubGenerator(1, OptionalInt.of(0));
+      focusTypeForOrderedByWildcard =
+          withStub.getFocusType(orderedType, orderedByKey, "com.example");
+      focusTypeForWildcardNotOrderedBy =
+          withStub.getFocusType(valuedType, orderedByKey, "com.example");
 
       // 5. SpecInterfaceGenerator.getParameterisedTypeName with a non-declared type.
       SpecInterfaceGenerator specGenerator =
@@ -177,8 +203,13 @@ class ExternalGeneratorsUnitTest {
             """
             package com.test;
             import java.util.List;
+            import java.util.Map;
             @SuppressWarnings("rawtypes")
-            public record Mixed(List<String> items, List rawItems) {}
+            public record Mixed(
+                List<String> items,
+                List rawItems,
+                Map<? extends String, String> ordered,
+                Map<String, ? extends String> valued) {}
             """);
 
     GeneratorUnitTestProcessor processor = new GeneratorUnitTestProcessor();
@@ -191,6 +222,8 @@ class ExternalGeneratorsUnitTest {
     assertThat(processor.focusTypeForRawContainer).isNull();
     assertThat(processor.focusTypeForOutOfRangeIndex).isNull();
     assertThat(processor.focusTypeForPrimitive).isNull();
+    assertThat(processor.focusTypeForOrderedByWildcard).isNull();
+    assertThat(processor.focusTypeForWildcardNotOrderedBy).isEqualTo(TypeName.get(String.class));
     assertThat(processor.parameterisedNameForPrimitive).isEqualTo(TypeName.INT);
   }
 }
