@@ -1,401 +1,220 @@
-# The State Monad:
-## _Managing State Functionally_
+<!-- description: Update a value step by step in Java with State: add to a basket within a limit, run the steps from any basket, and sequence a bank account's month. -->
+
+# State: Updating a Value Step by Step
+
+_Each step is handed the state, and returns its result with the state it leaves for the next step._
+
+<!-- source: Rich Hickey, "Simple Made Easy", a keynote at Strange Loop, 20 September 2011, given again at QCon London 2012; the slide title "State is Never Simple", whose first bullet is "Complects value and time", checked against the QCon London 2012 slide deck (RichHickey_SimpleMadeEasy.pdf), and set here in sentence case -->
+> _"State is never simple."_
+>
+> — Rich Hickey, *Simple Made Easy*
+
+Hickey's charge is against the variable, which braids a value together with time: whoever reads it must know what changed it, and when. A `State` changes no value in place. Each step is handed one state and gives the next, and the order of the steps is the only time there is.
+
+~~~admonish abstract title="State at a glance"
+| | |
+|---|---|
+| **Models** | A computation that is handed a state, such as a basket, and gives a result with the state it leaves |
+| **Replaces** | A field that each method changes, or methods that take a value and return a pair of the result and the new value |
+| **Effect Path** | [`WithStatePath`](../effect/advanced_effects.md#withstatepath-computation-with-memory) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:state_monad}}
+| **Choose it when** | Each step works from what the steps before it left; otherwise [Reader](reader_monad.md), whose environment no step changes, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to manage state functionally without mutable variables
-- Using `get`, `set`, `modify`, and `inspect` for state operations
-- Building complex stateful workflows with automatic state threading
-- Creating a bank account simulation with transaction history
-- Why pure state management leads to more testable and maintainable code
+- Add to a basket with steps that each give a result and the basket they leave
+- Say what each step of a `State` chain is handed, and what it hands on
+- Run the same steps from any basket, so a test starts from whatever basket it builds
+- Combine steps on a `WithStatePath`, and sequence a month of banking with `For`
+- Use `State` in generic code through its `Monad` instance
 ~~~
 
-~~~ admonish example title="See Example Code:"
-- [StateExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/StateExample.java)
-
-- [BankAccountWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
-~~~
-
-## Purpose
-
-State is everywhere in programming: counters increment, configurations update, game characters level up. Yet managing state functionally, without mutation, often feels like fighting the paradigm. The State monad resolves this tension elegantly.
-
-In many applications, we need to manage computations that involve **state** that changes over time.
-
-Examples include:
-
-* A counter being incremented.
-* A configuration object being updated.
-* The state of a game character.
-* Parsing input where the current position needs to be tracked.
-
-While imperative programming uses mutable variables, functional programming prefers immutability. The **State monad** provides a purely functional way to handle stateful computations without relying on mutable variables.
-
-A `State<S, A>` represents a computation that takes an initial state `S` and produces a result value `A` along with a **new, updated state** `S`. It essentially wraps a function of the type `S -> (A, S)`.
-
-### Key Benefits
-
-1. **Explicit State:** The state manipulation is explicitly encoded within the type `State<S, A>`.
-2. **Purity:** Functions using the State monad remain pure; they don't cause side effects by mutating external state. Instead, they describe how the state *should* transform.
-3. **Composability:** State computations can be easily sequenced using standard monadic operations (`map`, `flatMap`), where the state is automatically threaded through the sequence without explicitly threading state everywhere.
-4. **Decoupling**: Logic is decoupled from state handling mechanics.
-5. **Testability:** Pure state transitions are easier to test and reason about than code relying on mutable side effects.
-
-
-In `Higher-Kinded-J`, the State monad pattern is implemented via the `State<S, A>` interface, its associated `StateTuple<S, A>` record, the HKT simulation types (`StateKind`, `StateKindHelper`), and the type class instances (`StateMonad`, `StateApplicative`, `StateFunctor`).
-
-## The `State<S, A>` Type and `StateTuple<S, A>`
-
-The core type is the `State<S, A>` functional interface:
-
-```java
-@FunctionalInterface
-public interface State<S, A> {
-
-  // Represents the result: final value A and final state S
-  record StateTuple<S, A>(@NonNull A value, @NonNull S state) { /* ... */ }
-
-  // The core function: Initial State -> (Result Value, Final State)
-  @NonNull StateTuple<S, A> run(@NonNull S initialState);
-
-  // Static factories
-  static <S, A> @NonNull State<S, A> of(@NonNull Function<@NonNull S, @NonNull StateTuple<S, A>> runFunction);
-  static <S, A> @NonNull State<S, A> pure(@NonNull A value); // Creates State(s -> (value, s))
-  static <S> @NonNull State<S, S> get();                      // Creates State(s -> (s, s))
-  static <S> @NonNull State<S, Unit> set(@NonNull S newState); // Creates State(s -> (Unit.INSTANCE, newState))
-  static <S> @NonNull State<S, Unit> modify(@NonNull Function<@NonNull S, @NonNull S> f); // Creates State(s -> (Unit.INSTANCE, f(s)))
-  static <S, A> @NonNull State<S, A> inspect(@NonNull Function<@NonNull S, @NonNull A> f); // Creates State(s -> (f(s), s))
-
-  // Instance methods for composition
-  default <B> @NonNull State<S, B> map(@NonNull Function<? super A, ? extends B> f);
-  default <B> @NonNull State<S, B> flatMap(@NonNull Function<? super A, ? extends State<S, ? extends B>> f);
-}
-```
-
-* `StateTuple<S, A>`: A simple record holding the pair `(value: A, state: S)` returned by running a `State` computation.
-* `run(S initialState)`: Executes the stateful computation by providing the starting state.
-* `of(...)`: The basic factory method taking the underlying function `S -> StateTuple<S, A>`.
-* `pure(A value)`: Creates a computation that returns the given value `A`*without changing* the state.
-* `get()`: Creates a computation that returns the *current* state `S` as its value, leaving the state unchanged.
-* `set(S newState)`: Creates a computation that *replaces* the current state with `newState` and returns `Unit.INSTANCE` as its result value.
-* `modify(Function<S, S> f)`: Creates a computation that applies a function `f` to the current state to get the *new* state, returning Unit.INSTANCE as its result value.
-* `inspect(Function<S, A> f)`: Creates a computation that applies a function `f` to the current state to calculate a *result value*`A`, leaving the state unchanged.
-* `map(...)`: Transforms the *result value*`A` to `B` after the computation runs, leaving the state transition logic untouched.
-* `flatMap(...)`: The core sequencing operation. It runs the first `State` computation, takes its result value `A`, uses it to create a *second*`State` computation, and runs that second computation using the state produced by the first one. The final result and state are those from the second computation.
-
-### A State Always Gives a Value {#a-state-always-gives-a-value}
-
-A `StateTuple` always holds a value, so `pure(null)` and `new StateTuple<>(null, s)` throw at the call. A function given to `inspect` or `map` that returns null fails the computation when it runs, naming that function. A step with nothing to return gives `Unit.INSTANCE`, as `set` and `modify` do. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
-
-## State Components
-
-To integrate `State` with Higher-Kinded-J:
-
-* **`StateKind<S, A>`:** The marker interface extending `Kind<StateKind.Witness<S>, A>`. The witness type `F` is `StateKind.Witness<S>` (where `S` is fixed for a given monad instance), and the value type `A` is the result type `A` from `StateTuple`.
-* **`StateKindHelper`:** The utility class with static methods:
-  * `widen(State<S, A>)`: Converts a `State` to `Kind<StateKind.Witness<S>, A>`.
-  * `narrow(Kind<StateKind.Witness<S>, A>)`: Converts `StateKind` back to `State`. Throws `KindUnwrapException` if the input is invalid.
-  * `pure(A value)`: Factory for `Kind` equivalent to `State.pure`.
-  * `get()`: Factory for `Kind` equivalent to `State.get`.
-  * `set(S newState)`: Factory for `Kind` equivalent to `State.set`.
-  * `modify(Function<S, S> f)`: Factory for `Kind` equivalent to `State.modify`.
-  * `inspect(Function<S, A> f)`: Factory for `Kind` equivalent to `State.inspect`.
-  * `runState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns the `StateTuple<S, A>`.
-  * `evalState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns only the final value `A`.
-  * `execState(Kind<StateKind.Witness<S>, A> kind, S initialState)`: Runs the computation and returns only the final state `S`.
-
-## Type Class Instances (`StateFunctor`, `StateApplicative`, `StateMonad`)
-
-These classes provide the standard functional operations for `StateKind.Witness<S>`:
-
-* **`StateFunctor<S>`:** Implements `Functor<StateKind.Witness<S>>`. Provides `map`.
-* **`StateApplicative<S>`:** Extends `StateFunctor<S>`, implements `Applicative<StateKind.Witness<S>>`. Provides `of` (same as `pure`) and `ap`.
-* **`StateMonad<S>`:** Extends `StateApplicative<S>`, implements `Monad<StateKind.Witness<S>>`. Provides `flatMap` for sequencing stateful computations.
-
-You instantiate `StateMonad<S>` for the specific state type `S` you are working with.
-
-
-~~~admonish example title="Example: Managing Bank Account Transactions"
-
-We want to model a bank account where we can:
-
-* Deposit funds.
-* Withdraw funds (if sufficient balance).
-* Get the current balance.
-* Get the transaction history.
-
-All these operations will affect or depend on the account's state (balance and history).
-
-## 1. Define the State
-
-First, we define a record to represent the state of our bank account.
-
-
-- [AccountState.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/AccountState.java)
-
-
-<!-- verify -->
-```java
-public record AccountState(BigDecimal balance, List<Transaction> history) {
-  public AccountState {
-    requireNonNull(balance, "Balance cannot be null.");
-    requireNonNull(history, "History cannot be null.");
-    // Ensure history is unmodifiable and a defensive copy is made.
-    history = Collections.unmodifiableList(new ArrayList<>(history));
-  }
-
-  // Convenience constructor for initial state
-  public static AccountState initial(BigDecimal initialBalance) {
-    requireNonNull(initialBalance, "Initial balance cannot be null");
-    if (initialBalance.compareTo(BigDecimal.ZERO) < 0) {
-      throw new IllegalArgumentException("Initial balance cannot be negative.");
-    }
-    Transaction initialTx = new Transaction(
-            TransactionType.INITIAL_BALANCE,
-            initialBalance,
-            LocalDateTime.now(),
-            "Initial account balance"
-    );
-    // The history now starts with this initial transaction
-    return new AccountState(initialBalance, Collections.singletonList(initialTx));
-  }
-
-  public AccountState addTransaction(Transaction transaction) {
-    requireNonNull(transaction, "Transaction cannot be null");
-    List<Transaction> newHistory = new ArrayList<>(history); // Takes current history
-    newHistory.add(transaction);                             // Adds new one
-    return new AccountState(this.balance, Collections.unmodifiableList(newHistory));
-  }
-
-  public AccountState withBalance(BigDecimal newBalance) {
-    requireNonNull(newBalance, "New balance cannot be null");
-    return new AccountState(newBalance, this.history);
-  }
-}
-```
-
-### 2. Define Transaction Types
-
-We'll also need a way to represent transactions.
-- [TransactionType.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/TransactionType.java)
-- [Transaction.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/Transaction.java)
-
-
-<!-- verify -->
-```java
-public enum TransactionType {
-  INITIAL_BALANCE,
-  DEPOSIT,
-  WITHDRAWAL,
-  REJECTED_WITHDRAWAL,
-  REJECTED_DEPOSIT
-}
-
-public record Transaction(
-        TransactionType type, BigDecimal amount, LocalDateTime timestamp, String description) {
-  public Transaction {
-    requireNonNull(type, "Transaction type cannot be null");
-    requireNonNull(amount, "Transaction amount cannot be null");
-    requireNonNull(timestamp, "Transaction timestamp cannot be null");
-    requireNonNull(description, "Transaction description cannot be null");
-    if (type != TransactionType.INITIAL_BALANCE && amount.compareTo(BigDecimal.ZERO) <= 0) {
-      if (!(type == TransactionType.REJECTED_DEPOSIT && amount.compareTo(BigDecimal.ZERO) <= 0)
-              && !(type == TransactionType.REJECTED_WITHDRAWAL
-                  && amount.compareTo(BigDecimal.ZERO) <= 0)) {
-        throw new IllegalArgumentException(
-                "Transaction amount must be positive for actual operations.");
-      }
-    }
-  }
-}
-```
-
-### 3. Define State Actions
-
-Now, we define our bank operations as functions that return `Kind<StateKind.Witness<AccountState>, YourResultType>`.
-These actions describe how the state should change and what value they produce.
-
-We'll put these in a `BankAccountWorkflow.java class`.
-
-- [BankAccountWorkflow.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/state/BankAccountWorkflow.java)
-
-<!-- verify -->
-```java
-public class BankAccountWorkflow {
-
-  private static final StateMonad<AccountState> accountStateMonad = StateMonad.instance();
-
-  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Unit>> deposit(
-          String description) {
-    return amount ->
-        STATE.widen(
-          State.modify(
-            currentState -> {
-              if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                // For rejected deposit, log the problematic amount
-                Transaction rejected =
-                        new Transaction(
-                                TransactionType.REJECTED_DEPOSIT,
-                                amount,
-                                LocalDateTime.now(),
-                                "Rejected Deposit: " + description + " - Invalid Amount " + amount);
-                return currentState.addTransaction(rejected);
-              }
-              BigDecimal newBalance = currentState.balance().add(amount);
-              Transaction tx =
-                      new Transaction(
-                              TransactionType.DEPOSIT, amount, LocalDateTime.now(), description);
-              return currentState.withBalance(newBalance).addTransaction(tx);
-        }));
-  }
-
-  public static Function<BigDecimal, Kind<StateKind.Witness<AccountState>, Boolean>> withdraw(
-          String description) {
-    return amount ->
-        STATE.widen(
-                State.of(
-                    currentState -> {
-                      if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-                        // For rejected withdrawal due to invalid amount, log the problematic amount
-                        Transaction rejected =
-                            new Transaction(
-                                    TransactionType.REJECTED_WITHDRAWAL,
-                                    amount,
-                                    LocalDateTime.now(),
-                                    "Rejected Withdrawal: " + description + " - Invalid Amount " + amount);
-                        return new StateTuple<>(false, currentState.addTransaction(rejected));
-                      }
-                      if (currentState.balance().compareTo(amount) >= 0) {
-                        BigDecimal newBalance = currentState.balance().subtract(amount);
-                        Transaction tx =
-                                new Transaction(
-                                        TransactionType.WITHDRAWAL, amount, LocalDateTime.now(), description);
-                        AccountState updatedState =
-                                currentState.withBalance(newBalance).addTransaction(tx);
-                        return new StateTuple<>(true, updatedState);
-                      } else {
-                        // For rejected withdrawal due to insufficient funds, log the amount that was
-                        // attempted
-                        Transaction tx =
-                            new Transaction(
-                                    TransactionType.REJECTED_WITHDRAWAL,
-                                    amount,
-                                    LocalDateTime.now(),
-                                    "Rejected Withdrawal: "
-                                            + description
-                                            + " - Insufficient Funds. Balance: "
-                                            + currentState.balance());
-                        AccountState updatedState = currentState.addTransaction(tx);
-                        return new StateTuple<>(false, updatedState);
-                      }
-                  }));
-  }
-
-  public static Kind<StateKind.Witness<AccountState>, BigDecimal> getBalance() {
-    return STATE.widen(State.inspect(AccountState::balance));
-  }
-
-  public static Kind<StateKind.Witness<AccountState>, List<Transaction>> getHistory() {
-    return STATE.widen(State.inspect(AccountState::history));
-  }
-
-  // ... main method will be added
-
-}
-```
-
-### 4. Compose Computations using `map` and `flatMap`
-
-We use `flatMap` and `map` from  `accountStateMonad` to sequence these actions. The state is threaded automatically.
-
-<!-- verify -->
-```java
-public class BankAccountWorkflow {
-  // ... (monad instance and previous actions declared above)
-  private static final StateMonad<AccountState> accountStateMonad = StateMonad.instance();
-
-  public static void main(String[] args) {
-    // Initial state: Account with £100 balance.
-    AccountState initialState = AccountState.initial(new BigDecimal("100.00"));
-   var workflow =
-           For.from(accountStateMonad, Fixture.deposit("Salary").apply(new BigDecimal("20.00")))
-               .from(a -> Fixture.withdraw("Bill Payment").apply(new BigDecimal("50.00")))
-               .from(b -> Fixture.withdraw("Groceries").apply(new BigDecimal("70.00")))
-               .from(c -> Fixture.getBalance())
-               .from(t -> Fixture.getHistory())
-               .yield((deposit, w1, w2, bal, history) -> {
-                 var report = new StringBuilder();
-                 history.forEach(tx -> report.append("  - %s\n".formatted(tx)));
-                 return report.toString();
-               });
-
-    StateTuple<AccountState, String> finalResultTuple =
-        STATE.runState(workflow, initialState);
-
-    System.out.println(finalResultTuple.value());
-
-    System.out.println("\nDirect Final Account State:");
-    System.out.println("Balance: £" + finalResultTuple.state().balance());
-    System.out.println(
-        "History contains " + finalResultTuple.state().history().size() + " transaction(s):");
-    finalResultTuple.state().history().forEach(tx -> System.out.println("  - " + tx));
-  }
-}
-```
-
-### 5. Run the Computation
-
-The `StateKindHelper.runState(workflow, initialState)` call executes the entire sequence of operations, starting with `initialState`.
-It returns a StateTuple containing the final result of the _entire workflow_ (in this case, the `String` report) and the final state of the `AccountState`.
-
-```
-
-Direct Final Account State:
-Balance: £0.00
-History contains 4 transaction(s):
-  - Transaction[type=INITIAL_BALANCE, amount=100.00, timestamp=2025-05-18T17:35:53.564874439, description=Initial account balance]
-  - Transaction[type=DEPOSIT, amount=20.00, timestamp=2025-05-18T17:35:53.578424630, description=Salary]
-  - Transaction[type=WITHDRAWAL, amount=50.00, timestamp=2025-05-18T17:35:53.579196349, description=Bill Payment]
-  - Transaction[type=WITHDRAWAL, amount=70.00, timestamp=2025-05-18T17:35:53.579453984, description=Groceries]
-```
-~~~
-
-~~~admonish important  title="Key Points:"
-The State monad (`State<S, A>`, `StateKind`, `StateMonad`) , as provided by higher-kinded-j, offers an elegant and functional way to manage state transformations.
-
-By defining atomic state operations and composing them with map and flatMap, you can build complex stateful workflows that are easier to reason about, test, and maintain, as the state is explicitly managed by the monad's structure rather than through mutable side effects. The For comprehension helps simplify the workflow.
-
-Key operations like `get`, `set`, `modify`, and `inspect` provide convenient ways to interact with the state within the monadic context.
-
-~~~
-
-~~~ admonish tip title="Further Reading"
-For deeper exploration of the State monad and its applications:
-
-**Foundational Resources:**
-- **Philip Wadler**: [Monads for functional programming](https://homepages.inf.ed.ac.uk/wadler/papers/marktoberdorf/baastad.pdf) - Classic paper introducing monads including State
-- **Cats Documentation**: [State Monad](https://typelevel.org/cats/datatypes/state.html) - Scala implementation with comprehensive examples
-- **Haskell Wiki**: [State Monad](https://wiki.haskell.org/State_Monad) - Conceptual foundation and theory
-
-**Java-Focused Resources:**
-- **Pierre-Yves Saumont**: "Functional Programming in Java" (Manning, 2017) - Deep dive into functional techniques including state management
-- **Venkat Subramaniam**: "Functional Programming in Java" (O'Reilly, 2014) - Practical guide to FP patterns in modern Java
-
+~~~admonish example title="See Example Code"
+**The code on this page is [StateBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java) and [BankBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/BankBook.java)**: the page includes them, so the build compiles and runs them. [StateBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/state/StateBookTest.java) and [BankBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/state/BankBookTest.java) hold what the page says each method does.
 ~~~
 
 ---
 
-~~~admonish example title="Benchmarks"
-State has dedicated JMH benchmarks measuring state threading overhead, composition depth, and `get`/`set`/`modify` performance. Key expectations:
+## Adding to a basket {#adding-to-a-basket}
 
-- **`get` / `inspect`** are very fast; they read state without transformation
-- **`flatMap` chains** thread state through each step with minimal overhead beyond the step's own computation
-- **Deep chains (50+)** complete without error; composition is stack-safe for typical depths
-- State threading adds constant overhead per step regardless of state size
+A customer's basket changes as they shop, and some steps report something too: whether a line went in, or what the basket comes to. Keep the basket in a field, and every method that changes it shares that field. A method's result then depends on what ran before it, which its signature never says. Pass the basket in and return a pair instead, and every caller must unpack the pair and hand the new basket to the next call. A `State<S, A>` is that function, from a state `S` to a result `A` and the next state, with the handing on done for you.
 
-```bash
-./gradlew :hkj-benchmarks:jmh -Pincludes=".*StateBenchmark.*"
+The code on this page uses these imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces, and `Basket` from this chapter's examples:
+
+<!-- verify -->
+```java
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Stream;
+import org.higherkindedj.example.book.foundations.Basket;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.WithStatePath;
+import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.state.StateTuple;
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+
+`Basket` is a record of the examples' own:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/Basket.java:basket}}
+```
+
+`add` puts a line in the basket if the total stays within `LIMIT`, which is 100.00, and gives `true`. Otherwise it gives `false`, and hands on the basket it was given. A `StateTuple` holds a step's result and the state it leaves:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:add}}
+```
+
+`LAMP` is one lamp at 40.00, `SOFA` one sofa at 450.00, and `BULBS` four bulbs at 2.50 each. Add the lamp, then the sofa:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:run}}
+```
+
+The lamp goes in. The sofa would take the basket to 490.00, so `add(SOFA)` gives `false` and leaves the basket holding only the lamp. A `State` holds no basket of its own, so run the same steps from a basket of bulbs and they start from that one. The lamp joins the bulbs, the sofa is refused again, and the basket comes to 50.00. A test builds the basket it needs and runs the steps from it.
+
+## Each step is handed the basket {#each-step-is-handed-the-basket}
+
+Nothing runs until `run` is called. Then `flatMap` runs `add(LAMP)` on the basket it was given, and passes the result to `_ -> add(SOFA)`. The step that function returns runs on the basket `add(LAMP)` left.
+
+```mermaid
+flowchart TB
+    accTitle: How one run of lampThenSofa hands the basket on
+    accDescr: Running lampThenSofa from the empty basket hands that basket to add(LAMP), which gives true and a basket holding the lamp. The result true goes to the function _ -> add(SOFA), which gives the step add(SOFA). That step is handed the basket holding the lamp. The sofa would take it over the limit, so add(SOFA) gives false and the same basket, which is what the run gives.
+    run["lampThenSofa.run(Basket.EMPTY)"]
+    lamp["add(LAMP)<br/>40.00 is within the limit"]
+    pick["_ -> add(SOFA)"]
+    sofa["add(SOFA)<br/>490.00 would be over it"]
+    result["false, with the basket holding the lamp"]
+    run -- "the empty basket" --> lamp
+    lamp -- "true" --> pick
+    pick -- "gives the step add(SOFA)" --> sofa
+    lamp -- "the basket holding the lamp" --> sofa
+    sofa -- "false, with the same basket" --> result
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    class run,lamp,pick,sofa step
+    class result domain
+```
+
+The basket goes from each step straight to the next, while each result goes to the function that picks the step after it. Each `run` starts again from the basket it is given, so running a `State` twice does its work twice.
+
+## A step for each line {#a-step-for-each-line}
+
+A loop can build the chain. Each `flatMap` is handed the refusals so far, and the step it returns runs on the basket the steps before it left. `map` adds the line's SKU to the refusals when `add` gives `false`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:add_all}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:add_all_outcome}}
+```
+
+A long list makes a long chain. `run` works through the chain in a loop, not a stack frame for each step, so a chain of 100,000 steps runs on an ordinary thread. That holds for `map` as well as `flatMap`, and for the `WithStatePath` methods the next section shows.
+
+## On a `WithStatePath` {#on-a-withstatepath}
+
+Application code holds a `State` on a `WithStatePath`, its Effect Path, and `Path.state(state)` gives you one. It chains with `via`, runs one path after another with `then`, and combines with `zipWith`, which runs the second path on the state the first one left. Checkout reads the total from the basket the trip leaves:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:checkout}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:checkout_outcome}}
+```
+
+`receipt` is `"pay 50.00, refused [SOFA]"`. `evalState` gives only the result, `execState` only the final state, and `run` the `StateTuple` with both.
+
+## A State always gives a value {#a-state-always-gives-a-value}
+
+A `StateTuple` always holds a result and a state, so `State.pure(null)`, `State.set(null)` and a `StateTuple` built with `null` throw at the call. A function given to `map` or `inspect` that returns `null` fails the run with `f must not return null`, and one given to `modify` fails it with `StateTuple.construction state cannot be null`. A step with nothing to report gives [`Unit`](../hkts/core-concepts.md#unit), as `set` and `modify` do. `State.of` does not check what your function returns, so it must never return `null`. [Values, never null](../hkts/core-concepts.md#values-never-null) sets out the rule every type follows.
+
+## Creating instances {#creating-instances}
+
+`State.of(function)` wraps a function from a state to a `StateTuple`, and `State.pure(value)` gives a value and leaves the state as it is. `State.get()` gives the state itself, and `State.inspect(f)` gives what `f` reads from it. `State.set(state)` replaces it, and `State.modify(f)` changes it, and both give `Unit`. `new StateTuple<>(value, state)` takes the result first, but `StateTuple.of(state, value)` takes the state first. On a Path, `Path.state(state)`, `Path.statePure(value)`, `Path.getState()`, `Path.setState(state)` and `Path.modifyState(f)` start a `WithStatePath`, and `WithStatePath.inspect(f)` starts one that reads part of the state.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `State.of(function)` | Wraps a function from a state to a `StateTuple` |
+| `State.pure(value)` | Gives `value`, and leaves the state as it is |
+| `State.get()` | Gives the state |
+| `State.inspect(f)` | Gives what `f` reads from the state |
+| `State.set(state)` | Replaces the state, and gives `Unit` |
+| `State.modify(f)` | Changes the state with `f`, and gives `Unit` |
+| `map(f)` | Builds a `State` whose result is changed by `f` |
+| `flatMap(f)` | Builds a `State` that runs the step `f` picks from this one's result, on the state this one left |
+| `run(state)` | Runs from `state`, and gives the `StateTuple` of the result and the final state |
+| `withStatePath.via(f)`, `then(next)`, `zipWith(other, f)` | Chain, sequence or combine `WithStatePath` steps over one state |
+| `withStatePath.evalState(state)`, `execState(state)`, `run(state)` | Give the result, the final state, or both |
+| `withStatePath.toState()` | Gives the `State` the path holds |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `State` through its `Monad` instance, from `Instances.monad(state())`. The state type is part of the witness, `StateKind.Witness<S>`, so one instance serves steps over one state type. You widen a `State` to pass it in, and run the result with `STATE.runState`, `STATE.evalState` or `STATE.execState`. `STATE.narrow(kind)` gives the `State` back. These are the extra imports, with those the bank account in the next section uses:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.state;
+import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
+
+import java.util.Objects;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.expression.For;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.state.StateKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:kind}}
+```
+
+`ran` is `"added"`. Widening allocates nothing: every `State` is already a `StateKind`, so `widen` checks for `null` and returns the same object. `STATE.get()`, `STATE.set(state)`, `STATE.modify(f)` and `STATE.inspect(f)` build a widened step directly. Code that changes a state through any monad, not only `State`, takes a `MonadState`, as [Changing a basket with `MonadState`](../functional/for_mtl.md#threading-state-with-monadstate) shows. [ForState](../functional/forstate_comprehension.md) names each step's result, and updates the state through optics.
+
+### A month in a bank account {#a-month-in-a-bank-account}
+
+What the `Monad` instance adds is [`For`](../functional/for_comprehension.md), which lists a chain of steps in order rather than nesting them. A bank account shows it. An `Account` holds its balance and every transaction so far, with the refused ones:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/BankBook.java:account}}
+```
+
+A deposit only changes the account, so it is a `State.modify`, and gives `Unit`. A withdrawal also says whether it was paid:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/BankBook.java:steps}}
+```
+
+`For` sequences the month over the `State` monad, so each step is widened with `STATE.widen`. Each `from` is given the results so far, and the step it returns runs on the account the step before it left. `yield` sees every step's result:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/BankBook.java:month}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/BankBook.java:run}}
+```
+
+`report` is `"bill paid: true, groceries paid: true, cinema paid: false"`. The salary takes the opening 100.00 to 120.00, and the bill and the groceries take it to 0.00. The cinema is refused and recorded as refused, so the history holds five transactions: the opening balance, the salary, two payments and the refusal. The account records no time, so the same month gives the same history on every run. A transaction that needs a time can read it from a [`TimeSource`](io_monad.md#reading-the-clock) passed to the step, which a test fixes.
+
+## When to use `State` {#when-to-use-state}
+
+| You need | Use |
+|---|---|
+| Steps that each work from what the step before them left | `State`, or [WithStatePath](../effect/advanced_effects.md#withstatepath-computation-with-memory) |
+| Steps that read one environment, which no step changes | [Reader](reader_monad.md) |
+| A log that steps add to, and read only at the end | [Writer](writer_monad.md) |
+| State together with failure or asynchronous work | [StateT](../transformers/statet_transformer.md), or [MutableContext](../effect/effect_contexts_mutable.md) |
+| A loop inside one method that updates a local variable | The local variable: nothing outside the method sees it change |
+
+~~~admonish info title="Hands-On Learning"
+Practise `MonadState` in Exercises 5 to 8 of [Tutorial 04: Polymorphic Capabilities](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial04_PolymorphicCapabilities.java) (14 exercises), and state updated through optics in [Tutorial 01: ForState Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/expression/Tutorial01_ForStateBasics.java) (13 exercises).
 ~~~
 
 ---
