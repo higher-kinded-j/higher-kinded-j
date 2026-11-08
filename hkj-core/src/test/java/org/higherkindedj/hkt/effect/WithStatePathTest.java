@@ -582,5 +582,29 @@ class WithStatePathTest {
 
       assertThat(path.execState(0)).isEqualTo(DEPTH);
     }
+
+    @Test
+    @DisplayName("a right-nested chain of then calls threads the state through every step")
+    void deepRightNestedThenChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        WithStatePath<Integer, Unit> next = path;
+        path = tick.then(() -> next);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a right-nested chain of via calls threads the state through every step")
+    void deepRightNestedViaChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        WithStatePath<Integer, Unit> next = path;
+        path = tick.via(_ -> next);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
+    }
   }
 }
