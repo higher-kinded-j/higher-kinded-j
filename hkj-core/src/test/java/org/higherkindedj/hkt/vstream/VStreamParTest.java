@@ -1626,6 +1626,18 @@ class VStreamParTest {
     }
 
     @Test
+    @DisplayName(
+        "parEvalMap() fails with a task's Throwable that is neither an Exception nor an Error")
+    void parEvalMapKeepsPlainThrowable() {
+      Throwable odd = new Throwable("neither an Exception nor an Error");
+      var result = VStreamPar.parEvalMap(VStream.of(1), 1, _ -> VTask.fail(odd));
+
+      assertThat(result.toList().runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class, failure -> assertThat(failure.cause()).isSameAs(odd));
+    }
+
+    @Test
     @DisplayName("parEvalMapUnordered() propagates Error (not RuntimeException)")
     void parEvalMapUnorderedPropagatesError() {
       VStream<Integer> stream = VStream.of(1);
@@ -1665,6 +1677,18 @@ class VStreamParTest {
           .isInstanceOfSatisfying(
               Try.Failure.class,
               failure -> assertThat(failure.cause()).isInstanceOf(IOException.class));
+    }
+
+    @Test
+    @DisplayName(
+        "parEvalMapUnordered() fails with a task's Throwable that is neither an Exception nor an Error")
+    void parEvalMapUnorderedKeepsPlainThrowable() {
+      Throwable odd = new Throwable("neither an Exception nor an Error");
+      var result = VStreamPar.parEvalMapUnordered(VStream.of(1), 1, _ -> VTask.fail(odd));
+
+      assertThat(result.toList().runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class, failure -> assertThat(failure.cause()).isSameAs(odd));
     }
 
     @Test
