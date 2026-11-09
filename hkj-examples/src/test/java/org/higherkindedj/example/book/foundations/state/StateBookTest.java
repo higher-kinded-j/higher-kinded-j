@@ -98,6 +98,24 @@ class StateBookTest {
       steps.run(Basket.EMPTY);
       assertThat(handed).containsExactly(Basket.EMPTY, Basket.EMPTY);
     }
+
+    @Test
+    @DisplayName("State makes no copy: a step that changes its state in place changes the caller's")
+    void noCopyOfTheState() {
+      Basket withLamp = new Basket(List.of(LAMP));
+      assertThat(withLamp.add(BULBS).lines()).containsExactly(LAMP, BULBS);
+      assertThat(withLamp.lines()).containsExactly(LAMP);
+
+      List<String> notes = new ArrayList<>();
+      State<List<String>, Unit> note =
+          State.modify(
+              list -> {
+                list.add("lamp");
+                return list;
+              });
+      note.run(notes);
+      assertThat(notes).containsExactly("lamp");
+    }
   }
 
   @Nested
@@ -112,6 +130,16 @@ class StateBookTest {
       assertThat(trip.value()).containsExactly("SOFA");
       assertThat(trip.state().lines()).containsExactly(LAMP, BULBS);
       assertThat(trip.state().total()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    @DisplayName("refusals are kept in the order of their lines")
+    void refusalsKeepTheirOrder() {
+      StateTuple<Basket, List<String>> trip =
+          addAll(List.of(LAMP, LAMP, SOFA, LAMP)).run(Basket.EMPTY);
+
+      assertThat(trip.value()).containsExactly("SOFA", "LAMP");
+      assertThat(trip.state().total()).isEqualByComparingTo("80.00");
     }
 
     @Test
@@ -134,6 +162,8 @@ class StateBookTest {
       assertThat(checkout(List.of(LAMP, SOFA, BULBS)).evalState(Basket.EMPTY))
           .isEqualTo("pay 50.00, refused [SOFA]");
       assertThat(checkout(List.of(LAMP)).evalState(Basket.EMPTY)).isEqualTo("pay 40.00");
+      assertThat(checkout(List.of(LAMP, LAMP, SOFA, LAMP)).evalState(Basket.EMPTY))
+          .isEqualTo("pay 80.00, refused [SOFA, LAMP]");
     }
 
     @Test

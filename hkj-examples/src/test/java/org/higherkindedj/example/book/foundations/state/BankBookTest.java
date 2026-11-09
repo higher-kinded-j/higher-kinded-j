@@ -16,6 +16,8 @@ import org.higherkindedj.hkt.state.StateTuple;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /** Holds the claims the State page makes about the bank account. */
 @DisplayName("State: a bank account each deposit and withdrawal hands on")
@@ -68,6 +70,20 @@ class BankBookTest {
     @DisplayName("a withdrawal the balance does not cover is refused and recorded")
     void refusedWithdrawal() {
       StateTuple<Account, Boolean> after = withdraw("Car", new BigDecimal("100.01")).run(OPENED);
+
+      assertThat(after.value()).isFalse();
+      assertThat(after.state().balance()).isEqualByComparingTo("100.00");
+      assertThat(after.state().history())
+          .last()
+          .extracting(Transaction::type)
+          .isEqualTo(TransactionType.REJECTED_WITHDRAWAL);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"0.00", "-1.00"})
+    @DisplayName("a withdrawal of nothing, or less, is refused and recorded")
+    void nonPositiveWithdrawal(String amount) {
+      StateTuple<Account, Boolean> after = withdraw("Nothing", new BigDecimal(amount)).run(OPENED);
 
       assertThat(after.value()).isFalse();
       assertThat(after.state().balance()).isEqualByComparingTo("100.00");

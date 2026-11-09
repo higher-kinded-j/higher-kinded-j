@@ -9,7 +9,7 @@ _Each step is handed the state, and returns its result with the state it leaves 
 >
 > — Rich Hickey, *Simple Made Easy*
 
-Hickey's charge is against the variable, which braids a value together with time: whoever reads it must know what changed it, and when. A `State` changes no value in place. Each step is handed one state and gives the next, and the order of the steps is the only time there is.
+Hickey's charge is against the variable, which braids a value together with time: whoever reads it must know what changed it, and when. A `State` keeps no variable. Each step is handed one state and gives the next, and the order of the steps is the only time there is.
 
 ~~~admonish abstract title="State at a glance"
 | | |
@@ -60,7 +60,9 @@ import org.higherkindedj.hkt.state.StateTuple;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/Basket.java:basket}}
 ```
 
-`add` puts a line in the basket if the total stays within `LIMIT`, which is 100.00, and gives `true`. Otherwise it gives `false`, and hands on the basket it was given. A `StateTuple` holds a step's result and the state it leaves:
+`Basket.add` gives a new basket, and leaves the one it was called on as it was. `State` makes no copy of the state it hands on. Keep the state an immutable value, as `Basket` is, since a step that changed it in place would change the caller's object too.
+
+The step `add` puts a line in the basket if the total stays within `LIMIT`, which is 100.00, and gives `true`. Otherwise it gives `false`, and hands on the basket it was given. A `StateTuple` holds a step's result and the state it leaves:
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/state/StateBook.java:add}}
