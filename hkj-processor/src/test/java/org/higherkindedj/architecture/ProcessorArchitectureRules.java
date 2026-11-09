@@ -406,6 +406,31 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Every route reads one answer to whether a container is ordered by a wildcard.
+   *
+   * <p>A sorted container is rebuilt with the source's comparator, and a wildcard where it is
+   * ordered leaves that rebuild untypeable, so {@code GeneratorRegistry.ordersByWildcard} decides
+   * which components are refused a traversal. {@code @GenerateTraversals} asks it from {@code
+   * createTraversal}, {@code @ImportOptics} from {@code getFocusType}, and the Focus route from
+   * {@code spiLookup}, which records the answer on a refused lookup for the fix line to read. A
+   * route asking the generator's ordered index itself could disagree with the others; collecting
+   * the callers also fails the rule if it stops seeing the ones it allows.
+   */
+  @Test
+  @DisplayName("Every route should read the ordered-by-wildcard answer from the registry")
+  void every_route_should_read_the_ordered_by_wildcard_answer_from_the_registry() {
+    assertThat(callersOf(GENERATOR_REGISTRY, "ordersByWildcard"))
+        .isEqualTo(
+            Set.of(
+                "TraversalProcessor.createTraversal",
+                "ExternalLensGenerator.getFocusType",
+                "WideningAnalysis.spiLookup"));
+    assertThat(callersOf(TRAVERSABLE_GENERATOR, "getOrderedTypeArgumentIndex"))
+        .as("ask GeneratorRegistry.ordersByWildcard, which every route reads")
+        .isEqualTo(Set.of("GeneratorRegistry.ordersByWildcard"));
+  }
+
+  /**
    * Only the guarded lookup asks which file an element was read from.
    *
    * <p>{@code Elements.getFileObjectOf} is a default method that throws unless the compiler

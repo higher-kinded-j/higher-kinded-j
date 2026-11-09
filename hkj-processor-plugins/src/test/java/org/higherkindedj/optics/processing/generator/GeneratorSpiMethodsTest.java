@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing.generator;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
@@ -263,9 +264,11 @@ class GeneratorSpiMethodsTest {
       var gen = new EclipseImmutableSortedSetGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(
-          "EachInstances.fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))",
+          "EachInstances.fromIterableRebuilding((source, list) ->"
+              + " SortedSets.immutable.ofAll(source.comparator(), list))",
           gen.generateOpticExpression());
       assertEquals(EACH_AND_SORTED_SETS, gen.getRequiredImports());
+      assertEquals(OptionalInt.of(0), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test
@@ -274,9 +277,11 @@ class GeneratorSpiMethodsTest {
       var gen = new EclipseMutableSortedSetGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(
-          "EachInstances.fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))",
+          "EachInstances.fromIterableRebuilding((source, list) ->"
+              + " SortedSets.mutable.ofAll(source.comparator(), list))",
           gen.generateOpticExpression());
       assertEquals(EACH_AND_SORTED_SETS, gen.getRequiredImports());
+      assertEquals(OptionalInt.of(0), gen.getOrderedTypeArgumentIndex());
     }
   }
 
@@ -442,6 +447,7 @@ class GeneratorSpiMethodsTest {
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.HashTreePSet"),
           gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
+      assertEquals(OptionalInt.empty(), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test
@@ -450,12 +456,14 @@ class GeneratorSpiMethodsTest {
       var gen = new PSortedSetGenerator();
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(
-          "EachInstances.fromIterableCollecting(list -> TreePSet.from(list))",
+          "EachInstances.fromIterableRebuilding((source, list) ->"
+              + " TreePSet.from(TreePSet.fromSortedSet(source).comparator(), list))",
           gen.generateOpticExpression());
       assertEquals(
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePSet"),
           gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
+      assertEquals(OptionalInt.of(0), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test
@@ -484,6 +492,7 @@ class GeneratorSpiMethodsTest {
       assertEquals(
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.HashTreePMap"),
           gen.getRequiredImports());
+      assertEquals(OptionalInt.empty(), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test
@@ -493,11 +502,14 @@ class GeneratorSpiMethodsTest {
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(1, gen.getFocusTypeArgumentIndex());
       assertEquals(
-          "EachInstances.mapValuesEachCollecting(map -> TreePMap.from(map))",
+          "EachInstances.mapValuesEachRebuilding((source, map) ->"
+              + " TreePMap.from(TreePMap.fromSortedMap(source).comparator(), map))",
           gen.generateOpticExpression());
       assertEquals(
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePMap"),
           gen.getRequiredImports());
+      // Ordered by its key, though it focuses its value.
+      assertEquals(OptionalInt.of(0), gen.getOrderedTypeArgumentIndex());
     }
   }
 }

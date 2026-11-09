@@ -509,6 +509,9 @@ public class ExternalLensGenerator {
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.
       }
+      if (GeneratorRegistry.ordersByWildcard(declaredType, generator)) {
+        return null; // Rebuilt with a comparator typed for the wildcard's capture.
+      }
       // A wildcard argument is resolved: no class can implement a traversal type that names one.
       return ProcessorUtils.resolvedTypeNameOf(
           declaredType.getTypeArguments().get(typeArgumentIndex), targetPackage);

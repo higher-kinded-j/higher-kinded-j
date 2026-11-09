@@ -8,6 +8,7 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -109,6 +110,36 @@ public interface TraversableGenerator {
    */
   default int getFocusTypeArgumentIndex() {
     return 0;
+  }
+
+  /**
+   * Returns the index of the type argument the container orders its contents by, when it keeps them
+   * in an order of its own: the element of a sorted set, the key of a sorted map.
+   *
+   * <p>A generator for a sorted container rebuilds it with the source's comparator, so that a
+   * traversal keeps the order it found: in {@code generateModifyF}, and in its optic expression
+   * through {@code EachInstances.fromIterableRebuilding} or {@code mapValuesEachRebuilding}. That
+   * comparator is typed by the argument at this index, and a wildcard there leaves it typed for a
+   * capture of the wildcard, an unknown type the generated rebuild cannot be written against:
+   * {@code MutableSortedSet<? extends Leaf>} holds a {@code Comparator<? super CAP>}, which no
+   * {@code Leaf} a traversal writes back can be proved to fit. A component whose argument at this
+   * index is a wildcard is therefore refused: {@code @GenerateTraversals} notes it and generates no
+   * method for it, {@code @ImportOptics} leaves its traversal out, and {@code @GenerateFocus},
+   * where it widens the component, rejects it with a fix line that does not offer
+   * {@code @GenerateTraversals} in its place.
+   *
+   * <p>The index may differ from {@link #getFocusTypeArgumentIndex()}: a sorted map focuses its
+   * values and orders by its keys, so {@code @GenerateTraversals} still traverses one with a
+   * wildcard in the value.
+   *
+   * <p>The default, empty, suits every container that keeps no order of its own.
+   *
+   * @return the zero-based index of the type argument the container is ordered by, or empty when it
+   *     keeps no order of its own
+   * @since 0.6.0
+   */
+  default OptionalInt getOrderedTypeArgumentIndex() {
+    return OptionalInt.empty();
   }
 
   /**

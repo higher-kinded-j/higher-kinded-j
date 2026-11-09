@@ -49,13 +49,14 @@ import org.higherkindedj.optics.processing.util.Reachability;
  * <p>Each record component is offered to the {@link TraversableGenerator} SPI, and a method is
  * generated for every component a generator claims. A component that holds elements but reaches no
  * method — a {@link java.util.Collection} or {@link java.util.Map} subtype no generator on the
- * annotation processor path supports, or a claimed container whose element type cannot be read — is
- * reported as a note where it is declared, because the generated class compiles perfectly well
- * without it and the missing method would otherwise be found at the call site. A note rather than a
- * warning: the annotation has no per-component opt-out and a processor warning cannot be
- * suppressed, so a warning would fail a {@code -Werror} build with no remedy short of changing the
- * record. A component that is not a container at all, a {@code String} or an {@code int}, is passed
- * over silently: not generating for it is the expected outcome, not a gap.
+ * annotation processor path supports, a claimed container whose element type cannot be read, or a
+ * sorted one ordered by a wildcard, which it cannot rebuild — is reported as a note where it is
+ * declared, because the generated class compiles perfectly well without it and the missing method
+ * would otherwise be found at the call site. A note rather than a warning: the annotation has no
+ * per-component opt-out and a processor warning cannot be suppressed, so a warning would fail a
+ * {@code -Werror} build with no remedy short of changing the record. A component that is not a
+ * container at all, a {@code String} or an {@code int}, is passed over silently: not generating for
+ * it is the expected outcome, not a gap.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateTraversals")
@@ -227,6 +228,19 @@ public class TraversalProcessor extends AbstractProcessor {
                 + declaredType.getTypeArguments().size(),
             "Declare the component with a type that generator can focus, or correct the"
                 + " generator's getFocusTypeArgumentIndex()");
+        return null;
+      }
+      if (GeneratorRegistry.ordersByWildcard(declaredType, generator)) {
+        noteNoTraversal(
+            component,
+            ProcessorUtils.simpleTypeName(componentType)
+                + " is rebuilt with the source's comparator, and the wildcard it is ordered by"
+                + " leaves that comparator typed for an unknown type, so the generated rebuild"
+                + " would not compile",
+            "Declare the component with concrete type arguments"
+                + ProcessorUtils.concreteAlternative(declaredType)
+                    .map(alternative -> ", such as " + alternative)
+                    .orElse(""));
         return null;
       }
       focusType =

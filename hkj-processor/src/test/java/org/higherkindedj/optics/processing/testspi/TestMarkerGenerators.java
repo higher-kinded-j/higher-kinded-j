@@ -6,6 +6,7 @@ import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Set;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -49,6 +50,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
  *       widening rather than falling through to the lower-priority optic.
  *   <li>{@code com.example.hkjtest.Box}: a generator whose focus type argument index (1) exceeds
  *       the marker's single type argument, exercising the not-enough-type-arguments guard.
+ *   <li>{@code com.example.hkjtest.Ord}: a two-argument container, {@code Ord<K, V>}, whose
+ *       generator focuses {@code V} and orders by {@code K}, as a sorted map's does, exercising the
+ *       refusal of a container ordered by a wildcard.
  *   <li>type variables named {@code TRAVMARKER}: exercising the neither-array-nor-declared guard.
  * </ul>
  */
@@ -292,6 +296,27 @@ public final class TestMarkerGenerators {
     @Override
     public int getFocusTypeArgumentIndex() {
       return 1;
+    }
+  }
+
+  /**
+   * Generator for the {@code Ord<K, V>} marker, which focuses {@code V} and orders by {@code K}, as
+   * a sorted map's generator does.
+   */
+  public static final class OrdGenerator extends OpticMarkerGeneratorBase {
+    /** Creates the generator. */
+    public OrdGenerator() {
+      super("com.example.hkjtest.Ord");
+    }
+
+    @Override
+    public int getFocusTypeArgumentIndex() {
+      return 1;
+    }
+
+    @Override
+    public OptionalInt getOrderedTypeArgumentIndex() {
+      return OptionalInt.of(0);
     }
   }
 

@@ -128,12 +128,15 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | `Collection<A>` | JDK | `EachInstances.collectionEach()` (recognised directly) |
 | `Map<K, V>` | JDK | `EachInstances.mapValuesEach()` |
 | `A[]`, `A` a reference type | JDK | `EachInstances.arrayEach()` |
-| `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag`, `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
+| `ImmutableList`, `MutableList`, `ImmutableSet`, `MutableSet`, `ImmutableBag`, `MutableBag` | Eclipse Collections | `EachInstances.fromIterableCollecting(...)` |
+| `ImmutableSortedSet`, `MutableSortedSet` | Eclipse Collections | `EachInstances.fromIterableRebuilding(...)` |
 | `ImmutableList`, `ImmutableSet` | Guava | `EachInstances.fromIterableCollecting(...)` |
 | `List`, `Set` | Vavr | `EachInstances.fromIterableCollecting(...)` |
 | `HashBag`, `HashMultiSet`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
-| `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
-| `PMap`, `PSortedMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
+| `PVector`, `PStack`, `PSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
+| `PSortedSet` | PCollections | `EachInstances.fromIterableRebuilding(...)` |
+| `PMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |
+| `PSortedMap` | PCollections | `EachInstances.mapValuesEachRebuilding(...)` |
 
 The three JDK collections are recognised by name rather than by the SPI, but they do not share one traversal: a `List` field is widened with `EachInstances.listEach()`, a `Set` field with `EachInstances.setEach()` and a `Collection` field with `EachInstances.collectionEach()`. Each rebuilds a value the component can take back, which is what lets the modified result go home:
 
@@ -166,7 +169,7 @@ FocusPath<WidenedCandidate, String[]> allTags = FocusPath.of(WidenedCandidateLen
 
 Because the new array keeps its source's component type, a write must store values that type can hold, as any Java array store must. A component declared `Number[]` that holds an `Integer[]` cannot take a `Double`: the path's type allows it, but the write throws `ArrayStoreException`. `@GenerateTraversals` builds a `Number[]` for the same field, so its traversal takes the `Double`.
 
-Every third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
+Each third-party *collection* generator goes through `EachInstances.fromIterableCollecting(collector)`, a generic factory that iterates the container, traverses the elements with the applicative, and rebuilds the container through the collector it is given; the map-shaped ones go through `mapValuesEachCollecting` instead. A sorted one goes through `fromIterableRebuilding` or `mapValuesEachRebuilding`, whose rebuild is handed the source too, so the new container keeps the source's comparator. No extra HKJ module is needed: the library itself you supply, and a project that names one of these types in a record already has it on the classpath.
 
 <!-- verify -->
 ```java
@@ -216,7 +219,7 @@ Three things narrow the rule further.
 
 **A generator that names no optic expression is exempt, because it widens nothing.** The path stops at its container, as if no generator supported it, so a raw or wildcard argument is never asked for an optic. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
-The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for, with nothing inferred. The one exception is a sorted container with a wildcard where it is ordered, such as `MutableSortedSet<? extends Widget>`, which draws a note and no traversal. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
 
 ### A wildcard inside the element {#a-wildcard-inside-the-element}
@@ -320,8 +323,8 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 * **The field type picks the path type, through cardinality.** Zero or one gives an `AffinePath`, `List`/`Set`/`Collection` a `TraversalPath`, anything else a `FocusPath`. Every other zero-or-more container stops at the container until `widenCollections` says otherwise.
 * **`Optional`, `Maybe`, `List`, `Set` and `Collection` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
 * **`widenCollections = true` removes the asymmetry, and `widenFields` removes it for chosen fields.** Without either, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike, whatever its element.
-* **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type.
-* **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
+* **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type. A sorted container goes through `fromIterableRebuilding` or `mapValuesEachRebuilding`, which keep its comparator.
+* **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`, plus `getOrderedTypeArgumentIndex` for a sorted container; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

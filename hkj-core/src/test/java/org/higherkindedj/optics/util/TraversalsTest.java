@@ -3873,6 +3873,140 @@ class TraversalsTest {
   }
 
   // =============================================================================
+  // forIterableRebuilding Tests
+  // =============================================================================
+
+  /** A source-aware rebuild for a {@link TreeSet}: the new elements, in the source's own order. */
+  private static <A> TreeSet<A> sortedLike(final TreeSet<A> source, final List<A> elements) {
+    final TreeSet<A> rebuilt = new TreeSet<>(source.comparator());
+    rebuilt.addAll(elements);
+    return rebuilt;
+  }
+
+  /** An element with no natural order, which only a comparator can sort. */
+  record Unordered(String name) {}
+
+  @Nested
+  @DisplayName("forIterableRebuilding Tests")
+  class ForIterableRebuildingTests {
+
+    @Test
+    @DisplayName("should keep a reverse-ordered source's comparator through modify")
+    void forIterableRebuilding_keepsTheSourcesComparator() {
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(TraversalsTest::sortedLike);
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+      source.addAll(List.of("a", "b", "c"));
+
+      TreeSet<String> modified = Traversals.modify(traversal, String::toUpperCase, source);
+
+      assertThat(modified).containsExactly("C", "B", "A");
+      assertThat(modified.comparator()).isSameAs(source.comparator());
+      assertThat(source).containsExactly("c", "b", "a");
+      assertThat(modified).isNotSameAs(source);
+    }
+
+    @Test
+    @DisplayName("should rebuild elements that have no natural order")
+    void forIterableRebuilding_rebuildsElementsWithNoNaturalOrder() {
+      Traversal<TreeSet<Unordered>, Unordered> traversal =
+          Traversals.forIterableRebuilding(TraversalsTest::sortedLike);
+      TreeSet<Unordered> source = new TreeSet<>(Comparator.comparing(Unordered::name));
+      source.addAll(List.of(new Unordered("b"), new Unordered("a")));
+
+      TreeSet<Unordered> modified =
+          Traversals.modify(traversal, u -> new Unordered(u.name() + "!"), source);
+
+      assertThat(modified).containsExactly(new Unordered("a!"), new Unordered("b!"));
+    }
+
+    @Test
+    @DisplayName("should hand the rebuild the source and the elements in its iteration order")
+    void forIterableRebuilding_handsOverTheSourceAndItsOrder() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(
+              (source, list) -> {
+                seen.add(source);
+                seen.add(list);
+                return sortedLike(source, list);
+              });
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+      source.addAll(List.of("a", "b", "c"));
+
+      Traversals.modify(traversal, s -> s + "!", source);
+
+      assertThat(seen).containsExactly(source, List.of("c!", "b!", "a!"));
+    }
+
+    @Test
+    @DisplayName("should rebuild an empty source through the rebuild, keeping its comparator")
+    void forIterableRebuilding_rebuildsAnEmptySource() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(
+              (source, list) -> {
+                seen.add(source);
+                seen.add(list);
+                return sortedLike(source, list);
+              });
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+
+      TreeSet<String> modified = Traversals.modify(traversal, String::toUpperCase, source);
+
+      assertThat(seen).containsExactly(source, List.of());
+      assertThat(modified).isEmpty();
+      assertThat(modified).isNotSameAs(source);
+      assertThat(modified.comparator()).isSameAs(source.comparator());
+    }
+
+    @Test
+    @DisplayName("should read every element, and none from an empty source")
+    void forIterableRebuilding_readsEveryElement() {
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(TraversalsTest::sortedLike);
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+      source.addAll(List.of("a", "b"));
+
+      assertThat(Traversals.getAll(traversal, source)).containsExactly("b", "a");
+      assertThat(Traversals.getAll(traversal, new TreeSet<String>())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should satisfy the traversal laws")
+    void forIterableRebuilding_satisfiesTheLaws() {
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(TraversalsTest::sortedLike);
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+      source.addAll(List.of("a", "b", "c"));
+
+      TraversalLaws.assertTraversalLaws(traversal, source, String::toUpperCase, s -> s + "!");
+    }
+
+    @Test
+    @DisplayName("should not rebuild when the effect fails")
+    void forIterableRebuilding_failurePropagates() {
+      AtomicInteger rebuilds = new AtomicInteger();
+      Traversal<TreeSet<Integer>, Integer> traversal =
+          Traversals.forIterableRebuilding(
+              (source, list) -> {
+                rebuilds.incrementAndGet();
+                return sortedLike(source, list);
+              });
+      TreeSet<Integer> source = new TreeSet<>(List.of(1, 2, 3));
+
+      Kind<OptionalKind.Witness, TreeSet<Integer>> result =
+          traversal.modifyF(
+              n -> OptionalKindHelper.OPTIONAL.widen(n == 2 ? Optional.empty() : Optional.of(n)),
+              source,
+              Instances.monadError(optional()));
+
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
+      assertThat(rebuilds).hasValue(0);
+    }
+  }
+
+  // =============================================================================
   // forMapValuesCollecting Tests
   // =============================================================================
 
@@ -3987,6 +4121,140 @@ class TraversalsTest {
 
       assertThat(Traversals.getAll(traversal, source)).isEmpty();
       assertThat(modified).isEmpty();
+    }
+  }
+
+  // =============================================================================
+  // forMapValuesRebuilding Tests
+  // =============================================================================
+
+  /** A source-aware rebuild for a {@link TreeMap}: the new entries, in the source's own order. */
+  private static <K, V> TreeMap<K, V> sortedLike(
+      final TreeMap<K, V> source, final Map<K, V> entries) {
+    final TreeMap<K, V> rebuilt = new TreeMap<>(source.comparator());
+    rebuilt.putAll(entries);
+    return rebuilt;
+  }
+
+  @Nested
+  @DisplayName("forMapValuesRebuilding Tests")
+  class ForMapValuesRebuildingTests {
+
+    @Test
+    @DisplayName("should keep a reverse-ordered source's comparator through modify")
+    void forMapValuesRebuilding_keepsTheSourcesComparator() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(TraversalsTest::sortedLike);
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+      source.putAll(Map.of("a", 1, "b", 2, "c", 3));
+
+      TreeMap<String, Integer> modified = Traversals.modify(traversal, n -> n * 10, source);
+
+      assertThat(modified)
+          .containsExactly(Map.entry("c", 30), Map.entry("b", 20), Map.entry("a", 10));
+      assertThat(modified.comparator()).isSameAs(source.comparator());
+      assertThat(source).containsExactly(Map.entry("c", 3), Map.entry("b", 2), Map.entry("a", 1));
+      assertThat(modified).isNotSameAs(source);
+    }
+
+    @Test
+    @DisplayName("should rebuild keys that have no natural order")
+    void forMapValuesRebuilding_rebuildsKeysWithNoNaturalOrder() {
+      Traversal<TreeMap<Unordered, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(TraversalsTest::sortedLike);
+      TreeMap<Unordered, Integer> source = new TreeMap<>(Comparator.comparing(Unordered::name));
+      source.put(new Unordered("b"), 2);
+      source.put(new Unordered("a"), 1);
+
+      TreeMap<Unordered, Integer> modified = Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(modified)
+          .containsExactly(Map.entry(new Unordered("a"), 2), Map.entry(new Unordered("b"), 3));
+    }
+
+    @Test
+    @DisplayName("should hand the rebuild the source and the entries in its iteration order")
+    void forMapValuesRebuilding_handsOverTheSourceAndItsOrder() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(
+              (source, map) -> {
+                seen.add(source);
+                seen.add(List.copyOf(map.keySet()));
+                return sortedLike(source, map);
+              });
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+      source.putAll(Map.of("a", 1, "b", 2));
+
+      Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(seen).containsExactly(source, List.of("b", "a"));
+    }
+
+    @Test
+    @DisplayName("should rebuild an empty source through the rebuild, keeping its comparator")
+    void forMapValuesRebuilding_rebuildsAnEmptySource() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(
+              (source, map) -> {
+                seen.add(source);
+                seen.add(map);
+                return sortedLike(source, map);
+              });
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+
+      TreeMap<String, Integer> modified = Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(seen).containsExactly(source, Map.of());
+      assertThat(modified).isEmpty();
+      assertThat(modified).isNotSameAs(source);
+      assertThat(modified.comparator()).isSameAs(source.comparator());
+    }
+
+    @Test
+    @DisplayName("should read every value, and none from an empty source")
+    void forMapValuesRebuilding_readsEveryValue() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(TraversalsTest::sortedLike);
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+      source.putAll(Map.of("a", 1, "b", 2));
+
+      assertThat(Traversals.getAll(traversal, source)).containsExactly(2, 1);
+      assertThat(Traversals.getAll(traversal, new TreeMap<String, Integer>())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("should satisfy the traversal laws")
+    void forMapValuesRebuilding_satisfiesTheLaws() {
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(TraversalsTest::sortedLike);
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+      source.putAll(Map.of("a", 1, "b", 2, "c", 3));
+
+      TraversalLaws.assertTraversalLaws(traversal, source, n -> n + 1, n -> n * 2);
+    }
+
+    @Test
+    @DisplayName("should not rebuild when the effect fails")
+    void forMapValuesRebuilding_failurePropagates() {
+      AtomicInteger rebuilds = new AtomicInteger();
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(
+              (source, map) -> {
+                rebuilds.incrementAndGet();
+                return sortedLike(source, map);
+              });
+      TreeMap<String, Integer> source = new TreeMap<>(Map.of("a", 1, "b", 2, "c", 3));
+
+      Kind<OptionalKind.Witness, TreeMap<String, Integer>> result =
+          traversal.modifyF(
+              n -> OptionalKindHelper.OPTIONAL.widen(n == 2 ? Optional.empty() : Optional.of(n)),
+              source,
+              Instances.monadError(optional()));
+
+      assertThat(OPTIONAL.narrow(result)).isEmpty();
+      assertThat(rebuilds).hasValue(0);
     }
   }
 }

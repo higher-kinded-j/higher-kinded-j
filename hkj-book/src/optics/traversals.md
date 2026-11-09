@@ -125,6 +125,8 @@ The generated source cannot hold a wildcard: `Traversal<Roster, ? extends Player
 
 Modifying through the traversal builds a **fresh** container and hands it to the record's constructor, so a narrower list the field was constructed from is never written into.
 
+A sorted container with a wildcard where it is ordered, such as `PSortedSet<? extends Player>`, is the exception. It is rebuilt with the source's comparator, which that wildcard leaves typed for an unknown type, so it draws a note and no traversal. [Sorted Variants and Comparators](../tooling/pcollections_optics.md#sorted-variants-and-comparators) explains.
+
 #### Generic Records
 
 A record that declares type parameters of its own gets them on the generated method, so a traversal over `Squad<T>` focuses `T` rather than losing it:
