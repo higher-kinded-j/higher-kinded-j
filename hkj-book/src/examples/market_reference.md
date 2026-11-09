@@ -160,7 +160,7 @@ starting the second.
 |-------|------|
 | **VStream** | [Core pull-based streaming type](../monads/vstream.md) |
 | **VStream Parallel** | [parEvalMap, merge, and concurrency](../monads/vstream_parallel.md) |
-| **VStream Advanced** | [recoverWith, recover, onFinalize](../monads/vstream_advanced.md) |
+| **VStream failures and cleanup** | [recoverWith and recover](../monads/vstream.md#when-an-element-fails), [onFinalize](../monads/vstream_resources.md#onfinalize-lightweight-cleanup) |
 | **VTask** | [Virtual thread effect type](../monads/vtask_monad.md) |
 | **Structured Concurrency** | [Scope, Par, StructuredTaskScope](../monads/vtask_scope.md) |
 | **Resilience** | [Retry, Circuit Breaker, Bulkhead, Saga](../resilience/ch_intro.md) |
