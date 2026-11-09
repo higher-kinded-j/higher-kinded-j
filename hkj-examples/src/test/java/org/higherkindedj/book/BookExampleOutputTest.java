@@ -139,6 +139,7 @@ class BookExampleOutputTest {
           Map.entry("AbstractionBook", 3),
           Map.entry("AlternativeBook", 7),
           Map.entry("ApplicativeBook", 2),
+          Map.entry("BankBook", 2),
           Map.entry("BasicsBook", 5),
           Map.entry("BeansBook", 12),
           Map.entry("BifunctorBook", 2),
@@ -184,6 +185,7 @@ class BookExampleOutputTest {
           Map.entry("SelectiveBook", 4),
           Map.entry("SparsePatchBook", 5),
           Map.entry("StandardCodecsBook", 2),
+          Map.entry("StateBook", 5),
           Map.entry("StructureBook", 11),
           Map.entry("TiersBook", 3),
           Map.entry("TryBook", 10),
@@ -196,7 +198,8 @@ class BookExampleOutputTest {
           Map.entry("VStreamResourcesBook", 18),
           Map.entry("VTaskBook", 10),
           Map.entry("WhyHktBook", 3),
-          Map.entry("WorkingWithKindBook", 3));
+          Map.entry("WorkingWithKindBook", 3),
+          Map.entry("WriterBook", 3));
 
   @Test
   @DisplayName("every claims floor names an example that exists")
@@ -300,7 +303,7 @@ class BookExampleOutputTest {
    * The number of runnable examples must never fall below this. Deleting a {@code main}, or moving
    * an example out of the book package, would otherwise quietly shrink what this gate covers.
    */
-  private static final int MINIMUM_RUNNABLE_EXAMPLES = 67;
+  private static final int MINIMUM_RUNNABLE_EXAMPLES = 70;
 
   private static Example exampleOf(Path source) {
     String text = read(source);
