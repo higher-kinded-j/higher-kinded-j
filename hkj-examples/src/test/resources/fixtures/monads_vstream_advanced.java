@@ -18,11 +18,11 @@ import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.effect.NaturalTransformation;
-import org.higherkindedj.hkt.effect.capability.Chainable;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.effect.VStreamTransformations;
+import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.context.VStreamContext;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.stream.StreamKind;
@@ -39,10 +39,10 @@ class Fixture {
 
   static final VStreamContext<Integer> ctx = VStreamContext.range(1, 20);
 
-  static final NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
+  static final Natural<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
       VStreamTransformations.streamToVStream();
 
-  static final NaturalTransformation<VStreamKind.Witness, ListKind.Witness> vstreamToList =
+  static final Natural<VStreamKind.Witness, ListKind.Witness> vstreamToList =
       VStreamTransformations.vstreamToList();
 
   static Flow.Publisher<Event> getEventSource() {

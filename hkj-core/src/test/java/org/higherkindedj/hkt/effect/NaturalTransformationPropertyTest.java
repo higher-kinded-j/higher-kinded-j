@@ -47,6 +47,7 @@ import org.higherkindedj.hkt.optional.OptionalKind;
  *   <li>Associativity: {@code (f.andThen(g)).andThen(h) == f.andThen(g.andThen(h))}
  * </ul>
  */
+@SuppressWarnings("removal") // tests the deprecated interface until its removal
 class NaturalTransformationPropertyTest {
 
   // Monad instances for testing

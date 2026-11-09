@@ -234,15 +234,18 @@ Two shapes are left to you:
 
 ### 0.7.0 deprecation migration {#070-deprecation-migration}
 
-Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements. `parCollect` gives the list `toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel, and [Parallel Operations](../monads/vstream_parallel.md) shows where parallel work goes instead. `foldFailureFirst` on `Try` and `TryPath` becomes `fold`, which from 0.6.0 takes the same two functions in the same order.
+Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements. `parCollect` gives the list `toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel, and [Parallel Operations](../monads/vstream_parallel.md) shows where parallel work goes instead. `foldFailureFirst` on `Try` and `TryPath` becomes `fold`, which from 0.6.0 takes the same two functions in the same order. Each use of the effect package's `NaturalTransformation` becomes `Natural`, which it extends, and which `GenericPath.mapK`, `foldMap` and `foldMapKind` take.
 
-Run it while your build is on 0.6.x, with `hkj-openrewrite` 0.6.x on the rewrite classpath, since 0.7.0 removes the methods it matches. `toList()` compiles against 0.4.x and later, so the rewritten code builds on the release you are on. `RenameTryFoldFailureFirst` renames each call and method reference, only in a file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing (0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
+Run it while your build is on 0.6.x, with `hkj-openrewrite` 0.6.x on the rewrite classpath, since 0.7.0 removes the methods and the type it matches. `toList()` compiles against 0.4.x and later, so the rewritten code builds on the release you are on. `RenameTryFoldFailureFirst` renames each call and method reference, only in a file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing (0.5.x) or takes the success function first (0.4.x), so it changes nothing there. The rewritten `Natural` code builds on 0.6.x, where `mapK` takes a `Natural` and `VStreamTransformations` returns one.
 
 | Recipe | Change |
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | Composite; runs the recipes below |
 | `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` becomes `stream.toList()`, and `path.parCollect(n)` and `PathOps.parCollectVStream(path, n)` become `path.toList()`. A stream that binds less tightly than a method call, such as `first ? a : b`, is put in parentheses |
 | `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `foldFailureFirst(failureMapper, successMapper)` on a `Try` or a `TryPath` becomes `fold(failureMapper, successMapper)`; the arguments stay where they are. A method reference such as `t::foldFailureFirst` becomes `t::fold` |
+| `org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural` | Each use of `org.higherkindedj.hkt.effect.NaturalTransformation` becomes `org.higherkindedj.hkt.Natural`; `FreePath.foldMapWith` becomes `foldMap`, and `FreeApPath.foldMapWith` becomes `foldMapKind` |
+
+The type change leaves one shape to you: a class that implements `NaturalTransformation` and overrides its `andThen` or `compose`, or a method overloaded for both types. The rewrite gives a clash that does not compile, since `Natural`'s methods bound the witness by `WitnessArity<?>`. Drop the override, or write the `Natural` signature, `<H extends WitnessArity<?>> Natural<F, H> andThen(Natural<G, H> after)`.
 
 ```kotlin
 rewrite {

@@ -184,6 +184,7 @@ class FreePathTest {
 
     @Test
     @DisplayName("foldMapWith() interprets using NaturalTransformation")
+    @SuppressWarnings("removal") // tests the deprecated method until its removal
     void foldMapWithInterpretsUsingNaturalTransformation() {
       FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
 
@@ -196,6 +197,19 @@ class FreePathTest {
           };
 
       GenericPath<MaybeKind.Witness, Integer> result = path.foldMapWith(transform, MAYBE_MONAD);
+
+      assertThat(MAYBE.narrow(result.runKind()).get()).isEqualTo(42);
+    }
+
+    @Test
+    @DisplayName("foldMap() takes a NaturalTransformation too, since it is a Natural")
+    @SuppressWarnings("removal") // passes the deprecated type until its removal
+    void foldMapTakesANaturalTransformation() {
+      FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
+      NaturalTransformation<MaybeKind.Witness, MaybeKind.Witness> transform =
+          NaturalTransformation.identity();
+
+      GenericPath<MaybeKind.Witness, Integer> result = path.foldMap(transform, MAYBE_MONAD);
 
       assertThat(MAYBE.narrow(result.runKind()).get()).isEqualTo(42);
     }

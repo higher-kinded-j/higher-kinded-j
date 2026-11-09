@@ -149,25 +149,23 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   }
 
   /**
-   * Interprets this FreePath using the effect package's NaturalTransformation.
-   *
-   * <p>This method adapts the effect package's NaturalTransformation to work with Free's foldMap.
+   * Interprets this FreePath with a {@link NaturalTransformation}, as {@link #foldMap(Natural,
+   * Monad)} does.
    *
    * @param interpreter natural transformation from F to G; must not be null
    * @param targetMonad the target monad instance; must not be null
    * @param <G> the target monad witness type
    * @return a GenericPath containing the interpreted result
    * @throws NullPointerException if interpreter or targetMonad is null
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A {@code NaturalTransformation} is a
+   *     {@link Natural}, so pass it to {@link #foldMap(Natural, Monad)}. The {@code
+   *     MigrateDeprecationsTo0_7_0} recipe in {@code hkj-openrewrite} renames each call.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // takes the deprecated type until its removal
   public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> foldMapWith(
       NaturalTransformation<F, G> interpreter, Monad<G> targetMonad) {
-    Objects.requireNonNull(interpreter, "interpreter must not be null");
-    Objects.requireNonNull(targetMonad, "targetMonad must not be null");
-
-    // Adapt NaturalTransformation to Natural
-    Natural<F, G> adapted = interpreter::apply;
-    Kind<G, A> result = free.foldMap(adapted, targetMonad);
-    return GenericPath.of(result, targetMonad);
+    return foldMap(interpreter, targetMonad);
   }
 
   /**

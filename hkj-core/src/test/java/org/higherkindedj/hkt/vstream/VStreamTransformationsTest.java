@@ -10,7 +10,7 @@ import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 import java.util.List;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.effect.NaturalTransformation;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.effect.VStreamTransformations;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.stream.StreamKind;
@@ -34,7 +34,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("preserves elements and order")
     void preservesElementsAndOrder() {
-      NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> nt =
+      Natural<StreamKind.Witness, VStreamKind.Witness> nt =
           VStreamTransformations.streamToVStream();
 
       Kind<StreamKind.Witness, String> streamKind = STREAM.widen(Stream.of("a", "b", "c"));
@@ -47,7 +47,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("handles empty stream")
     void handlesEmptyStream() {
-      NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> nt =
+      Natural<StreamKind.Witness, VStreamKind.Witness> nt =
           VStreamTransformations.streamToVStream();
 
       Kind<StreamKind.Witness, Integer> streamKind = STREAM.widen(Stream.empty());
@@ -60,7 +60,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("handles single element")
     void handlesSingleElement() {
-      NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> nt =
+      Natural<StreamKind.Witness, VStreamKind.Witness> nt =
           VStreamTransformations.streamToVStream();
 
       Kind<StreamKind.Witness, Integer> streamKind = STREAM.widen(Stream.of(42));
@@ -78,7 +78,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("preserves elements and order")
     void preservesElementsAndOrder() {
-      NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> nt =
+      Natural<VStreamKind.Witness, StreamKind.Witness> nt =
           VStreamTransformations.vstreamToStream();
 
       Kind<VStreamKind.Witness, String> vstreamKind = VSTREAM.widen(VStream.of("x", "y", "z"));
@@ -91,7 +91,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("handles empty VStream")
     void handlesEmptyVStream() {
-      NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> nt =
+      Natural<VStreamKind.Witness, StreamKind.Witness> nt =
           VStreamTransformations.vstreamToStream();
 
       Kind<VStreamKind.Witness, Integer> vstreamKind = VSTREAM.widen(VStream.empty());
@@ -109,8 +109,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("preserves elements and order")
     void preservesElementsAndOrder() {
-      NaturalTransformation<ListKind.Witness, VStreamKind.Witness> nt =
-          VStreamTransformations.listToVStream();
+      Natural<ListKind.Witness, VStreamKind.Witness> nt = VStreamTransformations.listToVStream();
 
       Kind<ListKind.Witness, String> listKind = LIST.widen(List.of("p", "q", "r"));
       Kind<VStreamKind.Witness, String> result = nt.apply(listKind);
@@ -122,8 +121,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("handles empty list")
     void handlesEmptyList() {
-      NaturalTransformation<ListKind.Witness, VStreamKind.Witness> nt =
-          VStreamTransformations.listToVStream();
+      Natural<ListKind.Witness, VStreamKind.Witness> nt = VStreamTransformations.listToVStream();
 
       Kind<ListKind.Witness, Integer> listKind = LIST.widen(List.of());
       Kind<VStreamKind.Witness, Integer> result = nt.apply(listKind);
@@ -140,8 +138,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("preserves elements and order")
     void preservesElementsAndOrder() {
-      NaturalTransformation<VStreamKind.Witness, ListKind.Witness> nt =
-          VStreamTransformations.vstreamToList();
+      Natural<VStreamKind.Witness, ListKind.Witness> nt = VStreamTransformations.vstreamToList();
 
       Kind<VStreamKind.Witness, String> vstreamKind = VSTREAM.widen(VStream.of("a", "b", "c"));
       Kind<ListKind.Witness, String> result = nt.apply(vstreamKind);
@@ -153,8 +150,7 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("handles empty VStream")
     void handlesEmptyVStream() {
-      NaturalTransformation<VStreamKind.Witness, ListKind.Witness> nt =
-          VStreamTransformations.vstreamToList();
+      Natural<VStreamKind.Witness, ListKind.Witness> nt = VStreamTransformations.vstreamToList();
 
       Kind<VStreamKind.Witness, Integer> vstreamKind = VSTREAM.widen(VStream.empty());
       Kind<ListKind.Witness, Integer> result = nt.apply(vstreamKind);
@@ -171,9 +167,9 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("Stream -> VStream -> Stream preserves elements")
     void streamRoundTrip() {
-      NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> toVStream =
+      Natural<StreamKind.Witness, VStreamKind.Witness> toVStream =
           VStreamTransformations.streamToVStream();
-      NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> toStream =
+      Natural<VStreamKind.Witness, StreamKind.Witness> toStream =
           VStreamTransformations.vstreamToStream();
 
       Kind<StreamKind.Witness, Integer> original = STREAM.widen(Stream.of(1, 2, 3, 4, 5));
@@ -186,9 +182,9 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("List -> VStream -> List preserves elements")
     void listRoundTrip() {
-      NaturalTransformation<ListKind.Witness, VStreamKind.Witness> toVStream =
+      Natural<ListKind.Witness, VStreamKind.Witness> toVStream =
           VStreamTransformations.listToVStream();
-      NaturalTransformation<VStreamKind.Witness, ListKind.Witness> toList =
+      Natural<VStreamKind.Witness, ListKind.Witness> toList =
           VStreamTransformations.vstreamToList();
 
       Kind<ListKind.Witness, String> original = LIST.widen(List.of("hello", "world"));
@@ -201,9 +197,9 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("empty round-trip preserves emptiness")
     void emptyRoundTrip() {
-      NaturalTransformation<ListKind.Witness, VStreamKind.Witness> toVStream =
+      Natural<ListKind.Witness, VStreamKind.Witness> toVStream =
           VStreamTransformations.listToVStream();
-      NaturalTransformation<VStreamKind.Witness, ListKind.Witness> toList =
+      Natural<VStreamKind.Witness, ListKind.Witness> toList =
           VStreamTransformations.vstreamToList();
 
       Kind<ListKind.Witness, String> original = LIST.widen(List.of());
@@ -221,12 +217,12 @@ class VStreamTransformationsTest {
     @Test
     @DisplayName("andThen composes transformations correctly")
     void andThenComposesTransformations() {
-      NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
+      Natural<StreamKind.Witness, VStreamKind.Witness> streamToVStream =
           VStreamTransformations.streamToVStream();
-      NaturalTransformation<VStreamKind.Witness, ListKind.Witness> vstreamToList =
+      Natural<VStreamKind.Witness, ListKind.Witness> vstreamToList =
           VStreamTransformations.vstreamToList();
 
-      NaturalTransformation<StreamKind.Witness, ListKind.Witness> composed =
+      Natural<StreamKind.Witness, ListKind.Witness> composed =
           streamToVStream.andThen(vstreamToList);
 
       Kind<StreamKind.Witness, String> input = STREAM.widen(Stream.of("a", "b"));
