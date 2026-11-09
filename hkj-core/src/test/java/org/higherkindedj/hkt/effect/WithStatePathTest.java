@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.state.State;
 import org.junit.jupiter.api.DisplayName;
@@ -358,6 +359,36 @@ class WithStatePathTest {
       WithStatePath<Integer, String> result = first.zipWith3(second, third, (a, b, c) -> a + b + c);
 
       assertThat(result.evalState(0)).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName("zipWith() runs this path, then the other on the state this one left")
+    void zipWithRunsThisPathFirst() {
+      WithStatePath<Integer, Integer> plusOne = afterModify(n -> n + 1);
+      WithStatePath<Integer, Integer> doubled = afterModify(n -> n * 2);
+
+      var output = plusOne.zipWith(doubled, List::of).run(5);
+
+      assertThat(output.value()).containsExactly(6, 12);
+      assertThat(output.state()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("zipWith3() runs the three paths in order, each on the state the one before left")
+    void zipWith3RunsThePathsInOrder() {
+      WithStatePath<Integer, Integer> plusOne = afterModify(n -> n + 1);
+      WithStatePath<Integer, Integer> doubled = afterModify(n -> n * 2);
+      WithStatePath<Integer, Integer> minusThree = afterModify(n -> n - 3);
+
+      var output = plusOne.zipWith3(doubled, minusThree, List::of).run(5);
+
+      assertThat(output.value()).containsExactly(6, 12, 9);
+      assertThat(output.state()).isEqualTo(9);
+    }
+
+    /** A path that applies {@code f} to the state and gives the state it leaves. */
+    private WithStatePath<Integer, Integer> afterModify(UnaryOperator<Integer> f) {
+      return WithStatePath.<Integer>modify(f).then(WithStatePath::<Integer>get);
     }
   }
 
