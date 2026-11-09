@@ -3940,6 +3940,27 @@ class TraversalsTest {
     }
 
     @Test
+    @DisplayName("should rebuild an empty source through the rebuild, keeping its comparator")
+    void forIterableRebuilding_rebuildsAnEmptySource() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeSet<String>, String> traversal =
+          Traversals.forIterableRebuilding(
+              (source, list) -> {
+                seen.add(source);
+                seen.add(list);
+                return sortedLike(source, list);
+              });
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+
+      TreeSet<String> modified = Traversals.modify(traversal, String::toUpperCase, source);
+
+      assertThat(seen).containsExactly(source, List.of());
+      assertThat(modified).isEmpty();
+      assertThat(modified).isNotSameAs(source);
+      assertThat(modified.comparator()).isSameAs(source.comparator());
+    }
+
+    @Test
     @DisplayName("should read every element, and none from an empty source")
     void forIterableRebuilding_readsEveryElement() {
       Traversal<TreeSet<String>, String> traversal =
@@ -4168,6 +4189,27 @@ class TraversalsTest {
       Traversals.modify(traversal, n -> n + 1, source);
 
       assertThat(seen).containsExactly(source, List.of("b", "a"));
+    }
+
+    @Test
+    @DisplayName("should rebuild an empty source through the rebuild, keeping its comparator")
+    void forMapValuesRebuilding_rebuildsAnEmptySource() {
+      List<Object> seen = new ArrayList<>();
+      Traversal<TreeMap<String, Integer>, Integer> traversal =
+          Traversals.forMapValuesRebuilding(
+              (source, map) -> {
+                seen.add(source);
+                seen.add(map);
+                return sortedLike(source, map);
+              });
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+
+      TreeMap<String, Integer> modified = Traversals.modify(traversal, n -> n + 1, source);
+
+      assertThat(seen).containsExactly(source, Map.of());
+      assertThat(modified).isEmpty();
+      assertThat(modified).isNotSameAs(source);
+      assertThat(modified.comparator()).isSameAs(source.comparator());
     }
 
     @Test

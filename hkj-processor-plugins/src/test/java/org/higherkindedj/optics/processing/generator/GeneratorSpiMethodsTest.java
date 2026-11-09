@@ -457,7 +457,7 @@ class GeneratorSpiMethodsTest {
       assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
       assertEquals(
           "EachInstances.fromIterableRebuilding((source, list) ->"
-              + " TreePSet.from(source.comparator(), list))",
+              + " TreePSet.from(TreePSet.fromSortedSet(source).comparator(), list))",
           gen.generateOpticExpression());
       assertEquals(
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePSet"),
@@ -503,7 +503,7 @@ class GeneratorSpiMethodsTest {
       assertEquals(1, gen.getFocusTypeArgumentIndex());
       assertEquals(
           "EachInstances.mapValuesEachRebuilding((source, map) ->"
-              + " TreePMap.from(source.comparator(), map))",
+              + " TreePMap.from(TreePMap.fromSortedMap(source).comparator(), map))",
           gen.generateOpticExpression());
       assertEquals(
           Set.of("org.higherkindedj.optics.each.EachInstances", "org.pcollections.TreePMap"),

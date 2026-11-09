@@ -186,7 +186,7 @@ class ThirdPartySpiWideningTest {
           compilation,
           "com.example.LedgerFocus",
           "EachInstances.mapValuesEachRebuilding((source, map) ->"
-              + " TreePMap.from(source.comparator(), map))");
+              + " TreePMap.from(TreePMap.fromSortedMap(source).comparator(), map))");
     }
   }
 }

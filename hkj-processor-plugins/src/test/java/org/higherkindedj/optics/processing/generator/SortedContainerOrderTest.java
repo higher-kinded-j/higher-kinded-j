@@ -26,7 +26,9 @@ import org.junit.jupiter.params.provider.CsvSource;
  * as user code would, and the probe is run. A source in reverse order must come back in reverse
  * order from either route, an element with no natural order must be sorted by the source's
  * comparator rather than fail, a source in natural order, whose Eclipse comparator is null, must
- * stay in natural order, and a mutable source must be left as it was.
+ * stay in natural order, and a mutable source must be left as it was. A {@code PSortedSet} or
+ * {@code PSortedMap} of another implementation may report a null comparator for natural order, as
+ * {@code SortedSet} allows, and must stay in natural order too.
  */
 @DisplayName("Generated optics over a sorted container")
 class SortedContainerOrderTest {
@@ -63,10 +65,13 @@ class SortedContainerOrderTest {
           """
           package com.example;
 
+          import java.lang.reflect.Proxy;
           import java.util.*;
           import java.util.function.Function;
           import org.eclipse.collections.api.factory.SortedSets;
           import org.higherkindedj.optics.util.Traversals;
+          import org.pcollections.PSortedMap;
+          import org.pcollections.PSortedSet;
           import org.pcollections.TreePMap;
           import org.pcollections.TreePSet;
 
@@ -103,6 +108,21 @@ class SortedContainerOrderTest {
               return key instanceof Leaf leaf ? leaf.name() : String.valueOf(key);
             }
 
+            /**
+             * Another implementation of a PCollections interface, which reports a null comparator
+             * for natural order, as SortedSet allows, and hands every other call to the delegate.
+             */
+            private static <T> T nullComparator(Class<T> type, Object delegate) {
+              return type.cast(
+                  Proxy.newProxyInstance(
+                      type.getClassLoader(),
+                      new Class<?>[] {type},
+                      (proxy, method, args) ->
+                          method.getName().equals("comparator")
+                              ? null
+                              : method.invoke(delegate, args)));
+            }
+
             private static final Ec EC = new Ec(SortedSets.mutable.of(REVERSE, "a", "b", "c"));
             private static final Ei EI = new Ei(SortedSets.immutable.of(REVERSE, "a", "b", "c"));
             private static final Pc PC = new Pc(TreePSet.from(REVERSE, List.of("a", "b", "c")));
@@ -110,6 +130,13 @@ class SortedContainerOrderTest {
                 new Pm(TreePMap.from(REVERSE, Map.of("a", 1, "b", 2, "c", 3)));
             private static final Ec EC_NATURAL = new Ec(SortedSets.mutable.of("c", "a", "b"));
             private static final Ei EI_NATURAL = new Ei(SortedSets.immutable.of("c", "a", "b"));
+            @SuppressWarnings("unchecked") // a proxy's class names no type argument
+            private static final Pc PC_FOREIGN =
+                new Pc(nullComparator(PSortedSet.class, TreePSet.from(List.of("c", "a", "b"))));
+            @SuppressWarnings("unchecked") // a proxy's class names no type argument
+            private static final Pm PM_FOREIGN =
+                new Pm(
+                    nullComparator(PSortedMap.class, TreePMap.from(Map.of("c", 3, "a", 1, "b", 2))));
             private static final EcLeaf EC_LEAF =
                 new EcLeaf(SortedSets.mutable.of(BY_NAME_REVERSED, new Leaf("a"), new Leaf("b")));
             private static final EiLeaf EI_LEAF =
@@ -138,6 +165,13 @@ class SortedContainerOrderTest {
                 case "ei natural traversal" ->
                     strings(Traversals.modify(EiTraversals.names(), UP, EI_NATURAL).names());
                 case "ei natural focus" -> strings(EiFocus.names().modifyAll(UP, EI_NATURAL).names());
+                case "pc foreign traversal" ->
+                    strings(Traversals.modify(PcTraversals.names(), UP, PC_FOREIGN).names());
+                case "pc foreign focus" -> strings(PcFocus.names().modifyAll(UP, PC_FOREIGN).names());
+                case "pm foreign traversal" ->
+                    entries(Traversals.modify(PmTraversals.scores(), TENFOLD, PM_FOREIGN).scores());
+                case "pm foreign focus" ->
+                    entries(PmFocus.scores().modifyAll(TENFOLD, PM_FOREIGN).scores());
                 case "ec leaf traversal" ->
                     leaves(Traversals.modify(EcLeafTraversals.leaves(), LEAF_UP, EC_LEAF).leaves());
                 case "ec leaf focus" ->
@@ -221,6 +255,10 @@ class SortedContainerOrderTest {
           ec natural focus     | A, B, C
           ei natural traversal | A, B, C
           ei natural focus     | A, B, C
+          pc foreign traversal | A, B, C
+          pc foreign focus     | A, B, C
+          pm foreign traversal | a=10, b=20, c=30
+          pm foreign focus     | a=10, b=20, c=30
           ec leaf traversal    | B, A
           ec leaf focus        | B, A
           ei leaf traversal    | B, A

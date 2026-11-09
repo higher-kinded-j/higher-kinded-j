@@ -39,7 +39,7 @@ public class PSortedMapValueGeneratorTest {
         """
         final var effectOfMap = Traversals.traverseMapValues(source.properties(), f, applicative);
         return applicative.map(
-            jdkMap -> new Config(source.id(), TreePMap.from(source.properties().comparator(), jdkMap)),
+            jdkMap -> new Config(source.id(), TreePMap.from(TreePMap.fromSortedMap(source.properties()).comparator(), jdkMap)),
             effectOfMap);
         """;
 

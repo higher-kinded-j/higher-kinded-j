@@ -219,7 +219,7 @@ Three things narrow the rule further.
 
 **A generator that names no optic expression is exempt, because it widens nothing.** The path stops at its container, as if no generator supported it, so a raw or wildcard argument is never asked for an optic. Every generator HKJ ships for a type the SPI widens names an optic, so this only applies to one of your own.
 
-The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for. Nothing is inferred there, so nothing can fail. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+The rule follows the optic instance, so it is `@GenerateFocus`'s alone. `@GenerateTraversals` reads the same component and writes a `Traversal` over the type the wildcard stands for, with nothing inferred. The one exception is a sorted container with a wildcard where it is ordered, such as `MutableSortedSet<? extends Widget>`, which draws a note and no traversal. See [Wildcard Element Types](traversals.md#wildcard-element-types).
 ~~~
 
 ### A wildcard inside the element {#a-wildcard-inside-the-element}

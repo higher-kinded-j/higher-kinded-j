@@ -84,7 +84,7 @@ If you are operating on a hot path and the persistent type matters more than the
 
 - A set or map in a custom order stays in it after `modify` or `modifyAll`.
 - An element, or a key, needs no natural order of its own. A `PSortedSet<Leaf>` sorted by `Comparator.comparing(Leaf::name)` is traversed as a `PSortedSet<String>` is.
-- A PCollections sorted collection in natural order reports `Comparator.naturalOrder()` as its comparator, so it stays in natural order.
+- A sorted collection in natural order stays in natural order. PCollections' own report `Comparator.naturalOrder()` as their comparator. Another implementation of `PSortedSet` or `PSortedMap` may report `null`, as `SortedSet` allows, and the comparator is read through `TreePSet.fromSortedSet` or `TreePMap.fromSortedMap`, which take `null` as natural order.
 
 One shape is refused: a wildcard where the container is ordered, such as `PSortedSet<? extends Leaf>` or `PSortedMap<? extends String, Integer>`. The source's comparator then compares an unknown type, so a rebuild that reuses it would not compile. `@GenerateTraversals` notes the component and generates no traversal for it, and `@GenerateFocus` rejects it where `widenCollections` or `widenFields` widens it. Declare the component with concrete type arguments, such as `PSortedSet<Leaf>`. `@GenerateTraversals` traverses a wildcard in a sorted map's value, `PSortedMap<String, ? extends Leaf>`, as in any other map.
 

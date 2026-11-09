@@ -11,10 +11,9 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@code
  * org.pcollections.PSortedSet}. Reconstruction uses {@code TreePSet.from(Comparator, Collection)}
  * with the source's comparator, so a set kept in a custom order stays in it, and an element with no
- * natural order is sorted as the source sorted it. PCollections' own sets in natural order report
- * that order as their comparator, so it is kept too. The {@code PSortedSet} interface allows an
- * implementation of its own to report a null comparator for natural order, which {@code TreePSet}
- * refuses.
+ * natural order is sorted as the source sorted it. The comparator is read through {@code
+ * TreePSet.fromSortedSet}, which keeps a {@code TreePSet} as it is and reads a null comparator,
+ * which {@code SortedSet} allows an implementation of its own to report, as natural order.
  */
 @ServiceProvider(TraversableGenerator.class)
 public final class PSortedSetGenerator extends PCollectionsBaseSingleIterableTraversableGenerator {
@@ -26,9 +25,12 @@ public final class PSortedSetGenerator extends PCollectionsBaseSingleIterableTra
 
   @Override
   public String generateOpticExpression() {
+    final String factory = constructedType.simpleName();
     return "EachInstances.fromIterableRebuilding((source, list) -> "
-        + constructedType.simpleName()
-        + ".from(source.comparator(), list))";
+        + factory
+        + ".from("
+        + factory
+        + ".fromSortedSet(source).comparator(), list))";
   }
 
   /** A sorted set is ordered by its element. */
@@ -40,6 +42,9 @@ public final class PSortedSetGenerator extends PCollectionsBaseSingleIterableTra
   @Override
   protected CodeBlock rebuild(final String componentName) {
     return CodeBlock.of(
-        "$T.from(source.$L().comparator(), newList)", constructedType, componentName);
+        "$T.from($T.fromSortedSet(source.$L()).comparator(), newList)",
+        constructedType,
+        constructedType,
+        componentName);
   }
 }
