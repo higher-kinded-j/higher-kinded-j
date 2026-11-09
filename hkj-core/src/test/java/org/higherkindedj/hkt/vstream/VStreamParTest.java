@@ -1282,6 +1282,138 @@ class VStreamParTest {
 
       assertThat(result).containsExactly(1, 2, 3);
     }
+
+    /** A sub-stream of {@code n} alone that records {@code n} when it is finalised. */
+    private static VStream<Integer> recordsItsClose(int n, Set<Integer> closed) {
+      return VStream.of(n).onFinalize(VTask.exec(() -> closed.add(n)));
+    }
+
+    @Test
+    @DisplayName("a failed call, unrecovered, closes the sub-streams its batch built after it")
+    void aFailedCallClosesTheSubStreamsAfterIt() {
+      Set<Integer> closed = ConcurrentHashMap.newKeySet();
+      IllegalStateException noStream = new IllegalStateException("no stream for 1");
+
+      Try<List<Integer>> result =
+          VStreamPar.parEvalFlatMap(
+                  VStream.of(1, 2, 3),
+                  3,
+                  n -> {
+                    if (n == 1) {
+                      throw noStream;
+                    }
+                    return recordsItsClose(n, closed);
+                  })
+              .toList()
+              .runSafe();
+
+      assertThat(result)
+          .isInstanceOfSatisfying(
+              Try.Failure.class, failure -> assertThat(failure.cause()).isSameAs(noStream));
+      assertThat(closed).containsExactlyInAnyOrder(2, 3);
+    }
+
+    @Test
+    @DisplayName("take closes the sub-streams it never reaches, past a failed call")
+    void takeClosesTheSubStreamsItNeverReaches() {
+      Set<Integer> closed = ConcurrentHashMap.newKeySet();
+
+      List<Integer> taken =
+          VStreamPar.parEvalFlatMap(
+                  VStream.of(1, 2, 3),
+                  3,
+                  n -> {
+                    if (n == 2) {
+                      throw new IllegalStateException("no stream for 2");
+                    }
+                    return recordsItsClose(n, closed);
+                  })
+              .take(1)
+              .toList()
+              .run();
+
+      assertThat(taken).containsExactly(1);
+      assertThat(closed).containsExactlyInAnyOrder(1, 3);
+    }
+
+    @Test
+    @DisplayName("an interrupt closes the sub-streams the batch's finished calls built")
+    void anInterruptClosesTheSubStreamsBuilt() {
+      Set<Integer> closed = ConcurrentHashMap.newKeySet();
+      CountDownLatch othersFinished = new CountDownLatch(2);
+      VTaskExecutionException interrupt =
+          new VTaskExecutionException(new InterruptedException("stop"));
+
+      Throwable failure =
+          catchThrowable(
+              () ->
+                  VStreamPar.parEvalFlatMap(
+                          VStream.of(1, 2, 3),
+                          3,
+                          n -> {
+                            switch (n) {
+                              case 1 -> {
+                                VStream<Integer> built = recordsItsClose(n, closed);
+                                othersFinished.countDown();
+                                return built;
+                              }
+                              case 2 -> {
+                                othersFinished.countDown();
+                                throw new IllegalStateException("no stream for 2");
+                              }
+                              default -> {
+                                try {
+                                  othersFinished.await();
+                                } catch (InterruptedException e) {
+                                  throw new IllegalStateException(e);
+                                }
+                                throw interrupt;
+                              }
+                            }
+                          })
+                      .toList()
+                      .execute());
+      Thread.interrupted();
+
+      assertThat(failure).isSameAs(interrupt);
+      assertThat(closed).containsExactly(1);
+    }
+
+    @Test
+    @DisplayName("interrupting the reader closes the sub-streams the batch's finished calls built")
+    void interruptingTheReaderClosesTheSubStreamsBuilt() throws InterruptedException {
+      Set<Integer> closed = ConcurrentHashMap.newKeySet();
+      CountDownLatch oneBuilt = new CountDownLatch(1);
+      AtomicReference<Throwable> failure = new AtomicReference<>();
+      VStream<Integer> results =
+          VStreamPar.parEvalFlatMap(
+              VStream.of(1, 2),
+              2,
+              n -> {
+                if (n == 1) {
+                  VStream<Integer> built = recordsItsClose(n, closed);
+                  oneBuilt.countDown();
+                  return built;
+                }
+                try {
+                  new CountDownLatch(1).await();
+                } catch (InterruptedException e) {
+                  throw new IllegalStateException("cancelled", e);
+                }
+                return VStream.of(n);
+              });
+
+      Thread reader =
+          Thread.ofVirtual()
+              .start(() -> failure.set(catchThrowable(() -> results.toList().execute())));
+      oneBuilt.await();
+      reader.interrupt();
+      reader.join(Duration.ofSeconds(10));
+
+      assertThat(reader.isAlive()).isFalse();
+      assertThat(failure.get()).isInstanceOf(InterruptedException.class);
+      assertThat(closed).containsExactly(1);
+    }
   }
 
   @Nested
@@ -1599,6 +1731,46 @@ class VStreamParTest {
     }
 
     @Test
+    @DisplayName(
+        "after parEvalMapUnordered, a failed task comes where it finished, after values taken"
+            + " before it")
+    void failedTasksComeInTheOrderTheyFinish() {
+      CountDownLatch thirtyTaken = new CountDownLatch(1);
+      CountDownLatch twoTaken = new CountDownLatch(1);
+      Function<CountDownLatch, VTask<Integer>> failsAfter =
+          taken ->
+              VTask.of(
+                  () -> {
+                    taken.await();
+                    throw new IOException(taken == thirtyTaken ? "two" : "one");
+                  });
+
+      List<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+                  VStream.of(1, 2, 3),
+                  3,
+                  n ->
+                      switch (n) {
+                        case 1 -> failsAfter.apply(twoTaken);
+                        case 2 -> failsAfter.apply(thirtyTaken);
+                        default -> VTask.succeed(30);
+                      })
+              .recover(error -> error.getMessage().equals("two") ? -2 : -1)
+              .peek(
+                  n -> {
+                    if (n == 30) {
+                      thirtyTaken.countDown();
+                    } else if (n == -2) {
+                      twoTaken.countDown();
+                    }
+                  })
+              .toList()
+              .run();
+
+      assertThat(results).containsExactly(30, -2, -1);
+    }
+
+    @Test
     @DisplayName("recover after parEvalFlatMap gives a value for the sub-stream whose call failed")
     void recoverAfterParEvalFlatMap() {
       assertThat(
@@ -1748,6 +1920,8 @@ class VStreamParTest {
               new VTaskExecutionException(new InterruptedException("stop")))) {
         AtomicInteger finalised = new AtomicInteger();
         AtomicBoolean cancelled = new AtomicBoolean();
+        // Task 3 fails only once task 4 runs, since a task forked after a failure never runs
+        CountDownLatch fourRuns = new CountDownLatch(1);
         Set<Integer> forked = ConcurrentHashMap.newKeySet();
         List<Integer> saved = new ArrayList<>();
         VStream<Integer> results =
@@ -1757,8 +1931,16 @@ class VStreamParTest {
                 n -> {
                   forked.add(n);
                   return switch (n) {
-                    case 3 -> VTask.fail(interrupt);
-                    case 4 -> waitsUntilCancelled(n, cancelled);
+                    case 3 ->
+                        VTask.of(
+                                () -> {
+                                  fourRuns.await();
+                                  return n;
+                                })
+                            .flatMap(_ -> VTask.fail(interrupt));
+                    case 4 ->
+                        VTask.exec(fourRuns::countDown)
+                            .flatMap(_ -> waitsUntilCancelled(n, cancelled));
                     default -> VTask.succeed(n * 10);
                   };
                 });

@@ -85,6 +85,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class VStreamPar {
 
+  /** A value of {@link #parEvalMap} holds no stream that the stream must close. */
+  private static final Function<Object, VStream<?>> HOLDS_NOTHING = _ -> VStream.empty();
+
   private VStreamPar() {
     // Utility class - prevent instantiation
   }
@@ -149,13 +152,27 @@ public final class VStreamPar {
       throw new IllegalArgumentException("concurrency must be positive, got: " + concurrency);
     }
 
+    return orderedMap(stream, concurrency, f, HOLDS_NOTHING);
+  }
+
+  /**
+   * {@link #parEvalMap}, given the stream each value holds, which the stream closes if it never
+   * hands the value on: nothing for {@code parEvalMap}, the sub-stream itself for {@link
+   * #parEvalFlatMap}.
+   */
+  private static <A, B> VStream<B> orderedMap(
+      VStream<A> stream,
+      int concurrency,
+      Function<? super A, VTask<B>> f,
+      Function<? super B, ? extends VStream<?>> held) {
     return DeferredStream.deferring(
         () ->
             mapBatch(
                 stream,
                 concurrency,
-                batch -> processBatchOrdered(batch, f),
-                rest -> parEvalMap(rest, concurrency, f)),
+                batch -> processBatchOrdered(batch, f, held),
+                rest -> orderedMap(rest, concurrency, f, held),
+                held),
         stream);
   }
 
@@ -224,6 +241,10 @@ public final class VStreamPar {
    * goes on with the next element's. A failed element inside a sub-stream is handed on as {@code
    * flatMap} hands it on.
    *
+   * <p>A sub-stream the stream builds but never reaches is closed when the stream is closed, so its
+   * finalisers run when the stream stops early, as after {@link VStream#take}, or ends at a failure
+   * before it, or at an interrupt.
+   *
    * @param <A> The type of elements in the input stream.
    * @param <B> The type of elements in the output stream.
    * @param stream The source stream. Must not be null.
@@ -243,10 +264,11 @@ public final class VStreamPar {
     }
 
     // Create sub-streams concurrently, then concatenate lazily without materialising
-    return parEvalMap(
+    return orderedMap(
             stream,
             concurrency,
-            a -> VTask.of(() -> Objects.requireNonNull(f.apply(a), "f must not return null")))
+            a -> VTask.of(() -> Objects.requireNonNull(f.apply(a), "f must not return null")),
+            subStream -> subStream)
         .flatMap(Function.identity());
   }
 
@@ -576,13 +598,15 @@ public final class VStreamPar {
    * {@code next} over the stream after it. Either way, a {@link VStream#recover} after it goes on
    * from the next element. If reading fails, the outcomes come first, then the failure, which ends
    * the stream. An interrupt, of the read or of a task, ends the stream at once, handing on none of
-   * the batch, and so does a function that fails, before any task of the batch runs.
+   * the batch, and so does a function that fails, before any task of the batch runs. Closing the
+   * stream closes what {@code held} finds in the values it has not handed on.
    */
   private static <A, B> VStream<B> mapBatch(
       VStream<A> stream,
       int concurrency,
       Function<List<A>, VTask<List<Try<B>>>> process,
-      Function<VStream<A>, VStream<B>> next)
+      Function<VStream<A>, VStream<B>> next,
+      Function<? super B, ? extends VStream<?>> held)
       throws Throwable {
     List<A> batch = new ArrayList<>(batchInitialCapacity(concurrency));
     AtomicReference<VStream<A>> tailHolder = new AtomicReference<>(stream);
@@ -594,9 +618,12 @@ public final class VStreamPar {
       List<Try<B>> outcomes =
           Executing.isInterrupt(readFailure) ? List.of() : outcomes(batch, process, tailHolder);
       return streamOf(
-          outcomes, 0, DerivedStream.handingOnThenEnding(List.of(), readFailure, tailHolder.get()));
+          outcomes,
+          0,
+          DerivedStream.handingOnThenEnding(List.of(), readFailure, tailHolder.get()),
+          held);
     }
-    return streamOf(outcomes(batch, process, tailHolder), 0, after);
+    return streamOf(outcomes(batch, process, tailHolder), 0, after, held);
   }
 
   /**
@@ -623,16 +650,21 @@ public final class VStreamPar {
   /**
    * The outcomes of a batch's tasks from {@code index}, in the batch's order, then {@code then}. A
    * task's value is an element, and a task that failed makes its element a failed element, with the
-   * outcomes after it as its tail. Closing it closes {@code then}.
+   * outcomes after it as its tail. Closing it closes the streams its values from {@code index}
+   * hold, which it has not handed on, then {@code then}.
    */
-  private static <B> VStream<B> streamOf(List<Try<B>> outcomes, int index, VStream<B> then) {
+  private static <B> VStream<B> streamOf(
+      List<Try<B>> outcomes,
+      int index,
+      VStream<B> then,
+      Function<? super B, ? extends VStream<?>> held) {
     if (index == outcomes.size()) {
       return then;
     }
     return new VStream<>() {
       @Override
       public VTask<Step<B>> pull() {
-        VStream<B> tail = streamOf(outcomes, index + 1, then);
+        VStream<B> tail = streamOf(outcomes, index + 1, then, held);
         return VTask.succeed(
             switch (outcomes.get(index)) {
               case Try.Success<B>(B value) -> new Step.Emit<>(value, tail);
@@ -642,9 +674,23 @@ public final class VStreamPar {
 
       @Override
       public VTask<Unit> close() {
-        return then.close();
+        List<VStream<?>> unreached = heldBy(outcomes.subList(index, outcomes.size()), held);
+        unreached.add(then);
+        return Closing.closeAll(unreached.toArray(VStream<?>[]::new));
       }
     };
+  }
+
+  /** The streams that the values among {@code outcomes} hold, as {@code held} finds them. */
+  private static <B> List<VStream<?>> heldBy(
+      List<Try<B>> outcomes, Function<? super B, ? extends VStream<?>> held) {
+    List<VStream<?>> streams = new ArrayList<>(outcomes.size() + 1);
+    for (Try<B> outcome : outcomes) {
+      if (outcome instanceof Try.Success<B>(B value)) {
+        streams.add(held.apply(value));
+      }
+    }
+    return streams;
   }
 
   /**
@@ -700,12 +746,14 @@ public final class VStreamPar {
    * Processes a batch of elements in parallel using StructuredTaskScope, giving each task's outcome
    * in the batch's order. The function is applied to every element before any task is forked, so
    * one that fails, or returns null, runs none of the batch. A task that fails, or gives null, does
-   * not stop the others. An interrupt stops the batch, cancelling the tasks still running, and is
-   * thrown.
+   * not stop the others. An interrupt stops the batch, cancelling the tasks still running, closes
+   * what {@code held} finds in the values of the tasks that finished, and is thrown.
    */
   @SuppressWarnings("preview")
   private static <A, B> VTask<List<Try<B>>> processBatchOrdered(
-      List<A> batch, Function<? super A, VTask<B>> f) {
+      List<A> batch,
+      Function<? super A, VTask<B>> f,
+      Function<? super B, ? extends VStream<?>> held) {
     return () -> {
       List<VTask<B>> tasks = new ArrayList<>(batch.size());
       for (A element : batch) {
@@ -714,23 +762,47 @@ public final class VStreamPar {
                 f.apply(element), () -> "function returned null task for element: " + element));
       }
 
+      // Each task records its own outcome: a subtask that finishes as the scope is cancelled has no
+      // result to read, and what its value holds must still be closed
+      AtomicReferenceArray<@Nullable Try<B>> finished = new AtomicReferenceArray<>(tasks.size());
       try (var scope = StructuredTaskScope.open()) {
-        List<StructuredTaskScope.Subtask<Try<B>>> subtasks = new ArrayList<>(tasks.size());
-        for (VTask<B> task : tasks) {
-          subtasks.add(scope.fork(() -> Executing.attempted(task)));
+        for (int i = 0; i < tasks.size(); i++) {
+          int index = i;
+          VTask<B> task = tasks.get(i);
+          scope.fork(
+              () -> {
+                Try<B> outcome = Executing.attempted(task);
+                finished.set(index, outcome);
+                return outcome;
+              });
         }
-
         scope.join();
-
-        List<Try<B>> outcomes = new ArrayList<>(subtasks.size());
-        for (var subtask : subtasks) {
-          outcomes.add(subtask.get());
-        }
-        return outcomes;
-      } catch (StructuredTaskScope.FailedException e) {
-        // Only an interrupt fails a subtask
-        throw e.getCause();
+      } catch (Throwable failure) {
+        // Only an interrupt fails a subtask or the join
+        Throwable interrupt =
+            failure instanceof StructuredTaskScope.FailedException failed
+                ? failed.getCause()
+                : failure;
+        Closing.runAfterFailure(
+            Closing.closeAll(heldBy(finishedOf(finished), held).toArray(VStream<?>[]::new)),
+            interrupt);
+        throw interrupt;
       }
+      return finishedOf(finished);
     };
+  }
+
+  /**
+   * The outcomes the tasks of a batch recorded, in the batch's order, leaving out any that did not.
+   */
+  private static <B> List<Try<B>> finishedOf(AtomicReferenceArray<@Nullable Try<B>> finished) {
+    List<Try<B>> outcomes = new ArrayList<>(finished.length());
+    for (int i = 0; i < finished.length(); i++) {
+      Try<B> outcome = finished.get(i);
+      if (outcome != null) {
+        outcomes.add(outcome);
+      }
+    }
+    return outcomes;
   }
 }

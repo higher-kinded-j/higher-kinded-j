@@ -105,7 +105,7 @@ The quotes arrive in whatever order the courier answers, so the example sorts th
 
 `parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way without closing the stream, its thread is left waiting, so close it; `take` and the other operations that stop early close it for you.
 
-`parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order.
+`parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order. Closing it closes each stream it built but never reached, so their finalisers run when a `take` stops early or a failure ends the stream first.
 
 ## Choosing a concurrency {#choosing-a-concurrency}
 
