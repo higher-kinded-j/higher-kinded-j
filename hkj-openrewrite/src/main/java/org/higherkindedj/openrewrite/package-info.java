@@ -113,6 +113,10 @@
  *   <li>{@code org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe} - Marks each
  *       call of, and method reference to, a deprecated {@code foldFailureFirst}: the rename's
  *       precondition
+ *   <li>{@code org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural} - The effect
+ *       package's {@code NaturalTransformation} to {@code Natural}, which it extends, and {@code
+ *       FreePath.foldMapWith} and {@code FreeApPath.foldMapWith} to {@code foldMap} and {@code
+ *       foldMapKind}
  * </ul>
  *
  * <h2>Usage</h2>

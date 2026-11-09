@@ -280,14 +280,21 @@ same two functions in the same order. `RenameTryFoldFailureFirst` renames each c
 file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing
 (0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
 
+Each use of the effect package's `NaturalTransformation` becomes `Natural`, which it extends, and
+`FreePath.foldMapWith` and `FreeApPath.foldMapWith` become `foldMap` and `foldMapKind`, which take
+a `Natural`. A class that implements `NaturalTransformation` and overrides its `andThen` or
+`compose` is left to you: the rewrite gives a clash that does not compile, so drop the override or
+write the `Natural` signature.
+
 Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before it moves to
-0.7.0, which removes the methods it matches.
+0.7.0, which removes the methods and the type it matches.
 
 | Recipe | Change |
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | **Composite** — runs the recipes below |
 | `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` → `stream.toList()`, `path.parCollect(n)` → `path.toList()`, `PathOps.parCollectVStream(path, n)` → `path.toList()` |
 | `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `Try.foldFailureFirst(failureMapper, successMapper)` and `TryPath.foldFailureFirst(..)` → `fold(failureMapper, successMapper)`, a pure rename; a method reference such as `t::foldFailureFirst` becomes `t::fold` |
+| `org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural` | `org.higherkindedj.hkt.effect.NaturalTransformation` → `org.higherkindedj.hkt.Natural`; `FreePath.foldMapWith` → `foldMap`, `FreeApPath.foldMapWith` → `foldMapKind` |
 
 ```kotlin
 rewrite {

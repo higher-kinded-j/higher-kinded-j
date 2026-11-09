@@ -16,6 +16,9 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 | `PathOps.parCollectVStream(path, batchSize)` | 0.6.0 | `path.toList()` | `ReplaceParCollectWithToListRecipe` |
 | `Try.foldFailureFirst` and `TryPath.foldFailureFirst` | 0.6.0 | `fold(failureMapper, successMapper)`, the same two functions in the same order | `RenameTryFoldFailureFirst` |
 | `Operation.FOLD_FAILURE_FIRST` | 0.6.0 | `Operation.FOLD`, which `Try.fold` reports | By hand |
+| `NaturalTransformation<F, G>`, in `org.higherkindedj.hkt.effect` | 0.6.0 | `Natural<F, G>`, which it extends | `ReplaceNaturalTransformationWithNatural` |
+| `FreePath.foldMapWith(interpreter, monad)` | 0.6.0 | `foldMap(interpreter, monad)` | `ReplaceNaturalTransformationWithNatural` |
+| `FreeApPath.foldMapWith(interpreter, applicative)` | 0.6.0 | `foldMapKind(interpreter, applicative)` | `ReplaceNaturalTransformationWithNatural` |
 
 ---
 
