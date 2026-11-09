@@ -438,7 +438,7 @@ public final class VTaskContext<A> {
   public A runOrElseGet(Function<? super Throwable, ? extends A> errorHandler) {
     Objects.requireNonNull(errorHandler, "errorHandler must not be null");
     return path.runSafe()
-        .foldFailureFirst(
+        .fold(
             error ->
                 Objects.requireNonNull(
                     errorHandler.apply(error), "errorHandler must not return null"),

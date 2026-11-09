@@ -319,7 +319,7 @@ public class Tutorial05_ContextWithVTask {
 
                     List<Object> results =
                         all.runSafe()
-                            .foldFailureFirst(
+                            .fold(
                                 e -> {
                                   throw new RuntimeException(e);
                                 },

@@ -262,7 +262,7 @@ public class ScopeExample {
     Try<List<String>> result = withTimeout.runSafe();
 
     String message =
-        result.foldFailureFirst(
+        result.fold(
             error -> "Timed out: " + error.getClass().getSimpleName(),
             value -> "Success: " + value);
     System.out.println(message);
@@ -353,7 +353,7 @@ public class ScopeExample {
     long elapsed = System.currentTimeMillis() - start;
 
     String message =
-        result.foldFailureFirst(
+        result.fold(
             error -> "Dashboard failed: " + error.getMessage(),
             d ->
                 String.format(
@@ -368,7 +368,7 @@ public class ScopeExample {
     Try<Dashboard> failResult = failingDashboard.runSafe();
 
     String failMessage =
-        failResult.foldFailureFirst(
+        failResult.fold(
             error -> "Expected failure: " + error.getMessage(), d -> "Dashboard: " + d.userName);
     System.out.println(failMessage + "\n");
   }

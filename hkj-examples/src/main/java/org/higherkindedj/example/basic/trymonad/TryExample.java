@@ -52,7 +52,7 @@ public class TryExample {
         inputFailure.flatMap(safeDivide); // Failure(RuntimeException) - initial failure propagates
 
     String message =
-        result2.foldFailureFirst(
+        result2.fold(
             failureThrowable ->
                 "Failed with " + failureThrowable.getMessage(), // "Failed with Div by zero"
             successValue -> "Succeeded with " + successValue);

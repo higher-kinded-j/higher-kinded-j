@@ -32,7 +32,7 @@ class TryBookTest {
   private static final LineItem LAMP = new LineItem("LAMP", 2, new BigDecimal("40.00"));
 
   private static Throwable causeOf(Try<?> result) {
-    return result.foldFailureFirst(cause -> cause, value -> null);
+    return result.fold(cause -> cause, value -> null);
   }
 
   @Nested
@@ -216,12 +216,12 @@ class TryBookTest {
     }
 
     @Test
-    @DisplayName("foldFailureFirst takes the failure's function first")
-    void foldFailureFirstTakesTheFailureFirst() {
-      String fromSuccess = Try.success(2).foldFailureFirst(error -> "failed", n -> "got " + n);
+    @DisplayName("fold takes the failure's function first")
+    void foldTakesTheFailureFirst() {
+      String fromSuccess = Try.success(2).fold(error -> "failed", n -> "got " + n);
       String fromFailure =
           Try.<Integer>failure(new IllegalStateException("boom"))
-              .foldFailureFirst(error -> "failed: " + error.getMessage(), n -> "got " + n);
+              .fold(error -> "failed: " + error.getMessage(), n -> "got " + n);
 
       assertThat(fromSuccess).isEqualTo("got 2");
       assertThat(fromFailure).isEqualTo("failed: boom");

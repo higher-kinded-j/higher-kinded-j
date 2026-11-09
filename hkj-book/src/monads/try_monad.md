@@ -18,7 +18,7 @@ _Run code that throws, and keep the exception as a value you can map, chain and 
 - Turn a call that throws into a `Try`, and choose between `Try.of` and `Try.attempt`
 - Chain steps that can each throw, and say which exception reaches the end
 - Recover from a failure with a value, or with another attempt
-- Read a `Try` with a `switch` or `foldFailureFirst`
+- Read a `Try` with a `switch` or `fold`
 - Hand a `Try`'s failure to an `Either` chain through `TryPath`
 ~~~
 
@@ -104,7 +104,7 @@ A `switch` over the two cases reads the result, and the compiler checks that bot
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trymonad/TryBook.java:describe}}
 ```
 
-`foldFailureFirst(onFailure, onSuccess)` does the same with two functions, and takes the failure function first, as `Either.fold` takes the `Left` function first. `get()` returns the value or throws the exception, so it is declared `throws Throwable` and a caller must catch `Throwable`; keep it for tests.
+`fold(onFailure, onSuccess)` does the same with two functions, and takes the failure function first, as `Either.fold` takes the `Left` function first. `get()` returns the value or throws the exception, so it is declared `throws Throwable` and a caller must catch `Throwable`; keep it for tests.
 
 ## Creating instances {#creating-instances}
 
@@ -122,13 +122,13 @@ A `switch` over the two cases reads the result, and the compiler checks that bot
 | `flatMap(f)` | Runs a step that gives a `Try`; a `Failure` passes through |
 | `recover(f)` | Turns a `Failure` into a `Success` of the value `f` gives |
 | `recoverWith(f)` | Turns a `Failure` into the `Try` that `f` gives |
-| `foldFailureFirst(onFailure, onSuccess)` | Turns either case into one result |
+| `fold(onFailure, onSuccess)` | Turns either case into one result |
 | `match(onSuccess, onFailure)` | Runs an action for the case it holds, and takes the success action first |
 | `orElse(other)`, `orElseGet(supplier)` | Return the value, or a fallback |
 | `get()` | Returns the value, or throws the exception it holds |
 | `toEither(f)` | Gives an `Either` whose `Left` is `f` applied to the exception |
 
-A call to the success-first `fold` of releases before 0.5.0 does not compile: rename it `foldFailureFirst` and swap its two functions, or run `SwapTryFoldToFoldFailureFirstRecipe`, as [0.5.0 deprecation migration](../tooling/openrewrite.md#050-deprecation-migration) shows.
+Releases before 0.5.0 had a `fold` that took the success function first. A call written for it compiles against this one wherever both functions accept either argument, and runs them the wrong way round. Before you move such code here, run `MigrateDeprecationsTo0_5_0` on it while it still compiles against 0.4.x, as [To 0.6.0](../release-history/upgrading.md#to-060) explains. `foldFailureFirst`, the same method under its 0.5.0 name, is deprecated for removal in 0.7.0.
 
 ## On a `TryPath` {#on-a-trypath}
 

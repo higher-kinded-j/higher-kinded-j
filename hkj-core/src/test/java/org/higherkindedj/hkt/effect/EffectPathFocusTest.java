@@ -302,7 +302,7 @@ class EffectPathFocusTest {
         assertThat(result.run().isSuccess()).isTrue();
         result
             .run()
-            .foldFailureFirst(
+            .fold(
                 ex -> null,
                 value -> {
                   assertThat(value).isEqualTo("Alice");
@@ -322,7 +322,7 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .foldFailureFirst(
+            .fold(
                 ex -> {
                   assertThat(ex).isSameAs(exception);
                   return null;
@@ -370,7 +370,7 @@ class EffectPathFocusTest {
         assertThat(result.run().isSuccess()).isTrue();
         result
             .run()
-            .foldFailureFirst(
+            .fold(
                 ex -> null,
                 value -> {
                   assertThat(value).isEqualTo("alice@example.com");
@@ -391,7 +391,7 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .foldFailureFirst(
+            .fold(
                 ex -> {
                   assertThat(ex).isSameAs(originalException);
                   return null;
@@ -412,7 +412,7 @@ class EffectPathFocusTest {
         assertThat(result.run().isFailure()).isTrue();
         result
             .run()
-            .foldFailureFirst(
+            .fold(
                 ex -> {
                   assertThat(ex).isInstanceOf(IllegalStateException.class);
                   assertThat(ex.getMessage()).isEqualTo("Email not configured");

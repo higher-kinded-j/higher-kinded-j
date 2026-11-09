@@ -2,11 +2,13 @@
 # MigrateDeprecationsTo0_7_0 rewrites usages of APIs deprecated in 0.6.0 for
 # removal in 0.7.0 to their replacements: VStreamPar.parCollect(stream, n),
 # VStreamPath.parCollect(n) and PathOps.parCollectVStream(path, n) become
-# toList() on the stream.
+# toList() on the stream, and Try.foldFailureFirst and TryPath.foldFailureFirst
+# become fold.
 #
-# Run it with hkj-openrewrite 0.6.x before the project moves to 0.7.0: it
-# matches the deprecated signatures, which 0.7.0 removes. toList() compiles
-# against 0.4.x and later.
+# Run it with hkj-openrewrite 0.6.x while the project is on 0.6.x: it matches
+# the deprecated signatures, which 0.7.0 removes. toList() compiles against
+# 0.4.x and later. fold takes the failure function first only from 0.6.0, so
+# the rename leaves a file alone unless its foldFailureFirst is deprecated.
 #
 # Usage:
 #   rewrite {
@@ -24,9 +26,38 @@ description: >-
   PathOps.parCollectVStream(path, batchSize) become toList() on the stream,
   which gives the same list. A call whose batch size is computed is marked
   rather than rewritten, since toList() would drop the computation.
+  Try.foldFailureFirst and TryPath.foldFailureFirst become fold, which takes
+  the same two functions in the same order.
 tags:
   - higher-kinded-j
   - migration
   - deprecation
 recipeList:
   - org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe
+  - org.higherkindedj.openrewrite.RenameTryFoldFailureFirst
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.RenameTryFoldFailureFirst
+displayName: Try.foldFailureFirst and TryPath.foldFailureFirst -> fold
+description: >-
+  Try.foldFailureFirst and TryPath.foldFailureFirst, deprecated in 0.6.0, are
+  removed in 0.7.0. From 0.6.0, fold takes the failure function first, as
+  foldFailureFirst does, so this is a pure rename, of a method reference as
+  well as a call. It applies only to a source file whose foldFailureFirst is
+  deprecated, as it is from 0.6.0. Before that, fold is missing (0.5.x) or
+  takes the success function first (0.4.x), so it changes nothing there.
+tags:
+  - higher-kinded-j
+  - deprecation
+preconditions:
+  - org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe
+recipeList:
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.trymonad.Try foldFailureFirst(java.util.function.Function, java.util.function.Function)
+      newMethodName: fold
+      ignoreDefinition: true
+  - org.openrewrite.java.ChangeMethodName:
+      methodPattern: org.higherkindedj.hkt.effect.TryPath foldFailureFirst(java.util.function.Function, java.util.function.Function)
+      newMethodName: fold
+      ignoreDefinition: true

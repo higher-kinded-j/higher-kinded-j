@@ -317,8 +317,7 @@ public class VTaskResourceExample {
 
     Try<String> result = failingTask.runSafe();
     String message =
-        result.foldFailureFirst(
-            error -> "Failed: " + error.getMessage(), value -> "Success: " + value);
+        result.fold(error -> "Failed: " + error.getMessage(), value -> "Success: " + value);
 
     System.out.println("Result: " + message);
     System.out.println("Resource was released: " + released.get() + "\n");
@@ -454,7 +453,7 @@ public class VTaskResourceExample {
     System.out.println("  [Released] Both reader and writer closed");
 
     String message =
-        result.foldFailureFirst(
+        result.fold(
             error -> "Error: " + error.getMessage(), count -> "Processed " + count + " lines");
     System.out.println(message);
 

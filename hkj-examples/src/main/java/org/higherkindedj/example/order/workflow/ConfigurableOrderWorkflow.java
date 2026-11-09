@@ -216,7 +216,7 @@ public class ConfigurableOrderWorkflow {
       IOPath<A> operation, String operationName) {
     return operation
         .runSafe()
-        .foldFailureFirst(
+        .fold(
             cause ->
                 Path.<OrderError, A>left(
                     cause instanceof WorkflowException workflow

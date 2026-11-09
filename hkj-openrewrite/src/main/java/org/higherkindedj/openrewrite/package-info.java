@@ -42,7 +42,7 @@
  * capabilities with the levels they generate, and drops the {@code Monad} argument that {@code
  * StateT} no longer takes. Adds to {@code @GenerateFocus}'s {@code widenFields} each container a
  * 0.4.x navigator stepped into. The recipes match the 0.4.x signatures, so run them from this
- * module's 0.5.0 release before the project moves to 0.5.0.
+ * module's 0.5.0 release or later before the project moves to 0.5.0.
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
@@ -52,7 +52,9 @@
  *   <li>{@code org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern} - {@code
  *       KindValidator.narrowWithPattern} to {@code KindValidator.narrowHolder}
  *   <li>{@code org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe} - {@code
- *       Try.fold} and {@code TryPath.fold} to {@code foldFailureFirst}, swapping the arguments
+ *       Try.fold} and {@code TryPath.fold} to {@code foldFailureFirst}, swapping the arguments,
+ *       where {@code fold} takes the success function first; the failure-first {@code fold} of
+ *       0.6.0 is left alone
  *   <li>{@code org.higherkindedj.openrewrite.RemovePathConfig} - Removes {@code @PathConfig}, which
  *       has no effect
  *   <li>{@code org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe} -
@@ -90,6 +92,27 @@
  *   <li>{@code org.higherkindedj.openrewrite.AddPathFamilyToCapabilityTypesRecipe} - {@code
  *       Chainable<A>} to {@code Chainable<?, A>}, and likewise {@code Combinable}, {@code
  *       Effectful}, {@code Recoverable} and {@code Accumulating}
+ * </ul>
+ *
+ * <h2>0.7.0 Deprecation Migration</h2>
+ *
+ * <p>Rewrites usages of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements. The
+ * recipes match the deprecated signatures, so run them from this module's 0.6.x release while the
+ * project is on 0.6.x.
+ *
+ * <ul>
+ *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0} - Runs all 0.7.0
+ *       deprecation migrations
+ *   <li>{@code org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe} - {@code
+ *       VStreamPar.parCollect}, {@code VStreamPath.parCollect} and {@code
+ *       PathOps.parCollectVStream} to {@code toList()} on the stream
+ *   <li>{@code org.higherkindedj.openrewrite.RenameTryFoldFailureFirst} - {@code
+ *       Try.foldFailureFirst} and {@code TryPath.foldFailureFirst} to {@code fold}, which takes the
+ *       same two functions in the same order, in a file whose {@code foldFailureFirst} is
+ *       deprecated, as it is from 0.6.0
+ *   <li>{@code org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe} - Marks each
+ *       call of, and method reference to, a deprecated {@code foldFailureFirst}: the rename's
+ *       precondition
  * </ul>
  *
  * <h2>Usage</h2>

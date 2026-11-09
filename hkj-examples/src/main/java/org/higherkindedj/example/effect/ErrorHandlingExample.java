@@ -176,7 +176,7 @@ public class ErrorHandlingExample {
 
     wrapped
         .run()
-        .foldFailureFirst(
+        .fold(
             ex -> {
               System.out.println("Wrapped exception type: " + ex.getClass().getSimpleName());
               System.out.println("Wrapped exception message: " + ex.getMessage());

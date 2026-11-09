@@ -253,7 +253,7 @@ class AffinePathBridgeTest {
       assertThat(result.run().isSuccess()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> null,
               value -> {
                 assertThat(value).isEqualTo("key");
@@ -273,7 +273,7 @@ class AffinePathBridgeTest {
       assertThat(result.run().isFailure()).isTrue();
       result
           .run()
-          .foldFailureFirst(
+          .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalStateException.class);
                 assertThat(ex.getMessage()).isEqualTo("API key not configured");

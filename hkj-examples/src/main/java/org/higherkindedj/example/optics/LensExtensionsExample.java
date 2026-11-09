@@ -265,8 +265,7 @@ public class LensExtensionsExample {
             affiliate);
     System.out.println(
         "Database update: "
-            + updated.foldFailureFirst(
-                ex -> "Failed: " + ex.getMessage(), a -> "Success: " + a.email()));
+            + updated.fold(ex -> "Failed: " + ex.getMessage(), a -> "Success: " + a.email()));
 
     // Failed database update
     Affiliate badEmail = new Affiliate("a2", "Bob", "fail@example.com", 5, "Reviewer");
@@ -280,8 +279,7 @@ public class LensExtensionsExample {
             badEmail);
     System.out.println(
         "Database update: "
-            + failed.foldFailureFirst(
-                ex -> "Failed: " + ex.getMessage(), a -> "Success: " + a.email()));
+            + failed.fold(ex -> "Failed: " + ex.getMessage(), a -> "Success: " + a.email()));
 
     System.out.println();
   }

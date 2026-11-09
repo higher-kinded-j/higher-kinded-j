@@ -167,7 +167,7 @@ public class IntegrationPatternsExample {
               // Step 7: Save to database
               System.out.println("\nStep 6: Database Persistence");
               Try<Order> saveResult = saveOrderToDatabase(order);
-              saveResult.foldFailureFirst(
+              saveResult.fold(
                   error -> {
                     System.out.println("  ❌ Save failed: " + error.getMessage());
                     return null;

@@ -63,7 +63,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.RenameStateTKindNarrowK",
             "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern",
             "org.higherkindedj.openrewrite.RemovePathConfig",
-            "org.higherkindedj.openrewrite.RemoveStateTMonadArgument");
+            "org.higherkindedj.openrewrite.RemoveStateTMonadArgument",
+            "org.higherkindedj.openrewrite.RenameTryFoldFailureFirst");
   }
 
   @Test
@@ -86,7 +87,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe",
             "org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe",
             "org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe",
-            "org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe");
+            "org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe",
+            "org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe");
   }
 
   @Test

@@ -83,7 +83,7 @@ public sealed interface Effectful<P, A> extends Chainable<P, A> permits IOPath, 
    * Try<String> result = Path.io(() -> Files.readString(path))
    *     .runSafe();
    *
-   * String summary = result.foldFailureFirst(
+   * String summary = result.fold(
    *     error -> "Failed to read file: " + error.getMessage(),
    *     content -> "Read " + content.length() + " characters");
    * }</pre>

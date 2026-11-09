@@ -174,7 +174,7 @@ public final class Affines {
    */
   public static <A> Affine<Try<A>, A> trySuccess() {
     return Affine.of(
-        tryA -> tryA.foldFailureFirst(_ -> Optional.empty(), Optional::of),
+        tryA -> tryA.fold(_ -> Optional.empty(), Optional::of),
         (tryA, value) -> Try.success(value));
   }
 

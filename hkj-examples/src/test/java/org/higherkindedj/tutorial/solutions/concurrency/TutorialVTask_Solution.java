@@ -108,8 +108,8 @@ public class TutorialVTask_Solution {
 
     /**
      * Why this is idiomatic: {@code runSafe} is the production form — exceptions become {@link
-     * Try}, no checked-exception ladder. {@code foldFailureFirst} extracts both branches in a
-     * single call, failure first.
+     * Try}, no checked-exception ladder. {@code fold} extracts both branches in a single call,
+     * failure first.
      *
      * <p>Alternative: {@code result.toEither().getLeft()} after asserting failure. Same
      * information; more steps.
@@ -126,8 +126,7 @@ public class TutorialVTask_Solution {
       boolean isFailure = result.isFailure();
       assertThat(isFailure).isTrue();
 
-      String errorMessage =
-          result.foldFailureFirst(error -> error.getMessage(), value -> "no error");
+      String errorMessage = result.fold(error -> error.getMessage(), value -> "no error");
       assertThat(errorMessage).isEqualTo("Database connection failed");
     }
 

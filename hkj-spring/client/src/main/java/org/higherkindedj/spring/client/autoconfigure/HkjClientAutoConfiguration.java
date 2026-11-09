@@ -69,7 +69,7 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
   private Class<?> resolveErrorType(int status, String className) {
     return Try.<Class<?>, ClassNotFoundException>attempt(
             () -> ClassUtils.forName(className, this.beanClassLoader))
-        .foldFailureFirst(
+        .fold(
             failure -> {
               throw new IllegalStateException(
                   "hkj.client.status-error-mappings: cannot resolve error type '"
