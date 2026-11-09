@@ -9,6 +9,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -193,6 +195,63 @@ class VResultPathTest {
 
       assertThat(path.run()).isSameAs(carrier);
       assertThatEither(path.run().run()).hasRight(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("unsafeRun() returns Right on success")
+    void unsafeRunReturnsRightOnSuccess() {
+      VResultPath<String, Integer> path = Path.vresultRight(TEST_INT);
+
+      assertThatEither(path.unsafeRun()).hasRight(TEST_INT);
+    }
+
+    @Test
+    @DisplayName("unsafeRun() returns Left on failure")
+    void unsafeRunReturnsLeftOnFailure() {
+      VResultPath<String, Integer> path = Path.vresultLeft(TEST_ERROR);
+
+      assertThatEither(path.unsafeRun()).hasLeft(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("unsafeRun() lets an exception the task throws escape")
+    void unsafeRunLetsTaskExceptionEscape() {
+      RuntimeException boom = new RuntimeException("the task failed");
+      VResultPath<String, Integer> path = Path.vresult(VTask.fail(boom));
+
+      assertThatThrownBy(path::unsafeRun).isSameAs(boom);
+    }
+
+    @Test
+    @DisplayName("runAsync() completes with Right on success")
+    void runAsyncCompletesWithRightOnSuccess() {
+      VResultPath<String, Integer> path = Path.vresultRight(TEST_INT);
+
+      CompletableFuture<Either<String, Integer>> future = path.runAsync();
+
+      assertThatEither(future.join()).hasRight(TEST_INT);
+    }
+
+    @Test
+    @DisplayName("runAsync() completes with Left on failure")
+    void runAsyncCompletesWithLeftOnFailure() {
+      VResultPath<String, Integer> path = Path.vresultLeft(TEST_ERROR);
+
+      CompletableFuture<Either<String, Integer>> future = path.runAsync();
+
+      assertThatEither(future.join()).hasLeft(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("runAsync() completes exceptionally with an exception the task throws")
+    void runAsyncCompletesExceptionallyWithTaskException() {
+      RuntimeException boom = new RuntimeException("the task failed");
+      VResultPath<String, Integer> path = Path.vresult(VTask.fail(boom));
+
+      assertThatThrownBy(() -> path.runAsync().join())
+          .isInstanceOf(CompletionException.class)
+          .cause()
+          .isSameAs(boom);
     }
 
     @Test
