@@ -7,14 +7,16 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.util.Map;
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
-import org.higherkindedj.example.payment.interpreter.CapturingNotificationInterpreter;
-import org.higherkindedj.example.payment.interpreter.FixedRiskInterpreter;
-import org.higherkindedj.example.payment.interpreter.InMemoryLedgerInterpreter;
-import org.higherkindedj.example.payment.interpreter.RecordingGatewayInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditFraudInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditGatewayInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditLedgerInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditNotificationInterpreter;
 import org.higherkindedj.example.payment.interpreter.ReplayFraudInterpreter;
 import org.higherkindedj.example.payment.interpreter.ReplayGatewayInterpreter;
 import org.higherkindedj.example.payment.interpreter.ReplayLedgerInterpreter;
 import org.higherkindedj.example.payment.interpreter.ReplayNotificationInterpreter;
+import org.higherkindedj.example.payment.model.AuditLog;
+import org.higherkindedj.example.payment.model.AuditLogMonoid;
 import org.higherkindedj.example.payment.model.ChargeResult;
 import org.higherkindedj.example.payment.model.Customer;
 import org.higherkindedj.example.payment.model.CustomerId;
@@ -26,6 +28,7 @@ import org.higherkindedj.example.payment.model.PaymentResult;
 import org.higherkindedj.example.payment.model.RiskScore;
 import org.higherkindedj.example.payment.model.TransactionId;
 import org.higherkindedj.example.payment.service.PaymentService;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.eitherf.Interpreters;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -33,6 +36,8 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.reader_t.ReaderTKindHelper;
 import org.higherkindedj.hkt.reader_t.ReaderTMonadReader;
+import org.higherkindedj.hkt.writer_t.WriterT;
+import org.higherkindedj.hkt.writer_t.WriterTKindHelper;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -67,45 +72,37 @@ public class Tutorial06_AdvancedInterpreters_Solution {
   private static final PaymentMethod VISA = new PaymentMethod.CreditCard("4242", "VISA");
 
   /**
-   * Why this is idiomatic: recording interpreters capture every algebra call so the test can audit
-   * the full trail. The recordings are simple lists; the combined interpreter still runs the
-   * program end-to-end.
+   * Why this is idiomatic: audit is just another interpreter. Each {@code Audit*Interpreter} gives
+   * its result in {@code WriterT<Id, AuditLog, A>} with one log entry, and {@code foldMap} combines
+   * the entries with {@code AuditLogMonoid}, so the trail comes back as a value beside the result.
    *
-   * <p>Alternative: a true {@code WriterT}-based audit interpreter that accumulates a log
-   * monoidally. Free's eager-suspend optimisation discards the writer context for strict monads, so
-   * the recording approach is the practical equivalent.
+   * <p>Alternative: recording interpreters targeting {@code Id} capture the same trail in mutable
+   * lists, as the payment example's tests do.
    *
    * <p>Common wrong attempt: log inside the production gateway and assert against stdout. Couples
-   * the test to formatting; recorded calls give structured data the test can match precisely.
+   * the test to formatting; a log value gives structured data the test can match precisely.
    */
   @Test
   void exercise1_auditInterpretation() {
     var service = PaymentService.create();
     var program = service.processPayment(CUSTOMER, AMOUNT, VISA);
 
-    // Use recording interpreters to capture an audit trail.
-    // (WriterT-based audit interpreters exist but Free's eager Suspend optimisation
-    // discards the monadic context for strict monads like Id, preventing log accumulation.
-    // Recording interpreters demonstrate the same audit concept via mutable capture.)
-    var gateway = new RecordingGatewayInterpreter();
-    var fraud = new FixedRiskInterpreter(RiskScore.of(10));
-    var ledger = new InMemoryLedgerInterpreter();
-    ledger.setBalance(new CustomerId("acc-001"), Money.gbp("5000.00"));
-    var notification = new CapturingNotificationInterpreter();
+    var interpreter =
+        Interpreters.combine(
+            new AuditGatewayInterpreter(),
+            new AuditFraudInterpreter(),
+            new AuditLedgerInterpreter(),
+            new AuditNotificationInterpreter());
+    var writerMonad = Instances.writerT(Instances.monad(id()), AuditLogMonoid.INSTANCE);
 
-    var interpreter = Interpreters.combine(gateway, fraud, ledger, notification);
+    var resultKind = PaymentEffectsWiring.interpret(program, interpreter, writerMonad);
+    WriterT<IdKind.Witness, AuditLog, PaymentResult> writerT =
+        WriterTKindHelper.WRITER_T.narrow(resultKind);
+    Pair<PaymentResult, AuditLog> pair = IdKindHelper.ID.narrow(writerT.run()).value();
 
-    PaymentResult result =
-        IdKindHelper.ID
-            .<PaymentResult>narrow(
-                PaymentEffectsWiring.interpret(program, interpreter, Instances.monad(id())))
-            .value();
-
-    // Verify audit trail: all operations were recorded
-    assertThat(result.isApproved()).isTrue();
-    assertThat(gateway.calls()).isNotEmpty();
-    assertThat(ledger.entries()).isNotEmpty();
-    assertThat(notification.receipts()).isNotEmpty();
+    // One entry for each step: fraud check, balance, charge, ledger record, receipt
+    assertThat(pair.first().isApproved()).isTrue();
+    assertThat(pair.second().entries()).hasSize(5);
   }
 
   /**
