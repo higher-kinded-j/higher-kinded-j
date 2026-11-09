@@ -87,7 +87,57 @@ class MigrateDeprecationsTo0_7_0Test implements RewriteTest {
   }
 
   @Test
-  @DisplayName("On 0.4.x, where fold takes the success function first, foldFailureFirst is kept")
+  @DisplayName(
+      "A method reference to foldFailureFirst, with no call beside it, becomes one to fold")
+  void renamesAMethodReferenceToFoldFailureFirst() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import java.util.function.BiFunction;
+            import java.util.function.Function;
+            import org.higherkindedj.hkt.effect.TryPath;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            class Usage {
+                BiFunction<Function<Throwable, String>, Function<Integer, String>, String> reader(
+                        Try<Integer> t) {
+                    return t::foldFailureFirst;
+                }
+
+                BiFunction<Function<Throwable, String>, Function<Integer, String>, String> reader(
+                        TryPath<Integer> p) {
+                    return p::foldFailureFirst;
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import java.util.function.BiFunction;
+            import java.util.function.Function;
+            import org.higherkindedj.hkt.effect.TryPath;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            class Usage {
+                BiFunction<Function<Throwable, String>, Function<Integer, String>, String> reader(
+                        Try<Integer> t) {
+                    return t::fold;
+                }
+
+                BiFunction<Function<Throwable, String>, Function<Integer, String>, String> reader(
+                        TryPath<Integer> p) {
+                    return p::fold;
+                }
+            }
+            """));
+  }
+
+  @Test
+  @DisplayName(
+      "On 0.4.x, where fold takes the success function first, foldFailureFirst is kept, called or"
+          + " referenced")
   void leavesTheUndeprecatedFoldFailureFirstOf04Alone() {
     rewriteRun(
         spec -> spec.parser(JavaParser.fromJavaVersion().dependsOn(TRY_AS_0_4_X)),
@@ -95,11 +145,18 @@ class MigrateDeprecationsTo0_7_0Test implements RewriteTest {
             """
             package com.example;
 
+            import java.util.function.BiFunction;
+            import java.util.function.Function;
             import org.higherkindedj.hkt.trymonad.Try;
 
             class Usage {
                 String describe(Try<Integer> t) {
                     return t.foldFailureFirst(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
+                }
+
+                BiFunction<Function<Throwable, String>, Function<Integer, String>, String> reader(
+                        Try<Integer> t) {
+                    return t::foldFailureFirst;
                 }
             }
             """));

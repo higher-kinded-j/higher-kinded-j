@@ -43,16 +43,15 @@ displayName: Try.foldFailureFirst and TryPath.foldFailureFirst -> fold
 description: >-
   Try.foldFailureFirst and TryPath.foldFailureFirst, deprecated in 0.6.0, are
   removed in 0.7.0. From 0.6.0, fold takes the failure function first, as
-  foldFailureFirst does, so this is a pure rename. It applies only to a
-  source file whose foldFailureFirst calls are deprecated, as they are from
-  0.6.0. Before that, fold is missing (0.5.x) or takes the success function
-  first (0.4.x), so it changes nothing there.
+  foldFailureFirst does, so this is a pure rename, of a method reference as
+  well as a call. It applies only to a source file whose foldFailureFirst is
+  deprecated, as it is from 0.6.0. Before that, fold is missing (0.5.x) or
+  takes the success function first (0.4.x), so it changes nothing there.
 tags:
   - higher-kinded-j
   - deprecation
 preconditions:
-  - org.openrewrite.java.search.FindDeprecatedMethods:
-      methodPattern: org.higherkindedj.hkt..* foldFailureFirst(java.util.function.Function, java.util.function.Function)
+  - org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe
 recipeList:
   - org.openrewrite.java.ChangeMethodName:
       methodPattern: org.higherkindedj.hkt.trymonad.Try foldFailureFirst(java.util.function.Function, java.util.function.Function)

@@ -87,7 +87,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe",
             "org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe",
             "org.higherkindedj.openrewrite.ReplaceUntypedPathShortcutsRecipe",
-            "org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe");
+            "org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe",
+            "org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe");
   }
 
   @Test

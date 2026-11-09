@@ -236,13 +236,13 @@ Two shapes are left to you:
 
 Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements. `parCollect` gives the list `toList()` gives: a stream is read one pull at a time, so it runs nothing in parallel, and [Parallel Operations](../monads/vstream_parallel.md) shows where parallel work goes instead. `foldFailureFirst` on `Try` and `TryPath` becomes `fold`, which from 0.6.0 takes the same two functions in the same order.
 
-Run it while your build is on 0.6.x, with `hkj-openrewrite` 0.6.x on the rewrite classpath, since 0.7.0 removes the methods it matches. `toList()` compiles against 0.4.x and later, so the rewritten code builds on the release you are on. `RenameTryFoldFailureFirst` renames only in a file whose `foldFailureFirst` calls are deprecated, as they are from 0.6.0. Before that, `fold` is missing (0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
+Run it while your build is on 0.6.x, with `hkj-openrewrite` 0.6.x on the rewrite classpath, since 0.7.0 removes the methods it matches. `toList()` compiles against 0.4.x and later, so the rewritten code builds on the release you are on. `RenameTryFoldFailureFirst` renames each call and method reference, only in a file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing (0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
 
 | Recipe | Change |
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | Composite; runs the recipes below |
 | `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` becomes `stream.toList()`, and `path.parCollect(n)` and `PathOps.parCollectVStream(path, n)` become `path.toList()`. A stream that binds less tightly than a method call, such as `first ? a : b`, is put in parentheses |
-| `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `foldFailureFirst(failureMapper, successMapper)` on a `Try` or a `TryPath` becomes `fold(failureMapper, successMapper)`; the arguments stay where they are. A method reference such as `t::foldFailureFirst` is renamed in a file that also calls the method, and otherwise left for you: 0.7.0 reports `cannot find symbol` there |
+| `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `foldFailureFirst(failureMapper, successMapper)` on a `Try` or a `TryPath` becomes `fold(failureMapper, successMapper)`; the arguments stay where they are. A method reference such as `t::foldFailureFirst` becomes `t::fold` |
 
 ```kotlin
 rewrite {

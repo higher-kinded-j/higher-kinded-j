@@ -108,8 +108,11 @@
  *       PathOps.parCollectVStream} to {@code toList()} on the stream
  *   <li>{@code org.higherkindedj.openrewrite.RenameTryFoldFailureFirst} - {@code
  *       Try.foldFailureFirst} and {@code TryPath.foldFailureFirst} to {@code fold}, which takes the
- *       same two functions in the same order, in a file whose {@code foldFailureFirst} calls are
- *       deprecated, as they are from 0.6.0
+ *       same two functions in the same order, in a file whose {@code foldFailureFirst} is
+ *       deprecated, as it is from 0.6.0
+ *   <li>{@code org.higherkindedj.openrewrite.FindDeprecatedFoldFailureFirstRecipe} - Marks each
+ *       call of, and method reference to, a deprecated {@code foldFailureFirst}: the rename's
+ *       precondition
  * </ul>
  *
  * <h2>Usage</h2>

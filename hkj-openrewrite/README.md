@@ -276,8 +276,8 @@ branch; or that calls the static form through an expression; and a method refere
 `parCollect`. Each mark says how to replace the call.
 
 `Try.foldFailureFirst` and `TryPath.foldFailureFirst` become `fold`, which from 0.6.0 takes the
-same two functions in the same order. `RenameTryFoldFailureFirst` renames only in a file whose
-`foldFailureFirst` calls are deprecated, as they are from 0.6.0. Before that, `fold` is missing
+same two functions in the same order. `RenameTryFoldFailureFirst` renames each call and method reference, only in a
+file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing
 (0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
 
 Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before it moves to
@@ -287,7 +287,7 @@ Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | **Composite** — runs the recipes below |
 | `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` → `stream.toList()`, `path.parCollect(n)` → `path.toList()`, `PathOps.parCollectVStream(path, n)` → `path.toList()` |
-| `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `Try.foldFailureFirst(failureMapper, successMapper)` and `TryPath.foldFailureFirst(..)` → `fold(failureMapper, successMapper)`, a pure rename. A method reference such as `t::foldFailureFirst` is renamed in a file that also calls the method, and otherwise left for you |
+| `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `Try.foldFailureFirst(failureMapper, successMapper)` and `TryPath.foldFailureFirst(..)` → `fold(failureMapper, successMapper)`, a pure rename; a method reference such as `t::foldFailureFirst` becomes `t::fold` |
 
 ```kotlin
 rewrite {
