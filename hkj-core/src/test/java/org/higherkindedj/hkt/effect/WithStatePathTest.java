@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.state.State;
 import org.junit.jupiter.api.DisplayName;
@@ -359,6 +360,36 @@ class WithStatePathTest {
 
       assertThat(result.evalState(0)).isEqualTo("abc");
     }
+
+    @Test
+    @DisplayName("zipWith() runs this path, then the other on the state this one left")
+    void zipWithRunsThisPathFirst() {
+      WithStatePath<Integer, Integer> plusOne = afterModify(n -> n + 1);
+      WithStatePath<Integer, Integer> doubled = afterModify(n -> n * 2);
+
+      var output = plusOne.zipWith(doubled, List::of).run(5);
+
+      assertThat(output.value()).containsExactly(6, 12);
+      assertThat(output.state()).isEqualTo(12);
+    }
+
+    @Test
+    @DisplayName("zipWith3() runs the three paths in order, each on the state the one before left")
+    void zipWith3RunsThePathsInOrder() {
+      WithStatePath<Integer, Integer> plusOne = afterModify(n -> n + 1);
+      WithStatePath<Integer, Integer> doubled = afterModify(n -> n * 2);
+      WithStatePath<Integer, Integer> minusThree = afterModify(n -> n - 3);
+
+      var output = plusOne.zipWith3(doubled, minusThree, List::of).run(5);
+
+      assertThat(output.value()).containsExactly(6, 12, 9);
+      assertThat(output.state()).isEqualTo(9);
+    }
+
+    /** A path that applies {@code f} to the state and gives the state it leaves. */
+    private WithStatePath<Integer, Integer> afterModify(UnaryOperator<Integer> f) {
+      return WithStatePath.<Integer>modify(f).then(WithStatePath::<Integer>get);
+    }
   }
 
   @Nested
@@ -510,6 +541,101 @@ class WithStatePathTest {
       var result = computation.run(List.of());
       assertThat(result.value()).isEqualTo("result");
       assertThat(result.state()).containsExactly("Starting", "Processing", "Done");
+    }
+  }
+
+  @Nested
+  @DisplayName("Stack Safety")
+  class StackSafetyTests {
+
+    // Far deeper than the default thread stack holds when each step nests the previous run
+    private static final int DEPTH = 100_000;
+
+    private final WithStatePath<Integer, Unit> tick = WithStatePath.modify(s -> s + 1);
+
+    @Test
+    @DisplayName("a long chain of map calls runs without overflowing the stack")
+    void deepMapChain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.map(n -> n + 1);
+      }
+
+      assertThat(path.evalState(0)).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of peek calls sees every value")
+    void deepPeekChain() {
+      int[] seen = {0};
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(1);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.peek(n -> seen[0] += n);
+      }
+
+      assertThat(path.evalState(0)).isEqualTo(1);
+      assertThat(seen[0]).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of zipWith calls threads the state through every step")
+    void deepZipWithChain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.zipWith(tick, (n, _) -> n + 1);
+      }
+
+      var result = path.run(0);
+      assertThat(result.value()).isEqualTo(DEPTH);
+      assertThat(result.state()).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of zipWith3 calls threads the state through every step")
+    void deepZipWith3Chain() {
+      WithStatePath<Integer, Integer> path = WithStatePath.pure(0);
+      for (int i = 0; i < DEPTH; i++) {
+        path = path.zipWith3(tick, tick, (n, _, _) -> n + 1);
+      }
+
+      var result = path.run(0);
+      assertThat(result.value()).isEqualTo(DEPTH);
+      assertThat(result.state()).isEqualTo(2 * DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of then calls threads the state through every step")
+    void deepThenChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        path = path.then(() -> tick);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a right-nested chain of then calls threads the state through every step")
+    void deepRightNestedThenChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        WithStatePath<Integer, Unit> next = path;
+        path = tick.then(() -> next);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a right-nested chain of via calls threads the state through every step")
+    void deepRightNestedViaChain() {
+      WithStatePath<Integer, Unit> path = tick;
+      for (int i = 1; i < DEPTH; i++) {
+        WithStatePath<Integer, Unit> next = path;
+        path = tick.via(_ -> next);
+      }
+
+      assertThat(path.execState(0)).isEqualTo(DEPTH);
     }
   }
 }
