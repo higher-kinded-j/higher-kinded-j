@@ -47,7 +47,8 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>Failures:</b> A terminal operation fails with the exception a pulled task threw, a
  *       checked one included, which {@link VTask#runSafe()} keeps as it is and {@link VTask#run()}
  *       wraps in a {@link org.higherkindedj.hkt.vtask.VTaskExecutionException}. An element whose
- *       {@link #mapTask} task fails is a {@link Step.Fail}, which a {@link #recover} can step past;
+ *       task fails, in {@link #mapTask} or in a parallel operation such as {@link
+ *       VStreamPar#parEvalMap}, is a {@link Step.Fail}, which a {@link #recover} can step past;
  *       without one, the terminal operation fails with its error.
  *   <li><b>Composability:</b> Rich set of combinators ({@link #map}, {@link #flatMap}, {@link
  *       #filter}, {@link #take}, etc.) that preserve laziness.
@@ -96,8 +97,9 @@ public interface VStream<A> extends VStreamKind<A> {
    *   <li>{@link Step.Done} — the stream is exhausted, no more elements.
    *   <li>{@link Step.Skip} — no element produced this step (used by {@link #filter}), but the
    *       stream continues.
-   *   <li>{@link Step.Fail} — a {@link #mapTask} task failed for this element, with a continuation
-   *       stream for the elements after it.
+   *   <li>{@link Step.Fail} — this element's task failed, in {@link #mapTask} or in a parallel
+   *       operation such as {@link VStreamPar#parEvalMap}, with a continuation stream for the
+   *       elements after it.
    * </ul>
    *
    * <p>A pull that fails, rather than giving a step, ends the stream.
@@ -208,10 +210,12 @@ public interface VStream<A> extends VStreamKind<A> {
 
     /**
      * A step at an element that failed, with the stream after it. A {@link VStream#mapTask} task
-     * that fails gives one, so a {@link VStream#recover} can go on from the next element, and each
-     * operator in between passes it on with the tail it would give an {@link Emit}. Whoever holds
-     * the tail and stops closes it, as for an {@link Emit}. A terminal operation closes it and
-     * fails with the error. Every pull of this step gives the same error instance.
+     * that fails gives one, as does a failed task of {@link VStreamPar#parEvalMap}, {@link
+     * VStreamPar#parEvalMapUnordered} or {@link VStreamPar#parEvalFlatMap}, so a {@link
+     * VStream#recover} can go on from the next element, and each operator in between passes it on
+     * with the tail it would give an {@link Emit}. Whoever holds the tail and stops closes it, as
+     * for an {@link Emit}. A terminal operation closes it and fails with the error. Every pull of
+     * this step gives the same error instance.
      *
      * @param error What the element failed with. Must not be null.
      * @param tail The stream after the failed element. Must not be null.
@@ -1360,24 +1364,24 @@ public interface VStream<A> extends VStreamKind<A> {
   // =====================================================================
 
   /**
-   * Recovers from a failure by replacing the error with a value. After a failed {@link #mapTask}
-   * task, a {@link Step.Fail}, the recovery value takes the failed element's place, and the stream
-   * goes on from the next element. After any other failure, such as a {@code map} function that
-   * throws, a failed source or a failed {@code VStreamPar.parEvalMap} task, the stream ends after
-   * the recovery value, and what this stream was reading is closed. An interrupt ends it in the
-   * same way, with the thread's interrupt status set again.
+   * Recovers from a failure by replacing the error with a value. After a failed task of {@link
+   * #mapTask} or of a parallel operation such as {@link VStreamPar#parEvalMap}, a {@link
+   * Step.Fail}, the recovery value takes the failed element's place, and the stream goes on from
+   * the next element. After any other failure, such as a {@code map} function that throws or a
+   * failed source, the stream ends after the recovery value, and what this stream was reading is
+   * closed. An interrupt ends it in the same way, with the thread's interrupt status set again.
    *
-   * <p>The operators between the {@code mapTask} and this {@code recover} apply to the elements
-   * after the failed one as they did to the ones before it, and the failed element holds its place,
-   * as an element without a value: {@code take(3)} and {@code drop(3)} count it as one of their
-   * three, {@code drop} and {@code dropWhile} drop it within the prefix they drop, {@code zipWith}
-   * pairs it with the other stream's element, and {@code throttle} and {@code metered} pace it.
-   * {@code filter} and {@code takeWhile}, which have no value to test, pass it on. An operator that
-   * reads ahead, such as {@code chunk} or {@code VStreamPar.parEvalMap}, hands on what it read
-   * before the failed element first, then reads afresh after it. {@code VStreamPar.merge} of
-   * several streams stops every source at a failure, so a {@code recover} after it ends the stream.
-   * A finaliser between them runs when the stream after the failed element ends or is closed, not
-   * at the failure.
+   * <p>The operators between the failed task and this {@code recover} apply to the elements after
+   * the failed one as they did to the ones before it, and the failed element holds its place, as an
+   * element without a value: {@code take(3)} and {@code drop(3)} count it as one of their three,
+   * {@code drop} and {@code dropWhile} drop it within the prefix they drop, {@code zipWith} pairs
+   * it with the other stream's element, and {@code throttle} and {@code metered} pace it. {@code
+   * filter} and {@code takeWhile}, which have no value to test, pass it on. An operator that reads
+   * ahead, such as {@code chunk} or {@code VStreamPar.parEvalMap}, hands on what it read before the
+   * failed element first, then reads afresh after it. {@code VStreamPar.merge} of several streams
+   * stops every source at a failure, so a {@code recover} after it ends the stream. A finaliser
+   * between them runs when the stream after the failed element ends or is closed, not at the
+   * failure.
    *
    * @param recoveryFunction A function that produces a recovery value from the error. Must not be
    *     null. It must not return null.

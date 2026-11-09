@@ -510,9 +510,10 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Recovers from stream errors by providing a fallback value.
    *
-   * <p>After a failed {@link #mapTask} task, the recovery value takes the failed element's place,
-   * and the stream goes on from the next element. After any other failure, the stream ends after
-   * the recovery value. {@link VStream#recover} describes it in full.
+   * <p>After a failed task of {@link #mapTask}, {@link #parEvalMap} or {@link
+   * #parEvalMapUnordered}, the recovery value takes the failed element's place, and the stream goes
+   * on from the next element. After any other failure, the stream ends after the recovery value.
+   * {@link VStream#recover} describes it in full.
    *
    * @param recovery the recovery function; must not be null, and must not return null
    * @return a new VStreamPath with error recovery

@@ -378,14 +378,14 @@ class VStreamRecoverThroughOperatorsTest {
     }
 
     @Test
-    @DisplayName("a parEvalMap batch that then fails ends the stream there, closing the rest")
+    @DisplayName(
+        "a failed task of a parEvalMap batch comes before the failed element read after it")
     void parEvalMapBatchFailing() {
       AtomicInteger finalised = new AtomicInteger();
       VStream<Integer> source =
           VStream.of(1, 2, 3, 4).onFinalize(VTask.exec(finalised::incrementAndGet));
 
-      Throwable failure =
-          failureOf(
+      assertThat(
               VStreamPar.parEvalMap(
                       failsAt(3, source),
                       4,
@@ -393,11 +393,10 @@ class VStreamRecoverThroughOperatorsTest {
                           n == 1
                               ? VTask.fail(new IllegalStateException("task 1"))
                               : VTask.succeed(n))
-                  .toList());
-
-      // The batch's own failure comes first, so the stream never reaches the one read after it
-      assertThat(failure).isInstanceOf(IllegalStateException.class).hasMessage("task 1");
-      assertThat(failure.getSuppressed()).noneMatch(IOException.class::isInstance);
+                  .recover(error -> error instanceof IOException ? -3 : -1)
+                  .toList()
+                  .run())
+          .containsExactly(-1, 2, -3, 4);
       assertThat(finalised).hasValue(1);
     }
 
@@ -656,10 +655,9 @@ class VStreamRecoverThroughOperatorsTest {
     }
 
     @Test
-    @DisplayName("a parEvalMap batch that fails after its source failed ends the stream there")
+    @DisplayName("a failed task of the batch read before a failed pull comes before the pull's")
     void parEvalMapBatchFailingAfterTheSource() {
-      Throwable failure =
-          failureOf(
+      assertThat(
               VStreamPar.parEvalMap(
                       sourceFailingAfter(1, 2),
                       4,
@@ -667,9 +665,11 @@ class VStreamRecoverThroughOperatorsTest {
                           n == 1
                               ? VTask.fail(new IllegalStateException("task 1"))
                               : VTask.succeed(n))
-                  .toList());
-
-      assertThat(failure).hasMessage("task 1");
+                  .recover(error -> "task 1".equals(error.getMessage()) ? -1 : -9)
+                  .toList()
+                  .run())
+          // The pull's failure ends the stream, so its recovery value is the last
+          .containsExactly(-1, 2, -9);
     }
 
     @Test

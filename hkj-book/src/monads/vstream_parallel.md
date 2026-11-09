@@ -63,7 +63,7 @@ It works a batch at a time. A pull reads up to `concurrency` elements from the s
 %%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
 sequenceDiagram
     accTitle: How parEvalMap answers the pulls for four quotes
-    accDescr: The first pull reads four paid orders from the source, forks a quote task for each, and waits for all four before it answers with the first quote. The next three pulls are answered from the batch. The fifth pull is answered with a Skip to the next batch, and the sixth reads the source again, finds its end, and answers Done.
+    accDescr: The first pull reads four paid orders from the source, forks a quote task for each, and waits for all four before it answers with the first quote. The next three pulls are answered from the batch. The fifth pull starts the next batch: it reads the source again, finds its end, and answers Done.
     participant L as toList
     participant P as parEvalMap(4)
     participant S as paid orders
@@ -76,14 +76,12 @@ sequenceDiagram
     L->>P: pulls 2 to 4
     P-->>L: Emit 6.49, 3.99, 5.49
     L->>P: pull 5
-    P-->>L: Skip, to the next batch
-    L->>P: pull 6
     P->>S: read
     S-->>P: Done
     P-->>L: Done
 ```
 
-The arrows to the right are pulls and forks, and the dashed arrows back are what each gives. A batch's results wait for its slowest task. The source is read again only after every result of the batch has been taken. Pull 5 gives a `Skip` to the next batch, as [What a pull gives](vstream.md#what-a-pull-gives) describes, and pull 6 reads the source and finds its end.
+The arrows to the right are pulls and forks, and the dashed arrows back are what each gives. A batch's results wait for its slowest task. The source is read again only after every result of the batch has been taken. The [tail](vstream.md#what-a-pull-gives) of the batch's last result is the next batch, so pull 5 reads the source and finds its end.
 
 The source is read on the thread that pulls, and each task runs on a virtual thread of its own, which sees the caller's `ScopedValue` bindings. A `concurrency` of 1 runs the tasks one at a time, as `mapTask` does, but each on a virtual thread.
 
@@ -107,7 +105,7 @@ The quotes arrive in whatever order the courier answers, so the example sorts th
 
 `parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way without closing the stream, its thread is left waiting, so close it; `take` and the other operations that stop early close it for you.
 
-`parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order.
+`parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order. Closing it closes each stream it built but never reached, so their finalisers run when a `take` stops early or a failure ends the stream first.
 
 ## Choosing a concurrency {#choosing-a-concurrency}
 
@@ -115,17 +113,17 @@ For tasks that wait on I/O, such as calls to another service, set `concurrency` 
 
 ## When a task fails {#when-a-task-fails}
 
-A task that fails cancels the tasks still running, and the stream fails with the task's own exception. `PATCHY_COURIER`, from [When an element fails](vstream.md#when-an-element-fails), quotes 4.99 for every order but cannot quote for Edsger, and `FLAT_RATE` is 9.99:
+A task that fails makes its element a failure in its place, as a failed `mapTask` task does, and the other tasks run on. `PATCHY_COURIER`, from [When an element fails](vstream.md#when-an-element-fails), quotes 4.99 for every order but cannot quote for Edsger, and `FLAT_RATE` is 9.99:
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamParBook.java:failures}}
 ```
 
-~~~admonish warning title="recover after a parallel operation ends the stream"
-When one of its own tasks fails, a `recover` after `parEvalMap` or `parEvalMapUnordered` gives one value in place of the failure, then ends the stream. `parEvalMap` loses the rest of the batch, and `parEvalMapUnordered` the tasks still running. To keep every other quote, recover inside each element's task, with `VTask.recover` or `recoverWith`, as `recoveredInside` does.
-~~~
+Without a `recover`, the stream fails with the courier's own exception when it reaches Edsger's quote. A `recover` after the parallel operation gives a value in its place, and the stream goes on with the next quote. `parEvalMapUnordered` hands on a task's failure as the task completes, as it does a result. In `parEvalFlatMap`, a call of `f` that fails is a failed task, so `recover` gives one value in place of the stream that call would have built.
 
-A failed element from further up is handed on instead. When a `mapTask` task fails before the parallel operation, its element passes through as a failure, so a `recover` after the parallel operation gives a value in its place and the stream goes on. `parEvalMap`, `parEvalMapUnordered` and `parEvalFlatMap` all do this, while a merge of several streams ends there. Any other failure further up, such as a `map` that throws, also ends the stream, after the elements read before it.
+Two failures still end the stream. A function that throws, rather than returning a task that fails, ends it as it would `mapTask`, so do the work inside the task, as `VTask.of` does. A task that fails with an `InterruptedException` ends it at once: the tasks still running are cancelled, and `parEvalMap` hands on none of that batch's results. A `recover` after it gives one value, then ends the stream.
+
+A failed element from further up is handed on in the same way. When a `mapTask` task fails before the parallel operation, its element passes through as a failure, so a `recover` after the parallel operation gives a value in its place and the stream goes on. `parEvalMap`, `parEvalMapUnordered` and `parEvalFlatMap` all do this, while a merge of several streams ends there. Any other failure further up, such as a `map` that throws, ends the stream, after the elements read before it.
 
 ## Chunking operations {#chunking-operations}
 

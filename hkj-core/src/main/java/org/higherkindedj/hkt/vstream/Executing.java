@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.Objects;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 
@@ -17,11 +18,6 @@ final class Executing {
   private Executing() {}
 
   /**
-   * Runs a task and gives its value, throwing the task's own failure. As {@link VTask#run()} does,
-   * it refuses a null result, and sets the interrupt status again for an {@link
-   * InterruptedException}.
-   */
-  /**
    * Whether a failure is an interrupt: an {@link InterruptedException}, bare or as {@link
    * VTask#run()} wraps it. An interrupt stops a stream, rather than failing one element.
    */
@@ -31,6 +27,11 @@ final class Executing {
             && wrapped.getCause() instanceof InterruptedException);
   }
 
+  /**
+   * Runs a task and gives its value, throwing the task's own failure. As {@link VTask#run()} does,
+   * it refuses a null result, and sets the interrupt status again for an {@link
+   * InterruptedException}.
+   */
   static <A> A executed(VTask<A> task) throws Throwable {
     try {
       return Objects.requireNonNull(
@@ -38,6 +39,25 @@ final class Executing {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw e;
+    }
+  }
+
+  /**
+   * Runs an element's task, giving its value, or what it failed with, as a failed element holds it:
+   * a null result is a {@link NullPointerException}, and an {@link Error} is held as an exception
+   * is. An interrupt, as {@link #isInterrupt} sees one, is thrown instead, since it stops the
+   * stream rather than failing one element.
+   */
+  static <A> Try<A> attempted(VTask<A> task) throws Exception {
+    try {
+      return Try.success(executed(task));
+    } catch (Exception e) {
+      if (isInterrupt(e)) {
+        throw e;
+      }
+      return Try.failure(e);
+    } catch (Throwable t) {
+      return Try.failure(t);
     }
   }
 }

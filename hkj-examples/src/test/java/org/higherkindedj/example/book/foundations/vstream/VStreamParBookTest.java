@@ -163,7 +163,7 @@ class VStreamParBookTest {
     }
 
     @Test
-    @DisplayName("answers four pulls from the batch, a Skip to the next batch, then Done")
+    @DisplayName("answers four pulls from the batch, then a fifth from the next batch: Done")
     void pullTrace() {
       List<String> steps = new ArrayList<>();
       VStream<BigDecimal> current =
@@ -189,8 +189,7 @@ class VStreamParBookTest {
         }
       }
 
-      assertThat(steps)
-          .containsExactly("Emit 4.99", "Emit 6.49", "Emit 3.99", "Emit 5.49", "Skip", "Done");
+      assertThat(steps).containsExactly("Emit 4.99", "Emit 6.49", "Emit 3.99", "Emit 5.49", "Done");
     }
 
     @Test
@@ -571,59 +570,117 @@ class VStreamParBookTest {
     }
 
     @Test
-    @DisplayName("cancels the other tasks still running")
-    void cancelsTheRest() {
-      AtomicBoolean adaCancelled = new AtomicBoolean();
+    @DisplayName("leaves the other tasks running")
+    void leavesTheRestRunning() {
+      CountDownLatch edsgerFailed = new CountDownLatch(1);
 
-      Try<List<BigDecimal>> held =
-          VStreamPar.parEvalMap(
-                  paidOrders(),
-                  4,
-                  order ->
-                      isAda(order)
-                          ? heldQuote(order, new CountDownLatch(1), adaCancelled)
-                          : VTask.of(() -> PATCHY_COURIER.quote(order)))
-              .toList()
-              .runSafe();
-
-      assertThatTry(held).isFailure();
-      assertThat(adaCancelled).isTrue();
-    }
-
-    @Test
-    @DisplayName("recover after parEvalMap or parEvalMapUnordered ends the stream")
-    void recoverAfterEnds() {
-      AtomicInteger read = new AtomicInteger();
-
-      List<BigDecimal> inOrder = patchy().recover(error -> FLAT_RATE).toList().run();
-      // An endless source ends only because the recover ends the stream
-      List<Integer> asTheyArrive =
-          VStreamPar.parEvalMapUnordered(
-                  counted(read),
-                  2,
-                  n -> n == 3 ? VTask.fail(new IOException("no quote for 3")) : VTask.succeed(n))
-              .recover(error -> -1)
-              .toList()
-              .run();
-
-      assertThat(inOrder).containsExactly(FLAT_RATE);
-      assertThat(asTheyArrive).endsWith(-1);
-    }
-
-    @Test
-    @DisplayName("recover inside each task keeps every other quote")
-    void recoverInsideKeepsTheRest() {
+      // Ada's quote waits until Edsger's has failed, so a cancel would end it
       List<BigDecimal> quotes =
           VStreamPar.parEvalMap(
                   paidOrders(),
                   4,
-                  order -> VTask.of(() -> PATCHY_COURIER.quote(order)).recover(error -> FLAT_RATE))
+                  order ->
+                      VTask.of(
+                          () -> {
+                            try {
+                              if (isAda(order)) {
+                                edsgerFailed.await();
+                              }
+                              return PATCHY_COURIER.quote(order);
+                            } finally {
+                              if (customer(order).equals("Edsger")) {
+                                edsgerFailed.countDown();
+                              }
+                            }
+                          }))
+              .recover(error -> FLAT_RATE)
               .toList()
               .run();
 
       assertThat(quotes)
           .extracting(BigDecimal::toPlainString)
           .containsExactly("4.99", "4.99", "9.99", "4.99");
+    }
+
+    @Test
+    @DisplayName("recover after parEvalMap, parEvalMapUnordered or parEvalFlatMap carries on")
+    void recoverAfterCarriesOn() {
+      List<BigDecimal> inOrder = patchy().recover(error -> FLAT_RATE).toList().run();
+      List<BigDecimal> asTheyArrive =
+          VStreamPar.parEvalMapUnordered(
+                  paidOrders(), 4, order -> VTask.of(() -> PATCHY_COURIER.quote(order)))
+              .recover(error -> FLAT_RATE)
+              .toList()
+              .run();
+      // A call of f that fails gives one value in place of the stream it would have built
+      List<String> flatMapped =
+          VStreamPar.parEvalFlatMap(
+                  paidOrders(),
+                  4,
+                  order -> {
+                    if (customer(order).equals("Edsger")) {
+                      throw new IllegalStateException("no labels for Edsger");
+                    }
+                    return VStream.of(customer(order), customer(order));
+                  })
+              .recover(error -> "flat rate")
+              .toList()
+              .run();
+
+      assertThat(inOrder)
+          .extracting(BigDecimal::toPlainString)
+          .containsExactly("4.99", "4.99", "9.99", "4.99");
+      assertThat(asTheyArrive)
+          .extracting(BigDecimal::toPlainString)
+          .containsExactlyInAnyOrder("4.99", "4.99", "9.99", "4.99");
+      assertThat(flatMapped)
+          .containsExactly("Ada", "Ada", "Alan", "Alan", "flat rate", "Ken", "Ken");
+    }
+
+    @Test
+    @DisplayName("a function that throws, rather than giving a task that fails, ends the stream")
+    void aFunctionThatThrowsEnds() {
+      List<BigDecimal> quotes =
+          VStreamPar.parEvalMap(
+                  paidOrders(),
+                  1,
+                  order -> {
+                    if (customer(order).equals("Edsger")) {
+                      throw new IllegalStateException("no courier for Edsger");
+                    }
+                    return VTask.of(() -> PATCHY_COURIER.quote(order));
+                  })
+              .recover(error -> FLAT_RATE)
+              .toList()
+              .run();
+
+      assertThat(quotes)
+          .extracting(BigDecimal::toPlainString)
+          .containsExactly("4.99", "4.99", "9.99");
+    }
+
+    @Test
+    @DisplayName("an interrupted task ends the stream")
+    void anInterruptEnds() {
+      Try<List<BigDecimal>> held =
+          VStreamPar.parEvalMap(
+                  paidOrders(),
+                  4,
+                  order ->
+                      customer(order).equals("Edsger")
+                          ? VTask.fail(new InterruptedException("quote cancelled"))
+                          : VTask.of(() -> PATCHY_COURIER.quote(order)))
+              .recover(error -> FLAT_RATE)
+              .toList()
+              .runSafe();
+      Thread.interrupted();
+
+      // recover gives one value for the interrupt, then ends the stream
+      assertThatTry(held)
+          .isSuccess()
+          .hasValueSatisfying(
+              quotes ->
+                  assertThat(quotes).extracting(BigDecimal::toPlainString).containsExactly("9.99"));
     }
 
     @Test

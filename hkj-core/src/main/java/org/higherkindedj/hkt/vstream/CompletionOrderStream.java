@@ -28,17 +28,18 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Each step a window gives is kept by the stream that gave it, so a tail pulled again gives the
  * same step. A failed element of the source is handed on as it is read, ahead of the results still
- * running, and the window reads on after it. A failure of a task or of the function cancels the
- * tasks still running and closes the source where the window got to, and the stream then fails with
- * it, after any results already given. A failed pull from the source stops the reading, but the
- * tasks already running finish, and their results come before the failure; an interrupt cancels
+ * running, and a task that fails hands on a failed element as it completes, as a result is handed
+ * on; the window reads on after either. An interrupted task, or a failure of the function, cancels
+ * the tasks still running and closes the source where the window got to, and the stream then fails
+ * with it, after any results already given. A failed pull from the source stops the reading, but
+ * the tasks already running finish, and their results come before the failure; an interrupt cancels
  * them at once. Closing the stream part-way cancels the tasks still running and closes the source,
- * and fails with what closing the source throws. Closing and a failed task interrupt the reader, so
- * a source finaliser that runs inside a pull, as one does at the source's end, can be cut short, as
- * with {@link VStreamPar#merge}. A function that closes the stream closes the source itself, on the
- * reader's thread, so it gets what closing throws. A run that is neither read to its end nor closed
- * leaves its thread waiting, holding the results not yet taken, so close the stream you stop
- * reading.
+ * and fails with what closing the source throws. Closing and an interrupted task interrupt the
+ * reader, so a source finaliser that runs inside a pull, as one does at the source's end, can be
+ * cut short, as with {@link VStreamPar#merge}. A function that closes the stream closes the source
+ * itself, on the reader's thread, so it gets what closing throws. A run that is neither read to its
+ * end nor closed leaves its thread waiting, holding the results not yet taken, so close the stream
+ * you stop reading.
  *
  * <p>The source is read, and the tasks run, on threads the window starts, which do not see the
  * caller's {@code ScopedValue} bindings.
@@ -89,8 +90,8 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
   }
 
   /**
-   * What a window hands its consumer: a task's result, a failed element of the source, the failure
-   * that stopped it, or its end.
+   * What a window hands its consumer: a task's result, a failed element (of the source, or for a
+   * task that failed), the failure that stopped it, or its end.
    */
   private sealed interface Signal<B> {
 
@@ -150,9 +151,9 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
     /**
      * Once the window is published, reads the source and forks a task for each element until the
      * source ends, a failure stops it or the window is closed, then waits for the tasks still
-     * running. An interrupt, from closing or from a failed task, makes the join return at once, and
-     * the scope then cancels them. A failed pull stops only the reading, so the join waits for the
-     * tasks to finish.
+     * running. An interrupt, from closing or from an interrupted task, makes the join return at
+     * once, and the scope then cancels them. A failed pull stops only the reading, so the join
+     * waits for the tasks to finish.
      */
     @SuppressWarnings("preview")
     private void read() {
@@ -165,7 +166,7 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
         try {
           ended = readSource(scope);
         } catch (Throwable t) {
-          // A pull that closing or a failed task interrupted is not a failure of its own
+          // A pull that closing or an interrupted task interrupted is not a failure of its own
           if (!closed.get()) {
             if (Executing.isInterrupt(t)) {
               failure.compareAndSet(null, t);
@@ -212,7 +213,7 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
             try {
               task = Objects.requireNonNull(f.apply(e.value()), () -> NULL_TASK + e.value());
             } catch (Throwable t) {
-              // A function that fails stops the window as a failed task does, even after it
+              // A function that fails stops the window as an interrupted task does, even after it
               // closed the stream, since the consumer hears of it from no one else
               failure.compareAndSet(null, t);
               return false;
@@ -245,14 +246,25 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
       return closed.get() || failure.get() != null;
     }
 
-    /** Runs one element's task, on a thread of the scope, and hands its result to the consumer. */
+    /**
+     * Runs one element's task, on a thread of the scope, and hands its result to the consumer. A
+     * task that fails, or gives null, hands on a failed element in its place, as a failed {@link
+     * VStream#mapTask} task does, and the window reads on. An interrupt, bare or as {@link
+     * VTask#run()} wraps it, stops the window instead.
+     */
     private void complete(VTask<B> task) {
       try {
         signals.add(new Signal.Result<>(Executing.executed(task)));
       } catch (Throwable t) {
         // A task the scope cancelled after a failure or a close is not a failure of its own
-        if (!closed.get() && failure.compareAndSet(null, t)) {
+        if (stopped()) {
+          return;
+        }
+        if (Executing.isInterrupt(t)) {
+          failure.compareAndSet(null, t);
           stopReading();
+        } else {
+          signals.add(new Signal.FailedElement<>(t));
         }
       }
     }
@@ -260,8 +272,8 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
     /**
      * Closes what the reading left unread, then tells the consumer how the window ended. A failure
      * to close is kept for a close to throw, and after a failure it is also suppressed onto it, so
-     * a consumer that closes the stream before reaching the failure still hears of it. A failed
-     * task or function is the failure to report, as it is in a batch of {@link
+     * a consumer that closes the stream before reaching the failure still hears of it. An
+     * interrupted task or a failed function is the failure to report, as it is in a batch of {@link
      * VStreamPar#parEvalMap}, and otherwise a failed pull. After a close, results that tasks gave
      * as they stopped are dropped.
      */
