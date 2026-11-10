@@ -11,7 +11,7 @@ _Keep Java's own `Stream`, with an Effect Path you can run more than once, and i
 | **Replaces** | Nothing: it is Java's own type |
 | **Effect Path** | [`StreamPath`](../glossary/effect-paths.md#streampath), which can be run more than once |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:stream_monad}}
-| **Choose it when** | The code already gives you a `Stream`; otherwise [List](list_monad.md), which can be read again, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | A method you call already returns a `Stream`; otherwise [List](list_monad.md), which can be read again, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"

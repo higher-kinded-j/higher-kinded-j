@@ -1,0 +1,37 @@
+<!-- Written by BookTypeTriageTest from the Core Types pages' type cards. Do not edit: the test prints the replacement. -->
+<!-- ANCHOR: triage -->
+| Your code today | Type | Effect Path |
+|---|---|---|
+| **Failure** | | |
+| A method that throws a checked exception | [Either](either_monad.md) | [`EitherPath`](../effect/path_either.md) |
+| Error messages collected in a `List`, or Bean Validation's `Set<ConstraintViolation>` | [Validated](validated_monad.md) | [`ValidationPath`](../effect/path_validation.md) |
+| A `try`/`catch` block around a call that throws | [Try](try_monad.md) | [`TryPath`](../effect/path_try.md) |
+| A result record holding a value and a list of warnings | [EitherOrBoth](either_or_both_monad.md) | [`EitherOrBothPath`](../effect/path_either_or_both.md) |
+| A `List` checked with `isEmpty()` before `getFirst()` | [NonEmptyList](nonemptylist_monad.md) | None: a Path holds it, as [`ValidationPath`](../effect/path_validation.md) holds its errors |
+| **Absence** | | |
+| A method that may return `null` | [Maybe](maybe_monad.md) | [`MaybePath`](../effect/path_maybe.md) |
+| A method you call already returns an `Optional` | [Optional](optional_monad.md) | [`OptionalPath`](../effect/path_optional.md) |
+| **Deferred** | | |
+| A method that performs its side effect as soon as it is called | [IO](io_monad.md) | [`IOPath`](../effect/path_io.md) |
+| A field filled in on first use, behind a `null` check | [Lazy](lazy_monad.md) | `LazyPath`, shown in [On a `LazyPath`](lazy_monad.md#on-a-lazypath) |
+| An API gives you a future, or the work is already running on another thread | [CompletableFuture](cf_monad.md) | `CompletableFuturePath`, shown in [On a `CompletableFuturePath`](cf_monad.md#on-a-completablefuturepath) |
+| **Virtual threads** | | |
+| A `Callable` submitted to an `ExecutorService`, and the `Future` you wait on | [VTask](vtask_monad.md) | [`VTaskPath`](../effect/path_vtask.md), and [`VResultPath`](../effect/path_vresult.md) for a typed error |
+| A loop over a paged or blocking source, or a Java `Stream` or `Iterator` built over one | [VStream](vstream.md) | [`VStreamPath`](../effect/path_vstream.md) |
+| **Environment and state** | | |
+| Settings injected into a service, or passed down through every method that needs them | [Reader](reader_monad.md) | [`ReaderPath`](../effect/advanced_effects.md#readerpath-the-environment-you-inherit) |
+| A `ThreadLocal`, set at the start of a request and cleared at the end | [Context](context_scoped.md) | None: `toVTask()` gives a [VTask](vtask_monad.md), and `Path.vtaskPath(task)` a [`VTaskPath`](../effect/path_vtask.md) |
+| A field that each method changes, or methods that take a value and return a pair of the result and the new value | [State](state_monad.md) | [`WithStatePath`](../effect/advanced_effects.md#withstatepath-computation-with-memory) |
+| A list passed to every method that logs, or a logger whose output a test has to capture | [Writer](writer_monad.md) | [`WriterPath`](../effect/advanced_effects.md#writerpath-accumulating-output) |
+| **Collections** | | |
+| Nested loops build every combination, and you keep them all in memory | [List](list_monad.md) | [`NonDetPath`](../glossary/effect-paths.md#nondetpath) for every combination, or [`ListPath`](../glossary/effect-paths.md#listpath), whose `zipWith` pairs by position |
+| A method you call already returns a `Stream` | [Stream](stream_monad.md) | [`StreamPath`](../glossary/effect-paths.md#streampath), which can be run more than once |
+| **Programs as data** | | |
+| A plain value, where code written for any monad needs one | [Identity](identity.md) | [`IdPath`](../glossary/effect-paths.md#idpath), a step that cannot fail |
+| A recursive method that overflows the stack, or a loop that keeps its own stack of work | [Trampoline](trampoline_monad.md) | [`TrampolinePath`](../glossary/effect-paths.md#trampolinepath) |
+| Calls to an injected service, made directly from business code | [Free](free_monad.md) | [`FreePath`](../glossary/effect-paths.md#freepath) |
+| Independent calls made one at a time, when you want to count, check or batch them first | [Free Applicative](free_applicative.md) | [`FreeApPath`](../glossary/effect-paths.md#freeappath) |
+| One interface grown to hold every service's operations, or a dispatcher written by hand | [EitherF](eitherf.md) | None: a program over the pair is a [`FreePath`](../glossary/effect-paths.md#freepath) |
+| A `Functor` written by hand for an instruction set, or a chain of `map` calls that each walk the structure | [Coyoneda](coyoneda.md) | None |
+| A second loop written beside a traversal, to sum, count or collect what it visits | [Const](const_type.md) | None |
+<!-- ANCHOR_END: triage -->

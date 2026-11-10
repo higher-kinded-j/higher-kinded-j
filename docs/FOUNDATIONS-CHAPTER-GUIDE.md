@@ -84,8 +84,14 @@ glance", a two-column table in this shape:
 - **Effect Path:** the Path application code uses, linked, or "none".
 - **Instances:** the type's row from `BookCapabilityMatrixTest`'s golden file, included with the
   page's file name as its anchor, as above. Never type it.
-- **Choose it when:** one clause, naming the neighbouring type to choose otherwise, then a link to
-  Choosing a Type.
+- **Choose it when:** one clause, then "; otherwise" and the neighbouring type, then a link to
+  Choosing a Type. A JDK type's first clause names the code the reader holds, since it fills the
+  table's "Your code today" cell.
+
+**The cards build Choosing a Type.** `BookTypeTriageTest` writes the table on Supported Types from
+every card: the Replaces row, or, for a JDK type, the Choose it when row up to "; otherwise", and the
+Effect Path row. After you change one of those rows, `bookVerify` fails and prints the table to paste
+into its golden file.
 
 After the card, a Core Types page runs in this order:
 
@@ -102,8 +108,8 @@ After the card, a Core Types page runs in this order:
 8. One line naming its benchmark, where one measures the type, and linking
    [Benchmarks](../hkj-book/src/benchmarks.md), in place of a Benchmarks admonition.
 
-The full matrix is on the [Core Types introduction](../hkj-book/src/monads/ch_intro.md), and a page
-never redraws it.
+The full matrix is on [Supported Types](../hkj-book/src/monads/supported-types.md), and a page never
+redraws it.
 
 ## Reference Pages
 
