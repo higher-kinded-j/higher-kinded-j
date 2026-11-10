@@ -733,6 +733,38 @@ class NonDetPathTest {
 
       assertThat(result.toList()).containsExactly(1, 2, 3);
     }
+
+    @Test
+    @DisplayName("toListPath() converts to ListPath, keeping order")
+    void toListPathConverts() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3));
+
+      ListPath<Integer> result = path.toListPath();
+
+      assertThat(result.run()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    @DisplayName("toListPath() converts an empty path to an empty ListPath")
+    void toListPathConvertsEmpty() {
+      NonDetPath<Integer> path = NonDetPath.empty();
+
+      ListPath<Integer> result = path.toListPath();
+
+      assertThat(result.run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "toListPath() gives a ListPath, so zipWith pairs by position rather than combining every pair")
+    void toListPathZipsByPosition() {
+      NonDetPath<Integer> path = NonDetPath.of(List.of(1, 2, 3));
+
+      ListPath<String> result =
+          path.toListPath().zipWith(ListPath.of("a", "b", "c"), (n, s) -> n + s);
+
+      assertThat(result.run()).containsExactly("1a", "2b", "3c");
+    }
   }
 
   @Nested
