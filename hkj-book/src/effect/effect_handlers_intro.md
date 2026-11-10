@@ -230,7 +230,7 @@ The data structure (`Free<F, A>`) that represents a program as a tree of instruc
 
 ### `foldMap`
 
-The method that interprets a Free monad program. It traverses the instruction tree, applies a natural transformation (interpreter) to each `Suspend` node, and combines results using the target monad's `flatMap`. Stack-safe via internal trampolining. This is how you "run" the program: `program.foldMap(interpreter, monad)`.
+The method that interprets a Free monad program. It traverses the instruction tree, applies a natural transformation (interpreter) to each `Suspend` node, and combines results using the target monad's `flatMap`. A deep program runs into a monad such as `Id`, `Writer` or `IO` without overflowing the stack. This is how you "run" the program: `program.foldMap(interpreter, monad)`.
 
 ~~~admonish tip title="Glossary"
 For quick-reference definitions, see the [Effect Handlers glossary entries](../glossary/effect-paths.md).

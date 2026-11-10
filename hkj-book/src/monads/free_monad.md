@@ -88,7 +88,7 @@ That is the Free monad's value: **write once, interpret many ways**.
 | `FreeFunctor<F>` / `FreeMonad<F>` | Type class instances: `map`, `flatMap`, `of` |
 | `FreeFactory<F>` | Captures the functor type once, fixing Java's type inference for chained operations |
 | `Free.liftF(fa, functor)` | Lifts a single instruction into a Free program |
-| `free.foldMap(transform, monad)` | Interprets the program using a natural transformation, stack-safe via Trampoline |
+| `free.foldMap(transform, monad)` | Interprets the program using a natural transformation |
 
 A program always gives a value: `Free.pure(null)` throws at the call, and a `map` function that returns null fails the program when it is interpreted. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
 
@@ -101,7 +101,7 @@ Free program (tree):                  foldMap walks it:
         Suspend(PrintLine("Hello,     4. Combine via target monad's flatMap
                 " + name))           5. Return final result in target monad
 ```
-`foldMap` converts each instruction from your DSL (`F`) into a target monad (`M`) using a natural transformation, then sequences the results. It uses Higher-Kinded-J's own `Trampoline` internally for stack safety.
+`foldMap` converts each instruction from your DSL (`F`) into a target monad (`M`) using a natural transformation, then sequences the results. A deep program runs into a monad such as `Id`, `Writer` or `IO` without overflowing the stack.
 ~~~
 
 ~~~admonish tip title="Prefer a type-safe `Natural` transformation"
@@ -372,22 +372,19 @@ Tagless Final achieves similar goals (multiple interpreters, testability) withou
 Choose **Free** when you need program inspection/optimisation. Choose **Tagless Final** when you want less boilerplate and better performance.
 ~~~
 
-~~~admonish warning title="Monad Transformer Limitation"
-`foldMap` uses an eager optimisation for `Suspend` nodes: when the target monad evaluates
-strictly (e.g. `Id`-based transformers like `WriterT<Id, W, A>`), the interpreter extracts
-the inner Free value and recurses directly, **discarding the monadic context** returned by
-the natural transformation. This means accumulated state in the transformer layer (such as
-`WriterT` log entries or `StateT` modifications) is silently lost.
+~~~admonish note title="What foldMap Keeps"
+`foldMap` hands each instruction's whole value to the target monad: a `Writer`'s log, a `List`'s
+other elements, an `EitherOrBoth`'s warnings. A deep program runs into `Id`, `Either`, `Writer`,
+`EitherOrBoth`, `State` or `IO` without overflowing the stack.
 
-**Workarounds:**
-- Use a lazy outer monad (e.g. `WriterT<IO, W, A>`) so the non-eager path is taken
-- Use mutable recording interpreters targeting `Id` for audit trails
-- Target `IO` and compose effects outside the Free interpreter
+Two things still deepen the stack. An instruction that gives several results, such as a `List` of
+two, runs the rest of the program once for each. A `Reader` nests one call for each instruction when
+you run it.
 ~~~
 
 ~~~admonish important title="Key Points"
 - `Free<F, A>` turns any instruction set `F` into a monad; programs become composable data structures.
-- **`foldMap`** is the engine: it walks the program tree, transforms each instruction via a natural transformation, and sequences results in a target monad. Stack-safe via Trampoline.
+- **`foldMap`** is the engine: it walks the program tree, transforms each instruction via a natural transformation, and sequences results in a target monad. A deep program runs into `Id`, `Writer` or `IO` without overflowing the stack.
 - **Testability** is the killer feature: write one program, test it with a pure interpreter, run it with a real one.
 - **FreeFactory** solves Java's type inference limitations when chaining `map`/`flatMap` on `Free.pure()`.
 - Programs compose with `flatMap`: build small DSL operations, snap them together into complex workflows.
@@ -413,7 +410,7 @@ For deeper exploration of Free monads and their applications:
 ~~~admonish example title="Benchmarks"
 Free has dedicated JMH benchmarks measuring interpretation cost and stack safety. Key expectations:
 
-- **Deep recursion (10,000+)** completes without `StackOverflowError`; Free monad interpretation is stack-safe via trampolining
+- **Deep recursion (10,000+)** completes without `StackOverflowError` when interpreted into `Id`
 - **Performance scaling is linear with depth**: interpretation cost grows proportionally, not exponentially
 - Abstraction overhead of 50-200x vs raw Java is expected and acceptable; real workloads involve I/O that dominates compute time
 

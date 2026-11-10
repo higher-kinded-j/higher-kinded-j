@@ -267,7 +267,7 @@ public sealed interface Trampoline<T> permits Done, More {
 }
 ```
 
-Higher-Kinded-J extends this foundation in two ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, and integrating with the HKT simulation so `Trampoline` participates in generic typeclass code. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation, a direct payoff of having a first-class trampoline abstraction in the library.
+Higher-Kinded-J extends this foundation in two ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, and integrating with the HKT simulation so `Trampoline` participates in generic typeclass code.
 ~~~
 
 ~~~admonish example title="Benchmarks"
