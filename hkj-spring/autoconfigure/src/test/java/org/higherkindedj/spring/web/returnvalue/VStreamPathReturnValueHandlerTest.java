@@ -127,10 +127,10 @@ class VStreamPathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("A first pull failing in a mapTask task closes the rest that failure carries")
-    void failedFirstTaskClosesTheRestItCarries() throws Exception {
+    @DisplayName("A failed first element gets the failure status, and the stream after it closes")
+    void failedFirstElementYieldsFailureStatus() throws Exception {
       AtomicBoolean finalised = new AtomicBoolean(false);
-      // A deferred stream keeps nothing it builds, so only the failure reaches the source
+      // A deferred stream keeps nothing it builds, so only the failed element's tail reaches it
       VStreamPath<Integer> path =
           Path.vstream(
               VStream.defer(
@@ -140,6 +140,43 @@ class VStreamPathReturnValueHandlerTest {
       handler.handleReturnValue(path, returnType, mavContainer, webRequest);
 
       await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () -> {
+                assertThat(mockResponse.getStatus())
+                    .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+                assertThat(mockResponse.getContentAsString()).contains("task failed");
+                assertThat(mockResponse.getContentAsString()).doesNotContain("event:");
+              });
+    }
+
+    @Test
+    @DisplayName("A failed later element ends the stream with an error event, closing the rest")
+    void failedLaterElementWritesAnErrorEvent() throws Exception {
+      AtomicBoolean finalised = new AtomicBoolean(false);
+      VStreamPath<Integer> path =
+          Path.vstream(
+              VStream.defer(
+                      () -> VStream.of(1, 2, 3).onFinalize(VTask.exec(() -> finalised.set(true))))
+                  .mapTask(
+                      n ->
+                          n == 2
+                              ? VTask.<Integer>fail(new IllegalStateException("element 2 failed"))
+                              : VTask.succeed(n)));
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+      await()
+          .atMost(Duration.ofSeconds(2))
+          .pollInterval(Duration.ofMillis(10))
+          .untilAsserted(
+              () ->
+                  assertThat(mockResponse.getContentAsString())
+                      .contains("data: 1\n\n", "event: error", "element 2 failed")
+                      .doesNotContain("data: 3", "event: complete"));
     }
   }
 

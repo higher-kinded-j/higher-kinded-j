@@ -5,9 +5,12 @@ package org.higherkindedj.optics.processing;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.ServiceLoader;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
@@ -25,6 +28,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * of equal priority the first registered wins and a compile-time warning names both, anchored to
  * the record component the lookup is made for. A lookup made for no component, as a re-walk is,
  * reports nothing.
+ *
+ * <p>It also answers, for all three, one question about the generator it chose: whether that
+ * generator orders a container by a wildcard, which leaves its rebuild untypeable ({@link
+ * #ordersByWildcard}).
  *
  * @since 0.4.11
  */
@@ -92,6 +99,29 @@ public final class GeneratorRegistry {
       }
     }
     return matched;
+  }
+
+  /**
+   * Whether {@code generator} orders {@code container} by a type argument written as a wildcard, so
+   * that the rebuild it writes for the container cannot be typed.
+   *
+   * <p>A sorted container is rebuilt with the source's comparator, and a wildcard where it is
+   * ordered leaves that comparator typed for an unknown type: see {@link
+   * TraversableGenerator#getOrderedTypeArgumentIndex()}. Each route that generates a traversal
+   * reads this one answer, so {@code @GenerateTraversals}, {@code @ImportOptics} and the fix line
+   * {@code @GenerateFocus} writes cannot disagree about which components are refused a traversal.
+   *
+   * @param container the container type, as the component declares it
+   * @param generator the generator that supports it
+   * @return true when the argument the generator orders by is a wildcard
+   */
+  public static boolean ordersByWildcard(DeclaredType container, TraversableGenerator generator) {
+    OptionalInt index = generator.getOrderedTypeArgumentIndex();
+    List<? extends TypeMirror> arguments = container.getTypeArguments();
+    // A raw container has no argument at the index, so names no wildcard there.
+    return index.isPresent()
+        && index.getAsInt() < arguments.size()
+        && arguments.get(index.getAsInt()).getKind() == TypeKind.WILDCARD;
   }
 
   /** Warns that two generators of equal priority both claim a type, and which one won. */

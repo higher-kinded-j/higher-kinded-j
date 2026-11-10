@@ -322,9 +322,9 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    * <p>{@code Maybe} carries this method deliberately alone among the optional-shaped types: an
    * empty stream renders absence faithfully, while the same conversion on an error-carrying type
    * such as {@code Either} or {@code Try} would silently discard the error it holds. Those types
-   * fold both cases instead ({@code Either.fold}, {@code Try.foldFailureFirst}), and where a
-   * discarding conversion exists it is named for what it drops, the way {@code
-   * EitherPath.toOptionalPath()} is.
+   * fold both cases instead ({@code Either.fold}, {@code Try.fold}), and where a discarding
+   * conversion exists it is named for what it drops, the way {@code EitherPath.toOptionalPath()}
+   * is.
    *
    * @return A one-element {@code Stream} of the value if this is {@link Just}, or an empty {@code
    *     Stream} if this is {@link Nothing}. Never {@code null}.

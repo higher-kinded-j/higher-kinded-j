@@ -320,6 +320,19 @@ class ScopeTest {
     }
 
     @Test
+    @DisplayName("join() fails with a task's Throwable that is neither an Exception nor an Error")
+    void joinKeepsPlainThrowable() {
+      Throwable odd = new Throwable("neither an Exception nor an Error");
+
+      var joined =
+          Scope.<String>allSucceed().fork(VTask.succeed("success")).fork(VTask.fail(odd)).join();
+
+      assertThat(joined.runSafe())
+          .isInstanceOfSatisfying(
+              Try.Failure.class, failure -> assertThat(failure.cause()).isSameAs(odd));
+    }
+
+    @Test
     @DisplayName("join() with empty scope returns empty list")
     void joinWithEmptyScopeReturnsEmptyList() {
       VTask<List<String>> result = Scope.<String>allSucceed().join();

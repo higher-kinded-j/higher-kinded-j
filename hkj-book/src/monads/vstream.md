@@ -79,12 +79,13 @@ Building `paidCustomers` fetches nothing. Each run reads the feed again from the
 
 ## What a pull gives {#what-a-pull-gives}
 
-`VStream` is a functional interface whose one abstract method, `pull()`, returns a `VTask<Step<A>>`. Running that task gives one of three steps:
+`VStream` is a functional interface whose one abstract method, `pull()`, returns a `VTask<Step<A>>`. Running that task gives one of these steps:
 
 | Step | Means |
 |---|---|
 | `Emit(value, tail)` | Here is an element, never null, and `tail` is the rest of the stream |
 | `Skip(tail)` | No element this time; pull `tail` next |
+| `Fail(error, tail)` | This element failed with `error`, and `tail` is the rest of the stream |
 | `Done()` | The stream has ended |
 
 A terminal operation is a loop that pulls, keeps each emitted value, and moves on to the tail. This is the loop that `take(2).toList()` runs over the feed:
@@ -190,7 +191,7 @@ The pulls run on the thread that runs the terminal operation's task. `runAsync()
 
 ## When an element fails {#when-an-element-fails}
 
-`PATCHY_COURIER` quotes as `COURIER` does, except for Edsger, whose address it does not serve. A failed task fails the stream at that element, and `runSafe()` holds the exception the task threw. `recover` gives a value in its place, and the stream carries on with the next order. This is the extra import:
+`PATCHY_COURIER` quotes as `COURIER` does, except for Edsger, whose address it does not serve. A failed task makes its element a `Fail` step. Without a `recover`, the stream fails there, and `runSafe()` holds the exception the task threw. `recover` gives a value in its place, and the stream carries on with the next order. This is the extra import:
 
 <!-- verify -->
 ```java
@@ -209,17 +210,17 @@ When the source itself fails, there is nothing to carry on with. A feed that goe
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:outage}}
 ```
 
-| Operator | When a pull fails |
+| Operator | When the stream fails |
 |---|---|
-| `recover(f)` | Gives `f`'s value. After a failed `mapTask` task, the stream carries on with the next element, unless the exception that reaches `recover` has suppression disabled; after any other failure, it ends |
+| `recover(f)` | Gives `f`'s value. After a failed task, in `mapTask` or a [parallel operation](vstream_parallel.md#when-a-task-fails), the stream carries on with the next element. After any other failure, such as a `map` function that throws or a failed source, it ends |
 | `recoverWith(f)` | Reads the stream `f` gives in place of the rest |
 | `mapError(f)` | Fails with the exception `f` gives instead |
 | `onError(action)` | Runs `action`, then fails as before |
 
 Each acts on a failure at whichever element it happens, not only the first. `recoverWith`, and `recover` when it ends the stream, close the stream they stop reading, so a finaliser upstream runs.
 
-~~~admonish warning title="Put recover straight after its mapTask"
-When `recover` carries on after a failed `mapTask` task, it resumes from that task's next element. An operator between the two, other than `mapError` or `onError`, is left out of the rest of the stream. In `mapTask(quote).filter(cheap).recover(f)`, the quotes after the failure skip the `filter`.
+~~~admonish note title="Operators between mapTask and recover"
+When `recover` carries on after a failed `mapTask` task, the operators between the two apply to the elements after it as well. The failed element keeps its place in the stream. In `mapTask(quote).filter(cheap).take(3).recover(f)`, the `filter` tests the quotes after it, and `take` counts it as one of its three.
 ~~~
 
 ## Methods {#methods}
@@ -230,7 +231,7 @@ When `recover` carries on after a failed `mapTask` task, it resumes from that ta
 | `map(f)`, `mapTask(f)`, `flatMap(f)`, `via(f)` | Change each element with a function or a task, or put a stream in its place |
 | `filter(p)`, `take(n)`, `takeWhile(p)`, `drop(n)`, `dropWhile(p)`, `distinct()` | Choose which elements go on |
 | `concat(other)`, `zipWith(other, f)`, `interleave(other)` | Combine two streams |
-| `recover(f)`, `recoverWith(f)`, `mapError(f)`, `onError(action)` | Handle a failed pull |
+| `recover(f)`, `recoverWith(f)`, `mapError(f)`, `onError(action)` | Handle a failure |
 | `onFinalize(task)`, `bracket(acquire, use, release)` | Run cleanup however the stream ends |
 | `toList()`, `fold`, `headOption()`, `find(p)`, `exists(p)`, `count()`, `forEach(action)`, `runSafe()` | Give a `VTask` that runs the stream |
 | `runAsync()` | Start running the stream on a virtual thread, giving a `CompletableFuture` |
@@ -274,7 +275,7 @@ Widening allocates nothing: `VStream` implements `VStreamKind` itself, so `widen
 Practise `VStream` in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises).
 ~~~
 
-**Benchmarks:** `VStreamBenchmark` measures building streams, their operators and terminal operations, and compares them with Java's `Stream`. [Performance](vstream_performance.md) reads its results, and [Benchmarks](../benchmarks.md) says how to run it.
+**Benchmarks:** `VStreamBenchmark` measures building streams, their operators and terminal operations, and compares them with Java's `Stream`. [Performance](vstream_performance.md) says what it measures and how to run it, and [Benchmarks](../benchmarks.md) covers every benchmark.
 
 ---
 

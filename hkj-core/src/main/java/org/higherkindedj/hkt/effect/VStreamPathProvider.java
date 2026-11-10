@@ -7,9 +7,9 @@ import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.spi.PathProvider;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamAlternative;
 import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.higherkindedj.hkt.vstream.VStreamKindHelper;
-import org.higherkindedj.hkt.vstream.VStreamMonad;
 
 /**
  * PathProvider SPI implementation for {@link VStream}.
@@ -55,7 +55,7 @@ public class VStreamPathProvider implements PathProvider<VStreamKind.Witness> {
 
   @Override
   public Monad<VStreamKind.Witness> monad() {
-    return VStreamMonad.INSTANCE;
+    return VStreamAlternative.INSTANCE;
   }
 
   @Override

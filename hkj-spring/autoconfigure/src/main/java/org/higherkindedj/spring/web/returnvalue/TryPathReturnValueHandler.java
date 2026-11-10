@@ -91,7 +91,7 @@ public class TryPathReturnValueHandler implements HandlerMethodReturnValueHandle
 
     // Extract underlying Try and convert to HTTP response
     path.run()
-        .foldFailureFirst(
+        .fold(
             throwable -> {
               log.error("TryPath failure in controller method", throwable);
               writeFailureResponse(throwable, response);

@@ -144,7 +144,7 @@ class AlternativeBookTest {
     assertThat(LIST.narrow(LIST_ALT.<String>empty())).isEmpty();
     assertThat(OPTIONAL.narrow(Instances.alternative(optional()).<String>empty())).isEmpty();
     assertThat(STREAM.narrow(Instances.alternative(stream()).<String>empty()).toList()).isEmpty();
-    assertThat(VSTREAM.narrow(VStreamAlternative.INSTANCE.<String>empty()).toList().run())
+    assertThat(VSTREAM.narrow(Instances.alternative(vstream()).<String>empty()).toList().run())
         .isEmpty();
   }
 
@@ -154,12 +154,13 @@ class AlternativeBookTest {
     List<String> built = new ArrayList<>();
 
     Kind<VStreamKind.Witness, String> joined =
-        VStreamAlternative.INSTANCE.orElse(
-            VSTREAM.widen(VStream.of("LAMP")),
-            () -> {
-              built.add("second");
-              return VSTREAM.widen(VStream.of("DESK"));
-            });
+        Instances.alternative(vstream())
+            .orElse(
+                VSTREAM.widen(VStream.of("LAMP")),
+                () -> {
+                  built.add("second");
+                  return VSTREAM.widen(VStream.of("DESK"));
+                });
 
     assertThat(built).isEmpty();
     assertThat(VSTREAM.narrow(joined).toList().run()).containsExactly("LAMP", "DESK");
@@ -167,10 +168,9 @@ class AlternativeBookTest {
   }
 
   @Test
-  @DisplayName("Instances.alternative compiles for VStream's token, and fails when it runs")
-  void vstreamTokenHasNoAlternative() {
-    assertThatThrownBy(() -> Instances.alternative(vstream()))
-        .isInstanceOf(ClassCastException.class);
+  @DisplayName("Instances.alternative gives VStream's Alternative instance")
+  void vstreamTokenHasAnAlternative() {
+    assertThat(Instances.alternative(vstream())).isSameAs(VStreamAlternative.INSTANCE);
   }
 
   @Test

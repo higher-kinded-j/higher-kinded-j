@@ -1,337 +1,165 @@
-# The Reader Monad:
-## _Managed Dependencies and Configuration_
+<!-- description: Read configuration in Java with Reader: price an order from settings no method takes, run it against two configurations, and adapt it with ReaderPath.local. -->
+
+# Reader: Reading a Shared Environment
+
+_Write each step against the configuration, and supply it once, when the program runs._
+
+~~~admonish abstract title="Reader at a glance"
+| | |
+|---|---|
+| **Models** | A result worked out from an environment, such as settings, given when it runs |
+| **Replaces** | Settings injected into a service, or passed down through every method that needs them |
+| **Effect Path** | [`ReaderPath`](../effect/advanced_effects.md#readerpath-the-environment-you-inherit) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:reader_monad}}
+| **Choose it when** | You pass the environment to `run` yourself; otherwise [Context](context_scoped.md), which reads what the caller bound to a `ScopedValue`, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to inject dependencies functionally without passing them everywhere
-- Building computations that depend on shared configuration or context
-- Using `ask` to access the environment and `local` to modify it
-- Creating testable code with explicit dependency management
-- Real-world examples with database connections and API configurations
+- Price an order from a `PricingConfig` that no method takes as a parameter
+- Say what each step of a `Reader` chain receives, and when
+- Run one reader against two configurations, so a test needs no mock
+- Change the configuration for one part of a computation with `ReaderPath.local`
+- Use `Reader` in generic code through its `Monad` instance
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[ReaderExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
-~~~
-
-## Purpose
-
-The **Reader monad** is a functional programming pattern primarily used for managing dependencies and context propagation in a clean and composable way. Imagine you have multiple functions or components that all need access to some shared, read-only environment, such as:
-
-* Configuration settings (database URLs, API keys, feature flags).
-* Shared resources (thread pools, connection managers).
-* User context (userLogin ID, permissions).
-
-Instead of explicitly passing this environment object as an argument to every single function (which can become cumbersome and clutter signatures), the Reader monad encapsulates computations that *depend* on such an environment.
-
-A `Reader<R, A>` represents a computation that, when provided with an environment of type `R`, will produce a value of type `A`. It essentially wraps a function `R -> A`.
-
-The benefits of using the Reader monad include:
-
-1. **Implicit Dependency Injection:** The environment (`R`) is implicitly passed along the computation chain. Functions defined within the Reader context automatically get access to the environment when needed, without needing it explicitly in their signature.
-2. **Composability:** Reader computations can be easily chained together using standard monadic operations like `map` and `flatMap`.
-3. **Testability:** Dependencies are managed explicitly when the final Reader computation is run, making it easier to provide mock environments or configurations during testing.
-4. **Code Clarity:** Reduces the need to pass configuration objects through multiple layers of functions.
-
-In `Higher-Kinded-J`, the Reader monad pattern is implemented via the `Reader<R, A>` interface and its corresponding HKT simulation types (`ReaderKind`, `ReaderKindHelper`) and type class instances (`ReaderMonad`, `ReaderApplicative`, `ReaderFunctor`).
-
-## The `Reader<R, A>` Type
-
-The core type is the `Reader<R, A>` functional interface:
-
-```java
-@FunctionalInterface
-public interface Reader<R, A> {
-  @NonNull A run(@NonNull R r); // The core function: Environment -> Value
-
-  // Static factories
-  static <R, A> @NonNull Reader<R, A> of(@NonNull Function<R, A> runFunction);
-  static <R, A> @NonNull Reader<R, A> constant(@NonNull A value);
-  static <R> @NonNull Reader<R, R> ask();
-
-  // Instance methods (for composition)
-  default <B> @NonNull Reader<R, B> map(@NonNull Function<? super A, ? extends B> f);
-  default <B> @NonNull Reader<R, B> flatMap(@NonNull Function<? super A, ? extends Reader<R, ? extends B>> f);
-}
-```
-
-* `run(R r)`: Executes the computation by providing the environment `r` and returning the result `A`.
-* `of(Function<R, A>)`: Creates a `Reader` from a given function.
-* `constant(A value)`: Creates a `Reader` that ignores the environment and always returns the provided value.
-* `ask()`: Creates a `Reader` that simply returns the environment itself as the result.
-* `map(Function<A, B>)`: Transforms the result `A` to `B`*after* the reader is run, without affecting the required environment `R`.
-* `flatMap(Function<A, Reader<R, B>>)`: Sequences computations. It runs the first reader, uses its result `A` to create a *second* reader (`Reader<R, B>`), and then runs that second reader with the *original* environment `R`.
-
-A `Reader` always gives a value. `constant(null)` throws at the call, and a function given to `of` or `map` that returns null fails the reader when it runs, naming that function. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
-
-## Reader Components
-
-To integrate `Reader` with Higher-Kinded-J:
-
-* **`ReaderKind<R, A>`:** The marker interface extending `Kind<ReaderKind.Witness<R>, A>`. The witness type `F` is `ReaderKind.Witness<R>` (where `R` is fixed for a given monad instance), and the value type `A` is the result type of the reader.
-* **`ReaderKindHelper`:** The utility class with static methods:
-  * `widen(Reader<R, A>)`: Converts a `Reader` to `ReaderKind<R, A>`.
-  * `narrow(Kind<ReaderKind.Witness<R>, A>)`: Converts `ReaderKind` back to `Reader`. Throws `KindUnwrapException` if the input is invalid.
-  * `READER.reader(Function<R, A>)`: Factory method to create a `ReaderKind` from a function.
-  * `constant(A value)`: Factory method for a `ReaderKind` returning a constant value.
-  * `ask()`: Factory method for a `ReaderKind` that returns the environment.
-  * `READER.runReader(Kind<ReaderKind.Witness<R>, A> kind, R environment)`: The primary way to execute a `ReaderKind` computation by providing the environment.
-
-## Type Class Instances (`ReaderFunctor`, `ReaderApplicative`, `ReaderMonad`)
-
-These classes provide the standard functional operations for `ReaderKind.Witness<R>`, allowing you to treat `Reader` computations generically within Higher-Kinded-J:
-
-* **`ReaderFunctor<R>`:** Implements `Functor<ReaderKind.Witness<R>>`. Provides the `map` operation.
-* **`ReaderApplicative<R>`:** Extends `ReaderFunctor<R>` and implements `Applicative<ReaderKind.Witness<R>>`. Provides `of` (lifting a value) and `ap` (applying a wrapped function to a wrapped value).
-* **`ReaderMonad<R>`:** Extends `ReaderApplicative<R>` and implements `Monad<ReaderKind.Witness<R>>`. Provides `flatMap` for sequencing computations that depend on previous results while implicitly carrying the environment `R`.
-
-You typically instantiate `ReaderMonad<R>` for the specific environment type `R` you are working with.
-
-~~~admonish example title="Example: Managing Configuration"
-
-- [ReaderExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/reader/ReaderExample.java)
-
-### 1. Define Your Environment
-
-<!-- verify -->
-```java
-// Example Environment: Application Configuration
-record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
-```
-
-### 2. Create Reader Computations
-
-Use `ReaderKindHelper` factory methods:
-
-<!-- verify -->
-```java
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.reader.ReaderKind;
-
-// Reader that retrieves the database URL from the config
-Kind<ReaderKind.Witness<AppConfig>, String> getDbUrl = READER.reader(AppConfig::databaseUrl);
-
-// Reader that retrieves the timeout
-Kind<ReaderKind.Witness<AppConfig>, Integer> getTimeout = READER.reader(AppConfig::timeoutMillis);
-
-// Reader that returns a constant value, ignoring the environment
-Kind<ReaderKind.Witness<AppConfig>, String> getDefaultUser = READER.constant("guest");
-
-// Reader that returns the entire configuration environment
-Kind<ReaderKind.Witness<AppConfig>, AppConfig> getConfig = READER.ask();
-```
-
-### 3. Get the `ReaderMonad` Instance
-
-Instantiate the monad for your specific environment type `R`.
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.reader.ReaderMonad;
-
-// Monad instance for computations depending on AppConfig
-ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
-```
-
-### 4. Compose Computations using `map` and `flatMap`
-
-Use the methods on the `readerMonad` instance.
-
-<!-- verify -->
-```java
-// Example 1: Map the timeout value
-Kind<ReaderKind.Witness<AppConfig>, String> timeoutMessage = readerMonad.map(
-    timeout -> "Timeout is: " + timeout + "ms",
-    getTimeout // Input: Kind<ReaderKind.Witness<AppConfig>, Integer>
-);
-
-// Example 2: Use flatMap to get DB URL and then construct a connection string (depends on URL)
-Function<String, Kind<ReaderKind.Witness<AppConfig>, String>> buildConnectionString =
-    dbUrl -> READER.reader( // <- We return a new Reader computation
-        config -> dbUrl + "?apiKey=" + config.apiKey() // Access apiKey via the 'config' env
-    );
-
-Kind<ReaderKind.Witness<AppConfig>, String> connectionStringReader = readerMonad.flatMap(
-    buildConnectionString, // Function: String -> Kind<ReaderKind.Witness<AppConfig>, String>
-    getDbUrl               // Input: Kind<ReaderKind.Witness<AppConfig>, String>
-);
-
-// Example 3: Combine multiple values using mapN (from Applicative)
-Kind<ReaderKind.Witness<AppConfig>, String> dbInfo = readerMonad.map2(
-    getDbUrl,
-    getTimeout,
-    (url, timeout) -> "DB: " + url + " (Timeout: " + timeout + ")"
-);
-```
-
-### 5. Run the Computation
-
-Provide the actual environment using `ReaderKindHelper.runReader`:
-
-<!-- verify -->
-```java
-AppConfig productionConfig = new AppConfig("prod-db.example.com", 5000, "prod-key-123");
-AppConfig stagingConfig = new AppConfig("stage-db.example.com", 10000, "stage-key-456");
-
-// Run the composed computations with different environments
-String prodTimeoutMsg = READER.runReader(timeoutMessage, productionConfig);
-String stageTimeoutMsg = READER.runReader(timeoutMessage, stagingConfig);
-
-String prodConnectionString = READER.runReader(connectionStringReader, productionConfig);
-String stageConnectionString = READER.runReader(connectionStringReader, stagingConfig);
-
-String prodDbInfo = READER.runReader(dbInfo, productionConfig);
-String stageDbInfo = READER.runReader(dbInfo, stagingConfig);
-
-// Get the raw config using ask()
-AppConfig retrievedProdConfig = READER.runReader(getConfig, productionConfig);
-
-
-System.out.println("Prod Timeout: " + prodTimeoutMsg);           // Output: Timeout is: 5000ms
-System.out.println("Stage Timeout: " + stageTimeoutMsg);         // Output: Timeout is: 10000ms
-System.out.println("Prod Connection: " + prodConnectionString); // Output: prod-db.example.com?apiKey=prod-key-123
-System.out.println("Stage Connection: " + stageConnectionString);// Output: stage-db.example.com?apiKey=stage-key-456
-System.out.println("Prod DB Info: " + prodDbInfo);               // Output: DB: prod-db.example.com (Timeout: 5000)
-System.out.println("Stage DB Info: " + stageDbInfo);             // Output: DB: stage-db.example.com (Timeout: 10000)
-System.out.println("Retrieved Prod Config: " + retrievedProdConfig); // Output: AppConfig[databaseUrl=prod-db.example.com, timeoutMillis=5000, apiKey=prod-key-123]
-```
-
-Notice how the functions (`buildConnectionString`, the lambda in `map2`) don't need `AppConfig` as a parameter, but they can access it when needed within the `READER.reader(...)` factory or implicitly via `flatMap` composition. The configuration is only provided once at the end when `runReader` is called.
-~~~
-
-
-~~~admonish example title="Example: Reader for Side-Effects (Returning Unit)"
-
-Sometimes, a computation depending on an environment `R` might perform an action (like logging or initialising a component based on `R`) but doesn't produce a specific value other than signalling its completion. In such cases, the result type `A` of the `Reader<R, A>` can be `org.higherkindedj.hkt.Unit`.
-
-<!-- verify -->
-```java
-import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.reader.ReaderKind;
-import org.higherkindedj.hkt.reader.ReaderMonad;
-import org.higherkindedj.hkt.Unit;
-
-// Assume AppConfig is defined as before
-// record AppConfig(String databaseUrl, int timeoutMillis, String apiKey) {}
-
-// ReaderMonad instance (can be the same as before)
-// ReaderMonad<AppConfig> readerMonad = ReaderMonad.instance();
-
-// A Reader computation that performs a side-effect (printing to console)
-// using the config and returns Unit.
-Kind<ReaderKind.Witness<AppConfig>, Unit> logApiKey = READER.reader(
-    config -> {
-        System.out.println("Accessed API Key: " + config.apiKey().substring(0, Math.min(config.apiKey().length(), 4)) + "...");
-        return Unit.INSTANCE; // Explicitly return Unit.INSTANCE
-    }
-);
-
-// You can compose this with other Reader computations.
-// For example, get the DB URL and then log the API key.
-Kind<ReaderKind.Witness<AppConfig>, Unit> getUrlAndLogKey = readerMonad.flatMap(
-    dbUrl -> {
-        System.out.println("Database URL for logging context: " + dbUrl);
-        // After processing dbUrl (here, just printing), return the next action
-        return logApiKey;
-    },
-    getDbUrl // Assuming getDbUrl: Kind<ReaderKind.Witness<AppConfig>, String>
-);
-
-
-// To run it:
-// AppConfig currentConfig = new AppConfig("prod-db.example.com", 5000, "prod-key-123");
-// Unit result = READER.runReader(logApiKey, currentConfig);
-// System.out.println("Log API Key result: " + result); // Output: Log API Key result: ()
-
-// Unit resultChained = READER.runReader(getUrlAndLogKey, currentConfig);
-// System.out.println("Get URL and Log Key result: " + resultChained);
-// Output:
-// Database URL for logging context: prod-db.example.com
-// Accessed API Key: prod...
-// Get URL and Log Key result: ()
-```
-
-In this example:
-
-- `logApiKey` is a `Reader<AppConfig, Unit>`. Its purpose is to perform an action (logging) using the `AppConfig`.
-- It returns `Unit.INSTANCE` to signify that the action completed successfully but yields no other specific data.
-- When composing, flatMap can be used to sequence such an action. If logApiKey were the last step in a sequence, the overall `flatMap` chain would also result in `Kind<ReaderKind.Witness<AppConfig>, Unit>`.
-~~~
-
-~~~admonish note title="How Environment Threading Works"
-```
-                        AppConfig
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-         getDbUrl     getTimeout    getApiKey
-         (config)     (config)      (config)
-              │            │            │
-              ▼            ▼            ▼
-        "prod-db"       5000       "key-123"
-
-flatMap chains pass the SAME environment to each step:
-
-READER.runReader(program, config)
-    │
-    ├──► getDbUrl(config)        → "prod-db"
-    ├──► buildConn(url, config)  → "prod-db?key=key-123"
-    └──► formatInfo(conn)        → "Connected to prod-db"
-```
-
-Each step in a `flatMap` chain receives the same environment `R`. The environment is provided once at the end via `runReader`. Individual steps never need it as an explicit parameter.
-~~~
-
-
-## When to Use Reader
-
-| Scenario | Use |
-|----------|-----|
-| Threading configuration through multiple functions | `Reader` / `ReaderMonad` |
-| Functional dependency injection | `Reader`: dependencies provided at `runReader` time |
-| Testing with different configurations | `Reader`: swap environments without changing code |
-| Modifying the environment for a sub-computation | `Reader` with `local` (modify env for inner Reader) |
-| Combining configuration with error handling or async | Use [ReaderT transformer](../transformers/readert_transformer.md) |
-| Application-level environment-dependent pipelines | Prefer composing with other Path types |
-
-~~~admonish important title="Key Points"
-- `Reader<R, A>` wraps a function `R → A`: it describes a computation that depends on environment `R`.
-- Nothing executes until `READER.runReader(reader, environment)` is called with a concrete environment.
-- `flatMap` chains pass the **same** environment to each step, no manual threading.
-- `ask()` returns the environment itself, useful when a step needs the full config.
-- `constant(value)` ignores the environment, useful for lifting pure values into Reader context.
-- `Reader<R, A>` directly implements `ReaderKind<R, A>`, so `widen`/`narrow` are zero-cost casts.
+~~~admonish example title="See Example Code"
+**The code on this page is [ReaderBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java)**: the page includes it, so the build compiles and runs it. [ReaderBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/reader/ReaderBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-~~~admonish example title="Benchmarks"
-Reader has dedicated JMH benchmarks measuring function composition overhead, environment access, and chain depth. Key expectations:
+## Pricing from one configuration {#pricing-from-one-configuration}
 
-- **`of` / `constant`** are very fast: they wrap a function with no computation
-- **`flatMap` chains** incur minimal overhead: each step is a function call with the shared environment
-- **`ask`** is essentially free: it returns the environment directly
+What an order costs depends on settings: the VAT rate, the delivery charge, and the order value from which delivery is free. Pass those settings to every method that prices something and they spread through each signature on the way down. Inject them into a service's constructor instead, and the service prices everything with the settings it was built with. A `Reader<R, A>` is a function from an environment `R` to a result `A`. `Function.andThen` already gives you its `map`. What a `Reader` adds is `flatMap`, which hands the next step the previous result and the same environment. So the settings go in once, when you run the reader, and each run can be given different ones.
 
-```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*ReaderBenchmark.*"
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces, and `PricingConfig` from this chapter's examples:
+
+<!-- verify -->
+```java
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import org.higherkindedj.example.book.foundations.PricingConfig;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.ReaderPath;
+import org.higherkindedj.hkt.reader.Reader;
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
-~~~
 
-~~~ admonish tip title="Further Reading"
-For deeper exploration of the Reader monad and dependency injection patterns:
+`PricingConfig` is a record of the examples' own:
 
-**Foundational Resources:**
-- **Cats Documentation**: [Reader Monad](https://typelevel.org/cats/datatypes/reader.html) - Scala implementation with practical examples
-- **Haskell Wiki**: [Reader Monad](https://wiki.haskell.org/All_About_Monads#The_Reader_monad) - Theoretical foundation and use cases
-- **Mark Seemann**: [Dependency Injection Revisited](https://blog.ploeh.dk/2017/01/27/from-dependency-injection-to-dependency-rejection/) - Functional alternatives to traditional DI
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/PricingConfig.java:pricing_config}}
+```
 
-**Java-Focused Resources:**
-- **Functional Java**: [GitHub repository](https://github.com/functionaljava/functionaljava) - Pure functional library for Java with Reader monad
-- **Richard Warburton**: "Java 8 Lambdas" (O'Reilly, 2014) - Functional programming fundamentals in Java
-- **Pierre-Yves Saumont**: "Functional Programming in Java" (Manning, 2017) - Chapter on handling dependencies functionally
+Delivery is charged on an order under the threshold, and VAT is added to the whole:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java:pricing}}
+```
+
+`toPay` describes the price without a configuration to hand. `STANDARD` charges VAT at 20%, and 4.95 for delivery on an order under 50.00. `SALE` is the same, with free delivery from 30.00. `LAMP_ORDER` is one lamp at 40.00. Run the reader with one configuration, then with the other:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java:run}}
+```
+
+The lamp costs 40.00, under the usual threshold of 50.00, so the usual price adds the 4.95 delivery charge before VAT: (40.00 + 4.95) × 1.20 = 53.94. The sale's threshold is 30.00, so the same reader charges no delivery: 40.00 × 1.20 = 48.00. A test prices against whatever configuration it builds, with no mock to set up.
+
+## Each step is given the configuration {#each-step-is-given-the-configuration}
+
+`flatMap` runs the first reader, passes its result to the next step, and runs that step with the same environment. Nothing reads the configuration until `run` is called, and a reader keeps no result: each `run` calls its functions again, with the environment it is given.
+
+```mermaid
+flowchart TB
+    accTitle: How one run of toPay uses its configuration
+    accDescr: Running toPay with the standard configuration gives that configuration to both steps. The delivery step reads the threshold and the delivery charge, and gives 4.95. The VAT step receives that charge as its input, reads the VAT rate, and gives 53.94.
+    run["toPay(order).run(STANDARD)"]
+    config["the PricingConfig STANDARD"]
+    delivery["delivery(40.00)<br/>reads the threshold and the charge"]
+    vat["withVat(40.00 + 4.95)<br/>reads the VAT rate"]
+    result["53.94"]
+    run --> config
+    config --> delivery
+    config --> vat
+    delivery -- "4.95" --> vat
+    vat --> result
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    class run,delivery,vat step
+    class config,result domain
+```
+
+The configuration goes to every step, while each result goes only to the step after it. `Reader.ask()` gives the environment itself, for a step that needs the whole of it.
+
+## On a `ReaderPath` {#on-a-readerpath}
+
+Application code holds a reader on a `ReaderPath`, its Effect Path, and `Path.reader(reader)` gives you one. It chains with `via`, combines with `zipWith`, and adds `local`, which runs a reader against a configuration changed for that reader alone. A quote can then show what a member pays, with delivery free whatever the order costs:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java:quote}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java:quote_outcome}}
+```
+
+`quoted` is `"53.94, or 48.00 for members"`. The standard configuration is passed once: `usual` reads it as it is, and `members` reads it through `forMembers`. `local` also adapts a reader written for a part of a larger environment, such as a `PricingConfig` inside the application's settings. `magnify` does the same from a `Getter` or a `FocusPath`, as [Local Environment Modification](../effect/advanced_effects.md#local-environment-modification) shows.
+
+## Creating instances {#creating-instances}
+
+`Reader.of(function)` wraps a function of the environment, `Reader.ask()` gives the environment itself, and `Reader.constant(value)` gives a value whatever the environment holds. `Reader.unit()` gives [`Unit`](../hkts/core-concepts.md#unit), and `Reader.fromConsumer(action)` runs an action with the environment and gives `Unit`. On a Path, `Path.reader(reader)`, `Path.ask()`, `Path.asks(function)` and `Path.readerPure(value)` start a `ReaderPath`. A `Reader` from these factories always gives a value, as [Values, never null](../hkts/core-concepts.md#values-never-null) sets out. `constant(null)` throws at the call, and a function given to `of` or `map` that returns `null` fails the reader when it runs. `Reader` is a functional interface, so a lambda written as one directly has no such check: build a reader with `Reader.of`.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Reader.of(function)` | Wraps a function of the environment |
+| `Reader.ask()` | Gives the environment itself |
+| `Reader.constant(value)` | Gives `value`, whatever the environment |
+| `Reader.unit()` | Gives `Unit`, whatever the environment |
+| `Reader.fromConsumer(action)` | Runs `action` with the environment, and gives `Unit` |
+| `map(f)` | Builds a reader whose result is changed by `f` |
+| `flatMap(f)` | Builds a reader that runs the next step on this one's result, with the same environment |
+| `asUnit()` | Keeps the computation and replaces the result with `Unit` |
+| `run(environment)` | Runs the reader with `environment` and gives its result |
+| `readerPath.via(f)`, `zipWith(other, f)` | Chain or combine `ReaderPath` steps over one environment |
+| `readerPath.local(f)` | Runs the path against the environment `f` gives |
+| `readerPath.magnify(getter)` | Runs the path against the part of a larger environment the `Getter` or `FocusPath` reads |
+| `readerPath.toReader()` | Gives the `Reader` the path holds |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `Reader` through its `Monad` instance, from `Instances.monad(reader())`. The environment type is part of the witness, `ReaderKind.Witness<R>`, so one instance serves readers of one environment type. You widen a `Reader` to pass it in, run the result with `READER.runReader`, and `READER.narrow(kind)` gives the `Reader` back. These are the extra imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.reader;
+import static org.higherkindedj.hkt.reader.ReaderKindHelper.READER;
+
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.reader.ReaderKind;
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/reader/ReaderBook.java:kind}}
+```
+
+`ran` is `"pay 53.94"`. Widening allocates nothing: `Reader` implements `ReaderKind` itself, so `widen` checks for `null` and returns the same object. `Reader` has a `Selective` instance too, `ReaderSelective.instance()`, an object of its own, and *Reader at a glance*, at the head of the page, lists it. Code that reads an environment through any monad, not only `Reader`, takes a `MonadReader`, as [Reading settings with `MonadReader`](../functional/for_mtl.md#reading-configuration-with-monadreader) shows.
+
+## When to use `Reader` {#when-to-use-reader}
+
+| You need | Use |
+|---|---|
+| Steps that read one environment, supplied once when the program runs | `Reader`, or [ReaderPath](../effect/advanced_effects.md#readerpath-the-environment-you-inherit) |
+| A value the request binds, which threads forked for that request should see | [Context](context_scoped.md) |
+| An environment, together with failure or asynchronous work | [ConfigContext](../effect/effect_contexts_config.md), or [ReaderT](../transformers/readert_transformer.md) |
+| Steps that each change a value the next step reads | [State](state_monad.md) |
+| One or two methods that need the setting | A parameter: a reader earns its place when many steps share the environment |
+
+~~~admonish info title="Hands-On Learning"
+Practise threading configuration with `Reader`, in Exercise 3 of [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises), and `magnify` in Exercise 5 of [Tutorial 05: Optic-Polymorphic Zoom and Magnify](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/expression/Tutorial05_ZoomAndMagnify.java) (6 exercises).
 ~~~
 
 ---

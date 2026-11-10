@@ -5,64 +5,37 @@ package org.higherkindedj.hkt.effect;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
- * A natural transformation from functor F to functor G.
+ * A natural transformation from functor F to functor G: the effect package's name for {@link
+ * Natural}, which it extends.
  *
- * <p>Natural transformations allow converting computations from one effect type to another while
- * preserving structure. This is the categorical concept of a morphism between functors.
+ * <p>The library takes a {@link Natural} wherever it takes a natural transformation: {@link
+ * GenericPath#mapK(Natural, org.higherkindedj.hkt.Monad)}, {@link FreePath#foldMap(Natural,
+ * org.higherkindedj.hkt.Monad)}, {@link FreeApPath#foldMapKind(Natural,
+ * org.higherkindedj.hkt.Applicative)}, and the transformations {@link VStreamTransformations}
+ * gives. A {@code NaturalTransformation} is a {@code Natural}, so one written against this
+ * interface can still be passed to each of them.
  *
- * <h2>Laws</h2>
- *
- * <p>For a natural transformation {@code nt: F ~> G}, the following naturality law must hold for
- * all functions {@code f: A -> B}:
- *
- * <pre>
- * nt.apply(fa.map(f)) == nt.apply(fa).map(f)
- * </pre>
- *
- * <p>In other words, it doesn't matter whether you transform first then map, or map first then
- * transform - the result is the same.
- *
- * <h2>Use Cases</h2>
- *
- * <ul>
- *   <li>Converting between effect types (e.g., Maybe to Either)
- *   <li>Interpreting a DSL into a concrete implementation
- *   <li>Running tests with a different effect type than production
- *   <li>Adapting between library boundaries
- * </ul>
- *
- * <h2>Example</h2>
- *
- * <pre>{@code
- * // Convert Maybe to Either with a default error
- * NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither =
- *     new NaturalTransformation<>() {
- *         @Override
- *         public <A> Kind<EitherKind.Witness<String>, A> apply(Kind<MaybeKind.Witness, A> fa) {
- *             Maybe<A> maybe = MaybeKindHelper.narrow(fa);
- *             return maybe.isJust()
- *                 ? EitherKind.widen(Either.right(maybe.get()))
- *                 : EitherKind.widen(Either.left("Value was Nothing"));
- *         }
- *     };
- *
- * // Use with GenericPath
- * GenericPath<MaybeKind.Witness, User> userPath = ...;
- * GenericPath<EitherKind.Witness<String>, User> eitherPath =
- *     userPath.mapK(maybeToEither, eitherMonad);
- * }</pre>
+ * <p>The naturality law is {@link Natural}'s: for all functions {@code f}, {@code
+ * nt.apply(fa.map(f))} gives the same as {@code nt.apply(fa).map(f)}.
  *
  * @param <F> the source witness type
  * @param <G> the target witness type
+ * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Use {@link Natural}, which has the same
+ *     single method, {@code apply}, and offers {@code andThen}, {@code compose} and {@code
+ *     identity} too. The {@code MigrateDeprecationsTo0_7_0} recipe in {@code hkj-openrewrite}
+ *     changes the type at each use.
  */
+@Deprecated(since = "0.6.0", forRemoval = true)
 @FunctionalInterface
 public interface NaturalTransformation<
-    F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>> {
+        F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>>
+    extends Natural<F, G> {
 
   /**
    * Applies this natural transformation to a Kind value.
@@ -71,6 +44,7 @@ public interface NaturalTransformation<
    * @param <A> the value type
    * @return the transformed Kind value
    */
+  @Override
   <A> Kind<G, A> apply(Kind<F, A> fa);
 
   /**

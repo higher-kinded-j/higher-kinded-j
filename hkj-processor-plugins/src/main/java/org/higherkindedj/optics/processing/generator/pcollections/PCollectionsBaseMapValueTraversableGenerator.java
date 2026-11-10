@@ -21,7 +21,9 @@ import org.higherkindedj.optics.util.Traversals;
  *
  * <p>Each PCollections map implements {@link java.util.Map}, so the source field is handed to
  * {@link Traversals#traverseMapValues} as it stands. A JDK {@link Map} comes back, which the
- * persistent type's {@code from(Map)} factory turns into an instance of the field's own type.
+ * persistent type's {@code from(Map)} factory turns into an instance of the field's own type. A
+ * sorted map's generator overrides {@link #rebuild(String)} to hand that factory the source's
+ * comparator too.
  */
 public abstract class PCollectionsBaseMapValueTraversableGenerator
     extends BaseTraversableGenerator {
@@ -106,8 +108,8 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
             Traversals.class,
             componentName)
         // 2. Reconstruct the record, handing the rebuilt JDK Map to the persistent factory inline
-        //    so that the call is in a position where javac can fully resolve any generic bounds
-        //    on {@code from(Map)} (e.g. TreePMap's {@code K extends Comparable<? super K>}).
+        //    so that the call is in a position where javac infers the factory's type arguments
+        //    from the constructor parameter it is passed to.
         .addStatement(
             "return applicative.map(\n    jdkMap -> new $T($L),\n    effectOfMap)",
             recordTypeName(component, recordClassName),
@@ -116,10 +118,20 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
   }
 
   /**
+   * The expression that rebuilds the component's map from the traversed entries, held in {@code
+   * jdkMap}, with {@code source} the record being traversed.
+   *
+   * @param componentName the name of the record component being rebuilt
+   * @return the expression, by default {@code <constructedType>.from(jdkMap)}
+   */
+  protected CodeBlock rebuild(final String componentName) {
+    return CodeBlock.of("$T.from(jdkMap)", constructedType);
+  }
+
+  /**
    * Builds the record constructor argument list as a {@link CodeBlock} so that JavaPoet emits an
-   * import for {@code constructedType} when the converted component refers to {@code
-   * <constructedType>.from(jdkMap)}. All other components are forwarded by accessor as literal
-   * text.
+   * import for {@code constructedType} when the converted component refers to it through {@link
+   * #rebuild(String)}. All other components are forwarded by accessor as literal text.
    */
   private CodeBlock buildConstructorArgsWithFromCall(
       final String changedComponent, final List<? extends RecordComponentElement> allComponents) {
@@ -132,7 +144,7 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
       first = false;
       final String name = c.getSimpleName().toString();
       if (name.equals(changedComponent)) {
-        builder.add("$T.from(jdkMap)", constructedType);
+        builder.add(rebuild(name));
       } else {
         builder.add("source.$L()", name);
       }

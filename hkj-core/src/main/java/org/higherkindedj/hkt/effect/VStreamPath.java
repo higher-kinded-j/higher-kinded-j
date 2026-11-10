@@ -362,11 +362,12 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   <B> VStreamPath<B> parEvalMap(int concurrency, Function<? super A, VTask<B>> f);
 
   /**
-   * Applies an effectful function to each element with bounded concurrency, emitting results in
-   * completion order rather than input order.
+   * Applies an effectful function to each element with bounded concurrency, emitting each result as
+   * its task completes, so the output is in completion order rather than input order.
    *
    * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parEvalMapUnordered(VStream,
-   * int, java.util.function.Function)}.
+   * int, Function)}, whose tasks run on threads that do not see the caller's {@code ScopedValue}
+   * bindings.
    *
    * @param concurrency the maximum number of elements to process concurrently; must be positive
    * @param f the effectful function to apply to each element; must not be null
@@ -393,7 +394,7 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Chunks the stream, applies a batch function to each chunk, and flattens the results.
    *
-   * <p>Delegates to {@link VStream#mapChunked(int, java.util.function.Function)}.
+   * <p>Delegates to {@link VStream#mapChunked(int, Function)}.
    *
    * @param size the maximum number of elements per batch; must be positive
    * @param f the batch function to apply to each non-empty chunk; must not be null
@@ -405,17 +406,26 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   <B> VStreamPath<B> mapChunked(int size, Function<? super NonEmptyList<A>, ? extends List<B>> f);
 
   /**
-   * Collects all elements in parallel batches. This is a terminal operation.
+   * Collects all elements, giving the list {@link #toList()} gives. This is a terminal operation.
    *
    * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parCollect(VStream, int)}.
    *
    * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
    * first.
    *
-   * @param batchSize the number of elements to process per batch; must be positive
+   * @param batchSize the number of elements to read between checks for an interrupt; must be
+   *     positive
    * @return a VTaskPath that produces the list of all elements
    * @throws IllegalArgumentException if batchSize is not positive
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
+   *     so this runs nothing in parallel. Use {@link #toList()}, which gives the same list. To run
+   *     each element's work in parallel, do the work inside the task that the function you give
+   *     {@link #parEvalMap} or {@link #parEvalMapUnordered} returns, as in {@code n -> VTask.of(()
+   *     -> work(n))}, and collect with {@code toList()}. Unlike this method, {@code toList()} does
+   *     not stop for an interrupt between pulls, so bound an endless stream whose pulls never
+   *     block, with {@link #take(long)}, before you time it out.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   VTaskPath<List<A>> parCollect(int batchSize);
 
   // ===== Optics focus bridge =====
@@ -500,7 +510,10 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Recovers from stream errors by providing a fallback value.
    *
-   * <p>If pulling an element fails, the recovery function produces a replacement.
+   * <p>After a failed task of {@link #mapTask}, {@link #parEvalMap} or {@link
+   * #parEvalMapUnordered}, the recovery value takes the failed element's place, and the stream goes
+   * on from the next element. After any other failure, the stream ends after the recovery value.
+   * {@link VStream#recover} describes it in full.
    *
    * @param recovery the recovery function; must not be null, and must not return null
    * @return a new VStreamPath with error recovery
@@ -572,12 +585,14 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
    *
    * <ul>
    *   <li>The stream completes normally
-   *   <li>An error occurs during pulling
+   *   <li>An error occurs during pulling; after a failed {@link #mapTask} task further up, when the
+   *       stream after the failure ends or is closed
    *   <li>The stream stops early, through {@link #take(long)} or {@link #headOption()} for example,
    *       or is closed
    * </ul>
    *
-   * <p>Delegates to {@link VStream#onFinalize(VTask)}.
+   * <p>Delegates to {@link VStream#onFinalize(VTask)}, which describes when it runs after a
+   * failure.
    *
    * @param finalizer the VTask to execute on stream completion or error; must not be null
    * @return a new VStreamPath with the finaliser attached
@@ -590,8 +605,9 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Converts this VStreamPath to a {@link java.util.concurrent.Flow.Publisher}.
    *
-   * <p>Each subscriber receives all elements. Backpressure is respected: elements are only pulled
-   * when the subscriber requests them. Delegates to {@link
+   * <p>Each subscriber receives all elements. Backpressure is respected: elements are pulled when
+   * the subscriber requests them, and on until the next element or the end, to notice the end of
+   * the stream. Delegates to {@link
    * org.higherkindedj.hkt.vstream.VStreamReactive#toPublisher(VStream)}.
    *
    * @return a Flow.Publisher that publishes this stream's elements; never null

@@ -185,7 +185,7 @@ public VTask<Response> handleRequest(Request request) {
     boolean authenticated = SecurityContext.isAuthenticated()
         .toVTask()
         .runSafe()
-        .foldFailureFirst(e -> false, value -> value);
+        .fold(e -> false, value -> value);
 
     if (authenticated) {
         return handleAuthenticatedRequest(request);

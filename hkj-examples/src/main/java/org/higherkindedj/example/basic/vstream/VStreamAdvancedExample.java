@@ -10,7 +10,7 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.effect.NaturalTransformation;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.effect.VStreamTransformations;
 import org.higherkindedj.hkt.effect.context.VStreamContext;
 import org.higherkindedj.hkt.list.ListKind;
@@ -214,7 +214,7 @@ public class VStreamAdvancedExample {
   /** Demonstrates natural transformations between stream types. */
   public void naturalTransformations() {
     // List -> VStream
-    NaturalTransformation<ListKind.Witness, VStreamKind.Witness> listToVStream =
+    Natural<ListKind.Witness, VStreamKind.Witness> listToVStream =
         VStreamTransformations.listToVStream();
 
     Kind<ListKind.Witness, String> listKind = LIST.widen(List.of("hello", "world"));
@@ -223,7 +223,7 @@ public class VStreamAdvancedExample {
     System.out.println("List -> VStream: " + vstream.toList().run());
 
     // VStream -> List
-    NaturalTransformation<VStreamKind.Witness, ListKind.Witness> vstreamToList =
+    Natural<VStreamKind.Witness, ListKind.Witness> vstreamToList =
         VStreamTransformations.vstreamToList();
 
     Kind<VStreamKind.Witness, Integer> numbersKind = VSTREAM.widen(VStream.of(10, 20, 30));
@@ -232,8 +232,7 @@ public class VStreamAdvancedExample {
     System.out.println("VStream -> List: " + list);
 
     // Composition via andThen
-    NaturalTransformation<ListKind.Witness, ListKind.Witness> roundTrip =
-        listToVStream.andThen(vstreamToList);
+    Natural<ListKind.Witness, ListKind.Witness> roundTrip = listToVStream.andThen(vstreamToList);
     Kind<ListKind.Witness, String> result = roundTrip.apply(listKind);
     System.out.println("Round-trip (List -> VStream -> List): " + LIST.narrow(result));
   }

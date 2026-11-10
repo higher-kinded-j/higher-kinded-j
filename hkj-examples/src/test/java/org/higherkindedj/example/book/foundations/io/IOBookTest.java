@@ -173,7 +173,7 @@ class IOBookTest {
               });
 
       assertThat(failing.handleError(Throwable::getMessage).unsafeRun()).isEqualTo("closed");
-      assertThat(failing.asTry().unsafeRun().foldFailureFirst(Throwable::getMessage, s -> s))
+      assertThat(failing.asTry().unsafeRun().fold(Throwable::getMessage, s -> s))
           .isEqualTo("closed");
     }
 

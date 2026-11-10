@@ -1151,10 +1151,10 @@ public final class Path {
   /**
    * Creates a NonDetPath from an existing List.
    *
-   * @param list the list to wrap; must not be null
+   * @param list the list to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a NonDetPath wrapping the list
-   * @throws NullPointerException if list is null
+   * @throws NullPointerException if list is null, or contains null
    */
   public static <A> NonDetPath<A> list(List<A> list) {
     return NonDetPath.of(list);
@@ -1163,9 +1163,10 @@ public final class Path {
   /**
    * Creates a NonDetPath from varargs.
    *
-   * @param elements the elements
+   * @param elements the elements; must not be null, and must not contain null
    * @param <A> the element type
    * @return a NonDetPath containing the elements
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> NonDetPath<A> list(A... elements) {
@@ -1175,9 +1176,10 @@ public final class Path {
   /**
    * Creates a NonDetPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a NonDetPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> NonDetPath<A> listPure(A value) {
     return NonDetPath.pure(value);
@@ -1201,10 +1203,10 @@ public final class Path {
    * <p>ListPath uses positional zipWith semantics (pairs corresponding elements), unlike NonDetPath
    * which uses Cartesian product semantics.
    *
-   * @param list the list to wrap; must not be null
+   * @param list the list to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a ListPath wrapping the list
-   * @throws NullPointerException if list is null
+   * @throws NullPointerException if list is null, or contains null
    */
   public static <A> ListPath<A> listPath(List<A> list) {
     return ListPath.of(list);
@@ -1213,9 +1215,10 @@ public final class Path {
   /**
    * Creates a ListPath from varargs.
    *
-   * @param elements the elements
+   * @param elements the elements; must not be null, and must not contain null
    * @param <A> the element type
    * @return a ListPath containing the elements
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> ListPath<A> listPath(A... elements) {
@@ -1225,9 +1228,10 @@ public final class Path {
   /**
    * Creates a ListPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a ListPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> ListPath<A> listPathPure(A value) {
     return ListPath.pure(value);
@@ -1478,8 +1482,8 @@ public final class Path {
    * Creates a VStreamPath from a {@link java.util.concurrent.Flow.Publisher} with the specified
    * buffer size.
    *
-   * <p>The publisher is subscribed to immediately. Incoming elements are buffered. The VStreamPath
-   * pulls from this buffer. Delegates to {@link
+   * <p>Each run subscribes to the publisher afresh, at its first pull, and buffers the incoming
+   * elements; the VStreamPath pulls from this buffer. Delegates to {@link
    * org.higherkindedj.hkt.vstream.VStreamReactive#fromPublisher(java.util.concurrent.Flow.Publisher,
    * int)}.
    *

@@ -257,7 +257,7 @@ ForPath has dedicated JMH benchmarks measuring for-comprehension overhead compar
 - ForPath overhead > 50% is a warning sign indicating tuple handling inefficiency
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*ForPathVTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*ForPathVTaskBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

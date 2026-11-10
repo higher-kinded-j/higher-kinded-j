@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.free;
 
+import static org.higherkindedj.hkt.util.validation.Operation.CONSTRUCTION;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -13,6 +15,7 @@ import org.higherkindedj.hkt.constant.ConstApplicative;
 import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.constant.ConstKindHelper;
 import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -124,6 +127,7 @@ public final class OpticPrograms {
    */
   private static <S extends @Nullable Object, A extends @Nullable Object>
       Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
+    Validation.function().require(traversal, "optic", CONSTRUCTION);
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
@@ -193,6 +197,7 @@ public final class OpticPrograms {
    */
   public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
       S source, Lens<S, A> lens) {
+    Validation.function().require(lens, "optic", CONSTRUCTION);
     return liftOp(new OpticOp.Get<>(source, lensToGetter(lens), Function.identity()));
   }
 

@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.each.VStreamTraversals;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
@@ -28,7 +29,7 @@ import org.higherkindedj.optics.util.Traversals;
  * <ul>
  *   <li>The source structure may contain many elements
  *   <li>You want to process elements on demand without loading all into memory
- *   <li>You need effectful modification on virtual threads via {@link #modifyVTask}
+ *   <li>You want effectful modification with {@link VTask} directly, via {@link #modifyVTask}
  * </ul>
  *
  * <h2>Comparison with Traversal</h2>
@@ -38,7 +39,7 @@ import org.higherkindedj.optics.util.Traversals;
  * <tr><th>Aspect</th><th>Traversal</th><th>StreamTraversal</th></tr>
  * <tr><td>Element access</td><td>Materialises via Applicative</td><td>Lazy VStream</td></tr>
  * <tr><td>Memory</td><td>All elements in memory</td><td>On-demand production</td></tr>
- * <tr><td>Effect type</td><td>Any Applicative</td><td>VTask (virtual threads)</td></tr>
+ * <tr><td>Effect type</td><td>Any Applicative</td><td>VTask</td></tr>
  * <tr><td>Infinite sources</td><td>Not safe</td><td>Safe for stream()</td></tr>
  * </table>
  *
@@ -55,7 +56,7 @@ import org.higherkindedj.optics.util.Traversals;
  * // Pure modification
  * VStream<String> upper = traversal.modify(String::toUpperCase, source);
  *
- * // Effectful modification on virtual threads
+ * // Effectful modification: each element's task runs as the stream is pulled
  * VTask<VStream<String>> enriched = traversal.modifyVTask(
  *     s -> VTask.of(() -> fetchEnrichment(s)),
  *     source
@@ -85,7 +86,8 @@ public interface StreamTraversal<S, A> {
    *
    * <p>Depending on the structure S, this may need to materialise internally. For example, a
    * VStream-backed StreamTraversal will map lazily, but a List-backed one will need to traverse and
-   * rebuild the list.
+   * rebuild the list. An implementation whose {@code modify} is lazy should override {@link
+   * #toTraversal()} too, as {@link #forVStream()} does.
    *
    * @param f the modification function; must not be null
    * @param source the source structure; must not be null
@@ -104,8 +106,9 @@ public interface StreamTraversal<S, A> {
    * is pulled.
    *
    * <p>The primary advantage over {@link Traversal#modifyF} is that this method works directly with
-   * VTask rather than requiring a generic Applicative, making it simpler to use for virtual thread
-   * workloads.
+   * VTask rather than requiring a generic Applicative. It starts no thread of its own: the tasks
+   * run on the thread that runs the returned VTask, or, for {@link #forVStream()}, on the thread
+   * that pulls the stream.
    *
    * @param f the effectful modification function; must not be null
    * @param source the source structure; must not be null
@@ -142,6 +145,11 @@ public interface StreamTraversal<S, A> {
       public VTask<S> modifyVTask(Function<B, VTask<B>> f, S source) {
         return self.modifyVTask(a -> other.modifyVTask(f, a), source);
       }
+
+      @Override
+      public Traversal<S, B> toTraversal() {
+        return self.toTraversal().andThen(other.toTraversal());
+      }
     };
   }
 
@@ -171,6 +179,11 @@ public interface StreamTraversal<S, A> {
       public VTask<S> modifyVTask(Function<B, VTask<B>> f, S source) {
         return self.modifyVTask(a -> f.apply(lens.get(a)).map(b -> lens.set(b, a)), source);
       }
+
+      @Override
+      public Traversal<S, B> toTraversal() {
+        return self.toTraversal().andThen(lens);
+      }
     };
   }
 
@@ -179,6 +192,13 @@ public interface StreamTraversal<S, A> {
    *
    * <p><b>Warning:</b> The resulting Traversal materialises all elements via the Applicative
    * context. This loses the laziness advantage of StreamTraversal. Only safe for finite sources.
+   *
+   * <p>The Traversal reads the focused elements once, applies the function to each, and puts the
+   * results back in their places. This default puts them back through {@link #modify}, which suits
+   * a structure that {@code modify} builds at once, as {@link #forList()}'s does. If {@code modify}
+   * is lazy, override this method: the default's result would read the source again each time it is
+   * read, and fail the second time. {@link #forVStream()} and {@link #fromTraversal} override it,
+   * and an {@link #andThen} composition composes its parts' Traversals.
    *
    * @return a materialising Traversal; never null
    */
@@ -252,6 +272,11 @@ public interface StreamTraversal<S, A> {
             };
         return modified;
       }
+
+      @Override
+      public Traversal<S, A> toTraversal() {
+        return traversal;
+      }
     };
   }
 
@@ -261,7 +286,8 @@ public interface StreamTraversal<S, A> {
    * <p>This is the canonical instance. The {@link #stream} method returns the source VStream
    * unchanged (identity). The {@link #modify} method maps each element lazily. The {@link
    * #modifyVTask} method applies the effectful function to each element using {@link
-   * VStream#mapTask}.
+   * VStream#mapTask}. Its {@link #toTraversal} is {@link VStreamTraversals#forVStream()}, which
+   * reads the source once and gives a stream of the results.
    *
    * @param <A> the element type
    * @return a StreamTraversal for VStream elements; never null
@@ -281,6 +307,12 @@ public interface StreamTraversal<S, A> {
       @Override
       public VTask<VStream<A>> modifyVTask(Function<A, VTask<A>> f, VStream<A> source) {
         return VTask.succeed(source.mapTask(f));
+      }
+
+      // Reads the source once, and gives a stream of the results, which replays them each run
+      @Override
+      public Traversal<VStream<A>, A> toTraversal() {
+        return VStreamTraversals.forVStream();
       }
     };
   }

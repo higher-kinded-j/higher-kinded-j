@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
  * <p>Tests cover transformation application, composition, and identity transformations.
  */
 @DisplayName("NaturalTransformation<F, G> Complete Test Suite")
+@SuppressWarnings("removal") // tests the deprecated interface until its removal
 class NaturalTransformationTest {
 
   // Helper method to create Id -> Maybe transformation
@@ -116,6 +118,22 @@ class NaturalTransformationTest {
 
       Maybe<Integer> maybe = MaybeKindHelper.MAYBE.narrow(result);
       assertThat(maybe.get()).isEqualTo(42);
+    }
+  }
+
+  @Nested
+  @DisplayName("A NaturalTransformation is a Natural")
+  class IsANaturalTests {
+
+    @Test
+    @DisplayName("it can be used where a Natural is wanted, and chained with one")
+    void usableAsANatural() {
+      Natural<IdKind.Witness, MaybeKind.Witness> asNatural = idToMaybe();
+      Natural<IdKind.Witness, IdKind.Witness> roundTrip = asNatural.andThen(maybeToId());
+
+      Kind<IdKind.Witness, String> result = roundTrip.apply(IdKindHelper.ID.widen(Id.of("value")));
+
+      assertThat(IdKindHelper.ID.narrow(result).value()).isEqualTo("value");
     }
   }
 

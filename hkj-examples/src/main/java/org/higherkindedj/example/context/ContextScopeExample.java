@@ -72,7 +72,7 @@ public class ContextScopeExample {
 
               // Execute the task
               Try<String> result = task.runSafe();
-              result.foldFailureFirst(
+              result.fold(
                   error -> {
                     System.out.println("VTask error: " + error.getMessage());
                     return null;
@@ -266,7 +266,7 @@ public class ContextScopeExample {
                   Scope.<String>allSucceed().timeout(scopeTimeout).fork(task1).fork(task2).join();
 
               Try<List<String>> result = results.runSafe();
-              result.foldFailureFirst(
+              result.fold(
                   error -> {
                     System.out.println("Deadline exceeded: " + error.getClass().getSimpleName());
                     return null;
@@ -387,7 +387,7 @@ public class ContextScopeExample {
                       .join();
 
               Try<List<String>> result = dashboard.runSafe();
-              result.foldFailureFirst(
+              result.fold(
                   error -> {
                     System.out.println("Dashboard error: " + error.getMessage());
                     return null;

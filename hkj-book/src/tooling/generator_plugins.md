@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 31 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
+Higher-Kinded-J ships 32 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
 
 ---
 
@@ -62,11 +62,11 @@ dependencies {
 | `ImmutableList<A>` | |
 | `ImmutableSet<A>` | |
 | `ImmutableBag<A>` | |
-| `ImmutableSortedSet<A>` | Preserves natural ordering |
+| `ImmutableSortedSet<A>` | Rebuilt with the source's comparator |
 | `MutableList<A>` | |
 | `MutableSet<A>` | |
 | `MutableBag<A>` | |
-| `MutableSortedSet<A>` | Preserves natural ordering |
+| `MutableSortedSet<A>` | Rebuilt with the source's comparator |
 
 #### Google Guava
 
@@ -104,7 +104,8 @@ dependencies {
 
 | Type | Notes |
 |------|-------|
-| `HashBag<A>` | |
+| `HashBag<A>` | Deprecated in commons-collections4 4.6.0, which recommends `HashMultiSet` |
+| `HashMultiSet<A>` | |
 | `UnmodifiableList<A>` | |
 
 #### PCollections
@@ -120,10 +121,10 @@ dependencies {
 | `org.pcollections.PVector<A>` | Reconstructed via `TreePVector.from(Collection)` |
 | `org.pcollections.PStack<A>` | Reconstructed via `ConsPStack.from(Collection)` |
 | `org.pcollections.PSet<A>` | Reconstructed via `HashTreePSet.from(Collection)` |
-| `org.pcollections.PSortedSet<A>` | Natural ordering only; custom comparators are not preserved |
+| `org.pcollections.PSortedSet<A>` | Reconstructed via `TreePSet.from(Comparator, Collection)`, with the source's comparator |
 | `org.pcollections.PBag<A>` | Reconstructed via `HashTreePBag.from(Collection)` |
 | `org.pcollections.PMap<K, V>` | Value-focused; reconstructed via `HashTreePMap.from(Map)` |
-| `org.pcollections.PSortedMap<K, V>` | Value-focused; natural key ordering only |
+| `org.pcollections.PSortedMap<K, V>` | Value-focused; reconstructed via `TreePMap.from(Comparator, Map)`, with the source's comparator |
 
 ---
 
@@ -175,7 +176,7 @@ ServiceLoader.load(TraversableGenerator.class)
     ├── OptionalGenerator     (supports Optional<A>)
     ├── EitherGenerator       (supports Either<L, R>)
     ├── GuavaImmutableListGenerator  (supports ImmutableList<A>)
-    └── ... 26 more generators
+    └── ... 27 more generators
 ```
 
 For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type. The exceptions are the five types `@GenerateFocus` recognises by name, which it widens without asking a generator, and a primitive array, which it never widens.
@@ -232,6 +233,15 @@ public interface TraversableGenerator {
      */
     default int getFocusTypeArgumentIndex() {
         return 0;
+    }
+
+    /**
+     * The type argument the container orders its contents by (0-indexed): a sorted
+     * set's element, a sorted map's key. Default is empty, for a container that keeps
+     * no order of its own. A component with a wildcard there is refused a traversal.
+     */
+    default OptionalInt getOrderedTypeArgumentIndex() {
+        return OptionalInt.empty();
     }
 
     /**
@@ -382,6 +392,8 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
+- **Override `getOrderedTypeArgumentIndex()`** if your container keeps its contents in an order of its own, such as a sorted set's element or a sorted map's key, and its rebuild reuses the source's comparator. A wildcard at that argument is then refused: `@GenerateTraversals` notes the component and generates no traversal, and `@GenerateFocus` rejects it where it widens the component.
+- **Widen a sorted container through `EachInstances.fromIterableRebuilding` or `mapValuesEachRebuilding`** in `generateOpticExpression()`. Their rebuild is handed the source as well, so a Focus path keeps the comparator too.
 - **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
 - **Override `generateOpticExpression()` and `getRequiredImports()`** for the field to widen under `@GenerateFocus`: name the `Affine` or `Each` that reads and rebuilds your container. Without them the Focus path stops at the container.
 - **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements. Compiling it with `-Xlint:cast,unchecked,rawtypes -Werror` and asserting `succeededWithoutWarnings()` catches a warning your users' builds would otherwise report in a file they cannot edit.
@@ -389,7 +401,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **31 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
+* **32 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns

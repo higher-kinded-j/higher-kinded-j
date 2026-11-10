@@ -1,519 +1,155 @@
-# The StreamMonad:
-## _Lazy, Potentially Infinite Sequences with Functional Operations_
+<!-- description: Use Java's Stream with Higher-Kinded-J: rerun a sequence on a StreamPath, pass an endless Stream to generic code, read it once, and number it with StreamOps. -->
+
+# Stream: Java's Stream in Generic Code
+
+_Keep Java's own `Stream`, with an Effect Path you can run more than once, and instances for generic code._
+
+~~~admonish abstract title="Stream at a glance"
+| | |
+|---|---|
+| **Models** | A sequence that makes each element as it is read, in Java's own type |
+| **Replaces** | Nothing: it is Java's own type |
+| **Effect Path** | [`StreamPath`](../glossary/effect-paths.md#streampath), which can be run more than once |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:stream_monad}}
+| **Choose it when** | The code already gives you a `Stream`; otherwise [List](list_monad.md), which can be read again, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- How to work with Streams as contexts for lazy, potentially infinite sequences
-- Understanding Stream's **single-use semantics** and how to work with them
-- Using `map`, `flatMap`, and `ap` for lazy functional composition
-- Leveraging StreamOps utilities for common stream operations
-- Building efficient data processing pipelines with monadic operations
-- When to choose Stream over List for sequential processing
+- Run the same sequence more than once on a `StreamPath`, even an endless one
+- Pass an endless `Stream` to code written once for any container, making only the elements you take
+- Say what single use means for a `Kind` that holds a stream, and which operation reads it early
+- Number and combine streams with `StreamOps`
+- Fold a stream through `StreamTraverse`
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[StreamExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/StreamExample.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [StreamBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java)**: the page includes it, so the build compiles and runs it. [StreamBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/stream/StreamBookTest.java) holds what the page says each method does.
 ~~~
 
-## Purpose
+---
 
-The `StreamMonad` in the `Higher-Kinded-J` library provides a monadic interface for Java's standard `java.util.stream.Stream`. It allows developers to work with streams in a functional style, enabling operations like `map`, `flatMap`, and `ap` within the higher-kinded type system. This is particularly useful for processing sequences of data lazily, handling potentially infinite sequences, and composing stream operations in a type-safe manner.
+## Java's own type {#javas-own-type}
 
-Key benefits include:
+`java.util.stream.Stream` makes each element only when something reads it, so a stream can run without end and still be read in part. Higher-Kinded-J does not replace it. It gives `Stream` an Effect Path, `StreamPath`, for application code, and a `MonadZero` instance, so that a method written once for any container accepts a stream too. A Java `Stream` can be read only once; a `StreamPath` can be run again.
 
-* **Lazy Evaluation:** Operations are not performed until a terminal operation is invoked, allowing for efficient processing of large or infinite sequences.
-* **HKT Integration:** `StreamKind` (the higher-kinded wrapper for `Stream`) and `StreamMonad` allow `Stream` to be used with generic functions and type classes expecting `Kind<F, A>` where `F extends WitnessArity<?>`, along with type classes like `Functor<F>`, `Applicative<F>`, or `Monad<F>` where `F extends WitnessArity<TypeArity.Unary>`.
-* **MonadZero Instance:** Provides an empty stream via `zero()`, useful for filtering and conditional logic.
-* **Functional Composition:** Easily chain operations on streams where each operation maintains laziness and allows composition of complex data transformations.
-
-It implements `MonadZero<StreamKind.Witness>`, inheriting from `Monad`, `Applicative`, and `Functor`.
-
-~~~admonish warning title="Important: Single-Use Semantics"
-Java Streams have **single-use semantics**. Once a terminal operation has been performed on a stream (including operations that narrow and inspect the stream), that stream cannot be reused. Attempting to operate on a consumed stream throws `IllegalStateException`.
-
-**Best Practice:** Create fresh stream instances for each operation sequence. Don't store and reuse `Kind<StreamKind.Witness, A>` instances after they've been consumed.
-~~~
-
-## How to Use `StreamMonad` and `StreamKind`
-
-### Creating Instances
-
-`StreamKind<A>` is the higher-kinded type representation for `java.util.stream.Stream<A>`. You create `StreamKind` instances using the `StreamKindHelper` utility class, the `of` method from `StreamMonad`, or the convenient factory methods in `StreamOps`.
-
-~~~admonish title="_STREAM.widen(Stream<A>)_"
-
-Converts a standard `java.util.stream.Stream<A>` into a `Kind<StreamKind.Witness, A>`.
+The code on this page uses these imports:
 
 <!-- verify -->
 ```java
-Stream<String> stringStream = Stream.of("a", "b", "c");
-Kind<StreamKind.Witness, String> streamKind1 = STREAM.widen(stringStream);
-
-Stream<Integer> intStream = Stream.of(1, 2, 3);
-Kind<StreamKind.Witness, Integer> streamKind2 = STREAM.widen(intStream);
-
-Stream<Object> emptyStream = Stream.empty();
-Kind<StreamKind.Witness, Object> streamKindEmpty = STREAM.widen(emptyStream);
+import java.util.List;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.StreamPath;
 ```
-~~~
 
+## On a `StreamPath` {#on-a-streampath}
 
-~~~admonish title="_streamMonad.of(A value)_"
+`Path.streamIterate(seed, f)` builds a fresh stream each time the path runs. So `take` limits an endless one, and the same invoices come back on every run:
 
-Lifts a single value into the `StreamKind` context, creating a singleton stream. A `null` input value results in an empty `StreamKind`.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:path}}
+```
+
+`Path.stream(stream)` reads the whole stream when it is called, so that stream must be finite, and the path can then be run again. `StreamPath.generate(supplier)` and `StreamPath.fromSupplier(supplier)` build a fresh stream on each run, as `streamIterate` does. A `StreamPath`'s `zipWith` gives every combination of two paths' elements, as a [`NonDetPath`](list_monad.md#every-combination-or-position-by-position)'s does, and unlike `StreamOps.zip`. It reads both paths whole on each run, so `take` from an endless path first.
+
+## Invoice numbers without end {#invoice-numbers-without-end}
+
+Code written once for any container takes a stream widened to a `Kind<StreamKind.Witness, A>`. The [Foundations](../hkts/foundations_intro.md) introduction's "Which level am I working at?" tip says when you need that. The stream keeps its laziness through the instance's `map` and `flatMap`. These are the extra imports, with `LineItem` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-
-Kind<StreamKind.Witness, String> streamKindOneItem = streamMonad.of("hello"); // Contains a stream with one element: "hello"
-Kind<StreamKind.Witness, Integer> streamKindAnotherItem = streamMonad.of(42);  // Contains a stream with one element: 42
-Kind<StreamKind.Witness, Object> streamKindFromNull = streamMonad.of(null); // Contains an empty stream
-```
-~~~
-
-~~~admonish title="_streamMonad.zero()_"
-
-Creates an empty `StreamKind`, useful for filtering operations or providing a "nothing" value in monadic computations.
-
-<!-- verify -->
-```java
-MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-
-Kind<StreamKind.Witness, String> emptyStreamKind = streamMonad.zero(); // Empty stream
-```
-~~~
-
-~~~admonish title="_STREAM.narrow()_"
-
-To get the underlying `java.util.stream.Stream<A>` from a `Kind<StreamKind.Witness, A>`, use `STREAM.narrow()`:
-
-<!-- verify -->
-```java
-Kind<StreamKind.Witness, String> streamKind = STREAM.widen(Stream.of("example"));
-Stream<String> unwrappedStream = STREAM.narrow(streamKind); // Returns Stream containing "example"
-
-// You can then perform terminal operations on the unwrapped stream
-List<String> result = unwrappedStream.collect(Collectors.toList());
-System.out.println(result); // [example]
-```
-~~~
-
-~~~admonish title="_StreamOps Factory Methods_"
-
-The `StreamOps` utility class provides convenient factory methods for creating `StreamKind` instances:
-
-<!-- verify -->
-```java
-// Create from varargs
-Kind<StreamKind.Witness, Integer> numbers = fromArray(1, 2, 3, 4, 5);
-
-// Create a range (exclusive end)
-Kind<StreamKind.Witness, Integer> range = range(1, 11); // 1 through 10
-
-// Create from collection
-List<String> names = Arrays.asList("Alice", "Bob", "Charlie");
-Kind<StreamKind.Witness, String> nameStream = fromIterable(names);
-
-// The empty stream is the MonadZero's zero
-Kind<StreamKind.Witness, String> empty = Instances.monadZero(stream()).zero();
-```
-~~~
-
-### Key Operations
-
-The `StreamMonad` provides standard monadic operations, all maintaining lazy evaluation:
-
-~~~admonish  title="_map(Function<A, B> f, Kind<StreamKind.Witness, A> fa)_"
-**`map(Function<A, B> f, Kind<StreamKind.Witness, A> fa)`:**
-
-Applies a function `f` to each element of the stream within `fa`, returning a new `StreamKind` containing the transformed elements. The transformation is **lazy** and won't execute until a terminal operation is performed.
-
-<!-- verify -->
-```java
-MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-Kind<StreamKind.Witness, Integer> numbers = STREAM.widen(Stream.of(1, 2, 3));
-
-Function<Integer, String> intToString = i -> "Number: " + i;
-Kind<StreamKind.Witness, String> strings = streamMonad.map(intToString, numbers);
-
-// At this point, no transformation has occurred yet (lazy)
-// Terminal operation triggers execution:
-List<String> result = STREAM.narrow(strings).collect(Collectors.toList());
-System.out.println(result);
-// Output: [Number: 1, Number: 2, Number: 3]
-```
-~~~
-
-~~~admonish  title="_flatMap(Function<A, Kind<StreamKind.Witness, B>> f, Kind<StreamKind.Witness, A> ma)_"
-**`flatMap(Function<A, Kind<StreamKind.Witness, B>> f, Kind<StreamKind.Witness, A> ma)`:**
-
-Applies a function `f` to each element of the stream within `ma`. The function `f` itself returns a `StreamKind<B>`. `flatMap` then flattens all these resulting streams into a single `StreamKind<B>`. Evaluation remains lazy.
-
-<!-- verify -->
-```java
-MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-Kind<StreamKind.Witness, Integer> initialValues = STREAM.widen(Stream.of(1, 2, 3));
-
-// Function that takes an integer and returns a stream of itself and itself + 10
-Function<Integer, Kind<StreamKind.Witness, Integer>> replicateAndAddTen =
-    i -> STREAM.widen(Stream.of(i, i + 10));
-
-Kind<StreamKind.Witness, Integer> flattenedStream = streamMonad.flatMap(replicateAndAddTen, initialValues);
-
-// Lazy - evaluation happens at terminal operation
-List<Integer> result = STREAM.narrow(flattenedStream).collect(Collectors.toList());
-System.out.println(result);
-// Output: [1, 11, 2, 12, 3, 13]
-
-// Example with conditional logic
-Function<Integer, Kind<StreamKind.Witness, String>> toWordsIfEven =
-    i -> (i % 2 == 0) ?
-         STREAM.widen(Stream.of("even", String.valueOf(i))) :
-         streamMonad.zero(); // Empty stream for odd numbers
-
-Kind<StreamKind.Witness, String> wordStream = streamMonad.flatMap(toWordsIfEven, initialValues);
-List<String> words = STREAM.narrow(wordStream).collect(Collectors.toList());
-System.out.println(words);
-// Output: [even, 2]
-```
-~~~
-
-~~~admonish  title="_ap(Kind<StreamKind.Witness, Function<A, B>> ff, Kind<StreamKind.Witness, A> fa)_"
-**`ap(Kind<StreamKind.Witness, Function<A, B>> ff, Kind<StreamKind.Witness, A> fa)`:**
-
-Applies a stream of functions `ff` to a stream of values `fa`. This results in a new stream where each function from `ff` is applied to each value in `fa` (Cartesian product style). Evaluation remains lazy.
-
-<!-- verify -->
-```java
-MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-
-Function<Integer, String> addPrefix = i -> "Val: " + i;
-Function<Integer, String> multiplyAndString = i -> "Mul: " + (i * 2);
-
-Kind<StreamKind.Witness, Function<Integer, String>> functions =
-    STREAM.widen(Stream.of(addPrefix, multiplyAndString));
-Kind<StreamKind.Witness, Integer> values = STREAM.widen(Stream.of(10, 20));
-
-Kind<StreamKind.Witness, String> appliedResults = streamMonad.ap(functions, values);
-
-// Lazy - collects when terminal operation is performed
-List<String> result = STREAM.narrow(appliedResults).collect(Collectors.toList());
-System.out.println(result);
-// Output: [Val: 10, Val: 20, Mul: 20, Mul: 40]
-```
-~~~
-
-## StreamOps Utility Documentation
-
-The `StreamOps` class provides a rich set of static utility methods for working with `StreamKind` instances. These operations complement the monadic interface with practical stream manipulation functions.
-
-### Creation Operations
-
-~~~admonish title="Factory Methods"
-```java
-// Create from varargs (@SafeVarargs on the real declaration)
-Kind<StreamKind.Witness, T> fromArray(T... elements);
-
-// Create from Iterable
-Kind<StreamKind.Witness, T> fromIterable(Iterable<T> iterable);
-
-// Create a range [start, end)
-Kind<StreamKind.Witness, Integer> range(int start, int end);
-
-// Create a range [start, end]
-Kind<StreamKind.Witness, Integer> rangeClosed(int start, int end);
-```
-
-There is no `empty()` here: the empty stream is `MonadZero.zero()`.
-
-
-**Examples:**
-<!-- verify -->
-```java
-Kind<StreamKind.Witness, String> names = fromArray("Alice", "Bob", "Charlie");
-Kind<StreamKind.Witness, Integer> numbers = range(1, 101); // 1 to 100
-Kind<StreamKind.Witness, String> emptyStream = Instances.monadZero(stream()).zero();
-```
-~~~
-
-### Filtering and Selection
-
-~~~admonish title="Filtering Operations"
-<!-- verify -->
-```java
-// Keep only elements matching predicate
-Kind<StreamKind.Witness, A> filter(Predicate<A> predicate, Kind<StreamKind.Witness, A> stream);
-
-// Take first n elements
-Kind<StreamKind.Witness, A> take(long n, Kind<StreamKind.Witness, A> stream);
-
-// Skip first n elements
-Kind<StreamKind.Witness, A> drop(long n, Kind<StreamKind.Witness, A> stream);
-```
-
-**Examples:**
-<!-- verify -->
-```java
-Kind<StreamKind.Witness, Integer> numbers = range(1, 101);
-
-// Get only even numbers
-Kind<StreamKind.Witness, Integer> evens = filter(n -> n % 2 == 0, numbers);
-
-// Get first 10 elements
-Kind<StreamKind.Witness, Integer> first10 = take(10, range(1, 1000));
-
-// Skip first 5 elements
-Kind<StreamKind.Witness, Integer> afterFirst5 = drop(5, range(1, 20));
-```
-~~~
-
-### Combination Operations
-
-~~~admonish title="Combining Streams"
-<!-- verify -->
-```java
-// Concatenate two streams sequentially
-Kind<StreamKind.Witness, A> concat(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, A> stream2);
-
-// Zip two streams element-wise with combiner function
-Kind<StreamKind.Witness, C> zip(Kind<StreamKind.Witness, A> stream1, Kind<StreamKind.Witness, B> stream2, BiFunction<A, B, C> combiner);
-
-// Pair each element with its index (starting from 0)
-Kind<StreamKind.Witness, Tuple2<Integer, A>> zipWithIndex(Kind<StreamKind.Witness, A> stream);
-```
-
-**Examples:**
-<!-- verify -->
-```java
-Kind<StreamKind.Witness, Integer> first = range(1, 4);   // 1, 2, 3
-Kind<StreamKind.Witness, Integer> second = range(10, 13); // 10, 11, 12
-
-// Sequential concatenation
-Kind<StreamKind.Witness, Integer> combined = concat(first, second);
-// Result: 1, 2, 3, 10, 11, 12
-
-// Element-wise combination
-Kind<StreamKind.Witness, String> names = fromArray("Alice", "Bob", "Charlie");
-Kind<StreamKind.Witness, Integer> ages = fromArray(25, 30, 35);
-Kind<StreamKind.Witness, String> profiles = zip(names, ages,
-    (name, age) -> name + " is " + age);
-// Result: "Alice is 25", "Bob is 30", "Charlie is 35"
-
-// Index pairing
-Kind<StreamKind.Witness, String> items = fromArray("apple", "banana", "cherry");
-Kind<StreamKind.Witness, Tuple2<Integer, String>> indexed = zipWithIndex(items);
-// Result: (0, "apple"), (1, "banana"), (2, "cherry")
-```
-~~~
-
-### Terminal Operations
-
-~~~admonish title="Consuming Streams"
-<!-- verify -->
-```java
-// Collect to List
-List<A> toList(Kind<StreamKind.Witness, A> stream);
-
-// Collect to Set
-Set<A> toSet(Kind<StreamKind.Witness, A> stream);
-
-// Execute side effect for each element
-void forEach(Consumer<A> action, Kind<StreamKind.Witness, A> stream);
-```
-
-**Examples:**
-<!-- verify -->
-```java
-Kind<StreamKind.Witness, Integer> numbers = range(1, 6);
-
-// Collect to List
-List<Integer> numberList = toList(numbers); // [1, 2, 3, 4, 5]
-
-// Collect to Set (removes duplicates)
-Kind<StreamKind.Witness, String> words = fromArray("a", "b", "a", "c");
-Set<String> uniqueWords = toSet(words); // {"a", "b", "c"}
-
-// Execute side effects
-Kind<StreamKind.Witness, String> messages = fromArray("Hello", "World");
-forEach(System.out::println, messages);
-// Prints:
-// Hello
-// World
-```
-~~~
-
-### Side Effects and Debugging
-
-~~~admonish title="Observation Operations"
-<!-- verify -->
-```java
-// Execute side effect for each element while passing through
-Kind<StreamKind.Witness, A> tap(Consumer<A> action, Kind<StreamKind.Witness, A> stream);
-```
-
-**Example:**
-<!-- verify -->
-```java
-List<String> log = new ArrayList<>();
-
-Kind<StreamKind.Witness, Integer> pipeline = tap(
-    n -> log.add("Processing: " + n),
-    Instances.monadZero(stream()).map(n -> n * 2, range(1, 4))
-);
-
-// Side effects haven't executed yet (lazy)
-System.out.println("Log size: " + log.size()); // 0
-
-// Terminal operation triggers execution
-List<Integer> result = toList(pipeline);
-System.out.println("Log size: " + log.size()); // 3
-System.out.println("Log: " + log); // [Processing: 2, Processing: 4, Processing: 6]
-System.out.println("Result: " + result); // [2, 4, 6]
-```
-~~~
-
-## Important Constraints: Single-Use Semantics
-
-~~~admonish danger title="Critical: Stream Single-Use Limitation"
-Unlike `List` or `Optional`, Java Streams can only be consumed **once**. This is a fundamental characteristic of `java.util.stream.Stream` that is preserved in the HKT representation.
-
-**What This Means:**
-- Once you perform a terminal operation on a stream (including `narrow()` followed by collection), that stream is consumed
-- Attempting to reuse a consumed stream throws `IllegalStateException`
-- Each `Kind<StreamKind.Witness, A>` instance can only flow through one pipeline to completion
-
-**Correct Approach:**
-<!-- verify -->
-```java
-// Create fresh stream for each independent operation
-Kind<StreamKind.Witness, Integer> stream1 = range(1, 4);
-List<Integer> result1 = toList(stream1); // ✓ First use
-
-Kind<StreamKind.Witness, Integer> stream2 = range(1, 4); // Create new stream
-List<Integer> result2 = toList(stream2); // ✓ Second use with fresh stream
-```
-
-**Incorrect Approach:**
-<!-- verify -->
-```java
-// DON'T DO THIS - Will throw IllegalStateException
-Kind<StreamKind.Witness, Integer> stream = range(1, 4);
-List<Integer> result1 = toList(stream);  // ✓ First use
-List<Integer> result2 = toList(stream);  // ✗ ERROR: stream already consumed!
-```
-
-**Design Implications:**
-- Don't store `StreamKind` instances in fields for reuse
-- Create streams on-demand when needed
-- Use factory methods or suppliers to generate fresh streams
-- Consider using `List` if you need to process data multiple times
-~~~
-
-## Practical Example: Complete Usage
-
-~~~admonish example title="Comprehensive Stream Example"
-Here's a complete example demonstrating various Stream operations:
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.MonadZero;
-import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.stream.StreamKind;
 import static org.higherkindedj.hkt.instances.Witnesses.stream;
 import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
-import static org.higherkindedj.hkt.stream.StreamOps.*;
 
-import java.util.List;
-import java.util.function.Function;
-
-public class StreamUsageExample {
-   public static void main(String[] args) {
-      MonadZero<StreamKind.Witness> streamMonad = Instances.monadZero(stream());
-
-      // 1. Create a StreamKind using range
-      Kind<StreamKind.Witness, Integer> numbersKind = range(1, 11); // 1 through 10
-
-      // 2. Use map to transform (lazy)
-      Function<Integer, String> numberToString = n -> "Item-" + n;
-      Kind<StreamKind.Witness, String> stringsKind = streamMonad.map(numberToString, numbersKind);
-
-      System.out.println("Mapped: " + toList(stringsKind));
-      // Expected: [Item-1, Item-2, Item-3, ..., Item-10]
-
-      // 3. Create fresh stream for flatMap example
-      Kind<StreamKind.Witness, Integer> numbersKind2 = range(1, 6);
-
-      // flatMap: duplicate even numbers, skip odd numbers
-      Function<Integer, Kind<StreamKind.Witness, Integer>> duplicateIfEven = n -> {
-         if (n % 2 == 0) {
-            return fromArray(n, n); // Duplicate even numbers
-         } else {
-            return streamMonad.zero(); // Skip odd numbers
-         }
-      };
-
-      Kind<StreamKind.Witness, Integer> flatMappedKind = streamMonad.flatMap(duplicateIfEven, numbersKind2);
-      System.out.println("FlatMapped: " + toList(flatMappedKind));
-      // Expected: [2, 2, 4, 4]
-
-      // 4. Use of to create singleton
-      Kind<StreamKind.Witness, String> singleValueKind = streamMonad.of("hello world");
-      System.out.println("From 'of': " + toList(singleValueKind));
-      // Expected: [hello world]
-
-      // 5. Use zero to create empty stream
-      Kind<StreamKind.Witness, String> emptyKind = streamMonad.zero();
-      System.out.println("From 'zero': " + toList(emptyKind));
-      // Expected: []
-
-      // 6. StreamOps: filter and take
-      Kind<StreamKind.Witness, Integer> largeRange = range(1, 101);
-      Kind<StreamKind.Witness, Integer> evensFirst10 = take(10, filter(n -> n % 2 == 0, largeRange));
-      System.out.println("First 10 evens: " + toList(evensFirst10));
-      // Expected: [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
-
-      // 7. Zip two streams
-      Kind<StreamKind.Witness, String> names = fromArray("Alice", "Bob", "Charlie");
-      Kind<StreamKind.Witness, Integer> scores = fromArray(95, 87, 92);
-      Kind<StreamKind.Witness, String> results = zip(names, scores,
-          (name, score) -> name + ": " + score);
-
-      System.out.println("Results: " + toList(results));
-      // Expected: [Alice: 95, Bob: 87, Charlie: 92]
-
-      // 8. Demonstrating single-use constraint
-      Kind<StreamKind.Witness, Integer> streamOnce = range(1, 4);
-      List<Integer> firstUse = toList(streamOnce);
-      System.out.println("First use: " + firstUse);
-      // Expected: [1, 2, 3]
-
-      // Must create new stream for second use
-      Kind<StreamKind.Witness, Integer> streamTwice = range(1, 4);
-      List<Integer> secondUse = toList(streamTwice);
-      System.out.println("Second use (new stream): " + secondUse);
-      // Expected: [1, 2, 3]
-   }
-}
+import java.util.stream.Stream;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.MonadZero;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.stream.StreamKind;
+import org.higherkindedj.hkt.stream.StreamOps;
+import org.higherkindedj.hkt.stream.StreamTraverse;
 ```
-~~~
 
-## When to Use StreamMonad
+Invoice numbers can come from a stream with no end:
 
-**Choose `StreamMonad` when:**
-- Processing large datasets where lazy evaluation provides memory efficiency
-- Working with potentially infinite sequences
-- Building complex data transformation pipelines
-- You need intermediate laziness and only want to materialise results at the end
-- Single-pass processing is sufficient for your use case
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:invoice_numbers}}
+```
 
-**Choose `ListMonad` instead when:**
-- You need to process the same data multiple times
-- Random access to elements is required
-- The entire dataset fits comfortably in memory
-- You need to store the result for later reuse
+`map` adds the prefix to each number as it is read, and `StreamOps.take` stops after three:
 
-**Key Difference:** `List` is eager and reusable; `Stream` is lazy and single-use.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:invoices}}
+```
+
+Nothing is made until `toList` reads the stream, and then only three invoice numbers are. `flatMap` keeps the laziness too, so it reads an endless stream only as far as the consumer needs.
+
+`ap` is the exception. Each function in its first stream needs every value in the second, so `ap` reads the whole second stream when it is called, and with an endless second stream it never returns.
+
+## A stream is read once {#a-stream-is-read-once}
+
+`ORDER_LINES` holds the lines of two orders:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:order_lines}}
+```
+
+`flatMap` turns each order's lines into a stream of their SKUs, and joins those streams into one:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:lines}}
+```
+
+A Java `Stream` can be used only once, and a `Kind` that holds one holds that one stream. Passing `skus` to any further operation, `map` as much as `toList`, throws `IllegalStateException`: `stream has already been operated upon or closed`. So build a fresh stream for each use, keep the elements in a [List](list_monad.md), or use a [`StreamPath`](#on-a-streampath).
+
+## Numbering and combining with `StreamOps` {#numbering-and-combining-with-streamops}
+
+`StreamOps` gives the common operations over a widened stream. `zipWithIndex` pairs each element with its position, counting from 0, which numbers a pick list:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:numbered}}
+```
+
+`zip` pairs two streams element by element, and `concat` puts one after another. The Methods table lists the rest.
+
+## Creating instances {#creating-instances}
+
+`STREAM.widen(stream)` gives a `Kind` that holds a `Stream`, and `StreamOps.fromArray(...)`, `fromIterable(iterable)`, `range(from, to)` and `rangeClosed(from, to)` start one. The instance's `of(value)` gives a stream of one element, `of(null)` an empty stream, as `Optional`'s and `List`'s do, and `zero()` an empty stream. On a Path, `Path.stream(stream)`, `Path.streamFromList(list)`, `Path.streamPure(value)`, `Path.streamEmpty()` and `Path.streamIterate(seed, f)` start a `StreamPath`.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `streams.map(f, stream)`, `streams.flatMap(f, stream)` | Change each element, or join the stream `f` gives for each, as the stream is read |
+| `streams.ap(functions, values)` | Applies every function to every value, reading every value at the call |
+| `StreamOps.take(n, stream)`, `drop(n, stream)`, `filter(p, stream)` | Narrow the stream |
+| `StreamOps.zip(a, b, f)`, `zipWithIndex(stream)`, `concat(a, b)` | Pair by position, number, or join streams |
+| `StreamOps.toList(stream)`, `toSet(stream)`, `forEach(action, stream)` | Read the stream |
+| `StreamOps.tap(action, stream)` | Runs `action` on each element as it passes |
+| `streamPath.map(f)`, `via(f)`, `filter(p)`, `take(n)` | Build the next path |
+| `streamPath.zipWith(other, f)` | Combines every element with every element of `other`, reading both whole |
+| `streamPath.toList()`, `run()` | Give the elements as a `List`, or a fresh `Stream` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code takes `Stream` through its [`MonadZero`](../functional/monad_zero.md) instance, from `Instances.monadZero(stream())`. `Stream` is a JDK type, so `STREAM.widen` wraps it in a small holder, and `STREAM.narrow` gives the stream back. The [`Alternative`](../functional/alternative.md) from `Instances.alternative(stream())` puts one stream after another with `orElse`. `StreamTraverse.INSTANCE` is its `Traverse`, and so its `Foldable`, and reads the stream to fold or traverse it:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/stream/StreamBook.java:kind}}
+```
+
+The two orders hold six items: a lamp, four bulbs and a shade.
+
+## When to use `Stream` {#when-to-use-stream}
+
+| You need | Use |
+|---|---|
+| A Java `Stream` handed to code written over `Kind` | `Stream`, through `Instances.monadZero(stream())` |
+| A sequence that is run more than once | A [`StreamPath`](#on-a-streampath), or a [List](list_monad.md) |
+| Elements produced by I/O, on virtual threads | [VStream](vstream.md) |
+| Every combination of several choices, held in memory | [List](list_monad.md) |
+| One pass over a stream in one method | The stream's own methods: nothing else needs the `Kind` |
 
 ---
 

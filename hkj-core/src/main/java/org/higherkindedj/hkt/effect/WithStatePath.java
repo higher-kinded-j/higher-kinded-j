@@ -213,11 +213,10 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
   public WithStatePath<S, A> peek(Consumer<? super A> consumer) {
     Objects.requireNonNull(consumer, "consumer must not be null");
     return new WithStatePath<>(
-        State.of(
-            s -> {
-              StateTuple<S, A> result = state.run(s);
-              consumer.accept(result.value());
-              return result;
+        state.map(
+            a -> {
+              consumer.accept(a);
+              return a;
             }));
   }
 
@@ -238,16 +237,12 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
     WithStatePath<S, B> typedOther = (WithStatePath<S, B>) otherState;
 
     return new WithStatePath<>(
-        State.of(
-            s -> {
-              StateTuple<S, A> resultA = this.state.run(s);
-              StateTuple<S, B> resultB = typedOther.state.run(resultA.state());
-              return new StateTuple<>(
-                  Objects.requireNonNull(
-                      combiner.apply(resultA.value(), resultB.value()),
-                      "combiner must not return null"),
-                  resultB.state());
-            }));
+        state.flatMap(
+            a ->
+                typedOther.state.map(
+                    b ->
+                        Objects.requireNonNull(
+                            combiner.apply(a, b), "combiner must not return null"))));
   }
 
   /**
@@ -270,17 +265,14 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     return new WithStatePath<>(
-        State.of(
-            s -> {
-              StateTuple<S, A> resultA = this.state.run(s);
-              StateTuple<S, B> resultB = second.state.run(resultA.state());
-              StateTuple<S, C> resultC = third.state.run(resultB.state());
-              return new StateTuple<>(
-                  Objects.requireNonNull(
-                      combiner.apply(resultA.value(), resultB.value(), resultC.value()),
-                      "combiner must not return null"),
-                  resultC.state());
-            }));
+        state.flatMap(
+            a ->
+                second.state.flatMap(
+                    b ->
+                        third.state.map(
+                            c ->
+                                Objects.requireNonNull(
+                                    combiner.apply(a, b, c), "combiner must not return null")))));
   }
 
   // ===== Chainable implementation =====
@@ -319,11 +311,8 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     return new WithStatePath<>(
-        State.of(
-            s -> {
-              // Run this state computation to get the new state
-              StateTuple<S, A> result = this.state.run(s);
-
+        state.flatMap(
+            _ -> {
               Chainable<? extends WithStatePath<S, ?>, B> next = supplier.get();
               Objects.requireNonNull(next, "supplier must not return null");
 
@@ -334,7 +323,7 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
 
               @SuppressWarnings("unchecked")
               WithStatePath<S, B> typedResult = (WithStatePath<S, B>) statePath;
-              return typedResult.state.run(result.state());
+              return typedResult.state;
             }));
   }
 

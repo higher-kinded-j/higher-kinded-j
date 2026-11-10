@@ -40,7 +40,7 @@ Functor<MaybeKind.Witness>     functor     = Instances.functor(maybe());
 
 The instance implements the whole `Functor`, `Applicative`, `Monad` chain in one object, so all three calls return that same object.
 
-Three more lookups give a richer capability, for the types whose instance has it. `MonadError` adds raising and recovering from an error; `MonadZero` adds an empty value and `filter`; `Alternative` adds an empty value and `orElse`. For `Maybe` and `Optional`, `orElse` falls back to a second value when the first is empty; for `List` and `Stream`, it joins the two.
+Three more lookups give a richer capability, for the types whose instance has it. `MonadError` adds raising and recovering from an error; `MonadZero` adds an empty value and `filter`; `Alternative` adds an empty value and `orElse`. For `Maybe` and `Optional`, `orElse` falls back to a second value when the first is empty; for `List`, `Stream` and `VStream`, it joins the two.
 
 <!-- verify -->
 ```java
@@ -54,7 +54,8 @@ Alternative<OptionalKind.Witness>   alt = Instances.alternative(optional());
 | `monadError` | `Maybe`, `Optional` | `Unit` |
 | `monadError` | `Try`, `CompletableFuture`, `VTask` | `Throwable` |
 | `monadError` | `Either<L, _>` | `L` |
-| `monadZero`, `alternative` | `Maybe`, `Optional`, `List`, `Stream` | |
+| `monadZero` | `Maybe`, `Optional`, `List`, `Stream` | |
+| `alternative` | `Maybe`, `Optional`, `List`, `Stream`, `VStream` | |
 
 ~~~admonish warning title="These three lookups compile for any token"
 The compiler cannot check that a type has the capability you ask for. A type without it, as in `Instances.monadZero(either())`, throws `ClassCastException` when the call runs. A wrong error type compiles too: `MonadError<MaybeKind.Witness, String>` throws `ClassCastException` once you raise a `String`. Take `E` from the table.

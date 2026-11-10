@@ -213,7 +213,7 @@ Integer thrown = VTask.of(() -> dangerousOperation()).run();
 
 // BETTER: Captures failure in Try
 Try<Integer> captured = VTask.of(() -> dangerousOperation()).runSafe();
-captured.foldFailureFirst(
+captured.fold(
     error -> handleError(error),
     value -> handleSuccess(value)
 );

@@ -33,7 +33,7 @@ public class EclipseMutableSortedSetGeneratorTest {
         """
         final var sourceList = source.keywords().into(new ArrayList<>(source.keywords().size()));
         final var effectOfList = Traversals.traverseList(sourceList, f, applicative);
-        final var effectOfConvertBack = applicative.map(newList -> Objects.isNull(source.keywords().comparator()) ? SortedSets.mutable.ofAll(newList) : SortedSets.mutable.ofAll(source.keywords().comparator(), newList), effectOfList);
+        final var effectOfConvertBack = applicative.map(newList -> SortedSets.mutable.ofAll(source.keywords().comparator(), newList), effectOfList);
         return applicative.map(converted -> new Article(source.id(), converted), effectOfConvertBack);
         """;
 

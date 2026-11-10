@@ -4,7 +4,7 @@ Automated refactoring recipes for [Higher-Kinded-J](https://higher-kinded-j.gith
 to perform version migrations and to surface code that should adopt newer, safer APIs — without
 hand-editing every call site.
 
-The module ships five recipe groups:
+The module ships six recipe groups:
 
 | Group | Composite recipe | What it does |
 |-------|------------------|--------------|
@@ -13,6 +13,7 @@ The module ships five recipe groups:
 | 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal or changed in 0.5.0 |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | Migrates APIs deprecated in 0.5.0 for removal in 0.6.0 |
 | 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | Adds the Path family to code that names a capability interface, such as `Chainable<A>` |
+| 0.7.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | Migrates APIs deprecated in 0.6.0 for removal in 0.7.0 |
 
 ## Quick Start
 
@@ -188,7 +189,7 @@ adds to `@GenerateFocus`'s `widenFields` each container a 0.4.x navigator steppe
 also marks, without rewriting, each null success or null error that 0.5.0 refuses, and each
 container it would widen but for an element field named like a path method: `rewriteRun` writes each mark
 into the source as a `/*~~(…)~~>*/` comment, to remove once the site is fixed. The composite recipe
-runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 before the
+runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 or later before the
 project moves to 0.5.0: the recipes match the 0.4.x signatures, and the rewritten `StateT` calls
 and `widenFields` entries compile only against 0.5.0, so bump the library straight after.
 
@@ -197,7 +198,7 @@ and `widenFields` entries compile only against 0.5.0, so bump the library straig
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | **Composite** — runs the sub-recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` → `StateTKind.narrow(..)` (the wildcard `Kind` parameter bypassed witness type safety, so an argument typed `Kind<?, A>` needs its witness declared by hand) |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` → `KindValidator.narrowHolder(..)` |
-| `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments) |
+| `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments). It reads the declared signature and leaves the failure-first `fold` of 0.6.0 and later alone, so it finds a success-first call only while the project is on 0.4.x |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` → `CHAINABLE` and `ACCUMULATING` → `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` → the function alone; `stateT.mapT(monad, f)` → `stateT.mapT(f)` |
@@ -259,6 +260,47 @@ rewrite {
 ```
 
 ---
+
+
+### 0.7.0 deprecation migration
+
+Rewrites call sites of APIs deprecated in 0.6.0 for removal in 0.7.0 to their replacements.
+`VStreamPar.parCollect(stream, batchSize)`, `VStreamPath.parCollect(batchSize)` and
+`PathOps.parCollectVStream(path, batchSize)` become `toList()` on the stream, which gives the same
+list, since a stream is read one pull at a time and `parCollect` runs nothing in parallel.
+`ReplaceParCollectWithToListRecipe` marks, rather than rewrites, a call whose batch size may do
+something or throw when it is evaluated, or is written as zero, negative or with a sign; whose
+stream argument has a type the call infers (write its type arguments, as in
+`VStream.<Number>of(1, 2)`); whose stream is `null`, a lambda, or a conditional with one as a
+branch; or that calls the static form through an expression; and a method reference to
+`parCollect`. Each mark says how to replace the call.
+
+`Try.foldFailureFirst` and `TryPath.foldFailureFirst` become `fold`, which from 0.6.0 takes the
+same two functions in the same order. `RenameTryFoldFailureFirst` renames each call and method reference, only in a
+file whose `foldFailureFirst` is deprecated, as it is from 0.6.0. Before that, `fold` is missing
+(0.5.x) or takes the success function first (0.4.x), so it changes nothing there.
+
+Each use of the effect package's `NaturalTransformation` becomes `Natural`, which it extends, and
+`FreePath.foldMapWith` and `FreeApPath.foldMapWith` become `foldMap` and `foldMapKind`, which take
+a `Natural`. A class that implements `NaturalTransformation` and overrides its `andThen` or
+`compose` is left to you: the rewrite gives a clash that does not compile, so drop the override or
+write the `Natural` signature.
+
+Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before it moves to
+0.7.0, which removes the methods and the type it matches.
+
+| Recipe | Change |
+|--------|--------|
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | **Composite** — runs the recipes below |
+| `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` → `stream.toList()`, `path.parCollect(n)` → `path.toList()`, `PathOps.parCollectVStream(path, n)` → `path.toList()` |
+| `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `Try.foldFailureFirst(failureMapper, successMapper)` and `TryPath.foldFailureFirst(..)` → `fold(failureMapper, successMapper)`, a pure rename; a method reference such as `t::foldFailureFirst` becomes `t::fold` |
+| `org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural` | `org.higherkindedj.hkt.effect.NaturalTransformation` → `org.higherkindedj.hkt.Natural`; `FreePath.foldMapWith` → `foldMap`, `FreeApPath.foldMapWith` → `foldMapKind` |
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0")
+}
+```
 
 ## Need help?
 

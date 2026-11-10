@@ -266,8 +266,8 @@ Interpret the program by providing a natural transformation to a target monad:
 <!-- verify -->
 ```java
 // Real interpreter: performs actual I/O
-NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> realInterpreter =
-    new NaturalTransformation<>() {
+Natural<ConsoleOp.Witness, IOKind.Witness> realInterpreter =
+    new Natural<>() {
         @Override
         public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
             return switch ((ConsoleOp<A>) fa) {
@@ -280,7 +280,7 @@ NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> realInterpreter =
     };
 
 // Execute with real I/O
-GenericPath<IOKind.Witness, String> result = greet.foldMapWith(realInterpreter, ioMonad);
+GenericPath<IOKind.Witness, String> result = greet.foldMap(realInterpreter, ioMonad);
 String name = IOKindHelper.IO_OP.narrow(result.runKind()).unsafeRunSync();
 ```
 
@@ -291,8 +291,8 @@ The same program can be tested without real I/O:
 <!-- verify -->
 ```java
 // Test interpreter: the same algebra, answered from canned input
-NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> testInterpreter =
-    new NaturalTransformation<>() {
+Natural<ConsoleOp.Witness, IOKind.Witness> testInterpreter =
+    new Natural<>() {
         @Override
         public <A> Kind<IOKind.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
             return switch ((ConsoleOp<A>) fa) {
@@ -304,7 +304,7 @@ NaturalTransformation<ConsoleOp.Witness, IOKind.Witness> testInterpreter =
 
 // Same program, different execution
 GenericPath<IOKind.Witness, String> testResult =
-    greet.foldMapWith(testInterpreter, ioMonad);
+    greet.foldMap(testInterpreter, ioMonad);
 ```
 
 ### FreeApPath: The Free Applicative

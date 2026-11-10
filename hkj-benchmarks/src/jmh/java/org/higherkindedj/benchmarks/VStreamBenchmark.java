@@ -32,8 +32,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>Comparison of VStream vs raw Java Stream for equivalent operations
  * </ul>
  *
- * <p>Note: VStream is lazy and pull-based, executing on virtual threads. Most combinators build up
- * a description; only terminal operations (toList, foldLeft, etc.) materialise the stream.
+ * <p>Note: VStream is lazy and pull-based. A terminal operation pulls the stream on the thread that
+ * runs it, and {@code VStreamPar}'s operations start virtual threads to pull their sources or run
+ * element tasks. Most combinators build up a description; only terminal operations (toList,
+ * foldLeft, etc.) materialise the stream.
  *
  * <p>Run with: {@code ./gradlew jmh -Pincludes=".*VStreamBenchmark.*"}
  */
@@ -232,6 +234,33 @@ public class VStreamBenchmark {
     return result.toList().run();
   }
 
+  // ========== Element Tasks and Recovery ==========
+
+  /** mapTask execution: a task for each element, none of which fails. */
+  @Benchmark
+  public List<Integer> mapTaskExecution() {
+    return prebuiltStream.mapTask(VTask::succeed).toList().run();
+  }
+
+  /**
+   * A task that fails at every fifth element, through a map and a filter, recovered: the recovery
+   * goes on through both operators.
+   */
+  @Benchmark
+  public List<Integer> recoverThroughOperators() {
+    return prebuiltStream
+        .mapTask(
+            x ->
+                x % 5 == 0
+                    ? VTask.<Integer>fail(new IllegalStateException("element"))
+                    : VTask.succeed(x))
+        .map(x -> x * 2)
+        .filter(x -> x % 3 != 0)
+        .recover(_ -> -1)
+        .toList()
+        .run();
+  }
+
   // ========== Comparison Baselines (Raw Java Stream) ==========
 
   /** Baseline: raw Java Stream map + collect. */
@@ -318,12 +347,6 @@ public class VStreamBenchmark {
     return VStreamPar.parEvalMapUnordered(prebuiltStream, 4, x -> VTask.succeed(x * 2))
         .toList()
         .run();
-  }
-
-  /** Parallel collect with batch size of 10. */
-  @Benchmark
-  public List<Integer> parCollectBatch10() {
-    return VStreamPar.parCollect(prebuiltStream, 10).run();
   }
 
   // ========== Chunking Operations (Stage 5) ==========

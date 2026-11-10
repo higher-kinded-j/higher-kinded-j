@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.laws.ApplicativeLaws;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -265,6 +266,39 @@ class StateApplicativeTest extends StateTestBase<Integer> {
 
       StateTuple<Integer, Integer> result = runState(sum123, getInitialState());
       assertThatStateTuple(result).hasValue(30).hasState(getInitialState());
+    }
+  }
+
+  @Nested
+  @DisplayName("Stack Safety")
+  class StackSafety {
+
+    // Far deeper than the default thread stack holds when each step nests the previous run
+    private static final int DEPTH = 100_000;
+
+    @Test
+    @DisplayName("a long chain of ap calls runs without overflowing the stack")
+    void deepApChainShouldNotOverflow() {
+      Function<Integer, Function<Unit, Integer>> addOne = n -> _ -> n + 1;
+      Kind<StateKind.Witness<Integer>, Integer> count = applicative.of(0);
+      Kind<StateKind.Witness<Integer>, Unit> tick = STATE.modify(s -> s + 1);
+      for (int i = 0; i < DEPTH; i++) {
+        count = applicative.ap(applicative.map(addOne, count), tick);
+      }
+
+      assertThatStateTuple(runState(count, 0)).hasValue(DEPTH).hasState(DEPTH);
+    }
+
+    @Test
+    @DisplayName("a long chain of map2 calls runs without overflowing the stack")
+    void deepMap2ChainShouldNotOverflow() {
+      Kind<StateKind.Witness<Integer>, Integer> sum = applicative.of(0);
+      Kind<StateKind.Witness<Integer>, Integer> one = applicative.of(1);
+      for (int i = 0; i < DEPTH; i++) {
+        sum = applicative.map2(sum, one, Integer::sum);
+      }
+
+      assertThatStateTuple(runState(sum, 3)).hasValue(DEPTH).hasState(3);
     }
   }
 }

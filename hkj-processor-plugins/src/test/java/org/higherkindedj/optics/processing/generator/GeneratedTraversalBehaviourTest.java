@@ -7,8 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -16,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.TraversalProcessor;
 import org.higherkindedj.optics.util.Traversals;
@@ -254,48 +251,6 @@ class GeneratedTraversalBehaviourTest {
       return (String) leaf.getClass().getMethod("name").invoke(leaf);
     } catch (Exception e) {
       throw new IllegalStateException(e);
-    }
-  }
-
-  /**
-   * Loads the classes a {@link Compilation} wrote, falling back to the test's own classpath. The
-   * same job is done by {@code RuntimeCompilationHelper} in hkj-processor, which these tests cannot
-   * reach: the traversal generators live here, and the module dependency runs the other way.
-   */
-  private static final class GeneratedClassLoader extends ClassLoader {
-    private final Map<String, byte[]> bytecode = new HashMap<>();
-
-    GeneratedClassLoader(Compilation compilation) {
-      super(GeneratedTraversalBehaviourTest.class.getClassLoader());
-      for (JavaFileObject file : compilation.generatedFiles()) {
-        if (file.getKind() != JavaFileObject.Kind.CLASS) {
-          continue;
-        }
-        String path = file.getName().replace("/" + StandardLocation.CLASS_OUTPUT + "/", "");
-        String name = path.substring(0, path.length() - ".class".length()).replace('/', '.');
-        bytecode.put(name, read(file));
-      }
-    }
-
-    Class<?> load(String name) throws ClassNotFoundException {
-      return loadClass(name);
-    }
-
-    @Override
-    protected Class<?> findClass(String name) throws ClassNotFoundException {
-      byte[] bytes = bytecode.get(name);
-      if (bytes == null) {
-        throw new ClassNotFoundException(name);
-      }
-      return defineClass(name, bytes, 0, bytes.length);
-    }
-
-    private static byte[] read(JavaFileObject file) {
-      try (InputStream in = file.openInputStream()) {
-        return in.readAllBytes();
-      } catch (IOException e) {
-        throw new IllegalStateException("Could not read " + file.getName(), e);
-      }
     }
   }
 }

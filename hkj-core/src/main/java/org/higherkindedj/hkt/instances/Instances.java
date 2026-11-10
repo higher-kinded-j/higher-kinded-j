@@ -157,8 +157,8 @@ public final class Instances {
    * Returns the canonical {@link Alternative} for the type identified by {@code witness}.
    *
    * <p>Only valid for canonical instances that implement {@link Alternative} (for example {@code
-   * Maybe}, {@code Optional}, {@code List}, {@code Stream}); see {@link #monadError(Witnesses.Of)}
-   * for the same fail-fast semantics.
+   * Maybe}, {@code Optional}, {@code List}, {@code Stream}, {@code VStream}); see {@link
+   * #monadError(Witnesses.Of)} for the same fail-fast semantics.
    *
    * @param <F> the unary witness type
    * @param witness a typed token from {@link Witnesses}

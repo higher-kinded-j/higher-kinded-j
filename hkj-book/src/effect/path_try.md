@@ -89,7 +89,7 @@ Try<Integer> tryValue = path.run();
 
 Integer value = path.getOrElse(-1);
 
-String message = tryValue.foldFailureFirst(
+String message = tryValue.fold(
     cause -> "AppError: " + cause.getMessage(),
     ok    -> "Value: " + ok);
 ```

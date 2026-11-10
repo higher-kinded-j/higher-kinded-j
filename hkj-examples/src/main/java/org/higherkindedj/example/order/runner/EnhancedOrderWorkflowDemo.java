@@ -117,7 +117,7 @@ public class EnhancedOrderWorkflowDemo {
             () -> {
               var result = workflow.process(request).run().runSafe();
 
-              result.foldFailureFirst(
+              result.fold(
                   error -> {
                     System.out.println("  Execution error: " + error.getMessage());
                     return null;
@@ -177,7 +177,7 @@ public class EnhancedOrderWorkflowDemo {
               var result =
                   workflow.reserveInventoryParallel(orderId, validatedLines).run().runSafe();
 
-              result.foldFailureFirst(
+              result.fold(
                   error -> {
                     System.out.println("  Execution error: " + error.getMessage());
                     return null;

@@ -99,15 +99,15 @@ Each of these runs at two sizes, ten times apart, so a test can check that the c
 ### A Single Benchmark Class
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VStreamBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*EitherBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VStreamBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*EitherBenchmark.*"
 ```
 
 ### A Single Benchmark Method
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskBenchmark.runSucceed.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskBenchmark.runSucceed.*"
 ```
 
 ### With GC Profiling
@@ -116,6 +116,28 @@ This reveals allocation rates and GC pressure, essential for understanding memor
 
 ```bash
 ./gradlew :hkj-benchmarks:jmh -Pjmh.profilers=gc
+```
+
+### Options {#options}
+
+The defaults give quick feedback: one warm-up and one measured iteration of 200 ms, in one fork. These properties change them:
+
+| Property | Default | Sets |
+|---|---|---|
+| `-Pincludes` | every benchmark | A regular expression for the benchmarks to run |
+| `-Pjmh.iterations` | 1 | Measured iterations |
+| `-Pjmh.warmupIterations` | 1 | Warm-up iterations |
+| `-Pjmh.fork` | 1 | Forked JVMs |
+| `-Pjmh.timeOnIteration`, `-Pjmh.warmup` | `200ms` | How long each measured and warm-up iteration runs |
+| `-Pjmh.profilers` | none | JMH profilers, comma-separated, such as `gc` or `gc,stack` |
+| `-Pjmh.benchmarkParameters.<name>` | the benchmark's `@Param` values | A parameter's values, comma-separated, such as `-Pjmh.benchmarkParameters.chainDepth=1000` |
+| `-PbenchmarkMode=long` | short | `chainDepth` and `recursionDepth` of 10000, as `longBenchmark` runs |
+
+A run with five measured iterations after three warm-ups, in two forks:
+
+```bash
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VStreamBenchmark.*" \
+  -Pjmh.warmupIterations=3 -Pjmh.iterations=5 -Pjmh.fork=2
 ```
 
 ### Long / Stress Mode

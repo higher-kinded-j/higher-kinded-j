@@ -32,7 +32,7 @@ public class TryGeneratorTest {
     final String expectedBody =
         """
         final Try<Double> tryA = source.result();
-        return tryA.foldFailureFirst(
+        return tryA.fold(
             cause -> {
                 return applicative.of(source);
             },
