@@ -235,7 +235,7 @@ Coyoneda.lift(list)
     .lower(listFunctor);   // ONE traversal with composed function
 ```
 
-**How It Works:** Coyoneda stores the accumulated function `f.andThen(g).andThen(h)` instead of applying each map immediately. The composed function is applied once during `lower()`.
+**How It Works:** Coyoneda holds each function it is given instead of applying it. `lower()` then applies them in one `map`, passing each element through the functions in turn, in a loop, so a chain of any length does not overflow the stack.
 
 **When To Use:** Chains of transformations on expensive-to-traverse structures; automatically enabled when using Coyoneda.
 
