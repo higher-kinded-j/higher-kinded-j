@@ -27,6 +27,16 @@ import org.jspecify.annotations.Nullable;
 record ConstForFold<M, A extends @Nullable Object>(M value)
     implements Kind<ConstForFold.Witness<M>, A> {
 
+  /**
+   * Holds a fold's value so far.
+   *
+   * @param value the value; a fold's function and its monoid must give values, never null
+   * @throws NullPointerException if {@code value} is null
+   */
+  ConstForFold {
+    Objects.requireNonNull(value, "a fold's function and monoid must not give null");
+  }
+
   /** Witness type for the Const functor, parameterised by the monoid type. */
   static final class Witness<M> implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
