@@ -1,424 +1,242 @@
-# The Free Monad:
-## _Programs as Data, Interpreters as Plug-Ins_
+<!-- description: Hold a program as data in Java with Free: an order program that cancels the order when a line costs too much, run against an in-memory store and audited into a Writer. -->
+
+# Free: Programs as Data
+
+_Write the program once, as instructions, and choose what each one does when you run it._
+
+<!-- source: Tom Stoppard, Rosencrantz and Guildenstern Are Dead (1966, published by Faber and Faber 1967), Act One, the Player answering Guildenstern's question about what his tragedians perform; wording checked against Wikiquote's page for the play, which reads "give you" and opens "But" with a capital; LitCharts' summary of Act One places the exchange -->
+> _"We can do you blood and love without the rhetoric, and we can do you blood and rhetoric without the love, and we can do you all three concurrent or consecutive. But we can't give you love and rhetoric without the blood. Blood is compulsory."_
+>
+> — The Player, *Rosencrantz and Guildenstern Are Dead*
+
+The Player's troupe will stage whatever the patrons ask for, consecutive or concurrent, but nothing happens until the night. A `Free` program is what was asked for, written down once, and each interpreter gives one night's performance of it.
+
+~~~admonish abstract title="Free at a glance"
+| | |
+|---|---|
+| **Models** | A program held as data: instructions that an interpreter runs later, in a monad it chooses |
+| **Replaces** | Calls to an injected service, made directly from business code |
+| **Effect Path** | [`FreePath`](../glossary/effect-paths.md#freepath) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:free_monad}}
+| **Choose it when** | One program must run in several ways, such as live, in a test and as an audit; otherwise call the service, see [Free Applicative](free_applicative.md) for a program you can inspect whole, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- Why separating "what to do" from "how to do it" changes everything
-- Building a domain-specific language (DSL) as a data structure
-- Running the same program with production, test, and logging interpreters
-- Using `pure`, `suspend`, `liftF`, and `foldMap` to build and run Free programs
-- When Free monads solve real architectural problems (and when they don't)
+- Build an order program from instructions held as data, with nothing run yet
+- Run the same program against an in-memory store and as an audit, by choosing the interpreter
+- Predict what `foldMap` keeps of each instruction's value, and what still deepens the stack
+- Inspect a program before it runs, and explain why only its first instruction shows
+- Choose between `Free` and Tagless Final
 ~~~
 
-~~~ admonish example title="See Example Code:"
-- [ConsoleProgram.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/free/ConsoleProgram.java)
-- [FreePathExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/effect/FreePathExample.java)
-- [FreeMonadTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/free/FreeMonadTest.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [FreeBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java)**: the page includes it, so the build compiles and runs it. [FreeBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/free/FreeBookTest.java) holds what the page says each method does.
 ~~~
 
-## The Idea: Your Program Is a Shopping List
-
-Imagine writing a shopping list. The list *describes* what to buy; it doesn't actually buy anything. The same list could be:
-
-- **Executed** at the supermarket (production)
-- **Priced up** without buying anything (dry-run)
-- **Checked** against the pantry (testing)
-- **Delegated** to someone else (different interpreter)
-
-The Free monad works the same way. Instead of executing side effects directly, you build a **program as a data structure**. Then you choose an **interpreter** to run it:
-
-```
-Program (data structure):            Interpreter 1 (real I/O):
-  printLine("What is your name?")      → System.out.println(...)
-  readLine()                           → scanner.nextLine()
-  printLine("Hello, " + name + "!")    → System.out.println(...)
-
-                                     Interpreter 2 (testing):
-  (same program, zero changes)         → output.add(...)
-                                       → return "Alice" from list
-                                       → output.add(...)
-
-                                     Interpreter 3 (logging):
-  (same program, zero changes)         → log.info(...)
-                                       → return cached input
-                                       → log.info(...)
-```
-
-One program. Three interpreters. Zero code changes between them.
-
-## The Payoff: See It Before You Build It
-
-Before diving into infrastructure, here is the punchline. Given this program:
-
-<!-- verify -->
-```java
-Free<ConsoleOpKind.Witness, Unit> program =
-    printLine("What is your name?")
-        .flatMap(ignored -> readLine()
-            .flatMap(name -> printLine("Hello, " + name + "!")));
-```
-
-Run it with a **real** interpreter (it talks to the console):
-
-<!-- verify -->
-```java
-ioInterpreter.run(program);
-// Console: What is your name?
-// User types: Alice
-// Console: Hello, Alice!
-```
-
-Run the **same program** with a **test** interpreter (no console, pure assertions):
-
-<!-- verify -->
-```java
-TestInterpreter test = new TestInterpreter(List.of("Alice"));
-test.run(program);
-
-assertEquals(List.of("What is your name?", "Hello, Alice!"), test.getOutput());
-```
-
-That is the Free monad's value: **write once, interpret many ways**.
-
-## Core Components
-
-| Component | Role |
-|-----------|------|
-| `Free<F, A>` | A program built from instructions `F` that produces `A`. Sealed: `Pure`, `Suspend`, `FlatMapped` |
-| `FreeKind<F, A>` / `FreeKindHelper` | HKT bridge: `widen()`, `narrow()` |
-| `FreeFunctor<F>` / `FreeMonad<F>` | Type class instances: `map`, `flatMap`, `of` |
-| `FreeFactory<F>` | Captures the functor type once, fixing Java's type inference for chained operations |
-| `Free.liftF(fa, functor)` | Lifts a single instruction into a Free program |
-| `free.foldMap(transform, monad)` | Interprets the program using a natural transformation |
-
-A program always gives a value: `Free.pure(null)` throws at the call, and a `map` function that returns null fails the program when it is interpreted. [A Task Always Gives a Value](./vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
-
-~~~admonish note title="How foldMap Works"
-```
-Free program (tree):                  foldMap walks it:
-  FlatMapped                          1. Interpret Suspend → target monad
-    ├── Suspend(PrintLine("Hi"))      2. Apply continuation (flatMap fn)
-    └── fn: name →                    3. Interpret next Suspend
-        Suspend(PrintLine("Hello,     4. Combine via target monad's flatMap
-                " + name))           5. Return final result in target monad
-```
-`foldMap` converts each instruction from your DSL (`F`) into a target monad (`M`) using a natural transformation, then sequences the results. A deep program runs into a monad such as `Id`, `Writer` or `IO` without overflowing the stack.
-~~~
-
-~~~admonish tip title="Prefer a type-safe `Natural` transformation"
-`foldMap` is overloaded: it takes either a type-safe `Natural<F, M>` or a raw
-`Function<Kind<F, ?>, Kind<M, ?>>`. **Prefer `Natural`**: it makes the per-instruction
-correspondence (`Kind<F, B>` maps to `Kind<M, B>` for every `B`) explicit, so a witness mismatch
-is caught at compile time instead of riding on an unchecked cast. The `Function` form (used in
-some examples below for brevity) stays for convenience and interop; internally both overloads run
-through the same `Natural`-based interpreter.
-~~~
-
-## Building a DSL: Step by Step
-
-### Step 1: Define Your Instruction Set
-
-Create a sealed interface for every operation in your domain:
-
-<!-- verify -->
-```java
-public sealed interface ConsoleOp<A> {
-    record PrintLine(String text) implements ConsoleOp<Unit> {}
-    record ReadLine()             implements ConsoleOp<String> {}
-}
-```
-
-This is your vocabulary. `PrintLine` returns `Unit` (like void). `ReadLine` returns `String`.
-
-### Step 2: HKT Plumbing
-
-~~~admonish tip title="HKT Bridge (expand to see boilerplate)"
-Every instruction set needs an HKT bridge and a Functor. This is mechanical:
-
-<!-- verify -->
-```java
-// HKT marker
-public interface ConsoleOpKind<A> extends Kind<ConsoleOpKind.Witness, A> {
-    final class Witness implements WitnessArity<TypeArity.Unary> {
-        private Witness() {}
-    }
-}
-
-// Widen/narrow helper
-public enum ConsoleOpKindHelper {
-    CONSOLE;
-    record ConsoleOpHolder<A>(ConsoleOp<A> op) implements ConsoleOpKind<A> {}
-    public <A> Kind<ConsoleOpKind.Witness, A> widen(ConsoleOp<A> op) {
-        return new ConsoleOpHolder<>(op);
-    }
-    @SuppressWarnings("unchecked") // the holder is the only implementation
-    public <A> ConsoleOp<A> narrow(Kind<ConsoleOpKind.Witness, A> kind) {
-        return ((ConsoleOpHolder<A>) kind).op();
-    }
-}
-
-// Functor instance
-public class ConsoleOpFunctor implements Functor<ConsoleOpKind.Witness> {
-    @Override
-    @SuppressWarnings("unchecked") // simplified DSL: map returns the operation unchanged
-    public <A, B> Kind<ConsoleOpKind.Witness, B> map(
-            Function<? super A, ? extends B> f,
-            Kind<ConsoleOpKind.Witness, A> fa) {
-        return (Kind<ConsoleOpKind.Witness, B>) fa;
-    }
-}
-```
-~~~
-
-### Step 3: Create DSL Helpers
-
-Wrap `liftF` calls in friendly methods:
-
-<!-- verify -->
-```java
-public class ConsoleOps {
-    private static final ConsoleOpFunctor FUNCTOR = new ConsoleOpFunctor();
-
-    public static Free<ConsoleOpKind.Witness, Unit> printLine(String text) {
-        return Free.liftF(ConsoleOpKindHelper.CONSOLE.widen(
-            new ConsoleOp.PrintLine(text)), FUNCTOR);
-    }
-
-    public static Free<ConsoleOpKind.Witness, String> readLine() {
-        return Free.liftF(ConsoleOpKindHelper.CONSOLE.widen(
-            new ConsoleOp.ReadLine()), FUNCTOR);
-    }
-}
-```
-
-### Step 4: Write Programs
-
-Now build programs using familiar `flatMap` chains:
-
-<!-- verify -->
-```java
-// with ConsoleOps.printLine and ConsoleOps.readLine statically imported
-Free<ConsoleOpKind.Witness, Unit> greetingProgram =
-    printLine("What is your name?")
-        .flatMap(ignored -> readLine()
-            .flatMap(name -> printLine("Hello, " + name + "!")));
-```
-
-**Nothing has executed.** You have built a data structure that *describes* what should happen.
-
-## Multiple Interpreters: The Payoff
-
-~~~admonish example title="IO Interpreter: Real Execution"
-<!-- verify -->
-```java
-public class IOInterpreter {
-    private static final Scanner scanner = new Scanner(System.in);
-
-    public <A> A run(Free<ConsoleOpKind.Witness, A> program) {
-        Function<Kind<ConsoleOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
-            kind -> {
-                ConsoleOp<?> op = ConsoleOpKindHelper.CONSOLE.narrow(kind);
-                Object result = switch (op) {
-                    case ConsoleOp.PrintLine p -> { System.out.println(p.text()); yield Unit.INSTANCE; }
-                    case ConsoleOp.ReadLine r  -> scanner.nextLine();
-                };
-                return Id.of(result);
-            };
-        return IdKindHelper.ID.narrow(
-            program.foldMap(transform, Instances.monad(id()))).value();
-    }
-}
-```
-~~~
-
-~~~admonish example title="Test Interpreter: Pure Assertions"
-<!-- verify -->
-```java
-public class TestInterpreter {
-    private final List<String> input;
-    private final List<String> output = new ArrayList<>();
-    private int inputIndex = 0;
-
-    public TestInterpreter(List<String> input) { this.input = input; }
-
-    public <A> A run(Free<ConsoleOpKind.Witness, A> program) {
-        Function<Kind<ConsoleOpKind.Witness, ?>, Kind<IdKind.Witness, ?>> transform =
-            kind -> {
-                ConsoleOp<?> op = ConsoleOpKindHelper.CONSOLE.narrow(kind);
-                Object result = switch (op) {
-                    case ConsoleOp.PrintLine p -> { output.add(p.text()); yield Unit.INSTANCE; }
-                    case ConsoleOp.ReadLine r  -> input.get(inputIndex++);
-                };
-                return Id.of(result);
-            };
-        return IdKindHelper.ID.narrow(
-            program.foldMap(transform, Instances.monad(id()))).value();
-    }
-
-    public List<String> getOutput() { return output; }
-}
-
-// Pure test: no console, no I/O, no flakiness
-@Test
-void testGreeting() {
-    var test = new TestInterpreter(List.of("Alice"));
-    test.run(greetingProgram);
-    assertEquals(List.of("What is your name?", "Hello, Alice!"), test.getOutput());
-}
-```
-~~~
-
-## Composing Programs from Building Blocks
-
-Free programs compose like Lego. Build small pieces, snap them together:
-
-<!-- verify -->
-```java
-// Reusable building blocks
-Free<ConsoleOpKind.Witness, String> askQuestion(String question) {
-    return printLine(question).flatMap(ignored -> readLine());
-}
-
-Free<ConsoleOpKind.Witness, Unit> confirm(String action) {
-    return askQuestion(action + " - sure? (yes/no)")
-        .flatMap(answer -> answer.equalsIgnoreCase("yes")
-            ? printLine("Confirmed.")
-            : printLine("Cancelled."));
-}
-
-// Composed program: built from pieces
-Free<ConsoleOpKind.Witness, Unit> registration() {
-    return askQuestion("Username:")
-        .flatMap(user -> askQuestion("Email:")
-            .flatMap(email -> confirm("Register " + user + "?")
-                .flatMap(ignored -> printLine("Done! Welcome, " + user))));
-}
-```
-
-Each building block is independently testable and reusable.
-
-## FreeFactory: Fixing Java's Type Inference
-
-Java struggles to infer the functor type `F` when chaining operations on `Free.pure()`:
-
-<!-- verify:rejects "no instance(s) of type variable(s) B exist" -->
-```java
-// Fails to compile: Java can't infer F
-Free<IdKind.Witness, Integer> result = Free.pure(2).map(x -> x * 2);
-```
-
-Capture `F` once in a `FreeFactory` and inference works for the whole chain:
-
-<!-- verify -->
-```java
-FreeFactory<IdKind.Witness> FREE = FreeFactory.of();
-
-Free<IdKind.Witness, Integer> result = FREE.pure(2).map(x -> x * 2);
-
-Free<IdKind.Witness, Integer> program = FREE.pure(10)
-    .map(x -> x + 1)
-    .flatMap(x -> FREE.pure(x * 2))
-    .map(x -> x - 5);
-```
-
-## When to Use Free Monad
-
-| Scenario | Use |
-|----------|-----|
-| Building a DSL for your domain (workflows, queries, rules) | Free monad |
-| Same logic needs production, test, and logging modes | Free monad: one program, many interpreters |
-| Testing complex logic without real side effects | Free monad: pure, deterministic tests |
-| Analysing or optimising programs before running them | Free monad: programs are inspectable data |
-| Simple side effects (read file, call API) | Prefer [IO](./io_monad.md): less boilerplate |
-| Single interpretation, no testing benefit | Direct code: Free adds unnecessary complexity |
-| Performance-critical hot paths | Direct code: Free has ~2-10x interpretation overhead |
-
-## Free Monad vs Traditional Java Patterns
-
-| Pattern | What It Does | Free Monad Advantage |
-|---------|-------------|---------------------|
-| Strategy | Swap one algorithm at runtime | Free swaps **entire program interpretation** |
-| Command | Encapsulate a single action as an object | Free composes **workflows** with sequencing and data flow |
-| Observer | React to events with multiple listeners | Free makes event streams **first-class, composable, replayable** |
-
-All three patterns solve part of the problem. Free monad unifies them: your entire program is data that can be inspected, composed, transformed, and interpreted in multiple ways.
-
-## Advanced Topics
-
-~~~admonish tip title="Free Applicative"
-When operations are **independent** (not dependent on previous results), use Free Applicative instead of Free Monad. This enables:
-- Parallel execution or batching of independent operations
-- Upfront analysis of all operations before execution
-- Query optimisation (e.g., batching database reads)
-
-See [Free Applicative](free_applicative.md) for details.
-~~~
-
-~~~admonish tip title="Coyoneda Optimisation"
-Don't want to write a Functor for your instruction set? The **Coyoneda lemma** gives you one for free. It also enables map fusion: consecutive `.map(f).map(g).map(h)` calls collapse into a single `.map(f.andThen(g).andThen(h))`.
-
-See [Coyoneda](coyoneda.md) for details.
-~~~
-
-~~~admonish tip title="Tagless Final: The Alternative"
-Tagless Final achieves similar goals (multiple interpreters, testability) without building programs as data:
-
-| Aspect | Free Monad | Tagless Final |
-|--------|-----------|---------------|
-| Programs | Data structures (inspectable) | Abstract functions (opaque) |
-| Performance | Slower (interpretation overhead) | Faster (direct execution) |
-| Boilerplate | More (HKT bridges, helpers) | Less (just interfaces) |
-| Inspection | Can analyse before execution | Cannot inspect programs |
-
-Choose **Free** when you need program inspection/optimisation. Choose **Tagless Final** when you want less boilerplate and better performance.
-~~~
-
-~~~admonish note title="What foldMap Keeps"
-`foldMap` hands each instruction's whole value to the target monad: a `Writer`'s log, a `List`'s
-other elements, an `EitherOrBoth`'s warnings. A deep program runs into `Id`, `Either`, `Writer`,
-`EitherOrBoth`, `State` or `IO` without overflowing the stack.
-
-Two things still deepen the stack. An instruction that gives several results, such as a `List` of
-two, runs the rest of the program once for each. A `Reader` nests one call for each instruction when
-you run it.
-~~~
-
-~~~admonish important title="Key Points"
-- `Free<F, A>` turns any instruction set `F` into a monad; programs become composable data structures.
-- **`foldMap`** is the engine: it walks the program tree, transforms each instruction via a natural transformation, and sequences results in a target monad. A deep program runs into `Id`, `Writer` or `IO` without overflowing the stack.
-- **Testability** is the killer feature: write one program, test it with a pure interpreter, run it with a real one.
-- **FreeFactory** solves Java's type inference limitations when chaining `map`/`flatMap` on `Free.pure()`.
-- Programs compose with `flatMap`: build small DSL operations, snap them together into complex workflows.
-- Free monad has overhead (~2-10x vs direct code). Use it when testability and flexibility outweigh raw performance.
+~~~admonish tip title="Where Free fits"
+Most code never builds a `Free` by hand. [`@EffectAlgebra`](../effect/effect_handlers.md#defining-effects) generates the constructors and the interpreter base class for an instruction set, [`@ComposeEffects`](../effect/effect_handlers.md#composing-effects) combines several, and the [Effect Handlers](../effect/effect_handlers_intro.md) chapter shows the whole pattern. This page shows what those programs are made of.
 ~~~
 
 ---
 
-~~~ admonish tip title="Further Reading"
-For deeper exploration of Free monads and their applications:
+## Instructions held as data {#instructions-held-as-data}
 
-- **Gabriel Gonzalez**: [Why free monads matter](https://www.haskellforall.com/2012/06/you-could-have-invented-free-monads.html) - An intuitive introduction to the concept
-- **Runar Bjarnason**: [Stackless Scala With Free Monads](https://blog.higher-order.com/assets/trampolines.pdf) - Stack-safe execution patterns
-- **Cats Documentation**: [Free Monad](https://typelevel.org/cats/datatypes/freemonad.html) - Scala implementation and examples
-- **John A De Goes**: [Modern Functional Programming (Part 2)](https://degoes.net/articles/modern-fp-part-2) - Practical applications in real systems
+An order program prices a line, and cancels the order when the line costs more than a limit. Call an injected `OrderService` and a test can pass a fake, but each call runs the moment it is made, and nothing can look at the program first. A `Free` program holds the steps as instructions instead, which an interpreter runs later: a live interpreter calls the service, a test interpreter works against memory, and an audit interpreter records what it was asked. The instructions are the `OrderOp` records from [Applicative, Selective or Monad?](../functional/abstraction_levels.md):
 
-**Related Higher-Kinded-J Documentation:**
-- [Natural Transformation](../functional/natural_transformation.md) - Polymorphic functions used for Free monad interpretation
-- [Free Applicative](free_applicative.md) - For independent computations that can run in parallel
-- [Coyoneda](coyoneda.md) - Automatic Functor instances and map fusion
-~~~
-
-~~~admonish example title="Benchmarks"
-Free has dedicated JMH benchmarks measuring interpretation cost and stack safety. Key expectations:
-
-- **Deep recursion (10,000+)** completes without `StackOverflowError` when interpreted into `Id`
-- **Performance scaling is linear with depth**: interpretation cost grows proportionally, not exponentially
-- Abstraction overhead of 50-200x vs raw Java is expected and acceptable; real workloads involve I/O that dominates compute time
-
-```bash
-./gradlew :hkj-benchmarks:jmh -Pincludes=".*FreeBenchmark.*"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/OrderOp.java:order_op}}
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+
+Each record carries a continuation `k`, from the instruction's result to whatever the program does next. `@EffectAlgebra` generates the rest: `OrderOpKind` and `OrderOpKindHelper`, its encoding as a `Kind`; `OrderOpOps`, with a `Free` constructor for each record; a `Functor`; and `OrderOpInterpreter`, the base class an interpreter extends. The code on this page uses these imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.free.FreeKindHelper.FREE;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.id;
+import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.Function;
+import org.higherkindedj.example.book.foundations.AuditEntry;
+import org.higherkindedj.example.book.foundations.OrderOp;
+import org.higherkindedj.example.book.foundations.OrderOpFunctor;
+import org.higherkindedj.example.book.foundations.OrderOpInterpreter;
+import org.higherkindedj.example.book.foundations.OrderOpKind;
+import org.higherkindedj.example.book.foundations.OrderOpOps;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.effect.FreePath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.free.Free;
+import org.higherkindedj.hkt.free.FreeFactory;
+import org.higherkindedj.hkt.free.FreeKind;
+import org.higherkindedj.hkt.free.FreeMonad;
+import org.higherkindedj.hkt.free.ProgramAnalyser;
+import org.higherkindedj.hkt.free.ProgramAnalysis;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.writer.Writer;
+import org.higherkindedj.hkt.writer.WriterKind;
+```
+
+`Path.free` puts each generated constructor on a `FreePath`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:steps}}
+```
+
+The program chains them with `via`. The second step needs the price, so which step it is depends on what the first gives:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:program}}
+```
+
+Nothing has been priced or cancelled. `cancelIfOver` gives a description of the two steps, which runs only when an interpreter runs it, and the same description can run many times.
+
+## One program, two interpreters {#one-program-two-interpreters}
+
+An interpreter says what each instruction does, in a monad it chooses. It extends `OrderOpInterpreter<M>`, which is a [`Natural`](../functional/natural_transformation.md) from `OrderOp` to `M`, with one method for each record, and each method hands its result to the record's `k`. This one runs in [`Id`](identity.md), against a catalogue and a list of cancelled orders. Its `CATALOGUE` prices a `LAMP` at 40.00 and a `BULB` at 2.50:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:in_memory}}
+```
+
+`foldMap` runs the program with it. `LIMIT` is 30.00, so the lamp's line cancels the order:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:run}}
+```
+
+`foldMap` takes one instruction at a time. The interpreter runs it, and the program's continuation, given the result, says what comes next:
+
+```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
+sequenceDiagram
+    accTitle: How foldMap runs cancelIfOver with the in-memory interpreter
+    accDescr: foldMap takes the program's first instruction, PriceOf LAMP, and hands it to the interpreter, which gives Id of 40.00. foldMap hands the price to the program's continuation, which compares it with the limit and gives the next instruction, Cancel. The interpreter records the cancellation and gives Id of Unit. foldMap hands that to the continuation, which gives the program's result, a Decision that the order was cancelled.
+    participant P as cancelIfOver
+    participant F as foldMap
+    participant I as InMemoryOrders
+    P-->>F: PriceOf LAMP
+    F->>I: PriceOf LAMP
+    I-->>F: Id(40.00)
+    F->>P: continue with 40.00
+    P-->>F: Cancel the order
+    F->>I: Cancel the order
+    Note over I: records the order
+    I-->>F: Id(Unit)
+    F->>P: continue with Unit
+    P-->>F: the Decision, cancelled
+```
+
+A second interpreter, `AuditedOrders`, cancels nothing. It records each instruction as an entry in a [Writer](writer_monad.md)'s audit log:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:audited}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:audit_run}}
+```
+
+`Free.foldMap` also takes a raw `Function` from instruction to target. Prefer a `Natural`, such as a generated interpreter, which states that each instruction's result type comes through unchanged.
+
+## What `foldMap` keeps {#what-foldmap-keeps}
+
+`foldMap` hands each instruction's whole value to the target monad. The audit's log holds both entries because the `Writer` keeps every entry it is given, and in the same way a `List` target keeps every result, and an `EitherOrBoth` every warning. A deep program runs in `Id`, `Either`, `Writer`, `EitherOrBoth`, `State` or `IO` without overflowing the stack.
+
+Two things still deepen the stack. An instruction that gives several results, such as a `List` of two, runs the rest of the program once for each. A `Reader` nests one call for each instruction when you run it.
+
+## A program always gives a value {#a-program-always-gives-a-value}
+
+`Free.pure(null)` and `Path.freePure(null, functor)` throw at the call, and a `map` function that returns `null` fails the program when it is interpreted. [A Task Always Gives a Value](vtask_monad.md#a-task-always-gives-a-value) sets out the rule every lazy type follows.
+
+## What can be seen before it runs {#what-can-be-seen-before-it-runs}
+
+A program held as data can be inspected before it runs. `ProgramAnalyser` counts what it can see:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:inspect}}
+```
+
+Only the first instruction shows. The cancel waits inside the function that `via` was given, and no analysis can see into a function without running it. A program whose steps do not depend on one another can be seen whole: [Free Applicative](free_applicative.md) holds one, and [Applicative, Selective or Monad?](../functional/abstraction_levels.md) prices the same `OrderOp` instructions that way. [Program Analysis](../effect/effect_handlers.md#program-analysis) lists what `ProgramAnalyser` counts.
+
+## `Free` or Tagless Final {#free-or-tagless-final}
+
+Tagless Final reaches the same goals, several interpreters and tests without a live service, without building programs as data. The program is a method written against an interface of operations, generic over the monad, and each interpreter implements the interface.
+
+| | `Free` | Tagless Final |
+|---|---|---|
+| A program is | A value, which you can hold, pass around and run more than once | A method, which runs when it is called with an interpreter |
+| Seen before it runs | Up to the first instruction whose result the rest needs | By running it with an interpreter that records instead of acting |
+| Cost per step | Higher: each instruction is interpreted | Lower: each call runs directly |
+| Code to write | An instruction set, which `@EffectAlgebra` encodes, and each interpreter | An interface, and each implementation |
+
+Choose `Free` when the program itself must be a value: to pass it around, or to move it into a larger instruction set with [EitherF](eitherf.md). It also runs a deeply recursive program in a strict target such as `Id`, where `foldMap`'s loop keeps the stack flat. Choose Tagless Final when only the interpreters matter.
+
+## Creating instances {#creating-instances}
+
+A generated constructor such as `OrderOpOps.priceOf(sku, k)` lifts one instruction into a `Free`, and `Free.liftF(fa, functor)` lifts any. `Free.pure(value)` holds a result with no instruction. `Path.free(free, functor)`, `Path.freeLift(fa, functor)` and `Path.freePure(value, functor)` start a `FreePath`. An instruction set without a `Functor` of its own can take one from [Coyoneda](coyoneda.md).
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `freePath.via(f)`, `map(f)` | Chain the next step on the result, or change the result |
+| `zipWith(other, f)` | Combine two programs' results |
+| `handleError(type, handler)` | Recover a failure of that type in the target monad, when the target is a `MonadError` |
+| `recover(f)` | Recover any `Throwable` failure the same way |
+| `foldMap(interpreter, monad)` | Run the program, giving a `GenericPath` in the target monad |
+| `toFree()` | Gives the `Free` |
+| `free.foldMap(interpreter, monad)` | Run a `Free`, giving a `Kind` in the target monad |
+| `Free.translate(free, natural, functor)` | Move a program to another instruction set, as the [EitherF](eitherf.md) page shows |
+
+## Working with Kind {#working-with-kind}
+
+A `Free` is already its own `Kind`, so `FREE.widen` and `FREE.narrow`, from `FreeKindHelper`, are casts. Generic code takes it through a `FreeMonad`, built with `new FreeMonad<>()`, whose `map` and `flatMap` build the program as `Free`'s own do:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:kind}}
+```
+
+`Free.pure` at the start of a chain gives Java nothing to infer the instruction type from, so javac refuses this, with "no instance(s) of type variable(s) B exist":
+
+<!-- verify:rejects "no instance(s) of type variable(s) B exist" -->
+```java
+Free<OrderOpKind.Witness, BigDecimal> fee =
+    Free.pure(new BigDecimal("40.00")).map(price -> price.multiply(new BigDecimal("0.10")));
+```
+
+A `FreeFactory` fixes the instruction type once:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/free/FreeBook.java:factory}}
+```
+
+A `FreePath` needs no factory, since `Path.freePure(value, functor)` takes the instruction type from its `Functor`.
+
+## When to use `Free` {#when-to-use-free}
+
+| You need | Use |
+|---|---|
+| One program run live, in tests and as an audit | `Free`, through [`@EffectAlgebra`](../effect/effect_handlers.md) |
+| A program inspected whole before it runs | [Free Applicative](free_applicative.md) |
+| Several instruction sets in one program | [EitherF](eitherf.md), or `@ComposeEffects` |
+| One side effect, run one way | [IO](io_monad.md), or a direct call |
+| A hot loop | Direct code: each instruction costs an interpretation |
+
+~~~admonish info title="Hands-On Learning"
+Practise the pattern in [Tutorial 01: Effect Algebra Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/effecthandlers/Tutorial01_EffectAlgebraBasics.java) (5 exercises) and [Tutorial 02: Multiple Interpreters](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/effecthandlers/Tutorial02_MultipleInterpreters.java) (3 exercises), from the [Effect Handlers](../tutorials/effecthandlers/ch_intro.md) journey.
 ~~~
+
+**Benchmarks:** `FreeBenchmark` measures building and interpreting `Free` programs, and `FreeEffectBenchmark` the cost of composing several instruction sets. [Benchmarks & Performance](../benchmarks.md) says how to run them.
 
 ---
 
