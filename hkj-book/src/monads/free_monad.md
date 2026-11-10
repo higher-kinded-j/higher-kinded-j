@@ -4,12 +4,12 @@
 
 _Write the program once, as instructions, and choose what each one does when you run it._
 
-<!-- source: Tom Stoppard, Rosencrantz and Guildenstern Are Dead (1966, published by Faber and Faber 1967), Act One, the Player answering Guildenstern's question about what his tragedians perform; wording checked against Wikiquote's page for the play, which reads "give you" and opens "But" with a capital; LitCharts' summary of Act One places the exchange -->
-> _"We can do you blood and love without the rhetoric, and we can do you blood and rhetoric without the love, and we can do you all three concurrent or consecutive. But we can't give you love and rhetoric without the blood. Blood is compulsory."_
+<!-- source: Rúnar Bjarnason, "Constraints Liberate, Liberties Constrain", a talk at Scala World, Lake District, 20 to 22 September 2015; the title checked against the ScalaWorld 2015 recap deck (speakerdeck.com/ajantis/scalaworld-2015-recap), and set here in sentence case -->
+> _"Constraints liberate, liberties constrain."_
 >
-> — The Player, *Rosencrantz and Guildenstern Are Dead*
+> — Rúnar Bjarnason, *Constraints Liberate, Liberties Constrain*
 
-The Player's troupe will stage whatever the patrons ask for, consecutive or concurrent, but nothing happens until the night. A `Free` program is what was asked for, written down once, and each interpreter gives one night's performance of it.
+Bjarnason's maxim cuts both ways on this page. A `Free` program is held to its instructions, so you are free to choose what each one does when it runs. But each step is also free to depend on the one before, and a step that waits on a result cannot be seen until that result exists.
 
 ~~~admonish abstract title="Free at a glance"
 | | |
