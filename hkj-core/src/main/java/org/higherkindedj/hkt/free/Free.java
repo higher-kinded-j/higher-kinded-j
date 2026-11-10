@@ -332,9 +332,6 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    * transformation. This is the preferred method for interpreting Free monads as it provides
    * compile-time type safety for the transformation.
    *
-   * <p>The interpreter walks the program in a loop, holding the {@code flatMap} continuations still
-   * to run on a stack of its own.
-   *
    * <p>Each instruction's whole value reaches the target monad: a {@code Writer}'s log, a {@code
    * List}'s other elements and an {@code EitherOrBoth}'s warnings are all kept. The interpreter
    * walks the program in a loop, with a stack of its own for continuations and {@code handleError}

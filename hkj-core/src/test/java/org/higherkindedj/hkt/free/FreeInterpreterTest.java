@@ -15,10 +15,12 @@ import static org.higherkindedj.hkt.instances.Witnesses.either;
 import static org.higherkindedj.hkt.instances.Witnesses.id;
 import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.state;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
 import static org.higherkindedj.hkt.instances.Witnesses.vtask;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.state.StateKindHelper.STATE;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
@@ -46,6 +48,9 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.state.StateKind;
+import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -160,6 +165,16 @@ class FreeInterpreterTest {
                   WriterT.writer(Instances.monad(id()), ID.narrow(fa).value(), 1));
             }
           };
+
+  /** Counts the instructions it runs, in a State. */
+  private static final Natural<IdKind.Witness, StateKind.Witness<Integer>> TO_COUNTING_STATE =
+      new Natural<>() {
+        @Override
+        public <A> Kind<StateKind.Witness<Integer>, A> apply(Kind<IdKind.Witness, A> fa) {
+          A value = ID.narrow(fa).value();
+          return STATE.widen(State.of(count -> StateTuple.of(count + 1, value)));
+        }
+      };
 
   /** Counts the instructions it runs, in an EitherOrBoth's left side. */
   private static final Natural<IdKind.Witness, EitherOrBothKind.Witness<Integer>> TO_COUNTED =
@@ -338,6 +353,28 @@ class FreeInterpreterTest {
 
       assertThat(run.second()).isEqualTo(DEPTH + 1);
       assertThat(run.first()).isEqualTo("x");
+    }
+
+    @Test
+    @DisplayName("a right-nested program of 100,000 instructions runs into State, counting each")
+    void rightNestedIntoState() {
+      StateTuple<Integer, String> run =
+          STATE
+              .narrow(rightNested(DEPTH).foldMap(TO_COUNTING_STATE, Instances.monad(state())))
+              .run(0);
+
+      assertThat(run).isEqualTo(StateTuple.of(DEPTH + 1, "x"));
+    }
+
+    @Test
+    @DisplayName("a recursive program that maps each result runs 100,000 deep into State")
+    void countdownIntoState() {
+      StateTuple<Integer, Integer> run =
+          STATE
+              .narrow(countdown(DEPTH).foldMap(TO_COUNTING_STATE, Instances.monad(state())))
+              .run(0);
+
+      assertThat(run).isEqualTo(StateTuple.of(DEPTH, DEPTH));
     }
 
     @Test
