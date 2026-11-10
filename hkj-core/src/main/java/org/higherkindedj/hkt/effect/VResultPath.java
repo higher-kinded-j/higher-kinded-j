@@ -6,6 +6,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -32,6 +34,7 @@ import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.ScopeJoiner;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 
 /**
  * A fluent path wrapper for asynchronous computations that may fail with a typed, domain error.
@@ -204,13 +207,50 @@ public final class VResultPath<E, A>
   /**
    * Returns the underlying carrier.
    *
-   * <p>This is the boundary operation: execute the returned {@link VTask} (via {@link VTask#run()},
-   * {@link VTask#runSafe()} or {@link VTask#runAsync()}) to obtain the {@code Either<E, A>}.
+   * <p>To execute this path directly at the boundary, prefer {@link #unsafeRun()} for synchronous
+   * execution on the current thread or {@link #runAsync()} for asynchronous execution on a virtual
+   * thread. Use {@code run()} when you need the lazy {@link VTask} itself (for example, to call
+   * {@link VTask#runSafe()}).
    *
    * @return the wrapped {@code VTask<Either<E, A>>}
    */
   public VTask<Either<E, A>> run() {
     return task;
+  }
+
+  /**
+   * Executes this {@code VResultPath} synchronously on the current thread, blocking until
+   * completion.
+   *
+   * <p>A typed failure arrives as a {@link Either.Left Left}. Only an exception thrown by the
+   * underlying task itself escapes: unchecked exceptions ({@link RuntimeException} and {@link
+   * Error}) are thrown directly, and checked exceptions are wrapped in {@link
+   * VTaskExecutionException}. An {@link InterruptedException} the computation throws is wrapped
+   * too, with the thread's interrupt status set again.
+   *
+   * @return the resulting {@code Either<E, A>}, never null
+   * @throws VTaskExecutionException if the computation throws a checked exception
+   * @throws RuntimeException if the computation throws an unchecked exception, including a {@link
+   *     NullPointerException} if a hand-written task returns null
+   */
+  public Either<E, A> unsafeRun() {
+    return task.run();
+  }
+
+  /**
+   * Executes this {@code VResultPath} asynchronously on a virtual thread.
+   *
+   * <p>The computation starts immediately on a virtual thread. The returned future can be used to
+   * wait for the result or combine with other asynchronous operations.
+   *
+   * <p>A typed failure completes the future normally with a {@link Either.Left Left}. An exception
+   * the task itself throws, a checked one included, completes it exceptionally, as the cause of a
+   * {@link CompletionException}.
+   *
+   * @return a {@link CompletableFuture} that will complete with the resulting {@code Either<E, A>}
+   */
+  public CompletableFuture<Either<E, A>> runAsync() {
+    return task.runAsync();
   }
 
   /**
