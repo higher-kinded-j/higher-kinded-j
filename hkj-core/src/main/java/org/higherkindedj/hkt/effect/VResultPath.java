@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -243,9 +244,8 @@ public final class VResultPath<E, A>
    * wait for the result or combine with other asynchronous operations.
    *
    * <p>A typed failure completes the future normally with a {@link Either.Left Left}. An exception
-   * thrown by the underlying task itself completes the future exceptionally: unchecked exceptions
-   * ({@link RuntimeException} and {@link Error}) are propagated as the cause, and checked
-   * exceptions are wrapped in {@link VTaskExecutionException}.
+   * the task itself throws, a checked one included, completes it exceptionally, as the cause of a
+   * {@link CompletionException}.
    *
    * @return a {@link CompletableFuture} that will complete with the resulting {@code Either<E, A>}
    */
