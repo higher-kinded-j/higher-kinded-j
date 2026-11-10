@@ -38,6 +38,11 @@ import org.springframework.core.type.AnnotationMetadata;
  */
 public class EffectBoundaryRegistrar implements ImportBeanDefinitionRegistrar, EnvironmentAware {
 
+  /**
+   * Creates the registrar; Spring instantiates it while processing {@code @EnableEffectBoundary}.
+   */
+  public EffectBoundaryRegistrar() {}
+
   private static final Logger log = LoggerFactory.getLogger(EffectBoundaryRegistrar.class);
 
   private Environment environment;
@@ -100,10 +105,20 @@ public class EffectBoundaryRegistrar implements ImportBeanDefinitionRegistrar, E
     private final Class<?>[] effectAlgebras;
     private ApplicationContext applicationContext;
 
+    /**
+     * Creates a factory bean for one set of effect algebras.
+     *
+     * @param effectAlgebras the effect algebra types the boundary handles
+     */
     public EffectBoundaryFactoryBean(Class<?>[] effectAlgebras) {
       this.effectAlgebras = effectAlgebras;
     }
 
+    /**
+     * Supplies the application context the boundary resolves its interpreters from.
+     *
+     * @param applicationContext the application context
+     */
     @Autowired
     public void setApplicationContext(ApplicationContext applicationContext) {
       this.applicationContext = applicationContext;

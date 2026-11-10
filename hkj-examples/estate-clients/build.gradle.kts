@@ -12,3 +12,8 @@ dependencies {
     api(libs.jspecify) // org.jspecify:jspecify, for @Nullable
 }
 // ANCHOR_END: clients_build
+
+// An example, never published: its API documentation is not generated, as in hkj-examples.
+tasks.named("javadoc") {
+    enabled = false
+}

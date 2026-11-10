@@ -8,7 +8,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * Kind interface marker for {@link ErrorOp ErrorOp<E, A>} in Higher-Kinded-J.
+ * Kind interface marker for {@link ErrorOp ErrorOp&lt;E, A&gt;} in Higher-Kinded-J.
  *
  * <p>The witness is parameterised by {@code E} (the error type), fixing it so that the HKT varies
  * only over {@code A}. This follows the same pattern as {@code EitherKind.Witness<L>} which fixes
