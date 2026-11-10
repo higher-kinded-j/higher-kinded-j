@@ -11,7 +11,7 @@ _Hold each step as data and run them in one loop, so deep recursion costs heap, 
 | **Replaces** | A recursive method that overflows the stack, or a loop that keeps its own stack of work |
 | **Effect Path** | [`TrampolinePath`](../glossary/effect-paths.md#trampolinepath) |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:trampoline_monad}}
-| **Choose it when** | Recursion can go thousands of calls deep, or two functions call each other; otherwise a plain loop, or recursion that stays shallow, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | Recursion can go thousands of calls deep, or two functions call each other; otherwise keep the plain recursion or loop you have, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"
