@@ -192,7 +192,7 @@ class LensExtensionsTest {
       Try<Person> result = modifyTry(ageLens, age -> Try.success(age * 2), person);
       assertThat(result.isSuccess()).isTrue();
       Person modifiedPerson =
-          result.foldFailureFirst(
+          result.fold(
               error -> {
                 throw new AssertionError("Expected success", error);
               },
@@ -210,7 +210,7 @@ class LensExtensionsTest {
           modifyTry(ageLens, age -> age >= 0 ? Try.success(age) : Try.failure(error), person);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.foldFailureFirst(
+          result.fold(
               failure -> failure,
               success -> {
                 throw new AssertionError();

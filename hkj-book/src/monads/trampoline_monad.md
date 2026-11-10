@@ -279,7 +279,7 @@ Trampoline has dedicated JMH benchmarks measuring stack-safe recursion overhead 
 - Non-linear scaling is a warning sign suggesting memory leak or quadratic complexity
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*TrampolineBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*TrampolineBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

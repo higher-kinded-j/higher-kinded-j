@@ -233,8 +233,8 @@ IOPath has dedicated JMH benchmarks measuring wrapper overhead on top of raw IO.
 - Comparison benchmarks against VTaskPath are available for choosing between effect types
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*IOPathBenchmark.*"
-./gradlew :hkj-benchmarks:jmh --includes=".*VTaskPathVsIOPathBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*IOPathBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*VTaskPathVsIOPathBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details, comparison benchmarks, and how to interpret results.
 ~~~

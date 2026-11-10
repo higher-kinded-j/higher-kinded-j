@@ -86,6 +86,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Get<S extends @Nullable Object, A, R>(S source, Getter<S, A> optic, Function<A, R> k)
       implements OpticOp<S, R> {
     public Get {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -105,6 +106,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Preview<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<Optional<@NonNull A>, R> k) implements OpticOp<S, R> {
     public Preview {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -124,6 +126,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record GetAll<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<List<A>, R> k) implements OpticOp<S, R> {
     public GetAll {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -143,6 +146,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Set<S, A extends @Nullable Object, R>(
       S source, Lens<S, A> optic, A newValue, Function<S, R> k) implements OpticOp<S, R> {
     public Set {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -162,6 +166,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record SetAll<S, A extends @Nullable Object, R>(
       S source, Traversal<S, A> optic, A newValue, Function<S, R> k) implements OpticOp<S, R> {
     public SetAll {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -182,6 +187,8 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
       S source, Lens<S, A> optic, Function<A, A> modifier, Function<S, R> k)
       implements OpticOp<S, R> {
     public Modify {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
+      Validation.function().require(modifier, "modifier", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -202,6 +209,8 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
       S source, Traversal<S, A> optic, Function<A, A> modifier, Function<S, R> k)
       implements OpticOp<S, R> {
     public ModifyAll {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
+      Validation.function().require(modifier, "modifier", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -222,6 +231,8 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
       S source, Fold<S, A> optic, Predicate<A> predicate, Function<Boolean, R> k)
       implements OpticOp<S, R> {
     public Exists {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
+      Validation.function().require(predicate, "predicate", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -242,6 +253,8 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
       S source, Fold<S, A> optic, Predicate<A> predicate, Function<Boolean, R> k)
       implements OpticOp<S, R> {
     public All {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
+      Validation.function().require(predicate, "predicate", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 
@@ -261,6 +274,7 @@ public sealed interface OpticOp<S extends @Nullable Object, A> extends OpticOpKi
   record Count<S extends @Nullable Object, A extends @Nullable Object, R>(
       S source, Fold<S, A> optic, Function<Integer, R> k) implements OpticOp<S, R> {
     public Count {
+      Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
     }
 

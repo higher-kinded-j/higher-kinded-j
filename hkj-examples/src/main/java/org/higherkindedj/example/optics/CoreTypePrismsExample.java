@@ -320,11 +320,9 @@ public class CoreTypePrismsExample {
     Try<Customer> tryCustomer = Try.of(() -> fetchCustomerFromDatabase("grace@example.com"));
     if (tryCustomer.isSuccess()) {
       System.out.println(
-          "  Customer: "
-              + tryCustomer.foldFailureFirst(ex -> "Failed: " + ex.getMessage(), c -> c.name()));
+          "  Customer: " + tryCustomer.fold(ex -> "Failed: " + ex.getMessage(), c -> c.name()));
     } else {
-      System.out.println(
-          "  Error: " + tryCustomer.foldFailureFirst(ex -> ex.getMessage(), c -> ""));
+      System.out.println("  Error: " + tryCustomer.fold(ex -> ex.getMessage(), c -> ""));
     }
 
     System.out.println("\n✅ With Prisms:");

@@ -279,7 +279,7 @@ pool.awaitTermination(30, TimeUnit.SECONDS);
 ```
 
 The HKJ version, `VStreamPar.parEvalMap(ticks, 8, this::enrichOne)`, handles all of
-this: bounded concurrency, input-order preservation, fail-fast error propagation, and
+this: bounded concurrency, input-order preservation, error propagation, and
 automatic resource cleanup.
 ~~~
 
@@ -323,9 +323,9 @@ The risk calculator checks for:
 | `parEvalMapUnordered` | Completion order | Emits as each completes | Order irrelevant, throughput matters |
 
 Both variants:
-- Pull elements in batches of `concurrency`
+- Run up to `concurrency` tasks at once: `parEvalMap` a batch at a time, and `parEvalMapUnordered` starting the next as each result is taken
 - Fork each element's VTask via `StructuredTaskScope`
-- Fail fast if any element throws (remaining tasks are cancelled)
+- Make an element whose task fails a failure in its place, as `mapTask` does, so a `recover` after either carries on with the next element
 
 ~~~admonish note title="Design Decision: Why ordered for risk?"
 Risk assessment feeds into `chunk()`, which groups **consecutive** elements into fixed-size

@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.capability.Chainable;
@@ -38,7 +39,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * <ul>
  *   <li>Optional {@link MonadError} support for error recovery
- *   <li>Natural transformation support via {@link #mapK(NaturalTransformation, Monad)}
+ *   <li>Natural transformation support via {@link #mapK(Natural, Monad)}
  *   <li>Same witness type required for composition
  * </ul>
  *
@@ -311,7 +312,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
    *
    * <pre>{@code
    * // Convert Maybe to Either with a default error
-   * NaturalTransformation<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither = ...;
+   * Natural<MaybeKind.Witness, EitherKind.Witness<String>> maybeToEither = ...;
    * GenericPath<MaybeKind.Witness, User> maybePath = ...;
    * GenericPath<EitherKind.Witness<String>, User> eitherPath =
    *     maybePath.mapK(maybeToEither, eitherMonad);
@@ -323,7 +324,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
    * @return a new GenericPath with the transformed effect type
    */
   public <G extends WitnessArity<TypeArity.Unary>> GenericPath<G, A> mapK(
-      NaturalTransformation<F, G> transform, Monad<G> targetMonad) {
+      Natural<F, G> transform, Monad<G> targetMonad) {
     Objects.requireNonNull(transform, "transform must not be null");
     Objects.requireNonNull(targetMonad, "targetMonad must not be null");
     Kind<G, A> transformed = transform.apply(value);
@@ -341,7 +342,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
    * @return a new GenericPath with the transformed effect type and error recovery support
    */
   public <G extends WitnessArity<TypeArity.Unary>, E> GenericPath<G, A> mapK(
-      NaturalTransformation<F, G> transform, MonadError<G, E> targetMonadError) {
+      Natural<F, G> transform, MonadError<G, E> targetMonadError) {
     Objects.requireNonNull(transform, "transform must not be null");
     Objects.requireNonNull(targetMonadError, "targetMonadError must not be null");
     Kind<G, A> transformed = transform.apply(value);

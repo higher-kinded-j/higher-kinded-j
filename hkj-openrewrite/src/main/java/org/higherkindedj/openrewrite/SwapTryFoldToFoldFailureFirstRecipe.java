@@ -12,6 +12,7 @@ import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
+import org.openrewrite.java.tree.TypeUtils;
 
 /**
  * Rewrites call sites of the success-first {@code Try.fold(successMapper, failureMapper)} and
@@ -21,9 +22,16 @@ import org.openrewrite.java.tree.JavaType;
  * <p>This is not a pure rename: the argument order is also swapped to match the error-first
  * convention used by {@code Either.fold}, {@code Validated.fold}, {@code EitherF.fold}, {@code
  * EitherPath.fold}, and {@code ValidationPath.fold}. Both methods were deprecated in 0.4.6 and are
- * removed in 0.5.0, so the recipe matches them only while the project compiles against 0.4.x: run
- * it before the project moves to 0.5.0. The rewritten {@code foldFailureFirst} calls compile
- * against 0.4.6 and later.
+ * removed in 0.5.0, so run the recipe while the project compiles against 0.4.x, before it moves on.
+ * The rewritten {@code foldFailureFirst} calls compile against 0.4.6 and later.
+ *
+ * <h2>The failure-first {@code fold} of 0.6.0</h2>
+ *
+ * <p>0.6.0 brings {@code fold} back with the failure function first, and the same erased signature.
+ * The recipe reads the {@code fold} declared by the type a call resolves on, and swaps only a call
+ * to one whose first parameter takes the success value, as in every 0.4.x release. A call to the
+ * failure-first {@code fold} is already in the right order and is left alone, so the recipe changes
+ * nothing in a project on 0.6.0 or later.
  *
  * <h2>Why a custom recipe (rather than {@code ChangeMethodName})</h2>
  *
@@ -67,7 +75,8 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
         + "`TryPath.fold(successMapper, failureMapper)` call sites to the error-first "
         + "`foldFailureFirst(failureMapper, successMapper)`, renaming the method and swapping "
         + "the two arguments together so behaviour is preserved. Both methods are removed in "
-        + "0.5.0, so run it while the project is on 0.4.x.";
+        + "0.5.0, so run it while the project is on 0.4.x. A call to the failure-first `fold` "
+        + "of 0.6.0 and later is left alone.";
   }
 
   @Override
@@ -85,6 +94,9 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
 
         if (!TRY_FOLD.matches(mi) && !TRY_PATH_FOLD.matches(mi)) {
+          return mi;
+        }
+        if (takesTheFailureFirst(mi.getMethodType())) {
           return mi;
         }
 
@@ -132,7 +144,13 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
         if (original == null) {
           return null;
         }
-        JavaType.Method renamed = original.withName("foldFailureFirst");
+        // The annotations are foldFailureFirst's, not fold's: 0.4.x deprecates fold, and a copied
+        // @Deprecated would let RenameTryFoldFailureFirst, in the same run, take the call back to
+        // the success-first fold
+        JavaType.Method renamed =
+            original
+                .withName("foldFailureFirst")
+                .withAnnotations(foldFailureFirstAnnotations(original.getDeclaringType()));
         List<JavaType> params = renamed.getParameterTypes();
         if (params.size() != 2) {
           return renamed;
@@ -144,5 +162,42 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
         return renamed.withParameterTypes(swapped).withParameterNames(swappedNames);
       }
     };
+  }
+
+  /**
+   * Whether the type this call resolves on declares the failure-first {@code fold} that 0.6.0
+   * brings back, read from its declared signature: its first parameter is a {@code Function<? super
+   * Throwable, ...>}, where the success-first {@code fold} of 0.4.x took a {@code Function<? super
+   * T, ...>}. A call to it is already in the right order, so it is left alone.
+   */
+  private static boolean takesTheFailureFirst(JavaType.Method call) {
+    return call.getDeclaringType().getMethods().stream()
+        .filter(m -> m.getName().equals("fold") && m.getParameterTypes().size() == 2)
+        .anyMatch(m -> readsAThrowable(m.getParameterTypes().getFirst()));
+  }
+
+  private static boolean readsAThrowable(JavaType parameter) {
+    if (!(parameter instanceof JavaType.Parameterized function)
+        || function.getTypeParameters().isEmpty()) {
+      return false;
+    }
+    JavaType input = function.getTypeParameters().getFirst();
+    return input instanceof JavaType.GenericTypeVariable wildcard
+        ? wildcard.getBounds().stream().anyMatch(SwapTryFoldToFoldFailureFirstRecipe::isThrowable)
+        : isThrowable(input);
+  }
+
+  private static boolean isThrowable(JavaType type) {
+    return TypeUtils.isOfClassType(type, "java.lang.Throwable");
+  }
+
+  /** The annotations the type declares on its {@code foldFailureFirst}, none if it has none. */
+  private static List<JavaType.FullyQualified> foldFailureFirstAnnotations(
+      JavaType.FullyQualified owner) {
+    return owner.getMethods().stream()
+        .filter(m -> m.getName().equals("foldFailureFirst"))
+        .findFirst()
+        .map(JavaType.Method::getAnnotations)
+        .orElse(List.of());
   }
 }

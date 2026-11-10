@@ -1,408 +1,178 @@
-# VStream HKT: Type Classes for Lazy Streams
-## _Making VStream a First-Class Citizen of Higher-Kinded-J_
+<!-- description: VStream's type class instances in Java: pass a stream to generic code over Functor, Monad, Alternative or Traverse, and see what ap and orElse do. -->
+
+# VStream and the Type Classes
+
+_Pass a stream to code written once for any container, over `Functor`, `Monad`, `Alternative` or `Traverse`._
 
 ~~~admonish info title="What You'll Learn"
-- How VStream participates in the HKT simulation via `VStreamKind`
-- The widen/narrow pattern for moving between VStream and Kind
-- VStream's type class hierarchy: Functor, Applicative, Monad, Alternative
-- Foldable and Traverse instances (with finite-stream constraints)
-- Writing generic functions that work with VStream and any other monadic type
+- Write a function once over `Functor`, and use it with a stream, a list and a `Maybe`
+- Get `VStream`'s instances from `Instances`, and know which class each one is
+- Say what `ap` and `orElse` do with a stream, and why `ap` suits only a finite one
+- Fold and traverse a finite stream, knowing that both read it as soon as they are called
+- Check that the instances keep their laws, with `hkj-test`
 ~~~
 
 ~~~admonish example title="See Example Code"
-[VStreamHKTExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/vstream/VStreamHKTExample.java)
+**The code on this page is [VStreamHktBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java)**: the page includes it, so the build compiles and runs it. [VStreamHktBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBookTest.java) holds what the page says each instance does, and checks the laws.
 ~~~
-
-## Why Does VStream Need HKT?
-
-Without HKT encoding, every function that operates on containers must be rewritten
-for each type. A function that doubles every number inside a `Maybe` cannot also
-double every number inside a `VStream` without a second, near-identical
-implementation. HKT encoding solves this by letting VStream present itself as
-`Kind<VStreamKind.Witness, A>`, the same shape that Maybe, Either, VTask, and every
-other Higher-Kinded-J type uses. One generic function handles them all.
-
-<!-- verify -->
-```java
-// Generic: works with VStream, Maybe, Either, VTask, List, ...
-<F extends WitnessArity<TypeArity.Unary>> Kind<F, Integer> doubleAll(
-        Functor<F> functor, Kind<F, Integer> fa) {
-    return functor.map(n -> n * 2, fa);
-}
-
-// Using it with VStream
-Kind<VStreamKind.Witness, Integer> doubled =
-    doubleAll(VStreamFunctor.INSTANCE, VSTREAM.widen(VStream.of(1, 2, 3)));
-
-List<Integer> result = VSTREAM.narrow(doubled).toList().run();
-// [2, 4, 6]
-```
-
-**Package**: `org.higherkindedj.hkt.vstream`
-**Module**: `hkj-core`
 
 ---
 
-## The HKT Encoding
+Most code uses a stream through its own methods, or on a [`VStreamPath`](../effect/path_vstream.md). This page is for code written once for any container, such as a helper over `Functor<F>` that a stream, a list and a `Maybe` all pass through. The [Foundations](../hkts/foundations_intro.md) introduction's "Which level am I working at?" tip says which you need.
 
-VStream uses the standard Higher-Kinded-J encoding pattern: a witness type, a Kind
-interface, and a helper for safe conversions.
+## One function for every container {#one-function-for-every-container}
 
-```
-                     Kind<F, A>
-                         │
-                         │ extends
-                         ▼
-               VStreamKind<A>                 (marker interface)
-                    │
-                    │ extends
-                    ▼
-              VStream<A>                      (concrete type)
-
-  VStreamKind.Witness                         (phantom type tag)
-  └── implements WitnessArity<TypeArity.Unary>
-```
-
-### VStreamKind: The Witness Type
-
-```java
-public interface VStreamKind<A> extends Kind<VStreamKind.Witness, A> {
-    final class Witness implements WitnessArity<TypeArity.Unary> {
-        private Witness() {}
-    }
-}
-```
-
-`VStream<A>` extends `VStreamKind<A>`, so every VStream is already a
-`Kind<VStreamKind.Witness, A>`. The `Witness` class is the phantom type tag that
-tells the type class machinery "this is VStream".
-
-### Widen and Narrow
-
-`VStreamKindHelper` provides safe conversions between the concrete and HKT
-representations:
+The code on this page uses these imports, with the order feed and the orders from the [VStream](vstream.md#reading-a-feed-one-page-at-a-time) page:
 
 <!-- verify -->
 ```java
+import static org.higherkindedj.hkt.instances.Witnesses.list;
+import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.vstream;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
-// Concrete → HKT (simple upcast, since VStream extends VStreamKind)
-Kind<VStreamKind.Witness, String> widened = VSTREAM.widen(VStream.of("a", "b"));
-
-// HKT → Concrete (validated downcast)
-VStream<String> narrowed = VSTREAM.narrow(widened);
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Alternative;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Traverse;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamKind;
+import org.higherkindedj.hkt.vstream.VStreamTraverse;
 ```
 
-Narrowing performs a type check. If you accidentally pass a Kind with the wrong
-witness type, you get a clear error rather than a silent ClassCastException.
+`customers` is written once, for any `Functor`, and names no container:
 
----
-
-## Type Class Hierarchy
-
-VStream implements the full standard type class tower, from Functor up to
-Alternative, plus Foldable and Traverse for finite streams.
-
-```
-                   ┌───────────────┐
-                   │   Functor     │  map
-                   └───────┬───────┘
-                           │
-                   ┌───────▼───────┐
-                   │  Applicative  │  of, ap
-                   └───────┬───────┘
-                           │
-                   ┌───────▼───────┐
-                   │    Monad      │  flatMap
-                   └───────┬───────┘
-                           │
-                   ┌───────▼───────┐
-                   │  Alternative  │  empty, orElse
-                   └───────────────┘
-
-  Also:
-                   ┌───────────────┐
-                   │   Foldable    │  foldMap  (finite streams only)
-                   └───────┬───────┘
-                           │
-                   ┌───────▼───────┐
-                   │   Traverse    │  traverse (finite streams only)
-                   └───────────────┘
-```
-
-Each level in the hierarchy extends the one above. `VStreamAlternative.INSTANCE`
-provides access to all of Functor, Applicative, Monad, and Alternative in a single
-object.
-
-| Instance | Singleton | Key Operation | Semantics |
-|----------|-----------|---------------|-----------|
-| `VStreamFunctor` | `INSTANCE` | `map(f, fa)` | Transform each element lazily |
-| `VStreamApplicative` | `INSTANCE` | `of(a)`, `ap(ff, fa)` | Lift value; Cartesian product |
-| `VStreamMonad` | `INSTANCE` | `flatMap(f, ma)` | Substitute and flatten |
-| `VStreamAlternative` | `INSTANCE` | `empty()`, `orElse(fa, fb)` | Empty stream; concatenation |
-| `VStreamTraverse` | `INSTANCE` | `foldMap`, `traverse` | Materialise and fold/traverse |
-
----
-
-## Functor: Transforming Elements
-
-`VStreamFunctor` delegates to `VStream.map()`, preserving laziness. No elements are
-produced until a terminal operation runs.
-
-<!-- verify -->
 ```java
-Functor<VStreamKind.Witness> functor = VStreamFunctor.INSTANCE;
-
-Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
-Kind<VStreamKind.Witness, String> mapped = functor.map(n -> "#" + n, stream);
-
-List<String> result = VSTREAM.narrow(mapped).toList().run();
-// ["#1", "#2", "#3"]
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:customers}}
 ```
 
-**Functor laws satisfied**:
-- Identity: `map(x -> x, stream)` produces the same elements as `stream`
-- Composition: `map(g.compose(f), stream)` equals `map(g, map(f, stream))`
+A stream read from the feed, a list and a `Maybe` all pass through it. `Instances.functor` gives each container's `Functor` from its token, such as `vstream()`:
 
----
-
-## Applicative: Lifting and Combining
-
-`VStreamApplicative` uses **Cartesian product** semantics for `ap`. When you apply a
-stream of functions to a stream of values, every function is applied to every value.
-This is the standard choice for list-like monads, consistent with StreamMonad and
-NonDetPath.
-
-<!-- verify -->
 ```java
-Applicative<VStreamKind.Witness> applicative = VStreamApplicative.INSTANCE;
-
-// Lift a pure value into a single-element stream
-Kind<VStreamKind.Witness, String> single = applicative.of("hello");
-// VStream.of("hello")
-
-// Cartesian product: 2 functions x 3 values = 6 results
-Kind<VStreamKind.Witness, Function<Integer, String>> fns =
-    VSTREAM.widen(VStream.fromList(
-        List.<Function<Integer, String>>of(n -> "x" + n, n -> "y" + n)));
-
-Kind<VStreamKind.Witness, Integer> vals =
-    VSTREAM.widen(VStream.of(1, 2, 3));
-
-Kind<VStreamKind.Witness, String> applied = applicative.ap(fns, vals);
-
-List<String> result = VSTREAM.narrow(applied).toList().run();
-// ["x1", "x2", "x3", "y1", "y2", "y3"]
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:customers_used}}
 ```
 
----
+For the stream, `map` stays lazy: the feed is read only when `toList()` runs.
 
-## Monad: Sequential Composition
+## The instances {#the-instances}
 
-`VStreamMonad` provides `flatMap`, which substitutes each element with a sub-stream
-and flattens the results. This is the monadic bind for VStream, and it preserves
-lazy evaluation throughout.
+Generic code takes a container through its instances, as [Working with Kind](vstream.md#working-with-kind) on the VStream page shows for `Monad`. These are `VStream`'s:
 
-<!-- verify -->
+| Type class | Get it with | Instance |
+|---|---|---|
+| `Functor`, `Applicative`, `Monad`, `Alternative` | `Instances.functor(vstream())`, or `applicative`, `monad` or `alternative` | `VStreamAlternative.INSTANCE`, which extends `VStreamMonad` |
+| `Foldable`, `Traverse` | `VStreamTraverse.INSTANCE` | `VStreamTraverse` |
+
+All four lookups give that one object, viewed as each type class. `VStream` has no `MonadZero` and no `Selective`, so `Instances.monadZero(vstream())` compiles but throws a `ClassCastException`. [The hierarchy](../functional/ch_intro.md#the-hierarchy) shows how the type classes extend each other.
+
+## `ap` pairs every function with every value {#ap-pairs-every-function-with-every-value}
+
+[`Applicative`](../functional/applicative.md)'s `ap` applies each function in the first stream to every value in the second, each function in turn, as `List`'s `ap` does. Two delivery services for the first two paid customers give four offers:
+
 ```java
-Monad<VStreamKind.Witness> monad = Instances.monad(vstream());
-
-Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3));
-
-Kind<VStreamKind.Witness, Integer> expanded = monad.flatMap(
-    n -> VSTREAM.widen(VStream.of(n, n * 10)),
-    stream
-);
-
-List<Integer> result = VSTREAM.narrow(expanded).toList().run();
-// [1, 10, 2, 20, 3, 30]
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:ap}}
 ```
 
-**Monad laws satisfied**:
-- Left identity: `flatMap(of(a), f)` equals `f(a)`
-- Right identity: `flatMap(stream, of)` equals `stream`
-- Associativity: `flatMap(flatMap(stream, f), g)` equals `flatMap(stream, x -> flatMap(f(x), g))`
+The feed was read once, though two functions used its values. Each run of the result reads the value stream to its end before it gives its first element, then holds those values for every function.
 
----
-
-## Alternative: Empty and Concatenation
-
-`VStreamAlternative` models choice for streams. The `empty()` method returns an
-empty stream (the identity element), and `orElse` concatenates two streams. This
-is consistent with list-like Alternative instances: "try all of stream A, then try
-all of stream B".
-
-<!-- verify -->
-```java
-Alternative<VStreamKind.Witness> alt = VStreamAlternative.INSTANCE;
-
-Kind<VStreamKind.Witness, Integer> first = VSTREAM.widen(VStream.of(1, 2));
-Kind<VStreamKind.Witness, Integer> second = VSTREAM.widen(VStream.of(3, 4));
-
-// Concatenation
-Kind<VStreamKind.Witness, Integer> combined = alt.orElse(first, () -> second);
-List<Integer> result = VSTREAM.narrow(combined).toList().run();
-// [1, 2, 3, 4]
-
-// Empty is the identity
-Kind<VStreamKind.Witness, Integer> empty = alt.empty();
-Kind<VStreamKind.Witness, Integer> same = alt.orElse(first, () -> empty);
-// produces [1, 2]
-
-// Guard: filter based on a boolean condition
-Kind<VStreamKind.Witness, Unit> passed = alt.guard(true);   // single Unit
-Kind<VStreamKind.Witness, Unit> failed = alt.guard(false);  // empty
-```
-
----
-
-## Foldable and Traverse: Finite Streams Only
-
-~~~admonish warning title="Finite Streams Only"
-`foldMap` and `traverse` materialise the entire stream before processing. They are
-**not safe for infinite streams** and will not terminate if the stream has no end.
-Use `take()` or `takeWhile()` to bound the stream before folding or traversing.
+~~~admonish warning title="ap reads every value first"
+On an endless value stream, `ap` never gives an element. To pair the elements of two streams one with one, use `zipWith`, from [Shaping a stream](vstream.md#shaping-a-stream).
 ~~~
 
-### Foldable
+## `orElse` joins two streams {#orelse-joins-two-streams}
 
-`foldMap` pulls every element, maps each one through a function, and combines the
-results using a monoid. Because VStream elements are produced via VTask, this is a
-terminal operation that executes the stream.
+For a stream, `orElse` is `concat`: it gives every element of the first, then every element of the second, and builds the second only once the first has ended. `empty()` is a stream with no elements:
 
-<!-- verify -->
 ```java
-VStreamTraverse traverse = VStreamTraverse.INSTANCE;
-
-Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(1, 2, 3, 4, 5));
-
-// Sum using the integer addition monoid
-int sum = traverse.foldMap(Monoids.integerAddition(), n -> n, stream);
-// 15
-
-// String concatenation
-String csv = traverse.foldMap(
-    Monoids.string(),
-    n -> String.valueOf(n),
-    stream
-);
-// "12345"
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:or_else}}
 ```
 
-### Traverse
+This is not a fallback. `Maybe`'s `orElse` uses its second value only when the first is `Nothing`, while a stream's joins the second even when the first has elements. [One method, two meanings](../functional/alternative.md#one-method-two-meanings) sets the two side by side. `guard(true)` gives a stream of one element, and `guard(false)` an empty one.
 
-`traverse` applies an effectful function to each element and collects the results
-inside an outer applicative context. For VStream, this materialises the stream to a
-list first, traverses the list, and reconstructs the result as a VStream.
+## Folding and traversing a finite stream {#folding-and-traversing-a-finite-stream}
 
-<!-- verify -->
+`foldMap`, from [Foldable](../functional/foldable_and_traverse.md), maps each element to a value of a [`Monoid`](../functional/semigroup_and_monoid.md), then combines them all. Here each paid order's value is added up, at 40.00 an order:
+
 ```java
-// Traverse with Maybe: if any element maps to Nothing, the whole result is Nothing
-Applicative<MaybeKind.Witness> maybeApp = Instances.monadError(maybe());
-
-Kind<VStreamKind.Witness, Integer> stream = VSTREAM.widen(VStream.of(2, 4, 6));
-
-Kind<MaybeKind.Witness, Kind<VStreamKind.Witness, String>> result =
-    traverse.traverse(
-        maybeApp,
-        n -> n > 0
-            ? MaybeKindHelper.MAYBE.widen(Maybe.just("+" + n))
-            : MaybeKindHelper.MAYBE.widen(Maybe.nothing()),
-        stream
-    );
-
-// All positive, so result is Just(VStream.of("+2", "+4", "+6"))
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:order_value}}
 ```
 
----
-
-## Writing Generic Functions
-
-The real power of HKT encoding is writing functions that work with any monadic type.
-Here is a function that triples every element in any Functor:
-
-<!-- verify -->
 ```java
-static <F extends WitnessArity<TypeArity.Unary>>
-Kind<F, Integer> tripleAll(Functor<F> functor, Kind<F, Integer> fa) {
-    return functor.map(n -> n * 3, fa);
-}
-
-// Works with VStream
-Kind<VStreamKind.Witness, Integer> tripled = tripleAll(
-    Instances.monad(vstream()),
-    VSTREAM.widen(VStream.of(1, 2, 3))
-);
-// [3, 6, 9]
-
-// Same function works with Maybe
-Kind<MaybeKind.Witness, Integer> tripledMaybe = tripleAll(
-    Instances.monadError(maybe()),
-    MaybeKindHelper.MAYBE.widen(Maybe.just(7))
-);
-// Just(21)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:fold_map}}
 ```
 
-And a function that uses Monad to compose sequential operations:
+`traverse` applies an effectful function to each element, and gives one effect holding a stream of the results. `POSTCODES` holds a postcode for each paid customer, and none for Grace or Barbara. So with `Maybe`, `traverse` gives `Just` over the paid orders, and `Nothing` over every order:
 
-<!-- verify -->
 ```java
-static <F extends WitnessArity<TypeArity.Unary>>
-Kind<F, String> fetchAndFormat(
-        Monad<F> monad,
-        Kind<F, Integer> ids) {
-    return monad.flatMap(
-        id -> monad.map(name -> name + " (id=" + id + ")", monad.of("User" + id)),
-        ids
-    );
-}
-
-// With VStream: processes each id, producing a formatted string per element
-Kind<VStreamKind.Witness, String> users = fetchAndFormat(
-    Instances.monad(vstream()),
-    VSTREAM.widen(VStream.of(1, 2, 3))
-);
-// ["User1 (id=1)", "User2 (id=2)", "User3 (id=3)"]
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBook.java:traverse}}
 ```
 
----
-
-## How VStream Compares to Other Instances
-
-| Aspect | VStream | Maybe | List/Stream | VTask |
-|--------|---------|-------|-------------|-------|
-| `of(a)` | Single-element stream | `Just(a)` | Single-element list | Succeed with value |
-| `ap` semantics | Cartesian product | Apply if both present | Cartesian product | Sequential |
-| `flatMap` | Substitute and flatten | Chain if present | Substitute and flatten | Chain effects |
-| `empty` | Empty stream | `Nothing` | Empty list | N/A (no Alternative) |
-| `orElse` | Concatenate streams | First non-empty | Concatenate lists | N/A |
-| `foldMap` | Materialise and fold | Extract or identity | Fold list | N/A (no Foldable) |
-| Lazy evaluation | Yes | N/A (single value) | Eager (materialised) | Yes (deferred) |
-
----
-
-~~~admonish info title="Key Takeaways"
-* **VStreamKind** is the HKT witness type that lets VStream participate in generic, type-class-based programming
-* **Widen/narrow** via `VStreamKindHelper.VSTREAM` converts safely between VStream and Kind
-* **Functor, Applicative, Monad** all preserve lazy evaluation; no elements are produced until a terminal operation runs
-* **Applicative uses Cartesian product** semantics: every function applied to every value
-* **Alternative uses concatenation**: `orElse` appends the second stream after the first
-* **Foldable and Traverse materialise** the stream; use only on finite streams
-* **Generic functions** written against Functor, Monad, or Alternative work with VStream alongside any other Higher-Kinded-J type
+~~~admonish warning title="foldMap and traverse run the stream when they are called"
+Neither gives a `VTask`. Each reads the whole stream there and then, on the calling thread, and `traverse` holds every element while it works. So neither returns on an endless stream: bound it first with `take` or `takeWhile`. A checked exception from the stream reaches the caller inside a `VTaskExecutionException`, as [`VTask.run()`](vtask_monad.md#running-a-task) hands one over. In application code, prefer the stream's own `fold`, which gives a `VTask`, as [Running a stream](vstream.md#running-a-stream) shows.
 ~~~
+
+## Laws {#laws}
+
+The book's own test checks that `VStream`'s instances keep their laws, with the law checkers that `hkj-test` ships.
+
+~~~admonish note title="Laws"
+Two streams count as the same when a run of each gives the same elements in the same order. On that measure, `VStream`'s instances keep the laws of [Functor](../functional/functor.md#two-laws), [Applicative](../functional/applicative.md#four-laws) and [Monad](../functional/monad.md#three-laws), and `Traverse`'s identity law, the one [`hkj-test`](../tooling/test_assertions.md#adding-the-dependency) checks. The test also checks that `widen` then `narrow` gives back the stream it started with. It uses the orders from the VStream page, with these imports and JUnit's:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.vstream;
+import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
+
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.assertions.KindEquivalence;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.laws.ApplicativeLaws;
+import org.higherkindedj.hkt.laws.FunctorLaws;
+import org.higherkindedj.hkt.laws.KindHelperLaws;
+import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.laws.TraverseLaws;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamKind;
+import org.higherkindedj.hkt.vstream.VStreamTraverse;
+```
+
+```java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vstream/VStreamHktBookTest.java:laws}}
+```
+
+Checking `Alternative`'s laws with `hkj-test` is not supported yet. The library's own tests check that `empty()` is an identity on both sides of `orElse`, and that `orElse` is associative.
+~~~
+
+## How `VStream` compares {#how-vstream-compares}
+
+| | `VStream` | `List` | Java `Stream` | `Maybe` |
+|---|---|---|---|---|
+| `of(a)` | A stream of one element | `[a]` | A stream of one element | `Just(a)` |
+| `ap` | Every function over every value, the values read at each run | Every function over every value | Every function over every value, the values read when `ap` is called | `Just` when both are |
+| `orElse` | Both, joined | Both, joined | Both, joined | The first `Just` |
+| `foldMap` | Reads the stream when called | Folds the list | Reads the stream when called | The value's, or the empty value |
+| Each element | Produced by a task when pulled | Already in memory | Produced when pulled, once only | Already in memory |
 
 ~~~admonish info title="Hands-On Learning"
-Practise VStream HKT encoding in [TutorialVStreamHKT](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamHKT.java) (10 exercises).
-~~~
-
-~~~admonish tip title="See Also"
-- [VStream](vstream.md) - Core VStream type: factories, combinators, terminal operations
-- [VStreamPath](../effect/path_vstream.md) - Fluent Effect Path wrapper for VStream
-- [Why Higher-Kinded Types?](../hkts/hkt_introduction.md) - Why Java needs an encoding for higher kinds
-- [Functor](../functional/functor.md) - The Functor type class
-- [Monad](../functional/monad.md) - The Monad type class
-- [Alternative](../functional/alternative.md) - The Alternative type class
-- [Foldable and Traverse](../functional/foldable_and_traverse.md) - Folding and effectful traversal
+Practise `VStream`'s instances in [TutorialVStreamHKT](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamHKT.java) (10 exercises).
 ~~~
 
 ---

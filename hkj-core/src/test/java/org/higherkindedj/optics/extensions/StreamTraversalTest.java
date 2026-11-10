@@ -273,6 +273,84 @@ class StreamTraversalTest {
     }
 
     @Test
+    @DisplayName("forVStream().toTraversal() reads the source once, and its result replays")
+    void forVStreamToTraversalReadsOnce() {
+      AtomicInteger read = new AtomicInteger();
+      VStream<Integer> source = VStream.of(1, 2, 3).peek(_ -> read.incrementAndGet());
+
+      VStream<Integer> doubled =
+          Traversals.modify(
+              StreamTraversal.<Integer>forVStream().toTraversal(), x -> x * 2, source);
+
+      assertThat(doubled.toList().run()).containsExactly(2, 4, 6);
+      assertThat(doubled.toList().run()).containsExactly(2, 4, 6);
+      assertThat(read).hasValue(3);
+    }
+
+    @Test
+    @DisplayName("forVStream().toTraversal() keeps the elements of a source its first run uses up")
+    void forVStreamToTraversalOfAnIterator() {
+      VStream<Integer> source = VStream.fromIterator(List.of(1, 2, 3).iterator());
+
+      VStream<Integer> doubled =
+          Traversals.modify(
+              StreamTraversal.<Integer>forVStream().toTraversal(), x -> x * 2, source);
+
+      assertThat(doubled.toList().run()).containsExactly(2, 4, 6);
+    }
+
+    @Test
+    @DisplayName("a composition's toTraversal composes its parts', so a lazy source replays")
+    void composedToTraversalReplays() {
+      record Person(String name, int age) {}
+      Lens<Person, String> name = Lens.of(Person::name, (p, n) -> new Person(n, p.age()));
+      AtomicInteger read = new AtomicInteger();
+      VStream<Person> people =
+          VStream.of(new Person("Ada", 36), new Person("Alan", 41))
+              .peek(_ -> read.incrementAndGet());
+
+      Traversal<VStream<Person>, String> names =
+          StreamTraversal.<Person>forVStream().andThen(name).toTraversal();
+      VStream<Person> shouted = Traversals.modify(names, String::toUpperCase, people);
+
+      assertThat(shouted.toList().run()).extracting(Person::name).containsExactly("ADA", "ALAN");
+      assertThat(shouted.toList().run()).extracting(Person::name).containsExactly("ADA", "ALAN");
+      assertThat(read).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("andThen(StreamTraversal).toTraversal() composes the two Traversals")
+    void composedStreamTraversalsToTraversal() {
+      Traversal<List<VStream<Integer>>, Integer> nested =
+          StreamTraversal.<VStream<Integer>>forList()
+              .andThen(StreamTraversal.<Integer>forVStream())
+              .toTraversal();
+
+      AtomicInteger firstRead = new AtomicInteger();
+      AtomicInteger secondRead = new AtomicInteger();
+      VStream<Integer> first = VStream.of(1, 2).peek(_ -> firstRead.incrementAndGet());
+      VStream<Integer> second = VStream.of(3).peek(_ -> secondRead.incrementAndGet());
+
+      List<VStream<Integer>> result = Traversals.modify(nested, x -> x + 1, List.of(first, second));
+
+      assertThat(result).hasSize(2);
+      assertThat(result.get(0).toList().run()).containsExactly(2, 3);
+      assertThat(result.get(0).toList().run()).containsExactly(2, 3);
+      assertThat(result.get(1).toList().run()).containsExactly(4);
+      // Each inner stream was read once, though its result was read more than once
+      assertThat(firstRead).hasValue(2);
+      assertThat(secondRead).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("fromTraversal(t).toTraversal() gives back t")
+    void fromTraversalRoundTrips() {
+      Traversal<VStream<String>, String> traversal = VStreamTraversals.forVStream();
+
+      assertThat(StreamTraversal.fromTraversal(traversal).toTraversal()).isSameAs(traversal);
+    }
+
+    @Test
     @DisplayName("fromTraversal() creates StreamTraversal from existing Traversal")
     void fromTraversalCreatesStreamTraversal() {
       Traversal<VStream<String>, String> vstreamTraversal = VStreamTraversals.forVStream();

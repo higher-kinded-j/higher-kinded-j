@@ -114,8 +114,12 @@ class InstancesFacadeBookTest {
           "vtask", "Throwable",
           "either", "L");
 
-  /** The page's capability table: the tokens with monadZero and alternative. */
+  /** The page's capability table: the tokens with monadZero. */
   private static final Set<String> MONAD_ZERO = Set.of("maybe", "optional", "list", "stream");
+
+  /** The page's capability table: the tokens with alternative. */
+  private static final Set<String> ALTERNATIVE =
+      Set.of("maybe", "optional", "list", "stream", "vstream");
 
   /** The page's token table: the tokens with a type parameter. */
   private static final Set<String> GENERIC_TOKENS = Set.of("either", "reader", "context", "state");
@@ -143,7 +147,7 @@ class InstancesFacadeBookTest {
           .isEqualTo(MONAD_ZERO.contains(name));
       assertThat(Alternative.class.isAssignableFrom(instance))
           .as("%s has alternative", name)
-          .isEqualTo(MONAD_ZERO.contains(name));
+          .isEqualTo(ALTERNATIVE.contains(name));
       assertThat(token.getTypeParameters().length > 0)
           .as("%s has a type parameter", name)
           .isEqualTo(GENERIC_TOKENS.contains(name));

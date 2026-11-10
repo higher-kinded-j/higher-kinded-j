@@ -283,4 +283,64 @@ class SwapTryFoldToFoldFailureFirstRecipeTest implements RewriteTest {
             }
             """));
   }
+
+  @Test
+  void swapsTheSuccessFirstFoldOnATryOfThrowable() {
+    // On a Try<Throwable> both 0.4.x functions take a Throwable; the declared signature still
+    // shows the success function first, so the call is swapped
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describeCause(Try<Throwable> t) {
+                    return t.fold(Object::toString, Throwable::getMessage);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describeCause(Try<Throwable> t) {
+                    return t.foldFailureFirst(Throwable::getMessage, Object::toString);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void leavesTheFailureFirstFoldOfLaterReleasesAlone() {
+    // Against the real hkj-core, whose fold takes the failure function first. A Try<Throwable>
+    // gives both functions the same input type, so only the declared signature tells them apart.
+    rewriteRun(
+        spec ->
+            spec.parser(JavaParser.fromJavaVersion().classpath("hkj-core", "hkj-api", "jspecify")),
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.TryPath;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Usage {
+                String describe(Try<Integer> t) {
+                    return t.fold(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
+                }
+
+                String describe(TryPath<Integer> p) {
+                    return p.fold(ex -> "err: " + ex.getMessage(), value -> "ok: " + value);
+                }
+
+                String describeCause(Try<Throwable> t) {
+                    return t.fold(Throwable::getMessage, Object::toString);
+                }
+            }
+            """));
+  }
 }

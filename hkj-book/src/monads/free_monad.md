@@ -418,7 +418,7 @@ Free has dedicated JMH benchmarks measuring interpretation cost and stack safety
 - Abstraction overhead of 50-200x vs raw Java is expected and acceptable; real workloads involve I/O that dominates compute time
 
 ```bash
-./gradlew :hkj-benchmarks:jmh --includes=".*FreeBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*FreeBenchmark.*"
 ```
 See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
 ~~~

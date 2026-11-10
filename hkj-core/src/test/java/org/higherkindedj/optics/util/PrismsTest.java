@@ -755,7 +755,7 @@ class PrismsTest {
       Try<Integer> result = prism.build(100);
       assertThat(result.isSuccess()).isTrue();
       Integer value =
-          result.foldFailureFirst(
+          result.fold(
               error -> {
                 throw new AssertionError("Expected success", error);
               },
@@ -805,7 +805,7 @@ class PrismsTest {
       Try<Integer> result = prism.build(error);
       assertThat(result.isFailure()).isTrue();
       Throwable actual =
-          result.foldFailureFirst(
+          result.fold(
               failure -> failure,
               success -> {
                 throw new AssertionError();

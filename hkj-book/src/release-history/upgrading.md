@@ -1,6 +1,24 @@
 # Upgrading
 
-Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.6.0](#removals-in-060) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.7.0](#removals-in-070) and [Removals in 0.6.0](#removals-in-060) list the APIs due to go in those releases, with the recipe that migrates each, and [Removals in 0.5.0](#removals-in-050) those 0.5.0 removed.
+
+---
+
+## Removals in 0.7.0 {#removals-in-070}
+
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build. The `parCollect` forms each gave the list `toList()` gives: a stream is read one pull at a time, so they ran nothing in parallel. The `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` recipe runs every recipe the table names, and marks each call it cannot rewrite safely, as [0.7.0 deprecation migration](../tooling/openrewrite.md#070-deprecation-migration) explains.
+
+| Deprecated | Since | Use instead | Recipe |
+|---|---|---|---|
+| `VStream.closeAfterFailure(stream, failure)` | 0.6.0 | `stream.close()`; a failed `mapTask` task gives a `Step.Fail`, whose tail you close as an `Emit`'s | By hand |
+| `VStreamPar.parCollect(stream, batchSize)` | 0.6.0 | `stream.toList()` | `ReplaceParCollectWithToListRecipe` |
+| `VStreamPath.parCollect(batchSize)` | 0.6.0 | `toList()` on the path | `ReplaceParCollectWithToListRecipe` |
+| `PathOps.parCollectVStream(path, batchSize)` | 0.6.0 | `path.toList()` | `ReplaceParCollectWithToListRecipe` |
+| `Try.foldFailureFirst` and `TryPath.foldFailureFirst` | 0.6.0 | `fold(failureMapper, successMapper)`, the same two functions in the same order | `RenameTryFoldFailureFirst` |
+| `Operation.FOLD_FAILURE_FIRST` | 0.6.0 | `Operation.FOLD`, which `Try.fold` reports | By hand |
+| `NaturalTransformation<F, G>`, in `org.higherkindedj.hkt.effect` | 0.6.0 | `Natural<F, G>`, which it extends | `ReplaceNaturalTransformationWithNatural` |
+| `FreePath.foldMapWith(interpreter, monad)` | 0.6.0 | `foldMap(interpreter, monad)` | `ReplaceNaturalTransformationWithNatural` |
+| `FreeApPath.foldMapWith(interpreter, applicative)` | 0.6.0 | `foldMapKind(interpreter, applicative)` | `ReplaceNaturalTransformationWithNatural` |
 
 ---
 
@@ -32,7 +50,7 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 | `StateTKind.narrowK` | 0.4.5 | `StateTKind.narrow` | `RenameStateTKindNarrowK` |
 | `StateT.evalStateT(state)` and `execStateT(state)`, and the `StateTKindHelper` forms without a monad | 0.4.6 | The overloads that take the `Monad<F>` | By hand |
 | `StateT.monadF()` | 0.4.6 | The outer `Monad<F>` you built the stack with, kept in your own reference | By hand |
-| `Try.fold` and `TryPath.fold`, success first | 0.4.6 | `foldFailureFirst(failureMapper, successMapper)` | `SwapTryFoldToFoldFailureFirstRecipe` |
+| `Try.fold` and `TryPath.fold`, success first | 0.4.6 | `foldFailureFirst(failureMapper, successMapper)`, or from 0.6.0 `fold(failureMapper, successMapper)` | `SwapTryFoldToFoldFailureFirstRecipe` |
 | `Each.eachWithIndex()` | 0.4.7 | Narrow to `EachIndexed` and call `indexedTraversal()` | By hand |
 | `@PathConfig` | 0.4.11 | Nothing, since it has no effect; to rename a Path, set `suffix` on `@PathSource` | `RemovePathConfig` |
 | `@PathSource` capability `EFFECTFUL` | 0.4.11 | `CHAINABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
@@ -40,13 +58,21 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 
 `StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it. Its constructor, `StateT.create` and `StateTKindHelper.stateT` take the state function alone, and `StateT.mapT` takes only the transformation. The `RemoveStateTMonadArgument` recipe drops the `Monad` argument from each call. It ships in `hkj-openrewrite` 0.5.0 and joins the same group, so run the group before your project moves off 0.4.11. A `StateT` held in `var` over a witness with a type argument, such as `EitherKind.Witness<E>`, then needs its types named: `StateT.<S, EitherKind.Witness<E>, A>create(fn)`.
 
-`fold` is planned to return on `Try` and `TryPath` in 0.6.0, with the failure-first order, so migrate to `foldFailureFirst` rather than to a local helper named `fold`.
+`fold` returns on `Try` and `TryPath` in 0.6.0, failure first. Going straight to 0.6.0 by hand, find each call while still on 0.4.x, where javac's deprecation warning names it. Swap its two functions in the change that moves to 0.6.0; on 0.5.x the name is `foldFailureFirst`. [To 0.6.0](#to-060) says why.
 
 ---
 
 ## To 0.6.0 {#to-060}
 
 This release is not out yet. [Upgrading from 0.5.0](unreleased.md#upgrading) collects what it changes so far, and [Removals in 0.6.0](#removals-in-060) lists the APIs it is due to remove, with the recipe that migrates each.
+
+0.6.0 brings back `fold` on `Try` and `TryPath`, failure first, so a success-first `fold` left over from 0.4.x compiles again wherever both its functions accept either argument, and runs the two the wrong way round. On a `Try<String>`, `t.fold(v -> true, e -> false)` gave `true` for a success on 0.4.x, and gives `true` for a failure on 0.6.0. A constant, `Object::toString` or `String::valueOf` in either place does the same. Nothing warns you, so a project on 0.4.x takes these steps in order, with `hkj-openrewrite` 0.6.x for each run:
+
+1. While the project still compiles against 0.4.x, run `MigrateDeprecationsTo0_5_0`, which swaps each success-first `fold` into `foldFailureFirst`, as [To 0.5.0](#to-050) says. Under `-Werror`, run `MigrateDeprecationsTo0_6_0` in the same pass.
+2. Replace each jar compiled against 0.4.x: rebuild it from migrated source, or take a release of it built against 0.5.0 or later. Such a jar calls the same method signature, so on 0.6.0 it runs its `fold` calls swapped, or fails with a `ClassCastException` inside one, where on 0.5.0 it threw `NoSuchMethodError`.
+3. Move to 0.6.0, then run `MigrateDeprecationsTo0_7_0`, which renames each `foldFailureFirst` the swap wrote to `fold`. 0.6.0 deprecates `foldFailureFirst`, so until then a `-Werror` build fails, and a rewrite plugin that compiles the project first needs `-Werror` lifted for the run.
+
+Already moved without step 1? Run it on your last commit on 0.4.x, or check each `fold` on a `Try` or `TryPath` by hand. On 0.4.x the recipe swaps every `fold`, one written for 0.6.0 included.
 
 ---
 

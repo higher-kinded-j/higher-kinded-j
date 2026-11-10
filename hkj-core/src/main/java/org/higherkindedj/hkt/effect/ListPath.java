@@ -96,35 +96,46 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
   /**
    * Creates a ListPath from a list.
    *
-   * @param list the list to wrap; must not be null
+   * @param list the list to wrap; must not be null, and must not contain null
    * @param <A> the element type
    * @return a ListPath wrapping the list
-   * @throws NullPointerException if list is null
+   * @throws NullPointerException if list is null, or contains null
    */
   public static <A> ListPath<A> of(List<A> list) {
+    Objects.requireNonNull(list, "list must not be null");
+    for (A a : list) {
+      Objects.requireNonNull(a, "list must not contain null");
+    }
     return new ListPath<>(list);
   }
 
   /**
    * Creates a ListPath from varargs.
    *
-   * @param elements the elements
+   * @param elements the elements; must not be null, and must not contain null
    * @param <A> the element type
    * @return a ListPath containing the elements
+   * @throws NullPointerException if elements is null, or contains null
    */
   @SafeVarargs
   public static <A> ListPath<A> of(A... elements) {
+    Objects.requireNonNull(elements, "elements must not be null");
+    for (A a : elements) {
+      Objects.requireNonNull(a, "elements must not contain null");
+    }
     return new ListPath<>(Arrays.asList(elements));
   }
 
   /**
    * Creates a ListPath with a single element.
    *
-   * @param value the single element
+   * @param value the single element; must not be null
    * @param <A> the element type
    * @return a ListPath containing one element
+   * @throws NullPointerException if value is null
    */
   public static <A> ListPath<A> pure(A value) {
+    Objects.requireNonNull(value, "value must not be null");
     return new ListPath<>(List.of(value));
   }
 
@@ -226,10 +237,18 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
 
   // ===== Composable implementation =====
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NullPointerException if mapper is null or returns null
+   */
   @Override
   public <B> ListPath<B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    List<B> mapped = list.stream().map(mapper).collect(Collectors.toList());
+    List<B> mapped =
+        list.stream()
+            .map(a -> Objects.requireNonNull(mapper.apply(a), "mapper must not return null"))
+            .collect(Collectors.toList());
     return new ListPath<>(mapped);
   }
 
@@ -252,7 +271,7 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
    * @param <B> the type of the other list's elements
    * @param <C> the type of the combined result
    * @return a new ListPath with paired and combined elements
-   * @throws NullPointerException if other or combiner is null
+   * @throws NullPointerException if other or combiner is null, or the combiner returns null
    * @throws IllegalArgumentException if other is not a ListPath
    */
   @Override
@@ -273,7 +292,10 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
     int minSize = Math.min(this.list.size(), typedOther.list.size());
     List<C> combined = new ArrayList<>(minSize);
     for (int i = 0; i < minSize; i++) {
-      combined.add(combiner.apply(this.list.get(i), typedOther.list.get(i)));
+      combined.add(
+          Objects.requireNonNull(
+              combiner.apply(this.list.get(i), typedOther.list.get(i)),
+              "combiner must not return null"));
     }
     return new ListPath<>(combined);
   }
@@ -290,6 +312,7 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
    * @param <C> the type of the third list's elements
    * @param <D> the type of the combined result
    * @return a new ListPath with combined elements
+   * @throws NullPointerException if second, third or combiner is null, or the combiner returns null
    */
   public <B, C, D> ListPath<D> zipWith3(
       ListPath<B> second,
@@ -302,7 +325,10 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
     int minSize = Math.min(Math.min(this.list.size(), second.list.size()), third.list.size());
     List<D> combined = new ArrayList<>(minSize);
     for (int i = 0; i < minSize; i++) {
-      combined.add(combiner.apply(this.list.get(i), second.list.get(i), third.list.get(i)));
+      combined.add(
+          Objects.requireNonNull(
+              combiner.apply(this.list.get(i), second.list.get(i), third.list.get(i)),
+              "combiner must not return null"));
     }
     return new ListPath<>(combined);
   }

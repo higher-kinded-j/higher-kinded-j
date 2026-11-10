@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -398,13 +399,13 @@ class TryTest extends TryTestBase {
   }
 
   // ============================================================================
-  // foldFailureFirst(): error-first, matching Either/Validated/EitherF
+  // fold(): error-first, matching Either/Validated/EitherF
   // ============================================================================
 
   @Nested
-  @DisplayName("foldFailureFirst()")
+  @DisplayName("fold()")
   @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-  class FoldFailureFirstTests {
+  class FoldTests {
     final Function<String, String> successMapper = s -> "Success mapped: " + s;
     final Function<Throwable, String> failureMapper = t -> "Failure mapped: " + t.getMessage();
     final Function<Throwable, String> throwingFailureMapper =
@@ -417,57 +418,83 @@ class TryTest extends TryTestBase {
         };
 
     @Test
-    @DisplayName("foldFailureFirst() on Success should apply success mapper")
-    void foldFailureFirst_onSuccess_shouldApplySuccessMapper() {
-      String result = successInstance.foldFailureFirst(failureMapper, successMapper);
+    @DisplayName("fold() on Success should apply success mapper")
+    void fold_onSuccess_shouldApplySuccessMapper() {
+      String result = successInstance.fold(failureMapper, successMapper);
       assertThat(result).isEqualTo("Success mapped: " + successValue);
     }
 
     @Test
-    @DisplayName("foldFailureFirst() on Failure should apply failure mapper")
-    void foldFailureFirst_onFailure_shouldApplyFailureMapper() {
-      String result = failureInstance.foldFailureFirst(failureMapper, successMapper);
+    @DisplayName("fold() on Failure should apply failure mapper")
+    void fold_onFailure_shouldApplyFailureMapper() {
+      String result = failureInstance.fold(failureMapper, successMapper);
       assertThat(result).isEqualTo("Failure mapped: " + failureException.getMessage());
 
-      String resultChecked = failureCheckedInstance.foldFailureFirst(failureMapper, successMapper);
+      String resultChecked = failureCheckedInstance.fold(failureMapper, successMapper);
       assertThat(resultChecked).isEqualTo("Failure mapped: " + checkedException.getMessage());
 
-      String resultError = failureErrorInstance.foldFailureFirst(failureMapper, successMapper);
+      String resultError = failureErrorInstance.fold(failureMapper, successMapper);
       assertThat(resultError).isEqualTo("Failure mapped: " + error.getMessage());
     }
 
     @Test
-    @DisplayName("foldFailureFirst() should throw NPE if failure mapper is null")
-    void foldFailureFirst_shouldThrowIfFailureMapperIsNull() {
+    @DisplayName("fold() should throw NPE if failure mapper is null")
+    void fold_shouldThrowIfFailureMapperIsNull() {
       assertThatNullPointerException()
-          .isThrownBy(() -> failureInstance.foldFailureFirst(null, successMapper))
-          .withMessageContaining("failureMapper for foldFailureFirst cannot be null");
+          .isThrownBy(() -> failureInstance.fold(null, successMapper))
+          .withMessageContaining("failureMapper for fold cannot be null");
     }
 
     @Test
-    @DisplayName("foldFailureFirst() should throw NPE if success mapper is null")
-    void foldFailureFirst_shouldThrowIfSuccessMapperIsNull() {
+    @DisplayName("fold() should throw NPE if success mapper is null")
+    void fold_shouldThrowIfSuccessMapperIsNull() {
       assertThatNullPointerException()
-          .isThrownBy(() -> successInstance.foldFailureFirst(failureMapper, null))
-          .withMessageContaining("successMapper for foldFailureFirst cannot be null");
+          .isThrownBy(() -> successInstance.fold(failureMapper, null))
+          .withMessageContaining("successMapper for fold cannot be null");
     }
 
     @Test
-    @DisplayName("foldFailureFirst() on Success should propagate exception from success mapper")
-    void foldFailureFirst_onSuccess_shouldPropagateExceptionFromSuccessMapper() {
-      assertThatThrownBy(
-              () -> successInstance.foldFailureFirst(failureMapper, throwingSuccessMapper))
+    @DisplayName("fold() on Success should propagate exception from success mapper")
+    void fold_onSuccess_shouldPropagateExceptionFromSuccessMapper() {
+      assertThatThrownBy(() -> successInstance.fold(failureMapper, throwingSuccessMapper))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Success mapper failed");
     }
 
     @Test
-    @DisplayName("foldFailureFirst() on Failure should propagate exception from failure mapper")
-    void foldFailureFirst_onFailure_shouldPropagateExceptionFromFailureMapper() {
-      assertThatThrownBy(
-              () -> failureInstance.foldFailureFirst(throwingFailureMapper, successMapper))
+    @DisplayName("fold() on Failure should propagate exception from failure mapper")
+    void fold_onFailure_shouldPropagateExceptionFromFailureMapper() {
+      assertThatThrownBy(() -> failureInstance.fold(throwingFailureMapper, successMapper))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("Failure mapper failed");
+    }
+
+    @Nested
+    @DisplayName("foldFailureFirst()")
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
+    class FoldFailureFirstTests {
+
+      @Test
+      @DisplayName("foldFailureFirst() gives what fold() gives, for a Success and each Failure")
+      void foldFailureFirst_givesWhatFoldGives() {
+        for (Try<String> t :
+            List.of(
+                successInstance, failureInstance, failureCheckedInstance, failureErrorInstance)) {
+          assertThat(t.foldFailureFirst(failureMapper, successMapper))
+              .isEqualTo(t.fold(failureMapper, successMapper));
+        }
+      }
+
+      @Test
+      @DisplayName("foldFailureFirst() names itself when a mapper is null")
+      void foldFailureFirst_namesItselfWhenAMapperIsNull() {
+        assertThatNullPointerException()
+            .isThrownBy(() -> failureInstance.foldFailureFirst(null, successMapper))
+            .withMessageContaining("failureMapper for foldFailureFirst cannot be null");
+        assertThatNullPointerException()
+            .isThrownBy(() -> successInstance.foldFailureFirst(failureMapper, null))
+            .withMessageContaining("successMapper for foldFailureFirst cannot be null");
+      }
     }
   }
 

@@ -122,10 +122,12 @@ the full pipeline from smaller pieces that each work in isolation.
 ### Bounded Concurrency Without Backpressure
 
 VStream is pull-based: the consumer drives evaluation by requesting elements. The parallel
-operations add bounded concurrency on top of this pull model. At most `concurrency` elements
-are in flight at any time. Because virtual threads block cheaply, no explicit backpressure
-protocol is needed; if the consumer is slow, the producer simply blocks until the consumer
-pulls the next element.
+operations add bounded concurrency on top of this pull model. `parEvalMap` and
+`parEvalMapUnordered` hold at most `concurrency` elements in flight at any time. Because virtual
+threads block cheaply, no explicit backpressure protocol is needed; if the consumer is slow, the
+producer simply blocks until the consumer pulls the next element. `merge` is the exception: it
+reads each source as fast as the source gives elements, and holds those not yet pulled without a
+limit.
 
 ### Structured Concurrency Throughout
 
@@ -135,13 +137,15 @@ All parallelism in the pipeline uses `StructuredTaskScope`:
 - `Scope.allSucceed` forks alert channels within a scope
 - `VStreamPar.merge` forks one consumer per source within a scope
 
-If any task fails, the scope cancels all remaining tasks. No orphaned threads, no leaked
-resources.
+A scope that stops early cancels the tasks still running, so there are no orphaned threads and
+no leaked resources. `Par.map2`, `Scope.allSucceed` and `merge` stop at the first failure, while
+`parEvalMap` makes a failed task a failure in its element's place and lets the rest of the batch
+finish.
 
 ### Fail-Fast Error Handling
 
 Errors propagate immediately at every level:
-- If any enrichment lookup fails, the entire batch fails
+- If an enrichment lookup fails, that tick becomes a typed `MarketError`, which is reported
 - If any risk calculation throws, the pipeline surfaces the error
 - If any alert channel fails, the dispatch for that alert fails
 - If any source stream errors during merge, the merged stream fails

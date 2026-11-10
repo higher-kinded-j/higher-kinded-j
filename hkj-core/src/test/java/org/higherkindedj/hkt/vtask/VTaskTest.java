@@ -246,18 +246,14 @@ class VTaskTest {
     }
 
     @Test
-    @DisplayName("asCallable() wraps checked Throwable in RuntimeException")
-    void asCallableWrapsCheckedThrowableInRuntimeException() {
-      // Create a Throwable that is not an Exception or Error
-      Throwable customThrowable = new Throwable("Custom throwable");
-      // Use VTask.fail() to create a task that fails with the Throwable
-      VTask<Integer> task = VTask.fail(customThrowable);
+    @DisplayName("asCallable() throws a Throwable that is neither an Exception nor an Error")
+    void asCallableThrowsPlainThrowable() {
+      Throwable odd = new Throwable("neither an Exception nor an Error");
+      VTask<Integer> task = VTask.fail(odd);
 
       Callable<Integer> callable = task.asCallable();
 
-      assertThatThrownBy(callable::call)
-          .isInstanceOf(RuntimeException.class)
-          .hasCause(customThrowable);
+      assertThatThrownBy(callable::call).isSameAs(odd);
     }
   }
 

@@ -170,7 +170,8 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedMap<String, Leaf>",
               "ImmutableList<Leaf>",
               "io.vavr.collection.List<Leaf>",
-              "HashBag<Leaf>"),
+              "HashBag<Leaf>",
+              "HashMultiSet<Leaf>"),
           shape(
               "wildcard in a third-party container",
               "Leaf",
@@ -179,7 +180,29 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedMap<String, ? extends Leaf>",
               "ImmutableList<? extends Leaf>",
               "io.vavr.collection.List<? extends Leaf>",
-              "HashBag<? extends Leaf>"));
+              "HashBag<? extends Leaf>",
+              "HashMultiSet<? extends Leaf>"),
+          // A sorted container is rebuilt with the source's comparator, so its element, or its key,
+          // needs no natural order of its own.
+          shape(
+              "sorted container of a type with no natural order",
+              "Leaf",
+              "MutableSortedSet<Leaf>",
+              "ImmutableSortedSet<Leaf>",
+              "PSortedSet<Leaf>",
+              "PSortedMap<Leaf, Leaf>"),
+          // A wildcard where a sorted container is ordered types the source's comparator for an
+          // unknown type, which the rebuilt container cannot be given, so the processor notes the
+          // component and generates nothing for it.
+          shape(
+              "wildcard where a sorted container is ordered",
+              null,
+              "MutableSortedSet<? extends Leaf>",
+              "ImmutableSortedSet<? extends Leaf>",
+              "PSortedSet<? extends Leaf>",
+              "PSortedSet<? extends String>",
+              "PSortedMap<? extends String, Leaf>",
+              "PSortedMap<?, Leaf>"));
 
   static Stream<Arguments> shapes() {
     return SHAPES.stream().map(shape -> Arguments.of(shape.label(), shape));
@@ -212,6 +235,9 @@ class GeneratedTraversalSourceCompilesTest {
     assertThat(expectedMethods(shape))
         .as("%s: a component focuses a type the generated method does not declare", label)
         .allSatisfy(method -> assertThat(generated).contains(method));
+    assertThat(refusedMethods(shape))
+        .as("%s: a method was generated for a component that should have none", label)
+        .allSatisfy(method -> assertThat(generated).doesNotContain(method));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -224,11 +250,14 @@ class GeneratedTraversalSourceCompilesTest {
             """
             package com.example;
 
+            import org.eclipse.collections.api.set.sorted.MutableSortedSet;
             import org.higherkindedj.hkt.either.Either;
             import org.higherkindedj.hkt.maybe.Maybe;
             import org.higherkindedj.hkt.trymonad.Try;
             import org.higherkindedj.hkt.validated.Validated;
             import org.higherkindedj.optics.annotations.GenerateTraversals;
+            import org.pcollections.PSortedMap;
+            import org.pcollections.PSortedSet;
             import java.util.Collection;
             import java.util.List;
             import java.util.Map;
@@ -271,6 +300,17 @@ class GeneratedTraversalSourceCompilesTest {
         Arguments.of(
             "record Holder<T extends Leaf>(List<T> f0) {}",
             "public static <T extends Leaf> Traversal<Holder<T>, T> f0()"),
+        // A sorted container rebuilt with its source's comparator asks nothing of its element, so
+        // an unbounded type variable is ordered as well as any other.
+        Arguments.of(
+            "record Holder<T>(PSortedSet<T> f0) {}",
+            "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
+            "record Holder<K, V>(PSortedMap<K, V> f0) {}",
+            "public static <K, V> Traversal<Holder<K, V>, V> f0()"),
+        Arguments.of(
+            "record Holder<T>(MutableSortedSet<T> f0) {}",
+            "public static <T> Traversal<Holder<T>, T> f0()"),
         // A record is free to call a type parameter F, which is what the effect is called; the
         // effect takes another name rather than being shadowed by it. Every container that writes
         // the effect into the body it generates has to read that name from the same place.
@@ -294,6 +334,14 @@ class GeneratedTraversalSourceCompilesTest {
         Arguments.of(
             "record Holder<F>(Validated<String, F> f0) {}",
             "public static <F> Traversal<Holder<F>, F> f0()"));
+  }
+
+  /** The method name of each component of the shape that must generate none. */
+  private static List<String> refusedMethods(final Shape shape) {
+    return IntStream.range(0, shape.components().size())
+        .filter(index -> shape.components().get(index).focus() == null)
+        .mapToObj(index -> " f%d()".formatted(index))
+        .toList();
   }
 
   /** The signature each component of the shape must generate, in the order they are declared. */
@@ -320,7 +368,10 @@ class GeneratedTraversalSourceCompilesTest {
 
         import com.google.common.collect.ImmutableList;
         import org.apache.commons.collections4.bag.HashBag;
+        import org.apache.commons.collections4.multiset.HashMultiSet;
         import org.eclipse.collections.api.list.MutableList;
+        import org.eclipse.collections.api.set.sorted.ImmutableSortedSet;
+        import org.eclipse.collections.api.set.sorted.MutableSortedSet;
         import org.higherkindedj.hkt.either.Either;
         import org.higherkindedj.hkt.maybe.Maybe;
         import org.higherkindedj.hkt.trymonad.Try;
@@ -328,6 +379,7 @@ class GeneratedTraversalSourceCompilesTest {
         import org.higherkindedj.optics.annotations.GenerateTraversals;
         import org.pcollections.PMap;
         import org.pcollections.PSortedMap;
+        import org.pcollections.PSortedSet;
         import org.pcollections.PVector;
         import java.util.Collection;
         import java.util.List;

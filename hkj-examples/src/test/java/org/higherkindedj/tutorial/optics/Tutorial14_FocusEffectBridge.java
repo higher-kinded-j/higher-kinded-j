@@ -407,7 +407,7 @@ public class Tutorial14_FocusEffectBridge {
     // TODO: Replace null with userPath.focus(namePath)
     TryPath<String> nameResult = answerRequired();
     assertThat(nameResult.run().isSuccess()).isTrue();
-    String tryResult = nameResult.run().foldFailureFirst(t -> "error", v -> v);
+    String tryResult = nameResult.run().fold(t -> "error", v -> v);
     assertThat(tryResult).isEqualTo("Alice");
 
     // AffinePath with present value succeeds

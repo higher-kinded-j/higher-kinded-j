@@ -4,7 +4,7 @@
 - Which PCollections types `@GenerateTraversals` recognises automatically
 - How generated traversals reconstruct persistent collections after a focus change
 - The Focus DSL navigation patterns for PCollections fields
-- Where natural-ordering caveats apply for sorted variants
+- How the sorted variants keep their comparator
 ~~~
 
 [PCollections](https://github.com/hrldcpr/pcollections) persistent collections are first-class citizens of the optics generator system. Annotating a record whose components are `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, or `PSortedMap` produces traversal code that round-trips through the persistent type, with no production-code changes required.
@@ -20,16 +20,16 @@ This page documents the seven PCollections generator plugins. For the underlying
 | `PVector<A>` | `PVectorGenerator` | `TreePVector.from(Collection)` | ZERO_OR_MORE |
 | `PStack<A>` | `PStackGenerator` | `ConsPStack.from(Collection)` | ZERO_OR_MORE |
 | `PSet<A>` | `PSetGenerator` | `HashTreePSet.from(Collection)` | ZERO_OR_MORE |
-| `PSortedSet<A>` | `PSortedSetGenerator` | `TreePSet.from(Collection)` | ZERO_OR_MORE |
+| `PSortedSet<A>` | `PSortedSetGenerator` | `TreePSet.from(Comparator, Collection)` | ZERO_OR_MORE |
 | `PBag<A>` | `PBagGenerator` | `HashTreePBag.from(Collection)` | ZERO_OR_MORE |
 | `PMap<K, V>` | `PMapValueGenerator` | `HashTreePMap.from(Map)` (value focus) | ZERO_OR_MORE |
-| `PSortedMap<K, V>` | `PSortedMapValueGenerator` | `TreePMap.from(Map)` (value focus) | ZERO_OR_MORE |
+| `PSortedMap<K, V>` | `PSortedMapValueGenerator` | `TreePMap.from(Comparator, Map)` (value focus) | ZERO_OR_MORE |
 
 Map generators focus on the value type (index 1). Keys are passed through unchanged.
 
 All seven generators run at the default priority and activate automatically once `org.pcollections:pcollections` is on your annotation processor's classpath.
 
-> All seven generators participate in `@GenerateFocus` navigator generation. The five collection-like generators (`PVector` / `PStack` / `PSet` / `PSortedSet` / `PBag`) widen through [`EachInstances.fromIterableCollecting`](../optics/common_data_structure_traversals.md); the two map-value generators widen through [`EachInstances.mapValuesEachCollecting`](../optics/common_data_structure_traversals.md), the map-shaped companion to `fromIterableCollecting`. So `@GenerateFocus` on a record with a `PMap` or `PSortedMap` field produces a navigator returning a `TraversalPath` over the values.
+> All seven generators participate in `@GenerateFocus` navigator generation. The collection-like generators (`PVector` / `PStack` / `PSet` / `PBag`) widen through [`EachInstances.fromIterableCollecting`](../optics/common_data_structure_traversals.md), and `PMap` through [`EachInstances.mapValuesEachCollecting`](../optics/common_data_structure_traversals.md), the map-shaped companion to `fromIterableCollecting`. The sorted pair widen through `fromIterableRebuilding` and `mapValuesEachRebuilding`, which hand the rebuild the source as well, so it keeps the source's comparator. So `@GenerateFocus` on a record with a `PMap` or `PSortedMap` field produces a navigator returning a `TraversalPath` over the values.
 
 ---
 
@@ -80,14 +80,13 @@ If you are operating on a hot path and the persistent type matters more than the
 
 ## Sorted Variants and Comparators
 
-`PSortedSet` and `PSortedMap` are reconstructed using `TreePSet.from(Collection)` and `TreePMap.from(Map)`, which apply natural ordering. **Custom comparators are not preserved** through a generated traversal.
+`PSortedSet` and `PSortedMap` are reconstructed with the source's comparator, through `TreePSet.from(Comparator, Collection)` and `TreePMap.from(Comparator, Map)`. A generated traversal and a Focus path both keep the order the source keeps:
 
-Two practical implications:
+- A set or map in a custom order stays in it after `modify` or `modifyAll`.
+- An element, or a key, needs no natural order of its own. A `PSortedSet<Leaf>` sorted by `Comparator.comparing(Leaf::name)` is traversed as a `PSortedSet<String>` is.
+- A sorted collection in natural order stays in natural order. PCollections' own report `Comparator.naturalOrder()` as their comparator. Another implementation of `PSortedSet` or `PSortedMap` may report `null`, as `SortedSet` allows, and the comparator is read through `TreePSet.fromSortedSet` or `TreePMap.fromSortedMap`, which take `null` as natural order.
 
-- If your `PSortedSet<MyType>` relies on a custom `Comparator<MyType>`, write the optic by hand rather than relying on the generator
-- The natural-ordering reconstruction will throw at runtime if your element type is not `Comparable`. Generators do not detect this statically; a missing `Comparable` bound will surface as a `ClassCastException` the first time the traversal runs
-
-For the common case where elements implement `Comparable` and the natural ordering is the desired one, the generator is the right tool.
+One shape is refused: a wildcard where the container is ordered, such as `PSortedSet<? extends Leaf>` or `PSortedMap<? extends String, Integer>`. The source's comparator then compares an unknown type, so a rebuild that reuses it would not compile. `@GenerateTraversals` notes the component and generates no traversal for it, and `@GenerateFocus` rejects it where `widenCollections` or `widenFields` widens it. Declare the component with concrete type arguments, such as `PSortedSet<Leaf>`. `@GenerateTraversals` traverses a wildcard in a sorted map's value, `PSortedMap<String, ? extends Leaf>`, as in any other map.
 
 ---
 
@@ -103,6 +102,8 @@ import org.pcollections.PVector;
 import org.pcollections.TreePVector;
 import org.pcollections.PMap;
 import org.pcollections.HashTreePMap;
+import org.pcollections.PSortedSet;
+import org.pcollections.TreePSet;
 
 Each<PVector<String>, String> pvectorEach =
     EachInstances.fromIterableCollecting(TreePVector::from);
@@ -110,9 +111,14 @@ Each<PVector<String>, String> pvectorEach =
 // Persistent maps use the map-shaped companion helper.
 Each<PMap<String, Integer>, Integer> pmapValues =
     EachInstances.mapValuesEachCollecting(HashTreePMap::from);
+
+// A sorted set hands its comparator on, through the form that also receives the source.
+Each<PSortedSet<String>, String> psortedSetEach =
+    EachInstances.fromIterableRebuilding(
+        (source, list) -> TreePSet.from(source.comparator(), list));
 ```
 
-`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`; `mapValuesEachCollecting` does the same for any `java.util.Map` subtype, rebuilding the persistent map from a JDK `Map`. The same forms cover all the PCollections types. There is no library-specific factory class; the generic helpers are the public API.
+`fromIterableCollecting` accepts any function that builds a persistent collection from a `List`; `mapValuesEachCollecting` does the same for any `java.util.Map` subtype, rebuilding the persistent map from a JDK `Map`. `fromIterableRebuilding` and `mapValuesEachRebuilding` hand the function the source as well, which is how a sorted collection keeps its comparator. The same forms cover all the PCollections types. There is no library-specific factory class; the generic helpers are the public API.
 
 ---
 
@@ -127,9 +133,9 @@ For projects already on Eclipse Collections or Vavr, those existing generators r
 ~~~admonish info title="Key Takeaways"
 * **Seven generator plugins** cover every PCollections collection and map type
 * **Activation is automatic** once PCollections is on the annotation processor classpath
-* **Reconstruction goes through `from(Collection)` / `from(Map)`**, so traversals round-trip cleanly through the persistent type
-* **Sorted variants assume natural ordering**; custom comparators are not preserved by generated code
-* **Use `EachInstances.fromIterableCollecting(TreePVector::from)`** (collections) or **`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`** (maps) for hand-written optics outside `@GenerateTraversals`
+* **Reconstruction goes through each type's `from` factory**, so traversals round-trip cleanly through the persistent type
+* **Sorted variants keep the source's comparator**, under `@GenerateTraversals` and `@GenerateFocus` alike
+* **Use `EachInstances.fromIterableCollecting(TreePVector::from)`** (collections) or **`EachInstances.mapValuesEachCollecting(HashTreePMap::from)`** (maps) for hand-written optics outside `@GenerateTraversals`, or the `Rebuilding` forms for the sorted pair
 ~~~
 
 ~~~admonish tip title="See Also"

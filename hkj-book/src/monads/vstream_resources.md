@@ -1,208 +1,193 @@
-# VStream: Resource-Safe Streaming
-## _Acquire, Stream, Release: Guaranteed Cleanup_
+<!-- description: Release what a VStream opens with bracket and onFinalize: once for each run, however the run ends, even when the consumer stops early. -->
+
+# Resource-Safe Streaming: Release What a Stream Opens
+
+_Open a connection when a run starts, and close it however the run ends._
 
 ~~~admonish info title="What You'll Learn"
-- How to use `bracket` for resource-safe streaming with guaranteed cleanup
-- How `onFinalize` attaches cleanup actions to any stream
-- The exactly-once release guarantee and how it works
-- Common patterns for file I/O, database cursors, and network connections
-- Limitations of pull-based resource management
+- Open a resource for each run with `bracket`, and say when it is released, even when `take` stops early
+- Predict what a run reports when reading fails, and when the release itself fails
+- Nest brackets, and read one resource after another
+- Attach cleanup to any stream with `onFinalize`
+- Close a stream you pull by hand
 ~~~
 
 ~~~admonish example title="See Example Code"
-[VStreamAdvancedExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/vstream/VStreamAdvancedExample.java)
+**The code on this page is [VStreamResourcesBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java) and [VStreamLinesBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamLinesBook.java):** the page includes them, so the build compiles and runs them. [VStreamResourcesBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBookTest.java) holds what the page says about each release.
 ~~~
 
-## The Problem: Streams That Leak Resources
+---
 
-Streaming over external resources, such as files, database cursors, or network connections,
-requires careful lifecycle management. The resource must be acquired before the first element
-is produced and released when the stream finishes, whether that finish is normal completion,
-an error, or the consumer simply stopping early.
+## A stream that holds a connection {#a-stream-that-holds-a-connection}
 
-Without language-level support, this burden falls on the caller. Forget a `finally` block and
-the file handle leaks. Wrap the entire pipeline in `try-with-resources` and the resource is
-released before lazy processing begins. The tension between laziness and resource safety is
-a fundamental challenge in pull-based streaming.
+A stream reads nothing until it runs, so a `try`-with-resources block around the code that builds it closes the connection before the first element is read. The connection has to be opened by the run, and closed when the run ends.
 
-## bracket: The Solution
-
-`VStream.bracket(acquire, use, release)` solves this by tying resource lifecycle to stream
-lifecycle:
+The code reuses the order feed from the [VStream](vstream.md#reading-a-feed-one-page-at-a-time) page. `orders(feed)` streams every order in a feed, and `PagedFeed` serves `ORDERS`, six orders of which four are paid, two to a page. `new PagedFeed(ORDERS, 2)` fails at page 2, and `shippingQuotes(orders, courier)` asks a courier to quote for each paid order. With `Order` from the [Optics](../optics/ch_intro.md) chapter, these are the imports:
 
 <!-- verify -->
 ```java
-import java.nio.file.Path;
-
-Path path = Path.of("data.txt"); // the file to stream
-
-VStream<String> lines = VStream.bracket(
-    // Acquire: open the resource (runs lazily, each time the stream is consumed)
-    VTask.of(() -> Files.newBufferedReader(path)),
-
-    // Use: produce a stream from the resource
-    reader -> VStream.unfold(reader, r ->
-        VTask.of(() -> {
-            String line = r.readLine();
-            return line == null
-                ? Optional.empty()
-                : Optional.of(new Seed<>(line, r));
-        })),
-
-    // Release: close the resource (guaranteed). `close()` is checked, so this is
-    // VTask.of rather than VTask.exec, whose Runnable cannot throw.
-    reader -> VTask.of(() -> {
-        reader.close();
-        return Unit.INSTANCE;
-    })
-);
-```
-
-Three key properties make this safe:
-
-1. **Lazy acquisition**: The resource is acquired when the `VTask` that `pull()` returns runs,
-   afresh on each run, not when `bracket` is called. This means creating the stream is free; the
-   resource only opens when consumption begins.
-
-2. **Guaranteed release**: The release function runs once for each acquisition, regardless of
-   how the stream terminates, whether by normal completion, error, a `use` function that throws,
-   or partial consumption via `take`, `headOption`, or `find`.
-
-3. **Exactly-once semantics**: An internal `AtomicBoolean` ensures the release function
-   cannot run twice, even if multiple terminal paths converge.
-
-### Partial Consumption
-
-One of the most important properties of `bracket` is that partial consumption still triggers
-release:
-
-<!-- verify -->
-```java
-// Only read first 10 lines, then close the file
-List<String> firstTen = lines.take(10).toList().run();
-// File handle is closed when take(10) triggers the finaliser
-```
-
-This works because `take(n)` closes the rest of the stream after its nth element, and closing
-runs the release.
-
-### Nested Brackets
-
-Multiple bracket regions can be nested via composition. Inner resources are released before
-outer resources:
-
-<!-- verify -->
-```java
-// Assuming: Connection openConnection(), Cursor openCursor(Connection),
-//           VStream<String> streamFromCursor(Cursor)
-VStream<String> pipeline = VStream.bracket(
-    VTask.of(() -> openConnection()),
-    conn -> VStream.bracket(
-        VTask.of(() -> openCursor(conn)),
-        cursor -> streamFromCursor(cursor),
-        cursor -> VTask.exec(() -> cursor.close())
-    ),
-    conn -> VTask.exec(() -> conn.close())
-);
-// cursor closed first, then connection
-```
-
-## onFinalize: Lightweight Cleanup {#onfinalize-lightweight-cleanup}
-
-For cases where you do not need a full acquire-use-release cycle, `onFinalize` attaches a
-cleanup action to any existing stream:
-
-<!-- verify -->
-```java
-VStream<String> stream = VStream.of("a", "b", "c")
-    .onFinalize(VTask.exec(() -> System.out.println("Stream completed")));
-```
-
-The finaliser runs once each time the stream is consumed: when that consumption completes,
-fails, or stops early. An operation that stops early, such as `take`, `takeWhile`, `zipWith`,
-`headOption`, `find`, `exists` or `forAll`, closes the rest of the stream, and so does a terminal
-operation that fails. Closing reaches every finaliser upstream that the stream has started
-reading, through any operator in between.
-Multiple finalisers can be chained; they execute in the order they were attached:
-
-<!-- verify -->
-```java
-VStream<Integer> stream = VStream.of(1, 2, 3)
-    .onFinalize(VTask.exec(() -> System.out.println("first finaliser")))
-    .onFinalize(VTask.exec(() -> System.out.println("second finaliser")));
-```
-
-### Error Handling in Finalisers
-
-If the finaliser itself throws an exception and the stream also failed, the original error
-is preserved and the finaliser error is added as a suppressed exception. If the stream did not
-fail, a finaliser that throws fails the operation that completed or closed it, such as `toList`
-or `headOption`. The other finalisers still run, and a later failure is suppressed onto the
-first:
-
-<!-- verify -->
-```java
-// Original error preserved; finaliser error becomes suppressed
-try {
-    stream.toList().run();
-} catch (RuntimeException e) {
-    // e is the original stream error
-    // e.getSuppressed() contains the finaliser error
-}
-```
-
-## VStreamPath Integration
-
-The Path API provides fluent access to resource management:
-
-<!-- verify -->
-```java
+import java.io.Closeable;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
-
-// Assuming: BufferedReader openReader(), VStream<String> streamLines(BufferedReader)
-// bracket via Path factory
-VStreamPath<String> lines = Path.vstreamBracket(
-    VTask.of(() -> openReader()),
-    reader -> streamLines(reader),
-    reader -> VTask.of(() -> {
-        reader.close();
-        return Unit.INSTANCE;
-    })
-);
-
-// onFinalize on existing path
-VStreamPath<String> withCleanup = lines.onFinalize(
-    VTask.exec(() -> System.out.println("cleanup"))
-);
+import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 ```
 
-## Known Limitations
+The feed is now read over a connection, which a service opens. `OrderFeed` and `Courier` are the VStream page's services:
 
-~~~admonish warning title="Abandoned Streams"
-A finaliser runs when its stream completes, fails or is closed. If you pull steps by hand and
-drop the tail without draining it or calling `close()`, the finaliser never runs. Every terminal
-operation, `take` and `takeWhile` handle this for you. When a pull you make by hand fails, close
-the stream with `VStream.closeAfterFailure(stream, failure)`, which also closes the rest of the
-stream that a failed `mapTask` task carries. Closing a `bracket` head closes only its
-latest run, so if you run its pulled `VTask` more than once, close the tail of each run.
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:services}}
+```
+
+## `bracket` opens and closes {#bracket-opens-and-closes}
+
+`VStream.bracket(acquire, use, release)` opens a resource when a run starts, reads the stream `use` builds from it, and releases it however the run ends:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:orders_over}}
+```
+
+`LoggedFeedService(log)` serves `ORDERS` over each connection it opens, and writes each open, page and close to `log`, so the log shows what a run did:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:bracket_used}}
+```
+
+Building the stream opened nothing. The run opened the connection, read every page up to the empty page 4, which ends the feed, and closed it. Each run opens a connection of its own, and closes it:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:run_twice}}
+```
+
+## Stopping early {#stopping-early}
+
+A consumer that stops before the end still closes the connection:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:stopped_early}}
+```
+
+`take(2)` closes the rest of the stream once it has its two elements, so page 3 is never read. `takeWhile`, `zipWith`, `headOption`, `find`, `exists` and `forAll` close the rest in the same way when they stop.
+
+## A file, a line at a time {#a-file-a-line-at-a-time}
+
+A file is read the same way, with `java.nio.file.Files`, `java.nio.file.Path` and `java.util.Optional`. The reader opens when a run starts, and closes when the run reaches the end of the file, fails, or stops early:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamLinesBook.java:lines}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamLinesBook.java:lines_used}}
+```
+
+`java.nio.file.Path` and the library's `Path` share a name, so code that uses both imports one and writes the other in full. The example keeps the file in a class of its own.
+
+## When something fails {#when-something-fails}
+
+A failure closes the connection too, and a close that fails is reported. `new LoggedFeedService(log, feed)` serves another feed, and `LoggedFeedService.failingToClose(log, feed)` gives connections whose close throws:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:failures}}
+```
+
+| What fails | What happens |
+|---|---|
+| Reading, such as a page of the feed | The connection is closed, then the stream fails with the reading's own exception |
+| `use`, while it builds the stream | The connection is closed, then the stream fails with `use`'s exception |
+| The release, after a run that succeeded | The operation that ended the run, such as `toList`, fails with the release's exception |
+| The release, after a run that failed | Its exception is suppressed onto the run's failure, in `getSuppressed()` |
+
+`runSafe()` gives each failure as it was thrown. `run()` hands a checked one over inside a `VTaskExecutionException`, with the original as its cause, as [Running a task](vtask_monad.md#running-a-task) explains.
+
+## Nested brackets, and one resource after another {#nested-brackets}
+
+A bracket inside another holds its resource inside the outer one's, and releases it first. Here a courier session, whose quotes are 4.99 as `COURIER`'s are, is opened inside the feed connection:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:nested}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:nested_used}}
+```
+
+To read one resource after another, join the brackets outside each other, with `concat`. Each connection is closed before the next is opened:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:one_after_another}}
+```
+
+A `use` such as `connection -> orders(connection).concat(next)` instead keeps the first connection open until `next` has been read too.
+
+## `onFinalize`: cleanup for any stream {#onfinalize-lightweight-cleanup}
+
+`onFinalize(task)` runs a task when the stream's run ends, with nothing to open. It suits cleanup such as a log line or a metric:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:finalisers}}
+```
+
+- **A finaliser runs once for each run**, when the run completes, fails, or is closed early by an operation that stops.
+- **Several finalisers run in the order they were attached.**
+- **After a recovered failure, the finaliser runs when the stream ends.** When a `recover` reads on after a failed `mapTask` task, the run goes on, and the finaliser waits for its end.
+- **A failing finaliser is reported as a failing release is**, as [When something fails](#when-something-fails) shows. When several fail, the others still run, the first one's exception is thrown, and each later one is suppressed onto it.
+
+`bracket` is built on `onFinalize`: its release is the finaliser of the stream that `use` gives.
+
+## On a `VStreamPath` {#on-a-vstreampath}
+
+[`VStreamPath`](../effect/path_vstream.md) has both: `Path.vstreamBracket` builds one, and `onFinalize` attaches a finaliser:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:path}}
+```
+
+The connection's release runs before the finaliser attached after it.
+
+## Pulling by hand {#pulling-by-hand}
+
+~~~admonish warning title="Close a stream you pull by hand"
+A release runs when its run completes, fails or is closed. Pull steps by hand, as [What a pull gives](vstream.md#what-a-pull-gives) shows, and stop part-way, and the connection stays open until you close the stream you pulled, or the tail you hold. The first pull of `ordersOver` opens the connection and gives a `Skip`, so even one pull leaves something to close. A pull that throws releases what it opened by itself.
+
+`take` closes the rest only on the pull after its last element, so a hand puller who stops at that `Emit` still closes. A `Fail` step, for a failed `mapTask` task, holds the rest of the stream in its tail: close it, or read on from it, as you would an `Emit`'s. Running a pulled `VTask` twice opens two connections, and closing the stream you called `pull()` on closes only the latest run's, so close the tail each run gave you.
 ~~~
 
-## Key Takeaways
+## Which thread releases {#which-thread-releases}
 
-~~~admonish tip title="Key Takeaways"
-- `bracket(acquire, use, release)` ties resource lifecycle to stream lifecycle
-- Resources are acquired lazily, each time the stream is consumed, and released once for each acquisition
-- Partial consumption (take, headOption, find) still triggers release
-- `onFinalize` provides lightweight cleanup for streams that do not need full bracket
-- Nested brackets release in reverse order (inner before outer)
-- A finaliser error is suppressed onto the stream's own failure; otherwise it fails the operation that completed or closed the stream
+A release, or a finaliser, runs on the thread that makes the stream's last pull or closes it. That is the thread running the terminal operation, unless a parallel operation reads the stream on a thread of its own, as `parEvalMapUnordered` and `merge` do.
+
+If that thread was interrupted before the release starts, the interrupt is held back while the release runs, and set again afterwards, so a release that blocks still finishes. An interrupt that arrives while the release runs, as a timeout's can, still reaches it.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `VStream.bracket(acquire, use, release)` | Opens a resource for each run, reads the stream `use` builds, and releases it however the run ends |
+| `stream.onFinalize(task)` | Runs `task` once for each run, when the run ends |
+| `stream.close()` | Closes the stream: runs the finalisers upstream of it, and releases what its latest run opened |
+| `Path.vstreamBracket(acquire, use, release)`, `path.onFinalize(task)` | The same, on a `VStreamPath` |
+
+## When to use bracket and onFinalize {#when-to-use-them}
+
+| You need | Use |
+|---|---|
+| A resource opened for each run of a stream, and closed after | `bracket` |
+| Cleanup with nothing to open, such as a log line or a metric | `onFinalize` |
+| Several resources read one after another | Brackets joined with `concat` |
+| A resource for one task, not a stream | [Resource](vtask_resource.md) |
+
+~~~admonish info title="Hands-On Learning"
+Practise `bracket` and `onFinalize` in Part 1 of [TutorialVStreamAdvanced](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamAdvanced.java) (exercises 1 to 3).
 ~~~
-
-## See Also
-
-- [VStream: Lazy Pull-Based Streaming](vstream.md) for core VStream operations
-- [VStream: Parallel Operations](vstream_parallel.md) for concurrent processing
-- [VStream: Advanced Features](vstream_advanced.md) for StreamTraversal, reactive interop
 
 ---
 

@@ -278,7 +278,7 @@ public class TutorialVTaskForPath {
 
       Try<Integer> tryResult = result.runSafe();
       assertThatTry(tryResult).isFailure();
-      String errorMessage = tryResult.foldFailureFirst(Throwable::getMessage, v -> "no error");
+      String errorMessage = tryResult.fold(Throwable::getMessage, v -> "no error");
       assertThat(errorMessage).isEqualTo("Step 2 failed");
     }
 

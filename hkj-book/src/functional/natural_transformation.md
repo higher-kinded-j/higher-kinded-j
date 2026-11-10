@@ -152,6 +152,7 @@ A [Free](../monads/free_monad.md) program holds its steps, its instructions, as 
 - **`Interpreters.combine` joins two interpreters into one.** A program over two instruction sets needs it, as [EitherF](../monads/eitherf.md) shows.
 - **`EffectBoundary.of` takes the interpreter to `IO` that runs a program at the edge.**
 - **A transformer's `mapT` takes `nat::apply`.** `EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT` and `WriterT` each have one. It changes the outer container, for example from `IO` to `VTask`, and leaves the inner value alone.
+- **`GenericPath.mapK(nat, monad)` moves a path to another container.** `VStreamTransformations` gives the `Natural`s between `VStream`, `List` and `Stream`, as the VStream [Advanced Features](../monads/vstream_advanced.md#natural-transformations) page shows.
 
 ## Things people get wrong {#things-people-get-wrong}
 

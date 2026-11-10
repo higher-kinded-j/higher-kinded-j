@@ -47,7 +47,7 @@ work in and the traps the chapter has met.
 - **Never draw the type class hierarchy; link to it.** The diagram is on `functional/ch_intro.md`,
   generated from `hkj-api` by `BookTypeClassHierarchyTest`. When a type class changes, `bookVerify`
   fails and prints the replacement fence to paste in. Hand-drawn copies still stand on
-  `functional/functional_api.md`, `hkts/quick_reference.md` and `monads/vstream_hkt.md`, and each is
+  `functional/functional_api.md` and `hkts/quick_reference.md`, and each is
   wrong somewhere, so never copy one: `MonadZero` extends both `Monad` and `Alternative`, `Traverse`
   extends both `Functor` and `Foldable`, and there is no `Apply`.
 - **Never type a core type's instances; include them.** `BookCapabilityMatrixTest` reads them from

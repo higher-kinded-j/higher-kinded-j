@@ -830,7 +830,7 @@ class CompletableFuturePathTest {
       TryPath<String> result = path.toTryPath();
 
       assertThat(result.run().isFailure()).isTrue();
-      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      Throwable failure = result.fold(error -> error, value -> null);
       assertThat(failure).isSameAs(ex).isNotInstanceOf(CompletionException.class);
     }
 
@@ -851,7 +851,7 @@ class CompletableFuturePathTest {
 
       TryPath<String> result = path.toTryPath();
 
-      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      Throwable failure = result.fold(error -> error, value -> null);
       assertThat(failure).isInstanceOf(CancellationException.class).isSameAs(recoveredFrom.get());
     }
 
@@ -981,7 +981,7 @@ class CompletableFuturePathTest {
 
       TryPath<String> result = path.toTryPath();
 
-      Throwable failure = result.foldFailureFirst(cause -> cause, value -> null);
+      Throwable failure = result.fold(cause -> cause, value -> null);
       assertThat(failure).isSameAs(error);
     }
 
@@ -994,7 +994,7 @@ class CompletableFuturePathTest {
 
       TryPath<String> result = CompletableFuturePath.fromFuture(future).toTryPath();
 
-      Throwable failure = result.foldFailureFirst(error -> error, value -> null);
+      Throwable failure = result.fold(error -> error, value -> null);
       assertThat(failure).isSameAs(causeless);
     }
   }

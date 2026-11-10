@@ -5,10 +5,12 @@ package org.higherkindedj.hkt.instances;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
+import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadWriter;
@@ -37,6 +39,9 @@ import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.validated.ValidatedKind;
+import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vstream.VStreamAlternative;
+import org.higherkindedj.hkt.vstream.VStreamKind;
 import org.higherkindedj.hkt.writer.WriterKind;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
 import org.junit.jupiter.api.DisplayName;
@@ -110,6 +115,19 @@ class InstancesTest {
       // error type inferred from the assignment target, like the phantom story
       MonadError<EitherKind.Witness<String>, String> ee = Instances.monadError(either());
       assertThat(ee).isSameAs(EitherMonad.<String>instance());
+    }
+
+    @Test
+    @DisplayName(
+        "alternative(vstream()) gives VStream's Alternative, and monad(vstream()) the same object")
+    void vstreamAlternative() {
+      Alternative<VStreamKind.Witness> alt = Instances.alternative(vstream());
+      Kind<VStreamKind.Witness, Integer> joined =
+          alt.orElse(VSTREAM.widen(VStream.of(1, 2)), () -> VSTREAM.widen(VStream.of(3)));
+
+      assertThat(alt).isSameAs(VStreamAlternative.INSTANCE);
+      assertThat(Instances.monad(vstream())).isSameAs(alt);
+      assertThat(VSTREAM.narrow(joined).toList().run()).containsExactly(1, 2, 3);
     }
 
     @Test

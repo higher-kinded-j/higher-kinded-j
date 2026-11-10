@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 import java.util.List;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.stream.StreamKind;
 import org.higherkindedj.hkt.vstream.VStream;
@@ -17,9 +18,9 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
 /**
  * Natural transformations between VStream and other collection/effect types.
  *
- * <p>This utility class provides type-safe conversions between VStream and Stream, List, and VTask
- * representations using the {@link NaturalTransformation} abstraction. These transformations
- * preserve element order and satisfy the naturality law:
+ * <p>This utility class provides type-safe conversions between VStream and Java's Stream, and
+ * between VStream and List, using the {@link Natural} abstraction. These transformations preserve
+ * element order and satisfy the naturality law:
  *
  * <pre>{@code
  * nt.apply(fa.map(f)) == nt.apply(fa).map(f)
@@ -30,9 +31,13 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
  * <ul>
  *   <li><b>Lazy (non-materialising):</b> {@link #streamToVStream()} and {@link #listToVStream()}
  *       wrap the source without evaluating elements. Safe for large or infinite inputs.
- *   <li><b>Materialising:</b> {@link #vstreamToStream()} and {@link #vstreamToList()} execute the
- *       VStream, collecting all elements. Only safe for finite streams.
+ *   <li><b>Materialising:</b> {@link #vstreamToStream()} and {@link #vstreamToList()} run the
+ *       VStream when {@code apply} is called, on the calling thread, collecting all elements, and
+ *       throw if it fails. Only safe for finite streams.
  * </ul>
+ *
+ * <p>A VStream made by {@link #streamToVStream()} reads a Java Stream, which can be read only once,
+ * so each run carries on from where the last one stopped, and after a full run it gives nothing.
  *
  * <h2>Usage with GenericPath.mapK</h2>
  *
@@ -42,7 +47,7 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
  *     vstreamPath.mapK(VStreamTransformations.vstreamToList(), ListMonad.INSTANCE);
  * }</pre>
  *
- * @see NaturalTransformation
+ * @see Natural
  * @see VStream
  */
 public final class VStreamTransformations {
@@ -57,8 +62,8 @@ public final class VStreamTransformations {
    *
    * @return a natural transformation from StreamKind to VStreamKind
    */
-  public static NaturalTransformation<StreamKind.Witness, VStreamKind.Witness> streamToVStream() {
-    return new NaturalTransformation<>() {
+  public static Natural<StreamKind.Witness, VStreamKind.Witness> streamToVStream() {
+    return new Natural<>() {
       @Override
       public <A> Kind<VStreamKind.Witness, A> apply(Kind<StreamKind.Witness, A> fa) {
         Stream<A> stream = STREAM.narrow(fa);
@@ -76,8 +81,8 @@ public final class VStreamTransformations {
    *
    * @return a natural transformation from VStreamKind to StreamKind
    */
-  public static NaturalTransformation<VStreamKind.Witness, StreamKind.Witness> vstreamToStream() {
-    return new NaturalTransformation<>() {
+  public static Natural<VStreamKind.Witness, StreamKind.Witness> vstreamToStream() {
+    return new Natural<>() {
       @Override
       public <A> Kind<StreamKind.Witness, A> apply(Kind<VStreamKind.Witness, A> fa) {
         VStream<A> vstream = VSTREAM.narrow(fa);
@@ -95,8 +100,8 @@ public final class VStreamTransformations {
    *
    * @return a natural transformation from ListKind to VStreamKind
    */
-  public static NaturalTransformation<ListKind.Witness, VStreamKind.Witness> listToVStream() {
-    return new NaturalTransformation<>() {
+  public static Natural<ListKind.Witness, VStreamKind.Witness> listToVStream() {
+    return new Natural<>() {
       @Override
       public <A> Kind<VStreamKind.Witness, A> apply(Kind<ListKind.Witness, A> fa) {
         List<A> list = LIST.narrow(fa);
@@ -114,8 +119,8 @@ public final class VStreamTransformations {
    *
    * @return a natural transformation from VStreamKind to ListKind
    */
-  public static NaturalTransformation<VStreamKind.Witness, ListKind.Witness> vstreamToList() {
-    return new NaturalTransformation<>() {
+  public static Natural<VStreamKind.Witness, ListKind.Witness> vstreamToList() {
+    return new Natural<>() {
       @Override
       public <A> Kind<ListKind.Witness, A> apply(Kind<VStreamKind.Witness, A> fa) {
         VStream<A> vstream = VSTREAM.narrow(fa);

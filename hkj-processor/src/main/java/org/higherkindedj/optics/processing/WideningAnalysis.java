@@ -940,10 +940,17 @@ public final class WideningAnalysis {
      * <p>Such a container is left un-widened, and its declaration is rejected where it is written
      * rather than inside generated source.
      *
+     * <p>What a refusal's diagnostic says of the generator is read here, when the lookup is made,
+     * so that no site reaches into the refused arm for the generator to ask it.
+     *
      * @param generator the generator that supports the type
      * @param element the resolved element, or null for a raw or unbounded container
+     * @param orderedByWildcard whether the generator orders the container by a wildcard, which
+     *     {@code @GenerateTraversals} cannot rebuild either: see {@link
+     *     GeneratorRegistry#ordersByWildcard}
      */
-    record Refused(TraversableGenerator generator, TypeMirror element) implements SpiLookup {}
+    record Refused(TraversableGenerator generator, TypeMirror element, boolean orderedByWildcard)
+        implements SpiLookup {}
 
     /**
      * A generator supports the type and its widening can be written.
@@ -985,7 +992,11 @@ public final class WideningAnalysis {
       return new SpiLookup.None();
     }
     return ProcessorUtils.hasUndenotableTypeArguments(type)
-        ? new SpiLookup.Refused(generator, spiElement(type, generator))
+        ? new SpiLookup.Refused(
+            generator,
+            spiElement(type, generator),
+            // A type with arguments to refuse is a declared one.
+            GeneratorRegistry.ordersByWildcard((DeclaredType) type, generator))
         : new SpiLookup.Admitted(generator);
   }
 }

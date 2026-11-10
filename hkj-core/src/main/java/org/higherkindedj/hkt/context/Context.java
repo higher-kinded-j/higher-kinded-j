@@ -295,8 +295,14 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
   /**
    * Recovers from a failure by applying the given function to produce a recovery context.
    *
+   * <p>It recovers from a failure anywhere before it in the chain: a context that fails when it
+   * runs, or a {@code map} or {@code flatMap} function that throws or returns null. A failure in
+   * the recovery function, or in the context it returns, goes on to the next {@code recoverWith}
+   * out.
+   *
    * @param recoveryFunction A function that takes the error and returns a recovery context. Must
-   *     not be null.
+   *     not be null, and must not return null: a null result fails the computation with a {@link
+   *     NullPointerException}.
    * @return A new {@code Context<R, A>} that recovers from failures.
    * @throws NullPointerException if {@code recoveryFunction} is null.
    */
@@ -560,7 +566,6 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
     Deque<Object> stack = new ArrayDeque<>();
     Context<R, ?> current = context;
 
-    outer:
     while (true) {
       // Phase 1: Unwrap left-associated FlatMapped and RecoveredWith chains
       while (true) {
@@ -575,45 +580,51 @@ public sealed interface Context<R, A> extends ContextKind<R, A>
         }
       }
 
-      // Phase 2: Evaluate the terminal node
-      Object result;
+      // Phase 2: Evaluate the terminal node, then apply the next continuation to its result. A
+      // failure in either goes to the nearest recovery handler, so a continuation that throws, or
+      // returns null, is recovered from as a failed run is.
       try {
-        result = current.run();
-      } catch (Throwable error) {
-        // Phase 3a: Error path - find a recovery handler
-        // Unwrap ContextException so recovery functions see the original cause
-        Throwable unwrapped = ContextException.unwrap(error);
-        while (!stack.isEmpty()) {
-          Object item = stack.pop();
-          if (item instanceof RecoveryHandler handler) {
-            Context<R, ?> recovery = (Context<R, ?>) handler.recoveryFunction().apply(unwrapped);
-            Objects.requireNonNull(recovery, "recovery context cannot be null");
-            current = recovery;
-            continue outer;
+        Object result = current.run();
+        Context<R, ?> next = null;
+        while (next == null && !stack.isEmpty()) {
+          // Recovery handlers are skipped on the success path
+          if (stack.pop() instanceof Function continuation) {
+            next =
+                Objects.requireNonNull(
+                    (Context<R, ?>) continuation.apply(result),
+                    "flatMap function returned null context");
           }
-          // Skip continuations when propagating errors
         }
-        // No handler found, rethrow
-        throw ContextException.wrap(error);
-      }
-
-      // Phase 3b: Success path - apply continuations
-      while (!stack.isEmpty()) {
-        Object item = stack.pop();
-        if (item instanceof RecoveryHandler) {
-          // Skip recovery handlers on success path
-          continue;
+        if (next == null) {
+          // Stack is empty, we have the final result
+          return (A) result;
         }
-        // Apply the continuation
-        Function<Object, Context<R, ?>> f = (Function) item;
-        Context<R, ?> next = f.apply(result);
-        Objects.requireNonNull(next, "flatMap function returned null context");
         current = next;
-        continue outer;
+      } catch (Throwable error) {
+        // Phase 3: Error path - find a recovery handler, skipping continuations. A handler that
+        // fails hands its own failure on to the next one out.
+        Throwable failure = error;
+        Context<R, ?> recovery = null;
+        while (recovery == null && !stack.isEmpty()) {
+          if (stack.pop() instanceof RecoveryHandler handler) {
+            try {
+              // Unwrap ContextException so recovery functions see the original cause
+              recovery =
+                  Objects.requireNonNull(
+                      (Context<R, ?>)
+                          handler.recoveryFunction().apply(ContextException.unwrap(failure)),
+                      "recovery context cannot be null");
+            } catch (Throwable handlerFailure) {
+              failure = handlerFailure;
+            }
+          }
+        }
+        if (recovery == null) {
+          // No handler found, rethrow
+          throw ContextException.wrap(failure);
+        }
+        current = recovery;
       }
-
-      // Stack is empty, we have the final result
-      return (A) result;
     }
   }
 }

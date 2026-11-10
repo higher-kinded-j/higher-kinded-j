@@ -40,10 +40,10 @@ A navigator's method returns the same path type as the static method for the sam
 | `MutableSet<A>`          | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Sets.mutable.ofAll(list))`      |
 | `ImmutableBag<A>`        | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.immutable.ofAll(list))`    |
 | `MutableBag<A>`          | **`FocusPath`** ^1  | `fromIterableCollecting(list -> Bags.mutable.ofAll(list))`      |
-| `ImmutableSortedSet<A>`  | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.immutable.ofAll(list))` |
-| `MutableSortedSet<A>`    | **`FocusPath`** ^1  | `fromIterableCollecting(list -> SortedSets.mutable.ofAll(list))` |
+| `ImmutableSortedSet<A>`  | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> SortedSets.immutable.ofAll(source.comparator(), list))` |
+| `MutableSortedSet<A>`    | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> SortedSets.mutable.ofAll(source.comparator(), list))` |
 
-All Eclipse Collections types have cardinality `ZERO_OR_MORE`.
+All Eclipse Collections types have cardinality `ZERO_OR_MORE`. The sorted sets are rebuilt with the source's comparator, so a custom order is kept; a wildcard element, `MutableSortedSet<? extends A>`, is refused under `@GenerateTraversals` (a note, no traversal) and, where the field is widened, `@GenerateFocus` (an error).
 
 ## Guava, Vavr, and Apache Commons
 
@@ -54,6 +54,7 @@ All Eclipse Collections types have cardinality `ZERO_OR_MORE`.
 | `io.vavr.collection.List<A>`      | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> List.ofAll(list))`       |
 | `io.vavr.collection.Set<A>`       | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> HashSet.ofAll(list))`    |
 | `HashBag<A>`                       | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashBag::new)`                   |
+| `HashMultiSet<A>`                  | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashMultiSet::new)`              |
 | `UnmodifiableList<A>`              | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
 
 All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`.
@@ -215,6 +216,8 @@ public class ResultGenerator extends BaseTraversableGenerator {
     }
 }
 ```
+
+A container that keeps its contents in an order of its own, such as a sorted set or map, also overrides `getOrderedTypeArgumentIndex()` to name the argument it is ordered by, and rebuilds with the source's comparator: `EachInstances.fromIterableRebuilding((source, list) -> ...)` in `generateOpticExpression()`.
 
 ### Step 2: Register via META-INF/services
 

@@ -122,9 +122,9 @@ For the vast majority of applications, particularly those performing any I/O, **
 The project includes JMH benchmarks that measure construction, execution, and composition overhead for all Path types. To run the most relevant ones:
 
 ```bash
-./gradlew jmh --includes=".*IOPathBenchmark.*"
-./gradlew jmh --includes=".*AbstractionOverheadBenchmark.*"
-./gradlew jmh --includes=".*MemoryFootprintBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*IOPathBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*AbstractionOverheadBenchmark.*"
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*MemoryFootprintBenchmark.*"
 ```
 
 ~~~admonish example title="See Benchmark Code"

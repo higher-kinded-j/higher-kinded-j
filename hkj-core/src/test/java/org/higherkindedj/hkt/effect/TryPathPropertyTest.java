@@ -232,7 +232,7 @@ class TryPathPropertyTest {
     assertThat(result.run().isFailure()).isTrue();
     result
         .run()
-        .foldFailureFirst(
+        .fold(
             e -> {
               assertThat(e).isInstanceOf(IllegalStateException.class);
               assertThat(e.getMessage()).contains("wrapped");

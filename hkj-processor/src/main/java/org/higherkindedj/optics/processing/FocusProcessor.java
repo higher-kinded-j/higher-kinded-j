@@ -254,7 +254,7 @@ public class FocusProcessor extends AbstractProcessor {
             analysis.analyseDeclaration(
                 component, NavigatorClassGenerator.widensCollections(recordElement, component));
         if (widening.declined() != null) {
-          reportUndenotableContainer(component, widening.declined());
+          reportUndenotableContainer(component, widening.declined(), analysis);
         }
         method =
             createFocusPathMethod(component, recordElement, recordTypeName, widening, packageName);
@@ -373,10 +373,19 @@ public class FocusProcessor extends AbstractProcessor {
   /**
    * Reports the container the widening cannot be written for, in the terms it went wrong in: a raw
    * container has no type arguments to infer from, a parameterised one has a wildcard among them.
+   *
+   * <p>The fix line offers {@code @GenerateTraversals} only where it would take the component: a
+   * raw container has no element for it to focus, and a component its generator orders by a
+   * wildcard is one it cannot rebuild, so either is offered the lens alone.
    */
   private void reportUndenotableContainer(
-      RecordComponentElement component, DeclaredType declaredType) {
+      RecordComponentElement component, DeclaredType declaredType, WideningAnalysis analysis) {
     boolean raw = ProcessorUtils.isRaw(declaredType);
+    boolean lensOnly =
+        raw
+            || (analysis.spiLookup(component.asType())
+                    instanceof WideningAnalysis.SpiLookup.Refused refused
+                && refused.orderedByWildcard());
     String qualifiedComponent =
         component.getEnclosingElement().getSimpleName() + "." + component.getSimpleName();
     Diagnostics.error(
@@ -402,9 +411,9 @@ public class FocusProcessor extends AbstractProcessor {
             + ProcessorUtils.concreteAlternative(declaredType)
                 .map(alternative -> ", such as " + alternative)
                 .orElse("")
-            + (raw
-                // A raw container has no element type for @GenerateTraversals to focus either, so
-                // it draws a note and no traversal there; only the lens takes it as written.
+            + (lensOnly
+                // @GenerateTraversals draws a note and generates no traversal for the component, so
+                // only the lens takes it as written.
                 ? ", or drop @GenerateFocus from the record: @GenerateLenses composes no optic"
                     + " instance and takes the component as written."
                 : ", or drop @GenerateFocus from the record: @GenerateLenses and"

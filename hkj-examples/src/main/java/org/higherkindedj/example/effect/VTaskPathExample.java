@@ -81,7 +81,7 @@ public class VTaskPathExample {
     System.out.println("\n2. runSafe() - returns Try<A>:");
     Try<Integer> tryResult = pureValue.runSafe();
     String message =
-        tryResult.foldFailureFirst(
+        tryResult.fold(
             error -> "   Failure: " + error.getMessage(), value -> "   Success: " + value);
     System.out.println(message);
 
@@ -152,7 +152,7 @@ public class VTaskPathExample {
         failingTask.mapError(error -> new IllegalStateException("Wrapped: " + error.getMessage()));
     Try<String> errorResult = mappedError.runSafe();
     String errorMessage =
-        errorResult.foldFailureFirst(
+        errorResult.fold(
             error -> "mapError - Error type: " + error.getClass().getSimpleName(),
             value -> "mapError - Value: " + value);
     System.out.println(errorMessage);
@@ -206,7 +206,7 @@ public class VTaskPathExample {
     VTask<String> slowWithTimeout = slowOp.timeout(Duration.ofMillis(500));
     Try<String> slowResult = slowWithTimeout.runSafe();
     String slowMessage =
-        slowResult.foldFailureFirst(
+        slowResult.fold(
             error -> "Slow operation timed out: " + error.getClass().getSimpleName(),
             value -> "Slow operation: " + value);
     System.out.println(slowMessage);
@@ -329,7 +329,7 @@ public class VTaskPathExample {
     long elapsed = System.currentTimeMillis() - start;
 
     String dashboardMessage =
-        result.foldFailureFirst(
+        result.fold(
             error -> "Dashboard failed: " + error.getMessage(),
             d ->
                 "Dashboard loaded successfully:\n"
@@ -354,7 +354,7 @@ public class VTaskPathExample {
 
     Try<Dashboard> timeoutResult = dashboardWithTimeout.runSafe();
     String timeoutMessage =
-        timeoutResult.foldFailureFirst(
+        timeoutResult.fold(
             error -> "Error: " + error.getMessage(),
             d -> "Result: " + (d.isEmpty() ? "Empty (fallback)" : "Loaded"));
     System.out.println(timeoutMessage);

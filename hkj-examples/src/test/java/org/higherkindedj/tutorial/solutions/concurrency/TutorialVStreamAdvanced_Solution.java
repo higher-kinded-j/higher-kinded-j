@@ -12,7 +12,7 @@ import java.util.concurrent.Flow;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.effect.NaturalTransformation;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.effect.VStreamTransformations;
 import org.higherkindedj.hkt.effect.context.VStreamContext;
 import org.higherkindedj.hkt.list.ListKind;
@@ -258,9 +258,9 @@ public class TutorialVStreamAdvanced_Solution {
   class NaturalTransformationExercises {
 
     /**
-     * Why this is idiomatic: a {@code NaturalTransformation<ListKind.Witness, VStreamKind.Witness>}
-     * converts {@code Kind} values from one functor to another. The widen/narrow round-trip stays
-     * at the {@code Kind} level.
+     * Why this is idiomatic: a {@code Natural<ListKind.Witness, VStreamKind.Witness>} converts
+     * {@code Kind} values from one functor to another. The widen/narrow round-trip stays at the
+     * {@code Kind} level.
      *
      * <p>Alternative: write a dedicated converter method. Same outcome; the natural-transformation
      * form is the type-class abstraction.
@@ -273,9 +273,8 @@ public class TutorialVStreamAdvanced_Solution {
     void exercise8_listToVStream() {
       List<String> source = List.of("x", "y", "z");
 
-      // SOLUTION: Use NaturalTransformation with Kind widen/narrow
-      NaturalTransformation<ListKind.Witness, VStreamKind.Witness> nt =
-          VStreamTransformations.listToVStream();
+      // SOLUTION: Use the Natural with Kind widen/narrow
+      Natural<ListKind.Witness, VStreamKind.Witness> nt = VStreamTransformations.listToVStream();
       Kind<ListKind.Witness, String> listKind = LIST.widen(source);
       Kind<VStreamKind.Witness, String> vstreamKind = nt.apply(listKind);
       VStream<String> vstream = VSTREAM.narrow(vstreamKind);

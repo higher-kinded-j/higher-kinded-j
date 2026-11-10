@@ -1362,6 +1362,40 @@ class EachInstancesTest {
     }
   }
 
+  // ===== fromIterableRebuilding Factory =====
+
+  @Nested
+  @DisplayName("fromIterableRebuilding Factory")
+  class FromIterableRebuildingTests {
+
+    private static TreeSet<String> sortedLike(TreeSet<String> source, List<String> elements) {
+      TreeSet<String> rebuilt = new TreeSet<>(source.comparator());
+      rebuilt.addAll(elements);
+      return rebuilt;
+    }
+
+    @Test
+    @DisplayName("should keep a reverse-ordered source's comparator through modify")
+    void keepsTheSourcesComparator() {
+      Each<TreeSet<String>, String> each =
+          EachInstances.fromIterableRebuilding(FromIterableRebuildingTests::sortedLike);
+      TreeSet<String> source = new TreeSet<>(Comparator.reverseOrder());
+      source.addAll(List.of("a", "b", "c"));
+
+      assertThat(Traversals.getAll(each.each(), source)).containsExactly("c", "b", "a");
+      assertThat(Traversals.modify(each.each(), String::toUpperCase, source))
+          .containsExactly("C", "B", "A");
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false")
+    void supportsIndexedReturnsFalse() {
+      Each<TreeSet<String>, String> each =
+          EachInstances.fromIterableRebuilding(FromIterableRebuildingTests::sortedLike);
+      assertThat(each.supportsIndexed()).isFalse();
+    }
+  }
+
   // ===== mapValuesEachCollecting Factory =====
 
   /** A map-shaped container that is deliberately NOT a {@link java.util.Map}. */
@@ -1431,6 +1465,41 @@ class EachInstancesTest {
     void supportsIndexedReturnsFalse() {
       Each<TreeMap<String, Integer>, Integer> each =
           EachInstances.mapValuesEachCollecting(map -> new TreeMap<>(map));
+      assertThat(each.supportsIndexed()).isFalse();
+    }
+  }
+
+  // ===== mapValuesEachRebuilding Factory =====
+
+  @Nested
+  @DisplayName("mapValuesEachRebuilding Factory")
+  class MapValuesEachRebuildingTests {
+
+    private static TreeMap<String, Integer> sortedLike(
+        TreeMap<String, Integer> source, Map<String, Integer> entries) {
+      TreeMap<String, Integer> rebuilt = new TreeMap<>(source.comparator());
+      rebuilt.putAll(entries);
+      return rebuilt;
+    }
+
+    @Test
+    @DisplayName("should keep a reverse-ordered source's comparator through modify")
+    void keepsTheSourcesComparator() {
+      Each<TreeMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachRebuilding(MapValuesEachRebuildingTests::sortedLike);
+      TreeMap<String, Integer> source = new TreeMap<>(Comparator.reverseOrder());
+      source.putAll(Map.of("a", 1, "b", 2));
+
+      assertThat(Traversals.getAll(each.each(), source)).containsExactly(2, 1);
+      assertThat(Traversals.modify(each.each(), n -> n * 100, source))
+          .containsExactly(Map.entry("b", 200), Map.entry("a", 100));
+    }
+
+    @Test
+    @DisplayName("supportsIndexed() should return false")
+    void supportsIndexedReturnsFalse() {
+      Each<TreeMap<String, Integer>, Integer> each =
+          EachInstances.mapValuesEachRebuilding(MapValuesEachRebuildingTests::sortedLike);
       assertThat(each.supportsIndexed()).isFalse();
     }
   }

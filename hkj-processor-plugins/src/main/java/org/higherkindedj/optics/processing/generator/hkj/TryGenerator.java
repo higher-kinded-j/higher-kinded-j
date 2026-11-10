@@ -19,7 +19,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * A {@link TraversableGenerator} that adds support for traversing fields of type {@link Try}. This
- * version uses the safe `foldFailureFirst` method to avoid unhandled checked exceptions.
+ * version uses the safe `fold` method to avoid unhandled checked exceptions.
  */
 @ServiceProvider(TraversableGenerator.class)
 public class TryGenerator extends BaseTraversableGenerator {
@@ -83,9 +83,9 @@ public class TryGenerator extends BaseTraversableGenerator {
             "final $T tryA = source.$L()",
             ProcessorUtils.typeNameOf(component.asType(), targetPackage),
             componentName)
-        // Use the safe `foldFailureFirst` method to handle both cases without throwing exceptions.
+        // Use the safe `fold` method to handle both cases without throwing exceptions.
         .addStatement(
-            "return tryA.foldFailureFirst(\n"
+            "return tryA.fold(\n"
                 + "    cause -> {$>\n"
                 + "        // Case 1: The Try is a Failure. The traversal has no effect.\n"
                 + "        // Return the original, unchanged source record lifted into the"

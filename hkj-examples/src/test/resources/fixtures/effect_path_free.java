@@ -18,12 +18,12 @@ import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreePath;
 import org.higherkindedj.hkt.effect.GenericPath;
-import org.higherkindedj.hkt.effect.NaturalTransformation;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.instances.Instances;
@@ -57,8 +57,8 @@ class Fixture {
         }
       };
 
-  static final NaturalTransformation<ConsoleOp.Witness, IO.Witness> realInterpreter =
-      new NaturalTransformation<>() {
+  static final Natural<ConsoleOp.Witness, IO.Witness> realInterpreter =
+      new Natural<>() {
         @Override
         public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
           return switch ((ConsoleOp<A>) fa) {
@@ -78,8 +78,8 @@ class Fixture {
         }
       };
 
-  static final NaturalTransformation<ConsoleOp.Witness, IO.Witness> testInterpreter =
-      new NaturalTransformation<>() {
+  static final Natural<ConsoleOp.Witness, IO.Witness> testInterpreter =
+      new Natural<>() {
         @Override
         public <A> Kind<IO.Witness, A> apply(Kind<ConsoleOp.Witness, A> fa) {
           return switch ((ConsoleOp<A>) fa) {

@@ -1,852 +1,253 @@
-# The Context Effect: Virtual Thread-Scoped Context Propagation
+<!-- description: Read a request's trace id in Java with Context and ScopedValue: bind it around the run, see which forked threads inherit it, and default an unbound key. -->
 
-> *"This was no boat accident."*
+# Context: Reading Scoped Values
+
+_Read what the request bound, such as its trace id, without passing it through every call._
+
+<!-- source: Matt Hooper (Richard Dreyfuss), Jaws (Universal Pictures, 1975), directed by Steven Spielberg, screenplay by Peter Benchley and Carl Gottlieb; the morgue scene, where Hooper rejects the ruling that Chrissie Watkins died in a boating accident; wording checked against the IMDb quotes page and the clip.cafe transcript of the scene -->
+> _"This was no boat accident."_
 >
 > — Hooper, *Jaws*
 
-When code behaves unexpectedly in concurrent systems, it's rarely random. There's something beneath the surface: context that was set elsewhere, state that travelled invisibly, assumptions that held on one thread but failed on another. The experienced developer learns to suspect these hidden currents.
+Hooper will not accept the coroner's ruling: something did this, and he means to name it. A value read from a `ThreadLocal` was put there by something too, but the method's signature never says what. A method that returns a `Context<String, A>` says in its type that it reads a `String` the caller bound.
 
-> *"A paranoid is someone who knows a little of what's going on."*
->
-> — William S. Burroughs
-
-Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let context drift silently through your application (sometimes appearing where it shouldn't, sometimes vanishing where it should) `ScopedValue` enforces explicit boundaries. You declare what flows into a scope. You control what child threads inherit. The paranoid developer becomes the informed one.
-
-`Context<R, A>` brings this power into Higher-Kinded-J's functional vocabulary, providing a composable effect type for reading scoped values with full integration into the VTask and Scope ecosystem.
+~~~admonish abstract title="Context at a glance"
+| | |
+|---|---|
+| **Models** | A computation that reads a value bound to a `ScopedValue` when it runs |
+| **Replaces** | A `ThreadLocal`, set at the start of a request and cleared at the end |
+| **Effect Path** | None: `toVTask()` gives a [VTask](vtask_monad.md), and `Path.vtaskPath(task)` a [`VTaskPath`](../effect/path_vtask.md) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:context_scoped}}
+| **Choose it when** | The value belongs to the request, and the threads forked for it should see it; otherwise [Reader](reader_monad.md), which is given its environment when it runs, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- Why `ThreadLocal` breaks down with virtual threads
-- How `ScopedValue` provides thread-safe context propagation
-- Using `Context<R, A>` to read and compose scoped computations
-- Integrating Context with VTask for concurrent context propagation
-- Building request tracing and security patterns
-- MDC-style logging with ScopedValues
+- Say what a `ScopedValue` changes about request context kept in a `ThreadLocal`
+- Read a trace id with `Context.asks`, and bind it with `ScopedValue.where` around running the task, not building it
+- Say which threads see a binding: those `Par` and `Scope` fork do, and the one `VTask.timeout` starts does not
+- Read keys of different types together, and give a default for a key nobody bound
+- Use `Context` in generic code through its `Monad` instance
 ~~~
 
-~~~admonish warning title="A Java 25 Feature"
-`Context<R, A>` uses Java's `ScopedValue` API (JEP 506), finalised in Java 25. This API provides:
-- **Immutability**: Values cannot be changed once bound to a scope
-- **Inheritance**: Child virtual threads automatically inherit parent bindings
-- **Bounded lifetime**: Values exist only within their declared scope
-- **Performance**: Optimised for virtual thread access patterns
-
-Ensure your project targets Java 25, the release the library is built on today ([Prerequisites](../quickstart.md#prerequisites)).
-~~~
-
-~~~admonish example title="Example Code"
-- [ContextBasicExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) - Core Context usage patterns
-- [ContextScopeExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) - Integration with structured concurrency
+~~~admonish example title="See Example Code"
+**The code on this page is [ContextBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java)**: the page includes it, so the build compiles and runs it. [ContextBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/context/ContextBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-## The Problem: ThreadLocal in the Virtual Thread Era
+## From `ThreadLocal` to `ScopedValue` {#from-threadlocal-to-scopedvalue}
 
-`ThreadLocal` served Java well for two decades. It provided thread-confined storage for request context, security principals, and transaction state. But virtual threads expose its fundamental weakness.
+A request handler that keeps its trace id in a `ThreadLocal` must set it at the start and remember to clear it at the end. In between, any code it calls can set it to something else. [JEP 506](https://openjdk.org/jeps/506), which made `ScopedValue` final in Java 25, names three flaws of a `ThreadLocal`. The table sets each beside what a `ScopedValue`, bound for the length of one call, does instead:
 
-Consider a typical web application:
+| | `ThreadLocal` | `ScopedValue` |
+|---|---|---|
+| Changing the value | Any code that can reach it can `set` it, at any time | A nested call can bind a new value, and the outer value is back once that call returns |
+| How long it lasts | Until something calls `remove`, or the thread ends | Until the call that bound it returns |
+| Child threads | `InheritableThreadLocal` copies the values into each new thread, which costs every one storage of its own | The threads a `StructuredTaskScope` forks share the bindings of the thread that opened it |
 
-<!-- verify -->
-```java
-// Traditional ThreadLocal pattern
-public class TraceContext {
-    private static final ThreadLocal<String> TRACE_ID = new ThreadLocal<>();
+`Context<R, A>` reads a `ScopedValue<R>` and gives an `A`. Like [Reader](reader_monad.md), it needs a value that no method passes it. Unlike `Reader`, it finds that value in the bindings of the thread that runs it. Calling `get()` on the `ScopedValue` reads the value too. What a `Context` adds is that the read shows in its type, waits until the context runs, and composes with `map`, `flatMap` and `recover`.
 
-    public static void setTraceId(String id) { TRACE_ID.set(id); }
-    public static String getTraceId() { return TRACE_ID.get(); }
-}
+## Reading a trace id {#reading-a-trace-id}
 
-// In a request handler
-public Response handleRequest(Request request) {
-    TraceContext.setTraceId(request.traceId());
-    try {
-        return processRequest(request);  // Deep call stack reads TRACE_ID
-    } finally {
-        TraceContext.setTraceId(null);  // Must clean up!
-    }
-}
-```
-
-This pattern has three problems with virtual threads:
-
-**1. Unbounded Accumulation**
-
-Virtual threads are cheap; you might have millions. Each `ThreadLocal` allocates storage per thread. With platform threads, this was manageable (hundreds of threads). With virtual threads, memory usage explodes.
-
-**2. Inheritance Confusion**
-
-When you fork a virtual thread, does it inherit the parent's `ThreadLocal` values? With `InheritableThreadLocal`, yes, but the child gets a *copy*. Changes in the parent don't propagate. Changes in the child don't propagate back. This silent divergence causes subtle bugs.
-
-**3. Cleanup Burden**
-
-Forgetting to clear a `ThreadLocal` causes memory leaks and context pollution. Virtual threads make this worse: their lightweight nature encourages creating many short-lived threads, each requiring cleanup.
-
----
-
-## The Solution: ScopedValue-Backed Context
-
-Java 25's `ScopedValue` addresses these problems through different semantics:
+The code on this page uses these imports, with `Order` from the order records the [Optics](../optics/ch_intro.md) chapter introduces:
 
 <!-- verify -->
 ```java
-// ScopedValue pattern
-public class TraceContext {
-    public static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-}
-
-// In a request handler
-public Response handleRequest(Request request) {
-    return ScopedValue
-        .where(TraceContext.TRACE_ID, request.traceId())
-        .call(() -> processRequest(request));  // TRACE_ID visible in entire scope
-    // No cleanup needed -- scope ends, binding disappears
-}
+import java.time.Duration;
+import java.util.Locale;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.context.Context;
+import org.higherkindedj.hkt.context.RequestContext;
+import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vtask.Par;
+import org.higherkindedj.hkt.vtask.VTask;
 ```
 
-**Key differences:**
+`RequestContext.TRACE_ID` is one of the keys the library defines, listed under [Pre-built keys](#pre-built-keys). It is a `public static final ScopedValue<String>`, made with `ScopedValue.newInstance()`, and you declare a key of your own the same way. `ScopedValue` is in `java.lang`, so it needs no import. `ORDER` is an order Ada has paid for, and an audit line about it reads the trace id:
 
-| Aspect | ThreadLocal | ScopedValue |
-|--------|-------------|-------------|
-| Mutability | Mutable (`set()` anytime) | Immutable within scope |
-| Inheritance | Copies value (diverges) | Shares binding (consistent) |
-| Cleanup | Manual (error-prone) | Automatic (scope-based) |
-| Memory | Per-thread allocation | Optimised for virtual threads |
-
-`Context<R, A>` wraps `ScopedValue` access in a functional effect type, enabling composition with `map`, `flatMap`, and integration with VTask.
-
----
-
-## Purpose
-
-`Context<R, A>` represents a computation that reads a value of type `R` from a `ScopedValue<R>` and produces a result of type `A`. It's conceptually similar to `Reader<R, A>`, but with crucial differences:
-
-- **Reader**: Requires explicit parameter passing at `run(r)`
-- **Context**: Reads from thread-scoped `ScopedValue`, inherits automatically across virtual thread boundaries
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Context<R, A>                               │
-│                                                                     │
-│   A computation that:                                               │
-│   1. Reads from a ScopedValue<R>                                    │
-│   2. Produces a value of type A                                     │
-│   3. Can be composed with map/flatMap                               │
-│   4. Integrates with VTask for concurrent execution                 │
-│                                                                     │
-│   ┌──────────────┐     ┌──────────────┐     ┌──────────────┐        │
-│   │    define    │ ──► │   compose    │ ──► │   provide    │        │
-│   │   Context    │     │   with map/  │     │  ScopedValue │        │
-│   │  .ask(KEY)   │     │   flatMap    │     │   binding    │        │
-│   └──────────────┘     └──────────────┘     └──────────────┘        │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:audit}}
 ```
 
----
+`ScopedValue.where` binds a value, and the context runs inside the call that follows:
 
-## Core Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      hkj-api module                                 │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  ContextKind<R, A>                                            │  │
-│  │  ─────────────────                                            │  │
-│  │  HKT witness interface for Context                            │  │
-│  │  Enables integration with type class hierarchy                │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│                      hkj-core module                                │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  Context<R, A>  (sealed interface)                            │  │
-│  │  ─────────────────────────────────                            │  │
-│  │  • ask(ScopedValue<R>) -- read the scoped value               │  │
-│  │  • asks(ScopedValue<R>, Function<R,A>) -- read and transform  │  │
-│  │  • succeed(A) -- lift a pure value                            │  │
-│  │  • fail(Throwable) -- represent failure                       │  │
-│  │  • map(Function<A,B>) -- transform the result                 │  │
-│  │  • flatMap(Function<A, Context<R,B>>) -- chain contexts       │  │
-│  │  • toVTask(ScopedValue<R>) -- convert to VTask                │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                              │                                      │
-│                              ▼                                      │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  ContextMonad<R>                                              │  │
-│  │  ─────────────────                                            │  │
-│  │  Monad instance for Context<R, _>                             │  │
-│  │  Provides pure, map, flatMap, ap for HKT composition          │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  ContextOps                                                   │  │
-│  │  ───────────                                                  │  │
-│  │  Static utilities for common patterns:                        │  │
-│  │  • withContext(VTask<A>, ScopedValue<R>, R) -- run with value │  │
-│  │  • propagate(ScopedValue<R>...) -- propagate to forked tasks  │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌─────────────────────────┐  ┌─────────────────────────────────┐   │
-│  │  RequestContext         │  │  SecurityContext                │   │
-│  │  ──────────────         │  │  ───────────────                │   │
-│  │  TRACE_ID               │  │  PRINCIPAL                      │   │
-│  │  CORRELATION_ID         │  │  ROLES                          │   │
-│  │  LOCALE                 │  │  AUTH_TOKEN                     │   │
-│  │  REQUEST_TIME           │  │  hasRole(), requireRole()       │   │
-│  └─────────────────────────┘  └─────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────┘
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:bound}}
 ```
 
----
+`line` is `"[req-7] payment taken for Ada"`. Building `paid` reads nothing, and the binding lasts only while `call` runs. Inside a nested `where`, the inner value hides the outer one until that call returns. A test binds whatever trace id it needs in the same way, with nothing to mock.
 
-## How to Use Context&lt;R, A&gt;
+## Bind around the run {#bind-around-the-run}
 
-### Creating a ScopedValue
+`toVTask()` turns a context into a [VTask](vtask_monad.md): a task that runs only when something runs it, and that `Par` can fork. `runSafe()` runs a task and holds its outcome in a [Try](try_monad.md), a `Success` with the value or a `Failure` with the exception. A binding made while a task is built has ended before the task reads it:
 
-First, define your scoped values as static finals:
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:handlers}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:handlers_outcome}}
+```
+
+`boundWhileBuilding` returns a task built inside a binding that has since ended. Running it fails with `NoSuchElementException`, which `ScopedValue.get` throws for a key that is not bound. Inside another binding of `TRACE_ID`, it would read that one instead, and nothing would warn you. Put the `where` at the edge of the application, around the call that runs the task, as `boundWhileRunning` does.
+
+## Which threads see a binding {#which-threads-see-a-binding}
+
+A binding belongs to the thread that runs the task, and to the threads a `StructuredTaskScope` forks from it. [`Par`](vtask_monad.md#parallel-composition-with-par) and [`Scope`](vtask_scope.md) open their scope on the thread that runs the task, so the tasks they fork see its bindings. `VTask.timeout` runs its task on a new virtual thread, which does not. `Par` and `Scope` are built on Java 25's structured concurrency API, a preview feature, so code that names them needs `--enable-preview`, as [On a `VTaskPath`](vtask_monad.md#on-a-vtaskpath) explains.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:forks}}
+```
+
+```mermaid
+flowchart TB
+    accTitle: Which threads see a ScopedValue binding
+    accDescr: A call binds TRACE_ID to req-7 and runs a task. The thread running the task sees req-7. Par, Scope and parEvalMap fork their tasks in a structured scope opened on that thread, so each fork sees req-7 too. VTask.timeout starts a virtual thread of its own, where TRACE_ID is not bound.
+    bind["ScopedValue.where(TRACE_ID, req-7)<br/>.call(task::runSafe)"]
+    running["the thread running the task<br/>sees req-7"]
+    forking["Par, Scope, parEvalMap<br/>fork in a StructuredTaskScope"]
+    fork1["fork: sees req-7"]
+    fork2["fork: sees req-7"]
+    own["VTask.timeout<br/>starts a thread of its own"]
+    unbound["that thread: TRACE_ID not bound"]
+    bind --> running
+    running --> forking
+    forking --> fork1
+    forking --> fork2
+    running --> own
+    own --> unbound
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    class bind,forking,own step
+    class running,fork1,fork2 domain
+    class unbound error
+```
+
+The diagram shows the binding reaching every thread forked by a structured scope opened on the running thread. It stops at a thread an operator starts by itself, even one that opens a scope of its own there. [`VStreamPar`](vstream_parallel.md) runs a stream's tasks at the same time, and its operators fall on both sides:
+
+| Operator | Its tasks see the caller's bindings |
+|---|---|
+| `Par`: `map2`, `map3`, `zip`, `zip3`, `all`, `traverse`, `race` | Yes |
+| `Scope`: `allSucceed`, `anySucceed`, `firstComplete`, `accumulating`, then `join`, with or without the scope's own `timeout` | Yes |
+| `VStreamPar.parEvalMap` | Yes |
+| `VTask.timeout`, `detachOnCancel` and `runAsync` | No: each runs its task on a thread of its own |
+| `VStreamPar.parEvalMapUnordered` | No: it runs its tasks, and reads the source, on threads of its own |
+| `VStreamPar.merge` of two or more streams | No: it reads each stream on a thread of its own |
+| `VTaskPath.timeout` and `withTimeout`, and `Resilience.builder(task).withTimeout(duration)` | No: they run the task through `VTask.timeout` |
+| `CircuitBreaker.protect`, and `VTaskPath.withCircuitBreaker` | No: each call runs under the breaker's `callTimeout`, through `VTask.timeout` |
+
+To carry a value onto a thread that does not see it, read it on the thread that runs the task, then bind it again inside the task that `timeout` runs:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:carry}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:carry_outcome}}
+```
+
+`timedWithTrace` carries `TRACE_ID` alone. A step that reads another key needs that key read and bound again in the same way.
+
+## Several keys {#several-keys}
+
+`R` in `Context<R, A>` is the type of the value a chain reads, and every step of a chain reads the same type. `TRACE_ID` and `CORRELATION_ID` are both `String` keys, so they share a chain. A step that reads `LOCALE`, a `Locale` key, does not join a chain that reads `String`, and javac reports that the type variable "has incompatible equality constraints String,Locale":
+
+<!-- verify:rejects "has incompatible equality constraints" -->
+```java
+import java.util.Locale;
+import org.higherkindedj.hkt.context.Context;
+import org.higherkindedj.hkt.context.RequestContext;
+
+Context<String, String> both =
+    Context.ask(RequestContext.TRACE_ID)
+        .flatMap(traceId -> Context.asks(RequestContext.LOCALE, Locale::toLanguageTag));
+```
+
+Turn each read into a `VTask` with `toVTask()`, and chain those:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:two_keys}}
+```
+
+`where` calls chain, binding several keys for one call:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:two_keys_outcome}}
+```
+
+## A key nobody bound {#a-key-nobody-bound}
+
+Reading a key that is not bound fails. `run` throws the `NoSuchElementException`, and `runSafe()` on the task from `toVTask()` holds it as a `Failure`. `recover` gives a default in its place:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:unbound}}
+```
+
+`withDefault` is `"no trace"`. `toMaybe()` runs the context at once and gives `Nothing` for any failure. A key bound to `null` fails too: `ask` fails with a `NullPointerException` when it runs. Read a key that may hold `null` with `asks(key, Maybe::fromNullable)`, which gives [`Maybe`](maybe_monad.md)'s `Nothing` for it. `RequestContext.getTraceIdOrDefault(fallback)` reads the trace id directly, with a fallback.
+
+## Pre-built keys {#pre-built-keys}
+
+The library defines the keys a request usually carries, in two classes:
+
+| Class | Keys | Helpers |
+|---|---|---|
+| `RequestContext` | `TRACE_ID`, `CORRELATION_ID`, `LOCALE`, `TENANT_ID`, `REQUEST_TIME`, `DEADLINE` | `generateTraceId()`, `getTraceIdOrDefault(fallback)` and the other defaults, `isDeadlineExceeded()` |
+| `SecurityContext` | `PRINCIPAL`, `ROLES`, `PERMISSIONS`, `AUTH_TOKEN`, `SESSION_ID` | `Context` values such as `requireAuthenticated()`, `principalIfPresent()`, `hasRole(role)` and `requireRole(role)` |
+
+[RequestContext Patterns](../effect/context_request.md) shows each request key in use, including [structured logging](../effect/context_request.md#mdc-integration-for-structured-logging) from scoped values. [SecurityContext Patterns](../effect/context_security.md) shows the security checks.
+
+## Creating instances {#creating-instances}
+
+`Context.ask(key)` reads a key, and `Context.asks(key, f)` reads it and applies `f`. `Context.succeed(value)` gives a value without reading anything. `Context.fail(error)` fails when it runs, though an `Error` is thrown at the call. It wraps a checked exception in a `ContextException`, so `run` declares none. `recover` and `recoverWith` are handed the original exception, while `runSafe()` on the task from `toVTask()` holds the `ContextException`. `Context.map2` and `map3` combine two or three contexts over one key type. A `Context` always gives a value, as [Values, never null](../hkts/core-concepts.md#values-never-null) sets out. `succeed(null)` throws at the call, and a step that returns `null` fails the run, with a message naming the function, such as `f must not return null`.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `Context.ask(key)`, `asks(key, f)` | Read the value bound to `key`, as it is or through `f` |
+| `Context.succeed(value)`, `fail(error)` | Give `value`, or fail with `error`, reading nothing |
+| `Context.map2(a, b, f)`, `map3(a, b, c, f)` | Combine contexts over one key type |
+| `map(f)`, `flatMap(f)` | Change the result, or run a next step that reads the same key type |
+| `recover(f)`, `recoverWith(f)`, `mapError(f)` | Replace a failure with a value or another context, or change the failure |
+| `run()` | Reads the bindings of the current thread and gives the result, or throws |
+| `toVTask()` | Gives a `VTask` that runs the context on the thread that runs it |
+| `toMaybe()` | Runs the context at once, and gives `Nothing` for any failure |
+| `asUnit()` | Keeps the computation and replaces the result with `Unit` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code, written once for any container, takes `Context` through its `Monad` instance, from `Instances.monad(context())`. The key type is part of the witness, `ContextKind.Witness<R>`, so one instance serves contexts that read one key type. You widen a `Context` to pass it in, run the result with `CONTEXT.runContext` inside the binding, and `CONTEXT.narrow(kind)` gives the `Context` back. These are the extra imports:
 
 <!-- verify -->
 ```java
-public final class AppContext {
-    private AppContext() {}  // Utility class
+import static org.higherkindedj.hkt.context.ContextKindHelper.CONTEXT;
+import static org.higherkindedj.hkt.instances.Witnesses.context;
 
-    /** Current user's preferred locale. */
-    public static final ScopedValue<Locale> LOCALE = ScopedValue.newInstance();
-
-    /** Trace ID for distributed tracing. */
-    public static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-
-    /** Current tenant in multi-tenant application. */
-    public static final ScopedValue<String> TENANT_ID = ScopedValue.newInstance();
-}
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.context.ContextKind;
+import org.higherkindedj.hkt.instances.Instances;
 ```
-
-~~~admonish tip title="ScopedValue Naming Convention"
-Define `ScopedValue` instances as `public static final` fields in a dedicated utility class. Use SCREAMING_SNAKE_CASE for the field name, matching the convention for constants. This makes the scoped values easy to discover and reference.
-~~~
-
-### Reading with Context.ask
-
-The simplest way to read a scoped value:
-
-<!-- verify -->
-```java
-// Read the LOCALE value
-Context<Locale, Locale> getLocale = Context.ask(AppContext.LOCALE);
-
-// Read TRACE_ID
-Context<String, String> getTraceId = Context.ask(AppContext.TRACE_ID);
-```
-
-`Context.ask(key)` returns a `Context<R, R>`; it reads the value and returns it unchanged.
-
-A `Context` always gives a value, so `ask` on a key bound to null fails with a `NullPointerException`. Read a key that may hold null with `asks`, turning it into a `Maybe` or a `boolean`, as [`principalIfPresent`](../effect/context_security.md#principalifpresent-optional-access) does.
-
-### Reading and Transforming with Context.asks
-
-Often you want to read and immediately transform:
-
-<!-- verify -->
-```java
-// Read locale and get the language tag
-Context<Locale, String> getLanguage =
-    Context.asks(AppContext.LOCALE, Locale::toLanguageTag);
-
-// Read trace ID and format for logging
-Context<String, String> getLogPrefix =
-    Context.asks(AppContext.TRACE_ID, id -> "[" + id + "] ");
-
-// Read tenant and build connection string
-Context<String, String> getConnectionString =
-    Context.asks(AppContext.TENANT_ID, tenant ->
-        "jdbc:postgresql://db/" + tenant + "_database");
-```
-
-### Transforming Results with map
-
-Transform the output of a context computation:
-
-<!-- verify -->
-```java
-Context<Locale, Locale> getLocale = Context.ask(AppContext.LOCALE);
-
-// Transform to language tag
-Context<Locale, String> getLanguageTag = getLocale.map(Locale::toLanguageTag);
-
-// Transform to display name
-Context<Locale, String> getDisplayName = getLocale.map(Locale::getDisplayName);
-
-// Chain multiple transformations
-Context<Locale, String> getUpperCaseLanguage = getLocale
-    .map(Locale::toLanguageTag)
-    .map(String::toUpperCase);
-```
-
-### Chaining with flatMap
-
-Compose contexts that depend on previous results:
-
-<!-- verify -->
-```java
-// First context: get the tenant ID
-Context<String, String> getTenant = Context.ask(AppContext.TENANT_ID);
-
-// Second context: use tenant to look up configuration
-// (Assume TENANT_CONFIGS is a Map<String, TenantConfig>)
-Context<String, TenantConfig> getTenantConfig = getTenant.flatMap(tenantId ->
-    Context.succeed(TENANT_CONFIGS.get(tenantId)));
-
-// Chain multiple dependent operations
-Context<String, DatabaseConnection> getConnection = getTenant
-    .flatMap(tenantId -> Context.succeed(buildConnectionString(tenantId)))
-    .flatMap(connStr -> Context.succeed(openConnection(connStr)));
-```
-
-### Combining Multiple Scoped Values
-
-Since `Context<R, A>` is parameterised by the scoped value type `R`, you cannot directly chain contexts with different `R` types using `flatMap`. Instead, convert to `VTask` first:
-
-<!-- verify -->
-```java
-// Convert each Context to VTask, then combine
-VTask<RequestInfo> gatherRequestInfo =
-    Context.ask(AppContext.TRACE_ID).toVTask().flatMap(traceId ->
-        Context.ask(AppContext.LOCALE).toVTask().flatMap(locale ->
-            Context.ask(AppContext.TENANT_ID).toVTask().map(tenant ->
-                new RequestInfo(traceId, locale, tenant))));
-
-// Or use Context.map2/map3 for same-type contexts
-// These work when all contexts read from the SAME ScopedValue type
-Context<String, String> combined = Context.map2(
-    Context.asks(AppContext.TRACE_ID, id -> id),
-    Context.asks(AppContext.TRACE_ID, id -> id.toUpperCase()),
-    (lower, upper) -> lower + " -> " + upper);
-```
-
-~~~admonish tip title="Why toVTask()?"
-`Context<R, A>.flatMap` requires the continuation to return `Context<R, B>` with the **same** `R` type. When reading from different `ScopedValue` types (e.g., `ScopedValue<String>` and `ScopedValue<Locale>`), convert to `VTask` first. `VTask` isn't parameterised by context type, so it can freely combine values from different sources.
-~~~
-
----
-
-## Providing Context Values
-
-### Basic Binding with ScopedValue.where
-
-Bind a value and execute within the scope:
-
-<!-- verify -->
-```java
-ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-
-Context<String, String> logMessage =
-    Context.asks(TRACE_ID, id -> "[" + id + "] Processing request");
-
-// Provide the value and run
-String result = ScopedValue
-    .where(TRACE_ID, "trace-abc-123")
-    .call(() -> logMessage.run());
-
-System.out.println(result);  // [trace-abc-123] Processing request
-```
-
-### Multiple Bindings
-
-Chain multiple bindings for several scoped values:
-
-<!-- verify -->
-```java
-String result = ScopedValue
-    .where(AppContext.TRACE_ID, "trace-123")
-    .where(AppContext.LOCALE, Locale.UK)
-    .where(AppContext.TENANT_ID, "acme-corp")
-    .call(() -> {
-        // All three values available in this scope
-        return processRequest().run();
-    });
-```
-
-### Converting to VTask
-
-For integration with the VTask ecosystem:
-
-<!-- verify -->
-```java
-Context<String, ProcessedData> processWithTrace =
-    Context.ask(AppContext.TRACE_ID)
-           .map(traceId -> processor.process(traceId));
-
-// Convert to VTask that reads from current scope
-VTask<ProcessedData> task = processWithTrace.toVTask();
-
-// Execute within a scope
-Try<ProcessedData> result = ScopedValue
-    .where(AppContext.TRACE_ID, "trace-xyz")
-    .call(() -> task.runSafe());
-```
-
----
-
-## Integration with VTask and Scope
-
-### Context in VTask Pipelines
-
-Combine Context with VTask for effectful computations:
-
-<!-- verify -->
-```java
-public VTask<Response> handleRequest(Request request) {
-    // Build the computation
-    VTask<Response> pipeline = VTask
-        .delay(() -> validateRequest(request))
-        .flatMap(valid -> processRequest(valid))
-        .flatMap(result -> formatResponse(result));
-
-    // Execute with context
-    return ScopedValue
-        .where(RequestContext.TRACE_ID, request.traceId())
-        .where(RequestContext.LOCALE, request.locale())
-        .call(() -> pipeline);
-}
-
-// Deep in the call stack, context is available
-private VTask<ProcessedData> processRequest(ValidatedRequest request) {
-    return VTask.delay(() -> {
-        String traceId = RequestContext.TRACE_ID.get();  // Available!
-        logger.info("[{}] Processing: {}", traceId, request);
-        return doProcess(request);
-    });
-}
-```
-
-### Context Propagation in Scope
-
-Virtual threads forked within a scope inherit scoped values:
-
-<!-- verify -->
-```java
-public VTask<AggregatedResult> fetchAllData(String userId) {
-    return ScopedValue
-        .where(RequestContext.TRACE_ID, RequestContext.generateTraceId())
-        .call(() ->
-            // Scope joins one result type; three different ones combine through Par
-            Par.map3(
-                fetchUserProfile(userId),       // Inherits TRACE_ID
-                fetchUserOrders(userId),        // Inherits TRACE_ID
-                fetchUserPreferences(userId),   // Inherits TRACE_ID
-                AggregatedResult::new)
-        );
-}
-
-// Each forked task sees the same TRACE_ID
-private VTask<UserProfile> fetchUserProfile(String userId) {
-    return VTask.delay(() -> {
-        String traceId = RequestContext.TRACE_ID.get();  // Same as parent!
-        logger.info("[{}] Fetching profile for {}", traceId, userId);
-        return profileService.fetch(userId);
-    });
-}
-```
-
-```
-          Main Thread
-               │
-               │ ScopedValue.where(TRACE_ID, "abc-123")
-               │
-               ▼
-        ┌──────────────┐
-        │   Scope      │
-        │  .allSucceed │
-        └──────┬───────┘
-               │
-       ┌───────┼───────┐
-       │       │       │
-       ▼       ▼       ▼
-   ┌──────┐ ┌──────┐ ┌──────┐
-   │ fork │ │ fork │ │ fork │
-   │  #1  │ │  #2  │ │  #3  │
-   └──────┘ └──────┘ └──────┘
-       │       │       │
-       │ TRACE_ID = "abc-123" (inherited)
-       │       │       │
-       ▼       ▼       ▼
-   [profile] [orders] [prefs]
-```
-
-### Overriding Context in Forked Tasks
-
-You can override context for specific forked tasks:
-
-<!-- verify -->
-```java
-// The rebinding belongs inside the task: the task runs when it is joined, not when
-// it is built, and by then the outer binding is gone.
-VTask<Result> overridden = VTask.of(() -> ScopedValue
-    .where(RequestContext.TRACE_ID, "override-456")
-    .call(() -> specialTask().run()));
-
-VTask<Result> combined = Par.map2(
-    normalTask(),  // Uses parent TRACE_ID
-    overridden,    // Uses overridden TRACE_ID
-    (normal, special) -> combine(normal, special));
-```
-
----
-
-## Context vs Reader
-
-Both `Context<R, A>` and `Reader<R, A>` represent computations that read from an environment. When should you use each?
-
-### Reader: Explicit Parameter Passing
-
-<!-- verify -->
-```java
-Reader<Config, String> getHost = Reader.of(Config::hostname);
-
-// Must explicitly provide Config at run time
-String host = getHost.run(productionConfig);
-```
-
-**Use Reader when:**
-- Configuration is passed at application startup
-- You want explicit, visible dependency injection
-- Thread propagation is not a concern
-- You're in single-threaded or carefully managed contexts
-
-### Context: Implicit Thread-Scoped Propagation
-
-<!-- verify -->
-```java
-Context<Config, String> getHost = Context.asks(CONFIG, Config::hostname);
-
-// Value comes from ScopedValue binding
-String host = ScopedValue
-    .where(CONFIG, productionConfig)
-    .call(() -> getHost.run());
-```
-
-**Use Context when:**
-- Values must propagate through virtual thread forks
-- Deep call stacks need access without parameter drilling
-- Per-request data (trace IDs, user identity) needs implicit flow
-- You're building concurrent applications with structured concurrency
-
-### Comparison Table
-
-| Aspect | Reader | Context |
-|--------|--------|---------|
-| Environment source | Explicit `run(r)` parameter | `ScopedValue` binding |
-| Thread inheritance | None (must pass explicitly) | Automatic in virtual threads |
-| Typical use | App configuration | Request-scoped data |
-| Visibility | Explicit in signatures | Implicit (can be hidden) |
-| Testing | Pass mock config to `run()` | Bind mock in `ScopedValue.where()` |
-| Java version | Any | Java 25 |
-
----
-
-## MDC-Style Logging Integration
-
-A common use case for scoped context is structured logging. Traditional MDC (Mapped Diagnostic Context) uses `ThreadLocal` internally, which has the problems described earlier. Here's how to build MDC-style logging with `ScopedValue`:
-
-### Defining Logging Context
-
-<!-- verify -->
-```java
-public final class LogContext {
-    private LogContext() {}
-
-    public static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-    public static final ScopedValue<String> SPAN_ID = ScopedValue.newInstance();
-    public static final ScopedValue<String> USER_ID = ScopedValue.newInstance();
-
-    /**
-     * Formats the current context as a log prefix.
-     * Returns empty string if no context is bound.
-     */
-    public static String prefix() {
-        StringBuilder sb = new StringBuilder();
-        if (TRACE_ID.isBound()) {
-            sb.append("[trace=").append(TRACE_ID.get()).append("] ");
-        }
-        if (SPAN_ID.isBound()) {
-            sb.append("[span=").append(SPAN_ID.get()).append("] ");
-        }
-        if (USER_ID.isBound()) {
-            sb.append("[user=").append(USER_ID.get()).append("] ");
-        }
-        return sb.toString();
-    }
-}
-```
-
-### Context-Aware Logging
 
 ```java
-public final class ContextLogger {
-    private final Logger delegate;
-
-    public ContextLogger(Class<?> clazz) {
-        this.delegate = LoggerFactory.getLogger(clazz);
-    }
-
-    public void info(String message, Object... args) {
-        delegate.info(LogContext.prefix() + message, args);
-    }
-
-    public void error(String message, Throwable t) {
-        delegate.error(LogContext.prefix() + message, t);
-    }
-
-    // ... other log levels
-}
-
-// Usage
-public class OrderService {
-    private static final ContextLogger log = new ContextLogger(OrderService.class);
-
-    public Order processOrder(OrderRequest request) {
-        log.info("Processing order: {}", request.id());
-        // ... processing
-        log.info("Order completed successfully");
-        return order;
-    }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/context/ContextBook.java:kind}}
 ```
 
-### Automatic Context Propagation in Logs
+`ran` is `"[req-7] payment taken for Ada; [req-7] receipt sent for Ada"`. The instance's `map2` joins the two reads, and nothing reads the trace id until `runContext` runs them. The `Monad` helpers, such as `peek` and `flatMapIfOrElse`, work on it too, as [Helpers built on `flatMap` and `map`](../functional/monad.md#helpers) shows. Widening allocates nothing: `Context` implements `ContextKind` itself, so `widen` checks for `null` and returns the same object.
 
-When using `Scope`, all forked tasks inherit the logging context:
+## When to use `Context` {#when-to-use-context}
 
-<!-- verify -->
-```java
-public VTask<OrderResult> processOrderConcurrently(OrderRequest request) {
-    return ScopedValue
-        .where(LogContext.TRACE_ID, request.traceId())
-        .where(LogContext.USER_ID, request.userId())
-        .call(() ->
-            Par.map3(
-                validateInventory(request),   // Logs with same trace/user
-                calculateShipping(request),   // Logs with same trace/user
-                processPayment(request),      // Logs with same trace/user
-                OrderResult::new)
-        );
-}
-```
-
-Sample log output:
-```
-[trace=ord-789] [user=alice] Processing order: ORD-001
-[trace=ord-789] [user=alice] Validating inventory for 3 items
-[trace=ord-789] [user=alice] Calculating shipping to postcode SW1A 1AA
-[trace=ord-789] [user=alice] Processing payment of £49.99
-[trace=ord-789] [user=alice] Order completed successfully
-```
-
-### Integration with Existing Logging Frameworks
-
-For integration with SLF4J MDC (which uses `ThreadLocal`), you can bridge at scope boundaries:
-
-```java
-public <T> T withMdcBridge(Callable<T> task) throws Exception {
-    // Copy ScopedValues to MDC at scope entry
-    if (LogContext.TRACE_ID.isBound()) {
-        MDC.put("traceId", LogContext.TRACE_ID.get());
-    }
-    if (LogContext.USER_ID.isBound()) {
-        MDC.put("userId", LogContext.USER_ID.get());
-    }
-    try {
-        return task.call();
-    } finally {
-        MDC.clear();
-    }
-}
-```
-
-~~~admonish warning title="MDC Bridge Limitations"
-The MDC bridge only works within a single thread. Forked virtual threads won't automatically get MDC values; they'll get `ScopedValue` bindings. For consistent logging in concurrent code, use the `ContextLogger` pattern shown above rather than relying on MDC.
-~~~
-
----
-
-## Handling Unbound ScopedValues
-
-What happens when code tries to read a `ScopedValue` that hasn't been bound?
-
-### Default Behaviour: Exception
-
-<!-- verify -->
-```java
-Context<String, String> getTraceId = Context.ask(TRACE_ID);
-
-// If TRACE_ID is not bound, this throws NoSuchElementException
-String traceId = getTraceId.run();
-```
-
-This fail-fast behaviour is intentional; it surfaces configuration errors immediately rather than allowing silent failures.
-
-### Checking Binding Status
-
-<!-- verify -->
-```java
-// Check if bound before reading
-if (TRACE_ID.isBound()) {
-    String traceId = TRACE_ID.get();
-    // ... use traceId
-} else {
-    // Handle missing context
-}
-
-// Or with Context
-Context<String, Maybe<String>> safeGetTraceId =
-    Context.succeed(TRACE_ID.isBound()
-        ? Maybe.just(TRACE_ID.get())
-        : Maybe.nothing());
-```
-
-### Providing Defaults
-
-<!-- verify -->
-```java
-// Get value or use default
-Context<String, String> getTraceIdOrDefault =
-    Context.succeed(TRACE_ID.isBound()
-        ? TRACE_ID.get()
-        : "no-trace");
-
-// Helper method pattern
-public static <T> T getOrDefault(ScopedValue<T> key, T defaultValue) {
-    return key.isBound() ? key.get() : defaultValue;
-}
-```
-
----
-
-## Pre-Built Context Patterns
-
-Higher-Kinded-J provides two pre-built context utilities for common patterns:
-
-### RequestContext
-
-For HTTP request tracing and metadata propagation:
-
-```java
-public final class RequestContext {
-    public static final ScopedValue<String> TRACE_ID = ScopedValue.newInstance();
-    public static final ScopedValue<String> CORRELATION_ID = ScopedValue.newInstance();
-    public static final ScopedValue<Locale> LOCALE = ScopedValue.newInstance();
-    public static final ScopedValue<Instant> REQUEST_TIME = ScopedValue.newInstance();
-    // ... helper methods
-}
-```
-
-See [RequestContext Patterns](../effect/context_request.md) for detailed documentation.
-
-### SecurityContext
-
-For authentication and authorisation patterns:
-
-```java
-public final class SecurityContext {
-    public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
-    public static final ScopedValue<Set<String>> ROLES = ScopedValue.newInstance();
-    public static final ScopedValue<String> AUTH_TOKEN = ScopedValue.newInstance();
-
-    public static Context<Set<String>, Boolean> hasRole(String role) { ... }
-    public static Context<Set<String>, Unit> requireRole(String role) { ... }
-    // ... more helpers
-}
-```
-
-See [SecurityContext Patterns](../effect/context_security.md) for detailed documentation.
-
----
-
-## Testing with Context
-
-### Unit Testing
-
-Bind test values directly:
-
-<!-- verify -->
-```java
-@Test
-void shouldReadTraceId() {
-    Context<String, String> ctx = Context.ask(TRACE_ID);
-
-    String result = ScopedValue
-        .where(TRACE_ID, "test-trace-123")
-        .call(() -> ctx.run());
-
-    assertThat(result).isEqualTo("test-trace-123");
-}
-```
-
-### Testing Context Composition
-
-When combining contexts with different scoped value types, use `toVTask()`:
-
-<!-- verify -->
-```java
-@Test
-void shouldComposeMultipleContexts() throws Exception {
-    // Convert to VTask to combine different ScopedValue types
-    VTask<RequestInfo> task =
-        Context.ask(TRACE_ID).toVTask().flatMap(traceId ->
-            Context.ask(LOCALE).toVTask().map(locale ->
-                new RequestInfo(traceId, locale)));
-
-    RequestInfo result = ScopedValue
-        .where(TRACE_ID, "test-123")
-        .where(LOCALE, Locale.FRANCE)
-        .call(() -> task.run());
-
-    assertThat(result.traceId()).isEqualTo("test-123");
-    assertThat(result.locale()).isEqualTo(Locale.FRANCE);
-}
-```
-
-### Testing Unbound Behaviour
-
-<!-- verify -->
-```java
-@Test
-void shouldThrowWhenUnbound() {
-    Context<String, String> ctx = Context.ask(TRACE_ID);
-
-    assertThatThrownBy(() -> ctx.run())
-        .isInstanceOf(NoSuchElementException.class);
-}
-```
-
----
-
-## Summary
-
-| Concept | Description |
-|---------|-------------|
-| `ScopedValue<R>` | Java 25 API for thread-scoped immutable values |
-| `Context<R, A>` | Effect type for reading scoped values functionally |
-| `Context.ask(key)` | Read a scoped value |
-| `Context.asks(key, f)` | Read and transform in one step |
-| `map`, `flatMap` | Transform and compose contexts |
-| `toVTask()` | Convert to VTask for execution |
-| `ScopedValue.where().call()` | Bind values and execute |
-| Inheritance | Child virtual threads inherit bindings |
+| You need | Use |
+|---|---|
+| A value the request binds, read deep in the call stack and by the threads forked for it | `Context` |
+| One read, in code that already runs inside the binding | `RequestContext.TRACE_ID.get()`, or your own key's `get()` |
+| One environment, given to the program when it runs | [Reader](reader_monad.md) |
+| To choose between `Context` and `ConfigContext`, the Effect chapter's form of `Reader` | [Context vs ConfigContext](../effect/context_vs_config.md) |
+| The trace id in a library that reads a `ThreadLocal`, such as a logging MDC | Copy the scoped values into it at the edge, as [Bridging to SLF4J MDC](../effect/context_request.md#bridging-to-slf4j-mdc) shows |
 
 ~~~admonish info title="Hands-On Learning"
-Practise Context patterns in [Tutorial 01: Context Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial01_ContextBasics.java) (11 exercises).
-~~~
-
-~~~admonish tip title="See Also"
-- [RequestContext Patterns](../effect/context_request.md) - Request tracing and metadata
-- [SecurityContext Patterns](../effect/context_security.md) - Authentication and authorisation
-- [Context vs ConfigContext](../effect/context_vs_config.md) - When to use each
-- [VTask](vtask_monad.md) - Virtual thread effect type
-- [Scope](vtask_scope.md) - Structured concurrency
-- [Reader](reader_monad.md) - Explicit environment passing
+Practise reading and binding scoped values in [Tutorial 01: Context Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial01_ContextBasics.java) (11 exercises).
 ~~~
 
 ---

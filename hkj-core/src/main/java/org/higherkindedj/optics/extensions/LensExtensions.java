@@ -200,7 +200,7 @@ public final class LensExtensions {
   public static <S, A extends @Nullable Object> Try<S> modifyTry(
       Lens<S, A> lens, Function<A, Try<@NonNull A>> f, S source) {
     return f.apply(lens.get(source))
-        .foldFailureFirst(Try::failure, newValue -> Try.success(lens.set(newValue, source)));
+        .fold(Try::failure, newValue -> Try.success(lens.set(newValue, source)));
   }
 
   /**

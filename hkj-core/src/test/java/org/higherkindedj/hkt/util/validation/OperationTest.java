@@ -22,6 +22,7 @@ class OperationTest {
     assertThat(operation.toString()).isEqualTo(expectedLabel);
   }
 
+  @SuppressWarnings("removal") // exercises the deprecated constant until its removal
   private static Stream<Arguments> operationLabels() {
     return Stream.of(
         Arguments.of(AP, "ap"),
