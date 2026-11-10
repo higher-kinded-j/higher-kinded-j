@@ -17,17 +17,20 @@ import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.example.book.foundations.vstream.VStreamBook.PagedFeed;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -390,6 +393,66 @@ class VStreamBookTest {
       assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
       assertThat(future.join()).containsExactly(1);
     }
+
+    @Test
+    @DisplayName(
+        "a timeout stops drain() on an endless stream, and fails once the stream is closed")
+    void timeoutStopsAnEndlessStream() {
+      AtomicInteger finalised = new AtomicInteger();
+      VTask<Unit> drained =
+          VStream.repeat(1).onFinalize(VTask.exec(finalised::incrementAndGet)).drain();
+
+      assertThatTry(drained.timeout(Duration.ofMillis(50)).runSafe())
+          .isFailure()
+          .hasExceptionSatisfying(error -> assertThat(error).isInstanceOf(TimeoutException.class));
+      assertThat(finalised).hasValue(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a run on a thread that is already interrupted fails before its first pull, closing"
+            + " nothing")
+    void alreadyInterrupted() {
+      List<Integer> read = new ArrayList<>();
+      AtomicInteger finalised = new AtomicInteger();
+      VStream<Integer> stream =
+          VStream.of(1, 2, 3).onFinalize(VTask.exec(finalised::incrementAndGet));
+
+      Thread.currentThread().interrupt();
+      try {
+        assertThatTry(stream.forEach(read::add).runSafe())
+            .isFailure()
+            .hasExceptionSatisfying(
+                error -> assertThat(error).isInstanceOf(InterruptedException.class));
+      } finally {
+        Thread.interrupted();
+      }
+      assertThat(read).isEmpty();
+      assertThat(finalised).hasValue(0);
+    }
+
+    @Test
+    @DisplayName(
+        "a recover outside the timeout gives a value, and one inside it gives a value the timeout"
+            + " discards")
+    void recoverOutsideTheTimeout() {
+      List<Integer> outside =
+          VStream.repeat(1)
+              .toList()
+              .timeout(Duration.ofMillis(50))
+              .recover(error -> List.of())
+              .run();
+
+      assertThat(outside).isEmpty();
+      assertThatTry(
+              VStream.repeat(1)
+                  .toList()
+                  .recover(error -> List.of(-1))
+                  .timeout(Duration.ofMillis(50))
+                  .runSafe())
+          .isFailure()
+          .hasExceptionSatisfying(error -> assertThat(error).isInstanceOf(TimeoutException.class));
+    }
   }
 
   @Nested
@@ -454,6 +517,45 @@ class VStreamBookTest {
                   assertThat(error)
                       .isInstanceOf(IOException.class)
                       .hasMessage("the order feed is down"));
+    }
+
+    @Test
+    @DisplayName("recover, recoverWith, mapError and onError let an interrupt through")
+    void interruptGoesThrough() {
+      InterruptedException stop = new InterruptedException("stop");
+      VStream<Integer> interrupted =
+          VStream.of(1, 2).mapTask(n -> n == 2 ? VTask.fail(stop) : VTask.succeed(n));
+      List<Throwable> seen = new ArrayList<>();
+      List<VStream<Integer>> handled =
+          List.of(
+              interrupted.recover(
+                  error -> {
+                    seen.add(error);
+                    return -1;
+                  }),
+              interrupted.recoverWith(
+                  error -> {
+                    seen.add(error);
+                    return VStream.of(-1);
+                  }),
+              interrupted.mapError(
+                  error -> {
+                    seen.add(error);
+                    return new IllegalStateException(error);
+                  }),
+              interrupted.onError(seen::add));
+
+      for (VStream<Integer> stream : handled) {
+        // Each run leaves the interrupt status set, which the next run would stop at
+        try {
+          assertThatTry(stream.toList().runSafe())
+              .isFailure()
+              .hasExceptionSatisfying(error -> assertThat(error).isSameAs(stop));
+        } finally {
+          Thread.interrupted();
+        }
+      }
+      assertThat(seen).as("what the operators' functions saw").isEmpty();
     }
 
     @Test

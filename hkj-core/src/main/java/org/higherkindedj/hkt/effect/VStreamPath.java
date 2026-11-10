@@ -242,8 +242,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Collects all elements into a list. This is a terminal operation.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
-   * first.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example. Use {@link #take(long)} first.
    *
    * @return a VTaskPath that produces the list of all elements
    */
@@ -291,7 +291,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Returns the last element, or empty if the stream is empty.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example.
    *
    * @return a VTaskPath producing the last element as an Optional
    */
@@ -300,7 +301,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   /**
    * Counts the number of elements.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example.
    *
    * @return a VTaskPath producing the element count
    */
@@ -410,20 +412,17 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
    *
    * <p>Delegates to {@link org.higherkindedj.hkt.vstream.VStreamPar#parCollect(VStream, int)}.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
-   * first.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example. Use {@link #take(long)} first.
    *
-   * @param batchSize the number of elements to read between checks for an interrupt; must be
-   *     positive
+   * @param batchSize the number of elements in each batch; must be positive
    * @return a VTaskPath that produces the list of all elements
    * @throws IllegalArgumentException if batchSize is not positive
    * @deprecated since 0.6.0, scheduled for removal in 0.7.0. A stream is read one pull at a time,
    *     so this runs nothing in parallel. Use {@link #toList()}, which gives the same list. To run
    *     each element's work in parallel, do the work inside the task that the function you give
    *     {@link #parEvalMap} or {@link #parEvalMapUnordered} returns, as in {@code n -> VTask.of(()
-   *     -> work(n))}, and collect with {@code toList()}. Unlike this method, {@code toList()} does
-   *     not stop for an interrupt between pulls, so bound an endless stream whose pulls never
-   *     block, with {@link #take(long)}, before you time it out.
+   *     -> work(n))}, and collect with {@code toList()}.
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   VTaskPath<List<A>> parCollect(int batchSize);
@@ -472,7 +471,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
    * Returns the last element as a VTaskPath. Fails with {@link java.util.NoSuchElementException} if
    * the stream is empty.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example.
    *
    * @return a VTaskPath producing the last element
    */
@@ -512,8 +512,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
    *
    * <p>After a failed task of {@link #mapTask}, {@link #parEvalMap} or {@link
    * #parEvalMapUnordered}, the recovery value takes the failed element's place, and the stream goes
-   * on from the next element. After any other failure, the stream ends after the recovery value.
-   * {@link VStream#recover} describes it in full.
+   * on from the next element. After any other failure, the stream ends after the recovery value. An
+   * interrupt is not recovered: it stops the stream. {@link VStream#recover} describes it in full.
    *
    * @param recovery the recovery function; must not be null, and must not return null
    * @return a new VStreamPath with error recovery
@@ -521,7 +521,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   VStreamPath<A> recover(Function<? super Throwable, ? extends A> recovery);
 
   /**
-   * Recovers from stream errors by switching to a fallback stream.
+   * Recovers from stream errors by switching to a fallback stream. An interrupt is not recovered,
+   * as {@link VStream#recoverWith} describes.
    *
    * @param recovery a function producing a fallback VStreamPath; must not be null
    * @return a new VStreamPath with error recovery
@@ -529,7 +530,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   VStreamPath<A> recoverWith(Function<? super Throwable, ? extends VStreamPath<A>> recovery);
 
   /**
-   * Transforms errors without affecting successfully produced elements.
+   * Transforms errors without affecting successfully produced elements. An interrupt is not mapped,
+   * as {@link VStream#mapError} describes.
    *
    * @param f the error mapping function; must not be null
    * @return a new VStreamPath with mapped errors
@@ -537,7 +539,8 @@ public sealed interface VStreamPath<A> extends Chainable<VStreamPath<?>, A>, Def
   VStreamPath<A> mapError(Function<? super Throwable, ? extends Throwable> f);
 
   /**
-   * Performs a side effect when an error occurs, then re-raises the error.
+   * Performs a side effect when an error occurs, then re-raises the error. The action does not see
+   * an interrupt, as {@link VStream#onError} describes.
    *
    * @param action the side-effect action; must not be null
    * @return a new VStreamPath with error observation

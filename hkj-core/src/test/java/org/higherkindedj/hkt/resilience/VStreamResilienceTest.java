@@ -224,15 +224,9 @@ class VStreamResilienceTest {
 
       assertThat(throttled.toList().run()).containsExactly(1, 2);
 
-      // A consumption that found the first one's window already full would sleep, and with the
-      // interrupt flag set that sleep throws at once instead of waiting
-      Thread.currentThread().interrupt();
-      try {
-        assertThat(throttled.toList().run()).containsExactly(1, 2);
-        assertThat(Thread.currentThread().isInterrupted()).isTrue();
-      } finally {
-        Thread.interrupted();
-      }
+      // A consumption that found the first one's window already full would sleep for a day, so
+      // the timeout would fail it; one with a window of its own finishes at once
+      assertThat(throttled.toList().timeout(Duration.ofSeconds(5)).run()).containsExactly(1, 2);
     }
 
     @Test

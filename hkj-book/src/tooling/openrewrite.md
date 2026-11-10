@@ -262,7 +262,7 @@ rewrite {
 - **A static `parCollect` called through an expression**, such as `holder().parCollect(stream, 4)`, whose expression the rewrite would drop.
 - **A method reference to `parCollect`**: call `toList()` in a lambda instead.
 
-`parCollect` stops at an interrupt between batches, and `toList()` does not check for one between pulls. So bound an endless stream whose pulls never block with `take` before you time out its `toList()`.
+`toList()` stops at an interrupt too, so a timeout stops the rewritten call on an endless stream as it stops `parCollect`. See [Running a stream](../monads/vstream.md#running-a-stream).
 
 ---
 
