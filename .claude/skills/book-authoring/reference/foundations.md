@@ -46,10 +46,14 @@ work in and the traps the chapter has met.
   (`thenCombine`), and `VTask`'s runs one step after the other; concurrent `VTask` work is `Par`'s.
 - **Never draw the type class hierarchy; link to it.** The diagram is on `functional/ch_intro.md`,
   generated from `hkj-api` by `BookTypeClassHierarchyTest`. When a type class changes, `bookVerify`
-  fails and prints the replacement fence to paste in. Hand-drawn copies still stand on
-  `functional/functional_api.md` and `hkts/quick_reference.md`, and each is
-  wrong somewhere, so never copy one: `MonadZero` extends both `Monad` and `Alternative`, `Traverse`
-  extends both `Functor` and `Foldable`, and there is no `Apply`.
+  fails and prints the replacement fence to paste in. A hierarchy drawn by hand goes wrong:
+  `MonadZero` extends both `Monad` and `Alternative`, `Traverse` extends both `Functor` and
+  `Foldable`, and there is no `Apply`.
+- **A new type class, factory or basic example needs a row.** `BookQuickReferenceTest` fails until
+  `hkts/quick_reference.md` lists every type class, naming only methods it has, and every
+  `Semigroups` and `Monoids` factory with its empty value. `BookExampleIndexTest` fails until
+  `hkts/hkt_basic_examples.md` links every class in `org.higherkindedj.example.basic` that has a
+  `main` method.
 - **Never type a core type's instances; include them.** `BookCapabilityMatrixTest` reads them from
   `hkj-core`'s class files into `hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden`.
   The `matrix` anchor holds the whole table, which `monads/supported-types.md` includes, and each

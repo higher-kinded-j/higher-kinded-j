@@ -1,549 +1,102 @@
-# Quick Reference Guide
-
-This section provides at-a-glance summaries of all type classes in Higher-Kinded-J. Use this as a quick lookup while coding or to compare different type classes.
-
-~~~admonish info title="What We'll Learn"
-- Quick reference summaries for all core type classes and their key methods
-- Decision guides for choosing the right type class for our use case
-- Common patterns and examples for Functor, Applicative, Monad, and MonadError
-- Understanding Semigroup, Monoid, Foldable, and Traverse for data operations
-- Type class hierarchy and inheritance relationships
-- Performance considerations and when to use HKT versus direct methods
-~~~
-
-## Core Type Classes
-
-All type classes require `F extends WitnessArity<?>`. Most work with unary types (`WitnessArity<TypeArity.Unary>`), whilst `Bifunctor` and `Profunctor` require binary types (`WitnessArity<TypeArity.Binary>`).
-
-### Functor
-~~~admonish tip title="Functor<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Method:** `map(Function<A,B> f, Kind<F,A> fa) -> Kind<F,B>`
-
-**Purpose:** Transform values inside a context without changing the context structure
-
-**Use When:** 
-- You have a simple transformation function `A -> B`
-- The context/container should remain unchanged
-- No dependency between input and output contexts
-
-**Laws:** 
-- Identity: `map(identity) == identity`
-- Composition: `map(g ∘ f) == map(g) ∘ map(f)`
-
-**Common Instances:** List, Optional, Maybe, Either, IO, CompletableFuture
-
-**Example:**
-<!-- verify -->
-```java
-// Transform string to length, preserving Optional context
-Kind<OptionalKind.Witness, Integer> lengths = 
-    optionalFunctor.map(String::length, optionalString);
-```
-
-**Think Of It As:** Applying a function "inside the box" without opening it
-~~~
-
-### Applicative
-~~~admonish tip title="Applicative<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Methods:** 
-- `of(A value) -> Kind<F,A>` (lift pure value)
-- `ap(Kind<F,Function<A,B>> ff, Kind<F,A> fa) -> Kind<F,B>` (apply wrapped function)
-
-**Purpose:** Combine independent computations within a context
-
-**Use When:**
-- You need to combine multiple wrapped values
-- Operations are independent (don't depend on each other's results)
-- You want to accumulate errors from multiple validations
-
-**Key Insight:** `map2`, `map3`, etc. are built on `ap` for combining 2, 3, or more values
-
-**Laws:** Identity, Composition, Homomorphism, Interchange
-
-**Common Patterns:**
-- Form validation (collect all errors)
-- Combining configuration values
-- Parallel computations
-
-**Example:**
-<!-- verify -->
-```java
-// Combine two independent validations
-Kind<ValidatedKind.Witness<List<String>>, User> userLogin = 
-    applicative.map2(
-        validateUsername(input.username()),
-        validatePassword(input.password()),
-        User::new
-    );
-```
-
-**Think Of It As:** Combining multiple "boxes" when contents are independent
-~~~
-
-### Monad
-~~~admonish tip title="Monad<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Method:** `flatMap(Function<A,Kind<F,B>> f, Kind<F,A> fa) -> Kind<F,B>`
-
-**Purpose:** Sequence dependent computations within a context
-
-**Use When:**
-- Each step depends on the result of the previous step
-- You need to chain operations that return wrapped values
-- You want short-circuiting behaviour on failure
-
-**Key Difference from Applicative:** Operations are sequential and dependent
-
-**Laws:** 
-- Left Identity: `flatMap(f, of(a)) == f(a)`
-- Right Identity: `flatMap(of, m) == m`  
-- Associativity: `flatMap(g, flatMap(f, m)) == flatMap(x -> flatMap(g, f(x)), m)`
-
-**Utility Methods:**
-- `as(B value, Kind<F,A> fa)` - replace value, keep effect
-- `peek(Consumer<A> action, Kind<F,A> fa)` - side effect without changing value
-- `flatMap2/3/4/5(...)` - combine multiple monadic values where the combining function itself returns a monadic value (useful for dependent validations or operations)
-
-**Example:**
-<!-- verify -->
-```java
-// Chain database operations where each depends on the previous
-Kind<OptionalKind.Witness, Account> account =
-    monad.flatMap(userLogin ->
-        monad.flatMap(profile ->
-            findAccount(profile.accountId()),
-            findProfile(userLogin.id())),
-        findUser(userId));
-
-// Combine multiple monadic values with effectful result
-Kind<OptionalKind.Witness, Order> order =
-    monad.flatMap2(
-        findUser(userId),
-        findProduct(productId),
-        (user, product) -> validateAndCreateOrder(user, product) // Returns Optional
-    );
-```
-
-**Think Of It As:** Chaining operations where each "opens the box" and "puts result in new box"
-~~~
-
-### MonadError
-~~~admonish tip title="MonadError<F extends WitnessArity<TypeArity.Unary>, E> Quick Reference"
-**Core Methods:**
-- `raiseError(E error) -> Kind<F,A>` (create error state)
-- `handleErrorWith(Kind<F,A> fa, Function<E,Kind<F,A>> handler) -> Kind<F,A>` (recover from error)
-
-**Purpose:** Add explicit error handling to monadic computations
-
-**Use When:**
-- You need to handle specific error types
-- You want to recover from failures in a workflow
-- You need to distinguish between different kinds of failures
-
-**Key Insight:** Error type `E` is fixed for each MonadError instance
-
-**Common Error Types:**
-- `Throwable` for CompletableFuture
-- `Unit` for Optional/Maybe (absence as error)
-- Custom domain error types for Either/Validated
-
-**Recovery Methods:**
-- `handleError(fa, Function<E,A> handler)` - recover to pure value
-- `recover(fa, A defaultValue)` - constant default value (ignores the error)
-- `recoverWith(fa, Kind<F,A> fallback)` - constant fallback computation (ignores the error)
-
-> `recover`/`recoverWith` are shorthands for `handleError`/`handleErrorWith` with an error-ignoring handler. `recoverWith` evaluates its fallback eagerly, so prefer `handleErrorWith` when the fallback is expensive. `recoverWith` rejects a `null` fallback; `recover` rejects a `null` source but accepts a `null` value (lifted via `of`).
-
-**Example:**
-<!-- verify -->
-```java
-// Handle division by zero gracefully
-Kind<EitherKind.Witness<String>, Double> result = 
-    monadError.handleErrorWith(
-        divideOperation,
-        error -> monadError.of(0.0) // recover with default
-    );
-
-// Same result, no throwaway lambda, since the fallback ignores the error:
-Kind<EitherKind.Witness<String>, Double> shorter =
-    monadError.recover(divideOperation, 0.0);
-```
-
-**Think Of It As:** try-catch for functional programming
-~~~
-
-### Selective
-~~~admonish tip title="Selective<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Methods:**
-- `select(Kind<F,Choice<A,B>> fab, Kind<F,Function<A,B>> ff) -> Kind<F,B>` (conditional function application)
-- `whenS(Kind<F,Boolean> cond, Kind<F,Unit> effect) -> Kind<F,Unit>` (conditional effect)
-- `ifS(Kind<F,Boolean> cond, Kind<F,A> then, Kind<F,A> else) -> Kind<F,A>` (if-then-else)
-
-**Purpose:** Execute effects conditionally with static structure (all branches known upfront)
-
-**Use When:**
-- You need conditional effects but want static analysis
-- All possible branches should be visible at construction time (enabling static analysis)
-- You want more power than Applicative but less than Monad
-- Building feature flags, conditional logging, or validation with alternatives
-
-**Key Insight:** Sits between Applicative and Monad - provides conditional effects without full dynamic choice
-
-**Common Patterns:**
-- Feature flag activation
-- Debug/production mode switching
-- Multi-source configuration fallback
-- Conditional validation
-
-**Example:**
-<!-- verify -->
-```java
-// Only log if debug flag is enabled
-Selective<IOKind.Witness> selective = IOSelective.INSTANCE;
-
-Kind<IOKind.Witness, Boolean> debugEnabled =
-    IO_OP.widen(IO.delay(() -> config.isDebug()));
-Kind<IOKind.Witness, Unit> logEffect =
-    IO_OP.widen(IO.fromRunnable(() -> log.debug("Debug info")));
-
-Kind<IOKind.Witness, Unit> conditionalLog = selective.whenS(debugEnabled, logEffect);
-// Log effect only executes if debugEnabled is true
-```
-
-**Think Of It As:** If-then-else for functional programming with compile-time visible branches
-~~~
-
-## Data Combination Type Classes
-
-### Semigroup
-~~~admonish tip title="Semigroup Quick Reference"
-**Core Method:** `combine(A a1, A a2) -> A`
-
-**Purpose:** Types that can be combined associatively
-
-**Key Property:** Associativity - `combine(a, combine(b, c)) == combine(combine(a, b), c)`
-
-**Use When:**
-- You need to combine/merge two values of the same type
-- Order of combination doesn't matter (due to associativity)
-- Building blocks for parallel processing
-
-**Common Instances:**
-- String concatenation: `"a" + "b" + "c"`
-- Integer addition: `1 + 2 + 3`
-- List concatenation: `[1,2] + [3,4] + [5,6]`
-- Set union: `{1,2} ∪ {2,3} ∪ {3,4}`
-
-**Example:**
-<!-- verify -->
-```java
-// Combine error messages
-Semigroup<String> stringConcat = Semigroups.string("; ");
-String combined = stringConcat.combine("AppError 1", "AppError 2");
-// Result: "AppError 1; AppError 2"
-```
-
-**Think Of It As:** The `+` operator generalised to any type
-~~~
-
-### Monoid
-~~~admonish tip title="Monoid Quick Reference"
-**Core Methods:**
-- `combine(A a1, A a2) -> A` (from Semigroup)
-- `empty() -> A` (identity element)
-
-**Purpose:** Semigroups with an identity/neutral element
-
-**Key Properties:**
-- Associativity (from Semigroup)
-- Identity: `combine(a, empty()) == combine(empty(), a) == a`
-
-**Use When:**
-- You need a starting value for reductions/folds
-- Implementing fold operations over data structures
-- You might be combining zero elements
-
-**Common Instances:**
-- String: empty = `""`, combine = concatenation
-- Integer addition: empty = `0`, combine = `+`
-- Integer multiplication: empty = `1`, combine = `*`
-- List: empty = `[]`, combine = concatenation
-- Boolean AND: empty = `true`, combine = `&&`
-
-**Example:**
-<!-- verify -->
-```java
-// Sum a list using integer addition monoid
-Integer sum = listFoldable.foldMap(
-    Monoids.integerAddition(),
-    Function.identity(),
-    numbersList
-);
-```
-
-**Think Of It As:** Semigroup + a "starting point" for combinations
-~~~
-
-## Structure-Iterating Type Classes
-
-### Foldable
-~~~admonish tip title="Foldable<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Method:** `foldMap(Monoid<M> monoid, Function<A,M> f, Kind<F,A> fa) -> M`
-
-**Purpose:** Reduce a data structure to a single summary value
-
-**Use When:**
-- You want to aggregate/summarise data in a structure
-- You need different types of reductions (sum, concat, any/all, etc.)
-- You want to count, find totals, or collapse collections
-
-**Key Insight:** Different Monoids give different aggregations from same data
-
-**Common Operations:**
-- Sum numbers: use integer addition monoid
-- Concatenate strings: use string monoid  
-- Check all conditions: use boolean AND monoid
-- Count elements: map to 1, use integer addition monoid
-
-**Example:**
-<!-- verify -->
-```java
-// Multiple aggregations of the same list
-Kind<ListKind.Witness, Integer> numbers = LIST.widen(List.of(1, 2, 3, 4, 5));
-
-// Sum
-Integer sum = foldable.foldMap(Monoids.integerAddition(),
-    Function.identity(), numbers); // 15
-
-// Concatenate as strings
-String concat = foldable.foldMap(Monoids.string(),
-    String::valueOf, numbers); // "12345"
-
-// Check all positive
-Boolean allPositive = foldable.foldMap(Monoids.booleanAnd(),
-    n -> n > 0, numbers); // true
-```
-
-**Think Of It As:** Swiss Army knife for data aggregation
-~~~
-
-### Traverse
-~~~admonish tip title="Traverse<F extends WitnessArity<TypeArity.Unary>> Quick Reference"
-**Core Method:** `traverse(Applicative<G> app, Function<A,Kind<G,B>> f, Kind<F,A> fa) -> Kind<G,Kind<F,B>>`
-
-**Purpose:** Apply an effectful function to each element and "flip" the contexts
-
-**Use When:**
-- You have a collection and want to apply an effect to each element
-- You want to validate every item and collect all errors
-- You need to "turn inside-out": `F<G<A>>` becomes `G<F<A>>`
-
-**Key Operations:**
-- `traverse`: apply function then flip
-- `sequence`: just flip contexts (when we already have `F<G<A>>`)
-
-**Common Patterns:**
-- Validate every item in a list
-- Make async calls for each element
-- Parse/process each item, collecting all failures
-
-**Example:**
-<!-- verify -->
-```java
-// Validate every string in a list, collect all errors
-List<String> inputs = List.of("123", "abc", "456");
-
-Kind<ValidatedKind.Witness<List<String>>, Kind<ListKind.Witness, Integer>> result =
-    listTraverse.traverse(
-        validatedApplicative,
-        this::parseInteger, // String -> Validated<List<String>, Integer>
-        LIST.widen(inputs)
-    );
-
-// Result: either Valid(List[123, 456]) or Invalid(["abc is not a number"])
-```
-
-**Think Of It As:** Applying effects to collections while flipping the "nesting order"
-~~~
-
-## Dual-Parameter Type Classes
-
-### Profunctor
-~~~admonish tip title="Profunctor<P extends WitnessArity<TypeArity.Binary>> Quick Reference"
-**Core Methods:**
-- `lmap(Function<C,A> f, Kind2<P,A,B> pab) -> Kind2<P,C,B>` (contravariant on input)
-- `rmap(Function<B,D> g, Kind2<P,A,B> pab) -> Kind2<P,A,D>` (covariant on output)  
-- `dimap(Function<C,A> f, Function<B,D> g, Kind2<P,A,B> pab) -> Kind2<P,C,D>` (both)
-
-**Purpose:** Adapt inputs and outputs of two-parameter types (especially functions)
-
-**Use When:**
-- Building flexible data transformation pipelines
-- Creating API adapters that convert between different formats
-- You need to preprocess inputs or postprocess outputs
-- Building reusable validation or transformation logic
-
-**Key Insight:** 
-- `lmap` = preprocess the input (contravariant)
-- `rmap` = postprocess the output (covariant)
-- `dimap` = do both transformations
-
-**Common Instance:** `Function<A,B>` is the canonical Profunctor
-
-**Example:**
-<!-- verify -->
-```java
-// Adapt a string length function to work with integers and return formatted strings
-Function<String, Integer> stringLength = String::length;
-
-// Input adaptation: Integer -> String  
-Kind2<FunctionKind.Witness, Integer, Integer> intToLength = 
-    profunctor.lmap(Object::toString, FUNCTION.widen(stringLength));
-
-// Output adaptation: Integer -> String
-Kind2<FunctionKind.Witness, String, String> lengthToString = 
-    profunctor.rmap(len -> "Length: " + len, FUNCTION.widen(stringLength));
-
-// Both adaptations
-Kind2<FunctionKind.Witness, Integer, String> fullAdaptation = 
-    profunctor.dimap(Object::toString, len -> "Result: " + len, 
-        FUNCTION.widen(stringLength));
-```
-
-**Think Of It As:** The adapter pattern for functional programming
-~~~
-
-## Decision Guide
-
-~~~admonish warning title="Choosing the Right Type Class"
-**Start Simple, Go Complex:**
-1. **Functor** - Simple transformations, context unchanged
-2. **Applicative** - Combine independent computations
-3. **Selective** OR **Monad** - Choose based on needs:
-   - **Selective**: Conditional effects with all branches visible upfront (static analysis)
-   - **Monad**: Chain dependent computations with dynamic choice
-4. **MonadError** - Add error handling to Monad
-5. **Traverse** - Apply effects to collections
-6. **Profunctor** - Adapt inputs/outputs of functions
-
-**Decision Tree:**
-- Need to transform values? → **Functor**
-- Need to combine independent operations? → **Applicative**
-- Need conditional effects with static structure? → **Selective**
-- Need sequential dependent operations? → **Monad** (chain dependent computations with dynamic choices based on previous results)
-- Need error recovery? → **MonadError**
-- Need to process collections with effects? → **Traverse**
-- Need to adapt function interfaces? → **Profunctor**
-- Need to aggregate/summarise data? → **Foldable**
-- Need to combine values? → **Semigroup/Monoid**
-
-**Common Patterns:**
-- **Form validation:** Applicative (independent fields) or Traverse (list of fields)
-- **Database operations:** Monad (dependent queries) + MonadError (failure handling)
-- **API integration:** Profunctor (adapt formats) + Monad (chain calls)
-- **Configuration:** Applicative (combine settings) + Reader (dependency injection)
-- **Conditional effects:** Selective (feature flags, debug mode) or Monad (dynamic choice)
-- **Configuration fallback:** Selective (try multiple sources with static branches)
-- **Logging:** Writer (accumulate logs) + Monad (sequence operations)
-- **State management:** State/StateT (thread state) + Monad (sequence updates)
-~~~
-
-## Type Hierarchy
-
-~~~admonish info title="Type Class Relationships"
-```
-        Functor
-            ↑
-    Applicative ← Apply
-       ↗    ↖
-Selective   Monad
-               ↑
-          MonadError
-
-Semigroup
-    ↑
-  Monoid
-
-Functor + Foldable
-    ↑
- Traverse
-
-(Two-parameter types)
-Profunctor
-Bifunctor
-```
-
-**Inheritance Meaning:**
-- Every **Applicative** is also a **Functor**
-- Every **Selective** is also an **Applicative** (and therefore a **Functor**)
-- Every **Monad** is also an **Applicative** (and therefore a **Functor**)
-- Every **MonadError** is also a **Monad** (and therefore **Applicative** and **Functor**)
-- **Selective** and **Monad** are siblings - both extend **Applicative** directly
-- Every **Monoid** is also a **Semigroup**
-- Every **Traverse** provides both **Functor** and **Foldable** capabilities
-
-**Practical Implication:** If we have a `Monad<F>` instance, we can also use it as an `Applicative<F>` or `Functor<F>`. Selective and Monad are alternative extensions of Applicative with different trade-offs.
-~~~
-
-## Common Monoid Instances
-
-~~~admonish note title="Ready-to-Use Monoids"
-**Numeric:**
-- `Monoids.integerAddition()` - sum integers (empty = 0)
-- `Monoids.integerMultiplication()` - multiply integers (empty = 1)
-
-**Text:**
-- `Monoids.string()` - concatenate strings (empty = "")
-- `Monoids.string(delimiter)` - join with delimiter
-
-**Boolean:**
-- `Monoids.booleanAnd()` - logical AND (empty = true)
-- `Monoids.booleanOr()` - logical OR (empty = false)
-
-**Collections:**
-- `Monoids.list()` - concatenate lists (empty = [])
-
-**Custom:**
-<!-- verify -->
-```java
-// Define a custom monoid
-Monoid<MyType> myMonoid = new Monoid<MyType>() {
-    public MyType empty() { return MyType.defaultValue(); }
-    public MyType combine(MyType a, MyType b) { return a.mergeWith(b); }
-};
-```
-~~~
-
-## Performance Notes
-
-~~~admonish warning title="Performance Considerations"
-**When to Use HKT vs Direct Methods:**
-
-**Use HKT When:**
-- Writing generic code that works with multiple container types
-- Building complex workflows with multiple type classes
-- You need the power of type class composition
-
-**Use Direct Methods When:**
-- Simple, one-off transformations
-- Performance-critical hot paths
-- Working with a single, known container type
-
-**Examples:**
-<!-- verify -->
-```java
-// Hot path - use direct method
-Optional<String> result = optional.map(String::toUpperCase);
-
-// Generic reusable code - use HKT
-public static <F extends WitnessArity<TypeArity.Unary>> Kind<F, String> normalise(
-        Functor<F> functor, Kind<F, String> input) {
-    return functor.map(String::toUpperCase, input);
-}
-```
-
-**Memory:** HKT simulation adds minimal overhead (single wrapper object per operation)
-**CPU:** Direct method calls vs type class method calls are comparable in modern JVMs
-~~~
+<!-- description: Every Higher-Kinded-J type class at a glance, from Functor and Monad to Traverse, with its key methods, plus every ready-made Semigroup and Monoid. -->
+
+# Quick Reference
+
+_Choose a type class, look up its key methods and page, and find a ready-made `Semigroup` or `Monoid`._
+
+## Which type class? {#which-type-class}
+
+| You want to | Reach for |
+|---|---|
+| Change each value inside, and keep the container | [`Functor`](../functional/functor.md) |
+| Validate several fields and report every error, with `Validated` | [`Applicative`](../functional/applicative.md) |
+| Run an effect only when an earlier result calls for it, with every branch named up front | [`Selective`](../functional/selective.md) |
+| Make a call that needs the last call's result | [`Monad`](../functional/monad.md) |
+| Fail with a typed error, and recover from it | [`MonadError`](../functional/monad_error.md) |
+| Try a cache, then the database | [`Alternative`](../functional/alternative.md) |
+| Keep only the values that pass a test, inside a `For` | [`MonadZero`](../functional/monad_zero.md) |
+| Sum or count a list, with a `Monoid` | [`Foldable`](../functional/foldable_and_traverse.md) |
+| Look up every id, failing if any is missing | [`Traverse`](../functional/foldable_and_traverse.md) |
+
+[Applicative, Selective or Monad?](../functional/abstraction_levels.md) decides between `Applicative`, `Selective` and `Monad`. Behaviour belongs to the instance, not the type class: `Either`'s `ap` stops at the first error, while `Validated`'s joins them all with its `Semigroup`.
+
+## Type classes over a container {#type-classes-over-a-container}
+
+These work on a container held as a `Kind`, as [How the Encoding Works](core-concepts.md) explains, and [the `Instances` facade](../functional/instances_facade.md) gives you one for a type. On an [Effect Path](../effect/ch_intro.md), the same operations are methods of the Path itself.
+
+| Type class | Key methods | What it gives you | Page |
+|---|---|---|---|
+| `Functor` | `map` | Change the value inside, and keep the container | [Functor](../functional/functor.md) |
+| `Applicative` | `of`, `ap`, `map2` to `map5` | Put a value in the container, and combine steps that do not depend on one another | [Applicative](../functional/applicative.md) |
+| `Selective` | `select`, `branch`, `ifS`, `whenS` | Run an effect only when an earlier result calls for it, with every branch named up front | [Selective](../functional/selective.md) |
+| `Monad` | `flatMap`, `flatMap2` to `flatMap5`, `as`, `peek` | Build the next step from the last result | [Monad](../functional/monad.md) |
+| `MonadError` | `raiseError`, `handleErrorWith`, `handleError`, `recover`, `recoverWith` | Fail with a typed error, and recover from it | [MonadError](../functional/monad_error.md) |
+| `Alternative` | `empty`, `orElse`, `orElseAll`, `guard` | Fall back to a second container when the first is empty (`Maybe`), or join the two (`List`) | [Alternative](../functional/alternative.md) |
+| `MonadZero` | `zero`, `filter` | Drop a value that fails a test, as the `when` step of a [`For`](../functional/for_comprehension.md) does | [MonadZero](../functional/monad_zero.md) |
+| `Foldable` | `foldMap` | Reduce a structure to one plain value, with a `Monoid` | [Foldable and Traverse](../functional/foldable_and_traverse.md) |
+| `Traverse` | `traverse`, `sequenceA` | Run an effect on every element, and gather the results in one container | [Foldable and Traverse](../functional/foldable_and_traverse.md) |
+| `MonadReader` | `ask`, `asks`, `reader`, `local` | Read an environment | [MTL Capabilities](../transformers/mtl_capabilities.md) |
+| `MonadState` | `get`, `gets`, `inspect`, `put`, `modify` | Read and replace a state | [MTL Capabilities](../transformers/mtl_capabilities.md) |
+| `MonadWriter` | `tell`, `listen`, `listens`, `pass`, `censor` | Add to an output kept beside the result | [MTL Capabilities](../transformers/mtl_capabilities.md) |
+
+Argument order varies: `map(f, fa)` and `flatMap(f, ma)` take the function first, while `map2(fa, fb, f)` and `handleErrorWith(ma, handler)` take it last. Each linked page, apart from MTL Capabilities, states its type class's laws, and [the hierarchy](../functional/ch_intro.md#the-hierarchy) shows which type class extends which, drawn from `hkj-api` itself. [Lifting the Hood](lifting_the_hood.md#what-this-means-in-practice) says what a call through the encoding costs.
+
+## Type classes over a two-sided type {#type-classes-over-a-two-sided-type}
+
+These work on a type with two parameters, held as a `Kind2`.
+
+| Type class | Key methods | What it gives you | Page |
+|---|---|---|---|
+| `Bifunctor` | `bimap`, `first`, `second` | Change either side of a two-sided type, such as `Either` or `Tuple2` | [Bifunctor](../functional/bifunctor.md) |
+| `Profunctor` | `dimap`, `lmap`, `rmap` | Adapt a function's input and its output | [Profunctor](../functional/profunctor.md) |
+
+## Type classes over a plain type {#type-classes-over-a-plain-type}
+
+These take plain values, such as two `String`s, rather than a `Kind`.
+
+| Type class | Key methods | What it gives you | Page |
+|---|---|---|---|
+| `Semigroup` | `combine` | Join two values of one type, where the grouping never changes the result | [Semigroup and Monoid](../functional/semigroup_and_monoid.md) |
+| `Monoid` | `empty`, `combine`, `combineAll`, `combineN`, `of` | A `Semigroup` with an empty value, so that it can fold nothing at all | [Semigroup and Monoid](../functional/semigroup_and_monoid.md) |
+
+## Ready-made Semigroups and Monoids {#ready-made-semigroups-and-monoids}
+
+A `Semigroup` joins two values:
+
+| Factory | Joins |
+|---|---|
+| `Semigroups.list()` | Two lists, end to end, into a new list |
+| `Semigroups.set()` | Two sets, by union |
+| `Semigroups.string()` | Two strings, end to end |
+| `Semigroups.string(delimiter)` | Two strings, with the delimiter between them |
+| `Semigroups.first()` | Two values, keeping the first |
+| `Semigroups.last()` | Two values, keeping the second |
+
+A `Monoid` adds an empty value, which changes nothing it is joined to, and which a fold of an empty structure gives:
+
+| Factory | Joins | Empty value |
+|---|---|---|
+| `Monoids.list()` | Lists, end to end | An empty list |
+| `Monoids.set()` | Sets, by union | An empty set |
+| `Monoids.string()` | Strings, end to end | `""` |
+| `Monoids.integerAddition()` | `Integer`s, by `+` | `0` |
+| `Monoids.integerMultiplication()` | `Integer`s, by `*` | `1` |
+| `Monoids.longAddition()` | `Long`s, by `+` | `0L` |
+| `Monoids.longMultiplication()` | `Long`s, by `*` | `1L` |
+| `Monoids.doubleAddition()` | `Double`s, by `+`, which rounds | `0.0` |
+| `Monoids.doubleMultiplication()` | `Double`s, by `*`, which rounds | `1.0` |
+| `Monoids.bigDecimalAddition()` | `BigDecimal`s, by `add`, exactly: use it for money | `BigDecimal.ZERO` |
+| `Monoids.booleanAnd()` | `Boolean`s, by `&&` | `true` |
+| `Monoids.booleanOr()` | `Boolean`s, by `\|\|` | `false` |
+| `Monoids.firstOptional()` | `Optional`s, keeping the first present one | `Optional.empty()` |
+| `Monoids.lastOptional()` | `Optional`s, keeping the last present one | `Optional.empty()` |
+| `Monoids.maximum()` | `Optional`s, keeping the larger value | `Optional.empty()` |
+| `Monoids.maximum(comparator)` | `Optional`s, keeping the larger value by the comparator | `Optional.empty()` |
+| `Monoids.minimum()` | `Optional`s, keeping the smaller value | `Optional.empty()` |
+| `Monoids.minimum(comparator)` | `Optional`s, keeping the smaller value by the comparator | `Optional.empty()` |
+| `Monoids.update()` | [`Update`](../functional/semigroup_and_monoid.md#composing-updates)s, applying the first and then the second | `Update.identity()` |
+
+`Monoid.of(empty, combine)` makes your own from an empty value and a `Semigroup`, as [Semigroup and Monoid](../functional/semigroup_and_monoid.md) does to count the units of each SKU.
 
 ---
 

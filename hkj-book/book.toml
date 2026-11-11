@@ -27,6 +27,7 @@ level = 1
 "/for-comprehension.html" = "functional/for_comprehension.html"
 "/functional/for_par.html" = "for_comprehension.html#independent-steps-with-par"
 "/functional/for_traverse.html" = "for_comprehension.html#traversing-inside-a-chain"
+"/functional/functional_api.html" = "../hkts/quick_reference.html"
 "/optics/record_mapping.html" = "../mapping/ch_intro.html"
 "/optics/at.html" = "indexed_access.html"
 "/optics/ixed.html" = "indexed_access.html"

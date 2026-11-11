@@ -19,7 +19,7 @@ whose reader needs it.
 |---|---|---|
 | Ship | `foundations_intro`, `one_line_six_layers`, `core-concepts`, `usage-guide`, `instances_facade`, `functor`, `applicative`, `monad`, `monad_error`, `for_comprehension` (which absorbed `for_par` and `for_traverse`), `self_check` | Reads in order, then writes one method that works for any container. |
 | On demand | Three groups, each led by a group introduction: Higher-Kinded Types (`hkts/ch_intro`), Type Classes (`functional/ch_intro`) and Core Types (`monads/ch_intro`) | Reads one page when a task needs it, often arriving from a search for one type. |
-| Look it up | `supported-types`, `quick_reference`, `functional_api`, `faq`, `hkt_basic_examples` | Arrives holding a question. |
+| Look it up | `supported-types`, `quick_reference`, `faq`, `hkt_basic_examples` | Arrives holding a question. |
 
 `SUMMARY.md` holds the order, and the chapter introduction's Chapter Contents lists the lanes. A
 group's pages are nested under its introduction in `SUMMARY.md`, so the sidebar shows the lane first.

@@ -41,7 +41,7 @@ For example:
 
 ### Core Types
 
-The foundation of functional programming: monadic types that represent different computational effects.
+The foundation of functional programming: monadic types that represent different computational effects. The [Example Index](../hkts/hkt_basic_examples.md) lists every example in `org.higherkindedj.example.basic`, with the page that explains it.
 
 | Category | Examples | What You'll Learn |
 |----------|----------|-------------------|
