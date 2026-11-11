@@ -231,6 +231,7 @@
   - [Supported Types](monads/supported-types.md)
   - [Quick Reference](hkts/quick_reference.md)
   - [Foundations FAQ](hkts/faq.md)
+  - [Laws and Where HKJ Bends Them](hkts/laws.md)
   - [Example Index](hkts/hkt_basic_examples.md)
 
 - [Examples Gallery](examples/ch_intro.md)

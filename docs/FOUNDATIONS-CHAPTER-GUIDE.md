@@ -117,6 +117,11 @@ The Look it up pages follow the Style Guide's [Reference Pages](STYLE-GUIDE.md#r
 shape: no epigraph, no "What You'll Learn" and no "Key Takeaways". Each opens with the thing its
 reader came for.
 
+The FAQ is the one exception to "no epigraph": it keeps Laplace's, bridged to the missing feature
+most of its answers turn on. [Laws and Where HKJ Bends Them](../hkj-book/src/hkts/laws.md) is the
+one list of the instances that bend a law. A page that explains its own type's bend links that list
+rather than repeating the others, and the list's table of the laws `hkj-test` checks is generated.
+
 ## Examples
 
 - **A page's compiled examples live in `hkj-examples`** under

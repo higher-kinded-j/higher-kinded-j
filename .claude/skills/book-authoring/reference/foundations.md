@@ -71,6 +71,12 @@ work in and the traps the chapter has met.
   `BookCapabilityMatrixTest` fails until the package has a row, in `ROWS` for a Core Types page or
   `OTHER_ROWS` for a type shown elsewhere, or an entry in `NOT_LISTED` saying why no reader holds the
   type.
+- **Never type a row of the laws table; `BookLawsTest` writes it.** The table of the laws `hkj-test`
+  checks, on `hkts/laws.md`, is read from `hkj-api`'s type classes and `hkj-test`'s `*Laws` classes
+  into `foundations-laws.md.golden`. A new checker or type class fails the test until it has a row,
+  and a checker that gains a law fails it until you paste the replacement golden file it prints. An
+  instance that bends a law is a row you type in the page's other table, with a test in
+  `LawsBookTest` that proves it.
 - **`Path` clashes with `java.nio.file.Path`** under a module import of `java.base`. Import the
   library's `Path` by name.
 - **`import module org.higherkindedj.core;` needs the library resolved as a module**: required in

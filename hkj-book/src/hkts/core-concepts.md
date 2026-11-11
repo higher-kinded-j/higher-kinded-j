@@ -97,7 +97,7 @@ Higher-Kinded-J's own types hold a value, never `null`. They refuse it at the fa
 | `Maybe` | Read as `Nothing` by `Maybe.fromNullable` and by the instance's `of`, though `Maybe.just(null)` throws | Read as `Nothing` |
 | `Id` | Held | Held |
 
-When a step has nothing to return, return [`Unit`](#unit). When a value may be absent, hold it in a `Maybe`. The JDK containers, the transformers and the tuples have rules of their own, in [Where null is read or held](#where-null-is-read-or-held).
+When a step has nothing to return, return [`Unit`](#unit). When a value may be absent, hold it in a `Maybe`. The JDK containers, the transformers and the tuples have rules of their own, in [Where null is read or held](#where-null-is-read-or-held). A `null` also takes a value outside the type class laws, as [Laws and Where HKJ Bends Them](laws.md) says.
 
 ## `Unit`: a value for "nothing to return" {#unit}
 

@@ -55,7 +55,7 @@ A chapter or group introduction may open with a quote, and so may a page that cr
 Dijkstra's new semantic level, in this chapter, is `Kind<F, A>`...
 ```
 
-- **At most one per page, at its head.** Never mid-page, and never on a reference page.
+- **At most one per page, at its head.** Never mid-page, and never on a reference page unless its chapter guide names the page as an exception.
 - **The quotation is italic and keeps its own spelling.** The attribution line is `> — Author, *Work*`, with a chapter, act or poem where it helps. No bold, job titles or commentary; name the translator where the wording is theirs.
 - **A `<!-- source: ... -->` comment above it records the edition**, so the wording can be checked against it.
 - **Quote only what can be sourced.** A line famous mainly as an internet attribution is not.
@@ -427,6 +427,8 @@ Link text names its destination. Never "below", "above" or "here", and never a b
 ### Reference Pages
 
 A lookup page (an at-a-glance page, a limits index, an error catalogue, a migration table) opens with the thing the reader came for: its triage table or its matrix. It carries no epigraph, no "What You'll Learn" and no "Key Takeaways", and links its example code in a foot line. The reader visits it holding a question and pays the preamble on every visit.
+
+An FAQ is a reference page too. It opens with its questions in a table, each linked to its answer beside a one-line answer, and each answer's first sentence answers the question before it explains.
 
 A catalogue of messages or limits takes this shape:
 

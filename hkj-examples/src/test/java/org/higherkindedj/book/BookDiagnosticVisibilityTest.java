@@ -55,7 +55,7 @@ class BookDiagnosticVisibilityTest {
    * Markers the book must not fall below, so deleting the gated snippets cannot pass for
    * compliance.
    */
-  private static final int MINIMUM_MARKERS = 238;
+  private static final int MINIMUM_MARKERS = 240;
 
   private static final Pattern MARKER =
       Pattern.compile("<!--\\s*verify:(?:rejects|reports)\\s+\"([^\"]+)\"\\s*-->");

@@ -1,0 +1,23 @@
+<!-- Written by BookLawsTest from hkj-api's type classes and hkj-test's law checkers. Do not edit: the test prints the replacement. -->
+<!-- ANCHOR: checked -->
+| Laws of | `hkj-test` checks |
+|---|---|
+| [`Semigroup`](../functional/semigroup_and_monoid.md#three-laws) | Not supported yet |
+| [`Monoid`](../functional/semigroup_and_monoid.md#three-laws) | Not supported yet |
+| [`Functor`](../functional/functor.md#two-laws) | `FunctorLaws`: identity, composition |
+| [`Applicative`](../functional/applicative.md#four-laws) | `ApplicativeLaws`: identity, homomorphism, interchange, composition |
+| [`Selective`](../functional/selective.md#laws) | `SelectiveLaws`: left pure, right pure |
+| [`Monad`](../functional/monad.md#three-laws) | `MonadLaws`: left identity, right identity, associativity |
+| [`MonadError`](../functional/monad_error.md#three-laws) | Not supported yet |
+| [`Alternative`](../functional/alternative.md#laws) | Not supported yet |
+| [`MonadZero`](../functional/monad_zero.md#two-laws) | Not supported yet |
+| [`Foldable`](../functional/foldable_and_traverse.md#the-traverse-laws) | Not supported yet |
+| [`Traverse`](../functional/foldable_and_traverse.md#the-traverse-laws) | `TraverseLaws`: identity |
+| [`Natural`](../functional/natural_transformation.md#the-naturality-law) | Not supported yet |
+| [`Bifunctor`](../functional/bifunctor.md#four-laws) | `BifunctorLaws`: identity, composition, first consistency, second consistency |
+| [`Profunctor`](../functional/profunctor.md#two-laws) | Not supported yet |
+| [`MonadReader`](../transformers/mtl_reader.md#the-monadreader-laws) | Not supported yet |
+| [`MonadState`](../transformers/mtl_state.md#the-monadstate-laws) | Not supported yet |
+| [`MonadWriter`](../transformers/mtl_writer.md#the-monadwriter-laws) | Not supported yet |
+| [A type's `widen` and `narrow`](extending-simulation.md#prove-your-instance) | `KindHelperLaws`: round trip, idempotency, edge cases |
+<!-- ANCHOR_END: checked -->
