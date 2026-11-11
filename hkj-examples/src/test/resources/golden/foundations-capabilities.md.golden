@@ -28,6 +28,18 @@
 | [`Coyoneda<F, A>`](coyoneda.md) | `Functor` |
 | [`Const<C, A>`](const_type.md) | `Functor`, `Applicative`, `Bifunctor` |
 <!-- ANCHOR_END: matrix -->
+<!-- ANCHOR: others -->
+| Type | Type classes |
+|---|---|
+| [`EitherT<F, L, R>`](../transformers/eithert_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadError<L>` |
+| [`OptionalT<F, A>`](../transformers/optionalt_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadError<Unit>` |
+| [`MaybeT<F, A>`](../transformers/maybet_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadError<Unit>` |
+| [`ReaderT<F, R_ENV, A>`](../transformers/readert_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadReader<R_ENV>` |
+| [`StateT<S, F, A>`](../transformers/statet_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadState<S>` |
+| [`WriterT<F, W, A>`](../transformers/writert_transformer.md) | `Functor`, `Applicative`, `Monad`, `MonadWriter<W>` |
+| [`Tuple2<A, B>`](../functional/bifunctor.md) | `Bifunctor` |
+| [`Function<T, R>`](../functional/profunctor.md) | `Profunctor` |
+<!-- ANCHOR_END: others -->
 <!-- ANCHOR: either_monad -->
 | **Instances** | `Functor`, `Applicative`, `Selective`, `Monad`, `MonadError<L>`, `Foldable`, `Traverse`, `Bifunctor` |
 <!-- ANCHOR_END: either_monad -->

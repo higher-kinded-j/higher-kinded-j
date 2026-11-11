@@ -9,9 +9,9 @@ _Keep Java's own `Stream`, with an Effect Path you can run more than once, and i
 |---|---|
 | **Models** | A sequence that makes each element as it is read, in Java's own type |
 | **Replaces** | Nothing: it is Java's own type |
-| **Effect Path** | [`StreamPath`](../glossary/effect-paths.md#streampath), which can be run more than once |
+| **Effect Path** | [`StreamPath`](../glossary/effect-paths.md#streampath), which reads a finite stream into memory so it can run again, or [takes a supplier](#on-a-streampath) for an endless one |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:stream_monad}}
-| **Choose it when** | The code already gives you a `Stream`; otherwise [List](list_monad.md), which can be read again, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | A method you call already returns a `Stream`; otherwise [List](list_monad.md), which can be read again, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"

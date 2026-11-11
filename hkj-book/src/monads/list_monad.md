@@ -11,7 +11,7 @@ _Each step can give several results, and the list keeps them all, in order._
 | **Replaces** | Nothing: it is Java's own type |
 | **Effect Path** | [`NonDetPath`](../glossary/effect-paths.md#nondetpath) for every combination, or [`ListPath`](../glossary/effect-paths.md#listpath), whose `zipWith` pairs by position |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:list_monad}}
-| **Choose it when** | You want every result of every branch, held in memory; otherwise [Stream](stream_monad.md), which makes each element as it is read and can be read only once, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | Nested loops build every combination, and you keep them all in memory; otherwise [Stream](stream_monad.md), which makes each element as it is read and can be read only once, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"

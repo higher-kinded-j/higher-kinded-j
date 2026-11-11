@@ -49,7 +49,7 @@ public class ReaderTExample {
     // TestValue")
     System.out.println(OPTIONAL.narrow(rt1.run().apply(testConfig)));
 
-    // 2. `ReaderT.lift(Monad<F> outerMonad, Kind<F, A> fa)`
+    // 2. `ReaderT.liftF(Monad<F> outerMonad, Kind<F, A> fa)`
     //    Lifts an existing monadic value `Kind<F, A>` into ReaderT.
     //    The resulting ReaderT ignores the environment R and always returns `fa`.
     Kind<OptionalKind.Witness, Integer> optionalValue = OPTIONAL.widen(Optional.of(123));

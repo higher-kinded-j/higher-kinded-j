@@ -72,7 +72,7 @@ You can ship with Effect Paths without reading this chapter. Start from what you
 | One method that works for every container, as `totals` does | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
 | A type of your own that joins the library | [Adding Your Own Type](extending-simulation.md) |
 | A comparison with Vavr, Cyclops or Arrow-Kt | [Foundations FAQ](faq.md) |
-| The type class interfaces at a glance | [Functional API](../functional/functional_api.md) |
+| The type class interfaces at a glance | [Quick Reference](quick_reference.md) |
 | The everyday API instead | [Effect Paths](../effect/ch_intro.md) |
 
 ~~~admonish info title="Hands-On Learning"
@@ -105,10 +105,9 @@ The [Foundations journey](../tutorials/coretypes/foundations_journey.md) practis
 **Look it up**, when you hold a question:
 
 14. [Supported Types](../monads/supported-types.md): Which type to choose, and what it supports
-15. [Quick Reference](quick_reference.md): The everyday patterns at a glance
-16. [Functional API](../functional/functional_api.md): The type class interfaces
-17. [Foundations FAQ](faq.md): Design questions, runtime cost and comparisons
-18. [Basic HKT Examples](hkt_basic_examples.md): The runnable examples, listed
+15. [Quick Reference](quick_reference.md): Every type class and its key methods, and the ready-made monoids
+16. [Foundations FAQ](faq.md): Design questions, runtime cost and comparisons
+17. [Example Index](hkt_basic_examples.md): Every runnable basic example, with the page that explains it
 
 ---
 
