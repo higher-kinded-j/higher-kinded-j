@@ -246,6 +246,10 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    * <p>The natural transformation converts each instruction in F to the target applicative G. The
    * Applicative instance for G is used to combine the results.
    *
+   * <p>The natural transformation meets the instructions in the order the program was written, and
+   * a program nested to any depth, such as a long fold of {@code map2} calls, is interpreted in a
+   * loop without overflowing the stack.
+   *
    * <h2>Parallel Execution</h2>
    *
    * <p>If the target Applicative supports parallel execution (like a parallel IO or
@@ -296,6 +300,11 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    * Internal helper that interprets a FreeAp using the given natural transformation and
    * applicative.
    *
+   * <p>The tree is walked in a loop with explicit stacks, so a program nested to any depth on
+   * either side, such as a long fold of {@code map2} calls, does not overflow the stack. Each
+   * {@code Ap} interprets its function side before its argument side, so the natural transformation
+   * meets the instructions in the order the program was written.
+   *
    * @param freeAp The FreeAp to interpret
    * @param transform The natural transformation from F to G
    * @param applicative The Applicative instance for G
@@ -304,43 +313,44 @@ public sealed interface FreeAp<F extends WitnessArity<TypeArity.Unary>, A> exten
    * @param <A> The result type
    * @return The interpreted result in G
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // each node's type is fixed by the Ap that holds it
   private static <
           F extends WitnessArity<TypeArity.Unary>, G extends WitnessArity<TypeArity.Unary>, A>
       Kind<G, A> interpretFreeAp(
           FreeAp<F, A> freeAp, Natural<F, G> transform, Applicative<G> applicative) {
 
-    // Unwind right-nested Ap chains iteratively to avoid stack overflow.
-    // Collect the function (ff) nodes while following the value (fa) chain.
-    Deque<FreeAp<F, ?>> ffStack = new ArrayDeque<>();
-    FreeAp<F, ?> current = freeAp;
+    // Work to do: a node to interpret, or the combine marker, which applies the two values on top
+    Object combine = new Object();
+    Deque<Object> work = new ArrayDeque<>();
+    // The interpreted values, each awaiting the Ap that combines it
+    Deque<Kind<G, Object>> values = new ArrayDeque<>();
+    work.push(freeAp);
 
-    while (current instanceof Ap<F, ?, ?> ap) {
-      Ap<F, Object, ?> typed = (Ap<F, Object, ?>) ap;
-      ffStack.push(typed.ff());
-      current = typed.fa();
+    while (!work.isEmpty()) {
+      Object next = work.pop();
+      if (next == combine) {
+        Kind<G, Object> argument = values.pop();
+        Kind<G, Function<Object, Object>> function =
+            (Kind<G, Function<Object, Object>>) (Kind<G, ?>) values.pop();
+        values.push(applicative.ap(applicative.map(FreeAp::nonNullResult, function), argument));
+      } else {
+        switch ((FreeAp<F, Object>) next) {
+          case Pure<F, Object> pure -> values.push(applicative.of(pure.value()));
+          case Lift<F, Object> lift ->
+              values.push(
+                  Objects.requireNonNull(
+                      transform.apply(lift.fa()), "natural transformation must not return null"));
+          case Ap<F, ?, Object> ap -> {
+            // Popped in reverse: the function side first, then the argument side, then combine
+            work.push(combine);
+            work.push(ap.fa());
+            work.push(ap.ff());
+          }
+        }
+      }
     }
 
-    // current is now Pure or Lift — interpret the leaf
-    // (Ap nodes were consumed by the while loop above, so only Pure/Lift remain)
-    Kind<G, Object> result;
-    if (current instanceof Pure<F, ?> pure) {
-      result = (Kind<G, Object>) applicative.of(pure.value());
-    } else {
-      Lift<F, ?> lift = (Lift<F, ?>) current;
-      result = (Kind<G, Object>) transform.apply(lift.fa());
-    }
-
-    // Apply accumulated function nodes in reverse (LIFO) order
-    while (!ffStack.isEmpty()) {
-      FreeAp<F, ?> ffNode = ffStack.pop();
-      // ff nodes are typically Pure/Lift but could be nested Ap (handled by recursion)
-      Kind<G, Function<Object, Object>> gf =
-          (Kind<G, Function<Object, Object>>) interpretFreeAp(ffNode, transform, applicative);
-      result = (Kind<G, Object>) applicative.ap(applicative.map(FreeAp::nonNullResult, gf), result);
-    }
-
-    return (Kind<G, A>) result;
+    return (Kind<G, A>) values.pop();
   }
 
   /**

@@ -120,16 +120,16 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    */
   default List<Pair<I, A>> toIndexedList(S source) {
     final List<Pair<I, A>> result = new ArrayList<>();
-    Monoid<Void> accumulatorMonoid =
+    Monoid<Unit> accumulatorMonoid =
         new Monoid<>() {
           @Override
-          public Void empty() {
-            return null;
+          public Unit empty() {
+            return Unit.INSTANCE;
           }
 
           @Override
-          public Void combine(Void a, Void b) {
-            return null;
+          public Unit combine(Unit a, Unit b) {
+            return Unit.INSTANCE;
           }
         };
 
@@ -137,7 +137,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
         accumulatorMonoid,
         (i, a) -> {
           result.add(new Pair<>(i, a));
-          return null;
+          return Unit.INSTANCE;
         },
         source);
     return result;
@@ -151,16 +151,16 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
    */
   default List<A> getAll(S source) {
     final List<A> result = new ArrayList<>();
-    Monoid<Void> accumulatorMonoid =
+    Monoid<Unit> accumulatorMonoid =
         new Monoid<>() {
           @Override
-          public Void empty() {
-            return null;
+          public Unit empty() {
+            return Unit.INSTANCE;
           }
 
           @Override
-          public Void combine(Void a, Void b) {
-            return null;
+          public Unit combine(Unit a, Unit b) {
+            return Unit.INSTANCE;
           }
         };
 
@@ -168,7 +168,7 @@ public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable 
         accumulatorMonoid,
         (i, a) -> {
           result.add(a);
-          return null;
+          return Unit.INSTANCE;
         },
         source);
     return result;

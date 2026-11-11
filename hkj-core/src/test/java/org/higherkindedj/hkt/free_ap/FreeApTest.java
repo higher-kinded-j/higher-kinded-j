@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.free_ap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
 import static org.higherkindedj.hkt.free_ap.FreeApKindHelper.FREE_AP;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -15,7 +16,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.constant.Const;
+import org.higherkindedj.hkt.constant.ConstKind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -686,12 +690,110 @@ class FreeApTest {
         result = result.ap(fn);
       }
 
-      // interpretFreeAp uses direct recursion — will StackOverflow for deep Ap structures
+      // The Ap nodes nest on the argument side, ten thousand deep
       Kind<MaybeKind.Witness, Integer> interpreted =
           result.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE);
       Maybe<Integer> maybe = MAYBE.narrow(interpreted);
       assertThat(maybe.isJust()).isTrue();
       assertThat(maybe.get()).isEqualTo(10_000);
+    }
+
+    @Test
+    @DisplayName("a long fold of map2 calls, nested on the function side, does not overflow")
+    void deepFunctionSideNestingShouldNotOverflow() {
+      FreeAp<MaybeKind.Witness, Integer> sum = FreeAp.pure(0);
+      for (int i = 0; i < 100_000; i++) {
+        sum = sum.map2(FreeAp.lift(MAYBE.widen(Maybe.just(1))), Integer::sum);
+      }
+
+      Maybe<Integer> interpreted = MAYBE.narrow(sum.foldMap(IDENTITY_NAT, MAYBE_APPLICATIVE));
+
+      assertThat(interpreted.get()).isEqualTo(100_000);
+    }
+
+    @Test
+    @DisplayName("analyseWith over a long fold of map2 calls does not overflow")
+    void deepAnalysisShouldNotOverflow() {
+      FreeAp<MaybeKind.Witness, Integer> sum = FreeAp.pure(0);
+      for (int i = 0; i < 100_000; i++) {
+        sum = sum.map2(FreeAp.lift(MAYBE.widen(Maybe.just(1))), Integer::sum);
+      }
+      Natural<MaybeKind.Witness, ConstKind.Witness<Integer>> countOne =
+          new Natural<>() {
+            @Override
+            public <A> Kind<ConstKind.Witness<Integer>, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              return CONST.widen(new Const<>(1));
+            }
+          };
+
+      assertThat(FreeApAnalyzer.analyseWith(sum, countOne, Monoids.integerAddition()))
+          .isEqualTo(100_000);
+    }
+  }
+
+  @Nested
+  @DisplayName("Interpretation order")
+  class InterpretationOrderTests {
+
+    @Test
+    @DisplayName("a natural transformation that returns null fails, saying so")
+    @SuppressWarnings("DataFlowIssue") // a transformation that breaks the rule, to show it fails
+    void naturalReturningNullFails() {
+      Natural<MaybeKind.Witness, MaybeKind.Witness> broken =
+          new Natural<>() {
+            @Override
+            public <A> Kind<MaybeKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+              return null;
+            }
+          };
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> just(1).foldMap(broken, MAYBE_APPLICATIVE))
+          .withMessage("natural transformation must not return null");
+    }
+
+    private Natural<MaybeKind.Witness, MaybeKind.Witness> recording(List<Integer> seen) {
+      return new Natural<>() {
+        @Override
+        public <A> Kind<MaybeKind.Witness, A> apply(Kind<MaybeKind.Witness, A> fa) {
+          seen.add((Integer) MAYBE.narrow(fa).get());
+          return fa;
+        }
+      };
+    }
+
+    private FreeAp<MaybeKind.Witness, Integer> just(int value) {
+      return FreeAp.lift(MAYBE.widen(Maybe.just(value)));
+    }
+
+    @Test
+    @DisplayName("foldMap meets the instructions of a map2 fold in the order they were written")
+    void functionSideFoldInWrittenOrder() {
+      List<Integer> seen = new ArrayList<>();
+      FreeAp<MaybeKind.Witness, Integer> program =
+          just(1)
+              .map2(just(2), Integer::sum)
+              .map2(just(3), Integer::sum)
+              .map2(just(4), Integer::sum);
+
+      Maybe<Integer> result = MAYBE.narrow(program.foldMap(recording(seen), MAYBE_APPLICATIVE));
+
+      assertThat(result.get()).isEqualTo(10);
+      assertThat(seen).containsExactly(1, 2, 3, 4);
+    }
+
+    @Test
+    @DisplayName("foldMap meets the instructions of a right-nested program in the order written")
+    void argumentSideNestingInWrittenOrder() {
+      List<Integer> seen = new ArrayList<>();
+      FreeAp<MaybeKind.Witness, Integer> program =
+          just(1)
+              .map2(just(2).map2(just(3).map2(just(4), Integer::sum), Integer::sum), Integer::sum);
+
+      Maybe<Integer> result = MAYBE.narrow(program.foldMap(recording(seen), MAYBE_APPLICATIVE));
+
+      assertThat(result.get()).isEqualTo(10);
+      assertThat(seen).containsExactly(1, 2, 3, 4);
     }
   }
 }
