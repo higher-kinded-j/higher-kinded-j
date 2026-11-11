@@ -215,25 +215,23 @@ MonadError<ValidatedKind.Witness<List<String>>, List<String>> v =
 
 ## Map Fusion
 
-**Definition:** An optimisation where multiple consecutive `map` operations are combined into a single function composition, reducing the number of traversals over a data structure.
+**Definition:** An optimisation where several consecutive `map` operations are applied in one traversal of a data structure, rather than one traversal each.
 
 **Example:**
 <!-- verify -->
 ```java
-// Without fusion: three separate traversals
-numbers.stream()
-    .map(x -> x * 2)       // Traversal 1
-    .map(x -> x + 1)       // Traversal 2
-    .map(Object::toString) // Traversal 3
-    .toList();
+// Without fusion: each map walks the list and builds a new one, three walks in all
+listFunctor.map(Object::toString, listFunctor.map(x -> x + 1, listFunctor.map(x -> x * 2, list)));
 
-// With Coyoneda: one traversal
+// With Coyoneda: one walk
 Coyoneda.lift(list)
-    .map(x -> x * 2)       // Just composes functions
-    .map(x -> x + 1)       // Just composes functions
-    .map(Object::toString) // Just composes functions
-    .lower(listFunctor);   // ONE traversal with composed function
+    .map(x -> x * 2)       // Holds the function
+    .map(x -> x + 1)       // Holds the function
+    .map(Object::toString) // Holds the function
+    .lower(listFunctor);   // ONE walk, each element through all three
 ```
+
+A Java `Stream` already applies its pipeline's maps to each element in one pass, so it needs no Coyoneda.
 
 **How It Works:** Coyoneda holds each function it is given instead of applying it. `lower()` then applies them in one `map`, passing each element through the functions in turn, in a loop, so a chain of any length does not overflow the stack.
 
