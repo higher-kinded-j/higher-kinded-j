@@ -188,6 +188,14 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     // The output-comment gate reads these sources: a comment is not compiled, so the only way to
     // hold `// Valid(...)` to what the example prints is to run it and compare.
     systemProperty("hkj.examples.dir", exampleSources.asFile.absolutePath)
+    // The Example Index test walks these sources to find each basic example, so an edit to them
+    // re-runs it, even one that leaves the compiled classes as they were.
+    val basicExampleSources = layout.projectDirectory.dir("src/main/java/org/higherkindedj/example/basic")
+    inputs
+        .files(basicExampleSources.asFileTree)
+        .withPropertyName("basicExampleSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.basic.examples.dir", basicExampleSources.asFile.absolutePath)
     inputs
         .files(layout.projectDirectory.dir("src/test/java/org/higherkindedj/example/book").asFileTree)
         .withPropertyName("bookExampleTestSources")

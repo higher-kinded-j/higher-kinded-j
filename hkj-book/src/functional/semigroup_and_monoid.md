@@ -102,7 +102,7 @@ Money is `BigDecimal`, as `LineItem.price` is, since `Monoids.doubleAddition()` 
 | `maximum()`, `minimum()`, with or without a `Comparator` | Keeping the greater, or the lesser, present value | `Optional.empty()` |
 | `update()` | Applying one `Update` and then the other | `Update.identity()` |
 
-Each is a static method on `Monoids`, such as `Monoids.list()`.
+Each is a static method on `Monoids`, such as `Monoids.list()`. [Quick Reference](../hkts/quick_reference.md#ready-made-semigroups-and-monoids) lists every one, and every `Semigroups` factory too.
 
 ### A monoid of your own {#a-monoid-of-your-own}
 

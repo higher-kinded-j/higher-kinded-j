@@ -112,6 +112,15 @@ class BookTypeClassHierarchyTest {
   /** The heading id the diagram sits under, which other pages and legacy anchors link to. */
   private static final String HEADING = "{#the-hierarchy}";
 
+  /**
+   * Every type class in {@code hkj-api}: the diagram's, the ones the paragraph names, and the ones
+   * over a plain type. {@link #everyInterfaceIsPlaced()} holds this list to the package, so other
+   * pages that list every type class, such as the Quick Reference, are held to it too.
+   */
+  static List<Class<?>> typeClasses() {
+    return Stream.of(DIAGRAM, MTL, BINARY, PLAIN).flatMap(List::stream).toList();
+  }
+
   @Test
   @DisplayName("the page's hierarchy diagram is the one hkj-api's extends clauses give")
   void diagramMatchesTheApi() {
@@ -134,9 +143,7 @@ class BookTypeClassHierarchyTest {
     assertThat(apiInterfaces())
         .as("public interfaces in hkj-api's hkt package, each placed by one list in this test")
         .containsExactlyInAnyOrderElementsOf(
-            Stream.of(DIAGRAM, MTL, BINARY, PLAIN, NOT_TYPE_CLASSES)
-                .flatMap(List::stream)
-                .toList());
+            Stream.concat(typeClasses().stream(), NOT_TYPE_CLASSES.stream()).toList());
     Stream.concat(DIAGRAM.stream(), MTL.stream())
         .forEach(
             type ->

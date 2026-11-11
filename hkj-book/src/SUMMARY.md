@@ -230,9 +230,8 @@
     - [Const](monads/const_type.md)
   - [Supported Types](monads/supported-types.md)
   - [Quick Reference](hkts/quick_reference.md)
-  - [Functional API](functional/functional_api.md)
   - [Foundations FAQ](hkts/faq.md)
-  - [Basic HKT Examples](hkts/hkt_basic_examples.md)
+  - [Example Index](hkts/hkt_basic_examples.md)
 
 - [Examples Gallery](examples/ch_intro.md)
   - [Order Processing Workflow](examples/examples_order.md)
