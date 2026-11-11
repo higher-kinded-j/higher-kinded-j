@@ -120,4 +120,4 @@ For Effect Path, optics and whole-application examples, see the [Examples Galler
 
 ---
 
-**Previous:** [Foundations FAQ](faq.md)
+**Previous:** [Laws and Where HKJ Bends Them](laws.md)

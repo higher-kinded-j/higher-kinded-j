@@ -177,4 +177,4 @@ For mechanism rather than design, [Lifting the Hood](lifting_the_hood.md) follow
 ---
 
 **Previous:** [Quick Reference](quick_reference.md)
-**Next:** [Example Index](hkt_basic_examples.md)
+**Next:** [Laws and Where HKJ Bends Them](laws.md)

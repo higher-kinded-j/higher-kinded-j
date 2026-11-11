@@ -41,3 +41,6 @@ Where a type class reads "Not supported yet", check its laws in a test of your o
 **The claims on this page are tested** in [LawsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/laws/LawsBookTest.java) and in the tests of the pages each row links.
 
 ---
+
+**Previous:** [Foundations FAQ](faq.md)
+**Next:** [Example Index](hkt_basic_examples.md)
