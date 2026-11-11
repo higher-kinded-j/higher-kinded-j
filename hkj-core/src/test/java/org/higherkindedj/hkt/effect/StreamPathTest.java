@@ -603,8 +603,8 @@ class StreamPathTest {
 
       assertThat(emptyResult.run()).isEmpty();
 
-      // Verifies the conversion's point: ListPath's zipWith pairs by position
-      // rather than combining every pair as NonDetPath does.
+      // Verifies the conversion's point: ListPath's zipWith pairs by position rather than combining
+      // every pair as StreamPath does.
       ListPath<String> letters = StreamPath.fromList(List.of("a", "b", "c")).toListPath();
 
       ListPath<String> numbers = StreamPath.fromList(List.of("1", "2", "3")).toListPath();
