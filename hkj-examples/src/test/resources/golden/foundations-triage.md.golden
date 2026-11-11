@@ -25,7 +25,7 @@
 | A list passed to every method that logs, or a logger whose output a test has to capture | [Writer](writer_monad.md) | [`WriterPath`](../effect/advanced_effects.md#writerpath-accumulating-output) |
 | **Collections** | | |
 | Nested loops build every combination, and you keep them all in memory | [List](list_monad.md) | [`NonDetPath`](../glossary/effect-paths.md#nondetpath) for every combination, or [`ListPath`](../glossary/effect-paths.md#listpath), whose `zipWith` pairs by position |
-| A method you call already returns a `Stream` | [Stream](stream_monad.md) | [`StreamPath`](../glossary/effect-paths.md#streampath), which can be run more than once |
+| A method you call already returns a `Stream` | [Stream](stream_monad.md) | [`StreamPath`](../glossary/effect-paths.md#streampath), which reads a finite stream into memory so it can run again, or [takes a supplier](stream_monad.md#on-a-streampath) for an endless one |
 | **Programs as data** | | |
 | A plain value, where code written for any monad needs one | [Identity](identity.md) | [`IdPath`](../glossary/effect-paths.md#idpath), a step that cannot fail |
 | A recursive method that overflows the stack, or a loop that keeps its own stack of work | [Trampoline](trampoline_monad.md) | [`TrampolinePath`](../glossary/effect-paths.md#trampolinepath) |
