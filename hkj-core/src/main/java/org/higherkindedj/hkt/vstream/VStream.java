@@ -183,12 +183,12 @@ public interface VStream<A> extends VStreamKind<A> {
   sealed interface Step<A> permits Step.Emit, Step.Done, Step.Skip, Step.Fail {
 
     /**
-     * A step that produces an element and a continuation stream.
+     * A step that produces an element and a continuation stream. The constructor throws {@code
+     * NullPointerException} if {@code value} or {@code tail} is null.
      *
      * @param value The emitted element. Must not be null.
      * @param tail The continuation stream for subsequent elements. Must not be null.
      * @param <A> The type of the element.
-     * @throws NullPointerException if {@code value} or {@code tail} is null.
      */
     record Emit<A>(A value, VStream<A> tail) implements Step<A> {
       public Emit {
@@ -226,12 +226,12 @@ public interface VStream<A> extends VStreamKind<A> {
      * VStream#recover} can go on from the next element, and each operator in between passes it on
      * with the tail it would give an {@link Emit}. Whoever holds the tail and stops closes it, as
      * for an {@link Emit}. A terminal operation closes it and fails with the error. Every pull of
-     * this step gives the same error instance.
+     * this step gives the same error instance. The constructor throws {@code NullPointerException}
+     * if {@code error} or {@code tail} is null.
      *
      * @param error What the element failed with. Must not be null.
      * @param tail The stream after the failed element. Must not be null.
      * @param <A> The type of elements in the stream.
-     * @throws NullPointerException if {@code error} or {@code tail} is null.
      */
     record Fail<A>(Throwable error, VStream<A> tail) implements Step<A> {
       public Fail {
@@ -247,13 +247,13 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * A value pair used by {@link VStream#unfold} to produce both an emitted element and the next
-   * state for the unfold operation.
+   * state for the unfold operation. The constructor throws {@code NullPointerException} if {@code
+   * value} is null.
    *
    * @param value The element to emit. Must not be null.
    * @param next The next state to pass to the unfold function.
    * @param <A> The type of the emitted element.
    * @param <S> The type of the unfold state.
-   * @throws NullPointerException if {@code value} is null.
    */
   record Seed<A, S>(A value, S next) {
     public Seed {

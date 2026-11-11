@@ -8,7 +8,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
 
 /**
- * Kind interface marker for the {@link EitherF EitherF<F, G, A>} type in Higher-Kinded-J.
+ * Kind interface marker for the {@link EitherF EitherF&lt;F, G, A&gt;} type in Higher-Kinded-J.
  *
  * <p>This interface, along with its nested {@link Witness} class, allows {@link EitherF} to be
  * treated abstractly in contexts requiring higher-kinded types (HKTs). For HKT purposes, {@code

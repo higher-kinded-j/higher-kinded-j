@@ -21,7 +21,10 @@ public class EmptyResponseBodyException extends RestClientException {
 
   private static final long serialVersionUID = 1L;
 
+  /** The status of the response that had no body. */
   private final HttpStatusCode statusCode;
+
+  /** The headers the response carried. */
   private final HttpHeaders headers;
 
   /**

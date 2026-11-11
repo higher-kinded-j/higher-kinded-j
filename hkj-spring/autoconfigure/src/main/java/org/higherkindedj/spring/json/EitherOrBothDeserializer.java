@@ -44,7 +44,12 @@ public class EitherOrBothDeserializer extends StdDeserializer<EitherOrBoth<?, ?>
     this(null, null);
   }
 
-  /** Creates a deserialiser bound to resolved left/right types. */
+  /**
+   * Creates a deserialiser bound to resolved left/right types.
+   *
+   * @param leftType the resolved type of the left value, or {@code null} for a raw read
+   * @param rightType the resolved type of the right value, or {@code null} for a raw read
+   */
   @SuppressWarnings("unchecked")
   public EitherOrBothDeserializer(JavaType leftType, JavaType rightType) {
     super((Class<EitherOrBoth<?, ?>>) (Class<?>) EitherOrBoth.class);
