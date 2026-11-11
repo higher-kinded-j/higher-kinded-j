@@ -5,14 +5,12 @@ package org.higherkindedj.book;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -27,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Alternative;
@@ -38,8 +37,12 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Kind2;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
+import org.higherkindedj.hkt.MonadReader;
+import org.higherkindedj.hkt.MonadState;
+import org.higherkindedj.hkt.MonadWriter;
 import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Profunctor;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Traverse;
@@ -48,6 +51,7 @@ import org.higherkindedj.hkt.constant.Const;
 import org.higherkindedj.hkt.context.Context;
 import org.higherkindedj.hkt.coyoneda.Coyoneda;
 import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either_t.EitherT;
 import org.higherkindedj.hkt.eitherf.EitherF;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.free.Free;
@@ -56,15 +60,21 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.lazy.Lazy;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.maybe_t.MaybeT;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.optional_t.OptionalT;
 import org.higherkindedj.hkt.reader.Reader;
+import org.higherkindedj.hkt.reader_t.ReaderT;
 import org.higherkindedj.hkt.state.State;
+import org.higherkindedj.hkt.state_t.StateT;
 import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.writer.Writer;
+import org.higherkindedj.hkt.writer_t.WriterT;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -76,23 +86,39 @@ import org.junit.jupiter.api.Test;
  * org.higherkindedj.hkt.maybe}. Every public, concrete class in that package is loaded without
  * being initialised, and each type class it implements, directly or through another type class,
  * counts for its core type. {@code MonadError} is shown with the error type the instance fixes, so
- * {@code Maybe}'s reads {@code MonadError<Unit>}.
+ * {@code Maybe}'s reads {@code MonadError<Unit>}, and {@code MonadReader}, {@code MonadState} and
+ * {@code MonadWriter} with the environment, state or output type theirs fix.
  *
- * <p>The golden file holds the whole matrix under the {@code matrix} anchor, which the Core Types
- * introduction includes, and one {@code Instances} row per type under the anchor of the type's page
- * name, for that page's type card. When an instance is added or removed, this test fails and prints
- * the replacement file. Each counted instance must be over a witness its row's package declares, so
- * a helper for another type cannot be counted, and an interface from {@code org.higherkindedj.hkt}
- * that the matrix has no place for fails the test until it has one. The rows follow the Core Types
- * pages in {@code SUMMARY.md}, so a new page fails here until it has a row.
+ * <p>The golden file holds the whole matrix under the {@code matrix} anchor, which Supported Types
+ * includes, and one {@code Instances} row per type under the anchor of the type's page name, for
+ * that page's type card. The monad transformers, {@code Tuple2} and {@code Function}, which have
+ * instances and no Core Types page, are read the same way into the {@code others} anchor, which
+ * Supported Types includes after the matrix. When an instance is added or removed, this test fails
+ * and prints the replacement file. Each counted instance must be over a witness its row's package
+ * declares, so a helper for another type cannot be counted, and an interface from {@code
+ * org.higherkindedj.hkt} that the matrix has no place for fails the test until it has one. The core
+ * rows follow the Core Types pages in {@code SUMMARY.md}, so a new page fails here until it has a
+ * row, and a package of {@code hkj-core} that gains an instance fails here until it has a row or a
+ * reason to be left out.
  */
 @DisplayName("the Core Types capability matrix is read from hkj-core")
 class BookCapabilityMatrixTest {
 
-  /** One core type: its page in {@code monads/}, its type, and the package of its instances. */
+  /**
+   * One type: the page that shows it, as a link from {@code monads/}, its type, and the package of
+   * its instances.
+   */
   record Row(String page, Class<?> type, String instances) {
+
+    /** The anchor of a core type's {@code Instances} row: its page's name, in {@code monads/}. */
     String anchor() {
+      assertThat(page).as("a core type's page, in monads/").doesNotContain("/");
       return page.replace(".md", "");
+    }
+
+    /** The package of the row's instances. */
+    String packageName() {
+      return "org.higherkindedj.hkt." + instances;
     }
   }
 
@@ -125,6 +151,21 @@ class BookCapabilityMatrixTest {
           new Row("coyoneda.md", Coyoneda.class, "coyoneda"),
           new Row("const_type.md", Const.class, "constant"));
 
+  /**
+   * The types with instances and no Core Types page: the monad transformers, each linked to its
+   * page, then the two-parameter types, each linked to the type class page that shows it.
+   */
+  private static final List<Row> OTHER_ROWS =
+      List.of(
+          new Row("../transformers/eithert_transformer.md", EitherT.class, "either_t"),
+          new Row("../transformers/optionalt_transformer.md", OptionalT.class, "optional_t"),
+          new Row("../transformers/maybet_transformer.md", MaybeT.class, "maybe_t"),
+          new Row("../transformers/readert_transformer.md", ReaderT.class, "reader_t"),
+          new Row("../transformers/statet_transformer.md", StateT.class, "state_t"),
+          new Row("../transformers/writert_transformer.md", WriterT.class, "writer_t"),
+          new Row("../functional/bifunctor.md", Tuple2.class, "tuple"),
+          new Row("../functional/profunctor.md", Function.class, "func"));
+
   /** The type classes a row can list, in the order it lists them. */
   private static final List<Class<?>> TYPE_CLASSES =
       List.of(
@@ -133,40 +174,66 @@ class BookCapabilityMatrixTest {
           Selective.class,
           Monad.class,
           MonadError.class,
+          MonadReader.class,
+          MonadState.class,
+          MonadWriter.class,
           Alternative.class,
           MonadZero.class,
           Foldable.class,
           Traverse.class,
-          Bifunctor.class);
+          Bifunctor.class,
+          Profunctor.class);
 
   /**
-   * The {@code org.higherkindedj.hkt} interfaces a class in a core type's package may implement
-   * that the matrix leaves out: the encoding's own types, which the core types and witnesses
-   * implement, and the two type classes over a plain type, whose instances are values such as
-   * {@code NonEmptyList.semigroup()} rather than classes in the package.
+   * The type classes a row shows with the type their instance fixes as its second type parameter:
+   * the error, the environment, the state or the output.
+   */
+  private static final List<Class<?>> WITH_PARAMETER =
+      List.of(MonadError.class, MonadReader.class, MonadState.class, MonadWriter.class);
+
+  /**
+   * The {@code org.higherkindedj.hkt} interfaces a class in a row's package may implement that the
+   * matrix leaves out: the encoding's own types, which the core types and witnesses implement, and
+   * the two type classes over a plain type, whose instances are values such as {@code
+   * NonEmptyList.semigroup()} rather than classes in the package.
    */
   private static final List<Class<?>> NOT_SHOWN =
       List.of(Kind.class, Kind2.class, WitnessArity.class, Semigroup.class, Monoid.class);
 
+  /**
+   * The packages of {@code hkj-core} that hold instances and have no row, each with the reason.
+   * They hold the instances of instruction sets and helpers that the library's own programs use,
+   * rather than types a reader holds.
+   */
+  private static final Map<String, String> NOT_LISTED =
+      Map.of(
+          "org.higherkindedj.hkt.error",
+          "ErrorOp is an instruction set for Free programs; its Functor serves the interpreter",
+          "org.higherkindedj.hkt.state_op",
+          "StateOp is an instruction set for Free programs; its Functor serves the interpreter",
+          "org.higherkindedj.optics.free",
+          "OpticOp is an instruction set for Free programs; its Functor serves the interpreter",
+          "org.higherkindedj.optics.fetch",
+          "FetchApplicative is handed to an optic to batch its reads; Fetch is not a held type");
+
   /** The golden file, under the test resources. */
-  private static final String GOLDEN = "/golden/foundations-capabilities.md.golden";
+  private static final String GOLDEN = "foundations-capabilities.md.golden";
 
-  private static final Path BOOK = Path.of(required("hkj.book.dir"));
+  private static final Path BOOK = BookFiles.book();
 
-  /** The include the Core Types introduction carries for the matrix. */
-  private static final String MATRIX_INCLUDE =
-      "{{#include ../../../hkj-examples/src/test/resources/golden/"
-          + "foundations-capabilities.md.golden:matrix}}";
+  /** The includes Supported Types carries for the matrix and for the other types. */
+  private static final List<String> INCLUDES =
+      List.of(BookFiles.include(GOLDEN, "matrix"), BookFiles.include(GOLDEN, "others"));
 
   @Test
   @DisplayName("the golden matrix is the one hkj-core's instances give")
   void goldenMatchesHkjCore() {
     String rendered = render();
-    assertThat(golden())
+    assertThat(BookFiles.golden(GOLDEN))
         .as(
             """
             The capability matrix no longer matches hkj-core's instances. If the change is \
-            intended, replace hkj-examples/src/test/resources%s with:
+            intended, replace hkj-examples/src/test/resources/golden/%s with:
 
             %s""",
             GOLDEN, rendered)
@@ -174,30 +241,53 @@ class BookCapabilityMatrixTest {
   }
 
   @Test
-  @DisplayName("the Core Types introduction includes the matrix")
-  void theIntroductionIncludesTheMatrix() {
-    assertThat(read(BOOK.resolve("monads/ch_intro.md"))).contains(MATRIX_INCLUDE);
+  @DisplayName("Supported Types includes the matrix and the other types")
+  void supportedTypesIncludesBothTables() {
+    assertThat(BookFiles.read(BOOK.resolve("monads/supported-types.md"))).contains(INCLUDES);
   }
 
   @Test
   @DisplayName("there is one row for each Core Types page in SUMMARY.md, in its order")
   void rowsFollowTheSummary() {
-    assertThat(ROWS.stream().map(Row::page).toList()).isEqualTo(coreTypePages());
+    assertThat(ROWS.stream().map(Row::page).toList()).isEqualTo(BookFiles.coreTypePages(BOOK));
   }
 
   @Test
-  @DisplayName("every core type has at least one instance in its package")
+  @DisplayName("every row links a page the book has")
+  void everyRowLinksAPage() {
+    for (Row row : allRows()) {
+      assertThat(BOOK.resolve("monads").resolve(row.page()).normalize())
+          .as("the page %s links", row.type().getSimpleName())
+          .isRegularFile();
+    }
+  }
+
+  @Test
+  @DisplayName("every package of hkj-core that holds an instance has a row or a reason")
+  void everyPackageWithAnInstanceIsPlaced() {
+    Set<String> placed =
+        Stream.concat(allRows().stream().map(Row::packageName), NOT_LISTED.keySet().stream())
+            .collect(Collectors.toCollection(TreeSet::new));
+    Set<String> found = packagesWithInstances();
+    assertThat(found)
+        .as("packages holding instances, each in ROWS, OTHER_ROWS or NOT_LISTED")
+        .isSubsetOf(placed);
+    assertThat(found).as("the packages NOT_LISTED names").containsAll(NOT_LISTED.keySet());
+  }
+
+  @Test
+  @DisplayName("every type has at least one instance in its package")
   void everyRowHasAnInstance() {
-    for (Row row : ROWS) {
+    for (Row row : allRows()) {
       assertThat(instances(row.instances())).as("instances in %s", row.instances()).isNotEmpty();
     }
   }
 
   @Test
-  @DisplayName("every type class a class in a core type's package implements has a place")
+  @DisplayName("every type class a class in a type's package implements has a place")
   void everyTypeClassHasAPlace() {
     Set<Class<?>> implemented = new TreeSet<>((a, b) -> a.getName().compareTo(b.getName()));
-    for (Row row : ROWS) {
+    for (Row row : allRows()) {
       for (Class<?> type : publicClasses(row.instances())) {
         implemented.addAll(hktInterfaces(type));
       }
@@ -211,7 +301,7 @@ class BookCapabilityMatrixTest {
   @Test
   @DisplayName("every instance a row counts is over a witness its own package declares")
   void everyInstanceIsOverItsRowsWitness() {
-    for (Row row : ROWS) {
+    for (Row row : allRows()) {
       String pkg = "org.higherkindedj.hkt." + row.instances();
       for (Class<?> instance : instances(row.instances())) {
         for (Class<?> typeClass : TYPE_CLASSES) {
@@ -230,26 +320,38 @@ class BookCapabilityMatrixTest {
   }
 
   @Test
-  @DisplayName("every MonadError names a class or one of its type's own type parameters")
-  void everyErrorTypeIsTheTypes() {
-    for (Row row : ROWS) {
+  @DisplayName(
+      "every MonadError, MonadReader, MonadState and MonadWriter names a class or one of its"
+          + " type's own type parameters")
+  void everyShownParameterIsTheTypes() {
+    for (Row row : allRows()) {
       List<String> parameters =
           Arrays.stream(row.type().getTypeParameters()).map(TypeVariable::getName).toList();
       for (Class<?> instance : instances(row.instances())) {
-        if (MonadError.class.isAssignableFrom(instance)) {
-          Type error = typeArgument(instance, MonadError.class, 1);
-          if (error instanceof TypeVariable<?> variable) {
+        for (Class<?> typeClass : WITH_PARAMETER) {
+          if (!typeClass.isAssignableFrom(instance)) {
+            continue;
+          }
+          Type shown = typeArgument(instance, typeClass, 1);
+          if (shown instanceof TypeVariable<?> variable) {
             assertThat(parameters)
-                .as("%s's error type %s", instance.getSimpleName(), variable)
+                .as(
+                    "%s's %s type %s",
+                    instance.getSimpleName(), typeClass.getSimpleName(), variable)
                 .contains(variable.getName());
           } else {
-            assertThat(error)
-                .as("%s's error type", instance.getSimpleName())
+            assertThat(shown)
+                .as("%s's %s type", instance.getSimpleName(), typeClass.getSimpleName())
                 .isInstanceOf(Class.class);
           }
         }
       }
     }
+  }
+
+  /** The core types, then the other types. */
+  private static List<Row> allRows() {
+    return Stream.concat(ROWS.stream(), OTHER_ROWS.stream()).toList();
   }
 
   /** The golden file as this test would write it. */
@@ -258,19 +360,25 @@ class BookCapabilityMatrixTest {
     out.append(
         "<!-- Written by BookCapabilityMatrixTest from hkj-core's class files. Do not edit:"
             + " the test prints the replacement. -->\n");
-    out.append("<!-- ANCHOR: matrix -->\n");
-    out.append("| Type | Type classes |\n");
-    out.append("|---|---|\n");
-    for (Row row : ROWS) {
-      out.append("| [`%s`](%s) | %s |\n".formatted(typeName(row.type()), row.page(), cell(row)));
-    }
-    out.append("<!-- ANCHOR_END: matrix -->\n");
+    table(out, "matrix", ROWS);
+    table(out, "others", OTHER_ROWS);
     for (Row row : ROWS) {
       out.append("<!-- ANCHOR: %s -->\n".formatted(row.anchor()));
       out.append("| **Instances** | %s |\n".formatted(cell(row)));
       out.append("<!-- ANCHOR_END: %s -->\n".formatted(row.anchor()));
     }
     return out.toString();
+  }
+
+  /** One anchored table: each row's type, linked to its page, and its type classes. */
+  private static void table(StringBuilder out, String anchor, List<Row> rows) {
+    out.append("<!-- ANCHOR: %s -->\n".formatted(anchor));
+    out.append("| Type | Type classes |\n");
+    out.append("|---|---|\n");
+    for (Row row : rows) {
+      out.append("| [`%s`](%s) | %s |\n".formatted(typeName(row.type()), row.page(), cell(row)));
+    }
+    out.append("<!-- ANCHOR_END: %s -->\n".formatted(anchor));
   }
 
   /** The row's type classes as code, in {@link #TYPE_CLASSES} order. */
@@ -282,11 +390,11 @@ class BookCapabilityMatrixTest {
       if (having.isEmpty()) {
         continue;
       }
-      if (typeClass == MonadError.class) {
-        Set<String> errors = new LinkedHashSet<>();
-        having.forEach(
-            instance -> errors.add(display(typeArgument(instance, MonadError.class, 1))));
-        errors.forEach(error -> names.add("`MonadError<%s>`".formatted(error)));
+      if (WITH_PARAMETER.contains(typeClass)) {
+        Set<String> shown = new LinkedHashSet<>();
+        having.forEach(instance -> shown.add(display(typeArgument(instance, typeClass, 1))));
+        shown.forEach(
+            parameter -> names.add("`%s<%s>`".formatted(typeClass.getSimpleName(), parameter)));
       } else {
         names.add("`" + typeClass.getSimpleName() + "`");
       }
@@ -444,60 +552,34 @@ class BookCapabilityMatrixTest {
         && !type.isSynthetic();
   }
 
-  /** The Core Types pages {@code SUMMARY.md} lists one level under the group, in its order. */
-  private static List<String> coreTypePages() {
-    List<String> lines = read(BOOK.resolve("SUMMARY.md")).lines().toList();
-    String group = "- [Core Types](monads/ch_intro.md)";
-    int start = -1;
-    for (int i = 0; i < lines.size() && start < 0; i++) {
-      if (lines.get(i).strip().equals(group)) {
-        start = i;
-      }
-    }
-    assertThat(start).as("the Core Types entry in SUMMARY.md").isNotNegative();
-    int indent = lines.get(start).indexOf('-');
-    List<String> pages = new ArrayList<>();
-    for (String line : lines.subList(start + 1, lines.size())) {
-      int depth = line.indexOf('-');
-      if (line.isBlank() || depth <= indent) {
-        break;
-      }
-      if (depth == indent + 2) {
-        int from = line.indexOf("(monads/") + "(monads/".length();
-        pages.add(line.substring(from, line.indexOf(')', from)));
-      }
-    }
-    return pages;
-  }
-
-  private static String golden() {
-    try (InputStream in = BookCapabilityMatrixTest.class.getResourceAsStream(GOLDEN)) {
-      assertThat(in).as("the golden file %s", GOLDEN).isNotNull();
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  private static String read(Path file) {
-    try {
-      return Files.readString(file).replace("\r\n", "\n");
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
   /**
-   * The directory is supplied by the Gradle task. Run straight from an IDE the property is unset;
-   * this turns the opaque failure into a message that says how to run the test.
+   * The packages of {@code hkj-core} with a public, concrete class implementing a type class the
+   * matrix lists, read from every class file and loaded without being initialised.
    */
-  private static String required(String property) {
-    String value = System.getProperty(property);
-    if (value == null) {
-      throw new IllegalStateException(
-          "System property '%s' is not set. Run this via Gradle: `gradle :hkj-examples:bookVerify`."
-              .formatted(property));
+  private static Set<String> packagesWithInstances() {
+    Set<String> packages = new TreeSet<>();
+    try {
+      Path root = Path.of(Maybe.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+      try (FileSystem jar = Files.isDirectory(root) ? null : FileSystems.newFileSystem(root)) {
+        Path base = jar == null ? root : jar.getPath("/");
+        try (Stream<Path> files = Files.walk(base.resolve("org/higherkindedj"))) {
+          for (Path file : files.filter(f -> f.toString().endsWith(".class")).toList()) {
+            String className =
+                base.relativize(file).toString().replace(".class", "").replace('/', '.');
+            Class<?> type =
+                Class.forName(className, false, BookCapabilityMatrixTest.class.getClassLoader());
+            if (isConcrete(type)
+                && TYPE_CLASSES.stream().anyMatch(typeClass -> typeClass.isAssignableFrom(type))) {
+              packages.add(type.getPackageName());
+            }
+          }
+        }
+      }
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } catch (URISyntaxException | ClassNotFoundException e) {
+      throw new IllegalStateException(e);
     }
-    return value;
+    return packages;
   }
 }

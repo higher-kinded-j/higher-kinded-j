@@ -1,4 +1,4 @@
-<!-- description: Find the Higher-Kinded-J type for a task, such as Either, Validated, Maybe or IO, and see which type classes each one supports. -->
+<!-- description: Find the Higher-Kinded-J core type for a task, such as Either for a typed error, Maybe for a missing value or IO for a side effect. -->
 
 # Core Types
 
@@ -11,9 +11,9 @@
 
 Each family asks one of them of a value: what, if anything, it holds; why it failed; when it runs; where its settings come from; how many there are; or who runs it.
 
-A core type is a container for a value, as Java's `Optional` is, and the library adds its own, such as `Maybe`, `Either` and `IO`. Application code reaches most of them through an [Effect Path](../effect/ch_intro.md) such as `EitherPath`, and generic code through their type class instances. The [Foundations introduction](../hkts/foundations_intro.md) says which you are writing.
+A core type holds a value, as Java's `Optional` does, and the library adds its own. Application code reaches most of them through an [Effect Path](../effect/ch_intro.md), and generic code through type class instances; the [Foundations introduction](../hkts/foundations_intro.md) says which you are writing.
 
-Read a page when a task calls for its type, such as returning a typed error. [Choosing a Type](supported-types.md#choosing-a-type) helps you pick one, and until then you can skip the group.
+Read a page when a task needs its type, and skip the group until then. [Choosing a Type](supported-types.md#choosing-a-type) and [What each type supports](supported-types.md#what-each-type-supports) help you choose.
 
 ---
 
@@ -53,12 +53,6 @@ Read a page when a task calls for its type, such as returning a typed error. [Ch
   - [Const](const_type.md): A value of its first type and none of its second, for folds and getters
 
 ---
-
-## What each type supports {#what-each-type-supports}
-
-{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:matrix}}
-
-A type class, such as `Functor` or `Traverse`, names operations that work on any type with an instance of it, so a row tells you which generic code accepts that type. Every row lists the classes in the same order, so the differences show towards the end, and includes each class a listed one extends, as [the hierarchy](../functional/ch_intro.md#the-hierarchy) shows. `MonadError<…>` names the error its instance raises and recovers from: the type's own `L` or `E`, a `Throwable`, or `Unit`, the bare absence of `Maybe` and `Optional`. A test reads the table from the library's classes, so it lists exactly the instances of these type classes the library has. [`Semigroup` and `Monoid`](../functional/semigroup_and_monoid.md), which take a plain type rather than a container, are left out. Some instances take an argument: `Validated`'s and `EitherOrBoth`'s need a `Semigroup` to join two errors, and `Writer`'s and `Const`'s a `Monoid` to join two logs or two values.
 
 ~~~admonish info title="Hands-On Learning"
 Practise the core types together in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises).

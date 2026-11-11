@@ -52,10 +52,21 @@ work in and the traps the chapter has met.
   extends both `Functor` and `Foldable`, and there is no `Apply`.
 - **Never type a core type's instances; include them.** `BookCapabilityMatrixTest` reads them from
   `hkj-core`'s class files into `hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden`.
-  The `matrix` anchor holds the whole table, which `monads/ch_intro.md` includes, and each type has
-  an `Instances` row under its page's name, such as `maybe_monad`, for its type card. When an
-  instance changes, `bookVerify` fails and prints the replacement golden file. A new Core Types page
-  fails the test until it has a row.
+  The `matrix` anchor holds the whole table, which `monads/supported-types.md` includes, and each
+  type has an `Instances` row under its page's name, such as `maybe_monad`, for its type card. The
+  `others` anchor holds the transformers, `Tuple2` and `Function`. When an instance changes,
+  `bookVerify` fails and prints the replacement golden file. A new Core Types page fails the test
+  until it has a row.
+- **Never type a row of Choosing a Type; edit the card.** `BookTypeTriageTest` writes the table on
+  `monads/supported-types.md` from each card's Replaces and Effect Path rows, into
+  `foundations-triage.md.golden`. A JDK type's card replaces nothing, so its row takes the Choose it
+  when clause before "; otherwise": write that clause as the reader's code, and keep the
+  "; otherwise". A new Core Types page fails the test until it has a card, and a changed card fails
+  it until you paste the table the test prints.
+- **A package of `hkj-core` that gains a type class instance needs a place.**
+  `BookCapabilityMatrixTest` fails until the package has a row, in `ROWS` for a Core Types page or
+  `OTHER_ROWS` for a type shown elsewhere, or an entry in `NOT_LISTED` saying why no reader holds the
+  type.
 - **`Path` clashes with `java.nio.file.Path`** under a module import of `java.base`. Import the
   library's `Path` by name.
 - **`import module org.higherkindedj.core;` needs the library resolved as a module**: required in

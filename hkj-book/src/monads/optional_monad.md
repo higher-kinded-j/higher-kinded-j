@@ -11,7 +11,7 @@ _Keep Java's own `Optional`, with an Effect Path and the same instances as `Mayb
 | **Replaces** | Nothing: it is Java's own type |
 | **Effect Path** | [`OptionalPath`](../effect/path_optional.md) |
 {{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:optional_monad}}
-| **Choose it when** | The code already gives you an `Optional`; otherwise [Maybe](maybe_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+| **Choose it when** | A method you call already returns an `Optional`; otherwise [Maybe](maybe_monad.md), or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
 ~~~admonish info title="What You'll Learn"
