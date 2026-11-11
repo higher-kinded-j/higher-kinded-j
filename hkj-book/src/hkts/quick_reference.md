@@ -101,4 +101,4 @@ A `Monoid` adds an empty value, which changes nothing it is joined to, and which
 ---
 
 **Previous:** [Supported Types](../monads/supported-types.md)
-**Next:** [Functional API](../functional/functional_api.md)
+**Next:** [Foundations FAQ](faq.md)
