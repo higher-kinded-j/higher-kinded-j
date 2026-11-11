@@ -1,308 +1,173 @@
-# Coyoneda
-## _The Free Functor and Map Fusion_
+<!-- description: Hold every map in Java with Coyoneda: apply three maps to an order's lines in one walk, and give a warehouse's instruction set the Functor it lacks. -->
 
-~~~admonish info title="What You'll Learn"
-- What Coyoneda is and why it's called the "free functor"
-- How Coyoneda provides automatic Functor instances for any type constructor
-- The map fusion optimisation and how it works
-- Using Coyoneda with Free monads to simplify DSL definitions
-- The lift and lower pattern
-- When Coyoneda improves performance
+# Coyoneda: Maps Held for One Pass
+
+_Hold every `map` for one pass, and give an instruction set the `Functor` it lacks._
+
+<!-- source: Mark Twain, "The Late Benjamin Franklin" (written about 1870), collected in Sketches New and Old (1875); the maxim heads the sketch, signed "B. F."; text checked against Project Gutenberg eBook #3189 -->
+> _"Never put off till to-morrow what you can do day after to-morrow just as well."_
+>
+> — Mark Twain, *The Late Benjamin Franklin*
+
+Twain signs the maxim with Franklin's initials, in a sketch that mocks Franklin's maxims. A Coyoneda takes it as advice: every `map` is written down and put off. Only when you lower it is the work done, all of it in one pass.
+
+~~~admonish abstract title="Coyoneda at a glance"
+| | |
+|---|---|
+| **Models** | A value of `F` with the `map` calls made on it held back, to be applied in one pass |
+| **Replaces** | A `Functor` written by hand for an instruction set, or a chain of `map` calls that each walk the structure |
+| **Effect Path** | None |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:coyoneda}}
+| **Choose it when** | An instruction set has no `Functor` of its own; otherwise use the `Functor` that [`@EffectAlgebra`](../effect/effect_handlers.md#defining-effects) generates, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
 ~~~
 
-~~~admonish title="Hands On Practice"
-[Tutorial09_Coyoneda.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java)
+~~~admonish info title="What You'll Learn"
+- Hold three maps on a list, and apply them in one walk
+- Give an instruction set with no `Functor` one, so that a `Free` program can hold it
+- Run that program with `Coyoneda.interpreter`, or one held value with `foldMap`
+- Choose between Coyoneda and a `Functor` of the set's own, such as the one `@EffectAlgebra` generates
 ~~~
 
 ~~~admonish example title="See Example Code"
-- [CoyonedaTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/coyoneda/CoyonedaTest.java) - Comprehensive test suite
-- [CoyonedaFunctorTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-core/src/test/java/org/higherkindedj/hkt/coyoneda/CoyonedaFunctorTest.java) - Functor law verification
-- [CoyonedaExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/coyoneda/CoyonedaExample.java) - Practical examples
+**The code on this page is [CoyonedaBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java)**: the page includes it, so the build compiles and runs it. [CoyonedaBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBookTest.java) holds what the page says each method does.
 ~~~
 
-## Purpose
-
-Coyoneda solves two practical problems:
-
-1. **Automatic Functor instances**: Any type constructor `F` can be wrapped in Coyoneda, which gives it a Functor instance for free, even if `F` itself doesn't have one.
-
-2. **Map fusion**: Multiple consecutive `map` operations are automatically fused into a single function composition, reducing overhead.
-
-### The Problem Coyoneda Solves
-
-When building Free monads, each instruction type needs a Functor instance. This can be tedious:
-
-<!-- verify -->
-```java
-// Without Coyoneda: must implement Functor for every DSL
-sealed interface DatabaseOp<A> {
-    record Query(String sql) implements DatabaseOp<ResultSet> {}
-    record Update(String sql) implements DatabaseOp<Integer> {}
-}
-
-// Tedious: implement Functor<DatabaseOp> manually
-// Even more tedious if DatabaseOp has many variants
-```
-
-With Coyoneda, you can skip the Functor implementation entirely:
-
-<!-- verify -->
-```java
-// With Coyoneda: wrap your DSL and get Functor for free
-Kind<DatabaseOpKind.Witness, ResultSet> query =
-    DATABASE_OP.widen(new DatabaseOp.Query("SELECT * FROM users"));
-Coyoneda<DatabaseOpKind.Witness, ResultSet> coyo = Coyoneda.lift(query);
-// Now you can map over it without implementing Functor<DatabaseOpKind.Witness>!
-```
-
-## How Coyoneda Works
-
-Coyoneda stores two things:
-1. A value of type `Kind<F, X>` (the original wrapped value)
-2. A function `X -> A` (the accumulated transformations)
-
-When you call `map(f)`, instead of applying `f` immediately, Coyoneda just composes `f` with the existing transformation:
-
-```
-Coyoneda(fx, transform).map(f) = Coyoneda(fx, f.compose(transform))
-```
-
-The actual mapping only happens when you "lower" back to `F` using a real Functor instance.
-
-```
-lift: F[A] ──────────────> Coyoneda[F, A]    (wrap with identity function)
-                               │
-                          map(f).map(g).map(h)
-                               │
-                               ▼
-                          Coyoneda[F, D]    (functions composed, not applied)
-                               │
-lower: Coyoneda[F, D] ─────────> F[D]       (apply composed function once)
-```
-
-## Core Interface
-
-```java
-public sealed interface Coyoneda<F, A> {
-
-    /**
-     * Lifts a Kind<F, A> into Coyoneda with the identity transformation.
-     */
-    static <F, A> Coyoneda<F, A> lift(Kind<F, A> fa);
-
-    /**
-     * Creates a Coyoneda with a value and transformation function.
-     */
-    static <F, X, A> Coyoneda<F, A> apply(Kind<F, X> fx, Function<? super X, ? extends A> transform);
-
-    /**
-     * Maps a function, composing it with existing transformations.
-     * No Functor instance required!
-     */
-    <B> Coyoneda<F, B> map(Function<? super A, ? extends B> f);
-
-    /**
-     * Lowers back to Kind<F, A> by applying the accumulated transformation.
-     * This is where the actual mapping happens.
-     */
-    Kind<F, A> lower(Functor<F> functor);
-
-    /**
-     * Returns the underlying Kind value (before transformations).
-     */
-    Kind<F, ?> underlying();
-}
-```
-
-## Basic Usage
-
-### Lifting and Mapping
-
-<!-- verify -->
-```java
-import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
-
-// Lift a Maybe into Coyoneda
-Kind<MaybeKind.Witness, Integer> maybe = MAYBE.widen(Maybe.just(42));
-Coyoneda<MaybeKind.Witness, Integer> coyo = Coyoneda.lift(maybe);
-
-// Map without needing a Functor instance
-Coyoneda<MaybeKind.Witness, String> mapped = coyo
-    .map(x -> x * 2)           // 42 -> 84
-    .map(x -> x + 1)           // 84 -> 85
-    .map(Object::toString);    // 85 -> "85"
-
-// All three maps are fused into ONE composed function!
-// The function (x -> ((x * 2) + 1).toString()) is stored but not yet applied
-```
-
-### Lowering with a Functor
-
-<!-- verify -->
-```java
-// When ready, lower back using a Functor instance
-MaybeFunctor functor = MaybeFunctor.INSTANCE;
-Kind<MaybeKind.Witness, String> result = mapped.lower(functor);
-
-// Only NOW does the actual mapping happen - just once!
-Maybe<String> finalResult = MAYBE.narrow(result);
-// Result: Just("85")
-```
-
-### Using CoyonedaFunctor
-
-The `CoyonedaFunctor<F>` class provides a Functor instance for any `Coyoneda<F, _>`:
-
-<!-- verify -->
-```java
-CoyonedaFunctor<MaybeKind.Witness> coyoFunctor = CoyonedaFunctor.instance();
-
-Kind<CoyonedaKind.Witness<MaybeKind.Witness>, Integer> kindCoyo =
-    COYONEDA.widen(Coyoneda.lift(maybe));
-
-Kind<CoyonedaKind.Witness<MaybeKind.Witness>, String> mapped =
-    coyoFunctor.map(x -> x.toString(), kindCoyo);
-```
-
-## Map Fusion
-
-Map fusion is the key performance benefit. Consider:
-
-<!-- verify -->
-```java
-// Without Coyoneda: three separate traversals
-List<String> result = list.stream()
-    .map(x -> x * 2)
-    .map(x -> x + 1)
-    .map(Object::toString)
-    .toList();
-// Each map creates intermediate results
-```
-
-<!-- verify -->
-```java
-// With Coyoneda: functions are composed, single traversal
-Coyoneda<ListKind.Witness, Integer> coyo = Coyoneda.lift(LIST.widen(list));
-Coyoneda<ListKind.Witness, String> mapped = coyo
-    .map(x -> x * 2)
-    .map(x -> x + 1)
-    .map(Object::toString);
-// No mapping yet - just function composition
-
-Kind<ListKind.Witness, String> result = mapped.lower(listFunctor);
-// NOW the composed function is applied in ONE traversal
-```
-
-The benefit is most noticeable when:
-- The underlying structure is expensive to traverse
-- You have many consecutive map operations
-- The intermediate types are complex
-
-## Use with Free Monads
-
-Coyoneda is particularly useful with Free monads. Without Coyoneda, your instruction set must be a Functor:
-
-<!-- verify -->
-```java
-// Without Coyoneda: must implement Functor<ConsoleOp>
-Free<ConsoleOpKind.Witness, String> program = Free.liftF(readLine, consoleOpFunctor);
-```
-
-With Coyoneda, you can wrap any instruction set:
-
-<!-- verify -->
-```java
-// With Coyoneda: no Functor needed for ConsoleOp
-// The Free monad operates on Coyoneda<ConsoleOp, _> instead
-
-// Lift instruction into Coyoneda, then into Free
-Coyoneda<ConsoleOpKind.Witness, String> coyoOp = Coyoneda.lift(readLineKind);
-Free<CoyonedaKind.Witness<ConsoleOpKind.Witness>, String> program =
-    Free.liftF(COYONEDA.widen(coyoOp), new CoyonedaFunctor<>());
-```
-
-This eliminates boilerplate when you have many instruction types.
-
-## The Yoneda Lemma
-
-Coyoneda is based on the **covariant Yoneda lemma** from category theory. In simplified terms:
-
-```
-Coyoneda[F, A] ≅ F[A]
-```
-
-This isomorphism is witnessed by:
-- `lift`: `F[A] -> Coyoneda[F, A]` (wraps with identity function)
-- `lower`: `Coyoneda[F, A] -> F[A]` (applies accumulated function via Functor)
-
-The isomorphism holds for any Functor `F`. Coyoneda essentially "delays" the functor operations until lowering.
-
-## Functor Laws
-
-`CoyonedaFunctor` satisfies the Functor laws automatically:
-
-**Identity Law:**
-```java
-coyo.map(x -> x) == coyo
-// Composing with identity doesn't change the accumulated function
-```
-
-**Composition Law:**
-```java
-coyo.map(f).map(g) == coyo.map(x -> g.apply(f.apply(x)))
-// Multiple maps compose into one - this is map fusion!
-```
-
-These laws hold by construction because `map` simply composes functions.
-
-## When to Use Coyoneda
-
-### Good Use Cases
-
-1. **Free monad DSLs**: Avoid implementing Functor for each instruction type
-2. **Map fusion**: Optimise chains of map operations on expensive structures
-3. **Deferred computation**: Delay mapping until you have a Functor available
-4. **Generic programming**: Work with type constructors that don't have Functor instances
-
-### When You Might Not Need It
-
-1. **Single map operations**: No fusion benefit with just one map
-2. **Already have a Functor**: If implementing Functor is easy, Coyoneda adds indirection
-3. **Simple types**: For types like `Optional` or `List`, the built-in map is already efficient
-
-## Performance Considerations
-
-Coyoneda trades:
-- **Pros**: Reduced traversals, function composition is cheap, deferred execution
-- **Cons**: Object allocation for Coyoneda wrapper, slightly more complex types
-
-The benefit is most significant when:
-- The underlying `F` is expensive to map over (e.g., large trees, IO operations)
-- You have many consecutive map operations
-- You want to defer all mapping to a single point
-
-For simple cases with one or two maps on efficient structures, the overhead may not be worth it.
-
-## Summary
-
-Coyoneda provides:
-
-- **Automatic Functor instances**: Any type constructor gains a Functor via wrapping
-- **Map fusion**: Multiple maps compose into a single function application
-- **Deferred execution**: Actual mapping happens only at lowering
-- **DSL simplification**: Free monad instruction sets don't need Functor instances
-
-It's a powerful tool for optimising functional pipelines and simplifying Free monad definitions, based on the elegant mathematics of the Yoneda lemma.
+~~~admonish tip title="Where Coyoneda fits"
+An instruction set from [`@EffectAlgebra`](../effect/effect_handlers.md#defining-effects) gets a generated `Functor`, built on its records' `mapK`, which extends each record's continuation: the function from the instruction's result to what comes next. So it never needs Coyoneda. Coyoneda is for a set you write yourself whose records carry no continuation, and for holding many maps on a structure that is costly to walk.
+~~~
 
 ---
 
-~~~admonish tip title="Further Reading"
-- **Why it helps**: [Introduction to Yoneda and Coyoneda](https://gist.github.com/gregberns/ede18190d5117eea6fb51815e2eab9b2) - Explains Coyoneda as a _deferred map_
-- **Bartosz Milewski**: [The Yoneda Lemma](https://bartoszmilewski.com/2015/09/01/the-yoneda-lemma/) - The mathematical foundation (more theoretical)
-~~~
+## Three maps, one walk {#maps-held-for-one-pass}
+
+A Java `Stream` applies each element's maps in one pass. `List`'s `map`, like the `map` of most types with a `Functor`, does not. It walks the list and builds a new one, so three maps in a row make three walks and two lists that are thrown away. Coyoneda gives any such type the stream's single pass. It holds the list, and each `map` adds its function to the ones it holds without applying anything. `lower` hands them all to the list's `Functor` as one `map`, which passes each element through the functions in turn:
+
+```mermaid
+flowchart TB
+    accTitle: How a Coyoneda holds three maps and applies them in one pass
+    accDescr: lift wraps the basket's list of lines in a Coyoneda that holds no functions. Three calls to map add three functions to it, and apply none. lower hands the three to the List Functor as one map, which walks the list once and gives the list of prices.
+    L["the basket's lines"]:::domain -->|lift| C0["Coyoneda: the list, no functions"]:::domain
+    C0 -->|"map, map, map"| C3["Coyoneda: the list, three functions held"]:::domain
+    C3 -->|"lower: one walk"| R["the new prices"]:::domain
+    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
+```
+
+The code on this page uses these imports:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.coyoneda.Coyoneda;
+import org.higherkindedj.hkt.coyoneda.CoyonedaFunctor;
+import org.higherkindedj.hkt.coyoneda.CoyonedaKind;
+import org.higherkindedj.hkt.effect.FreePath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListMonad;
+```
+
+The list here stands in for a structure that is costly to walk, such as a large tree or a page of results from a remote store. The basket holds a lamp at 40.00 and four bulbs at 2.50 each, and `VAT` is 1.20, so each line's price with VAT is 48.00 for the lamp and 3.00 for a bulb:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:fusion}}
+```
+
+Through `List`'s own `map`, the same three functions walk the list three times; through Coyoneda, once. The held functions are applied in a loop, so a chain of a hundred thousand maps is lowered without overflowing the stack.
+
+## An instruction set with no Functor {#an-instruction-set-with-no-functor}
+
+A [Free](free_monad.md) program needs a `Functor` for its instructions, to put the rest of the program after each one. `OrderOp`'s records carry a continuation `k`, so `@EffectAlgebra` builds that `Functor` from `mapK`. The warehouse's instruction set cannot have one, because each record fixes its own result type and carries nothing for a `map` to extend:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:stock_op}}
+```
+
+Lifted into a Coyoneda, an instruction gets the `Functor` it lacks: `CoyonedaFunctor` holds each map instead of applying it. A `FreePath` over `CoyonedaKind.Witness<StockOp.Witness>` then holds the warehouse's instructions:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:program}}
+```
+
+## Running a program over Coyoneda {#running-a-program-over-coyoneda}
+
+The interpreter is written for `StockOp` alone, as a [`Natural`](../functional/natural_transformation.md) with a case for each record. Its warehouse holds three lamps and two bulbs:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:warehouse}}
+```
+
+`Coyoneda.interpreter(warehouse, functor)` runs each instruction with it, and then applies the maps the Coyoneda held, with `Id`'s `Functor`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:run}}
+```
+
+The basket's second line wants four bulbs and the warehouse holds two, so nothing is set aside, and the warehouse's count is unchanged. One held value runs through an interpreter the same way, with `foldMap`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:one_value}}
+```
+
+## Why it is called Coyoneda {#the-yoneda-lemma}
+
+Coyoneda is named for the co-Yoneda lemma: for a `Functor` `F`, a `Coyoneda<F, A>` and a `Kind<F, A>` hold the same information. `lift` and `lower` turn one into the other, and lowering a lifted list gives back the list. So holding the maps loses nothing: it only decides when they run.
+
+## A held value is never null {#a-held-value-is-never-null}
+
+`Coyoneda.lift(null)` and `Coyoneda.apply(null, f)` throw at the call. A held function runs only when you lower or interpret, through the target's own `map`, so a null it returns meets that type's rule, which [Values, never null](../hkts/core-concepts.md#values-never-null) sets out. [`Id`](identity.md), for one, keeps the null as its value.
+
+## Creating instances {#creating-instances}
+
+`Coyoneda.lift(fa)` holds a value with no functions, and `Coyoneda.apply(fx, f)` holds it with one. `COYONEDA.lift(fa)`, from `CoyonedaKindHelper`, gives the same, already widened to a `Kind` for a `Free` program.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `coyoneda.map(f)` | Hold one more function, applied after the others |
+| `lower(functor)` | Apply the held functions with `F`'s own `Functor`, in one `map` |
+| `foldMap(natural, functor)` | Run the held value through an interpreter into `G`, then apply the held functions with `G`'s `Functor` |
+| `Coyoneda.interpreter(natural, functor)` | An interpreter for a program whose instructions are Coyonedas |
+| `underlying()` | The value held, before any function |
+
+## Working with Kind {#working-with-kind}
+
+`COYONEDA.widen` and `COYONEDA.narrow`, from `CoyonedaKindHelper`, convert between a `Coyoneda` and its `Kind`. Its one instance, `CoyonedaFunctor`, works for any `F`, because its `map` only holds the function:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/coyoneda/CoyonedaBook.java:kind}}
+```
+
+Coyoneda has no `Applicative` or `Monad`: combining two held values needs `F`'s own.
+
+## When to use `Coyoneda` {#when-to-use-coyoneda}
+
+| You need | Use |
+|---|---|
+| A `Free` program over an instruction set whose records carry no continuation | Coyoneda |
+| A `Free` program over an `@EffectAlgebra` instruction set | Its generated `Functor`, with no Coyoneda |
+| Many maps on a structure that is costly to walk | Coyoneda, lowered once |
+| A few maps on a `List` or an `Optional` | Their own `map` |
+| A pipeline over a Java `Stream` | The stream, which already applies each element's maps in one pass |
 
 ~~~admonish info title="Hands-On Learning"
-Practise Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java) (5 exercises).
+Practise lifting, mapping and lowering in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java) (5 exercises), from the [Advanced Patterns](../tutorials/coretypes/advanced_journey.md) journey.
 ~~~
 
 ---
