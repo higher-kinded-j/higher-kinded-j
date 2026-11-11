@@ -30,14 +30,14 @@ import org.openjdk.jmh.infra.Blackhole;
  * <ul>
  *   <li>Cost of Free monad construction (pure, suspend, liftF)
  *   <li>Performance of map/flatMap chains
- *   <li>foldMap interpretation overhead using Trampoline internally
+ *   <li>foldMap interpretation overhead
  *   <li>Stack safety for deeply nested Free structures
  *   <li>Comparison with direct function composition
  * </ul>
  *
- * <p>Note: Free monads use Trampoline internally for stack-safe foldMap interpretation. These
- * benchmarks measure the combined overhead of Free structure construction and Trampoline-based
- * execution.
+ * <p>Note: foldMap walks the program in a loop of its own, so interpreting into {@code Id} is
+ * stack-safe. These benchmarks measure the combined overhead of Free structure construction and
+ * that interpretation.
  *
  * <p>Run with: {@code ./gradlew jmh} or {@code ./gradlew :hkj-benchmarks:jmh}
  *
@@ -113,7 +113,7 @@ public class FreeBenchmark {
   /**
    * Map operation with foldMap execution.
    *
-   * <p>Measures cost of interpreting a mapped Free monad using Trampoline internally.
+   * <p>Measures cost of interpreting a mapped Free monad.
    */
   @Benchmark
   public Integer mapExecution() {
@@ -136,7 +136,7 @@ public class FreeBenchmark {
     return IdKindHelper.ID.narrow(result).value();
   }
 
-  // ==================== Chain Benchmarks (Stack Safety via Trampoline) ====================
+  // ==================== Chain Benchmarks (Stack Safety) ====================
 
   /**
    * Deep flatMap chain construction.
@@ -153,10 +153,10 @@ public class FreeBenchmark {
   }
 
   /**
-   * Deep flatMap chain execution with Trampoline-based foldMap.
+   * Deep flatMap chain execution with foldMap.
    *
-   * <p>Measures cost of interpreting deeply nested Free structures. This demonstrates the
-   * stack-safe interpretation that leverages Trampoline internally.
+   * <p>Measures cost of interpreting deeply nested Free structures, which foldMap walks in a loop
+   * without deepening the stack.
    */
   @Benchmark
   public Integer deepChainExecution() {
@@ -314,24 +314,24 @@ public class FreeBenchmark {
     return IdKindHelper.ID.narrow(result).value();
   }
 
-  // ==================== Trampoline Integration Benchmarks ====================
+  // ==================== Interpreter Path Benchmarks ====================
 
   /**
-   * Demonstrates Trampoline integration: pure value interpretation.
+   * Interpreter path: pure value interpretation.
    *
-   * <p>Measures overhead of Trampoline.done path in foldMap.
+   * <p>Measures overhead of the Pure case in foldMap.
    */
   @Benchmark
   public Integer pureTrampolineIntegration() {
-    // Pure values should be fast - minimal Trampoline overhead
+    // Pure values should be fast - minimal interpreter overhead
     Kind<IdKind.Witness, Integer> result = simplePure.foldMap(identityTransform, idMonad);
     return IdKindHelper.ID.narrow(result).value();
   }
 
   /**
-   * Demonstrates Trampoline integration: suspended value interpretation.
+   * Interpreter path: suspended value interpretation.
    *
-   * <p>Measures overhead of Trampoline.done path for Suspend case.
+   * <p>Measures overhead of the Suspend case, where Id hands over the next program at once.
    */
   @Benchmark
   public Integer suspendTrampolineIntegration() {
@@ -340,9 +340,10 @@ public class FreeBenchmark {
   }
 
   /**
-   * Demonstrates Trampoline integration: FlatMapped interpretation.
+   * Interpreter path: FlatMapped interpretation.
    *
-   * <p>Measures overhead of Trampoline.defer path in foldMap.
+   * <p>Measures overhead of the FlatMapped case, which pushes its continuation onto the loop's
+   * stack.
    */
   @Benchmark
   public Integer flatMappedTrampolineIntegration() {
@@ -353,10 +354,10 @@ public class FreeBenchmark {
   }
 
   /**
-   * Stress test: Very deep chain to verify Trampoline stack safety.
+   * Stress test: Very deep chain to verify foldMap's stack safety.
    *
-   * <p>This benchmark specifically tests that the Trampoline-based foldMap implementation handles
-   * deep recursion without stack overflow.
+   * <p>This benchmark specifically tests that foldMap's loop handles deep chains without stack
+   * overflow.
    */
   @Benchmark
   public Integer stackSafetyStressTest() {

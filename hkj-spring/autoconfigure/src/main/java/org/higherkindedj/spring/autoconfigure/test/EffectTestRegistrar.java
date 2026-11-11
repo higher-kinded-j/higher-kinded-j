@@ -34,6 +34,9 @@ import org.springframework.core.type.AnnotationMetadata;
  */
 public class EffectTestRegistrar implements ImportBeanDefinitionRegistrar {
 
+  /** Creates the registrar; Spring instantiates it while processing {@code @EffectTest}. */
+  public EffectTestRegistrar() {}
+
   private static final Logger log = LoggerFactory.getLogger(EffectTestRegistrar.class);
 
   @Override
@@ -79,10 +82,20 @@ public class EffectTestRegistrar implements ImportBeanDefinitionRegistrar {
     private final Class<?>[] effects;
     private ApplicationContext applicationContext;
 
+    /**
+     * Creates a factory bean for one set of effects.
+     *
+     * @param effects the effect types the test boundary handles
+     */
     public EffectTestBoundaryFactoryBean(Class<?>[] effects) {
       this.effects = effects;
     }
 
+    /**
+     * Supplies the application context the test boundary resolves its interpreters from.
+     *
+     * @param applicationContext the application context
+     */
     @Autowired
     public void setApplicationContext(ApplicationContext applicationContext) {
       this.applicationContext = applicationContext;

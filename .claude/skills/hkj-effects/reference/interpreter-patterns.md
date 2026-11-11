@@ -172,7 +172,7 @@ public final class AuditGatewayInterpreter
 2. Create log entry: `AuditLog.of(operation, details)`
 3. Wrap in `WriterT.writer(innerMonad, value, log)`
 
-**Warning**: `foldMap` has an eager optimisation that discards monadic context for strict target monads. `WriterT<Id, ...>` will silently lose accumulated log entries. Use `WriterT<IO, ...>` or mutable recording interpreters instead.
+**Note**: `foldMap` keeps every log entry in `WriterT<Id, ...>`, and a deep program runs into it without overflowing the stack.
 
 ---
 
@@ -242,7 +242,7 @@ public final class QuoteGatewayInterpreter
 | Pure testing | `Id` | `new Id<>(op.k().apply(...))` | Record in mutable lists |
 | Fixed responses | `Id` | `new Id<>(op.k().apply(fixedValue))` | Constructor-inject values |
 | Failure testing | `Id` | `new Id<>(op.k().apply(failureResult))` | Return failed variants |
-| Audit logging | `WriterT<IO, AuditLog, _>` | `WriterT.writer(io, result, log)` | Use lazy outer monad |
+| Audit logging | `WriterT<Id, AuditLog, _>` | `WriterT.writer(id, result, log)` | Read the log beside the result |
 | Replay | `ReaderT<Id, EventLog, _>` | `ReaderT.reader(id, log -> ...)` | Read from environment |
 | Fee estimation | `Id` | `new Id<>(op.k().apply(derivedResult))` | Compute instead of stub |
 

@@ -46,7 +46,6 @@ class BookDiagnosticVisibilityTest {
    */
   private static final List<String> KNOWN_BACKLOG =
       List.of(
-          "monads/free_monad.md: 1",
           "optics/compiler_errors.md: 18",
           "optics/focus_containers.md: 1",
           "optics/optics_spec_interfaces.md: 3",

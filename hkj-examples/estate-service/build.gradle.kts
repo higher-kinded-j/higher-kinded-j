@@ -22,3 +22,8 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+// An example, never published: its API documentation is not generated, as in hkj-examples.
+tasks.named("javadoc") {
+    enabled = false
+}

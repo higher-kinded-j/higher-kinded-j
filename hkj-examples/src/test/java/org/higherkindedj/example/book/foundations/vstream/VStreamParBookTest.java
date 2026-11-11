@@ -675,12 +675,14 @@ class VStreamParBookTest {
               .runSafe();
       Thread.interrupted();
 
-      // recover gives one value for the interrupt, then ends the stream
+      // recover lets the interrupt through, so the run fails with it
       assertThatTry(held)
-          .isSuccess()
-          .hasValueSatisfying(
-              quotes ->
-                  assertThat(quotes).extracting(BigDecimal::toPlainString).containsExactly("9.99"));
+          .isFailure()
+          .hasExceptionSatisfying(
+              error ->
+                  assertThat(error)
+                      .isInstanceOf(InterruptedException.class)
+                      .hasMessage("quote cancelled"));
     }
 
     @Test

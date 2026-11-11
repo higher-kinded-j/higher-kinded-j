@@ -156,7 +156,7 @@ Free program (tree):               foldMap walks it:
 
 - `Natural<F, M>` = natural transformation from instruction type F to target monad M
 - `Monad<M>` = monad instance for sequencing in the target
-- Stack-safe via internal Trampoline
+- Stack-safe into `IO`, `Id`, `Either`, `State` or `WriterT<Id, ...>`; see Note: What Deepens the Stack
 
 ### IO Interpreter Example
 
@@ -279,11 +279,6 @@ Performance: Free has ~2-10x interpretation overhead vs direct code. Real worklo
 
 ---
 
-## Warning: Monad Transformer Limitation
+## Note: What Deepens the Stack
 
-`foldMap` uses an eager optimisation that discards monadic context for strict target monads. `WriterT<Id, W, A>` will silently lose accumulated log entries.
-
-**Workarounds**:
-- Use lazy outer monad: `WriterT<IO, W, A>`
-- Use mutable recording interpreters targeting `Id`
-- Target `IO` and compose effects outside the Free interpreter
+`foldMap` keeps each instruction's whole value: `WriterT<Id, W, A>` accumulates every log entry, and an `EitherOrBoth` every warning. A deep program runs into `IO`, `Id`, `Either`, `State` or `WriterT<Id, ...>` without overflowing. Two things still deepen the stack: an instruction that gives several results, such as a `List` of two, runs the rest of the program once per result, and a `Reader` or `ReaderT` target nests one call per instruction when it runs.

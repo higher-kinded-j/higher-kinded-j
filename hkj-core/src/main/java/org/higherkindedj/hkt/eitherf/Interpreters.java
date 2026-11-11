@@ -14,8 +14,8 @@ import org.jspecify.annotations.NullMarked;
  * Utility for combining multiple interpreters into a single interpreter for composed effect types.
  *
  * <p>When multiple effect algebras are composed via {@link EitherF}, each algebra has its own
- * interpreter ({@link Natural Natural<F, M>}). This class provides {@code combine} methods that
- * merge these individual interpreters into a single interpreter for the composed type.
+ * interpreter ({@link Natural Natural&lt;F, M&gt;}). This class provides {@code combine} methods
+ * that merge these individual interpreters into a single interpreter for the composed type.
  *
  * <h2>Usage</h2>
  *

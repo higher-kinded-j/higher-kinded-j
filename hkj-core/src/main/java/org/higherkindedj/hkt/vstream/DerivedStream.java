@@ -55,7 +55,17 @@ abstract class DerivedStream<U, A> implements VStream<A> {
    * VStream#concat(VStream, VStream)} closes only the one it is reading.
    */
   static <A> VStream<A> concatContinuing(VStream<A> first, VStream<A> second) {
-    return new Concat<>(first, second, true);
+    return new Concat<>(first, second, true, true, false);
+  }
+
+  /**
+   * As {@link #concatContinuing}, for a first stream not yet reached, such as the one {@code
+   * flatMap}'s function gives for an element. Until the first stream's first pull, closing it
+   * closes only the second, and a first pull that fails closes the first, as {@link #unreached}
+   * describes.
+   */
+  static <A> VStream<A> concatContinuingUnreached(VStream<A> first, VStream<A> second) {
+    return new Concat<>(first, second, true, false, false);
   }
 
   /**
@@ -112,43 +122,129 @@ abstract class DerivedStream<U, A> implements VStream<A> {
   }
 
   /**
-   * Concatenation as {@link VStream#concat(VStream, VStream)} gives it: closing it closes the
-   * stream it is reading, and leaves a second stream it has not reached.
+   * A stream handed on unreached: {@code concat}'s second stream as the first ends, {@code
+   * interleave}'s second as the first ends before either is read, and the stream after {@code
+   * prepend}'s element. Pulling it pulls the stream, so each step after is the stream's own, and a
+   * first pull that fails closes the stream, as closing this would not. Closing it before that
+   * first pull leaves the stream as it is, since this run has not reached it, and another run may
+   * be reading it.
    */
-  static <A> VStream<A> concatReading(VStream<A> first, VStream<A> second) {
-    return new Concat<>(first, second, false);
+  static <A> VStream<A> unreached(VStream<A> stream) {
+    // A Concat, not a class of its own, so a loop that pulls it meets no more kinds of stream
+    return new Concat<>(stream, VStream.empty(), false, false, true);
   }
 
-  /** The concatenation of two streams, reading {@code first} until it ends, then {@code second}. */
+  /**
+   * Concatenation as {@link VStream#concat(VStream, VStream)} gives it: closing it closes the
+   * stream it is reading, and leaves a second stream it has not reached, before and after the first
+   * ends.
+   */
+  static <A> VStream<A> concatReading(VStream<A> first, VStream<A> second) {
+    return new Concat<>(first, second, false, true, false);
+  }
+
+  /**
+   * The concatenation of two streams, reading {@code first} until it ends, then {@code second}, in
+   * one of four states, one for each factory:
+   *
+   * <ul>
+   *   <li>{@link #concatReading}: closing closes {@code first}, or the rest of it, and leaves
+   *       {@code second}, which it hands on unreached when {@code first} ends;
+   *   <li>{@link #concatContinuing}: closing closes both;
+   *   <li>{@link #concatContinuingUnreached}: until {@code first}'s first pull, closing closes only
+   *       {@code second}, and a first pull that fails closes {@code first}; after it, as {@link
+   *       #concatContinuing};
+   *   <li>{@link #unreached}: {@code second} is empty, and the first pull gives {@code first}'s
+   *       step as it is, so the run holds {@code first}'s own tails after it; closing it before
+   *       then closes nothing, and a first pull that fails closes {@code first}.
+   * </ul>
+   *
+   * <p>One class for all four, since a loop that pulls a kind of stream it has not met before
+   * becomes slower to call.
+   */
   private static final class Concat<A> extends DerivedStream<A, A> {
 
     private final VStream<A> second;
+    // Whether closing closes second, which goes on with a stream already being read
     private final boolean closesSecond;
+    // Whether closing closes first: from the start for concat's own first stream, otherwise once
+    // this run has pulled it
+    private final boolean firstReached;
+    // Only while first is unreached, with an empty second: the first pull hands on first's step
+    private final boolean handsOn;
 
-    Concat(VStream<A> first, VStream<A> second, boolean closesSecond) {
+    Concat(
+        VStream<A> first,
+        VStream<A> second,
+        boolean closesSecond,
+        boolean firstReached,
+        boolean handsOn) {
       super(first);
       this.second = second;
       this.closesSecond = closesSecond;
+      this.firstReached = firstReached;
+      this.handsOn = handsOn;
     }
 
     @Override
     public VTask<Step<A>> pull() {
-      return pullMap(
-          step ->
-              switch (step) {
-                case Step.Emit<A> e ->
-                    new Step.Emit<>(e.value(), new Concat<>(e.tail(), second, closesSecond));
-                case Step.Skip<A> s ->
-                    new Step.Skip<>(new Concat<>(s.tail(), second, closesSecond));
-                case Step.Fail<A> failed ->
-                    new Step.Fail<>(
-                        failed.error(), new Concat<>(failed.tail(), second, closesSecond));
-                case Step.Done<A> _ -> new Step.Skip<>(second);
-              });
+      // One task for each pull, where pullMap would add a function for its step, since a
+      // concatenation is pulled for every element it hands on
+      if (!firstReached) {
+        return firstPull();
+      }
+      VTask<Step<A>> pulled = upstream.pull();
+      return () -> next(pulled.execute());
+    }
+
+    /** The step after one of {@code first}'s, over the rest of {@code first}. */
+    private Step<A> next(Step<A> step) {
+      return switch (step) {
+        case Step.Emit<A> e -> new Step.Emit<>(e.value(), reading(e.tail()));
+        case Step.Skip<A> s -> new Step.Skip<>(reading(s.tail()));
+        case Step.Fail<A> failed -> new Step.Fail<>(failed.error(), reading(failed.tail()));
+        // concatContinuing's second stream goes on with one already being read, and concat's
+        // has not been reached
+        case Step.Done<A> _ -> new Step.Skip<>(closesSecond ? second : unreached(second));
+      };
+    }
+
+    /**
+     * The first pull of {@code first}, which closes it if it fails, as closing this would not. One
+     * that hands on {@code first}'s steps gives them as they are, so from here on the run holds
+     * {@code first}'s own tails.
+     */
+    private VTask<Step<A>> firstPull() {
+      VTask<Step<A>> pulled;
+      try {
+        pulled = upstream.pull();
+      } catch (Throwable t) {
+        // A hand-written stream may fail as it builds its pull, before the pull runs
+        Closing.closeAfterFailure(upstream, t);
+        throw t;
+      }
+      return () -> {
+        Step<A> step;
+        try {
+          step = pulled.execute();
+        } catch (Throwable t) {
+          Closing.closeAfterFailure(upstream, t);
+          throw t;
+        }
+        return handsOn ? step : next(step);
+      };
+    }
+
+    /** The concatenation over the rest of {@code first}, which this run has now reached. */
+    private Concat<A> reading(VStream<A> rest) {
+      return new Concat<>(rest, second, closesSecond, true, false);
     }
 
     @Override
     public VTask<Unit> close() {
+      if (!firstReached) {
+        return closesSecond ? second.close() : VTask.succeed(Unit.INSTANCE);
+      }
       return closesSecond ? Closing.closeAll(upstream, second) : upstream.close();
     }
   }

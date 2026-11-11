@@ -1,288 +1,179 @@
-# The Trampoline Monad:
-## _Stack-Safe Recursion in Java_
+<!-- description: Run deep recursion in Java without overflowing the stack using Trampoline: a sum a million calls deep, two functions that call each other, and a long list traversed under IO. -->
+
+# Trampoline: Deep Recursion in a Loop
+
+_Hold each step as data and run them in one loop, so deep recursion costs heap, not stack._
+
+~~~admonish abstract title="Trampoline at a glance"
+| | |
+|---|---|
+| **Models** | A recursive computation held as steps, which `run()` works through one at a time |
+| **Replaces** | A recursive method that overflows the stack, or a loop that keeps its own stack of work |
+| **Effect Path** | [`TrampolinePath`](../glossary/effect-paths.md#trampolinepath) |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:trampoline_monad}}
+| **Choose it when** | Recursion can go thousands of calls deep, or two functions call each other; otherwise keep the plain recursion or loop you have, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- Why the JVM will betray your recursive code at the worst possible moment
-- How to mechanically convert any recursive function to a stack-safe one in three steps
-- Implementing mutually recursive functions without stack overflow
-- Using `Trampoline.done` and `Trampoline.defer` to build trampolined computations
-- Composing results with `map` and `flatMap`
-- When Trampoline is the right tool and when it is not
+- Explain why a recursive sum overflows the stack, and what sets the depth it reaches
+- Hold the same recursion as steps on a `TrampolinePath`, and run it a million calls deep
+- Turn each kind of call into a step: a base case, a tail call, and a call whose result you combine
+- Run two functions that call each other in one loop
+- Traverse a long list under `IO` without nesting a call for each element
 ~~~
 
-~~~ admonish example title="See Example Code:"
-[TrampolineExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/trampoline/TrampolineExample.java)
-~~~
-
-## Blow Up Your Stack in 3 Seconds
-
-Here is an innocent function. Five lines, no tricks:
-
-<!-- verify -->
-```java
-static long sum(long n) {
-    if (n <= 0) return 0;
-    return n + sum(n - 1);
-}
-```
-
-Call `sum(10)` and you get `55`. Call `sum(1_000)` and you get `500500`. Call `sum(50_000)` and you get this:
-
-```
-Exception in thread "main" java.lang.StackOverflowError
-    at Example.sum(Example.java:3)
-    at Example.sum(Example.java:3)
-    at Example.sum(Example.java:3)
-    ... (thousands more identical frames)
-```
-
-Every recursive call pushes a frame onto the JVM call stack. The stack has a fixed size (typically a few hundred KB to 1 MB). Once you exceed roughly 5,000-10,000 frames, the JVM kills your program. Unlike a heap `OutOfMemoryError`, you cannot catch and recover from this gracefully. Your computation is simply gone.
-
-Languages like Haskell and Scala can optimise tail calls so the stack never grows. Java cannot. If your algorithm is recursive and your data is large, you have a problem.
-
-The `Trampoline<A>` type solves it.
-
-## The Fix: Trampoline
-
-The name comes from the execution model. Instead of diving deeper and deeper into the stack, each recursive step "bounces" back to a flat loop that decides what to do next:
-
-```text
-  Normal Recursion                    Trampolining
-
-  sum(5)                              loop:
-    sum(4)                              +--> sum(5) returns Defer
-      sum(3)                            |      |
-        sum(2)                          |      v
-          sum(1)                        +--> sum(4) returns Defer
-            sum(0)                      |      |
-            return 0                    |      v
-          return 1                      +--> sum(3) returns Defer
-        return 3                        |      |
-      return 6                          |      v
-    return 10                           +--> ...
-  return 15                             +--> sum(0) returns Done(0)
-
-  Stack depth: O(n)                   Stack depth: O(1)
-  Blows up at ~5,000                  Handles 1,000,000+
-```
-
-The trick: instead of *making* the recursive call, you *describe* it as a data structure (`Defer`). A simple `while` loop in the `run()` method processes one step at a time, never growing the stack beyond a single frame.
-
-~~~admonish note title="The 3-Step Recipe"
-Any recursive function can be mechanically converted to a trampolined one. The transformation is always the same:
-
-```text
-Step 1: Change the return type       T           -->  Trampoline<T>
-Step 2: Wrap base cases               return value -->  Trampoline.done(value)
-Step 3: Wrap recursive calls          f(x)        -->  Trampoline.defer(() -> f(x))
-```
-
-That is it. No restructuring, no cleverness. Follow these three steps and your function becomes stack-safe. Call `.run()` on the result to execute it.
-~~~
-
-## Core Components {#core-components}
-
-| Component | Role |
-|-----------|------|
-| `Trampoline<A>` | Sealed interface with three variants: `Done<A>` (final value), `More<A>` (suspended thunk), `FlatMap<A,B>` (monadic bind) |
-| `Trampoline.done(value)` | Create a completed computation holding a final value, which must not be null |
-| `Trampoline.defer(supplier)` | Suspend a computation for later evaluation: the key to stack safety |
-| `trampoline.run()` | Execute the trampoline iteratively and return the final result |
-| `trampoline.map(f)` | Transform the eventual result without executing yet |
-| `trampoline.flatMap(f)` | Sequence two trampolined computations, maintaining stack safety |
-| `TrampolineKind<A>` | HKT marker (`Kind<TrampolineKind.Witness, A>`) so Trampoline works with generic typeclasses |
-| `TrampolineKindHelper` | Provides `widen`, `narrow`, `done`, `defer`, and `run` for the HKT bridge |
-| `TrampolineMonad` | `Monad<TrampolineKind.Witness>` instance: gives you `of`, `map`, and `flatMap` through the typeclass |
-| `TrampolineUtils` | Stack-safe traversal of a list under any applicative: `traverseListStackSafe`, `sequenceStackSafe` |
-
-~~~admonish example title="Example 1: Stack-Safe Factorial"
-**Before** (naive recursion that blows the stack):
-
-<!-- verify -->
-```java
-static BigInteger factorialNaive(BigInteger n) {
-    if (n.compareTo(BigInteger.ZERO) <= 0) return BigInteger.ONE;
-    return n.multiply(factorialNaive(n.subtract(BigInteger.ONE)));
-}
-// factorialNaive(BigInteger.valueOf(10000)) --> StackOverflowError
-```
-
-**After** (apply the 3-step recipe):
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.trampoline.Trampoline;
-import java.math.BigInteger;
-
-// Step 1: return type is now Trampoline<BigInteger>
-static Trampoline<BigInteger> factorial(BigInteger n, BigInteger acc) {
-    if (n.compareTo(BigInteger.ZERO) <= 0) {
-        return Trampoline.done(acc);             // Step 2: wrap base case
-    }
-    return Trampoline.defer(() ->                // Step 3: wrap recursive call
-        factorial(n.subtract(BigInteger.ONE), n.multiply(acc))
-    );
-}
-
-// Execute it -- handles 100,000+ iterations without breaking a sweat
-BigInteger result = factorial(BigInteger.valueOf(100_000), BigInteger.ONE).run();
-System.out.println("Result has " + result.toString().length() + " digits");
-```
-
-Since `Trampoline` is a monad, you can use `map` and `flatMap` to compose results:
-
-<!-- verify -->
-```java
-// Transform the result after computation
-Trampoline<String> described = factorial(BigInteger.valueOf(10_000), BigInteger.ONE)
-    .map(r -> "10000! has " + r.toString().length() + " digits");
-
-System.out.println(described.run());
-
-// Sequence two trampolined computations
-Trampoline<BigInteger> combined = factorial(BigInteger.valueOf(5), BigInteger.ONE)
-    .flatMap(a -> factorial(BigInteger.valueOf(6), BigInteger.ONE)
-        .map(b -> a.add(b)));
-
-System.out.println("5! + 6! = " + combined.run()); // 840
-```
-~~~
-
-~~~admonish example title="Example 2: Mutual Recursion (isEven / isOdd)"
-Mutual recursion is where Trampoline really shines. Two functions calling each other cannot be unrolled into a simple loop, yet they blow the stack just as fast:
-
-**Before:**
-
-<!-- verify -->
-```java
-static boolean isEvenNaive(int n) {
-    if (n == 0) return true;
-    return isOddNaive(n - 1);
-}
-static boolean isOddNaive(int n) {
-    if (n == 0) return false;
-    return isEvenNaive(n - 1);
-}
-// isEvenNaive(100_000) --> StackOverflowError
-```
-
-**After:**
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.trampoline.Trampoline;
-
-static Trampoline<Boolean> isEven(int n) {
-    if (n == 0) return Trampoline.done(true);
-    return Trampoline.defer(() -> isOdd(n - 1));
-}
-
-static Trampoline<Boolean> isOdd(int n) {
-    if (n == 0) return Trampoline.done(false);
-    return Trampoline.defer(() -> isEven(n - 1));
-}
-
-// 1,000,000 bounces, constant stack space
-System.out.println(isEven(1_000_000).run());  // true
-System.out.println(isOdd(999_999).run());     // true
-```
-
-Each call to `isEven` defers to `isOdd` and vice versa. The `run()` loop handles the ping-pong without ever growing the stack.
-~~~
-
-~~~admonish example title="Example 3: TrampolineUtils for Large Collections"
-Under a lazy applicative such as `IO`, a traverse that folds from the left nests one call per element, so running the result can overflow. `TrampolineUtils` provides drop-in replacements that combine the effects as a balanced tree:
-
-<!-- verify -->
-```java
-import org.higherkindedj.hkt.Kind;
-import org.higherkindedj.hkt.instances.Instances;
-import org.higherkindedj.hkt.io.IO;
-import org.higherkindedj.hkt.io.IOKind;
-import org.higherkindedj.hkt.trampoline.TrampolineUtils;
-import static org.higherkindedj.hkt.instances.Witnesses.io;
-import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
-import java.util.List;
-import java.util.stream.IntStream;
-
-List<Integer> largeList = IntStream.range(0, 100_000).boxed().toList();
-
-Kind<IOKind.Witness, List<String>> result =
-    TrampolineUtils.traverseListStackSafe(
-        largeList,
-        i -> IO_OP.widen(IO.delay(() -> "item-" + i)),
-        Instances.monad(io())
-    );
-
-List<String> items = IO_OP.narrow(result).unsafeRunSync();
-System.out.println("Traversed " + items.size() + " elements safely");
-```
-
-Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use them for a large collection under a lazy or custom applicative. They sit beside `Trampoline` but need no trampoline, since no call nests deeper than about log₂(n).
-~~~
-
-## When to Use Trampoline
-
-| Scenario | Recommendation |
-|----------|----------------|
-| Deep single recursion (>5,000 frames) | Use Trampoline: this is exactly what it is for |
-| Mutual recursion at any depth | Use Trampoline: you cannot convert mutual recursion to a simple loop |
-| Traversing large collections with a lazy or custom applicative | Use `TrampolineUtils` |
-| Recursive tree walking (JSON, XML, file systems) | Use Trampoline: tree depth is unpredictable in production |
-| Shallow recursion (<1,000 frames) | Skip it: the overhead is not justified |
-| Performance-critical tight loops | Skip it: a hand-written `while` loop will always be faster |
-| Simple iteration that is already a loop | Skip it: do not add complexity where none is needed |
-
-~~~admonish important title="Key Points"
-- The JVM has no tail-call optimisation. Trampoline gives you the equivalent by converting recursion into heap-allocated data structures processed by a flat loop.
-- Stack space is O(1). Heap space is O(n): you trade stack frames for small objects on the heap.
-- The 3-step recipe (change return type, wrap base case, wrap recursive call) is mechanical and works on any recursive function.
-- Call `.run()` to execute. Until then, nothing happens; evaluation is lazy.
-- For real-world use cases, think: recursive descent parsers, tree traversals, graph algorithms, deeply nested data structures.
+~~~admonish example title="See Example Code"
+**The code on this page is [TrampolineBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java)**: the page includes it, so the build compiles and runs it. [TrampolineBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBookTest.java) holds what the page says each method does.
 ~~~
 
 ---
 
-~~~ admonish tip title="Influence: Recursion, Thunks and Trampolines"
-The Higher-Kinded-J trampoline implementation was directly influenced by Scott Logic's blog post [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html). That article traces a progression from problem to solution that closely mirrors what you have just read:
+## A sum that overflows {#a-sum-that-overflows}
 
-1. **The JVM problem**: every method call pushes a stack frame. The default stack is ~1 MB, so deep recursion hits `StackOverflowError` well before the heap is anywhere close to full. Even tail-recursive code overflows because the standard JVM does not implement tail-call optimisation (unlike the Scala compiler, which can rewrite `@tailrec` functions into iterative bytecode).
+The sums on this page use plain numbers, since the depth of the recursion is what matters. The code on this page uses these imports:
 
-2. **Thunks**: a thunk is simply a wrapped computation you can execute later (`Supplier<T>` in Java). The key insight is that instead of *making* a recursive call, you *return a thunk that describes* the call. This converts stack growth into heap allocation.
+<!-- verify -->
+```java
+import static org.higherkindedj.hkt.instances.Witnesses.io;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
-3. **The trampoline pattern**: a sealed interface with two states: `Done(result)` for a completed value and `More(thunk)` for a suspended step. A `run()` loop unwraps `More` thunks iteratively in a single stack frame until it reaches `Done`:
+import java.util.List;
+import java.util.stream.IntStream;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.TrampolinePath;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.trampoline.Trampoline;
+import org.higherkindedj.hkt.trampoline.TrampolineUtils;
+```
+
+Each call to this sum waits for the deeper call it makes to return, so each holds a frame on the thread's stack:
 
 ```java
-// From the blog post: the core idea Higher-Kinded-J builds on
-public sealed interface Trampoline<T> permits Done, More {
-    static <T> T run(Supplier<Trampoline<T>> initialThunk) {
-        Trampoline<T> current = initialThunk.get();
-        while (true) {
-            switch (current) {
-                case Done<T> d -> { return d.result(); }
-                case More<T> m -> { current = m.nextStep().get(); }
-            }
-        }
-    }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:naive}}
 ```
 
-Higher-Kinded-J extends this foundation in two ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, and integrating with the HKT simulation so `Trampoline` participates in generic typeclass code. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation, a direct payoff of having a first-class trampoline abstraction in the library.
-~~~
+`sum(1_000)` gives `500500`, but `sum(1_000_000)` throws `StackOverflowError`. A thread's stack has a fixed size, 1 MB by default: 5,000 of these frames fit, and 100,000 do not. Where between the two it overflows depends on whether the JIT has compiled the method yet. The JVM never reuses a frame for a call in tail position, so rewriting the method as a tail call does not help. You can catch the error, but the sum is lost.
 
-~~~admonish example title="Benchmarks"
-Trampoline has dedicated JMH benchmarks measuring stack-safe recursion overhead and scaling behaviour. Key expectations:
+## The same sum, held as steps {#the-same-sum-held-as-steps}
 
-- **Deep recursion (10,000+)** completes without `StackOverflowError`: stack-safe trampolining is working
-- **Performance scaling is linear with depth**: no exponential blowup or quadratic complexity
-- **`factorialTrampoline` vs `factorialNaive`** show similar performance at depth 100: trampoline overhead is minimal for moderate depths
-- Non-linear scaling is a warning sign suggesting memory leak or quadratic complexity
+A `TrampolinePath` holds the recursion instead of making it. `Path.trampolineDefer` holds the deeper call as a step to take later, and `map` holds what to do with that call's result:
 
-```bash
-./gradlew :hkj-benchmarks:jmh -Pincludes=".*TrampolineBenchmark.*"
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:path}}
 ```
-See [Benchmarks & Performance](../benchmarks.md) for full details and how to interpret results.
+
+`run()` works through the steps in one loop. Each pending addition waits on a list on the heap, so the stack stays flat:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:path_run}}
+```
+
+The name comes from the loop. Each step bounces back to it with the next step to take, where a plain recursion would go one frame deeper:
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="On the left, plain recursion: sum(5) calls sum(4), down to sum(0), and each call stays on the stack until the one it made returns, so the stack grows with n and the additions happen as the calls return, giving 15. On the right, the trampoline: run takes a deferred step for sum(5), which hands back a deferred step for sum(4) and an addition to make later, and so on down to sum(0), which is done with 0. The loop keeps the pending additions on a list on the heap, then applies them, 0 + 1 + 2 + 3 + 4 + 5, giving 15. The stack stays flat.">
+  Plain recursion                     On a trampoline
+
+  sum(5)                              run():
+    sum(4)                              +--> sum(5): defer sum(4), then add 5
+      sum(3)                            |      |
+        sum(2)                          |      v
+          sum(1)                        +--> sum(4): defer sum(3), then add 4
+            sum(0)                      |      |
+            return 0                    |      v
+          return 1                      +--> ...
+        return 3                        |      |
+      return 6                          |      v
+    return 10                           +--> sum(0) is done: 0
+  return 15                             then the held additions:
+                                        0 + 1 + 2 + 3 + 4 + 5 = 15
+
+  Stack grows with n                  Stack stays flat; additions wait on the heap
+</pre>
+
+~~~admonish tip title="Influence: Recursion, Thunks and Trampolines"
+Higher-Kinded-J's trampoline grew out of Scott Logic's blog post [Recursion, Thunks and Trampolines with Java and Scala](https://blog.scottlogic.com/2025/05/02/recursion-thunks-trampolines-with-java-and-scala.html). The post builds the same idea from two cases, `Done` for a result and `More` for a step still to take, run by one loop. Higher-Kinded-J adds a third case, `FlatMap`, for sequencing, and an instance, so a `Trampoline` takes part in code written for any monad.
 ~~~
+
+## Each kind of call, as a step {#each-kind-of-call-as-a-step}
+
+A recursive method becomes a trampolined one call by call:
+
+| In the recursive method | On a trampoline |
+|---|---|
+| The return type `T` | `Trampoline<T>`, or `TrampolinePath<T>` |
+| A base case, `return value` | `Trampoline.done(value)` |
+| A tail call, `return f(x)` | `Trampoline.defer(() -> f(x))` |
+| A call whose result you combine, `return n + f(x)` | `Trampoline.defer(() -> f(x)).map(r -> n + r)` |
+| Two calls, `return f(x) + f(y)` | `Trampoline.defer(() -> f(x)).flatMap(a -> f(y).map(b -> a + b))` |
+
+`map` and `flatMap` are what keep a combined call safe: `defer` alone would leave the addition outside the trampoline. When the running total can travel with the call, a tail call needs only `defer`:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:tail}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:tail_run}}
+```
+
+## Two functions that call each other {#two-functions-that-call-each-other}
+
+Two functions that call each other overflow the stack as fast as one deep function. They are awkward to merge into one loop by hand, since the loop must track which function it is in. On a trampoline, each stays as it is written, and defers to the other:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:mutual}}
+```
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:mutual_run}}
+```
+
+## A long list under `IO` {#core-components}
+
+`traverse` runs a function that returns an effect on each element of a list, and gathers the results into one effect holding a list, as [Foldable and Traverse](../functional/foldable_and_traverse.md) explains. Under a lazy applicative such as `IO`, a traverse that combines the elements one after another nests one call per element, so running the result for a long list can overflow. `TrampolineUtils.traverseListStackSafe` combines them as a balanced tree instead, and `sequenceStackSafe` does the same for a list of effects:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/trampoline/TrampolineBook.java:traverse}}
+```
+
+They sit beside `Trampoline` in its package, but need no trampoline, since the tree's nesting grows with the log of the list's length.
+
+## A trampoline always gives a value {#a-trampoline-always-gives-a-value}
+
+Nothing runs until `run()`. A trampoline always gives a value, so `done(null)` throws `NullPointerException`, as [A Task Always Gives a Value](vtask_monad.md#a-task-always-gives-a-value) sets out for every lazy type.
+
+## Creating instances {#creating-instances}
+
+`Path.trampolineDone(value)` and `Path.trampolineDefer(supplier)` start a `TrampolinePath`, and `Path.trampoline(trampoline)` wraps a `Trampoline`. `Trampoline.done(value)` and `Trampoline.defer(supplier)` build a `Trampoline` directly.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `defer(supplier)` | Holds a step to take later |
+| `map(f)`, `flatMap(f)` | Hold what to do with the result; on a `TrampolinePath`, `flatMap` is `via` |
+| `zipWith(other, f)` | Combines two trampolines' results, on a `TrampolinePath` |
+| `run()` | Works through every step in a loop, and gives the result |
+| `toTrampoline()`, `toIOPath()`, `toLazyPath()` | Turn a `TrampolinePath` into a `Trampoline`, an `IOPath` or a `LazyPath` |
+
+## Working with Kind {#working-with-kind}
+
+Generic code takes `Trampoline` through its `Monad`, from `Instances.monad(trampoline())`, which is `TrampolineMonad.INSTANCE`. Its `flatMap` holds the step as `Trampoline.flatMap` does, so a deep chain built through the instance runs in the loop too. `TRAMPOLINE.widen` and `TRAMPOLINE.narrow`, from `TrampolineKindHelper`, convert between a `Trampoline` and its `Kind`.
+
+## When to use `Trampoline` {#when-to-use-trampoline}
+
+| You need | Use |
+|---|---|
+| Recursion that can go thousands of calls deep, such as a walk over a deep tree | `Trampoline`, or [`TrampolinePath`](../glossary/effect-paths.md#trampolinepath) |
+| Two functions that call each other | `Trampoline`: each stays as it is written |
+| A traverse of a long list under `IO` or another lazy applicative | `TrampolineUtils` |
+| Recursion that stays a few hundred calls deep | Plain recursion |
+| A loop that is already a loop | The loop: a trampoline adds an object per step |
+
+**Benchmarks:** `TrampolineBenchmark` measures building and running trampolines, and deep recursion against plain recursion. [Benchmarks & Performance](../benchmarks.md) says how to run it.
 
 ---
 

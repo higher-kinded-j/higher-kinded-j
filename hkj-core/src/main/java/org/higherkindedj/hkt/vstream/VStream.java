@@ -50,6 +50,17 @@ import org.jspecify.annotations.Nullable;
  *       task fails, in {@link #mapTask} or in a parallel operation such as {@link
  *       VStreamPar#parEvalMap}, is a {@link Step.Fail}, which a {@link #recover} can step past;
  *       without one, the terminal operation fails with its error.
+ *   <li><b>Interrupts:</b> A terminal operation checks the thread's interrupt status before it
+ *       starts and between pulls, so a {@link VTask#timeout} or a cancelled {@link
+ *       org.higherkindedj.hkt.vtask.Scope} stops it even when the pulls never block. Once the
+ *       status is set, it fails with an {@link InterruptedException}, leaving the status set, and
+ *       closes what it has read, so the finalisers there run. A run on a thread that is already
+ *       interrupted fails before it reads, and closes nothing. An operator that reads ahead, such
+ *       as {@link #chunk}, checks between its pulls too. An interrupt is a stop, not a failure, so
+ *       {@link #recover}, {@link #recoverWith}, {@link #mapError} and {@link #onError} pass it
+ *       through unchanged. To give a value when a run is stopped, recover outside what stops it, as
+ *       in {@code toList().timeout(d).recover(e -> List.of())}: a {@code recover} inside the
+ *       timeout gives a value the timeout discards.
  *   <li><b>Composability:</b> Rich set of combinators ({@link #map}, {@link #flatMap}, {@link
  *       #filter}, {@link #take}, etc.) that preserve laziness.
  *   <li><b>Reusability:</b> Unlike Java streams, a {@code VStream} can be pulled multiple times,
@@ -172,12 +183,12 @@ public interface VStream<A> extends VStreamKind<A> {
   sealed interface Step<A> permits Step.Emit, Step.Done, Step.Skip, Step.Fail {
 
     /**
-     * A step that produces an element and a continuation stream.
+     * A step that produces an element and a continuation stream. The constructor throws {@code
+     * NullPointerException} if {@code value} or {@code tail} is null.
      *
      * @param value The emitted element. Must not be null.
      * @param tail The continuation stream for subsequent elements. Must not be null.
      * @param <A> The type of the element.
-     * @throws NullPointerException if {@code value} or {@code tail} is null.
      */
     record Emit<A>(A value, VStream<A> tail) implements Step<A> {
       public Emit {
@@ -215,12 +226,12 @@ public interface VStream<A> extends VStreamKind<A> {
      * VStream#recover} can go on from the next element, and each operator in between passes it on
      * with the tail it would give an {@link Emit}. Whoever holds the tail and stops closes it, as
      * for an {@link Emit}. A terminal operation closes it and fails with the error. Every pull of
-     * this step gives the same error instance.
+     * this step gives the same error instance. The constructor throws {@code NullPointerException}
+     * if {@code error} or {@code tail} is null.
      *
      * @param error What the element failed with. Must not be null.
      * @param tail The stream after the failed element. Must not be null.
      * @param <A> The type of elements in the stream.
-     * @throws NullPointerException if {@code error} or {@code tail} is null.
      */
     record Fail<A>(Throwable error, VStream<A> tail) implements Step<A> {
       public Fail {
@@ -236,13 +247,13 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * A value pair used by {@link VStream#unfold} to produce both an emitted element and the next
-   * state for the unfold operation.
+   * state for the unfold operation. The constructor throws {@code NullPointerException} if {@code
+   * value} is null.
    *
    * @param value The element to emit. Must not be null.
    * @param next The next state to pass to the unfold function.
    * @param <A> The type of the emitted element.
    * @param <S> The type of the unfold state.
-   * @throws NullPointerException if {@code value} is null.
    */
   record Seed<A, S>(A value, S next) {
     public Seed {
@@ -544,6 +555,10 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p>The implementation uses an iterative approach for processing Skip and Done steps from inner
    * streams, ensuring stack safety for deep flatMap chains.
    *
+   * <p>Closing it closes this stream and the sub-stream it is reading. A sub-stream it has not yet
+   * pulled is left as it is, as {@link #concat(VStream)} leaves a stream it has not reached. So
+   * open a resource a sub-stream reads with {@link #bracket}, which acquires it only when read.
+   *
    * @param f A function producing a sub-stream for each element. Must not be null.
    * @param <B> The type of elements in the resulting stream.
    * @return A new flattened {@code VStream}. Never null.
@@ -552,7 +567,7 @@ public interface VStream<A> extends VStreamKind<A> {
   default <B> VStream<B> flatMap(Function<? super A, ? extends VStream<B>> f) {
     Objects.requireNonNull(f, "f must not be null");
     VStream<A> outer = this;
-    return new FlatMapStream<>(outer, f);
+    return new FlatMapStream<>(outer, f, false);
   }
 
   /**
@@ -839,12 +854,16 @@ public interface VStream<A> extends VStreamKind<A> {
           VStream<A> current = self;
 
           try {
-            while (batch.size() < size) {
-              Step<A> step = Executing.executed(current.pull());
+            Step<A> step = Executing.executed(current.pull());
+            while (true) {
               switch (step) {
                 case Step.Emit<A> e -> {
                   batch.add(e.value());
                   current = e.tail();
+                  if (batch.size() == size) {
+                    return DerivedStream.concatContinuing(
+                        VStream.of(chunkOf(batch)), e.tail().chunk(size));
+                  }
                 }
                 case Step.Skip<A> s -> current = s.tail();
                 case Step.Fail<A> failed -> {
@@ -860,13 +879,12 @@ public interface VStream<A> extends VStreamKind<A> {
                   return VStream.of(chunkOf(batch));
                 }
               }
+              // Between pulls, so a stop here closes only what this run has reached
+              step = Executing.pulledUnlessInterrupted(current);
             }
           } catch (Throwable t) {
             return DerivedStream.handingOnThenEnding(chunksSoFar(batch), t, current);
           }
-
-          VStream<A> remaining = current;
-          return DerivedStream.concatContinuing(VStream.of(chunkOf(batch)), remaining.chunk(size));
         },
         self);
   }
@@ -898,8 +916,8 @@ public interface VStream<A> extends VStreamKind<A> {
           // Pull the first element
           VStream<A> current = self;
           try {
+            Step<A> step = Executing.executed(current.pull());
             while (true) {
-              Step<A> step = Executing.executed(current.pull());
               switch (step) {
                 case Step.Emit<A> e -> {
                   // Start building a chunk with this first element
@@ -915,6 +933,8 @@ public interface VStream<A> extends VStreamKind<A> {
                   return VStream.empty();
                 }
               }
+              // Between pulls, so a stop here closes only what this run has reached
+              step = Executing.pulledUnlessInterrupted(current);
             }
           } catch (Throwable t) {
             return DerivedStream.handingOnThenEnding(List.of(), t, current);
@@ -977,8 +997,10 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Adds an element at the beginning of this stream.
    *
-   * <p>Closing it before the element is read leaves this stream as it is, as {@link
-   * #concat(VStream)} leaves a stream it has not reached.
+   * <p>Closing it leaves this stream as it is until this stream is read, whether the element has
+   * been read or not, as {@link #concat(VStream)} leaves a stream it has not reached. So a {@code
+   * headOption()}, which reads only the element, closes nothing of this stream. Open a resource it
+   * reads with {@link #bracket}, which acquires it only when the stream is read.
    *
    * @param value The element to prepend. Must not be null.
    * @return A new {@code VStream} with the element at the front. Never null.
@@ -986,7 +1008,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VStream<A> prepend(A value) {
     Validation.coreType().requireValue(value, VStream.class, PREPEND);
-    return () -> VTask.succeed(new Step.Emit<>(value, this));
+    return () -> VTask.succeed(new Step.Emit<>(value, DerivedStream.unreached(this)));
   }
 
   /**
@@ -1105,18 +1127,20 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Collects all elements into a list. This is a terminal operation that executes the stream.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)} to
-   * limit the stream first.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example. Use {@link #take(long)} to limit the stream first.
    *
    * @return A {@link VTask} that produces the list of all elements. Never null.
    */
   default VTask<List<A>> toList() {
     return () -> {
+      // Before it starts, so a run on an interrupted thread fails without reading or closing
+      Executing.stopIfInterrupted();
       List<A> result = new ArrayList<>();
       VStream<A> current = this;
       try {
+        Step<A> step = Executing.executed(current.pull());
         while (true) {
-          Step<A> step = Executing.executed(current.pull());
           switch (step) {
             case Step.Emit<A> e -> {
               result.add(e.value());
@@ -1132,6 +1156,8 @@ public interface VStream<A> extends VStreamKind<A> {
               return Collections.unmodifiableList(result);
             }
           }
+          // Between pulls, so a stop here closes only what this run has reached
+          step = Executing.pulledUnlessInterrupted(current);
         }
       } catch (Throwable t) {
         Closing.closeAfterFailure(current, t);
@@ -1176,11 +1202,13 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   private <B> VTask<B> folding(B initial, BiFunction<B, A, B> f, String nullResult) {
     return () -> {
+      // Before it starts, so a run on an interrupted thread fails without reading or closing
+      Executing.stopIfInterrupted();
       B acc = initial;
       VStream<A> current = this;
       try {
+        Step<A> step = Executing.executed(current.pull());
         while (true) {
-          Step<A> step = Executing.executed(current.pull());
           switch (step) {
             case Step.Emit<A> e -> {
               current = e.tail();
@@ -1195,6 +1223,8 @@ public interface VStream<A> extends VStreamKind<A> {
               return acc;
             }
           }
+          // Between pulls, so a stop here closes only what this run has reached
+          step = Executing.pulledUnlessInterrupted(current);
         }
       } catch (Throwable t) {
         Closing.closeAfterFailure(current, t);
@@ -1217,18 +1247,21 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Returns the last element of this stream, or empty if the stream is empty.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example.
    *
    * @return A {@link VTask} that produces the last element wrapped in an {@link Optional}. Never
    *     null.
    */
   default VTask<Optional<A>> lastOption() {
     return () -> {
+      // Before it starts, so a run on an interrupted thread fails without reading or closing
+      Executing.stopIfInterrupted();
       Optional<A> last = Optional.empty();
       VStream<A> current = this;
       try {
+        Step<A> step = Executing.executed(current.pull());
         while (true) {
-          Step<A> step = Executing.executed(current.pull());
           switch (step) {
             case Step.Emit<A> e -> {
               last = Optional.of(e.value());
@@ -1243,6 +1276,8 @@ public interface VStream<A> extends VStreamKind<A> {
               return last;
             }
           }
+          // Between pulls, so a stop here closes only what this run has reached
+          step = Executing.pulledUnlessInterrupted(current);
         }
       } catch (Throwable t) {
         Closing.closeAfterFailure(current, t);
@@ -1254,7 +1289,8 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Counts the number of elements in this stream.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example.
    *
    * @return A {@link VTask} that produces the element count. Never null.
    */
@@ -1314,10 +1350,12 @@ public interface VStream<A> extends VStreamKind<A> {
   default VTask<Unit> forEach(Consumer<? super A> action) {
     Objects.requireNonNull(action, "action must not be null");
     return () -> {
+      // Before it starts, so a run on an interrupted thread fails without reading or closing
+      Executing.stopIfInterrupted();
       VStream<A> current = this;
       try {
+        Step<A> step = Executing.executed(current.pull());
         while (true) {
-          Step<A> step = Executing.executed(current.pull());
           switch (step) {
             case Step.Emit<A> e -> {
               current = e.tail();
@@ -1332,6 +1370,8 @@ public interface VStream<A> extends VStreamKind<A> {
               return Unit.INSTANCE;
             }
           }
+          // Between pulls, so a stop here closes only what this run has reached
+          step = Executing.pulledUnlessInterrupted(current);
         }
       } catch (Throwable t) {
         Closing.closeAfterFailure(current, t);
@@ -1369,7 +1409,12 @@ public interface VStream<A> extends VStreamKind<A> {
    * Step.Fail}, the recovery value takes the failed element's place, and the stream goes on from
    * the next element. After any other failure, such as a {@code map} function that throws or a
    * failed source, the stream ends after the recovery value, and what this stream was reading is
-   * closed. An interrupt ends it in the same way, with the thread's interrupt status set again.
+   * closed.
+   *
+   * <p>A pull that fails with an interrupt, an {@link InterruptedException} bare or as {@link
+   * VTask#run()} wraps it, is not recovered: an interrupt is a stop, not a failure. It passes
+   * through unchanged, so the terminal operation fails with it and closes the stream, and {@code
+   * recoveryFunction} does not see it.
    *
    * <p>The operators between the failed task and this {@code recover} apply to the elements after
    * the failed one as they did to the ones before it, and the failed element holds its place, as an
@@ -1399,9 +1444,12 @@ public interface VStream<A> extends VStreamKind<A> {
           try {
             step = pulled.execute();
           } catch (Throwable error) {
+            if (Executing.isInterrupt(error)) {
+              // A stop, not a failure, so it goes on unchanged, for the holder to close
+              throw error;
+            }
             // The stream itself failed, so it ends here: close what this was reading
             Closing.closeAfterFailure(upstream, error);
-            keepInterrupt(error);
             return new Step.Emit<>(
                 Objects.requireNonNull(
                     recoveryFunction.apply(error), "recoveryFunction must not return null"),
@@ -1428,9 +1476,9 @@ public interface VStream<A> extends VStreamKind<A> {
 
   /**
    * Recovers from a failure by substituting a recovery stream. If an element fails, or a pull
-   * fails, the recovery stream replaces the rest of this stream, which is closed. For an interrupt,
-   * the thread's interrupt status is set again first. A failure of the recovery stream itself is
-   * not recovered.
+   * fails, the recovery stream replaces the rest of this stream, which is closed. A failure of the
+   * recovery stream itself is not recovered, nor is an interrupt, which passes through unchanged,
+   * as {@link #recover} describes.
    *
    * @param recoveryFunction A function that produces a recovery stream from the error. Must not be
    *     null. It must not return null.
@@ -1449,9 +1497,12 @@ public interface VStream<A> extends VStreamKind<A> {
           try {
             step = pulled.execute();
           } catch (Throwable error) {
+            if (Executing.isInterrupt(error)) {
+              // A stop, not a failure, so it goes on unchanged, for the holder to close
+              throw error;
+            }
             // The recovery replaces the rest of the stream, so close what this was reading
             Closing.closeAfterFailure(upstream, error);
-            keepInterrupt(error);
             return recovering(error);
           }
           return switch (step) {
@@ -1481,7 +1532,8 @@ public interface VStream<A> extends VStreamKind<A> {
    * Transforms the error of a failed element, or of a failed pull, using the given function. A
    * failed element keeps its place with the new error, so a {@link #recover} after this goes on
    * from the next element, with this mapping still applied. If {@code f} throws, what it threw
-   * takes the error's place in the same way.
+   * takes the error's place in the same way. An interrupt passes through unmapped, as {@link
+   * #recover} describes.
    *
    * @param f A function that transforms the error. Must not be null. It must not return null.
    * @return A new {@code VStream} with transformed errors. Never null.
@@ -1498,7 +1550,8 @@ public interface VStream<A> extends VStreamKind<A> {
           try {
             step = pulled.execute();
           } catch (Throwable error) {
-            throw mapped(error);
+            // An interrupt is a stop, not a failure, so it goes on unmapped
+            throw Executing.isInterrupt(error) ? error : mapped(error);
           }
           return switch (step) {
             case Step.Emit<A> e -> new Step.Emit<>(e.value(), e.tail().mapError(f));
@@ -1524,7 +1577,8 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Observes the error of a failed element, or of a failed pull, without modifying it. Useful for
    * logging. A {@link #recover} after this goes on with the observer still applied. If the action
-   * throws, what it threw takes the error's place, as {@link #mapError} describes.
+   * throws, what it threw takes the error's place, as {@link #mapError} describes. An interrupt
+   * passes through unchanged, without the action seeing it, as {@link #recover} describes.
    *
    * @param action The action to perform on errors. Must not be null.
    * @return A new {@code VStream} that observes errors. Never null.
@@ -1541,7 +1595,8 @@ public interface VStream<A> extends VStreamKind<A> {
           try {
             step = pulled.execute();
           } catch (Throwable error) {
-            throw observed(error);
+            // An interrupt is a stop, not a failure, so the action does not see it
+            throw Executing.isInterrupt(error) ? error : observed(error);
           }
           return switch (step) {
             case Step.Emit<A> e -> new Step.Emit<>(e.value(), e.tail().onError(action));
@@ -1735,12 +1790,14 @@ public interface VStream<A> extends VStreamKind<A> {
   private static <A, R> R firstStop(
       VStream<A> stream, Function<? super A, ? extends @Nullable R> stop, R atEnd)
       throws Throwable {
+    // Before it starts, so a run on an interrupted thread fails without reading or closing
+    Executing.stopIfInterrupted();
     VStream<A> current = stream;
     R result;
     try {
+      Step<A> step = Executing.executed(current.pull());
       search:
       while (true) {
-        Step<A> step = Executing.executed(current.pull());
         switch (step) {
           case Step.Emit<A> e -> {
             current = e.tail();
@@ -1759,6 +1816,8 @@ public interface VStream<A> extends VStreamKind<A> {
             return atEnd;
           }
         }
+        // Between pulls, so a stop here closes only what this run has reached
+        step = Executing.pulledUnlessInterrupted(current);
       }
     } catch (Throwable t) {
       Closing.closeAfterFailure(current, t);
@@ -1786,7 +1845,8 @@ public interface VStream<A> extends VStreamKind<A> {
           while (true) {
             Step<A> step;
             try {
-              step = Executing.executed(current.pull());
+              // The tail came from this run's own pull, so a stop here closes only what it reached
+              step = Executing.pulledUnlessInterrupted(current);
             } catch (Throwable t) {
               // The chunk so far comes first, then the failure
               return DerivedStream.handingOnThenEnding(List.of(chunkOf(currentChunk)), t, current);
@@ -1826,16 +1886,6 @@ public interface VStream<A> extends VStreamKind<A> {
           }
         },
         tail);
-  }
-
-  /**
-   * Sets the interrupt status again for an interrupt that a recovery stops at, so the caller still
-   * sees it, as a terminal operation does for one it fails with.
-   */
-  private static void keepInterrupt(Throwable failure) {
-    if (Executing.isInterrupt(failure)) {
-      Thread.currentThread().interrupt();
-    }
   }
 
   /** The chunk a batch makes, which the caller has checked holds an element. */
@@ -1907,14 +1957,26 @@ public interface VStream<A> extends VStreamKind<A> {
 /**
  * Stack-safe flatMap implementation. Maintains an inner stream reference and processes steps
  * iteratively within each pull.
+ *
+ * <p>A sub-stream is handed on unreached, so a stop before its first pull leaves it as it is,
+ * unless the stream owns its sub-streams, as {@code VStreamPar.parEvalFlatMap} does, whose batch
+ * built them: closing it then closes a sub-stream it has not reached too.
  */
 final class FlatMapStream<A, B> extends DerivedStream<A, B> {
 
   private final Function<? super A, ? extends VStream<B>> f;
+  private final boolean ownsSubStreams;
 
-  FlatMapStream(VStream<A> outer, Function<? super A, ? extends VStream<B>> f) {
+  FlatMapStream(
+      VStream<A> outer, Function<? super A, ? extends VStream<B>> f, boolean ownsSubStreams) {
     super(outer);
     this.f = f;
+    this.ownsSubStreams = ownsSubStreams;
+  }
+
+  /** The flattening of what follows, which owns its sub-streams as this one does. */
+  private FlatMapStream<A, B> rest(VStream<A> tail) {
+    return new FlatMapStream<>(tail, f, ownsSubStreams);
   }
 
   @Override
@@ -1927,11 +1989,14 @@ final class FlatMapStream<A, B> extends DerivedStream<A, B> {
                     Closing.applyNonNullOrClose(
                         f, e.value(), e.tail(), "flatMap function returned null stream");
                 yield VTask.succeed(
-                    new Step.Skip<>(DerivedStream.concatContinuing(inner, e.tail().flatMap(f))));
+                    new Step.Skip<>(
+                        ownsSubStreams
+                            ? DerivedStream.concatContinuing(inner, rest(e.tail()))
+                            : DerivedStream.concatContinuingUnreached(inner, rest(e.tail()))));
               }
-              case Step.Skip<A> s -> VTask.succeed(new Step.Skip<>(s.tail().flatMap(f)));
+              case Step.Skip<A> s -> VTask.succeed(new Step.Skip<>(rest(s.tail())));
               case Step.Fail<A> failed ->
-                  VTask.succeed(new Step.Fail<>(failed.error(), failed.tail().flatMap(f)));
+                  VTask.succeed(new Step.Fail<>(failed.error(), rest(failed.tail())));
               case Step.Done<A> _ -> VTask.succeed(new Step.Done<>());
             });
   }
@@ -2135,7 +2200,12 @@ final class InterleaveStream<A> implements VStream<A> {
                           new Step.Fail<>(
                               failed.error(),
                               new InterleaveStream<>(second, failed.tail(), reading.next()));
-                      case Step.Done<A> _ -> new Step.Skip<>(second);
+                      // Before either has been read, the second stream is handed on unreached
+                      case Step.Done<A> _ ->
+                          new Step.Skip<>(
+                              reading == Closing.Reading.NEITHER
+                                  ? DerivedStream.unreached(second)
+                                  : second);
                     });
     if (reading != Closing.Reading.ONE) {
       return pulled;

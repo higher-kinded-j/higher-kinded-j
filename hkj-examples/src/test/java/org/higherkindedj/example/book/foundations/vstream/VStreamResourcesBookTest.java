@@ -386,6 +386,20 @@ class VStreamResourcesBookTest {
     }
 
     @Test
+    @DisplayName(
+        "a stream the run never reaches is left as it is, unless the finaliser is after it")
+    void unreachedStreamLeftAlone() {
+      List<String> ran = new CopyOnWriteArrayList<>();
+      VStream<Integer> second = VStream.of(2).onFinalize(VTask.exec(() -> ran.add("second")));
+
+      VStream.of(1).concat(second).headOption().run();
+      second.prepend(0).headOption().run();
+      second.prepend(0).onFinalize(VTask.exec(() -> ran.add("after prepend"))).headOption().run();
+
+      assertThat(ran).containsExactly("after prepend");
+    }
+
+    @Test
     @DisplayName("closing a stream that was never pulled runs its finalisers")
     void closingUnpulledRunsFinalisers() {
       customers(orders(new PagedFeed(ORDERS))).close().run();

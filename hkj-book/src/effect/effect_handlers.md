@@ -165,12 +165,14 @@ IO<String> result = IOKindHelper.IO_OP.narrow(
     program.foldMap(consoleInterp, Instances.monad(io())));
 ```
 
-~~~admonish warning title="Monad Transformer Limitation"
-`foldMap` uses an eager optimisation that discards the monadic context for strict target
-monads. Interpreters targeting `Id`-based transformers (e.g. `WriterT<Id, W, A>`) will
-silently lose accumulated state like log entries. Use a lazy outer monad (`WriterT<IO, ...>`)
-or mutable recording interpreters instead. See the [Free Monad](../monads/free_monad.md)
-chapter for details and workarounds.
+~~~admonish note title="What foldMap Keeps"
+`foldMap` hands each instruction's whole value to the target monad: a `Writer`'s log, a `List`'s
+other elements, an `EitherOrBoth`'s warnings. A deep program runs into `Id`, `Either`, `Writer`,
+`EitherOrBoth`, `State` or `IO` without overflowing the stack.
+
+Two things still deepen the stack. An instruction that gives several results, such as a `List` of
+two, runs the rest of the program once for each. A `Reader` nests one call for each instruction when
+you run it.
 ~~~
 
 ## Error Recovery

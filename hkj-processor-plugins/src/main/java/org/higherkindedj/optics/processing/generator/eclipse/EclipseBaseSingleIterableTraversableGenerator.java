@@ -156,7 +156,11 @@ public abstract class EclipseBaseSingleIterableTraversableGenerator
     return CodeBlock.of("$T.$L.ofAll(newList)", api, mutability());
   }
 
-  /** The factory's {@code immutable} or {@code mutable} member, as the target collection needs. */
+  /**
+   * The factory's member that the target collection needs.
+   *
+   * @return {@code "immutable"} or {@code "mutable"}
+   */
   protected final String mutability() {
     return immutable ? "immutable" : "mutable";
   }

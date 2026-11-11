@@ -154,12 +154,12 @@ Use these expectations to identify potential problems in benchmark results:
 
 | Metric | Expected | Explanation |
 |--------|----------|-------------|
-| Deep recursion (10,000+) | Completes without error | Stack-safe trampolining |
+| Deep recursion (10,000+) | Completes without error | Trampoline and `Free.foldMap` run in a loop |
 | Performance scaling | Linear with depth | No exponential blowup |
 | `factorialTrampoline` vs `factorialNaive` | Similar at depth 100 | Trampoline overhead minimal |
 
 **Warning signs:**
-- StackOverflowError at any depth indicates broken trampolining
+- StackOverflowError at any depth indicates a broken loop
 - Non-linear scaling suggests memory leak or quadratic complexity
 
 ### Parallel Combinators (Par)

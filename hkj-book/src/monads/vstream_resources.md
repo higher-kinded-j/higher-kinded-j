@@ -137,6 +137,7 @@ A `use` such as `connection -> orders(connection).concat(next)` instead keeps th
 ```
 
 - **A finaliser runs once for each run**, when the run completes, fails, or is closed early by an operation that stops.
+- **A stream the run never reaches is left as it is.** When a run stops before it reads `concat`'s second stream, `flatMap`'s stream for an element or the stream after `prepend`'s element, that stream's finaliser does not run. To run one regardless, attach it after the `concat` or `prepend`.
 - **Several finalisers run in the order they were attached.**
 - **After a recovered failure, the finaliser runs when the stream ends.** When a `recover` reads on after a failed `mapTask` task, the run goes on, and the finaliser waits for its end.
 - **A failing finaliser is reported as a failing release is**, as [When something fails](#when-something-fails) shows. When several fail, the others still run, the first one's exception is thrown, and each later one is suppressed onto it.

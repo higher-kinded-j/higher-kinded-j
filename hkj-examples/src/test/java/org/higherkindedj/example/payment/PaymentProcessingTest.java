@@ -7,12 +7,18 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 
 import java.math.BigDecimal;
 import org.higherkindedj.example.payment.effect.PaymentEffectsWiring;
+import org.higherkindedj.example.payment.interpreter.AuditFraudInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditGatewayInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditLedgerInterpreter;
+import org.higherkindedj.example.payment.interpreter.AuditNotificationInterpreter;
 import org.higherkindedj.example.payment.interpreter.CapturingNotificationInterpreter;
 import org.higherkindedj.example.payment.interpreter.FailingGatewayInterpreter;
 import org.higherkindedj.example.payment.interpreter.FixedRiskInterpreter;
 import org.higherkindedj.example.payment.interpreter.InMemoryLedgerInterpreter;
 import org.higherkindedj.example.payment.interpreter.QuoteGatewayInterpreter;
 import org.higherkindedj.example.payment.interpreter.RecordingGatewayInterpreter;
+import org.higherkindedj.example.payment.model.AuditLog;
+import org.higherkindedj.example.payment.model.AuditLogMonoid;
 import org.higherkindedj.example.payment.model.Customer;
 import org.higherkindedj.example.payment.model.CustomerId;
 import org.higherkindedj.example.payment.model.Money;
@@ -20,9 +26,13 @@ import org.higherkindedj.example.payment.model.PaymentMethod;
 import org.higherkindedj.example.payment.model.PaymentResult;
 import org.higherkindedj.example.payment.model.RiskScore;
 import org.higherkindedj.example.payment.service.PaymentService;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.eitherf.Interpreters;
+import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.writer_t.WriterT;
+import org.higherkindedj.hkt.writer_t.WriterTKindHelper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,7 +41,8 @@ import org.junit.jupiter.api.Test;
  * Comprehensive tests for the Payment Processing example.
  *
  * <p>Demonstrates testing without mocks: each test uses purpose-built interpreters that target the
- * Id monad for pure, synchronous execution. No mock frameworks, no reflection, no side effects.
+ * Id monad, or WriterT over it for the audit trail, for pure, synchronous execution. No mock
+ * frameworks, no reflection, no side effects.
  */
 @DisplayName("Payment Processing")
 class PaymentProcessingTest {
@@ -270,6 +281,36 @@ class PaymentProcessingTest {
       assertThat(ledger.entries()).isEmpty();
       // No receipt should be sent for a failed charge
       assertThat(notification.receipts()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Audit Interpretation")
+  class AuditInterpretation {
+
+    @Test
+    @DisplayName("should log every operation in order with WriterT over Id")
+    void logsEveryOperation() {
+      var service = PaymentService.create();
+      var program = service.processPayment(CUSTOMER, TEN_POUNDS, VISA);
+      var interpreter =
+          Interpreters.combine(
+              new AuditGatewayInterpreter(),
+              new AuditFraudInterpreter(),
+              new AuditLedgerInterpreter(),
+              new AuditNotificationInterpreter());
+      var audit = Instances.writerT(Instances.monad(id()), AuditLogMonoid.INSTANCE);
+
+      WriterT<IdKind.Witness, AuditLog, PaymentResult> written =
+          WriterTKindHelper.WRITER_T.narrow(
+              PaymentEffectsWiring.interpret(program, interpreter, audit));
+      Pair<PaymentResult, AuditLog> run = IdKindHelper.ID.narrow(written.run()).value();
+
+      assertThat(run.first()).isInstanceOf(PaymentResult.Approved.class);
+      assertThat(run.second().entries())
+          .extracting(entry -> entry.substring(0, entry.indexOf(']') + 1))
+          .containsExactly(
+              "[FRAUD_CHECK]", "[LEDGER_BALANCE]", "[CHARGE]", "[LEDGER_RECORD]", "[SEND_RECEIPT]");
     }
   }
 

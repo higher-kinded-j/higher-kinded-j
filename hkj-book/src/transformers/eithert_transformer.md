@@ -277,7 +277,7 @@ var workflow = For.from(eitherTMonad, EitherT.fromEither(futureMonad, validateSy
 
 ~~~admonish example title="Error Recovery"
 
-- [OrderWorkflowRunner.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/order/workflow/OrderWorkflowRunner.java)
+- [Tutorial01_WhenPathIsNotEnough_Solution.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/solutions/transformers/Tutorial01_WhenPathIsNotEnough_Solution.java), Exercise 6
 
 **The problem:** a shipping step might fail with a temporary error, and you want to recover by using a default shipping option rather than failing the entire workflow.
 
