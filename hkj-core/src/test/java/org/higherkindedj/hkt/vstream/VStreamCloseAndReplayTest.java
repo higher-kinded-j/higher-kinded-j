@@ -368,16 +368,24 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("prepend reaches the upstream finaliser once its own element is read")
-    void prependReachesUpstreamAfterItsElement() {
+    @DisplayName(
+        "prepend reaches the upstream finaliser once the upstream is read, and leaves it alone"
+            + " before, as concat does")
+    void prependReachesUpstreamOnceItIsRead() {
       AtomicInteger taken = new AtomicInteger();
       AtomicInteger head = new AtomicInteger();
+      AtomicInteger one = new AtomicInteger();
+      AtomicInteger concatenated = new AtomicInteger();
 
       finalised(taken).prepend(0).drop(1).take(1).toList().run();
       finalised(head).prepend(0).headOption().run();
+      finalised(one).prepend(0).take(1).toList().run();
+      VStream.of(0).concat(finalised(concatenated)).headOption().run();
 
       assertThat(taken).hasValue(1);
-      assertThat(head).hasValue(1);
+      assertThat(head).as("upstream never read").hasValue(0);
+      assertThat(one).as("upstream never read, through take").hasValue(0);
+      assertThat(concatenated).as("the same stream through concat").hasValue(0);
     }
 
     @Test

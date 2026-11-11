@@ -321,7 +321,7 @@ public record PaymentEffects(
 
 ## foldMap
 
-**Definition:** The method that interprets a Free monad program by traversing its instruction tree, applying a natural transformation (interpreter) to each `Suspend` node, and combining results using the target monad's `flatMap`. Stack-safe via internal trampolining.
+**Definition:** The method that interprets a Free monad program by traversing its instruction tree, applying a natural transformation (interpreter) to each `Suspend` node, and combining results using the target monad's `flatMap`. It keeps each instruction's whole value, such as a `Writer`'s log, and a deep program runs into a monad such as `Id`, `Writer` or `IO` without overflowing the stack.
 
 **Example:**
 <!-- verify -->

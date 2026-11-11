@@ -10,3 +10,8 @@ dependencies {
     api(project(":hkj-core")) // the library, and no annotation processor
 }
 // ANCHOR_END: api_build
+
+// An example, never published: its API documentation is not generated, as in hkj-examples.
+tasks.named("javadoc") {
+    enabled = false
+}

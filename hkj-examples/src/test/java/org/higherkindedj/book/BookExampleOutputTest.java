@@ -146,8 +146,11 @@ class BookExampleOutputTest {
           Map.entry("BoundaryCapstoneBook", 4),
           Map.entry("CompletableFutureBook", 4),
           Map.entry("ConfigOptics", 6),
+          Map.entry("ConstBook", 4),
           Map.entry("ContextBook", 7),
+          Map.entry("CoyonedaBook", 5),
           Map.entry("EitherBook", 5),
+          Map.entry("EitherFBook", 4),
           Map.entry("EitherOrBothBook", 12),
           Map.entry("EitherOrBothPathBook", 6),
           Map.entry("EncodingBook", 2),
@@ -157,9 +160,12 @@ class BookExampleOutputTest {
           Map.entry("ForOpticsBook", 7),
           Map.entry("ForStateBook", 5),
           Map.entry("FoundationsIntroBook", 3),
+          Map.entry("FreeApplicativeBook", 8),
+          Map.entry("FreeBook", 6),
           Map.entry("FunctorBook", 3),
           Map.entry("GenericsBook", 4),
           Map.entry("IOBook", 4),
+          Map.entry("IdentityBook", 5),
           Map.entry("JsonApiBook", 4),
           Map.entry("LazyBook", 8),
           Map.entry("ListBook", 4),
@@ -190,6 +196,7 @@ class BookExampleOutputTest {
           Map.entry("StreamBook", 5),
           Map.entry("StructureBook", 11),
           Map.entry("TiersBook", 3),
+          Map.entry("TrampolineBook", 4),
           Map.entry("TryBook", 10),
           Map.entry("ValidatedAssemblyBook", 3),
           Map.entry("ValidatedBook", 10),
@@ -306,7 +313,7 @@ class BookExampleOutputTest {
    * The number of runnable examples must never fall below this. Deleting a {@code main}, or moving
    * an example out of the book package, would otherwise quietly shrink what this gate covers.
    */
-  private static final int MINIMUM_RUNNABLE_EXAMPLES = 73;
+  private static final int MINIMUM_RUNNABLE_EXAMPLES = 80;
 
   private static Example exampleOf(Path source) {
     String text = read(source);

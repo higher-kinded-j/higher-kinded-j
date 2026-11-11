@@ -18,7 +18,10 @@ public class ResponseErrorDecodeException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
+  /** The status of the response that could not be decoded. */
   private final transient HttpStatusCode status;
+
+  /** The raw response body, or {@code null} when absent. */
   private final @Nullable String responseBody;
 
   /**

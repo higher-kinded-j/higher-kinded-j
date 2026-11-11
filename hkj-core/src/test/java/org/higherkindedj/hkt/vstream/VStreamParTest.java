@@ -1487,8 +1487,9 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("merge() wraps InterruptedException when consumer thread is interrupted")
-    void mergeWrapsInterruptedException() throws InterruptedException {
+    @DisplayName(
+        "merge() fails with the InterruptedException when the consumer thread is interrupted")
+    void mergeFailsWithTheInterruptedException() throws InterruptedException {
       CountDownLatch subtaskStarted = new CountDownLatch(1);
 
       // Stream whose pull blocks indefinitely, signalling when started
@@ -1526,9 +1527,10 @@ class VStreamParTest {
       worker.interrupt();
       assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
 
+      // run() wraps the InterruptedException, as it wraps any checked one
       assertThat(caught.get())
-          .isInstanceOf(RuntimeException.class)
-          .hasMessageContaining("Merge interrupted");
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(InterruptedException.class);
     }
 
     @Test
@@ -2346,9 +2348,10 @@ class VStreamParTest {
       worker.interrupt();
       assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
 
+      // run() wraps the InterruptedException, as it wraps any checked one
       assertThat(caught.get())
-          .isInstanceOf(RuntimeException.class)
-          .hasMessageContaining("Merge interrupted");
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(InterruptedException.class);
     }
 
     @Test
@@ -2489,18 +2492,18 @@ class VStreamParTest {
                       }));
 
       try {
-        List<Integer> read =
+        // headOption closes the merge after the first element, without pulling again
+        Optional<Integer> read =
             VStreamPar.merge(source, VStream.<Integer>empty())
                 .map(
                     i -> {
                       Thread.currentThread().interrupt();
                       return i;
                     })
-                .take(1)
-                .toList()
+                .headOption()
                 .run();
 
-        assertThat(read).containsExactly(1);
+        assertThat(read).contains(1);
         assertThat(finalised).as("the source closed before close() returned").isTrue();
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {

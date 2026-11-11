@@ -53,7 +53,12 @@ public class ValidatedDeserializer extends StdDeserializer<Validated<?, ?>> {
     this(null, null);
   }
 
-  /** Creates a deserialiser bound to resolved error/value types. */
+  /**
+   * Creates a deserialiser bound to resolved error/value types.
+   *
+   * @param errorType the resolved type of the error, or {@code null} for a raw read
+   * @param valueType the resolved type of the value, or {@code null} for a raw read
+   */
   @SuppressWarnings("unchecked")
   public ValidatedDeserializer(JavaType errorType, JavaType valueType) {
     super((Class<Validated<?, ?>>) (Class<?>) Validated.class);

@@ -31,6 +31,9 @@ import tools.jackson.databind.json.JsonMapper;
 @EnableConfigurationProperties(HkjClientProperties.class)
 public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
 
+  /** Creates the auto-configuration; Spring Boot instantiates it. */
+  public HkjClientAutoConfiguration() {}
+
   private @Nullable ClassLoader beanClassLoader;
 
   @Override

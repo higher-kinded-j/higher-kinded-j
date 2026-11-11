@@ -311,6 +311,6 @@ Free<F, A> programWithRecovery = riskyProgram.handleError(
 
 ## Key Warnings
 
-1. **Monad transformer limitation**: `foldMap` uses an eager optimisation that discards monadic context for strict target monads. Use lazy outer monads (`WriterT<IO, ...>`) instead of `WriterT<Id, ...>`.
+1. **Two things deepen the stack**: `foldMap` keeps a `Writer`'s log, a `List`'s other elements and an `EitherOrBoth`'s warnings, and a deep program runs into `Id`, `Either`, `WriterT<Id, ...>`, `State` or `IO` without overflowing. An instruction that gives several results, such as a `List` of two, runs the rest once per result, and a `Reader` or `ReaderT` target nests one call per instruction when it runs.
 2. **CPS continuation is required**: Every record must have a `Function<ResultType, A> k` parameter and implement `mapK`.
 3. **Exhaustive handling**: The generated interpreter skeleton has one abstract method per record variant. The compiler enforces that all operations are handled.

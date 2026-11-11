@@ -41,8 +41,8 @@ public enum FunctionValidator {
   /**
    * Generic function validation with class-based context.
    *
-   * @param function The function to validate
-   * @param functionName The name of the function parameter
+   * @param parameter The function to validate
+   * @param parameterName The name of the function parameter
    * @param operation The operation name
    * @param <T> The function type
    * @return The validated function

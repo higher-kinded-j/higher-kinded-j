@@ -422,13 +422,8 @@ class VStreamBracketTest {
       VStream<String> stream =
           VStream.bracket(
               VTask.succeed("connection"),
-              _ ->
-                  VStream.of("a")
-                      .map(
-                          a -> {
-                            Thread.currentThread().interrupt();
-                            return a;
-                          }),
+              // The pull that reaches the end sets the status, so no pull comes after it
+              _ -> VStream.of("a").onComplete(() -> Thread.currentThread().interrupt()),
               _ -> blockingRelease(released));
 
       try {
@@ -457,7 +452,8 @@ class VStreamBracketTest {
                   });
 
       try {
-        assertThat(stream.take(1).toList().run()).containsExactly(1);
+        // headOption closes the rest after the first element, without pulling again
+        assertThat(stream.headOption().run()).contains(1);
         assertThat(finalized).isTrue();
         assertThat(Thread.currentThread().isInterrupted()).isTrue();
       } finally {

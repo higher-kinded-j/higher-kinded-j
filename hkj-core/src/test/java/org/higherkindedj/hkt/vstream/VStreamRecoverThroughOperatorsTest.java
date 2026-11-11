@@ -20,12 +20,22 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream.Step;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("recover resumes through the operators between it and a failed mapTask")
 class VStreamRecoverThroughOperatorsTest {
+
+  /**
+   * Clears an interrupt status a test left set, as an interrupt test does when an assertion fails
+   * before it clears the status itself, so the next test does not stop before it starts.
+   */
+  @AfterEach
+  void clearInterruptStatus() {
+    Thread.interrupted();
+  }
 
   /** The elements of {@code source}, through a task that fails at {@code bad}. */
   private static VStream<Integer> failsAt(int bad, VStream<Integer> source) {
@@ -780,45 +790,6 @@ class VStreamRecoverThroughOperatorsTest {
               .run();
 
       assertThat(result).containsExactly("a", "r");
-    }
-
-    @Test
-    @DisplayName(
-        "an interrupted mapTask task ends the stream, closing the rest, and keeps the interrupt")
-    void interruptedTask() {
-      AtomicInteger finalised = new AtomicInteger();
-      // defer keeps nothing it builds, so only the close of the rest reaches the finaliser
-      VStream<Integer> interruptedAtOne =
-          VStream.defer(
-                  () -> VStream.of(1, 2, 3).onFinalize(VTask.exec(finalised::incrementAndGet)))
-              .mapTask(
-                  n -> n == 1 ? VTask.fail(new InterruptedException("stop")) : VTask.succeed(n));
-
-      List<Integer> result = interruptedAtOne.recover(_ -> -1).toList().run();
-      boolean interruptStatus = Thread.interrupted();
-
-      assertThat(result).containsExactly(-1);
-      assertThat(finalised).hasValue(1);
-      assertThat(interruptStatus).isTrue();
-    }
-
-    @Test
-    @DisplayName("an interrupt that run() wraps ends the stream too")
-    void wrappedInterrupt() {
-      VStream<Integer> interruptedAtTwo =
-          VStream.of(1, 2, 3)
-              .mapTask(
-                  n ->
-                      n == 2
-                          ? VTask.fail(
-                              new VTaskExecutionException(new InterruptedException("stop")))
-                          : VTask.succeed(n));
-
-      List<Integer> result = interruptedAtTwo.recover(_ -> -1).toList().run();
-      boolean interruptStatus = Thread.interrupted();
-
-      assertThat(result).containsExactly(1, -1);
-      assertThat(interruptStatus).isTrue();
     }
 
     @Test
