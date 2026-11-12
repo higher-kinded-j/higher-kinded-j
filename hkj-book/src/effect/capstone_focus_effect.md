@@ -187,14 +187,14 @@ As a rule of thumb: use optics for *where* the data lives (structure), and strea
 The railway diagram for this pipeline:
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════●════════════════●══════════●══════════●═══▶  Company</span>
-    <span style="color:#4CAF50">       findDept    focus(manager)   focus(contact)   via        map</span>
-    <span style="color:#4CAF50">                                                 (validate)  (setAll)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●══════════════●════════════════●══════════●══════════●═══▶  Company</span>
+    <span class="hkj-rail-ok">       findDept    focus(manager)   focus(contact)   via        map</span>
+    <span class="hkj-rail-ok">                                                 (validate)  (setAll)</span>
                             ╲
                              ╲  absent: NoManager
                               ╲
-    <span style="color:#F44336"><b>Failure</b> ───●──────────────●───────────────────────────●──────────────▶  DirectoryError</span>
-    <span style="color:#F44336">     DeptNotFound     NoManager                 InvalidEmail</span>
+    <span class="hkj-rail-err"><b>Failure</b> ───●──────────────●───────────────────────────●──────────────▶  DirectoryError</span>
+    <span class="hkj-rail-err">     DeptNotFound     NoManager                 InvalidEmail</span>
 </pre>
 
 Let's trace what the pipeline does, step by step:

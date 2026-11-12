@@ -19,6 +19,8 @@ A circuit breaker solves this by tracking recent failures and, when enough accum
 
 ```mermaid
 stateDiagram-v2
+    accTitle: The circuit breaker's three states
+    accDescr: The breaker starts CLOSED, where a success resets the failure count. When consecutive failures reach failureThreshold, it moves to OPEN, where calls are rejected at once with CircuitOpenException. When openDuration expires, it moves to HALF_OPEN. From there it returns to CLOSED when successThreshold probes succeed, and to OPEN when any probe fails.
     direction LR
     [*] --> CLOSED
     CLOSED --> OPEN : consecutive failures reach failureThreshold

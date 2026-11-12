@@ -420,6 +420,8 @@ The whole leg, end to end. The switching happens in `ValidationPathReturnValueHa
 
 ```mermaid
 sequenceDiagram
+    accTitle: How a validated result becomes a response
+    accDescr: The client posts to /api/users/parse, and Jackson binds a UserDto of strings and nulls. UserController calls parse on UserMappingImpl, which returns a Validated holding either a NonEmptyList of FieldError or a User. The controller returns it as it is, and ValidationPathReturnValueHandler turns it into the response. A Valid user gives 200 OK with the User. An Invalid whose every error is a located FieldError gives 422, with each error rendered by its path. An Invalid with mixed or non-FieldError errors gives 400, the generic validation response.
     actor Client
     participant C@{ "type": "control" } as UserController
     participant M@{ "type": "boundary" } as UserMappingImpl

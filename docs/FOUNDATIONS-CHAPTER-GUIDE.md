@@ -154,6 +154,10 @@ encoding, a type class, a call), and the `domain` class (`fill:#a6d189,stroke:#4
 marks a type a reader holds (a core type, an Effect Path). Errors and decisions take the Style Guide's
 `error` and `decision` classes.
 
+The chapter is held to the Style Guide's [Diagram Law](STYLE-GUIDE.md#the-diagram-law), so
+`hkj-book/check.sh` fails an SVG, line art outside an accessible `<pre>`, and a flowchart or state
+node whose class sets no fill or no text colour.
+
 The type class hierarchy is drawn once, on the
 [Type Classes introduction](../hkj-book/src/functional/ch_intro.md), where
 `BookTypeClassHierarchyTest` generates it from `hkj-api`. A page that needs the hierarchy links to

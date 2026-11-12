@@ -40,18 +40,18 @@ Every enterprise application juggles multiple concerns: typed errors, optional l
 Your service method can fail in multiple, domain-specific ways: insufficient funds, account suspended, gateway timeout. Traditional Java forces a choice between checked exceptions (verbose, uncompilable in lambdas) and unchecked exceptions (invisible, unsafe). Neither option composes cleanly across a multi-step pipeline.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●══════════●══════════●══════════●═══▶  Confirmation</span>
-    <span style="color:#4CAF50">          right      via        via       map</span>
-    <span style="color:#4CAF50">        (account)  (validate)  (charge)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●══════════●══════════●══════════●═══▶  Confirmation</span>
+    <span class="hkj-rail-ok">          right      via        via       map</span>
+    <span class="hkj-rail-ok">        (account)  (validate)  (charge)</span>
                       ╲            ╲
                        ╲            ╲  error: switch tracks
                         ╲            ╲
-    <span style="color:#F44336"><b>Failure</b> ────────────●────────────●──────────────▶  PaymentError</span>
-    <span style="color:#F44336">              InsufficientFunds  GatewayTimeout</span>
+    <span class="hkj-rail-err"><b>Failure</b> ────────────●────────────●──────────────▶  PaymentError</span>
+    <span class="hkj-rail-err">              InsufficientFunds  GatewayTimeout</span>
                                         │
-                                   <span style="color:#4CAF50">recoverWith</span>    circuit-breaker: retry once
+                                   <span class="hkj-rail-ok">recoverWith</span>    circuit-breaker: retry once
                                         │
-    <span style="color:#4CAF50">                                    ●═══▶  retried Confirmation</span>
+    <span class="hkj-rail-ok">                                    ●═══▶  retried Confirmation</span>
 </pre>
 
 ### The solution
@@ -132,22 +132,22 @@ PaymentConfirmation processPayment(PaymentRequest request) {
 You need to resolve a value from multiple sources with a defined priority: first check the database, then the environment, then fall back to defaults. Each source might return nothing. With `Optional`, you end up with nested `flatMap` chains that obscure the fallback logic.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Present</b>  ═══●═══════════════════════════════════════▶  Config</span>
-    <span style="color:#4CAF50">         database</span>
+    <span class="hkj-rail-ok"><b>Present</b>  ═══●═══════════════════════════════════════▶  Config</span>
+    <span class="hkj-rail-ok">         database</span>
                 ╲
                  ╲  nothing: try next source
                   ╲
-    <span style="color:#F44336"><b>Absent</b></span>   ─────●
-                  │ <span style="color:#4CAF50">orElse</span>
-    <span style="color:#4CAF50"><b>Present</b>  ═════●═════════════════════════════════════▶  Config</span>
-    <span style="color:#4CAF50">         environment</span>
+    <span class="hkj-rail-err"><b>Absent</b></span>   ─────●
+                  │ <span class="hkj-rail-ok">orElse</span>
+    <span class="hkj-rail-ok"><b>Present</b>  ═════●═════════════════════════════════════▶  Config</span>
+    <span class="hkj-rail-ok">         environment</span>
                   ╲
                    ╲  nothing: try next source
                     ╲
-    <span style="color:#F44336"><b>Absent</b></span>   ───────●
-                    │ <span style="color:#4CAF50">orElse</span>
-    <span style="color:#4CAF50"><b>Present</b>  ═══════●═══════════════════════════════════▶  Config</span>
-    <span style="color:#4CAF50">          defaults (guaranteed)</span>
+    <span class="hkj-rail-err"><b>Absent</b></span>   ───────●
+                    │ <span class="hkj-rail-ok">orElse</span>
+    <span class="hkj-rail-ok"><b>Present</b>  ═══════●═══════════════════════════════════▶  Config</span>
+    <span class="hkj-rail-ok">          defaults (guaranteed)</span>
 </pre>
 
 ### The solution
@@ -201,23 +201,23 @@ if (config == null) {
 A REST API receives a request body with multiple fields. Each field has its own validation rules. The caller expects *all* validation failures in a single response, not one at a time. The Service Stack's short-circuit behaviour is wrong here; you need error accumulation.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50">validateName ════●═══╗</span>
-    <span style="color:#4CAF50">                     ║</span>
-    <span style="color:#4CAF50">validateEmail ═══●═══╬═══ zipWith3Accum ═══●═══▶  Registration</span>
-    <span style="color:#4CAF50">                     ║</span>
-    <span style="color:#4CAF50">validateAge ═════●═══╝</span>
+    <span class="hkj-rail-ok">validateName ════●═══╗</span>
+    <span class="hkj-rail-ok">                     ║</span>
+    <span class="hkj-rail-ok">validateEmail ═══●═══╬═══ zipWith3Accum ═══●═══▶  Registration</span>
+    <span class="hkj-rail-ok">                     ║</span>
+    <span class="hkj-rail-ok">validateAge ═════●═══╝</span>
 
     If any fail, errors <b>accumulate</b> (not short-circuit):
 
-    <span style="color:#F44336">validateName ────●───╗</span>
-    <span style="color:#F44336">  "Name too short"   ║</span>
-    <span style="color:#F44336">                     ╠═══ zipWith3Accum ═══●═══▶  List[err1, err2]</span>
-    <span style="color:#F44336">validateEmail ───●───╝</span>
-    <span style="color:#F44336">  "Invalid email"</span><span style="color:#4CAF50">    ║</span>
-    <span style="color:#4CAF50">                     ║</span>
-    <span style="color:#4CAF50">validateAge ═════●═══╝</span>
-    <span style="color:#4CAF50">  (valid, but still</span>
-    <span style="color:#4CAF50">   collected with errors)</span>
+    <span class="hkj-rail-err">validateName ────●───╗</span>
+    <span class="hkj-rail-err">  "Name too short"   ║</span>
+    <span class="hkj-rail-err">                     ╠═══ zipWith3Accum ═══●═══▶  List[err1, err2]</span>
+    <span class="hkj-rail-err">validateEmail ───●───╝</span>
+    <span class="hkj-rail-err">  "Invalid email"</span><span class="hkj-rail-ok">    ║</span>
+    <span class="hkj-rail-ok">                     ║</span>
+    <span class="hkj-rail-ok">validateAge ═════●═══╝</span>
+    <span class="hkj-rail-ok">  (valid, but still</span>
+    <span class="hkj-rail-ok">   collected with errors)</span>
 </pre>
 
 ### The solution
@@ -340,13 +340,13 @@ ProductPage buildProductPage(TenantContext ctx) {
 Financial regulations require every step in a transaction to produce an audit entry. The audit log must be accumulated alongside the computation, not scattered across side-effecting logger calls that are invisible in the type system and easily forgotten.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Value</b>   ═══●══════════════●══════════════●═══▶  TransferResult</span>
-    <span style="color:#4CAF50">         debit          credit         map</span>
+    <span class="hkj-rail-ok"><b>Value</b>   ═══●══════════════●══════════════●═══▶  TransferResult</span>
+    <span class="hkj-rail-ok">         debit          credit         map</span>
                │              │
                ▼ <i>siding</i>       ▼ <i>siding</i>
-    <span style="color:#FFB300"><b>Log</b>     ───●──────────────●──────────────────▶  [DEBIT, CREDIT]</span>
-    <span style="color:#FFB300">       [DEBIT ...]    [CREDIT ...]</span>
-    <span style="color:#FFB300">                 accumulated via Monoid</span>
+    <span class="hkj-rail-warn"><b>Log</b>     ───●──────────────●──────────────────▶  [DEBIT, CREDIT]</span>
+    <span class="hkj-rail-warn">       [DEBIT ...]    [CREDIT ...]</span>
+    <span class="hkj-rail-warn">                 accumulated via Monoid</span>
 </pre>
 
 ### The solution

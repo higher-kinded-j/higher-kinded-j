@@ -101,13 +101,13 @@ The state flows from one operation to the next through `flatMap`. If any operati
 ## The Railway View
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Value</b>   ═══●═══════════●═══════════●═══════════●═══▶  result A (in F)</span>
-    <span style="color:#4CAF50">           push(10)    push(20)    pop         pop</span>
-    <span style="color:#4CAF50">           (flatMap)   (flatMap)   (flatMap)   (flatMap)</span>
+    <span class="hkj-rail-ok"><b>Value</b>   ═══●═══════════●═══════════●═══════════●═══▶  result A (in F)</span>
+    <span class="hkj-rail-ok">           push(10)    push(20)    pop         pop</span>
+    <span class="hkj-rail-ok">           (flatMap)   (flatMap)   (flatMap)   (flatMap)</span>
                │           │           │           │
                ▼           ▼           ▼           ▼
-    <span style="color:#2196F3"><b>State</b>   ═══●═══════════●═══════════●═══════════●═══▶  final state S</span>
-    <span style="color:#2196F3">           [10]        [20,10]     [10]        []</span>
+    <span class="hkj-rail-info"><b>State</b>   ═══●═══════════●═══════════●═══════════●═══▶  final state S</span>
+    <span class="hkj-rail-info">           [10]        [20,10]     [10]        []</span>
 </pre>
 
 Both tracks advance in lockstep: each `flatMap` produces a new `(value, state)` pair. Calling `runStateT(initialState)` at the boundary kicks the whole computation off and yields the final state alongside the result. If the outer monad `F` short-circuits (here `Optional.empty()` on an empty pop), subsequent steps are skipped and both tracks freeze.

@@ -99,18 +99,18 @@ Same four steps. No manual error propagation. If any step returns `Left`, subseq
 ## The Railway View
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Right</b>  ═══●══════════●══════════●══════════●═══▶  Receipt</span>
-    <span style="color:#4CAF50">       validate   inventory   payment   receipt</span>
-    <span style="color:#4CAF50">       (flatMap)  (flatMap)   (flatMap)  (map)</span>
+    <span class="hkj-rail-ok"><b>Right</b>  ═══●══════════●══════════●══════════●═══▶  Receipt</span>
+    <span class="hkj-rail-ok">       validate   inventory   payment   receipt</span>
+    <span class="hkj-rail-ok">       (flatMap)  (flatMap)   (flatMap)  (map)</span>
               ╲         ╲             ╲
                ╲         ╲             ╲  Left: skip remaining steps
                 ╲         ╲             ╲
-    <span style="color:#F44336"><b>Left</b>   ─────●─────────●─────────────●──────────▶  DomainError</span>
-    <span style="color:#F44336">       InvalidOrder  OutOfStock  PaymentFailed</span>
+    <span class="hkj-rail-err"><b>Left</b>   ─────●─────────●─────────────●──────────▶  DomainError</span>
+    <span class="hkj-rail-err">       InvalidOrder  OutOfStock  PaymentFailed</span>
                                         │
-                                   <span style="color:#4CAF50">handleErrorWith</span>    optional recovery
+                                   <span class="hkj-rail-ok">handleErrorWith</span>    optional recovery
                                         │
-    <span style="color:#4CAF50">                                    ●═══▶  recovered Right</span>
+    <span class="hkj-rail-ok">                                    ●═══▶  recovered Right</span>
 </pre>
 
 Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If the inner `Either` is `Left`, subsequent steps are skipped and the error propagates along the lower track. `handleErrorWith` can switch back to the success track for recoverable errors.
@@ -129,16 +129,16 @@ Each `flatMap` runs inside the outer monad `F` (e.g. `CompletableFuture`). If th
     │  │                                                    │  │
     │  │  ┌─── Either ──────────────────────────────────┐   │  │
     │  │  │                                             │   │  │
-    │  │  │   <span style="color:#F44336">Left(error)</span>       │     <span style="color:#4CAF50">Right(value)</span>      │   │  │
+    │  │  │   <span class="hkj-rail-err">Left(error)</span>       │     <span class="hkj-rail-ok">Right(value)</span>      │   │  │
     │  │  │                     │                       │   │  │
     │  │  └─────────────────────────────────────────────┘   │  │
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
     │  flatMap ──▶ sequences F, then routes on Either          │
-    │  map ──────▶ transforms <span style="color:#4CAF50">Right(value)</span> only                │
-    │  raiseError ──▶ creates <span style="color:#F44336">Left(error)</span> in F                 │
-    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">Left</span>                  │
+    │  map ──────▶ transforms <span class="hkj-rail-ok">Right(value)</span> only                │
+    │  raiseError ──▶ creates <span class="hkj-rail-err">Left(error)</span> in F                 │
+    │  handleErrorWith ──▶ recovers from <span class="hkj-rail-err">Left</span>                  │
     └──────────────────────────────────────────────────────────┘
 </pre>
 

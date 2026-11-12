@@ -84,6 +84,9 @@ guide's "Chapter Guides" section says.
 - **mdbook heading ids drop punctuation.** A colon or a full stop vanishes rather than becoming a
   hyphen, so an id computed by hand is often wrong. Pin an explicit `{#id}` on the heading, then run
   the anchor check.
+- **Box-drawing characters and shapes (─ ═ ● ▶) fail the diagram check anywhere on a Foundations or
+  Optics page**, even in a Java comment or an included example, because the check cannot tell a
+  drawing from decoration. Write `->` or `→` in code, and put a drawing in an accessible `<pre>`.
 - **The anchor check accepts heading ids only.** mdbook renders an admonition's `id=`, but the check
   does not accept a link to it, so link the heading around the admonition.
 - **A module with annotation processors can fail `-Werror` after an incremental compile**, with

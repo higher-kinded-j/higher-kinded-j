@@ -1,10 +1,15 @@
 name: Book Checks
 
-# Five things the published book cannot tell you are broken until a reader
+# Six things the published book cannot tell you are broken until a reader
 # sees them, so they fail the PR instead:
 #   - every ```mermaid fence in hkj-book/src is parsed against the pinned
 #     browser-side mermaid library, catching a diagram syntax error before it
-#     reaches the book as a render-time error box;
+#     reaches the book as a render-time error box, and must declare an
+#     accTitle and an accDescr, without which a screen reader skips its arrows;
+#   - every diagram in a chapter under the Style Guide's diagram law is held to
+#     it: line art only in an accessible <pre>, no SVG, every flowchart and
+#     state node coloured by a classDef; and no <pre> anywhere takes a style
+#     attribute, which ignores the theme;
 #   - every heading is checked for raw HTML, because a bare <S> in a heading is
 #     the <s> element and silently strikes through the rest of the page;
 #   - every cross-reference is resolved, because a link into a heading that has
@@ -27,6 +32,7 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/book-diagram-check.cjs'
       - '.github/scripts/announcement.json'
       - '.github/scripts/announcement-check.cjs'
       - '.github/scripts/book-prose.cjs'
@@ -43,6 +49,7 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/book-diagram-check.cjs'
       - '.github/scripts/announcement.json'
       - '.github/scripts/announcement-check.cjs'
       - '.github/scripts/book-prose.cjs'
@@ -78,6 +85,9 @@ jobs:
 
       - name: Check the site announcement
         run: node .github/scripts/announcement-check.cjs
+
+      - name: Check diagrams against the diagram law
+        run: node .github/scripts/book-diagram-check.cjs
 
       - name: Fetch pinned mermaid library
         run: .github/scripts/fetch_mermaid.sh

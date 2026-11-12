@@ -629,13 +629,23 @@ A type class page also follows three rules:
 Two diagram media are in use, each with its ground:
 
 - **Mermaid** (rendered by `mdbook-mermaid`) for *flows and decisions*: decision trees ("which tier does my spec get?"), boundary flows (request → parse → response), sequence-like mechanisms (error paths composing outward), and before/after contrasts. Prefer mermaid wherever the reader follows arrows to an outcome.
-- **ASCII** for *type shapes and railways*: boxed type diagrams, the railway view, and signature asymmetries (`build : Domain ──▶ DTO`). Transformer pages keep their existing all-ASCII rule (see "Monad Transformer Pages").
+- **ASCII**, inside an accessible `<pre>`, for *type shapes and railways*: boxed type diagrams, the railway view, and signature asymmetries (`build : Domain -> DTO`). Transformer pages keep their existing all-ASCII rule (see "Monad Transformer Pages").
 
 Choosing between them, and between one diagram and two:
 
 - Use a **`sequenceDiagram`** where a value travels through participants and comes back changed, such as an error gaining its path as it surfaces
 - Use a **grid** (a table, or ASCII) when a decision turns on two independent axes. A flowchart imposes an order those axes do not have
 - **A diagram that needs a paragraph to explain its branches is two diagrams.** So is one whose labels run to four lines
+
+### The Diagram Law
+
+Every diagram is a mermaid diagram, a table, or ASCII inside an accessible `<pre>`:
+
+- **No UML and no SVG.** A PlantUML class diagram or a drawn SVG cannot be checked against the code, so it drifts from it, and it bakes in one theme's background. Draw the mechanism in mermaid, or set the comparison out as a table
+- **No line art outside an accessible `<pre>`.** In a code fence, a table or a sentence, box-drawing characters and shapes such as ● and ▶ are read out glyph by glyph, with nothing to say what they draw. Put the drawing in `<pre class="hkj-ascii-diagram" role="img" aria-label="...">`, with the class `hkj-railway-diagram` instead for a railway, and the label [Diagrams Everyone Can Read](#diagrams-everyone-can-read) asks for. In code or prose, write `->` or a word
+- **A railway takes its colours from classes**, never from a `style` attribute, which ignores the theme. `hkj-rail-ok` marks the success track, `hkj-rail-err` the failure track, `hkj-rail-warn` what accumulates beside the value (a log, warnings) and `hkj-rail-info` what every step reads or threads on (a state, an environment). Each is the theme's own accent, readable in light and dark. A track still carries a label word, such as `Success` or `Log`
+
+Every new diagram keeps the law. `hkj-book/check.sh` and Book Checks enforce it on the chapters listed in `DIAGRAM_LAW_CHAPTERS`, in `.github/scripts/book-prose.cjs`. A chapter joins that list once every page complies, and its chapter guide then says so. In those chapters, `.github/scripts/book-diagram-check.cjs` fails an SVG and line art outside an accessible `<pre>`, and the mermaid check fails a flowchart or state node whose `classDef` sets no fill or no text colour. Two checks hold on every page of the book: a `style` attribute in a `<pre>` fails, and so does a mermaid diagram that lacks an `accTitle` or an `accDescr`.
 
 ### Theme-Safe Mermaid Colours
 
