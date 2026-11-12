@@ -8,15 +8,24 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Instances.monad;
 import static org.higherkindedj.hkt.instances.Instances.monadError;
 import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
+import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
+import static org.higherkindedj.hkt.instances.Witnesses.optional;
+import static org.higherkindedj.hkt.instances.Witnesses.stream;
 import static org.higherkindedj.hkt.instances.Witnesses.try_;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
+import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
+import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.trymonad.TryKindHelper.TRY;
 import static org.higherkindedj.hkt.writer.WriterKindHelper.WRITER;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.MonadError;
@@ -24,9 +33,13 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.assertions.KindEquivalence;
 import org.higherkindedj.hkt.future.CompletableFutureKind;
+import org.higherkindedj.hkt.laws.FunctorLaws;
 import org.higherkindedj.hkt.laws.MonadLaws;
+import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.optional.OptionalKind;
+import org.higherkindedj.hkt.stream.StreamKind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.trymonad.TryKind;
 import org.higherkindedj.hkt.writer.Writer;
@@ -40,9 +53,10 @@ import org.junit.jupiter.api.Test;
  * monoids round and lose the sign of zero, and a {@code Writer} built on one inherits both; {@code
  * bigDecimalAddition}'s identity holds by {@code equals} only at scale zero or more; {@code Try}'s
  * {@code flatMap} catches a step that throws; {@code CompletableFuture}'s handler receives a raised
- * {@code CompletionException}'s cause; and {@code Maybe}'s {@code of(null)} fails left identity.
- * Each bend is checked beside a case that keeps the law, so the failure comes from the bend and not
- * from the equality.
+ * {@code CompletionException}'s cause; {@code of(null)} on {@code Maybe}, {@code Optional}, {@code
+ * List} and {@code Stream} fails left identity; and a checker that uses one value on both sides of
+ * a law throws on a {@code Stream}, which can be read only once. Each bend is checked beside a case
+ * that keeps the law, so the failure comes from the bend and not from the equality.
  */
 @DisplayName("Laws: where an instance bends a law, beside a case that keeps it")
 class LawsBookTest {
@@ -151,18 +165,75 @@ class LawsBookTest {
   }
 
   @Test
-  @DisplayName(
-      "Maybe's of(null) is Nothing, so a step that turns null into a value fails left identity")
+  @DisplayName("of(null) is empty for Maybe, Optional, List and Stream, so left identity fails")
   void aNullValueFailsLeftIdentity() {
-    Function<String, Kind<MaybeKind.Witness, String>> orUnknown =
-        email -> MAYBE.widen(Maybe.just(email == null ? "unknown" : email));
-    var same = KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow);
+    Function<String, Kind<MaybeKind.Witness, String>> toMaybe =
+        email -> MAYBE.widen(Maybe.just(orUnknown(email)));
+    Function<String, Kind<OptionalKind.Witness, String>> toOptional =
+        email -> OPTIONAL.widen(Optional.of(orUnknown(email)));
+    Function<String, Kind<ListKind.Witness, String>> toList =
+        email -> LIST.widen(List.of(orUnknown(email)));
+    Function<String, Kind<StreamKind.Witness, String>> toStream =
+        email -> STREAM.widen(Stream.of(orUnknown(email)));
+    var sameMaybe = KindEquivalence.<MaybeKind.Witness>byEqualsAfter(MAYBE::narrow);
+    var sameOptional = KindEquivalence.<OptionalKind.Witness>byEqualsAfter(OPTIONAL::narrow);
+    var sameList = KindEquivalence.<ListKind.Witness>byEqualsAfter(LIST::narrow);
+    var sameStream =
+        KindEquivalence.<StreamKind.Witness>byEqualsAfter(kind -> STREAM.narrow(kind).toList());
 
     assertThat(MAYBE.narrow(monad(maybe()).of(null))).isEqualTo(Maybe.nothing());
-    assertThatThrownBy(() -> MonadLaws.assertLeftIdentity(monad(maybe()), null, orUnknown, same))
-        .isInstanceOf(AssertionError.class)
+    assertThat(OPTIONAL.narrow(monad(optional()).of(null))).isEmpty();
+    assertThat(LIST.narrow(monad(list()).of(null))).isEmpty();
+    assertThat(STREAM.narrow(monad(stream()).of(null))).isEmpty();
+    assertThatThrownBy(() -> MonadLaws.assertLeftIdentity(monad(maybe()), null, toMaybe, sameMaybe))
         .hasMessageContaining("Monad left identity");
-    MonadLaws.assertLeftIdentity(monad(maybe()), "ada@example.com", orUnknown, same);
+    assertThatThrownBy(
+            () -> MonadLaws.assertLeftIdentity(monad(optional()), null, toOptional, sameOptional))
+        .hasMessageContaining("Monad left identity");
+    assertThatThrownBy(() -> MonadLaws.assertLeftIdentity(monad(list()), null, toList, sameList))
+        .hasMessageContaining("Monad left identity");
+    assertThatThrownBy(
+            () -> MonadLaws.assertLeftIdentity(monad(stream()), null, toStream, sameStream))
+        .hasMessageContaining("Monad left identity");
+
+    MonadLaws.assertLeftIdentity(monad(maybe()), "ada@example.com", toMaybe, sameMaybe);
+    MonadLaws.assertLeftIdentity(monad(optional()), "ada@example.com", toOptional, sameOptional);
+    MonadLaws.assertLeftIdentity(monad(list()), "ada@example.com", toList, sameList);
+    MonadLaws.assertLeftIdentity(monad(stream()), "ada@example.com", toStream, sameStream);
+  }
+
+  @Test
+  @DisplayName("a checker that uses one value on both sides of a law throws on a Stream")
+  void aStreamIsReadOnce() {
+    Monad<StreamKind.Witness> streams = monad(stream());
+    var same =
+        KindEquivalence.<StreamKind.Witness>byEqualsAfter(kind -> STREAM.narrow(kind).toList());
+    Function<String, Kind<StreamKind.Witness, String>> shipped =
+        sku -> STREAM.widen(Stream.of(sku + " shipped"));
+    Function<String, Kind<StreamKind.Witness, String>> delivered =
+        sku -> STREAM.widen(Stream.of(sku + " delivered"));
+
+    assertThatThrownBy(() -> FunctorLaws.assertIdentity(streams, skus(), same))
+        .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(
+            () -> MonadLaws.assertAssociativity(streams, skus(), shipped, delivered, same))
+        .isInstanceOf(IllegalStateException.class);
+
+    MonadLaws.assertLeftIdentity(streams, "LAMP", shipped, same);
+    assertThat(
+            same.test(
+                streams.flatMap(delivered, streams.flatMap(shipped, skus())),
+                streams.flatMap(sku -> streams.flatMap(delivered, shipped.apply(sku)), skus())))
+        .as("associativity, with a fresh stream on each side")
+        .isTrue();
+  }
+
+  private static Kind<StreamKind.Witness, String> skus() {
+    return STREAM.widen(Stream.of("LAMP", "BULB"));
+  }
+
+  private static String orUnknown(String email) {
+    return email == null ? "unknown" : email;
   }
 
   private static Kind<WriterKind.Witness<Double>, String> logged(double amount) {
