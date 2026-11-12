@@ -899,9 +899,9 @@ public final class VResultPath<E, A>
   /**
    * Returns a path that executes through the circuit breaker. A {@code Left} is a successfully
    * computed value - it does <em>not</em> count as a breaker failure; defects (thrown exceptions)
-   * trip the circuit. When the circuit is open the {@link CircuitOpenException} surfaces as a
-   * defect; use {@link #withCircuitBreaker(CircuitBreaker, Function)} to keep the rejection on the
-   * typed channel.
+   * trip the circuit. When the breaker rejects the call, because it is open or half-open with every
+   * probe place taken, the {@link CircuitOpenException} surfaces as a defect; use {@link
+   * #withCircuitBreaker(CircuitBreaker, Function)} to keep the rejection on the typed channel.
    *
    * <p>The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a pipeline slower than that - even
@@ -920,7 +920,7 @@ public final class VResultPath<E, A>
   }
 
   /**
-   * Returns a path that executes through the circuit breaker, keeping an open-circuit rejection on
+   * Returns a path that executes through the circuit breaker, keeping the breaker's rejection on
    * the typed channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code
    * Left} is a successfully computed value and does not count as a breaker failure. The per-call
    * budget caveat on {@link #withCircuitBreaker(CircuitBreaker)} applies here too.
@@ -930,8 +930,8 @@ public final class VResultPath<E, A>
    * {@code onOpen}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
-   * @param onOpen types the open-circuit rejection; must not be null, and must not return null; a
-   *     null result fails the path with a NullPointerException when it runs
+   * @param onOpen types the breaker's rejection, open or half-open; must not be null, and must not
+   *     return null; a null result fails the path with a NullPointerException when it runs
    * @return a new path protected by the breaker (non-null)
    * @throws NullPointerException if either argument is null
    */

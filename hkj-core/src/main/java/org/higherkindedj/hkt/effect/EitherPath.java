@@ -757,9 +757,9 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
   /**
    * Executes the step through the circuit breaker. A {@code Left} is a successfully computed value
    * - it does <em>not</em> count as a breaker failure; thrown exceptions trip the circuit. When the
-   * circuit is open the {@link CircuitOpenException} propagates as-is; use {@link
-   * #withCircuitBreaker(Supplier, CircuitBreaker, Function)} to keep the rejection on the typed
-   * channel.
+   * breaker rejects the step, because it is open or half-open with every probe place taken, the
+   * {@link CircuitOpenException} propagates as-is; use {@link #withCircuitBreaker(Supplier,
+   * CircuitBreaker, Function)} to keep the rejection on the typed channel.
    *
    * <p>The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a step slower than that - even one
@@ -772,7 +772,8 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null
-   * @throws CircuitOpenException if the circuit is open
+   * @throws CircuitOpenException if the breaker rejects the step: it is open, or half-open with
+   *     every probe place taken
    * @throws NullPointerException if any argument is null
    */
   public static <E, A> EitherPath<E, A> withCircuitBreaker(
@@ -783,7 +784,7 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
   }
 
   /**
-   * Executes the step through the circuit breaker, keeping an open-circuit rejection on the typed
+   * Executes the step through the circuit breaker, keeping the breaker's rejection on the typed
    * channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code Left} is
    * a successfully computed value and does not count as a breaker failure. The per-call budget
    * caveat on {@link #withCircuitBreaker(Supplier, CircuitBreaker)} applies here too.
@@ -794,7 +795,8 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    *
    * @param step the computation to protect; must not be null
    * @param circuitBreaker the (shareable) breaker; must not be null
-   * @param onOpen types the open-circuit rejection; must not be null, and must not return null
+   * @param onOpen types the breaker's rejection, open or half-open; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null
