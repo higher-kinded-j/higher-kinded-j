@@ -117,7 +117,7 @@ The Paths refuse `null`. `Path.list` and `Path.listPath` throw `NullPointerExcep
 
 ## Creating instances {#creating-instances}
 
-`Path.list(list)` and `Path.list(a, b, c)` start a `NonDetPath`, `Path.listPure(value)` one with a single element, and `Path.listEmpty()` an empty one. `Path.listPath(...)`, `Path.listPathPure(value)`, `Path.listPathEmpty()` and `Path.listPathRange(from, to)` start a `ListPath`. `toNonDetPath()` turns a `ListPath` into a `NonDetPath`.
+`Path.list(list)` and `Path.list(a, b, c)` start a `NonDetPath`, `Path.listPure(value)` one with a single element, and `Path.listEmpty()` an empty one. `Path.listPath(...)`, `Path.listPathPure(value)`, `Path.listPathEmpty()` and `Path.listPathRange(from, to)` start a `ListPath`. `toNonDetPath()` turns a `ListPath` into a `NonDetPath`, and `toListPath()` turns a `NonDetPath` back into a `ListPath`.
 
 ## Methods {#methods}
 

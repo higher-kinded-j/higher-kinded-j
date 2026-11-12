@@ -582,6 +582,15 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     return StreamPath.fromList(list);
   }
 
+  /**
+   * Converts to ListPath.
+   *
+   * @return a ListPath containing the same elements
+   */
+  public ListPath<A> toListPath() {
+    return ListPath.of(list);
+  }
+
   // ===== Object methods =====
 
   @Override

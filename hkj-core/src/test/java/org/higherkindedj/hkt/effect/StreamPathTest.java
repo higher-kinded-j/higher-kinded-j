@@ -589,6 +589,32 @@ class StreamPathTest {
     }
 
     @Test
+    @DisplayName("toListPath() converts to ListPath")
+    void toListPathConverts() {
+      StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3));
+
+      ListPath<Integer> result = path.toListPath();
+
+      assertThat(result.run()).containsExactly(1, 2, 3);
+
+      StreamPath<Integer> emptyPath = StreamPath.fromList(List.of());
+
+      ListPath<Integer> emptyResult = emptyPath.toListPath();
+
+      assertThat(emptyResult.run()).isEmpty();
+
+      // Verifies the conversion's point: ListPath's zipWith pairs by position rather than combining
+      // every pair as StreamPath does.
+      ListPath<String> letters = StreamPath.fromList(List.of("a", "b", "c")).toListPath();
+
+      ListPath<String> numbers = StreamPath.fromList(List.of("1", "2", "3")).toListPath();
+
+      ListPath<String> zipped = letters.zipWith(numbers, (l, n) -> l + n);
+
+      assertThat(zipped.run()).containsExactly("a1", "b2", "c3");
+    }
+
+    @Test
     @DisplayName("toMaybePath() returns Just for first element")
     void toMaybePathReturnsJustForFirst() {
       StreamPath<Integer> path = StreamPath.fromList(List.of(1, 2, 3));
