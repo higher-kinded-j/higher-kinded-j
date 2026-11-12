@@ -193,7 +193,7 @@ import org.higherkindedj.hkt.Monoids;
 
 ~~~admonish warning title="Common Misunderstandings"
 - **"`doubleAddition` will do for money."** It rounds: `0.1` and `0.2` give `0.30000000000000004`, where `bigDecimalAddition` sums `0.10` and `0.20` to exactly `0.30`.
-- **"Every monoid in `Monoids` keeps the laws."** The `double` ones do not, since each `+` or `*` rounds. Combining `1e16`, `-1e16` and `1` gives `1.0` grouped as `(1e16 + -1e16) + 1`, and `0.0` grouped as `1e16 + (-1e16 + 1)`.
+- **"Every monoid in `Monoids` keeps the laws."** The `double` ones do not, since each `+` or `*` rounds. Combining `1e16`, `-1e16` and `1` gives `1.0` grouped as `(1e16 + -1e16) + 1`, and `0.0` grouped as `1e16 + (-1e16 + 1)`. [Laws and Where HKJ Bends Them](../hkts/laws.md) lists every instance that bends a law.
 - **"`combine` must be commutative."** It must be associative, and that is all. `Monoids.string()` combines `"LAMP"` and `"BULB"` into `"LAMPBULB"`, and the other way round into `"BULBLAMP"`.
 - **"Any semigroup becomes a monoid once you name an empty value."** Only if that value changes nothing. The `combineAll` of `Monoid.of("", Semigroups.string(", "))` turns `"LAMP"` and `"BULB"` into `", LAMP, BULB"`: it starts from `""`, and joining `""` adds a delimiter.
 - **"`isEmpty` always compares with `equals`."** `bigDecimalAddition`'s is true for zero at any scale, so `0.00` is empty, although `BigDecimal.ZERO.equals(new BigDecimal("0.00"))` is false.

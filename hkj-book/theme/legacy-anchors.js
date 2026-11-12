@@ -1217,6 +1217,7 @@
     "hkts/quick_reference.html#data-aggregation-type-classes": "hkts/quick_reference.html#type-classes-over-a-plain-type",
     "hkts/quick_reference.html#core-hkt-abstraction": "hkts/core-concepts.html#the-witness-and-kind",
     "hkts/quick_reference.html#admonition-see-also": "hkts/quick_reference.html#quick-reference",
+    "hkts/faq.html#admonition-what-well-learn": "hkts/faq.html#foundations-faq",
     "hkts/hkt_basic_examples.html#higher-kinded-types---basic-usage-examples": "hkts/hkt_basic_examples.html#example-index",
     "hkts/hkt_basic_examples.html#admonition-what-well-learn": "hkts/hkt_basic_examples.html#example-index",
     "hkts/hkt_basic_examples.html#monads": "hkts/hkt_basic_examples.html#failure",

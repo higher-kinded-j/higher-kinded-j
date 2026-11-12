@@ -139,7 +139,7 @@ The function `buildConnectionString` was written once. It runs synchronously in 
 
 ---
 
-## The MonadReader Laws
+## The MonadReader Laws {#the-monadreader-laws}
 
 Every `MonadReader` implementation must satisfy four laws. These are not abstract formalities; they are guarantees about how the environment behaves. If an implementation violates them, code that depends on `MonadReader` will produce surprising results.
 

@@ -71,7 +71,9 @@ You can ship with Effect Paths without reading this chapter. Start from what you
 | The whole stack seen in one expression | [One Line, Six Layers](one_line_six_layers.md) |
 | One method that works for every container, as `totals` does | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
 | A type of your own that joins the library | [Adding Your Own Type](extending-simulation.md) |
-| A comparison with Vavr, Cyclops or Arrow-Kt | [Foundations FAQ](faq.md) |
+| A comparison with Vavr, Cyclops or Arrow-Kt | [How does this compare?](faq.md#how-does-this-compare-with-vavr-cyclops-or-arrow-kt), in the Foundations FAQ |
+| The names you know from Scala, Haskell or Vavr | [What are the names here?](faq.md#i-know-scala-haskell-or-vavr-what-are-the-names-here), in the Foundations FAQ |
+| Which laws an instance keeps, and which `hkj-test` checks | [Laws and Where HKJ Bends Them](laws.md) |
 | The type class interfaces at a glance | [Quick Reference](quick_reference.md) |
 | The everyday API instead | [Effect Paths](../effect/ch_intro.md) |
 
@@ -106,8 +108,9 @@ The [Foundations journey](../tutorials/coretypes/foundations_journey.md) practis
 
 14. [Supported Types](../monads/supported-types.md): Which type to choose, and what it supports
 15. [Quick Reference](quick_reference.md): Every type class and its key methods, and the ready-made monoids
-16. [Foundations FAQ](faq.md): Design questions, runtime cost and comparisons
-17. [Example Index](hkt_basic_examples.md): Every runnable basic example, with the page that explains it
+16. [Foundations FAQ](faq.md): Design questions, runtime cost, comparisons, and the names you know from Scala, Haskell or Vavr
+17. [Laws and Where HKJ Bends Them](laws.md): The instances that bend a law, and which laws `hkj-test` checks
+18. [Example Index](hkt_basic_examples.md): Every runnable basic example, with the page that explains it
 
 ---
 
