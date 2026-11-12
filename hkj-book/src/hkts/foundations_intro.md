@@ -75,6 +75,7 @@ You can ship with Effect Paths without reading this chapter. Start from what you
 | The names you know from Scala, Haskell or Vavr | [What are the names here?](faq.md#i-know-scala-haskell-or-vavr-what-are-the-names-here), in the Foundations FAQ |
 | Which laws an instance keeps, and which `hkj-test` checks | [Laws and Where HKJ Bends Them](laws.md) |
 | The type class interfaces at a glance | [Quick Reference](quick_reference.md) |
+| `Kind`, `Functor`, `Applicative` and `Monad` beside the Java they replace, on one page | [Foundations Journey: Cheatsheet](../tutorials/coretypes/foundations_cheatsheet.md) |
 | The everyday API instead | [Effect Paths](../effect/ch_intro.md) |
 
 ~~~admonish info title="Hands-On Learning"

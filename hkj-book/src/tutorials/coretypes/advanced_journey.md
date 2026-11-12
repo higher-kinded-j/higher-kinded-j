@@ -13,7 +13,7 @@
 **Prerequisites**: [Core Types: Error Handling Journey](error_handling_journey.md)
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
-The `.toEitherPath()` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is a natural transformation; this journey is the hands-on counterpart to that idea. It pairs with [Natural Transformation](../../functional/natural_transformation.md), [Coyoneda](../../monads/coyoneda.md), [Free Applicative](../../monads/free_applicative.md), and the [Foundations FAQ](../../hkts/faq.md) entries on parallel-vs-sequential composition.
+The `.toEitherPath(OrderError.notFound(id))` step in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is a natural transformation; this journey is the hands-on counterpart to that idea. It pairs with [Natural Transformation](../../functional/natural_transformation.md), [Coyoneda](../../monads/coyoneda.md), [Free Applicative](../../monads/free_applicative.md), and the [Foundations FAQ](../../hkts/faq.md) entries on parallel-vs-sequential composition.
 ~~~
 
 ## Journey Overview

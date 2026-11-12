@@ -5,323 +5,336 @@ package org.higherkindedj.tutorial.solutions.coretypes;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Currency;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+import org.higherkindedj.example.book.foundations.InMemoryOrderRepository;
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.foundations.OrderRepository;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.effect.EitherPath;
-import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.expression.ForPath;
 import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.CircuitBreakerConfig;
-import org.higherkindedj.hkt.vtask.VTask;
-import org.higherkindedj.optics.Lens;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Solution for TutorialCapstone OneLineSixLayersGrowsUp — teaching-solution format.
+ * Solution for the Capstone: One Line, Six Layers Grows Up.
  *
- * <p>This solution file follows the chapter's <em>teaching solution</em> conventions established by
- * the Foundations journey: read the working code first, then the commentary on <em>why</em> the
- * chosen form is idiomatic. The complete-with-commentary template (Why this is idiomatic /
- * Alternative / Common wrong attempt on every exercise) lives in the Foundations solutions
- * coretypes/Tutorial01_KindBasics_Solution.java as the canonical reference.
- *
- * <p>The exercise bodies below are correct working code. Per-exercise teaching commentary is being
- * rolled out across the chapter; if this file does not yet have it, treat the reference code as the
- * answer and consult the pilot solution for the format guide.
- *
- * <p>For the chapter-level guidance on how to learn from a solution, see the <a
+ * <p>Each exercise gets the working answer and a teaching block: why the answer is idiomatic, one
+ * alternative shape, and one common wrong attempt with its symptom. For how to learn from a
+ * solution, see the <a
  * href="../../../../../../../../../hkj-book/src/tutorials/solutions_guide.md">Solutions Guide</a>
  * in the book.
  */
 @DisplayName("Capstone Solution: One Line, Six Layers Grows Up")
 public class TutorialCapstone_OneLineSixLayersGrowsUp_Solution {
 
-  enum OrderError {
-    NOT_FOUND,
-    OUT_OF_STOCK,
-    SAVE_FAILED
+  // ─── The order service (mirrors the tutorial) ─────────────────────────────
+
+  static final UUID PLACED = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  static final UUID SHIPPED = UUID.fromString("00000000-0000-0000-0000-000000000002");
+  static final UUID UNKNOWN = UUID.fromString("00000000-0000-0000-0000-000000000009");
+
+  static final UnaryOperator<BigDecimal> DISCOUNT =
+      price -> price.multiply(new BigDecimal("0.90")).setScale(2, RoundingMode.HALF_EVEN);
+
+  static Order order(UUID id, OrderStatus status) {
+    return new Order(
+        id,
+        new Customer("Ada", new EmailAddress("ada@example.com")),
+        List.of(
+            new LineItem("LAMP", 2, new BigDecimal("40.00")),
+            new LineItem("BULB", 1, new BigDecimal("5.00"))),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        status);
   }
 
-  record Item(String sku, int quantity, double price) {}
-
-  record Order(String id, List<Item> items, String status) {}
-
-  static final Lens<Order, List<Item>> itemsLens =
-      Lens.of(Order::items, (o, items) -> new Order(o.id(), items, o.status()));
-
-  static final Lens<Order, String> statusLens =
-      Lens.of(Order::status, (o, s) -> new Order(o.id(), o.items(), s));
-
-  private static final Map<String, Order> REPO = new ConcurrentHashMap<>();
-
-  private static final Order SEED_ORDER =
-      new Order("ord-1", List.of(new Item("A", 2, 5.0), new Item("B", 1, 10.0)), "PENDING");
-
-  @BeforeEach
-  void resetRepo() {
-    // Each exercise starts from the same seed; Exercise 4 mutates REPO via save(),
-    // so without this reset the test order would matter.
-    REPO.clear();
-    REPO.put(SEED_ORDER.id(), SEED_ORDER);
+  static OrderRepository orders() {
+    return InMemoryOrderRepository.of(
+        order(PLACED, OrderStatus.NEW), order(SHIPPED, OrderStatus.SHIPPED));
   }
 
-  static MaybePath<Order> findOrder(String id) {
-    Order o = REPO.get(id);
-    return o == null ? Path.nothing() : Path.just(o);
-  }
-
-  static EitherPath<OrderError, Order> reserveInventory(Order order) {
-    boolean allInStock = order.items().stream().allMatch(it -> it.quantity() > 0);
-    if (!allInStock) return Path.left(OrderError.OUT_OF_STOCK);
-    return Path.right(statusLens.set("RESERVED", order));
-  }
-
-  static EitherPath<OrderError, Order> save(Order order) {
-    if (order == null || order.id() == null) return Path.left(OrderError.SAVE_FAILED);
-    REPO.put(order.id(), order);
-    return Path.right(order);
+  static Order stored(OrderRepository orders, UUID id) {
+    return orders.find(id).getOrElse(order(UNKNOWN, OrderStatus.NEW));
   }
 
   // ─── Exercise 1 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code toEitherPath(error)} is the named natural transformation from
-   * {@code MaybePath} to {@code EitherPath} — "absent becomes this error". One word at the seam,
-   * and the rest of the pipeline can stop thinking about {@code Maybe}.
+   * Why this is idiomatic: the lookup says only that the order may be missing; {@code toEitherPath}
+   * names the reason once, where the order is looked up, so every later step works on an {@code
+   * EitherPath<OrderError, Order>}.
    *
-   * <p>Alternative: pattern-match on the {@code Maybe} and rebuild an {@code Either} by hand
-   * ({@code maybe.fold(() -> Path.left(NOT_FOUND), Path::right)}). Same answer, three more tokens,
-   * and a place to typo the error value.
+   * <p>Alternative: {@code toEitherPath(() -> OrderError.notFound(PLACED))}, which builds the error
+   * only when the order is missing.
    *
-   * <p>Common wrong attempt: keeping the {@code MaybePath} and reaching for {@code map} when the
-   * next step needs to fail with a typed error. {@code MaybePath} has no error channel, so the
-   * NOT_FOUND signal vanishes — lift first, then chain.
+   * <p>Common wrong attempt: {@code toEitherPath(new OrderError.NotFound(PLACED))} in the middle of
+   * a chain. With no target type there, the chain's error type becomes {@code NotFound}, and a
+   * later {@code .via(orders::save)}, which can fail with {@code AlreadyShipped}, does not compile.
+   * Assigned straight to an {@code EitherPath<OrderError, Order>}, as here, it compiles; the
+   * factory is safe in both places.
    */
   @Test
-  @DisplayName("Exercise 1: lift to EitherPath")
+  @DisplayName("Exercise 1: Lift the lookup")
   void exercise1_liftToEitherPath() {
-    EitherPath<OrderError, Order> path = findOrder("ord-1").toEitherPath(OrderError.NOT_FOUND);
+    OrderRepository orders = orders();
 
-    Either<OrderError, Order> result = path.run();
-    assertThatEither(result)
+    // SOLUTION: the lookup, with a reason for the empty case
+    EitherPath<OrderError, Order> found =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
+    EitherPath<OrderError, Order> missing =
+        orders.find(UNKNOWN).toEitherPath(OrderError.notFound(UNKNOWN));
+
+    assertThatEither(found.run())
         .isRight()
-        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("ord-1"));
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo(PLACED));
+    assertThatEither(missing.run()).isLeft().hasLeft(OrderError.notFound(UNKNOWN));
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code map} on the path lets us reach inside the success channel without
-   * unwrapping; {@code itemsLens.modify} reaches inside the {@code Order} without rebuilding it.
-   * Two focused operations compose cleanly — the path knows about success/failure, the lens knows
-   * about the field.
+   * Why this is idiomatic: the traversal reaches every line's price at once and rebuilds the order
+   * around the new prices, so no loop and no copy of {@code LineItem} or {@code Order} is written
+   * by hand.
    *
-   * <p>Alternative: {@code base.via(o -> Path.right(itemsLens.modify(..., o)))}. Same result;
-   * {@code via} signals "this step might fail" and we know it cannot, so {@code map} is the smaller
-   * hammer.
+   * <p>Alternative: map the lines with a stream and rebuild each {@code LineItem}, then the order.
+   * It works, and it is the copying the traversal exists to save.
    *
-   * <p>Common wrong attempt: rebuilding the {@code Order} by hand inside {@code map} ({@code new
-   * Order(o.id(), newItems, o.status())}). It works once, but the moment a field is added the
-   * compiler will not catch the omission — the lens does.
+   * <p>Common wrong attempt: {@code found.focus(...)} with the traversal. {@code EitherPath.focus}
+   * takes a path that reaches one value, a {@code FocusPath} or an {@code AffinePath}, so a
+   * traversal does not compile there; reaching every line is {@code modifyAll}'s job, inside a
+   * {@code map}.
    */
   @Test
-  @DisplayName("Exercise 2: bulk update items via the lens")
-  void exercise2_bulkUpdate() {
-    EitherPath<OrderError, Order> base = findOrder("ord-1").toEitherPath(OrderError.NOT_FOUND);
+  @DisplayName("Exercise 2: Discount every line")
+  void exercise2_discountEveryLine() {
+    EitherPath<OrderError, Order> found =
+        orders().find(PLACED).toEitherPath(OrderError.notFound(PLACED));
 
-    EitherPath<OrderError, Order> doubled =
-        base.map(
-            o ->
-                itemsLens.modify(
-                    items ->
-                        items.stream()
-                            .map(it -> new Item(it.sku(), it.quantity() * 2, it.price()))
-                            .toList(),
-                    o));
+    // SOLUTION: modifyAll applies the discount to every line's price
+    EitherPath<OrderError, Order> discounted =
+        found.map(order -> OrderFocus.lines().price().modifyAll(DISCOUNT, order));
 
-    assertThatEither(doubled.run())
+    assertThatEither(discounted.run())
         .isRight()
         .hasRightSatisfying(
-            out -> assertThat(out.items()).extracting(Item::quantity).containsExactly(4, 2));
+            order ->
+                assertThat(order.lines())
+                    .extracting(LineItem::price)
+                    .containsExactly(new BigDecimal("36.00"), new BigDecimal("4.50")));
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code via} is the path's {@code flatMap} — each step returns a fresh
-   * {@code EitherPath}, and a {@code Left} short-circuits the rest. The two business rules read
-   * top-to-bottom in the order they happen.
+   * Why this is idiomatic: each step says what kind of step it is. Marking the order paid cannot
+   * fail, so it is a {@code map}; the save can refuse, so it is a {@code via}.
    *
-   * <p>Alternative: nest the calls ({@code save(reserveInventory(o).run().getRight())}). That works
-   * only if neither step ever fails; the moment {@code reserveInventory} returns {@code Left},
-   * calling {@code getRight} throws.
+   * <p>Alternative: {@code found.via(order -> orders.save(OrderFocus.status().set(OrderStatus.PAID,
+   * order)))}. Same answer, with the two steps folded into one.
    *
-   * <p>Common wrong attempt: chaining with {@code map} instead of {@code via}. {@code map} expects
-   * {@code A -> B}; our step returns {@code A -> EitherPath<E, B>}, which would give {@code
-   * EitherPath<E, EitherPath<E, B>>} — a nested path that never short-circuits.
+   * <p>Common wrong attempt: {@code found.map(orders::save)}, which nests one path inside another;
+   * the save's refusal stays inside the inner path and never reaches the outer {@code Left}.
    */
   @Test
-  @DisplayName("Exercise 3: reserve then save")
-  void exercise3_chainDependentSteps() {
-    EitherPath<OrderError, Order> base = findOrder("ord-1").toEitherPath(OrderError.NOT_FOUND);
+  @DisplayName("Exercise 3: Mark it paid, then save")
+  void exercise3_payThenSave() {
+    OrderRepository orders = orders();
+    EitherPath<OrderError, Order> found =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
 
-    EitherPath<OrderError, Order> persisted =
-        base.via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::reserveInventory)
-            .via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::save);
+    // SOLUTION: map for the step that cannot fail, via for the one that can
+    EitherPath<OrderError, Order> saved =
+        found.map(order -> OrderFocus.status().set(OrderStatus.PAID, order)).via(orders::save);
 
-    Either<OrderError, Order> result = persisted.run();
-    assertThatEither(result)
+    assertThatEither(saved.run())
         .isRight()
-        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo(OrderStatus.PAID));
+    assertThat(stored(orders, PLACED).status()).isEqualTo(OrderStatus.PAID);
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: this is the chapter's anchor expression — six concerns (lookup, lifting,
-   * reservation, persistence, error short-circuit, execution) read as a single top-to-bottom
-   * pipeline. {@code run} is the only place anything actually executes.
+   * Why this is idiomatic: the whole step reads in the order things happen, each failure is part of
+   * its type, and the same expression handles the shipped order by ending with the save's refusal.
    *
-   * <p>Alternative: extract intermediate variables ({@code var found = ...; var lifted = ...;}).
-   * Same shape, easier to debug, recommended once the pipeline grows beyond half a dozen steps or
-   * any step needs its own assertion.
+   * <p>Alternative: a {@code checkout(orders, id)} method that returns the {@code EitherPath}, and
+   * a caller that runs it. That is how a service would hold it.
    *
-   * <p>Common wrong attempt: calling {@code run} after every {@code via} to "see what happens".
-   * That collapses the path into a value and discards the typed error channel for the next step;
-   * keep the path lazy until the very end.
+   * <p>Common wrong attempt: putting the save before the changes, {@code .via(orders::save)}
+   * straight after the lookup. The result returned is paid and discounted, but the repository keeps
+   * the order as it was, and the test's check of what was stored fails.
    */
   @Test
-  @DisplayName("Exercise 4: the full pipeline as one expression")
+  @DisplayName("Exercise 4: The whole step")
   void exercise4_oneLineSixLayersGrowsUp() {
-    String id = "ord-1";
+    OrderRepository orders = orders();
 
-    Either<OrderError, Order> result =
-        findOrder(id)
-            .toEitherPath(OrderError.NOT_FOUND)
-            .map(
-                o ->
-                    itemsLens.modify(
-                        items ->
-                            items.stream()
-                                .map(it -> new Item(it.sku(), it.quantity() * 2, it.price()))
-                                .toList(),
-                        o))
-            .via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::reserveInventory)
-            .via(TutorialCapstone_OneLineSixLayersGrowsUp_Solution::save)
+    // SOLUTION: find, lift, mark paid, discount, save, run
+    Either<OrderError, Order> checkedOut =
+        orders
+            .find(PLACED)
+            .toEitherPath(OrderError.notFound(PLACED))
+            .map(order -> OrderFocus.status().set(OrderStatus.PAID, order))
+            .map(order -> OrderFocus.lines().price().modifyAll(DISCOUNT, order))
+            .via(orders::save)
+            .run();
+    Either<OrderError, Order> refused =
+        orders
+            .find(SHIPPED)
+            .toEitherPath(OrderError.notFound(SHIPPED))
+            .map(order -> OrderFocus.status().set(OrderStatus.PAID, order))
+            .map(order -> OrderFocus.lines().price().modifyAll(DISCOUNT, order))
+            .via(orders::save)
             .run();
 
-    assertThatEither(result)
+    assertThatEither(checkedOut)
         .isRight()
-        .hasRightSatisfying(
-            order -> {
-              assertThat(order.id()).isEqualTo(id);
-              assertThat(order.status()).isEqualTo("RESERVED");
-            });
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo(OrderStatus.PAID));
+    assertThatEither(refused).isLeft().hasLeft(OrderError.alreadyShipped(SHIPPED));
+    Order kept = stored(orders, PLACED);
+    assertThat(kept.status()).isEqualTo(OrderStatus.PAID);
+    assertThat(kept.lines())
+        .extracting(LineItem::price)
+        .containsExactly(new BigDecimal("36.00"), new BigDecimal("4.50"));
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code breaker.protect(supplier)} returns a {@code VTask} that, when
-   * run, asks the breaker first. The protected work and the breaker policy stay separate — the
-   * supplier knows nothing about thresholds, the breaker knows nothing about orders.
+   * Why this is idiomatic: the breaker protects exactly the step that talks to the outside world,
+   * and nothing else. {@code EitherPath} is eager, so the protected step goes in as a supplier, and
+   * a {@code Left} comes back as an answer rather than a fault: the refusal leaves the breaker
+   * closed, even with a failure threshold of one.
    *
-   * <p>Alternative: thread the breaker into the path itself with a custom {@code via} step. Works
-   * for an EitherPath-shaped breaker, but {@code VTask} integration is the standard wrapper for any
-   * {@code Supplier<T>}; reach for the path-level integration only when the breaker truly needs the
-   * typed error channel.
+   * <p>Alternative: protect the whole step, {@code EitherPath.withCircuitBreaker(() ->
+   * orders.find(id).toEitherPath(...).via(orders::save), breaker)}. It also passes, and the breaker
+   * then counts the lookup's faults as well as the save's.
    *
-   * <p>Common wrong attempt: invoking the supplier eagerly and passing the result to {@code
-   * protect} ({@code breaker.protect(reserveInventory(...).run().getRight())}). The breaker now has
-   * a value, not a unit of work — it cannot retry, count failures, or open.
+   * <p>Common wrong attempt: {@code EitherPath.withCircuitBreaker(() -> found, breaker)} around the
+   * lookup that has already run. An {@code EitherPath} holds a result, so there is nothing left to
+   * protect, and the save then runs outside the breaker: a database fault in it would never open
+   * the breaker.
    */
   @Test
-  @DisplayName("Exercise 5: protect inventory with a circuit breaker")
-  void exercise5_resilientInventory() {
-    CircuitBreakerConfig config =
-        CircuitBreakerConfig.builder()
-            .failureThreshold(3)
-            .openDuration(Duration.ofMillis(100))
-            .build();
-    CircuitBreaker breaker = CircuitBreaker.create(config);
+  @DisplayName("Exercise 5: The save behind a circuit breaker")
+  void exercise5_protectTheSave() {
+    OrderRepository orders = orders();
+    CircuitBreaker breaker =
+        CircuitBreaker.create(
+            CircuitBreakerConfig.builder()
+                .failureThreshold(1)
+                .openDuration(Duration.ofSeconds(30))
+                .build());
+    EitherPath<OrderError, Order> found =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
+    EitherPath<OrderError, Order> foundShipped =
+        orders.find(SHIPPED).toEitherPath(OrderError.notFound(SHIPPED));
 
-    VTask<Order> protectedReserve =
-        breaker.protect(
-            () -> {
-              Either<OrderError, Order> r = reserveInventory(REPO.get("ord-1")).run();
-              if (r.isLeft()) throw new RuntimeException(r.getLeft().toString());
-              return r.getRight();
-            });
+    // SOLUTION: the save runs through the breaker, inside via
+    EitherPath<OrderError, Order> saved =
+        found.via(order -> EitherPath.withCircuitBreaker(() -> orders.save(order), breaker));
+    EitherPath<OrderError, Order> refused =
+        foundShipped.via(order -> EitherPath.withCircuitBreaker(() -> orders.save(order), breaker));
 
-    Order reserved = protectedReserve.run();
-    assertThat(reserved.status()).isEqualTo("RESERVED");
+    assertThatEither(saved.run()).isRight();
+    assertThatEither(refused.run()).isLeft().hasLeft(OrderError.alreadyShipped(SHIPPED));
+    assertThat(breaker.metrics().successfulCalls()).isEqualTo(2);
+    assertThat(breaker.metrics().failedCalls()).isZero();
+    assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code ForPath} is the comprehension spelling of the same monad. Each
-   * {@code from} binds a name visible to later steps, and {@code yield} builds the result from any
-   * prior binding — useful when a later step needs an earlier value, not just the immediate
-   * predecessor.
+   * Why this is idiomatic: {@code ForPath} gives each value a name, which reads better than nested
+   * lambdas once a later step needs an earlier value. The step itself is Exercise 3's, unchanged.
    *
-   * <p>Alternative: the {@code via} chain from Exercise 4. Both spellings are exact equivalents;
-   * pick the comprehension when you need the bindings, the chain when each step only consumes its
-   * predecessor.
+   * <p>Alternative: the {@code map} and {@code via} chain from Exercise 3. With two steps and no
+   * value reused, the chain is shorter; {@code ForPath} pays off as the steps grow.
    *
-   * <p>Common wrong attempt: forgetting that {@code yield} receives every binding in order. Trying
-   * to take {@code (reserved)} alone fails to compile — the lambda arity must match the number of
-   * {@code from} steps.
+   * <p>Common wrong attempt: {@code from} for the paid order. Marking it paid returns an {@code
+   * Order}, not a path, so it is a {@code let}; {@code from} needs a step that returns an {@code
+   * EitherPath}, and with an {@code Order} it does not compile.
    */
   @Test
-  @DisplayName("Exercise 6: same pipeline via ForPath")
+  @DisplayName("Exercise 6: Exercise 3's step with ForPath")
   void exercise6_forPathSpelling() {
-    String id = "ord-1";
+    OrderRepository orders = orders();
+    EitherPath<OrderError, Order> found =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
 
-    Either<OrderError, Order> result =
-        ForPath.from(Path.<OrderError, String>right(id))
-            .from(s -> findOrder(s).toEitherPath(OrderError.NOT_FOUND))
-            .from(t -> reserveInventory(t._2()))
-            .yield((idIn, found, reserved) -> reserved)
-            .run();
+    // SOLUTION: from the lookup, let the paid order, from the save, yield the saved order
+    EitherPath<OrderError, Order> saved =
+        ForPath.from(found)
+            .let(order -> OrderFocus.status().set(OrderStatus.PAID, order))
+            .from(t -> orders.save(t._2()))
+            .yield((order, paid, stored) -> stored);
 
-    assertThatEither(result)
+    assertThatEither(saved.run())
         .isRight()
-        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo("RESERVED"));
+        .hasRightSatisfying(order -> assertThat(order.status()).isEqualTo(OrderStatus.PAID));
+    assertThat(stored(orders, PLACED).status()).isEqualTo(OrderStatus.PAID);
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code recover} is the path's exception handler — given the typed error,
-   * return a fresh success. The pipeline downstream never sees the failure; the recovery value is
-   * just data.
+   * Why this is idiomatic: the {@code switch} over the sealed {@code OrderError} handles the one
+   * error it can put right and hands the other back unchanged, and the compiler checks that every
+   * kind of error has a case: a new one fails to compile until it is handled.
    *
-   * <p>Alternative: {@code path.fold(err -> defaultOrder, Function.identity())} after running. Same
-   * outcome; collapses the path early and loses the option to chain further steps after recovery.
+   * <p>Alternative: {@code error instanceof OrderError.NotFound(UUID id) ? Path.right(...) :
+   * Path.left(error)}. Shorter, but a new kind of error falls into the {@code left} branch without
+   * the compiler saying so.
    *
-   * <p>Common wrong attempt: catching exceptions thrown from {@code run}. The path never throws for
-   * business errors — it returns {@code Left(err)}. Wrapping {@code run} in a {@code try} misses
-   * every error the typed channel was designed to surface.
+   * <p>Common wrong attempt: {@code recover(error -> order(...))}. It turns every error into a
+   * fresh order, the refused save included, and the refusal is lost.
    */
   @Test
-  @DisplayName("Exercise 7: recover from missing order with a default")
+  @DisplayName("Exercise 7: Recover a missing order, pass a refusal on")
   void exercise7_recovery() {
-    String id = "missing-id";
-    Order defaultOrder = new Order("default", List.of(new Item("X", 1, 0.0)), "EMPTY");
+    OrderRepository orders = orders();
+    EitherPath<OrderError, Order> missing =
+        orders.find(UNKNOWN).toEitherPath(OrderError.notFound(UNKNOWN));
+    EitherPath<OrderError, Order> refused =
+        orders.find(SHIPPED).toEitherPath(OrderError.notFound(SHIPPED)).via(orders::save);
 
-    EitherPath<OrderError, Order> path =
-        findOrder(id).toEitherPath(OrderError.NOT_FOUND).recover(err -> defaultOrder);
+    // SOLUTION: a fresh order for NotFound, the refusal back on the Left
+    Function<OrderError, EitherPath<OrderError, Order>> startAfresh =
+        error ->
+            switch (error) {
+              case OrderError.NotFound(UUID id) -> Path.right(order(id, OrderStatus.NEW));
+              case OrderError.AlreadyShipped shipped -> Path.left(shipped);
+            };
 
-    Either<OrderError, Order> result = path.run();
-    assertThatEither(result)
+    assertThatEither(missing.recoverWith(startAfresh).run())
         .isRight()
-        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo("default"));
+        .hasRightSatisfying(
+            order -> {
+              assertThat(order.id()).isEqualTo(UNKNOWN);
+              assertThat(order.status()).isEqualTo(OrderStatus.NEW);
+            });
+    assertThatEither(refused.recoverWith(startAfresh).run())
+        .isLeft()
+        .hasLeft(OrderError.alreadyShipped(SHIPPED));
   }
 }

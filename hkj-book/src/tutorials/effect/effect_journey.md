@@ -8,7 +8,7 @@ The Effect Path API is the **recommended user-facing API** for Higher-Kinded-J. 
 ~~~
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
-The opening `repo.find(id).toEitherPath()` in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is precisely what this journey teaches. The Path types are the fluent wrappers that let us write the rest of that expression without ever opening the [Foundations chapter](../../hkts/foundations_intro.md). When we want to know what is happening underneath, [Lifting the Hood](../../hkts/lifting_the_hood.md) traces a single `flatMap` call end-to-end.
+The Path types in [One Line, Six Layers](../../hkts/one_line_six_layers.md), such as the `MaybePath` that `orders.find(id)` returns, are what this journey teaches. They are the fluent wrappers that let us write the rest of that expression without ever opening the [Foundations chapter](../../hkts/foundations_intro.md). When we want to know what is happening underneath, [Lifting the Hood](../../hkts/lifting_the_hood.md) traces a single `flatMap` call end-to-end.
 ~~~
 
 ~~~admonish note title="One-page Cheatsheet"
