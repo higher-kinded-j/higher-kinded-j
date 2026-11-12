@@ -107,8 +107,9 @@ page takes a row.
 
 ## Diagrams
 
-The Style Guide's [Diagrams](STYLE-GUIDE.md#diagrams) rules hold here, and three more give the
-chapter one visual vocabulary:
+The Style Guide's [Diagrams](STYLE-GUIDE.md#diagrams) rules hold here, and `hkj-book/check.sh` holds
+the chapter to its [Diagram Law](STYLE-GUIDE.md#the-diagram-law). Three more rules give the chapter one
+visual vocabulary:
 
 - **An optic is drawn in its legend shape.** The legend under "How the optic types relate" on the
   chapter introduction gives each optic type one shape and class:

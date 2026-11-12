@@ -50,16 +50,16 @@ the chain. `recover` can switch a `Left` back onto the success track. (The accum
 mode, which collects every warning even across a `Left`, is covered below.)
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Right</b>  ═══●═══════════════●═══▶  value</span>
-    <span style="color:#FFB300"><b>Both</b>   ═══●═══════════════●═══▶  value + warnings  (via threads and accumulates them)</span>
-    <span style="color:#FFB300">           via f           via g</span>
+    <span class="hkj-rail-ok"><b>Right</b>  ═══●═══════════════●═══▶  value</span>
+    <span class="hkj-rail-warn"><b>Both</b>   ═══●═══════════════●═══▶  value + warnings  (via threads and accumulates them)</span>
+    <span class="hkj-rail-warn">           via f           via g</span>
                 ╲               ╲   via returns Left
                  ╲               ╲
-    <span style="color:#F44336"><b>Left</b>   ────●───────────────●───▶  fatal, f never runs</span>
+    <span class="hkj-rail-err"><b>Left</b>   ────●───────────────●───▶  fatal, f never runs</span>
                                     │
-                               <span style="color:#4CAF50">recover</span>   switch back to the success track
+                               <span class="hkj-rail-ok">recover</span>   switch back to the success track
                                     │
-    <span style="color:#4CAF50">                                ●═══▶  recovered Right</span>
+    <span class="hkj-rail-ok">                                ●═══▶  recovered Right</span>
 </pre>
 
 ---

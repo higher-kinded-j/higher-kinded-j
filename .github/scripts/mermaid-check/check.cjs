@@ -4,6 +4,15 @@
  * browser-side mermaid library, so a diagram syntax error fails CI instead of
  * reaching the published book as a render-time error box.
  *
+ * A diagram that parses is then read for what the Style Guide asks of it:
+ *   - every diagram declares an accTitle and an accDescr, since without them a
+ *     screen reader announces the node labels and none of the arrows;
+ *   - in a chapter under the diagram law (DIAGRAM_LAW_CHAPTERS in
+ *     ../book-prose.cjs), every node of a flowchart or state diagram takes a
+ *     classDef that sets its fill and its text colour, so no node inherits a
+ *     page background that one theme makes unreadable.
+ * ../book-diagram-check.cjs holds those chapters' other diagrams to the law.
+ *
  * Mechanics: mermaid.min.js (fetched by ../fetch_mermaid.sh) is evaluated with
  * vm.runInThisContext under a jsdom window, matching browser script semantics
  * (a plain eval misses globalThis in strict mode, and state diagrams need a
@@ -15,6 +24,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const { JSDOM } = require("jsdom");
+const { diagramLawPages } = require("../book-prose.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const bookSrc = path.join(repoRoot, "hkj-book", "src");
@@ -169,16 +179,142 @@ function selfTest() {
 }
 selfTest();
 
+/** Nodes that take no fill of their own: start and end dots, fork and join bars, notes. */
+const UNFILLED_SHAPES = new Set(["stateStart", "stateEnd", "fork", "join", "divider", "note"]);
+
+/** Whether a node's classDefs, taken together, set both a fill and a text colour. */
+function coloursBoth(classes, names) {
+  const styles = names.flatMap((name) => {
+    const definition = classes instanceof Map ? classes.get(name) : classes[name];
+    return definition?.styles ?? [];
+  });
+  return ["fill", "color"].every((property) =>
+    styles.some((style) => style.trim().startsWith(`${property}:`))
+  );
+}
+
+/**
+ * What a parsed diagram lacks, as messages. `law` says whether its page is in
+ * a chapter under the diagram law, where every node must be classed.
+ *
+ * Mermaid lists a flowchart's or a state diagram's nodes, nested states
+ * included, in getData(); a subgraph or a composite state is a group, which
+ * takes no class. Mermaid adds classes of its own, such as `statediagram-state`,
+ * and gives every flowchart node `default`, which counts only when the diagram
+ * declares `classDef default`.
+ */
+async function diagramProblems(body, law) {
+  const diagram = await mermaid.mermaidAPI.getDiagramFromText(body);
+  const db = diagram.db;
+  const problems = [];
+  if (!(db.getAccTitle?.() ?? "").trim()) {
+    problems.push('no accTitle: add "accTitle: <a short name>" under the diagram type');
+  }
+  if (!(db.getAccDescription?.() ?? "").trim()) {
+    problems.push('no accDescr: add "accDescr: <what it shows, arrows included, in words>"');
+  }
+  if (law && /^(flowchart|stateDiagram)/.test(diagram.type) && db.getData) {
+    const classes = db.getClasses();
+    const unclassed = db
+      .getData()
+      .nodes.filter((node) => !node.isGroup && !UNFILLED_SHAPES.has(node.shape))
+      .filter((node) => !coloursBoth(classes, String(node.cssClasses ?? "").split(/\s+/).filter(Boolean)))
+      .map((node) => node.id);
+    if (unclassed.length) {
+      problems.push(
+        `no classDef with a fill and a color on ${unclassed.join(", ")}: ` +
+          "class them from the Style Guide's house palette"
+      );
+    }
+  }
+  return problems;
+}
+
+/*
+ * Regression checks for what a parsed diagram is held to, run on every
+ * invocation like the scanner's.
+ */
+async function diagramSelfTest() {
+  const NO_TITLE = 'no accTitle: add "accTitle: <a short name>" under the diagram type';
+  const NO_DESCR = 'no accDescr: add "accDescr: <what it shows, arrows included, in words>"';
+  const unclassed = (nodes) =>
+    `no classDef with a fill and a color on ${nodes}: class them from the Style Guide's house palette`;
+  const acc = "  accTitle: T\n  accDescr: D\n";
+  const ok = "  classDef ok fill:#a6d189,stroke:#40a02b,color:#232634\n";
+  const cases = [
+    { name: "a classed, described flowchart", law: true, input: `flowchart TD\n${acc}  A --> B\n${ok}  class A,B ok\n`, expect: [] },
+    { name: "no accTitle", law: false, input: "flowchart TD\n  accDescr: D\n  A --> B\n", expect: [NO_TITLE] },
+    { name: "no accDescr", law: false, input: "flowchart TD\n  accTitle: T\n  A --> B\n", expect: [NO_DESCR] },
+    { name: "a block accDescr", law: false, input: "flowchart TD\n  accTitle: T\n  accDescr {\n    D\n  }\n  A --> B\n", expect: [] },
+    { name: "a sequence diagram needs both", law: true, input: "sequenceDiagram\n  A->>B: hi\n", expect: [NO_TITLE, NO_DESCR] },
+    { name: "a described sequence diagram takes no classes", law: true, input: `sequenceDiagram\n${acc}  A->>B: hi\n`, expect: [] },
+    {
+      name: "an unclassed node under the law",
+      law: true,
+      input: `flowchart TD\n${acc}  A --> B\n${ok}  class A ok\n`,
+      expect: [unclassed("B")],
+    },
+    { name: "an unclassed node outside the law", law: false, input: `flowchart TD\n${acc}  A --> B\n`, expect: [] },
+    {
+      name: "a classDef with no text colour",
+      law: true,
+      input: `flowchart TD\n${acc}  A\n  classDef pale fill:#a6d189\n  class A pale\n`,
+      expect: [unclassed("A")],
+    },
+    { name: "the ::: shorthand", law: true, input: `flowchart TD\n${acc}  A:::ok --> B:::ok\n${ok}`, expect: [] },
+    {
+      name: "a subgraph joined by ~~~ is a group",
+      law: true,
+      input: `flowchart TD\n${acc}  subgraph S["s"]\n    A\n  end\n  S ~~~ B\n${ok}  class A,B ok\n`,
+      expect: [],
+    },
+    {
+      name: "a fill from one class and a color from another",
+      law: true,
+      input: `flowchart TD\n${acc}  A\n  classDef f fill:#a6d189\n  classDef c color:#232634\n  class A f\n  class A c\n`,
+      expect: [],
+    },
+    { name: "classDef default colours every node", law: true, input: `flowchart TD\n${acc}  A --> B\n  classDef default fill:#8caaee,color:#232634\n`, expect: [] },
+    {
+      name: "a state diagram's start, end and composite take no class",
+      law: true,
+      input: `stateDiagram-v2\n${acc}  [*] --> A\n  A --> C\n  state C {\n    [*] --> D\n    D --> [*]\n  }\n  A --> [*]\n${ok}  class A,D ok\n`,
+      expect: [],
+    },
+    {
+      name: "a nested state is checked",
+      law: true,
+      input: `stateDiagram-v2\n${acc}  [*] --> A\n  state C {\n    [*] --> D\n  }\n${ok}  class A ok\n`,
+      expect: [unclassed("D")],
+    },
+  ];
+  // Run twice, so a diagram that inherited the last one's accTitle would show.
+  for (const c of [...cases, ...cases]) {
+    await mermaid.parse(c.input);
+    const got = await diagramProblems(c.input, c.law);
+    if (JSON.stringify(got) !== JSON.stringify(c.expect)) {
+      console.error(
+        `self-test failed: ${c.name}\n  expected ${JSON.stringify(c.expect)}\n  got      ${JSON.stringify(got)}`
+      );
+      process.exit(2);
+    }
+  }
+}
+
 (async () => {
+  await diagramSelfTest();
+  const lawPages = diagramLawPages(bookSrc);
   let diagrams = 0;
   let failures = 0;
   for (const file of markdownFiles(bookSrc).sort()) {
     const rel = path.relative(repoRoot, file);
+    const law = lawPages.has(path.relative(bookSrc, file).split(path.sep).join("/"));
     for (const fence of mermaidFences(fs.readFileSync(file, "utf8"))) {
       diagrams++;
+      let problems;
       try {
         await mermaid.parse(fence.body);
-        console.log(`OK    ${rel}:${fence.line}`);
+        problems = await diagramProblems(fence.body, law);
       } catch (e) {
         failures++;
         const message = String(e.message || e).split("\n").slice(0, 3).join(" | ");
@@ -186,13 +322,22 @@ selfTest();
         console.log(
           `::error file=${rel},line=${fence.line}::mermaid parse error: ${message}`
         );
+        continue;
+      }
+      if (problems.length) {
+        failures++;
+        const message = problems.join("; ");
+        console.log(`FAIL  ${rel}:${fence.line}  ${message}`);
+        console.log(`::error file=${rel},line=${fence.line}::${message}`);
+      } else {
+        console.log(`OK    ${rel}:${fence.line}`);
       }
     }
   }
   console.log(
     failures
-      ? `${failures} of ${diagrams} mermaid diagrams failed to parse`
-      : `${diagrams} mermaid diagrams parse cleanly`
+      ? `${failures} of ${diagrams} mermaid diagrams failed`
+      : `${diagrams} mermaid diagrams parse cleanly, each with an accTitle and an accDescr`
   );
   process.exit(failures ? 1 : 0);
 })();

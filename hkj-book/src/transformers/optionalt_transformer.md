@@ -91,18 +91,18 @@ If any step returns empty, subsequent steps are skipped. No manual `orElse` fall
 ## The Railway View
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Present</b>  ═══●═══════════●═══════════●═══════════▶  UserPreferences</span>
-    <span style="color:#4CAF50">          fetchUser   fetchProfile fetchPrefs</span>
-    <span style="color:#4CAF50">          (flatMap)   (flatMap)    (flatMap)</span>
+    <span class="hkj-rail-ok"><b>Present</b>  ═══●═══════════●═══════════●═══════════▶  UserPreferences</span>
+    <span class="hkj-rail-ok">          fetchUser   fetchProfile fetchPrefs</span>
+    <span class="hkj-rail-ok">          (flatMap)   (flatMap)    (flatMap)</span>
                ╲          ╲             ╲
                 ╲          ╲             ╲  empty: skip remaining steps
                  ╲          ╲             ╲
-    <span style="color:#F44336"><b>Empty</b>    ────●──────────●─────────────●──────────▶  Optional.empty()</span>
-    <span style="color:#F44336">        user absent  profile absent  prefs absent</span>
+    <span class="hkj-rail-err"><b>Empty</b>    ────●──────────●─────────────●──────────▶  Optional.empty()</span>
+    <span class="hkj-rail-err">        user absent  profile absent  prefs absent</span>
                                           │
-                                     <span style="color:#4CAF50">handleErrorWith</span>    provide defaults
+                                     <span class="hkj-rail-ok">handleErrorWith</span>    provide defaults
                                           │
-    <span style="color:#4CAF50">                                      ●═══▶  default UserPreferences</span>
+    <span class="hkj-rail-ok">                                      ●═══▶  default UserPreferences</span>
 </pre>
 
 Each `flatMap` runs inside the outer monad `F`. If the inner `Optional` is empty, subsequent steps are skipped. `handleErrorWith` can provide a fallback value when the chain yields nothing.
@@ -121,16 +121,16 @@ Each `flatMap` runs inside the outer monad `F`. If the inner `Optional` is empty
     │  │                                                    │  │
     │  │  ┌─── Optional ────────────────────────────────┐   │  │
     │  │  │                                             │   │  │
-    │  │  │   <span style="color:#F44336">empty()</span>            │   <span style="color:#4CAF50">of(value)</span>          │   │  │
+    │  │  │   <span class="hkj-rail-err">empty()</span>            │   <span class="hkj-rail-ok">of(value)</span>          │   │  │
     │  │  │                      │                      │   │  │
     │  │  └─────────────────────────────────────────────┘   │  │
     │  │                                                    │  │
     │  └────────────────────────────────────────────────────┘  │
     │                                                          │
     │  flatMap ──▶ sequences F, then routes on Optional        │
-    │  map ──────▶ transforms <span style="color:#4CAF50">present value</span> only               │
-    │  raiseError(Unit) ──▶ creates <span style="color:#F44336">empty()</span> in F               │
-    │  handleErrorWith ──▶ recovers from <span style="color:#F44336">empty</span>                 │
+    │  map ──────▶ transforms <span class="hkj-rail-ok">present value</span> only               │
+    │  raiseError(Unit) ──▶ creates <span class="hkj-rail-err">empty()</span> in F               │
+    │  handleErrorWith ──▶ recovers from <span class="hkj-rail-err">empty</span>                 │
     └──────────────────────────────────────────────────────────┘
 </pre>
 

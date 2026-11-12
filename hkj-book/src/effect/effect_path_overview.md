@@ -97,15 +97,15 @@ the **railway**.
 <pre class="hkj-railway-diagram">
                          <b>THE EFFECT RAILWAY</b>
 
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══●═══●═══●═══●═══════════════════▶  Result</span>
-    <span style="color:#4CAF50">           │   │   │   │   │</span>
-    <span style="color:#4CAF50">          map via map via run</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══●═══●═══●═══●═══════════════════▶  Result</span>
+    <span class="hkj-rail-ok">           │   │   │   │   │</span>
+    <span class="hkj-rail-ok">          map via map via run</span>
                    │       │
                    ╳       │         error occurs, switch tracks
                    │       │
-    <span style="color:#F44336"><b>Failure</b>  ──────●───────┼───────────────────────▶  Error</span>
-    <span style="color:#F44336">               │       │</span>
-    <span style="color:#F44336">           mapError</span> <span style="color:#4CAF50">recover</span>
+    <span class="hkj-rail-err"><b>Failure</b>  ──────●───────┼───────────────────────▶  Error</span>
+    <span class="hkj-rail-err">               │       │</span>
+    <span class="hkj-rail-err">           mapError</span> <span class="hkj-rail-ok">recover</span>
                            │
                            ╳                         recovery, switch back
 </pre>
@@ -125,14 +125,14 @@ Each Path operator has a specific role on the railway:
 
 | Operator | Railway Role | What Happens |
 |----------|-------------|-------------|
-| `map(fn)` | <span style="color:#4CAF50">**Green track**</span> transform | Transforms data on the success track; failures pass through |
-| `mapError(fn)` | <span style="color:#F44336">**Red track**</span> transform | Transforms data on the error track; successes pass through |
-| `via(fn)` / `flatMap(fn)` | <span style="color:#4CAF50">**Green**</span> → <span style="color:#F44336">**Red**</span> switch | Chains an operation that may divert success to failure |
-| `recover(fn)` | <span style="color:#F44336">**Red**</span> → <span style="color:#4CAF50">**Green**</span> switch | Converts a failure back into a success value |
-| `recoverWith(fn)` | <span style="color:#F44336">**Red**</span> → <span style="color:#4CAF50">**Green**</span> switch | Converts a failure into a new Path (which itself may fail) |
+| `map(fn)` | <span class="hkj-rail-ok">**Green track**</span> transform | Transforms data on the success track; failures pass through |
+| `mapError(fn)` | <span class="hkj-rail-err">**Red track**</span> transform | Transforms data on the error track; successes pass through |
+| `via(fn)` / `flatMap(fn)` | <span class="hkj-rail-ok">**Green**</span> → <span class="hkj-rail-err">**Red**</span> switch | Chains an operation that may divert success to failure |
+| `recover(fn)` | <span class="hkj-rail-err">**Red**</span> → <span class="hkj-rail-ok">**Green**</span> switch | Converts a failure back into a success value |
+| `recoverWith(fn)` | <span class="hkj-rail-err">**Red**</span> → <span class="hkj-rail-ok">**Green**</span> switch | Converts a failure into a new Path (which itself may fail) |
 | `orElse(supplier)` | Fallback junction | Tries an alternative path if the first failed |
-| `peek(fn)` | <span style="color:#4CAF50">**Green track**</span> siding | Observes the success value without changing tracks |
-| `focus(lens)` | <span style="color:#4CAF50">**Green track**</span> wormhole | Navigates into nested data without leaving the track |
+| `peek(fn)` | <span class="hkj-rail-ok">**Green track**</span> siding | Observes the success value without changing tracks |
+| `focus(lens)` | <span class="hkj-rail-ok">**Green track**</span> wormhole | Navigates into nested data without leaving the track |
 
 ### Visualising Each Operator
 
@@ -145,11 +145,11 @@ the operator executes.
 Transforms the value on the success track. Failures pass through untouched.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══ map(fn) ═══●═══▶  transformed value</span>
-    <span style="color:#4CAF50">           A              f(A)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══ map(fn) ═══●═══▶  transformed value</span>
+    <span class="hkj-rail-ok">           A              f(A)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══════════════●═══▶  unchanged error</span>
-    <span style="color:#F44336">           E               E          (skipped)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══════════════●═══▶  unchanged error</span>
+    <span class="hkj-rail-err">           E               E          (skipped)</span>
 </pre>
 
 #### mapError(fn)
@@ -157,11 +157,11 @@ Transforms the value on the success track. Failures pass through untouched.
 The mirror of `map`: transforms the value on the failure track. Successes pass through untouched.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●════════════════════●═══▶  unchanged value</span>
-    <span style="color:#4CAF50">           A                    A          (skipped)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●════════════════════●═══▶  unchanged value</span>
+    <span class="hkj-rail-ok">           A                    A          (skipped)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══ mapError(fn) ═══●═══▶  transformed error</span>
-    <span style="color:#F44336">           E                  f(E)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══ mapError(fn) ═══●═══▶  transformed error</span>
+    <span class="hkj-rail-err">           E                  f(E)</span>
 </pre>
 
 #### via(fn) / flatMap(fn)
@@ -170,12 +170,12 @@ Chains an operation that may itself fail. The function receives the success valu
 a new Path; if that Path fails, the data switches to the failure track.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══ via(fn) ═══●═══▶  continues on success</span>
-    <span style="color:#4CAF50">           A           fn(A)</span>  ╲
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══ via(fn) ═══●═══▶  continues on success</span>
+    <span class="hkj-rail-ok">           A           fn(A)</span>  ╲
                                    ╲
-                                    <span style="color:#F44336">╲═══▶  diverts to failure (fn returned Left/Nothing)</span>
+                                    <span class="hkj-rail-err">╲═══▶  diverts to failure (fn returned Left/Nothing)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══════════════●═══▶  unchanged error (skipped)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══════════════●═══▶  unchanged error (skipped)</span>
 </pre>
 
 #### recover(fn)
@@ -183,10 +183,10 @@ a new Path; if that Path fails, the data switches to the failure track.
 Switches from the failure track back to the success track by converting the error into a value.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══════════════════●═══▶  unchanged value (skipped)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══════════════════●═══▶  unchanged value (skipped)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══ recover(fn) </span><span style="color:#4CAF50">═══●═══▶  recovered value</span>
-    <span style="color:#F44336">           E             </span><span style="color:#4CAF50">   fn(E)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══ recover(fn) </span><span class="hkj-rail-ok">═══●═══▶  recovered value</span>
+    <span class="hkj-rail-err">           E             </span><span class="hkj-rail-ok">   fn(E)</span>
 </pre>
 
 #### recoverWith(fn)
@@ -195,12 +195,12 @@ Like `recover`, but the function returns a new Path rather than a raw value. The
 itself may fail, keeping the data on the failure track.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══════════════════════●═══▶  unchanged value (skipped)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══════════════════════●═══▶  unchanged value (skipped)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══ recoverWith(fn) </span><span style="color:#4CAF50">═══●═══▶  recovered value</span>
-    <span style="color:#F44336">           E                fn(E)</span>  ╲
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══ recoverWith(fn) </span><span class="hkj-rail-ok">═══●═══▶  recovered value</span>
+    <span class="hkj-rail-err">           E                fn(E)</span>  ╲
                                         ╲
-                                         <span style="color:#F44336">╲═══▶  still failed (fn returned Left/Nothing)</span>
+                                         <span class="hkj-rail-err">╲═══▶  still failed (fn returned Left/Nothing)</span>
 </pre>
 
 #### orElse(supplier)
@@ -208,14 +208,14 @@ itself may fail, keeping the data on the failure track.
 A fallback junction: if the first path failed, try a completely different path.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●══════════════════════════▶  original value</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●══════════════════════════▶  original value</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══ orElse(supplier)</span>
-    <span style="color:#F44336">           E         │</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══ orElse(supplier)</span>
+    <span class="hkj-rail-err">           E         │</span>
                          ▼
-              <span style="color:#4CAF50">supplier.get() ═══●═══▶  alternative value</span>
+              <span class="hkj-rail-ok">supplier.get() ═══●═══▶  alternative value</span>
                                     ╲
-                                     <span style="color:#F44336">╲═══▶  alternative also failed</span>
+                                     <span class="hkj-rail-err">╲═══▶  alternative also failed</span>
 </pre>
 
 #### peek(fn)
@@ -224,12 +224,12 @@ A siding: the function observes the success value but does not change it or the 
 Commonly used for logging and debugging.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══ peek(fn) ═══●═══▶  same value, same track</span>
-    <span style="color:#4CAF50">           A      │         A</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══ peek(fn) ═══●═══▶  same value, same track</span>
+    <span class="hkj-rail-ok">           A      │         A</span>
                       ▼
                  <i>side effect</i>    (e.g. log, metric, debug)
 
-    <span style="color:#F44336"><b>Failure</b> ═══●════════════════●═══▶  unchanged error (skipped)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●════════════════●═══▶  unchanged error (skipped)</span>
 </pre>
 
 #### focus(lens)
@@ -239,16 +239,16 @@ and the result stays on the same track. If the optic is an `AffinePath` and the
 field is absent, the data switches to the failure track.
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══ focus(lens) ═══●═══▶  focused field</span>
-    <span style="color:#4CAF50">        Order              Address       (lens extracted nested value)</span>
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══ focus(lens) ═══●═══▶  focused field</span>
+    <span class="hkj-rail-ok">        Order              Address       (lens extracted nested value)</span>
 
-    <span style="color:#F44336"><b>Failure</b> ═══●═══════════════════●═══▶  unchanged error (skipped)</span>
+    <span class="hkj-rail-err"><b>Failure</b> ═══●═══════════════════●═══▶  unchanged error (skipped)</span>
 
     <i>With AffinePath (optional field):</i>
-    <span style="color:#4CAF50"><b>Success</b> ═══●═══ focus(affine) </span>
-    <span style="color:#4CAF50">        Order</span>         ╲
+    <span class="hkj-rail-ok"><b>Success</b> ═══●═══ focus(affine) </span>
+    <span class="hkj-rail-ok">        Order</span>         ╲
                            ╲  field absent
-                            <span style="color:#F44336">╲═══▶  Left(providedError) / Nothing</span>
+                            <span class="hkj-rail-err">╲═══▶  Left(providedError) / Nothing</span>
 </pre>
 
 ---

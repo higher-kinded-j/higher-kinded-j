@@ -102,14 +102,14 @@ One comprehension. The log combines via `List`'s `Monoid`. No manual threading.
 ## The Railway View
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Value</b>   ═══●═══════════════●═══════════════●═══▶  final price (in F)</span>
-    <span style="color:#4CAF50">         applyDiscount   addShipping     yield</span>
-    <span style="color:#4CAF50">         (flatMap)       (flatMap)</span>
+    <span class="hkj-rail-ok"><b>Value</b>   ═══●═══════════════●═══════════════●═══▶  final price (in F)</span>
+    <span class="hkj-rail-ok">         applyDiscount   addShipping     yield</span>
+    <span class="hkj-rail-ok">         (flatMap)       (flatMap)</span>
               │                  │
               ▼ <i>tell</i>             ▼ <i>tell</i>
-    <span style="color:#FFB300"><b>Log</b>     ──●──────────────●──────────────────────▶  ["Discount", "Shipping"]</span>
-    <span style="color:#FFB300">       "Applied 10%"  "Added shipping"</span>
-    <span style="color:#FFB300">                  combined via Monoid&lt;List&lt;String&gt;&gt;</span>
+    <span class="hkj-rail-warn"><b>Log</b>     ──●──────────────●──────────────────────▶  ["Discount", "Shipping"]</span>
+    <span class="hkj-rail-warn">       "Applied 10%"  "Added shipping"</span>
+    <span class="hkj-rail-warn">                  combined via Monoid&lt;List&lt;String&gt;&gt;</span>
 </pre>
 
 The value track and the log track advance together. Each `tell` appends to the log without interrupting the computation; `flatMap` combines accumulated logs through the supplied `Monoid`. The final `Kind<F, Pair<A, W>>` carries both the result and the full audit trail.

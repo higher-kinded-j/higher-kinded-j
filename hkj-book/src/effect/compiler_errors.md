@@ -37,9 +37,11 @@ Who speaks depends on the mistake:
 
 ```mermaid
 flowchart TD
+    accTitle: Who speaks when a Path chain is wrong
+    accDescr: If javac rejects the chain, the build stops, as in sections 2 to 5, and the HKJ checker names the fix for sections 2 and 5 and for a lambda in section 3. If javac accepts it, nothing says a word, as in section 1.
     C["Your Path chain"]
     J{"Does javac<br/>reject it?"}
-    JE["Build stops: §2 to §5<br/>the HKJ checker adds the fix"]
+    JE["Build stops: §2 to §5<br/>the HKJ checker names the fix<br/>for §2, §5 and a lambda in §3"]
     N["Nothing says a word: §1"]
 
     C --> J

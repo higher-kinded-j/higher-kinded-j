@@ -37,6 +37,8 @@ On the typed-error carriers the combinators are **railway-aware**: a business `L
 
 ```mermaid
 flowchart TD
+    accTitle: Which resilience pattern fits the failure
+    accDescr: Occasional transient blips, from the network, a failover or contention, call for Retry with backoff and jitter. A dependency that stays down for minutes at a time calls for a Circuit Breaker, layered with Retry as Combined Patterns shows. One slow dependency that starves everything else of capacity calls for a Bulkhead. Callers that wait forever on unbounded latency call for a Timeout, which Combined Patterns covers. A multi-step operation that fails halfway through calls for a Saga, which compensates the completed steps.
     Q{"What is failing,<br/>and how?"}
     Q -->|"occasional transient blips:<br/>network, failover, contention"| R(["Retry, with backoff<br/>and jitter"])
     Q -->|"a dependency stays down<br/>for minutes at a time"| CB(["Circuit Breaker<br/>(layered with Retry:<br/>see Combined Patterns)"])

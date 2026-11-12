@@ -218,6 +218,8 @@ The whole loop, drawn once:
 
 ```mermaid
 flowchart TD
+    accTitle: What Retry does with each attempt's outcome
+    accDescr: Each attempt runs and has one of four outcomes. A Right is returned, and no retry is needed. A Left the predicate does not select is returned unchanged, as a business answer. An exception the policy does not match is rethrown at once. A Left the predicate selects, or a retryable exception, leads to a check for attempts left. If any are left, Retry waits as the backoff strategy says and runs the attempt again. If none are, Retry is exhausted, and gives the last Left or a RetryExhaustedException.
     A["run the attempt"] --> O{"outcome?"}
     O -->|"Right"| RV(["returned:<br/>no retry needed"])
     O -->|"Left: not selected<br/>by the predicate"| LV(["returned as-is:<br/>a business answer"])
