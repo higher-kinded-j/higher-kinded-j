@@ -20,19 +20,15 @@ A circuit breaker solves this by tracking recent failures and, when enough accum
 ```mermaid
 stateDiagram-v2
     accTitle: The circuit breaker's three states
-    accDescr: The breaker starts CLOSED, where a success resets the failure count. When consecutive failures reach failureThreshold, it moves to OPEN, where calls are rejected at once with CircuitOpenException. When openDuration expires, it moves to HALF_OPEN. From there it returns to CLOSED when successThreshold probes succeed, and to OPEN when any probe fails.
-    direction LR
+    accDescr: The breaker starts CLOSED, where calls go through and a success resets the failure count. When consecutive failures reach failureThreshold, it moves to OPEN, where calls are rejected at once with CircuitOpenException. When openDuration expires, it moves to HALF_OPEN. From there it returns to CLOSED when successThreshold probes succeed, and to OPEN when any probe fails.
+    state "<b>CLOSED</b><br/>calls go through, and<br/>a success resets<br/>the failure count" as CLOSED
+    state "<b>OPEN</b><br/>calls are rejected at once<br/>with CircuitOpenException" as OPEN
+    state "<b>HALF_OPEN</b>" as HALF_OPEN
     [*] --> CLOSED
-    CLOSED --> OPEN : consecutive failures reach failureThreshold
-    OPEN --> HALF_OPEN : openDuration expires
-    HALF_OPEN --> CLOSED : successThreshold probes succeed
-    HALF_OPEN --> OPEN : any probe fails
-    CLOSED --> CLOSED : a success resets the failure count
-
-    note right of OPEN
-        calls rejected immediately
-        with CircuitOpenException
-    end note
+    CLOSED --> OPEN : consecutive failures<br/>reach failureThreshold
+    OPEN --> HALF_OPEN : openDuration<br/>expires
+    HALF_OPEN --> CLOSED : successThreshold<br/>probes succeed
+    HALF_OPEN --> OPEN : any probe<br/>fails
 
     classDef closed fill:#a6d189,stroke:#40a02b,color:#232634
     classDef open fill:#e78284,stroke:#d20f39,color:#232634
