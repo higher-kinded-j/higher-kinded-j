@@ -34,7 +34,7 @@ final class Executing {
    * that reads ahead within one pull, such as {@code chunk}. So the loop stops at an interrupt even
    * when the pulls never block, as a pull that sleeps or waits on I/O already does.
    *
-   * <p>A stop closes only what the run has reached, never a stream another run may be reading:
+   * <p>A stop closes only what the run has reached:
    *
    * <ul>
    *   <li>a terminal operation also calls this once before it starts, outside the {@code try} that

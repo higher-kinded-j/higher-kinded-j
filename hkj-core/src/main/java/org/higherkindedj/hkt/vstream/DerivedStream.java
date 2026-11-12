@@ -126,8 +126,7 @@ abstract class DerivedStream<U, A> implements VStream<A> {
    * interleave}'s second as the first ends before either is read, and the stream after {@code
    * prepend}'s element. Pulling it pulls the stream, so each step after is the stream's own, and a
    * first pull that fails closes the stream, as closing this would not. Closing it before that
-   * first pull leaves the stream as it is, since this run has not reached it, and another run may
-   * be reading it.
+   * first pull leaves the stream as it is, since this run has not reached it.
    */
   static <A> VStream<A> unreached(VStream<A> stream) {
     // A Concat, not a class of its own, so a loop that pulls it meets no more kinds of stream

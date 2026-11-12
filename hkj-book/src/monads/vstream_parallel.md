@@ -103,7 +103,7 @@ The quotes arrive in whatever order the courier answers, so the example sorts th
 | Reads the source on | The thread that pulls | A virtual thread of its own |
 | Tasks see the caller's `ScopedValue` bindings | Yes | No |
 
-`parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way without closing the stream, its thread is left waiting, so close it; `take` and the other operations that stop early close it for you.
+`parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way, close the tail you hold, or the run's thread is left waiting. `take` and the other operations that stop early close it for you.
 
 `parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order. Closing it closes each stream it built but never reached, so their finalisers run when a `take` stops early or a failure ends the stream first.
 

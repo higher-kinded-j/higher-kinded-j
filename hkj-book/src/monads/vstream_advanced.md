@@ -105,7 +105,7 @@ Java's `Flow.Publisher` sends elements to a subscriber as fast as the subscriber
 
 ### VStream to Publisher {#vstream-to-publisher}
 
-`VStreamReactive.toPublisher(stream)` gives a publisher that pulls an element only when its subscriber has asked for one, plus one more to notice the end of the stream. Each subscriber reads the stream from the start. When a subscriber cancels, or the stream fails, the publisher closes what is left of the stream, so its finalisers run. A subscriber that cancels before it asks for anything closes nothing, so it cannot end another subscriber's reading of a shared stream.
+`VStreamReactive.toPublisher(stream)` gives a publisher that pulls an element only when its subscriber has asked for one, plus one more to notice the end of the stream. Each subscriber reads the stream from the start. When a subscriber cancels, or the stream fails, the publisher closes what is left of the stream, so its finalisers run. A subscriber that cancels before it asks for anything closes nothing, since it has read nothing.
 
 ### Publisher to VStream {#publisher-to-vstream}
 
@@ -118,7 +118,7 @@ Java's `Flow.Publisher` sends elements to a subscriber as fast as the subscriber
 - **Each run subscribes at its first pull**, so building the stream subscribes nothing, and a stream read twice subscribes twice.
 - **A hot publisher**, such as a `SubmissionPublisher`, sends a run only what it publishes after the run subscribes. Publish once `getNumberOfSubscribers()` shows the run has subscribed.
 - **Incoming elements are held in a buffer of `bufferSize`**, 256 if you leave it out. The stream first asks for that many, then for one more as it takes each element.
-- **Closing the stream cancels the run's subscription**, so `take(3)` stops the publisher once it has its three elements.
+- **A run that stops early cancels its subscription**, so `take(3)` stops the publisher once it has its three elements.
 
 The Flow rules forbid a null element, and so does a `VStream`. A publisher that sends one has its subscription cancelled, and the stream fails with a `NullPointerException`: `VStream.fromPublisher element cannot be null`.
 

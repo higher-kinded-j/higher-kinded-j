@@ -298,6 +298,8 @@ class VStreamParBookTest {
               counted(read).peek(_ -> reader.set(Thread.currentThread())), 4, VTask::succeed);
 
       VStream.Step<Integer> first = arriving.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) first).tail();
       try {
         // One result taken and four waiting, so five read, and the reader blocks
         await()
@@ -309,10 +311,8 @@ class VStreamParBookTest {
                         && reader.get().getState() == Thread.State.WAITING
                         && read.get() == 5);
       } finally {
-        arriving.close().run();
+        rest.close().run();
       }
-
-      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
     }
   }
 
@@ -523,12 +523,18 @@ class VStreamParBookTest {
       VStream<Integer> tenThousand = VStream.range(0, 10_000).peek(_ -> read.incrementAndGet());
       VStream<Integer> merged = VStreamPar.merge(tenThousand, VStream.empty());
 
-      // One pull starts the merge; closing its head stops the run it started
-      merged.pull().run();
+      // One pull starts the merge; closing the tail it gave stops the run it started
+      VStream<Integer> rest =
+          switch (merged.pull().run()) {
+            case VStream.Step.Emit<Integer> emit -> emit.tail();
+            case VStream.Step.Skip<Integer> skip -> skip.tail();
+            case VStream.Step<Integer> other ->
+                throw new AssertionError("expected more, got " + other);
+          };
       try {
         await().pollInterval(POLL).atMost(PATIENCE).until(() -> read.get() == 10_000);
       } finally {
-        merged.close().run();
+        rest.close().run();
       }
     }
 

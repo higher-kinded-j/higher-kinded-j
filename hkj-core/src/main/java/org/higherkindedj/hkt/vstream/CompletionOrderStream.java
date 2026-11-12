@@ -12,19 +12,20 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.Cleanup;
+import org.higherkindedj.hkt.vstream.VStream.Step;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
 /**
- * The stream {@link VStreamPar#parEvalMapUnordered} gives: up to {@code concurrency} of its
- * elements' tasks run at once, and each result is emitted as its task completes.
+ * A run of the stream {@link VStreamPar#parEvalMapUnordered} gives: up to {@code concurrency} of
+ * its elements' tasks run at once, and each result is emitted as its task completes.
  *
- * <p>Each run of its pulled {@code VTask} starts a window of its own, on a virtual thread that
- * reads the source, forks a task for each element, and reads the next element when the consumer
- * takes a result. The tasks running and the results not yet taken are never more than {@code
- * concurrency} together, so a consumer that stops pulling stops the reading. The stream remembers
- * its latest window, so closing it after a pull closes that run, as a {@link RememberingStream}
- * does, and it keeps no step the window gave, so holding it holds nothing already read.
+ * <p>Each run starts a window of its own, on a virtual thread that reads the source, forks a task
+ * for each element, and reads the next element when the consumer takes a result. The tasks running
+ * and the results not yet taken are never more than {@code concurrency} together, so a consumer
+ * that stops pulling stops the reading. Only the run's own tails reach its window. A run whose
+ * first pull fails closes the window itself, and closing the stream itself leaves every run's
+ * window alone, since several runs may read it at once.
  *
  * <p>Each step a window gives is kept by the stream that gave it, so a tail pulled again gives the
  * same step. A failed element of the source is handed on as it is read, ahead of the results still
@@ -33,60 +34,35 @@ import org.jspecify.annotations.Nullable;
  * the tasks still running and closes the source where the window got to, and the stream then fails
  * with it, after any results already given. A failed pull from the source stops the reading, but
  * the tasks already running finish, and their results come before the failure; an interrupt cancels
- * them at once. Closing the stream part-way cancels the tasks still running and closes the source,
- * and fails with what closing the source throws. Closing and an interrupted task interrupt the
- * reader, so a source finaliser that runs inside a pull, as one does at the source's end, can be
- * cut short, as with {@link VStreamPar#merge}. A function that closes the stream closes the source
- * itself, on the reader's thread, so it gets what closing throws. A run that is neither read to its
- * end nor closed leaves its thread waiting, holding the results not yet taken, so close the stream
- * you stop reading.
+ * them at once. Closing a run's tail part-way cancels the tasks still running and closes the
+ * source, and fails with what closing the source throws. Closing and an interrupted task interrupt
+ * the reader, so a source finaliser that runs inside a pull, as one does at the source's end, can
+ * be cut short, as with {@link VStreamPar#merge}. A function that closes a tail of its own run
+ * closes the source itself, on the reader's thread, so it gets what closing throws. A run that is
+ * neither read to its end nor closed leaves its thread waiting, holding the results not yet taken,
+ * so close the tail you stop reading at.
  *
  * <p>The source is read, and the tasks run, on threads the window starts, which do not see the
  * caller's {@code ScopedValue} bindings.
- *
- * @param <A> The type of elements in the source.
- * @param <B> The type of elements emitted.
  */
-final class CompletionOrderStream<A, B> implements VStream<B> {
+final class CompletionOrderStream {
 
   private static final String NULL_TASK = "function returned null task for element: ";
 
-  private final VStream<A> source;
-  private final int concurrency;
-  private final Function<? super A, VTask<B>> f;
-  private final AtomicReference<@Nullable Window<A, B>> latest = new AtomicReference<>();
+  private CompletionOrderStream() {}
 
-  CompletionOrderStream(VStream<A> source, int concurrency, Function<? super A, VTask<B>> f) {
-    this.source = source;
-    this.concurrency = concurrency;
-    this.f = f;
-  }
-
-  @Override
-  public VTask<Step<B>> pull() {
-    return () -> {
-      Window<A, B> window = new Window<>(source, concurrency, f);
-      // Started before it is published, so a close that finds it waits for its reader, and the
-      // reader waits in turn for the window to be published, so the function's close finds it
-      window.start();
-      latest.set(window);
-      window.published();
-      try {
-        return new Taken<>(window).pull().execute();
-      } catch (InterruptedException e) {
-        // A defer around this stream keeps nothing it builds, so no close would reach the window
-        Closing.runAfterFailure(window.close(), e);
-        throw e;
-      }
-    };
-  }
-
-  @Override
-  public VTask<Unit> close() {
-    return () -> {
-      Window<A, B> window = latest.get();
-      return (window == null ? source.close() : window.close()).execute();
-    };
+  /**
+   * Starts one run's window over {@code source}, which runs up to {@code concurrency} of {@code
+   * f}'s tasks at once, and gives the stream of its results, in the order the tasks complete.
+   *
+   * @param <A> The type of elements in the source.
+   * @param <B> The type of elements emitted.
+   */
+  static <A, B> VStream<B> started(
+      VStream<A> source, int concurrency, Function<? super A, VTask<B>> f) {
+    Window<A, B> window = new Window<>(source, concurrency, f);
+    window.start();
+    return new Taken<>(window);
   }
 
   /**
@@ -114,8 +90,6 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
     private final AtomicReference<@Nullable Throwable> closeFailure = new AtomicReference<>();
-    // Released once the stream has published the window, for the reader to begin
-    private final Semaphore publication = new Semaphore(0);
     private final Thread reader;
     // Held while interrupting the reader, so no interrupt reaches it once it closes the source
     private final Object interrupting = new Object();
@@ -134,11 +108,6 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
       reader.start();
     }
 
-    /** Lets the reader begin, once a close of the stream finds this window. */
-    void published() {
-      publication.release();
-    }
-
     /** Interrupts the reader, unless it has stopped reading to close the source. */
     private void stopReading() {
       synchronized (interrupting) {
@@ -149,16 +118,13 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
     }
 
     /**
-     * Once the window is published, reads the source and forks a task for each element until the
-     * source ends, a failure stops it or the window is closed, then waits for the tasks still
-     * running. An interrupt, from closing or from an interrupted task, makes the join return at
-     * once, and the scope then cancels them. A failed pull stops only the reading, so the join
-     * waits for the tasks to finish.
+     * Reads the source and forks a task for each element until the source ends, a failure stops it
+     * or the window is closed, then waits for the tasks still running. An interrupt, from closing
+     * or from an interrupted task, makes the join return at once, and the scope then cancels them.
+     * A failed pull stops only the reading, so the join waits for the tasks to finish.
      */
     @SuppressWarnings("preview")
     private void read() {
-      // A close's interrupt that comes while it waits stays set, so the reading stops at once
-      publication.acquireUninterruptibly();
       boolean ended = false;
       Throwable pullFailure = null;
       // A task never fails its subtask, so the scope is cancelled only by the interrupt
@@ -214,11 +180,11 @@ final class CompletionOrderStream<A, B> implements VStream<B> {
               task = Objects.requireNonNull(f.apply(e.value()), () -> NULL_TASK + e.value());
             } catch (Throwable t) {
               // A function that fails stops the window as an interrupted task does, even after it
-              // closed the stream, since the consumer hears of it from no one else
+              // closed its run, since the consumer hears of it from no one else
               failure.compareAndSet(null, t);
               return false;
             }
-            // The function may have closed the stream
+            // The function may have closed its run
             if (stopped()) {
               return false;
             }

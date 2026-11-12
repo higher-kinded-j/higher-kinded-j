@@ -1408,7 +1408,7 @@ class VStreamCloseAndReplayTest {
   }
 
   @Nested
-  @DisplayName("A head built when its pulled VTask runs closes what that run built")
+  @DisplayName("A head built when its pulled VTask runs leaves each run to close what it built")
   class BuiltHeadsClose {
 
     @ParameterizedTest(name = "{0}")
@@ -1465,14 +1465,17 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("closing a bracket's head after a pull releases what that pull acquired")
-    void closingPulledBracketHeadReleases() {
+    @DisplayName(
+        "closing a bracket's head after a pull leaves that run's resource, which its tail releases")
+    void closingPulledBracketHeadLeavesTheRun() {
       AtomicInteger released = new AtomicInteger();
       VStream<Integer> stream = bracketed(released);
 
-      stream.pull().run();
+      VStream<Integer> tail = tailOf(stream.pull().run());
       stream.close().run();
+      assertThat(released).as("closing the head").hasValue(0);
 
+      tail.close().run();
       assertThat(released).hasValue(1);
     }
 
@@ -1648,18 +1651,19 @@ class VStreamCloseAndReplayTest {
                         }
                       }));
       VStream<Integer> merged = VStreamPar.merge(slowToClose, VStream.repeat(2));
+      VStream<Integer> rest = tailOf(merged.pull().run());
 
-      Thread consumer = Thread.ofVirtual().start(() -> merged.take(1).toList().run());
+      Thread firstCloser = Thread.ofVirtual().start(() -> rest.close().run());
       assertThat(finalising.await(10, TimeUnit.SECONDS)).isTrue();
-      Thread closer = Thread.ofVirtual().start(() -> merged.close().run());
+      Thread closer = Thread.ofVirtual().start(() -> rest.close().run());
       // Once the second close waits for the producer, it has interrupted it
       await().atMost(Duration.ofSeconds(10)).until(() -> closer.getState() == Thread.State.WAITING);
       proceed.countDown();
-      consumer.join(Duration.ofSeconds(10));
+      firstCloser.join(Duration.ofSeconds(10));
       closer.join(Duration.ofSeconds(10));
 
       assertThat(interrupted).isFalse();
-      assertThat(consumer.isAlive()).isFalse();
+      assertThat(firstCloser.isAlive()).isFalse();
       assertThat(closer.isAlive()).isFalse();
     }
 
@@ -2072,7 +2076,7 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("a subscription handed over after the stream is closed is cancelled at once")
+    @DisplayName("a subscription handed over after its run is closed is cancelled at once")
     void lateSubscriptionIsCancelled() throws InterruptedException {
       List<Flow.Subscriber<? super Integer>> subscribers = new CopyOnWriteArrayList<>();
       AtomicBoolean cancelled = new AtomicBoolean();
@@ -2082,8 +2086,8 @@ class VStreamCloseAndReplayTest {
       Thread pulling = Thread.startVirtualThread(() -> stream.pull().runSafe());
       await().atMost(Duration.ofSeconds(5)).until(() -> pulling.getState() == Thread.State.WAITING);
 
-      stream.close().run();
-      // Closing wakes the waiting pull
+      // Interrupted, as a timeout would, the first pull fails, and closes the run it started
+      pulling.interrupt();
       pulling.join(Duration.ofSeconds(5));
       assertThat(pulling.isAlive()).isFalse();
       subscribers
