@@ -115,6 +115,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **The `hkj-guide` skill turns guard clauses into `ensure`** ([#1338](https://github.com/higher-kinded-j/higher-kinded-j/issues/1338)). A new migration recipe replaces a run of `if (!ok) return Either.left(...)` checks with one `ensure` step for each, and the skill's Error Handling table lists `ensure`.
 - **The `Profunctor` javadoc states its composition law correctly** ([#1362](https://github.com/higher-kinded-j/higher-kinded-j/pull/1362)). Two of its functions were swapped, so the law as written fails. It no longer says profunctors model the optics, which are van Laarhoven optics, and `Bifunctor`'s javadoc names `Function` as the only `Profunctor` instance. See [Profunctor](../functional/profunctor.md).
 - **The `VTask` javadoc says which thread runs a task** ([#1396](https://github.com/higher-kinded-j/higher-kinded-j/pull/1396)). `run()` runs it on the calling thread, and `runAsync()`, `Par` and `Scope` run tasks on virtual threads. It said every task ran on a virtual thread, as did the VTaskPath page and two glossary entries.
+- **You can learn the type classes from one tested example.** Most Foundations pages and Tutorial 00 use the order service the Optics and Mapping chapters share. Each core type's page opens with a card saying when to reach for it, Supported Types is rebuilt around those cards, and a new page lists where an instance bends a law. See [Foundations](../hkts/foundations_intro.md).
 
 ---
 

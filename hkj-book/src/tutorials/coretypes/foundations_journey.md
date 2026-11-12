@@ -13,13 +13,13 @@
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the hands-on counterpart to the [Foundations chapter](../../hkts/foundations_intro.md). Each tutorial exercises one layer of the [One Line, Six Layers](../../hkts/one_line_six_layers.md) anchor:
 
-| Tutorial | Anchor token | Foundations reference |
+| Tutorial | Step of the line | Foundations reference |
 |----------|--------------|------------------------|
-| **00 One Line, Six Layers** | All six tokens, end-to-end | [One Line, Six Layers](../../hkts/one_line_six_layers.md) |
+| **00 One Line, Six Layers** | All six layers, end to end | [One Line, Six Layers](../../hkts/one_line_six_layers.md) |
 | 01 Kind basics | (the type-level encoding under everything) | [Lifting the Hood](../../hkts/lifting_the_hood.md) |
-| 02 Functor mapping | `.map(...)` / `.modify(...)` | [Functor](../../functional/functor.md) |
+| 02 Functor mapping | `.map(order -> ...)` | [Functor](../../functional/functor.md) |
 | 03 Applicative combining | independent `zipWith` / `map2` | [Applicative](../../functional/applicative.md) |
-| 04 Monad chaining | `.flatMap(repo::save)` | [Monad](../../functional/monad.md) |
+| 04 Monad chaining | `.via(orders::save)`, which is Monad's `flatMap` | [Monad](../../functional/monad.md) |
 
 When a *Things People Get Wrong* panel in the Foundations chapter references an idea, the diagnostic exercise that drills it lives in the matching tutorial here.
 ~~~
@@ -47,14 +47,14 @@ A single-page reference to every abstraction in this journey, with imperative-Ja
 ## Tutorial 00: One Line, Six Layers
 **File**: `Tutorial00_OneLineSixLayers.java` | **Exercises**: 9 (7 graded + 1 diagnostic, plus a no-code setup check)
 
-The chapter anchor and the setup check. We type out one line of working Higher-Kinded-J that touches every layer of the library, then unpack each token in a separate exercise.
+The chapter anchor and the setup check. We write the line that changes the email on an order, one step at a time. [One Line, Six Layers](../../hkts/one_line_six_layers.md) takes the same line apart, on the order service the book's chapters share.
 
 **What we'll learn**:
 - Confirm the build is wired correctly (annotation processing, Java 25, the Effect Path API on the classpath)
-- See the same six tokens (Effect type, natural transformation, optic, functor, monad, dispatch) that the rest of the chapter teaches in detail
+- Meet the six layers the rest of the chapter teaches in detail: an effect type, a natural transformation, an optic, Functor, Monad, and the algebra that gives the same operations over `Kind`
 - Set the Pain → Promise framing for everything that follows
 
-**Key insight**: A single expression (`find(id).toEitherPath(...).map(item -> lens.modify(...)).via(repo::save).run()`) already uses every layer. Once we can read that expression, the rest of the chapter is unpacking the parts.
+**Key insight**: A single expression, `orders.find(id).toEitherPath(...).map(...).via(orders::save)`, already uses every layer. Once we can read that expression, the rest of the chapter is unpacking the parts.
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial00_OneLineSixLayers.java)
 
@@ -110,7 +110,7 @@ Learn to combine multiple independent computations, perfect for validating forms
 
 **What we'll learn**:
 - Lifting plain values into context with `of` (pure)
-- Combining 2, 3, 4, or 5 independent values with `map2`, `map3`, `map4`, `map5` via the typeclass instance
+- Combining 2, 3, 4, or 5 independent values with `map2`, `map3`, `map4`, `map5` on the `Applicative` instance
 - The difference between `Either` (fail-fast) and `Validated` (accumulate errors via a `Semigroup`)
 - When to use Applicative vs Monad: the diagnostic exercise makes the Validated case visible
 
@@ -194,7 +194,7 @@ Kind<EitherKind.Witness<String>, Integer> kind = EITHER.widen(either);
 ### 2. Looking for `map2` on the Concrete Type
 **Problem**: Calling `value1.map2(value2, ...)` on `Either`. There is no such instance method.
 
-**Solution**: Combinators across multiple inputs live on the `Applicative` typeclass instance. Get the instance, widen the inputs, call the combinator, narrow the result.
+**Solution**: Combinators across several inputs live on the `Applicative` instance. Get the instance, widen the inputs, call the combinator, narrow the result.
 
 <!-- verify -->
 ```java
@@ -211,7 +211,7 @@ Either<String, Integer> sum =
 ### 4. Using `flatMap` When the Steps Are Independent
 **Problem**: Forcing a sequential mental model on inputs that do not depend on each other; on `Validated` this loses the error-accumulation behaviour.
 
-**Solution**: Reach for `mapN` (Applicative) when the inputs do not depend on each other.
+**Solution**: Reach for `map2` to `map5` (Applicative) when the inputs do not depend on each other.
 
 ---
 
@@ -222,7 +222,7 @@ After completing this journey:
 1. **Continue to Error Handling**: `MonadError` and when to use which concrete type
 2. **Jump to Effect API**: start using the user-friendly Effect Path API (recommended)
 3. **Explore Optics**: see how these concepts power the optics library
-4. **Read [Lifting the Hood](../../hkts/lifting_the_hood.md)**: a token-by-token trace of one `flatMap` call through `widen`, dispatch, and `narrow`, with the JIT cost called out
+4. **Read [Lifting the Hood](../../hkts/lifting_the_hood.md)**: follows one `flatMap` call through `widen`, the instance's `flatMap` and `narrow`, and counts what each step allocates
 
 ---
 
