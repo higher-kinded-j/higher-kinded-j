@@ -3,6 +3,7 @@
 package org.higherkindedj.tutorial.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.expression.ForPath;
@@ -115,6 +117,33 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
   /** The order the repository now holds, or a stand-in with the unknown id when it holds none. */
   static Order stored(OrderRepository orders, UUID id) {
     return orders.find(id).getOrElse(order(UNKNOWN, OrderStatus.NEW));
+  }
+
+  /**
+   * A repository whose database can go down. It holds the placed order and the shipped one; once
+   * {@code goDown()} is called, {@code save} throws, as a real database call does when its server
+   * is unreachable.
+   */
+  static final class FlakyOrders implements OrderRepository {
+    private final OrderRepository orders = orders();
+    private boolean down;
+
+    void goDown() {
+      down = true;
+    }
+
+    @Override
+    public MaybePath<Order> find(UUID id) {
+      return orders.find(id);
+    }
+
+    @Override
+    public EitherPath<OrderError, Order> save(Order order) {
+      if (down) {
+        throw new IllegalStateException("database unavailable");
+      }
+      return orders.save(order);
+    }
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -274,23 +303,24 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
    * <p>A real repository talks to a database that can fail, and a circuit breaker stops calling it
    * after repeated failures. {@code EitherPath} is eager: by the time one exists its work has run,
    * so it has no chained {@code withCircuitBreaker}. Instead the static {@code
-   * EitherPath.withCircuitBreaker(step, breaker)} takes the step as a supplier, which goes inside
-   * the {@code via}. A {@code Left} is an answer, not a fault, so a refused save does not count
-   * against the breaker.
+   * EitherPath.withCircuitBreaker(step, breaker)} takes the step as a supplier, and runs it inside
+   * the breaker. A {@code Left} is an answer, not a fault, so a refused save does not count against
+   * the breaker; a save that throws does. {@code FlakyOrders} is a repository whose database the
+   * test can take down.
    *
-   * <p>Task: save each found order through the breaker.
+   * <p>Task: write the save, through the breaker, as a function the test passes to {@code via}.
    *
    * <pre>
    *   // Nudge:    The breaker wraps the one step that talks to the outside world: the save.
-   *   // Strategy: via, with EitherPath.withCircuitBreaker(supplier, breaker) inside it.
-   *   // Spoiler:  found.via(order -&gt; EitherPath.withCircuitBreaker(() -&gt; orders.save(order),
-   *   //               breaker))
+   *   // Strategy: EitherPath.withCircuitBreaker(supplier, breaker), with the save inside the
+   *   //           supplier.
+   *   // Spoiler:  order -&gt; EitherPath.withCircuitBreaker(() -&gt; orders.save(order), breaker)
    * </pre>
    */
   @Test
   @DisplayName("Exercise 5: The save behind a circuit breaker")
   void exercise5_protectTheSave() {
-    OrderRepository orders = orders();
+    FlakyOrders orders = new FlakyOrders();
     CircuitBreaker breaker =
         CircuitBreaker.create(
             CircuitBreakerConfig.builder()
@@ -302,17 +332,24 @@ public class TutorialCapstone_OneLineSixLayersGrowsUp {
     EitherPath<OrderError, Order> foundShipped =
         orders.find(SHIPPED).toEitherPath(OrderError.notFound(SHIPPED));
 
-    // TODO: Replace both answerRequired() calls with each found path, saved through the breaker
-    EitherPath<OrderError, Order> saved = answerRequired();
-    EitherPath<OrderError, Order> refused = answerRequired();
+    // TODO: Replace answerRequired() with a function that saves an order through the breaker
+    Function<Order, EitherPath<OrderError, Order>> protectedSave = answerRequired();
 
-    assertThatEither(saved.run()).isRight();
-    assertThatEither(refused.run()).isLeft().hasLeft(OrderError.alreadyShipped(SHIPPED));
-    // Both saves ran through the breaker, and the refusal did not count as a failure: with a
-    // failure threshold of one, a single failure would have opened it.
+    assertThatEither(found.via(protectedSave).run()).isRight();
+    assertThatEither(foundShipped.via(protectedSave).run())
+        .isLeft()
+        .hasLeft(OrderError.alreadyShipped(SHIPPED));
+    // The refusal is an answer, not a fault: the breaker counted two successful saves.
     assertThat(breaker.metrics().successfulCalls()).isEqualTo(2);
     assertThat(breaker.metrics().failedCalls()).isZero();
-    assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+
+    // When the database goes down, the save throws inside the breaker, which counts the failure
+    // and, with a failure threshold of one, opens.
+    orders.goDown();
+    assertThatThrownBy(() -> found.via(protectedSave))
+        .hasStackTraceContaining("database unavailable");
+    assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+    assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
   }
 
   // ═════════════════════════════════════════════════════════════════════════
