@@ -23,11 +23,12 @@ import org.higherkindedj.hkt.vtask.VTask;
  *   <li><b>OPEN</b> (failing fast): all calls are immediately rejected with {@link
  *       CircuitOpenException}. After the configured open duration, the circuit transitions to
  *       half-open.
- *   <li><b>HALF_OPEN</b> (probing): at most {@link CircuitBreakerConfig#successThreshold()} calls
- *       are let through, as probes, and any other call is rejected with a {@link
+ *   <li><b>HALF_OPEN</b> (probing): the circuit has {@link CircuitBreakerConfig#successThreshold()}
+ *       probe places. A call runs as a probe while a place is free; a probe holds its place while
+ *       it runs and keeps it once it succeeds, and a probe that is cancelled gives its place up to
+ *       the next call. A call that finds every place taken is rejected with a {@link
  *       CircuitOpenException} whose {@link CircuitOpenException#status() status} is {@code
- *       HALF_OPEN}. If that many probes succeed, the circuit closes; if one fails, it re-opens. A
- *       probe that is cancelled gives up its place to the next call.
+ *       HALF_OPEN}. If that many probes succeed, the circuit closes; if one fails, it re-opens.
  * </ul>
  *
  * <p>A call counts only towards the state it was admitted in. One still running when the circuit
@@ -67,8 +68,8 @@ public final class CircuitBreaker {
     /** Failing fast: all calls are rejected immediately. */
     OPEN,
     /**
-     * Probing: at most {@link CircuitBreakerConfig#successThreshold()} calls are let through to
-     * test recovery.
+     * Probing: a call runs as a probe, to test recovery, while fewer than {@link
+     * CircuitBreakerConfig#successThreshold()} probes are running or have succeeded.
      */
     HALF_OPEN
   }
@@ -184,11 +185,14 @@ public final class CircuitBreaker {
    * CircuitBreakerConfig#recordFailure()} once the call has stopped. For a call that can hang where
    * an interrupt cannot reach it, protect {@code task.detachOnCancel()}, so that the failure is
    * recorded when the time runs out and the circuit can open. Otherwise such a call, running as a
-   * probe, keeps its place until it stops, and the circuit turns every other call away meanwhile.
+   * probe, holds its place until it stops; with a success threshold of one, the circuit then turns
+   * every other call away meanwhile.
    *
    * <p>Protect a call with one breaker once. A call that a breaker protects twice, as {@code
-   * io.withCircuitBreaker(b).map(f).withCircuitBreaker(b)} does, counts each outcome twice, and
-   * while the circuit is half-open its inner call can find no probe place free.
+   * io.withCircuitBreaker(b).map(f).withCircuitBreaker(b)} does, counts each outcome twice. While
+   * the circuit is half-open, the inner call takes a second probe place if one is free, so one
+   * request can supply two of the successes that close the circuit; when none is free, the inner
+   * call is rejected.
    *
    * <p>A call cancelled by an interrupt counts as neither a success nor a failure, whatever {@link
    * CircuitBreakerConfig#recordFailure()} says, since it tells nothing about the protected service.

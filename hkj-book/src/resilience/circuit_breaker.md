@@ -13,7 +13,7 @@
 
 A retry policy assumes that trying again will eventually work. Sometimes it will not. If the database is down, retrying every 200 milliseconds for the next 30 seconds just generates 150 doomed requests. The service needs time to recover, and hammering it with traffic makes recovery harder.
 
-A circuit breaker solves this by tracking recent failures and, when enough accumulate, *stopping* calls entirely for a cooling-off period. After the period expires, it cautiously lets probe requests through: one by default, and never more than the successes it needs, while it turns the rest away. If the probes succeed, normal traffic resumes. If one fails, the circuit re-opens.
+A circuit breaker solves this by tracking recent failures and, when enough accumulate, *stopping* calls entirely for a cooling-off period. After the period expires, it cautiously lets probe requests through, as many at once as the successes it still needs (one by default), and turns the rest away. If the probes succeed, normal traffic resumes. If one fails, the circuit re-opens.
 
 ## The State Machine
 
@@ -42,11 +42,11 @@ stateDiagram-v2
 |-------|-----------|----------------|
 | **CLOSED** | All calls allowed. Consecutive failures counted. | OPEN (when failures reach threshold) |
 | **OPEN** | All calls rejected immediately with `CircuitOpenException`. | HALF_OPEN (after open duration expires) |
-| **HALF_OPEN** | At most `successThreshold` probes run. Any other call is rejected with a `CircuitOpenException` whose `status()` is `HALF_OPEN`. | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
+| **HALF_OPEN** | A call runs as a probe while running and successful probes are fewer than `successThreshold`. Any other call is rejected with a `CircuitOpenException` whose `status()` is `HALF_OPEN`. | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
 
 A call counts towards the state it was admitted in. One still running when the circuit opens, or when `reset()` closes it, finishes without moving it, though the metrics still count it. So a slow success from before an outage cannot close the circuit while it is half-open. A half-open rejection's `retryAfter()` is the call timeout, and an open one's is the time left before the circuit half-opens.
 
-Protect a call with one breaker once. A breaker that protects a call it already protects counts each outcome twice, and while half-open the inner call finds no probe place free.
+Protect a call with one breaker once. A breaker that protects a call it already protects counts each outcome twice. While half-open, the inner call takes a second probe place if one is free, so one request can supply two of the successes that close the circuit. When none is free, the inner call is rejected.
 
 ## Configuration
 
@@ -65,14 +65,14 @@ CircuitBreakerConfig config = CircuitBreakerConfig.builder()
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `failureThreshold` | 5 | Consecutive failures before the circuit opens |
-| `successThreshold` | 1 | Successful probes in HALF_OPEN before closing, and the most probes it lets through |
+| `successThreshold` | 1 | Successful probes in HALF_OPEN before closing; running and successful probes together never exceed it |
 | `openDuration` | 60s | How long the circuit stays open |
 | `callTimeout` | 10s | Timeout applied to each protected call: a slower call is interrupted, and fails once it has stopped |
 | `recordFailure` | all exceptions | Predicate determining which exceptions count |
 
 The `recordFailure` predicate is important: not every exception means the service is unhealthy. A `400 Bad Request` or a business validation error reflects a problem with the *request*, not the *service*. Only count failures that indicate the service itself is struggling. A cancelled call counts as neither a success nor a failure, whatever `recordFailure` says, and its `InterruptedException` passes through.
 
-A call slower than `callTimeout` counts once it has stopped. So a call that hangs where an interrupt cannot reach it would keep the circuit closed, or, running as a half-open probe, keep its place while every other call is turned away. Detach the call before protecting it, and the breaker counts it when the time runs out:
+A call slower than `callTimeout` counts once it has stopped. So a call that hangs where an interrupt cannot reach it would keep the circuit closed, or, running as a half-open probe, hold its place until it stops. With the default threshold of one, every other call is turned away meanwhile. Detach the call before protecting it, and the breaker counts it when the time runs out:
 
 <!-- verify -->
 ```java
@@ -236,7 +236,7 @@ Note the retry predicate: `CircuitOpenException` should *not* be retried, becaus
 
 ~~~admonish info title="Key Takeaways"
 * **Three states**: CLOSED counts consecutive failures and opens at `failureThreshold`; OPEN rejects instantly for `openDuration`
-* **Recovery is probed**: HALF_OPEN lets through at most `successThreshold` probes and turns other calls away; that many successes close it, and any probe failure re-opens it
+* **Recovery is probed**: HALF_OPEN runs a call as a probe while running and successful probes are fewer than `successThreshold`, and turns the rest away; that many successes close it, and any probe failure re-opens it
 * **One breaker per protected endpoint**: `protect()` is generic, so a single instance guards every call to that endpoint and they share failure state; unrelated endpoints get their own breakers
 * **Only faults trip it**: on the typed carriers a business `Left` never counts; the `onOpen` overload lands rejections as typed `Left`s
 * **Tune `recordFailure`**: a 400 or a validation error reflects the request, not the service; count only what signals an unhealthy dependency

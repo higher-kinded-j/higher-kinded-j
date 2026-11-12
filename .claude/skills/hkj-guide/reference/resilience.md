@@ -172,7 +172,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 |-------|----------|----------------|
 | CLOSED | All calls allowed; failures counted | OPEN (failures reach threshold) |
 | OPEN | All calls rejected with `CircuitOpenException` | HALF_OPEN (after openDuration expires) |
-| HALF_OPEN | At most `successThreshold` probes run; other calls rejected with `CircuitOpenException` (`status()` is `HALF_OPEN`) | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
+| HALF_OPEN | A call runs as a probe while running and successful probes are fewer than `successThreshold`; other calls rejected with `CircuitOpenException` (`status()` is `HALF_OPEN`) | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
 
 ### Configuration
 
@@ -180,7 +180,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 ```java
 CircuitBreakerConfig config = CircuitBreakerConfig.builder()
     .failureThreshold(5)                      // Consecutive failures before opening (default: 5)
-    .successThreshold(3)                      // Probes needed in HALF_OPEN to close, and the most let through (default: 1)
+    .successThreshold(3)                      // Probes needed in HALF_OPEN to close; running + successful probes never exceed it (default: 1)
     .openDuration(Duration.ofSeconds(30))     // How long circuit stays open (default: 60s)
     .callTimeout(Duration.ofSeconds(5))       // Timeout per protected call (default: 10s)
     .recordFailure(ex -> !(ex instanceof BusinessValidationException))  // Which exceptions count

@@ -11,8 +11,10 @@ import java.time.Duration;
  * <p>This exception indicates that the circuit breaker has determined the protected service is
  * unhealthy, or is still testing whether it has recovered, and is not letting this call through.
  * {@link #status()} says which. For an open circuit, {@link #retryAfter()} is approximately how
- * long before it half-opens and lets a probe through; for a half-open one, it is the call timeout,
- * by which a running probe that stops when interrupted has given up its place.
+ * long before it half-opens and lets a probe through. For a half-open one, it is the call timeout,
+ * by which a running probe that stops when interrupted has given up its place. Neither promises
+ * that a call will then be admitted: a probe that fails or times out re-opens the circuit for its
+ * open duration.
  *
  * @see CircuitBreaker
  */
@@ -26,7 +28,8 @@ public class CircuitOpenException extends RuntimeException {
    *
    * @param status the status of the circuit breaker when it rejected the call: {@code OPEN}, or
    *     {@code HALF_OPEN} when every probe place was taken
-   * @param retryAfter approximate duration until the circuit may let a call through
+   * @param retryAfter for {@code OPEN}, approximately the time before the circuit half-opens; for
+   *     {@code HALF_OPEN}, the call timeout
    */
   public CircuitOpenException(CircuitBreaker.Status status, Duration retryAfter) {
     super("Circuit breaker is " + status + ", retry after " + retryAfter);
@@ -44,7 +47,10 @@ public class CircuitOpenException extends RuntimeException {
   }
 
   /**
-   * Returns the approximate duration until the circuit breaker may let a call through.
+   * Returns how long to wait before trying again: for an open circuit, approximately the time
+   * before it half-opens; for a half-open one, the call timeout, by which a running probe that
+   * stops when interrupted has given up its place. It does not promise that the next call is
+   * admitted.
    *
    * @return the retry-after duration
    */
