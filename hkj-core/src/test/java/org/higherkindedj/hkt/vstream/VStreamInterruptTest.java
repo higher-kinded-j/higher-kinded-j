@@ -164,33 +164,6 @@ class VStreamInterruptTest {
       // It read nothing, so it has nothing to close
       assertThat(finalised).hasValue(0);
     }
-
-    @Test
-    @DisplayName(
-        "started with the interrupt status set leaves alone a shared head another run reads")
-    void startedInterruptedLeavesASharedHeadAlone() {
-      List<String> log = new ArrayList<>();
-      AtomicInteger acquired = new AtomicInteger();
-      VStream<Integer> shared =
-          VStream.bracket(
-              VTask.of(() -> acquired.incrementAndGet()),
-              id -> VStream.of(1, 2, 3),
-              id -> VTask.exec(() -> log.add("release " + id)));
-      // Another run is part-way through the shared stream, holding resource 1
-      VStream<Integer> otherRunsRest = ((VStream.Step.Emit<Integer>) shared.pull().run()).tail();
-
-      Thread.currentThread().interrupt();
-      try {
-        assertThat(failureOf(shared.toList().runSafe())).isInstanceOf(InterruptedException.class);
-      } finally {
-        Thread.interrupted();
-      }
-
-      assertThat(log).as("the other run's resource is not released").isEmpty();
-      assertThat(acquired).as("nothing more acquired").hasValue(1);
-      otherRunsRest.close().run();
-      assertThat(log).containsExactly("release 1");
-    }
   }
 
   @Nested
@@ -227,52 +200,46 @@ class VStreamInterruptTest {
       return arguments(named(name, handingOn));
     }
 
-    /** Each shape interrupts its thread in the pull whose step hands on {@code shared}. */
+    /** Each shape interrupts its thread in the pull whose step hands on {@code unreached}. */
     static Stream<Arguments> handOvers() {
       return Stream.of(
           handOver(
               "concat, as its first stream ends",
-              shared ->
+              unreached ->
                   VStream.<Integer>empty()
                       .onComplete(() -> Thread.currentThread().interrupt())
-                      .concat(shared)),
+                      .concat(unreached)),
           handOver(
               "interleave, as its first stream ends",
-              shared ->
+              unreached ->
                   VStream.<Integer>empty()
                       .onComplete(() -> Thread.currentThread().interrupt())
-                      .interleave(shared)),
+                      .interleave(unreached)),
           handOver(
               "flatMap, into the stream for an element",
-              shared ->
-                  VStream.of(1).peek(_ -> Thread.currentThread().interrupt()).flatMap(_ -> shared)),
+              unreached ->
+                  VStream.of(1)
+                      .peek(_ -> Thread.currentThread().interrupt())
+                      .flatMap(_ -> unreached)),
           handOver(
               "prepend, after its element",
-              shared -> shared.prepend(0).peek(_ -> Thread.currentThread().interrupt())));
+              unreached -> unreached.prepend(0).peek(_ -> Thread.currentThread().interrupt())));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("handOvers")
-    @DisplayName("leaves it alone at a stop there, so a shared head another run reads stays open")
+    @DisplayName("leaves it alone at a stop there, so a finaliser on it does not run")
     void leavesTheHandedOnStreamAlone(Function<VStream<Integer>, VStream<Integer>> handingOn) {
-      List<String> log = new ArrayList<>();
-      AtomicInteger acquired = new AtomicInteger();
-      VStream<Integer> shared =
-          VStream.bracket(
-              VTask.of(acquired::incrementAndGet),
-              _ -> VStream.of(1, 2, 3),
-              id -> VTask.exec(() -> log.add("release " + id)));
-      // Another run is part-way through the shared stream, holding resource 1
-      VStream<Integer> otherRunsRest = ((VStream.Step.Emit<Integer>) shared.pull().run()).tail();
+      AtomicInteger finalised = new AtomicInteger();
+      // No run has pulled it, so closing it would run its finaliser
+      VStream<Integer> unreached =
+          VStream.of(1, 2, 3).onFinalize(VTask.exec(finalised::incrementAndGet));
 
-      Try<?> outcome = handingOn.apply(shared).toList().runSafe();
+      Try<?> outcome = handingOn.apply(unreached).toList().runSafe();
       Thread.interrupted();
 
       assertThat(failureOf(outcome)).isInstanceOf(InterruptedException.class);
-      assertThat(log).as("the other run's resource is not released").isEmpty();
-      assertThat(acquired).as("nothing more acquired").hasValue(1);
-      otherRunsRest.close().run();
-      assertThat(log).containsExactly("release 1");
+      assertThat(finalised).as("the stream handed on is left as it is").hasValue(0);
     }
 
     @Test

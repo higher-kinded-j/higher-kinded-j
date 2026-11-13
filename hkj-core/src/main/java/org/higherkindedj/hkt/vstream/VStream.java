@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
@@ -120,20 +119,26 @@ public interface VStream<A> extends VStreamKind<A> {
   VTask<Step<A>> pull();
 
   /**
-   * Signals early termination of this stream, allowing any attached finalisers to run.
+   * Signals early termination of a run of this stream, allowing its finalisers to run.
    *
    * <p>The default implementation is a no-op, for a stream that holds nothing to release. Streams
    * created by {@link #onFinalize(VTask)} override this to execute their finaliser, and every
-   * operator closes the streams it is reading from, so closing a stream reaches every finaliser
-   * upstream of it, the innermost first. A {@link #defer} stream builds a new stream each time its
-   * pulled {@code VTask} runs and keeps none of them, so closing it closes nothing: close the
-   * stream you are reading. A {@link #bracket} stream remembers its latest run, so closing its head
-   * after a pull releases the resource that run acquired. An operator that applies your function to
-   * an element closes the rest of the stream if the function throws. Operations that stop before a
-   * stream ends, such as {@link #take}, {@link #takeWhile}, {@link #headOption} and {@link #find},
-   * and terminal operations that fail, close what they leave unread. {@link #concat(VStream)} and
-   * {@link #prepend} close only the stream they are reading, and leave a stream they have not
-   * reached as it is, since it may be another consumer's.
+   * operator closes the streams it is reading from, so closing the tail a run holds reaches every
+   * finaliser upstream of it in that run, the innermost first.
+   *
+   * <p>Each run of a stream starts at a pull of its head, and several runs may read one stream at
+   * once, so what a run opens is reached only through the tails its pulls gave: close the tail you
+   * hold. Closing a head ends no run. Closing a {@link #bracket} stream itself releases nothing; a
+   * run's resource is released when a tail of that run is closed. Closing an {@link #onFinalize}
+   * stream runs its finaliser only while no run has pulled it. A {@link #defer} stream keeps none
+   * of the streams it builds, so closing it closes nothing.
+   *
+   * <p>An operator that applies your function to an element closes the rest of the stream if the
+   * function throws. Operations that stop before a stream ends, such as {@link #take}, {@link
+   * #takeWhile}, {@link #headOption} and {@link #find}, and terminal operations that fail, close
+   * what they leave unread. {@link #concat(VStream)} and {@link #prepend} close only the stream
+   * they are reading, and leave a stream they have not reached as it is, since a run closes only
+   * what it has reached.
    *
    * <p>A stream you write that reads from another should override this to close it, or closing
    * stops there.
@@ -1646,14 +1651,14 @@ public interface VStream<A> extends VStreamKind<A> {
    * <p>The release runs with the thread's interrupt status cleared, as {@link #onFinalize}
    * describes.
    *
-   * <p><b>Limitation:</b> A consumer that pulls steps by hand and drops the stream, or the tail of
-   * a step, without draining it or calling {@link #close()} never runs the release. Every terminal
+   * <p><b>Limitation:</b> A consumer that pulls steps by hand and drops the tail of a step without
+   * draining it or closing it never runs the release. Closing the bracket itself, the stream the
+   * first pull was made on, releases nothing, since another run may be reading it. Every terminal
    * operation, {@link #take} and {@link #takeWhile} take care of this.
    *
    * <p>To read one resource after another, recurse outside the bracket, as in {@code
    * bracket(acquire, use, release).concat(VStream.defer(() -> next()))}. A recursion inside {@code
-   * use} keeps every earlier resource open until the last one ends, and its head keeps every
-   * earlier run reachable.
+   * use} keeps every earlier resource open until the last one ends.
    *
    * <h2>Example: File I/O</h2>
    *
@@ -1690,8 +1695,9 @@ public interface VStream<A> extends VStreamKind<A> {
     Objects.requireNonNull(use, "use must not be null");
     Objects.requireNonNull(release, "release must not be null");
 
-    // Each run acquires afresh; the head remembers its latest run, so closing it releases that run
-    return new RememberingStream<>(
+    // Each run acquires afresh, and its finaliser releases on a failed first pull as at the end, so
+    // only the run's own tails reach its resource
+    return DeferredStream.deferring(
         acquire.flatMap(
             resource -> {
               VTask<Unit> releasing =
@@ -1725,11 +1731,11 @@ public interface VStream<A> extends VStreamKind<A> {
    * </ul>
    *
    * <p>The finaliser runs once for each consumption that completes, fails or is closed, so
-   * consuming the stream again runs it again. {@link #close()} on the returned stream runs it for
-   * the latest consumption unless that consumption has run it already, or at once if the stream has
-   * not been pulled. When the stream is consumed by several threads at once, close the tail a
-   * consumer holds rather than the returned stream, since the latest consumption may be another
-   * thread's. If the finaliser itself throws an exception and the stream also failed, the original
+   * consuming the stream again runs it again. A consumption starts at a pull of the returned
+   * stream, and is closed through a tail that pull gave: {@link #close()} on the returned stream
+   * itself ends no consumption, since several may be reading it at once. Until a consumption
+   * starts, closing the returned stream runs the finaliser once, for the consumption that never
+   * started. If the finaliser itself throws an exception and the stream also failed, the original
    * error is preserved and the finaliser error is added as a suppressed exception. Otherwise a
    * finaliser that throws fails the operation that completed or closed the stream with the
    * exception it threw, a checked one included.
@@ -2320,11 +2326,11 @@ final class MappedStream<A, B> extends DerivedStream<A, B> {
 /**
  * The head of a stream with a finaliser, as {@link VStream#onFinalize} returns it.
  *
- * <p>A stream can be consumed more than once, so each pull of the head starts a consumption with
- * its own flag, and the finaliser runs once for each consumption: when it completes, fails or is
- * closed. {@link #close()} on the head ends the latest consumption, or one not yet started, so
- * consuming the stream again afterwards runs the finaliser again. Under concurrent consumptions the
- * latest one may belong to another consumer, so each consumer closes the tail it holds.
+ * <p>A stream can be consumed more than once, and by several runs at once, so each pull of the head
+ * starts a consumption with its own flag, and the finaliser runs once for each consumption: when it
+ * completes, fails or is closed through a tail it gave. The head keeps no consumption, so {@link
+ * #close()} on it ends none. Until a run pulls it, closing it runs the finaliser once, for a
+ * consumption that never started; once one has, closing it closes the source only.
  *
  * @param <A> The element type.
  */
@@ -2332,8 +2338,9 @@ final class FinalizedStream<A> implements VStream<A> {
 
   private final VStream<A> source;
   private final VTask<Unit> finalizer;
-  private final AtomicReference<AtomicBoolean> latest =
-      new AtomicReference<>(new AtomicBoolean(false));
+  // Whether the consumption no run started is over: the first pull ends it without the finaliser,
+  // and a close before that ends it with the finaliser, once
+  private final AtomicBoolean headDone = new AtomicBoolean(false);
 
   FinalizedStream(VStream<A> source, VTask<Unit> finalizer) {
     this.source = source;
@@ -2344,16 +2351,15 @@ final class FinalizedStream<A> implements VStream<A> {
   public VTask<Step<A>> pull() {
     return VTask.delay(
             () -> {
-              AtomicBoolean released = new AtomicBoolean(false);
-              latest.set(released);
-              return consumption(source, finalizer, released);
+              headDone.set(true);
+              return consumption(source, finalizer, new AtomicBoolean(false));
             })
         .flatMap(VStream::pull);
   }
 
   @Override
   public VTask<Unit> close() {
-    return VTask.delay(latest::get).flatMap(released -> release(released, finalizer, source));
+    return release(headDone, finalizer, source);
   }
 
   /**

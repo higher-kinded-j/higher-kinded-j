@@ -512,8 +512,10 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("closing the stream after a pull closes that run's source")
-    void closingTheHeadClosesTheRun() {
+    @DisplayName(
+        "closing the tail a pull gave closes that run's source, and closing the stream itself does"
+            + " not")
+    void closingTheTailClosesTheRun() {
       AtomicInteger finalised = new AtomicInteger();
       VStream<Integer> results =
           VStreamPar.parEvalMapUnordered(
@@ -521,9 +523,11 @@ class VStreamParTest {
               2,
               VTask::succeed);
 
-      results.pull().run();
+      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) results.pull().run()).tail();
       results.close().run();
+      assertThat(finalised).as("closing the stream itself").hasValue(0);
 
+      tail.close().run();
       assertThat(finalised).hasValue(1);
     }
 
@@ -821,8 +825,31 @@ class VStreamParTest {
           .isSameAs(releaseFailed);
     }
 
+    /**
+     * Reads {@code results}, handing {@code holder} the tail its first pull gave once it has it, so
+     * a function that waits for {@code holder} can close its own run from inside it.
+     */
+    private static List<Integer> readHoldingTheRun(
+        VStream<Integer> results, AtomicReference<VStream<Integer>> holder) {
+      VStream.Step.Emit<Integer> first = (VStream.Step.Emit<Integer>) results.pull().run();
+      holder.set(first.tail());
+      List<Integer> read = new ArrayList<>(List.of(first.value()));
+      read.addAll(first.tail().toList().run());
+      return read;
+    }
+
+    /** The tail {@link #readHoldingTheRun} hands on, once it has handed it on. */
+    private static VStream<Integer> heldTail(AtomicReference<VStream<Integer>> holder) {
+      await()
+          .pollDelay(Duration.ZERO)
+          .pollInterval(Duration.ofMillis(1))
+          .atMost(Duration.ofSeconds(5))
+          .until(() -> holder.get() != null);
+      return holder.get();
+    }
+
     @Test
-    @DisplayName("a function that closes the stream it maps ends it without waiting on itself")
+    @DisplayName("a function that closes its own run ends it without waiting on itself")
     void theFunctionClosesTheStream() {
       AtomicReference<VStream<Integer>> holder = new AtomicReference<>();
       VStream<Integer> results =
@@ -831,17 +858,16 @@ class VStreamParTest {
               2,
               n -> {
                 if (n == 3) {
-                  holder.get().close().run();
+                  heldTail(holder).close().run();
                 }
                 return VTask.succeed(n);
               });
-      holder.set(results);
 
-      assertThat(results.toList().run()).isSubsetOf(1, 2, 3);
+      assertThat(readHoldingTheRun(results, holder)).isSubsetOf(1, 2, 3);
     }
 
     @Test
-    @DisplayName("a function that closes the stream gets what closing the source throws, once")
+    @DisplayName("a function that closes its own run gets what closing the source throws, once")
     void theFunctionHearsTheRelease() {
       IllegalStateException releaseFailed = new IllegalStateException("release failed");
       AtomicInteger releases = new AtomicInteger();
@@ -862,15 +888,15 @@ class VStreamParTest {
               2,
               n -> {
                 if (n == 3) {
-                  firstClose.set(catchThrowable(() -> holder.get().close().execute()));
-                  secondClose.set(catchThrowable(() -> holder.get().close().execute()));
+                  VStream<Integer> run = heldTail(holder);
+                  firstClose.set(catchThrowable(() -> run.close().execute()));
+                  secondClose.set(catchThrowable(() -> run.close().execute()));
                 }
                 return VTask.succeed(n);
               });
-      holder.set(results);
 
-      // The element whose function closed the stream runs no task
-      assertThat(results.toList().run()).isSubsetOf(1, 2);
+      // The element whose function closed the run runs no task
+      assertThat(readHoldingTheRun(results, holder)).isSubsetOf(1, 2);
       assertThat(firstClose.get()).isSameAs(releaseFailed);
       assertThat(secondClose.get()).isNull();
       assertThat(releases).hasValue(1);
@@ -894,44 +920,32 @@ class VStreamParTest {
               2,
               n -> {
                 if (n == 3) {
+                  heldTail(holder).close().run();
+                }
+                return VTask.succeed(n);
+              });
+
+      assertThatThrownBy(() -> readHoldingTheRun(results, holder)).isSameAs(releaseFailed);
+    }
+
+    @Test
+    @DisplayName("a function that closes the stream itself leaves its own run reading")
+    void theFunctionClosingTheStreamLeavesTheRun() {
+      AtomicInteger releases = new AtomicInteger();
+      AtomicReference<VStream<Integer>> holder = new AtomicReference<>();
+      VStream<Integer> results =
+          VStreamPar.parEvalMapUnordered(
+              VStream.iterate(1, n -> n + 1).onFinalize(VTask.exec(releases::incrementAndGet)),
+              1,
+              n -> {
+                if (n == 1) {
                   holder.get().close().run();
                 }
                 return VTask.succeed(n);
               });
       holder.set(results);
 
-      assertThatThrownBy(() -> results.toList().run()).isSameAs(releaseFailed);
-    }
-
-    @Test
-    @DisplayName("a function that closes the stream at its first element closes that run")
-    void theFunctionClosesTheRunAtOnce() {
-      IllegalStateException releaseFailed = new IllegalStateException("release failed");
-      AtomicInteger releases = new AtomicInteger();
-      AtomicReference<Throwable> closing = new AtomicReference<>();
-      AtomicReference<VStream<Integer>> holder = new AtomicReference<>();
-      VStream<Integer> source =
-          VStream.iterate(1, n -> n + 1)
-              .onFinalize(
-                  VTask.of(
-                      () -> {
-                        releases.incrementAndGet();
-                        throw releaseFailed;
-                      }));
-      VStream<Integer> results =
-          VStreamPar.parEvalMapUnordered(
-              source,
-              2,
-              n -> {
-                if (n == 1) {
-                  closing.set(catchThrowable(() -> holder.get().close().execute()));
-                }
-                return VTask.succeed(n);
-              });
-      holder.set(results);
-
-      assertThat(results.toList().run()).isEmpty();
-      assertThat(closing.get()).isSameAs(releaseFailed);
+      assertThat(results.take(3).toList().run()).containsExactly(1, 2, 3);
       assertThat(releases).hasValue(1);
     }
 

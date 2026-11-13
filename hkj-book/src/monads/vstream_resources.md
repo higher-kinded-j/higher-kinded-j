@@ -9,7 +9,7 @@ _Open a connection when a run starts, and close it however the run ends._
 - Predict what a run reports when reading fails, and when the release itself fails
 - Nest brackets, and read one resource after another
 - Attach cleanup to any stream with `onFinalize`
-- Close a stream you pull by hand
+- Close the tail you hold when you pull by hand
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -66,6 +66,8 @@ Building the stream opened nothing. The run opened the connection, read every pa
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamResourcesBook.java:run_twice}}
 ```
+
+Two threads can read one stream at the same time, each run with a connection of its own. A run closes only what it opened. So `take(0)` on one thread, which stops before it reads, leaves the other thread's connection open.
 
 ## Stopping early {#stopping-early}
 
@@ -156,10 +158,10 @@ The connection's release runs before the finaliser attached after it.
 
 ## Pulling by hand {#pulling-by-hand}
 
-~~~admonish warning title="Close a stream you pull by hand"
-A release runs when its run completes, fails or is closed. Pull steps by hand, as [What a pull gives](vstream.md#what-a-pull-gives) shows, and stop part-way, and the connection stays open until you close the stream you pulled, or the tail you hold. The first pull of `ordersOver` opens the connection and gives a `Skip`, so even one pull leaves something to close. A pull that throws releases what it opened by itself.
+~~~admonish warning title="Close the tail you hold when you pull by hand"
+A release runs when its run completes, fails or is closed. Pull steps by hand, as [What a pull gives](vstream.md#what-a-pull-gives) shows, and stop part-way, and the connection stays open until you close the tail you hold. Closing the stream you called `pull()` on closes no run's connection, since another thread's run may be reading it. The first pull of `ordersOver` opens the connection and gives a `Skip`, so even one pull leaves something to close. A pull that throws releases what it opened by itself.
 
-`take` closes the rest only on the pull after its last element, so a hand puller who stops at that `Emit` still closes. A `Fail` step, for a failed `mapTask` task, holds the rest of the stream in its tail: close it, or read on from it, as you would an `Emit`'s. Running a pulled `VTask` twice opens two connections, and closing the stream you called `pull()` on closes only the latest run's, so close the tail each run gave you.
+`take` closes the rest only on the pull after its last element, so a hand puller who stops at that `Emit` still closes. A `Fail` step, for a failed `mapTask` task, holds the rest of the stream in its tail: close it, or read on from it, as you would an `Emit`'s. Running a pulled `VTask` twice opens two connections, one for each run, so close the tail each run gave you.
 ~~~
 
 ## Which thread releases {#which-thread-releases}
@@ -174,7 +176,7 @@ If that thread was interrupted before the release starts, the interrupt is held 
 |---|---|
 | `VStream.bracket(acquire, use, release)` | Opens a resource for each run, reads the stream `use` builds, and releases it however the run ends |
 | `stream.onFinalize(task)` | Runs `task` once for each run, when the run ends |
-| `stream.close()` | Closes the stream: runs the finalisers upstream of it, and releases what its latest run opened |
+| `stream.close()` | On the tail a run holds, ends that run: releases what it opened, and runs its finalisers. On a stream a run has pulled, ends no run. On a stream no run has pulled, runs the finalisers upstream of it |
 | `Path.vstreamBracket(acquire, use, release)`, `path.onFinalize(task)` | The same, on a `VStreamPath` |
 
 ## When to use bracket and onFinalize {#when-to-use-them}

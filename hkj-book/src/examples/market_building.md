@@ -163,7 +163,7 @@ List<PriceTick> merged = FeedMerger.merge(nyse, lse).take(10).toList().run();
 ```
 
 ~~~admonish warning title="Cancellation and Resource Safety"
-When the consumer terminates early (e.g. `take(20)`), the merge stream's `close()` method
+When the consumer terminates early (e.g. `take(20)`), `take` closes the run's merged stream, which
 sets a cancellation flag and interrupts the producer, which stops the threads reading each
 feed. The producer then closes every feed that had not finished, so a feed's own finalisers
 run. Without this, producers would continue pushing into the queue indefinitely, a classic

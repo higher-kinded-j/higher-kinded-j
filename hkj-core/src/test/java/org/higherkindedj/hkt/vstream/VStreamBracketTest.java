@@ -544,8 +544,7 @@ class VStreamBracketTest {
       assertThat(result).containsExactly(1, 2, 3);
       assertThat(count.get()).isEqualTo(1);
 
-      // Calling close() after stream completed — released is already true,
-      // so compareAndSet(false, true) fails and finaliser is not run again
+      // A run has pulled the stream, so closing it ends no consumption and runs nothing
       stream.close().run();
       assertThat(count.get()).isEqualTo(1);
     }
