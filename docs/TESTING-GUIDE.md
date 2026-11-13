@@ -1289,7 +1289,7 @@ Coverage reports: `build/reports/jacoco/test/html/index.html`
 ./gradlew :hkj-processor:nullnessTest
 ```
 
-No nullness checker runs over the library's own sources. This suite compiles fixtures with NullAway in JSpecify mode, as a consumer would, over hand-written optics and the code the processors generate. It is the only check that catches an optic or Focus path signature rejecting a nullable type argument, so run it after changing one in `hkj-api` or `hkj-core`. `./gradlew build` runs it; `./gradlew test` does not.
+No nullness checker runs over the library's own sources. This suite compiles fixtures with NullAway in JSpecify mode, as a consumer would, over hand-written optics and the code the processors generate. It is the only check that catches an optic or Focus path signature rejecting a nullable type argument, so run it after changing one in `hkj-api` or `hkj-core`. Every fixture runs twice, in JSpecify mode alone and with the two options the book's "What a nullness checker sees" section in [Core Concepts](../hkj-book/src/hkts/core-concepts.md) tells a consumer to add. `JdkFunctionalInterfaceNullnessTest` pins which nulls NullAway reports through a factory taking a JDK `Supplier`, `Callable` or `BiFunction`, so run the suite after changing such a parameter's type. When a NullAway upgrade fails it, the book's table and its version line change too. `./gradlew build` runs it; `./gradlew test` does not.
 
 ### Run Benchmarks
 

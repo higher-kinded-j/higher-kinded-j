@@ -3,18 +3,19 @@
 package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
-import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.NullAwayCompiler.compile;
+import static org.higherkindedj.optics.processing.NullAwayCompiler.source;
 
 import com.google.testing.compile.Compilation;
-import com.google.testing.compile.JavaFileObjects;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 import javax.annotation.processing.Processor;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.NullAwayCompiler.Configuration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Optics instantiated at a nullable type pass a JSpecify nullness checker, both where a consumer
@@ -26,26 +27,28 @@ import org.junit.jupiter.api.Test;
  * Lens<Config, @Nullable String>} is legal only because the optic declares {@code A
  * extends @Nullable Object}. Nothing else in the build runs a nullness checker, so a declaration
  * that rejects a nullable type argument fails only here.
+ *
+ * <p>Every fixture runs twice: in JSpecify mode alone, and with the two options the book tells a
+ * consumer to add, since an optic that passes one and fails the other breaks a build that follows
+ * the book.
  */
 @DisplayName("A nullness checker accepts optics at a nullable type")
+@ParameterizedClass(name = "{0}")
+@EnumSource(Configuration.class)
 class NullableFocusNullnessTest {
 
-  private static final JavaFileObject NULL_MARKED_PACKAGE =
-      JavaFileObjects.forSourceString(
-          "com.example.package-info",
-          """
-          @NullMarked
-          package com.example;
+  private final Configuration configuration;
 
-          import org.jspecify.annotations.NullMarked;
-          """);
-
-  /** What a consumer checking every source file, generated ones included, would see. */
-  private static Compilation compileChecked(List<Processor> processors, JavaFileObject... sources) {
-    return compile(processors, List.of(), sources);
+  NullableFocusNullnessTest(Configuration configuration) {
+    this.configuration = configuration;
   }
 
-  private static Compilation compileChecked(JavaFileObject... sources) {
+  /** What a consumer checking every source file, generated ones included, would see. */
+  private Compilation compileChecked(List<Processor> processors, JavaFileObject... sources) {
+    return compile(configuration, processors, List.of(), sources);
+  }
+
+  private Compilation compileChecked(JavaFileObject... sources) {
     return compileChecked(List.of(), sources);
   }
 
@@ -54,43 +57,14 @@ class NullableFocusNullnessTest {
    * unchecked, as a consumer who excludes generated code has them. Their signatures are still read
    * as annotated, so a use site is held to the types they declare.
    */
-  private static Compilation compileCheckedOutsideGenerated(
+  private Compilation compileCheckedOutsideGenerated(
       List<Processor> processors, JavaFileObject... sources) {
     return compile(
+        configuration,
         processors,
         List.of(
             "-XepOpt:NullAway:ExcludedClassAnnotations=org.higherkindedj.optics.annotations.Generated"),
         sources);
-  }
-
-  private static Compilation compile(
-      List<Processor> processors, List<String> extraErrorProneFlags, JavaFileObject... sources) {
-    String errorProne =
-        String.join(
-            " ",
-            Stream.concat(
-                    Stream.of(
-                        "-Xplugin:ErrorProne",
-                        "-XepDisableAllChecks",
-                        "-Xep:NullAway:ERROR",
-                        "-XepOpt:NullAway:OnlyNullMarked=true",
-                        "-XepOpt:NullAway:JSpecifyMode=true"),
-                    extraErrorProneFlags.stream())
-                .toList());
-    return javac()
-        .withProcessors(processors)
-        .withOptions(
-            // Error Prone looks for a plugin checker such as NullAway on the processor path only.
-            "--processor-path",
-            System.getProperty("java.class.path"),
-            "-XDcompilePolicy=simple",
-            "--should-stop=ifError=FLOW",
-            errorProne)
-        .compile(Stream.concat(Stream.of(NULL_MARKED_PACKAGE), Arrays.stream(sources)).toList());
-  }
-
-  private static JavaFileObject source(String qualifiedName, String body) {
-    return JavaFileObjects.forSourceString(qualifiedName, body);
   }
 
   @Nested

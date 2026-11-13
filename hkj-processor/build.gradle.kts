@@ -250,7 +250,8 @@ tasks.check {
 // Compiles fixtures with NullAway in JSpecify mode, as a consumer who runs a nullness checker
 // does, over hand-written optics and the code the processors generate. No nullness checker runs
 // over the library itself, so without this suite a declaration that rejects a nullable type
-// argument is invisible to the build.
+// argument is invisible to the build. It also pins which nulls NullAway reports through the core
+// types' factories, in the two configurations the book's "What a nullness checker sees" names.
 //
 // Its own suite for two reasons: Error Prone needs jdk.compiler opened to the test JVM, and its
 // dependencies (Guava, protobuf-java and the rest) resolve on a classpath of their own rather than

@@ -19,6 +19,7 @@ protobuf = "4.36.2"
 protobuf-plugin = "0.10.0"
 # A consumer's nullness checker, run over a fixture: the library's own build runs none
 errorprone = "2.50.0"
+# The book's "What a nullness checker sees" names this version
 nullaway = "0.14.2"
 
 # Benchmarking
