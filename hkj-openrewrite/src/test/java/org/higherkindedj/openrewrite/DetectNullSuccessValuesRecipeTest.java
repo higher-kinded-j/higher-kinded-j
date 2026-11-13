@@ -172,6 +172,52 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
   }
 
   @Test
+  void marksANullReturnedFromABranchButNotFromANestedLambda() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import java.util.function.Supplier;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Lookups {
+                Try<String> lookup(boolean found) {
+                    return Try.of(() -> {
+                        if (!found) {
+                            return null;
+                        }
+                        Supplier<String> later = () -> {
+                            return null;
+                        };
+                        return later.get();
+                    });
+                }
+            }
+            """,
+            """
+            package test;
+
+            import java.util.function.Supplier;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Lookups {
+                Try<String> lookup(boolean found) {
+                    return Try.of(() -> {
+                        if (!found) {
+                            return /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/null;
+                        }
+                        Supplier<String> later = () -> {
+                            return null;
+                        };
+                        return later.get();
+                    });
+                }
+            }
+            """));
+  }
+
+  @Test
   void marksALazyTypeTypedWithVoid() {
     rewriteRun(
         spec ->

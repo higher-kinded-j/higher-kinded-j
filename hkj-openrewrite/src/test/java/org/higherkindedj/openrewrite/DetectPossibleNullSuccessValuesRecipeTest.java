@@ -440,6 +440,15 @@ class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
                     return Try.of(() -> header("accept"));
                 }
 
+                Try<String> branched(boolean fresh) {
+                    return Try.of(() -> {
+                        if (fresh) {
+                            return header("accept");
+                        }
+                        return "cached";
+                    });
+                }
+
                 VTask<String> attributes() {
                     return VTask.of(() -> this.<String>attribute("user"));
                 }
@@ -502,6 +511,15 @@ class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
 
                 Try<String> headers() {
                     return Try.of(() -> /*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/header("accept"));
+                }
+
+                Try<String> branched(boolean fresh) {
+                    return Try.of(() -> {
+                        if (fresh) {
+                            return /*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/header("accept");
+                        }
+                        return "cached";
+                    });
                 }
 
                 VTask<String> attributes() {
@@ -608,8 +626,10 @@ class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
   }
 
   @Test
-  @DisplayName("reads overloads of one name and arity only for what they all say")
-  void readsOverloadsOnlyForWhatTheyShare() {
+  @DisplayName(
+      "reads an overload by its parameter types, and a generic one only for what all its"
+          + " overloads say")
+  void readsAnOverloadByItsParameterTypes() {
     rewriteRun(
         java(
             """
@@ -629,8 +649,24 @@ class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
                     return Either.left("not a number");
                 }
 
-                static Either<String, String> use() {
+                static <T> Either<String, T> box(@Nullable T value) {
+                    return Either.right(value);
+                }
+
+                static Either<String, Integer> box(Integer value) {
+                    return Either.left("not a number");
+                }
+
+                static Either<String, String> text() {
                     return wrap((String) null);
+                }
+
+                static Either<String, Integer> number() {
+                    return wrap((Integer) null);
+                }
+
+                static Either<String, String> boxed() {
+                    return box((String) null);
                 }
             }
             """,
@@ -651,8 +687,24 @@ class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
                     return Either.left("not a number");
                 }
 
-                static Either<String, String> use() {
-                    return wrap((String) null);
+                static <T> Either<String, T> box(/*~~(May be null, which Either.right now refuses: drop @Nullable so callers pass a value, such as Unit.INSTANCE or a Maybe, or return an error here when it is null)~~>*/@Nullable T value) {
+                    return Either.right(value);
+                }
+
+                static Either<String, Integer> box(Integer value) {
+                    return Either.left("not a number");
+                }
+
+                static Either<String, String> text() {
+                    return /*~~(Passes null on to Either.right, which now throws: use a Maybe for a value that may be missing, or an error that says why)~~>*/wrap((String) null);
+                }
+
+                static Either<String, Integer> number() {
+                    return wrap((Integer) null);
+                }
+
+                static Either<String, String> boxed() {
+                    return box((String) null);
                 }
             }
             """));

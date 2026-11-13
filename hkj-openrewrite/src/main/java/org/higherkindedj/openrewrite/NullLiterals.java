@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.openrewrite;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
-import org.openrewrite.internal.ListUtils;
+import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
@@ -39,17 +41,14 @@ final class NullLiterals {
     }
   }
 
-  /** Whether a lambda's body is {@code null}, or a block with a top-level {@code return null}. */
+  /**
+   * Whether a lambda returns {@code null}: its body is {@code null}, or one of its own {@code
+   * return}s gives it, as {@link #ownReturns} finds them.
+   */
   static boolean returnsNull(J.Lambda lambda) {
     return switch (lambda.getBody()) {
       case Expression body -> isNullLiteral(body);
-      case J.Block block ->
-          block.getStatements().stream()
-              .anyMatch(
-                  statement ->
-                      statement instanceof J.Return ret
-                          && ret.getExpression() != null
-                          && isNullLiteral(ret.getExpression()));
+      case J.Block block -> ownReturns(block).stream().anyMatch(NullLiterals::isNullLiteral);
       default -> false;
     };
   }
@@ -61,8 +60,8 @@ final class NullLiterals {
 
   /**
    * The lambda with the mark on each value it returns that {@code marks} accepts: on its body, or
-   * on what each top-level {@code return} of its block returns. A mark there sits on the line that
-   * gives the value, where one on the call would print from the start of its chain.
+   * on what each of its own {@code return}s gives. A mark there sits on the line that gives the
+   * value, where one on the call would print from the start of its chain.
    */
   static J.Lambda markReturned(J.Lambda lambda, Predicate<Expression> marks, String message) {
     return switch (lambda.getBody()) {
@@ -70,16 +69,52 @@ final class NullLiterals {
           lambda.withBody(SearchResult.found(body, message));
       case J.Block block ->
           lambda.withBody(
-              block.withStatements(
-                  ListUtils.map(
-                      block.getStatements(),
-                      statement ->
-                          statement instanceof J.Return ret
-                                  && ret.getExpression() != null
-                                  && marks.test(ret.getExpression())
-                              ? ret.withExpression(SearchResult.found(ret.getExpression(), message))
-                              : statement)));
+              new OwnReturns<Integer>() {
+                @Override
+                public J.Return visitReturn(J.Return ret, Integer p) {
+                  J.Return r = super.visitReturn(ret, p);
+                  return r.getExpression() != null && marks.test(r.getExpression())
+                      ? r.withExpression(SearchResult.found(r.getExpression(), message))
+                      : r;
+                }
+              }.visit(block, 0));
       default -> lambda;
     };
+  }
+
+  /**
+   * What each of a lambda block's own {@code return}s gives, at any depth: in a branch or a loop,
+   * but not in a lambda or a class declared inside it, whose returns are their own.
+   */
+  private static List<Expression> ownReturns(J.Block block) {
+    List<Expression> returned = new ArrayList<>();
+    new OwnReturns<List<Expression>>() {
+      @Override
+      public J.Return visitReturn(J.Return ret, List<Expression> found) {
+        if (ret.getExpression() != null) {
+          found.add(ret.getExpression());
+        }
+        return super.visitReturn(ret, found);
+      }
+    }.visit(block, returned);
+    return returned;
+  }
+
+  /** A visitor that keeps to a lambda's own body, leaving each lambda and class inside it alone. */
+  private abstract static class OwnReturns<P> extends JavaIsoVisitor<P> {
+    @Override
+    public J.Lambda visitLambda(J.Lambda lambda, P p) {
+      return lambda;
+    }
+
+    @Override
+    public J.NewClass visitNewClass(J.NewClass newClass, P p) {
+      return newClass.getBody() == null ? super.visitNewClass(newClass, p) : newClass;
+    }
+
+    @Override
+    public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDecl, P p) {
+      return classDecl;
+    }
   }
 }

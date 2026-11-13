@@ -476,18 +476,29 @@ public class DetectPossibleNullSuccessValuesRecipe
    */
   public static final class Declarations {
 
-    private final Map<MethodKey, Declared> methods = new HashMap<>();
+    private final Map<Signature, Declared> bySignature = new HashMap<>();
+
+    private final Map<MethodKey, Declared> byArity = new HashMap<>();
 
     private Declarations() {}
 
     private void add(JavaType.Method method, Declared declared) {
-      methods.merge(MethodKey.of(method), declared, Declared::both);
+      Signature.of(method).ifPresent(s -> bySignature.merge(s, declared, Declared::both));
+      byArity.merge(MethodKey.of(method), declared, Declared::both);
     }
 
+    /**
+     * What the run declares about the method a call reaches: the declaration with the call's own
+     * parameter types, or else what every overload of its name and arity says. A call to a generic
+     * method reads its parameter types with its own type arguments, so it takes the second.
+     */
     private Optional<Declared> find(JavaType.Method method) {
-      return method == null
-          ? Optional.empty()
-          : Optional.ofNullable(methods.get(MethodKey.of(method)));
+      if (method == null) {
+        return Optional.empty();
+      }
+      return Signature.of(method)
+          .map(bySignature::get)
+          .or(() -> Optional.ofNullable(byArity.get(MethodKey.of(method))));
     }
 
     /**
@@ -510,9 +521,37 @@ public class DetectPossibleNullSuccessValuesRecipe
   }
 
   /**
-   * A method as a call names it: its declaring type, its name and its number of parameters. The
-   * types of its parameters are left out, since a call to a generic method reads them with its own
-   * type arguments.
+   * A method by its declaring type, its name and the erasure of each parameter's type. A method
+   * with a parameter typed by a type variable has none, since a call reads that type with its own
+   * type arguments, and so does one whose types the parser left unknown.
+   */
+  private record Signature(String owner, String name, List<String> parameters) {
+    static Optional<Signature> of(JavaType.Method method) {
+      List<Optional<String>> erased =
+          method.getParameterTypes().stream().map(Signature::erased).toList();
+      return erased.stream().allMatch(Optional::isPresent)
+          ? Optional.of(
+              new Signature(
+                  method.getDeclaringType().getFullyQualifiedName(),
+                  method.getName(),
+                  erased.stream().map(Optional::orElseThrow).toList()))
+          : Optional.empty();
+    }
+
+    private static Optional<String> erased(JavaType type) {
+      return switch (type) {
+        case JavaType.Primitive primitive -> Optional.of(primitive.getKeyword());
+        case JavaType.Unknown _ -> Optional.empty();
+        case JavaType.FullyQualified named -> Optional.of(named.getFullyQualifiedName());
+        case JavaType.Array array -> erased(array.getElemType()).map(element -> element + "[]");
+        default -> Optional.empty();
+      };
+    }
+  }
+
+  /**
+   * A method by its declaring type, its name and its number of parameters, which any call to it can
+   * be read by. Overloads with the same name and number share it.
    */
   private record MethodKey(String owner, String name, int arity) {
     static MethodKey of(JavaType.Method method) {
@@ -560,8 +599,8 @@ public class DetectPossibleNullSuccessValuesRecipe
     }
 
     /**
-     * What two overloads with the same name and number of parameters both say, since a call is
-     * matched to a declaration by those alone.
+     * What two declarations under one key both say. Overloads share a name and number of
+     * parameters, and a call to a generic method is matched to a declaration by those alone.
      */
     Declared both(Declared other) {
       SortedMap<Integer, String> wrappedByBoth = new TreeMap<>(wrapped);
