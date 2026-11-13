@@ -160,7 +160,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:values}}
 ```
 
-So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. `VTask` is itself a functional interface, so you can write a task as a lambda; `run()`, `runSafe()` and `runAsync()` refuse a null from one of those too.
+So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. NullAway flags that lambda only with the options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees). `VTask` is itself a functional interface, so you can write a task as a lambda, which NullAway checks with no options set; `run()`, `runSafe()` and `runAsync()` refuse a null from one of those too.
 
 The factories and functions of every lazy type follow the same rule: `IO`, `VStream`, `State`, `Reader`, `Writer`, `Lazy`, `Trampoline`, `Free` and `Context`, and every Effect Path over one. A stream refuses a null element. A nullness checker flags a hand-written `IO` or `Reader` lambda that returns null, and an `IOPath` refuses one when it runs. Only [`Id`](identity.md) holds a null, since every optic's `modify` runs through it. A `CompletableFuture` outside a Path keeps the JDK's null too.
 

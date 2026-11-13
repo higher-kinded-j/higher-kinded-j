@@ -108,7 +108,7 @@ A `switch` over the two cases reads the result, and the compiler checks that bot
 
 ## Creating instances {#creating-instances}
 
-`Try.success(value)` and `Try.failure(throwable)` build either case directly. A `Success` always holds a value, so `Try.success(null)` throws `NullPointerException`. A function given to `Try.of`, `map` or `recover` that returns `null` gives a `Failure` holding a `NullPointerException`. A `flatMap` or `recoverWith` function that returns `null` in place of a `Try` throws `KindUnwrapException`. [Values, never null](../hkts/core-concepts.md#values-never-null) has the rule for every type.
+`Try.success(value)` and `Try.failure(throwable)` build either case directly. A `Success` always holds a value, so `Try.success(null)` throws `NullPointerException`. A function given to `Try.of`, `map` or `recover` that returns `null` gives a `Failure` holding a `NullPointerException`. NullAway flags one given to `Try.of` only with the options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees). A `flatMap` or `recoverWith` function that returns `null` in place of a `Try` throws `KindUnwrapException`. [Values, never null](../hkts/core-concepts.md#values-never-null) has the rule for every type.
 
 ## Methods {#methods}
 

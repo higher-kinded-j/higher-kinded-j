@@ -99,6 +99,8 @@ Higher-Kinded-J's own types hold a value, never `null`. They refuse it at the fa
 
 When a step has nothing to return, return [`Unit`](#unit). When a value may be absent, hold it in a `Maybe`. The JDK containers, the transformers and the tuples have rules of their own, in [Where null is read or held](#where-null-is-read-or-held). A `null` also takes a value outside the type class laws, as [Laws and Where HKJ Bends Them](laws.md) says.
 
+[What a nullness checker sees](#what-a-nullness-checker-sees) says which of these refusals a checker reports at compile time.
+
 ## `Unit`: a value for "nothing to return" {#unit}
 
 `void` is not a type, so it cannot fill the `A` in `Kind<F, A>`. Java's own stand-in, `Void`, has only `null` as a value, which the types on this page refuse. `org.higherkindedj.hkt.Unit` has exactly one value, `Unit.INSTANCE`. An action run for its effect gives `Unit`, and a type whose failure carries no detail takes `Unit` as its error type, as `Maybe`'s [`MonadError`](../functional/monad_error.md) does:
@@ -152,6 +154,25 @@ Some types read `null` as empty, or hold it, by design:
 - **`Const` ignores the value.** It never holds one, so `of(null)` gives the monoid's empty value.
 
 So generic code never hands `null` to `of`: what comes back depends on `F`. A `flatMap` function must return a `Kind` in every type, so one that returns `null` throws `KindUnwrapException`.
+
+### What a nullness checker sees {#what-a-nullness-checker-sees}
+
+Every `hkj-core` package is `@NullMarked`, so a JSpecify nullness checker such as NullAway checks each call against the types the library declares. It flags a nullable value passed to `Either.right` or `VTask.succeed`, and a `map` function or a `VTask` written as a lambda that returns one.
+
+In JSpecify mode alone, NullAway checks what a lambda returns against `Function` and the interfaces that extend it, such as `UnaryOperator`, and against no other functional interface from the JDK. So it never checks a lambda or method reference passed as a `Supplier`, a `Callable` or a `BiFunction`. A lambda that returns a `@Nullable` field compiles when passed to `VTask.of`, and the task fails only when it runs, with `callable must not return null`. `Try.of` gives a `Failure` holding a `NullPointerException`, `supplier must not return null`, and an `IO` built by `IO.delay` fails when it runs with `thunk must not return null`.
+
+NullAway checks a lambda or method reference given to `Try.attempt` or `Lazy.defer` in JSpecify mode alone, since they take the library's own interfaces. For the rest, two NullAway options close most of the gap:
+
+| A null returned through | In JSpecify mode alone | With both options |
+|---|---|---|
+| A lambda or method reference passed as a `Supplier`, `Callable` or `BiFunction`, as to `Try.of`, `VTask.of`, `IO.delay`, `Path.tryOf`, `Path.io`, `Path.vtask` or `VStream.zipWith` | Missed | Flagged |
+| A `Supplier<@Nullable T>` or `Callable<@Nullable T>` variable, where the parameter is `Supplier<A>` or `Callable<A>`, as `VTask.of` and `IO.delay` take | Flagged | Flagged |
+| The same variable, where the parameter is `Supplier<? extends A>`, as `Try.of` and `Path.lazyDefer` take | Missed | Flagged |
+| A method reference to such a variable, as in `Try.of(s::get)` | Missed | Missed |
+
+So pass a supplier variable itself, never as `s::get`.
+
+Set `-XepOpt:NullAway:JSpecifyJDKModels=true` and `-XepOpt:NullAway:HandleWildcardGenerics=true` beside your build's other NullAway options. Both need JSpecify mode, `-XepOpt:NullAway:JSpecifyMode=true`. `JSpecifyJDKModels` arrived in NullAway 0.14.0, and the library checks both options with 0.14.2 today. The `net.ltgt.errorprone` Gradle plugin takes each as an `option`, as in `option("NullAway:JSpecifyJDKModels", "true")`. The models annotate much of the JDK, so your own code is held to them too: a dereferenced `System.getProperty` result is flagged.
 
 ### When `narrow` throws {#when-narrow-throws}
 
