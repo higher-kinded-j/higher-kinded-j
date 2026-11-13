@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a value of one of two possible types: {@link Left} or {@link Right}. {@code Either} is
@@ -117,12 +118,13 @@ public sealed interface Either<L, R> extends EitherKind<L, R>, EitherKind2<L, R>
    *     {@code L} value and returns a {@code T}.
    * @param rightMapper The non-null function to apply if this is a {@link Right}. It accepts the
    *     {@code R} value and returns a {@code T}.
-   * @param <T> The target type to which both paths will be mapped.
+   * @param <T> The target type to which both paths will be mapped. It may be {@code @Nullable}:
+   *     name it as a type argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate mapping function. The result is guaranteed to be
    *     non-null if both mappers produce non-null results.
    * @throws NullPointerException if either {@code leftMapper} or {@code rightMapper} is null.
    */
-  default <T> T fold(
+  default <T extends @Nullable Object> T fold(
       Function<? super L, ? extends T> leftMapper, Function<? super R, ? extends T> rightMapper) {
     Validation.function().require(leftMapper, "leftMapper", FOLD);
     Validation.function().require(rightMapper, "rightMapper", FOLD);

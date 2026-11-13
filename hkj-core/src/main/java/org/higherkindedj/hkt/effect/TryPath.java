@@ -112,12 +112,13 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
    *
    * @param failureMapper the function to apply if this path contains an exception; must not be null
    * @param successMapper the function to apply if this path contains a value; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    * @since 0.6.0
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super Throwable, ? extends B> failureMapper,
       Function<? super A, ? extends B> successMapper) {
     Objects.requireNonNull(failureMapper, "failureMapper must not be null");
@@ -131,7 +132,8 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
    *
    * @param failureMapper the function to apply if this path contains an exception; must not be null
    * @param successMapper the function to apply if this path contains a value; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>foldFailureFirst}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    * @since 0.4.6
@@ -139,7 +141,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
    *     which takes the same two functions in the same order.
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
-  public <B> B foldFailureFirst(
+  public <B extends @Nullable Object> B foldFailureFirst(
       Function<? super Throwable, ? extends B> failureMapper,
       Function<? super A, ? extends B> successMapper) {
     return fold(failureMapper, successMapper);

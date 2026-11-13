@@ -138,11 +138,12 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    *
    * @param leftMapper the function to apply if this path contains an error; must not be null
    * @param rightMapper the function to apply if this path contains a value; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super E, ? extends B> leftMapper, Function<? super A, ? extends B> rightMapper) {
     Objects.requireNonNull(leftMapper, "leftMapper must not be null");
     Objects.requireNonNull(rightMapper, "rightMapper must not be null");

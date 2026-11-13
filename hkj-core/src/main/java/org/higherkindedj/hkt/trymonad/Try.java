@@ -274,12 +274,13 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
-   * @param <U> The target type to which both outcomes are mapped.
+   * @param <U> The target type to which both outcomes are mapped. It may be {@code @Nullable}: name
+   *     it as a type argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
    * @since 0.6.0
    */
-  default <U> U fold(
+  default <U extends @Nullable Object> U fold(
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
 
@@ -298,7 +299,8 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
-   * @param <U> The target type to which both outcomes are mapped.
+   * @param <U> The target type to which both outcomes are mapped. It may be {@code @Nullable}: name
+   *     it as a type argument, as in {@code <@Nullable String>foldFailureFirst}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
    * @since 0.4.6
@@ -307,7 +309,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   @SuppressWarnings("removal") // names the deprecated constant until its removal
-  default <U> U foldFailureFirst(
+  default <U extends @Nullable Object> U foldFailureFirst(
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
 

@@ -148,11 +148,12 @@ public final class ValidationPath<E, A>
    *
    * @param invalidMapper the function to apply if invalid; must not be null
    * @param validMapper the function to apply if valid; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super E, ? extends B> invalidMapper,
       Function<? super A, ? extends B> validMapper) {
     Objects.requireNonNull(invalidMapper, "invalidMapper must not be null");
