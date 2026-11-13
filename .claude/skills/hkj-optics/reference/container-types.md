@@ -167,6 +167,9 @@ names a type for each of its parameters, so a widened `Map<String, Box<String>>`
 
 ## Registering Custom Container Types (TraversableGenerator SPI)
 
+A generator module depends on `io.github.higher-kinded-j:hkj-processor` alone from HKJ: it holds the
+SPI and `BaseTraversableGenerator`, and brings javapoet, whose types the SPI is written in.
+
 ### Step 1: Implement the SPI
 
 <!-- verify -->
@@ -200,8 +203,8 @@ public class ResultGenerator extends BaseTraversableGenerator {
         return Set.of("com.example.optics.ResultAffines");
     }
 
-    // The ONE method you must implement: everything above has a default. It emits the body of the
-    // effectful modify, so this is where the container is actually traversed.
+    // With supports, the one method you must implement: the others above have defaults. It emits
+    // the body of the effectful modify, so this is where the container is actually traversed.
     @Override
     public CodeBlock generateModifyF(
             RecordComponentElement component,
@@ -232,6 +235,8 @@ com.example.optics.ResultGenerator
 ```java
 module com.example.optics {
     requires org.higherkindedj.processor;
+    requires com.palantir.javapoet;
+    requires java.compiler;
     provides org.higherkindedj.optics.processing.spi.TraversableGenerator
         with com.example.optics.ResultGenerator;
 }

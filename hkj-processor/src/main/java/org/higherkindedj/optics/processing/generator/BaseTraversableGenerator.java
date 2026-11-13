@@ -14,8 +14,12 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
- * An abstract base class for {@link TraversableGenerator} implementations that provides common
- * helper methods to reduce code duplication.
+ * A starting point for a {@link TraversableGenerator}, built-in or a plugin's. It implements none
+ * of the SPI's methods: a subclass still implements {@code supports} and {@code generateModifyF}.
+ * It adds helpers for the body {@code generateModifyF} writes: {@link #getGenericTypeName} and
+ * {@link #getTypeArgumentName} name a component's type arguments, resolving a wildcard so that the
+ * generated source compiles, and {@link #generateConstructorArgs} writes the arguments that rebuild
+ * the record with one component replaced.
  */
 public abstract class BaseTraversableGenerator implements TraversableGenerator {
 
@@ -49,6 +53,7 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    * @param index The type argument to read.
    * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
    *     argument.
+   * @since 0.4.10
    */
   protected TypeName getTypeArgumentName(final RecordComponentElement component, final int index) {
     return argumentName(component, index, ProcessorUtils::typeNameOf);

@@ -11,8 +11,10 @@ dependencies {
     implementation(project(":hkj-annotations"))
     implementation(project(":hkj-api"))
 
+    // A generator plugin implements the SPI, whose signatures are written in javapoet's types, so
+    // javapoet is part of this module's API.
+    api(libs.javapoet)
     // The processor's own dependencies, which will not leak into the core module
-    implementation(libs.javapoet)
     implementation(libs.autoservice.annotations)
     annotationProcessor(libs.autoservice)
 
@@ -51,11 +53,81 @@ protobuf {
     }
 }
 
+// What the plugin guide's build gives a generator author: this module's API and the api
+// dependencies it brings, which the published POM gives compile scope, with the Avaje SPI
+// annotation, as their module path; and Avaje's SPI processor as their processor path.
+val pluginAuthorModulePath by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_API))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+val pluginAuthorProcessorPath by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+
+dependencies {
+    pluginAuthorModulePath(project(path))
+    pluginAuthorModulePath(libs.avaje.spi)
+    pluginAuthorProcessorPath(libs.avaje.spi)
+}
+
 tasks.test {
     useJUnitPlatform()
     maxParallelForks = Runtime.getRuntime().availableProcessors()
     setForkEvery(100)
     finalizedBy(tasks.jacocoTestReport)
+    // pluginGuideTest, below, runs it
+    filter { excludeTestsMatching("org.higherkindedj.optics.processing.GeneratorPluginGuideTest") }
+}
+
+// Compiles the plugin guide's example against the two paths above, as its author's build would.
+// It has a task of its own, as hkj-examples' bookVerify does, so an edit to the guide re-runs this
+// test alone and not the whole suite. It runs none of this module's code in its own JVM, so the
+// coverage report loses nothing.
+//
+//   ./gradlew :hkj-processor:pluginGuideTest
+//
+val pluginGuideTest = tasks.register<Test>("pluginGuideTest") {
+    description = "Builds the generator plugin guide's example against this module's published API"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    filter { includeTestsMatching("org.higherkindedj.optics.processing.GeneratorPluginGuideTest") }
+
+    val modulePath: FileCollection = pluginAuthorModulePath
+    val processorPath: FileCollection = pluginAuthorProcessorPath
+    val guide = rootProject.layout.projectDirectory.file("hkj-book/src/tooling/generator_plugins.md")
+    inputs.files(modulePath)
+        .withPropertyName("pluginAuthorModulePath")
+        .withNormalizer(ClasspathNormalizer::class)
+    inputs.files(processorPath)
+        .withPropertyName("pluginAuthorProcessorPath")
+        .withNormalizer(ClasspathNormalizer::class)
+    inputs.file(guide).withPropertyName("pluginGuide").withPathSensitivity(PathSensitivity.NONE)
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf(
+                "-Dhkj.pluginAuthorModulePath=${modulePath.asPath}",
+                "-Dhkj.pluginAuthorProcessorPath=${processorPath.asPath}",
+                "-Dhkj.pluginGuide=${guide.asFile.absolutePath}",
+            )
+        }
+    )
+}
+
+tasks.check {
+    dependsOn(pluginGuideTest)
 }
 
 tasks.jacocoTestReport {
@@ -422,7 +494,10 @@ pitest {
     excludedTestClasses.set(setOf(
         "org.higherkindedj.optics.processing.ForComprehensionGoldenFileTest",
         // Its javac runs in a process of its own, which no mutant reaches
-        "org.higherkindedj.optics.processing.ProcessorRegistrationTest"
+        "org.higherkindedj.optics.processing.ProcessorRegistrationTest",
+        // It compiles the plugin guide against this module's jar, which no mutant reaches, and
+        // reads its paths from properties only pluginGuideTest passes
+        "org.higherkindedj.optics.processing.GeneratorPluginGuideTest"
     ))
 
     // Exclude test infrastructure from mutation

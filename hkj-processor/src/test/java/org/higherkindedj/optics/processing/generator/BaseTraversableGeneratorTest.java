@@ -13,10 +13,12 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -26,28 +28,28 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaFileObject;
-import org.higherkindedj.optics.processing.generator.hkj.ValidatedGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * {@link BaseTraversableGenerator#getTypeArgumentName} names a type argument as the type it stands
- * for, read from real record components: the argument itself, the bound of an {@code ? extends}
- * wildcard, and {@code Object} for any other wildcard.
+ * {@link BaseTraversableGenerator}'s helpers, read from real record components. A type argument is
+ * named as the argument itself, the bound of an {@code ? extends} wildcard, and {@code Object} for
+ * any other wildcard, or where the component has no argument at that index. The constructor
+ * arguments pass the new value for the changed component and read every other one from {@code
+ * source}.
  *
  * <p>No built-in generator names a type argument in the {@code modifyF} body it writes, but the
- * base class offers these helpers to a generator that does, so their contract is held here
- * directly. The fallbacks for a component with no such argument are in {@link
- * TypeExtractionFallbackTest}.
+ * base class offers these helpers to a generator that does, a plugin's included, so their contract
+ * is held here directly.
  */
-@DisplayName("Type arguments read from real record components")
-class TypeArgumentNameTest {
+@DisplayName("BaseTraversableGenerator: helpers read from real record components")
+class BaseTraversableGeneratorTest {
 
   /** The package-private annotation the fixture writes on its element type. */
   private static final AnnotationSpec TAG =
       AnnotationSpec.builder(ClassName.get("com.example", "Tag")).build();
 
-  /** A generator whose type-argument helpers are all the test needs. */
+  /** A generator whose helpers are all the test needs. */
   private static final BaseTraversableGenerator BASE =
       new BaseTraversableGenerator() {
         @Override
@@ -63,13 +65,6 @@ class TypeArgumentNameTest {
           return CodeBlock.builder().build();
         }
       };
-
-  /** Reaches the generic-type helper {@link ValidatedGenerator} answers for its focus. */
-  private static final class ValidatedFocus extends ValidatedGenerator {
-    TypeName of(final RecordComponentElement component) {
-      return getGenericTypeName(component);
-    }
-  }
 
   @Test
   @DisplayName("getTypeArgumentName names each argument as the type it stands for")
@@ -129,32 +124,74 @@ class TypeArgumentNameTest {
   }
 
   @Test
-  @DisplayName("getGenericTypeName names a Validated component's valid type")
-  void validatedGenericTypeIsItsValidType() {
-    final var checked =
+  @DisplayName("a component with no argument at the index is read as Object")
+  void aMissingArgumentIsReadAsObject() {
+    final var shapes =
         JavaFileObjects.forSourceString(
-            "com.example.Checked",
+            "com.example.Shapes",
             """
             package com.example;
 
-            import org.higherkindedj.hkt.validated.Validated;
+            import java.util.List;
 
-            public record Checked(
-                Validated<String, Integer> plain, Validated<String, ? extends Number> bounded) {}
+            @SuppressWarnings("rawtypes")
+            public record Shapes(int primitive, List raw, List<String> one) {}
             """);
-    final ValidatedFocus validated = new ValidatedFocus();
 
-    assertThat(read(checked, validated::of))
+    assertThat(read(shapes, BASE::getGenericTypeName))
         .containsOnly(
-            entry("plain", ClassName.get(Integer.class)),
-            entry("bounded", ClassName.get(Number.class)));
+            entry("primitive", ClassName.get(Object.class)),
+            entry("raw", ClassName.get(Object.class)),
+            entry("one", ClassName.get(String.class)));
+    assertThat(read(shapes, component -> BASE.getTypeArgumentName(component, 1)))
+        .containsOnly(
+            entry("primitive", ClassName.get(Object.class)),
+            entry("raw", ClassName.get(Object.class)),
+            entry("one", ClassName.get(Object.class)));
+  }
+
+  @Test
+  @DisplayName(
+      "generateConstructorArgs passes the new value for the changed component and reads the rest")
+  void constructorArgumentsReplaceOnlyTheChangedComponent() {
+    final var order =
+        JavaFileObjects.forSourceString(
+            "com.example.Order",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Order(String id, List<String> lines, int count) {}
+            """);
+    final List<String> arguments = new ArrayList<>();
+
+    eachTopLevelType(
+        order,
+        type ->
+            arguments.add(
+                BASE.generateConstructorArgs("lines", "newLines", type.getRecordComponents())));
+
+    assertThat(arguments).containsExactly("source.id(), newLines, source.count()");
   }
 
   /** Compiles {@code source} and reads every record component in it through {@code reader}. */
   private static Map<String, TypeName> read(
       final JavaFileObject source, final Function<RecordComponentElement, TypeName> reader) {
     final Map<String, TypeName> names = new HashMap<>();
+    eachTopLevelType(
+        source,
+        type ->
+            type.getRecordComponents()
+                .forEach(
+                    component ->
+                        names.put(component.getSimpleName().toString(), reader.apply(component))));
+    return Map.copyOf(names);
+  }
 
+  /** Compiles {@code source} and hands every type declared at its top level to {@code visit}. */
+  private static void eachTopLevelType(
+      final JavaFileObject source, final Consumer<TypeElement> visit) {
     final class Reader extends AbstractProcessor {
       @Override
       public Set<String> getSupportedAnnotationTypes() {
@@ -169,16 +206,11 @@ class TypeArgumentNameTest {
       @Override
       public boolean process(
           final Set<? extends TypeElement> annotations, final RoundEnvironment round) {
-        ElementFilter.typesIn(round.getRootElements()).stream()
-            .flatMap(type -> type.getRecordComponents().stream())
-            .forEach(
-                component ->
-                    names.put(component.getSimpleName().toString(), reader.apply(component)));
+        ElementFilter.typesIn(round.getRootElements()).forEach(visit);
         return false;
       }
     }
 
     assertThat(javac().withProcessors(new Reader()).compile(source)).succeeded();
-    return Map.copyOf(names);
   }
 }
