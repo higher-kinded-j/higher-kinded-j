@@ -88,7 +88,7 @@ hkj {
 | `version` | Plugin version | Version of HKJ libraries to use |
 | `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks, with the `--release` javadoc needs beside it |
 | `spring` | `false` | Adds `hkj-spring-boot-starter` to `implementation`, and the `@HkjHttpClient` processor to every annotation processor configuration |
-| `skills` | `false` | Installs Claude Code skills into `.claude/skills/` during build |
+| `skills` | `false` | Installs Claude Code skills into `.claude/skills/` at the root of the build, before `classes` |
 | `checks.pathTypeMismatch` | `true` | Adds the HKJ compile-time checker, whose [checks](compile_checks.md) explain a rejected chain step and report mistakes javac accepts |
 
 With default settings, the plugin adds:
@@ -131,13 +131,13 @@ hkj {
 }
 ```
 
-This runs the `hkjInstallSkills` task during every build, copying skill files into `.claude/skills/`. You can also run the task manually:
+This installs them into `.claude/skills/` at the root of the build before each project's `classes`, one copy however many projects apply the plugin, as [Installing Skills](claude_code_skills.md#gradle) says. You can also run the task manually:
 
 ```bash
 ./gradlew hkjInstallSkills
 ```
 
-With the Maven plugin, `<skills>true</skills>` installs them during every build too.
+With the Maven plugin, `<skills>true</skills>` installs them during every build too. Either plugin warns when the installed skills describe another release, as [Updating Skills](claude_code_skills.md#updating-skills) shows.
 
 ~~~admonish tip title="See Also"
 - [Claude Code Skills](claude_code_skills.md) - Full reference for the eight bundled skills
@@ -229,7 +229,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
     <version>LATEST_VERSION</version>   <!-- HKJ library version (default: plugin version) -->
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
     <spring>false</spring>               <!-- add hkj-spring-boot-starter and the @HkjHttpClient processor (default: false) -->
-    <skills>false</skills>               <!-- install Claude Code skills (default: false) -->
+    <skills>false</skills>               <!-- install Claude Code skills at the root of the build (default: false) -->
     <pathTypeMismatch>true</pathTypeMismatch>  <!-- add the HKJ compile-time checker (default: true) -->
 </configuration>
 ```

@@ -72,7 +72,7 @@
         </mojo>
         <mojo>
             <goal>install-skills</goal>
-            <description>Installs HKJ Claude Code skills into the project's .claude/skills/ directory</description>
+            <description>Installs HKJ Claude Code skills into .claude/skills/ at the root of the build, once per build</description>
             <requiresDirectInvocation>false</requiresDirectInvocation>
             <requiresProject>true</requiresProject>
             <requiresReports>false</requiresReports>
@@ -90,6 +90,13 @@
                     <required>true</required>
                     <editable>false</editable>
                     <description>The Maven project</description>
+                </parameter>
+                <parameter>
+                    <name>session</name>
+                    <type>org.apache.maven.execution.MavenSession</type>
+                    <required>true</required>
+                    <editable>false</editable>
+                    <description>The Maven session, which says where the root of the build is</description>
                 </parameter>
                 <parameter>
                     <name>version</name>
@@ -129,6 +136,7 @@
             </parameters>
             <configuration>
                 <project implementation="org.apache.maven.project.MavenProject" default-value="${project}"/>
+                <session implementation="org.apache.maven.execution.MavenSession" default-value="${session}"/>
             </configuration>
         </mojo>
     </mojos>
