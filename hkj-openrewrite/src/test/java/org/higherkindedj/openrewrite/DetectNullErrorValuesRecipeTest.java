@@ -148,7 +148,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     Either<String, Integer> blanked = found.mapLeft(e -> /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null);
                     Either<String, String> both = found.bimap(e -> {
                         System.out.println(e);
-                        /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/return null;
+                        return /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null;
                     }, n -> "n");
                 }
             }
@@ -226,7 +226,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                         .mapLeft(e -> e.length())
                         .mapLeft(length -> {
                             System.out.println(length);
-                            /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/return null;
+                            return /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null;
                         });
                 }
             }

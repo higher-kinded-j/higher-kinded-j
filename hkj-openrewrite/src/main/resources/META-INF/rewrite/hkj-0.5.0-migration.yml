@@ -37,11 +37,11 @@ description: >-
   like a path method, since 0.5.0 can give it no navigator. Finally marks each
   null passed to a success factory, Try.of supplier returning null, and
   Either, Try or Path typed with Void, since a Right or Success always holds a
-  value. It marks each value that may reach a success as null: a @Nullable
-  parameter a method passes on to a success factory, and a null passed to
-  such a method; a method that may return null, returned to Try.of, a
-  deferred factory or a map; and a null check in a success step after one of
-  those, which 0.5.0 never hands a null. It also marks each null given as an
+  value. It marks each value that may reach a success as null: the @Nullable
+  parameter of a wrapper that only returns a success factory given it, and a
+  null passed to such a wrapper; a method that may return null, read by
+  Try.of, a deferred factory or a map; and a null check in a later success
+  step, which 0.5.0 never hands a null. It also marks each null given as an
   error, as to Either.left or raiseError, each mapLeft or bimap error lambda
   returning null, and Either typed with a Void error, since a Left always
   holds an error.
@@ -58,7 +58,7 @@ recipeList:
   - org.higherkindedj.openrewrite.RemoveStateTMonadArgument
   - org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe
   - org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe
-  - org.higherkindedj.openrewrite.DetectNullableSuccessValuesRecipe
+  - org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe
   - org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe
 
 ---

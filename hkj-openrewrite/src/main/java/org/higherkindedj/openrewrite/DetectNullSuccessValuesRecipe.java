@@ -54,12 +54,12 @@ import org.openrewrite.marker.SearchResult;
  *
  * <p>Where the value's type is {@code Void}, or unknown, the mark suggests {@code Unit}; where it
  * is another type, it suggests a {@code Maybe} or an error that says why the value is missing. A
- * lambda's mark sits on the {@code null} it returns, its body or its {@code return null}, since one
- * on the call would print from the start of the call's chain, lines above the null.
+ * lambda's mark sits on the {@code null} it returns, as its body or in a {@code return}, since one
+ * on the call would print from the start of the call's chain, lines before the null.
  *
- * <p>{@link DetectNullableSuccessValuesRecipe} marks the values that may be null where this recipe
- * sees none written: a {@code @Nullable} value passed on to a success, and a success step that
- * still checks for a null.
+ * <p>{@link DetectPossibleNullSuccessValuesRecipe} marks the values that may be null where this
+ * recipe sees none written: a {@code @Nullable} value passed on to a success, and a success step
+ * that still checks for a null.
  *
  * <h2>Why this is detection-only</h2>
  *
@@ -450,7 +450,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
    * Whether a method's result holds {@code Void} or {@code Unit}, or a type the parser could not
    * resolve, so {@code Unit} is the advice that fits.
    */
-  static boolean holdsVoid(JavaType.Method method) {
+  private static boolean holdsVoid(JavaType.Method method) {
     return method == null || holdsVoid(method.getReturnType());
   }
 

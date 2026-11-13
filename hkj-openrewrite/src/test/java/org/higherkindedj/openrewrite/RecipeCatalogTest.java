@@ -83,7 +83,7 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.ConvertRawFreeToFreePathRecipe",
             "org.higherkindedj.openrewrite.DetectInjectBoilerplateRecipe",
             "org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe",
-            "org.higherkindedj.openrewrite.DetectNullableSuccessValuesRecipe",
+            "org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe",
             "org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe",
             "org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe",
             "org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe",

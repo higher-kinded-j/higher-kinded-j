@@ -68,8 +68,8 @@
  *       like a path method
  *   <li>{@code org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe} - Marks each null
  *       success 0.5.0 refuses, and each type that holds {@code Void} as its value
- *   <li>{@code org.higherkindedj.openrewrite.DetectNullableSuccessValuesRecipe} - Marks each value
- *       that may reach a success as null, where no {@code null} is written
+ *   <li>{@code org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe} - Marks each
+ *       value that may reach a success as null, where no {@code null} is written
  *   <li>{@code org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe} - Marks each null error
  *       0.5.0 refuses, and each type that holds {@code Void} as its error
  * </ul>

@@ -12,17 +12,17 @@ import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
 
 /**
- * Tests for {@link DetectNullableSuccessValuesRecipe}, over the shapes an adopter's 0.4.x code base
- * held after the 0.5.0 migration had run (#1349).
+ * Tests for {@link DetectPossibleNullSuccessValuesRecipe}, over the shapes an adopter's 0.4.x code
+ * base held after the 0.5.0 migration had run (#1349).
  */
-@DisplayName("DetectNullableSuccessValuesRecipe: values that may reach a success as null")
-class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
+@DisplayName("DetectPossibleNullSuccessValuesRecipe: values that may reach a success as null")
+class DetectPossibleNullSuccessValuesRecipeTest implements RewriteTest {
 
   /**
-   * The HKJ types, and two libraries that may return null: one annotated with JSpecify's type-use
-   * {@code @Nullable}, which the type model drops, and one with Spring Framework 6's declaration
-   * {@code @Nullable}, which it keeps. Each stub stands for a jar, since only the sources a test
-   * runs over are scanned.
+   * The HKJ types, and libraries that may return null: one annotated with JSpecify's type-use
+   * {@code @Nullable}, which the type model drops, and two with a declaration annotation, which it
+   * keeps: Spring Framework 6's {@code @Nullable} and JSR-305's {@code @CheckForNull}. Each stub
+   * stands for a jar, since only the sources a test runs over are scanned.
    */
   private static final String[] STUBS = {
     "package org.jspecify.annotations; import java.lang.annotation.*;"
@@ -31,6 +31,9 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
     "package org.springframework.lang; import java.lang.annotation.*;"
         + " @Target({ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD})"
         + " @Retention(RetentionPolicy.RUNTIME) public @interface Nullable {}",
+    "package javax.annotation; import java.lang.annotation.*;"
+        + " @Target({ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD})"
+        + " @Retention(RetentionPolicy.RUNTIME) public @interface CheckForNull {}",
     "package org.higherkindedj.hkt; public enum Unit { INSTANCE }",
     "package org.higherkindedj.hkt.maybe; public interface Maybe<T> {"
         + " static <T> Maybe<T> fromNullable(T value) { return null; }"
@@ -40,7 +43,8 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
         + " static <L, R> Either<L, R> right(R value) { return null; }"
         + " static <L, R> Either<L, R> left(L value) { return null; }"
         + " <R2> Either<L, R2> map(Function<? super R, ? extends R2> f);"
-        + " <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, R2>> f); }",
+        + " <R2> Either<L, R2> flatMap(Function<? super R, ? extends Either<L, R2>> f);"
+        + " void ifRight(java.util.function.Consumer<? super R> action); }",
     "package org.higherkindedj.hkt.trymonad; import java.util.function.Function;"
         + " public interface Try<T> {"
         + " static <T> Try<T> of(java.util.function.Supplier<? extends T> s) { return null; }"
@@ -53,34 +57,41 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
         + " Function<? super T, ? extends U> success);"
         + " <U> U foldFailureFirst(Function<? super Throwable, ? extends U> failure,"
         + " Function<? super T, ? extends U> success); }",
-    "package org.higherkindedj.hkt.vtask; public interface VTask<A> {"
+    "package org.higherkindedj.hkt.vtask; import java.util.function.Function;"
+        + " public interface VTask<A> {"
         + " A execute() throws Throwable;"
         + " static <A> VTask<A> of(java.util.concurrent.Callable<A> c) { return null; }"
-        + " default <B> VTask<B> map(java.util.function.Function<? super A, ? extends B> f) {"
-        + " return null; } }",
+        + " default <B> VTask<B> map(Function<? super A, ? extends B> f) { return null; }"
+        + " default <B> VTask<B> via(Function<? super A, ? extends VTask<B>> f) {"
+        + " return null; }"
+        + " default VTask<A> peek(java.util.function.Consumer<? super A> f) { return null; }"
+        + " default A join() { return null; } }",
     "package org.example.store; import org.jspecify.annotations.Nullable;"
         + " public class Store {"
         + " public <T> @Nullable T findAndReplace(String query, T document) { return null; } }",
     "package org.example.store; public class LegacyStore {"
         + " @org.springframework.lang.Nullable"
         + " public <T> T findAndReplace(String query, T document) { return null; } }",
+    "package com.google.common.cache; public interface Cache<K, V> {"
+        + " @javax.annotation.CheckForNull V getIfPresent(Object key); }",
   };
 
   @Override
   public void defaults(RecipeSpec spec) {
-    spec.recipe(new DetectNullableSuccessValuesRecipe())
+    spec.recipe(new DetectPossibleNullSuccessValuesRecipe())
         .parser(JavaParser.fromJavaVersion().dependsOn(STUBS));
   }
 
   @DocumentExample
   @Test
-  @DisplayName("marks a @Nullable parameter handed on to a success, and each null passed to it")
-  void marksAForwarderAndTheNullsPassedToIt() {
+  @DisplayName("marks a wrapper's @Nullable parameter, and each null passed to a wrapper")
+  void marksAWrapperAndTheNullsPassedToIt() {
     rewriteRun(
         java(
             """
             package app;
 
+            import java.util.Objects;
             import org.higherkindedj.hkt.either.Either;
             import org.jspecify.annotations.Nullable;
 
@@ -103,18 +114,28 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                 public static <T> Either<String, T> guarded(@Nullable T value) {
                     return value == null ? Either.left("missing") : Either.right(value);
                 }
+
+                public static <T> Either<String, T> checked(@Nullable T value) {
+                    Objects.requireNonNull(value);
+                    return Either.right(value);
+                }
+
+                public static Either<String, Object[]> all(Object... values) {
+                    return Either.right(values);
+                }
             }
             """,
             """
             package app;
 
+            import java.util.Objects;
             import org.higherkindedj.hkt.either.Either;
             import org.jspecify.annotations.Nullable;
 
             public final class Results {
                 private Results() {}
 
-                public static <T> Either<String, T> right(/*~~(May be null, which Either.right refuses from 0.5.0: drop @Nullable, and pass Unit.INSTANCE or a Maybe where there is no value)~~>*/@Nullable T value) {
+                public static <T> Either<String, T> right(/*~~(May be null, which Either.right now refuses: drop @Nullable so callers pass a value, such as Unit.INSTANCE or a Maybe, or return an error here when it is null)~~>*/@Nullable T value) {
                     return Either.right(value);
                 }
 
@@ -129,6 +150,15 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
 
                 public static <T> Either<String, T> guarded(@Nullable T value) {
                     return value == null ? Either.left("missing") : Either.right(value);
+                }
+
+                public static <T> Either<String, T> checked(@Nullable T value) {
+                    Objects.requireNonNull(value);
+                    return Either.right(value);
+                }
+
+                public static Either<String, Object[]> all(Object... values) {
+                    return Either.right(values);
                 }
             }
             """),
@@ -162,6 +192,14 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                 Either<String, String> missing() {
                     return Results.guarded(null);
                 }
+
+                Either<String, String> required() {
+                    return Results.checked(null);
+                }
+
+                Either<String, Object[]> listed() {
+                    return Results.all(null, "a");
+                }
             }
             """,
             """
@@ -192,6 +230,14 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
 
                 Either<String, String> missing() {
                     return Results.guarded(null);
+                }
+
+                Either<String, String> required() {
+                    return Results.checked(null);
+                }
+
+                Either<String, Object[]> listed() {
+                    return Results.all(null, "a");
                 }
             }
             """));
@@ -235,6 +281,16 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                 VTask<String> greeting(Map<String, String> names) {
                     return VTask.of(() -> names.get("greeting")).map(value -> Objects.isNull(value) ? "hello" : value);
                 }
+
+                VTask<String> traced(Map<String, String> names) {
+                    return VTask.of(() -> names.get("trace"))
+                        .peek(value -> System.out.println(value != null))
+                        .via(value -> VTask.of(() -> Objects.nonNull(value) ? value : "none"));
+                }
+
+                void shown(Map<String, String> names) {
+                    Try.of(() -> names.get("shown")).toEither(e -> "failed").ifRight(value -> System.out.println(value == null));
+                }
             }
             """,
             """
@@ -253,22 +309,32 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                 Either<String, String> save(Store store, String query, String document) {
                     return Try.of(() -> store.findAndReplace(query, document))
                         .toEither(e -> "storage failed")
-                        .flatMap(found -> /*~~(Never null from 0.5.0, so a missing value may now fail the chain before this check: carry it as a Maybe from where it is read)~~>*/found == null
+                        .flatMap(found -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/found == null
                             ? Either.<String, String>left("not found")
                             : Either.<String, String>right(document));
                 }
 
                 Optional<List<String>> roles(Map<String, List<String>> claims) {
                     return Try.attempt(() -> claims.get("roles"))
-                        .foldFailureFirst(_ -> Optional.empty(), roles -> Optional.of(/*~~(Never null from 0.5.0, so a missing value may now fail the chain before this check: carry it as a Maybe from where it is read)~~>*/roles == null ? List.of() : roles));
+                        .foldFailureFirst(_ -> Optional.empty(), roles -> Optional.of(/*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/roles == null ? List.of() : roles));
                 }
 
                 String label(Map<String, String> names) {
-                    return Try.of(() -> names.get("label")).fold(e -> "failed", label -> /*~~(Never null from 0.5.0, so a missing value may now fail the chain before this check: carry it as a Maybe from where it is read)~~>*/label != null ? label : "none");
+                    return Try.of(() -> names.get("label")).fold(e -> "failed", label -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/label != null ? label : "none");
                 }
 
                 VTask<String> greeting(Map<String, String> names) {
-                    return VTask.of(() -> names.get("greeting")).map(value -> /*~~(Never null from 0.5.0, so a missing value may now fail the chain before this check: carry it as a Maybe from where it is read)~~>*/Objects.isNull(value) ? "hello" : value);
+                    return VTask.of(() -> names.get("greeting")).map(value -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/Objects.isNull(value) ? "hello" : value);
+                }
+
+                VTask<String> traced(Map<String, String> names) {
+                    return VTask.of(() -> names.get("trace"))
+                        .peek(value -> System.out.println(/*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/value != null))
+                        .via(value -> VTask.of(() -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/Objects.nonNull(value) ? value : "none"));
+                }
+
+                void shown(Map<String, String> names) {
+                    Try.of(() -> names.get("shown")).toEither(e -> "failed").ifRight(value -> System.out.println(/*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/value == null));
                 }
             }
             """));
@@ -283,10 +349,12 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
             """
             package app;
 
-            import org.example.store.Store;
+            import java.util.function.Predicate;
+            import org.example.store.LegacyStore;
             import org.higherkindedj.hkt.either.Either;
             import org.higherkindedj.hkt.maybe.Maybe;
             import org.higherkindedj.hkt.trymonad.Try;
+            import org.higherkindedj.hkt.vtask.VTask;
 
             class Checks {
                 Either<String, String> given(Either<String, String> found) {
@@ -297,7 +365,7 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                     return Either.<String, String>right("x").map(value -> value == null ? "none" : value);
                 }
 
-                Try<String> held(Store store, String query) {
+                Try<String> held(LegacyStore store, String query) {
                     return Try.of(() -> Maybe.fromNullable(store.findAndReplace(query, "doc")))
                         .map(found -> found.isNothing() ? "none" : "found");
                 }
@@ -305,19 +373,34 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                 Try<String> checked(Try<String> lookup) {
                     return lookup.map(value -> value == null ? "none" : value);
                 }
+
+                Either<String, String> joined(Either<String, String> found) {
+                    return VTask.of(() -> found).join().map(value -> value == null ? "none" : value);
+                }
+
+                Try<Boolean> shadowed() {
+                    return Try.of(() -> "x").map(value -> new Predicate<String>() {
+                        @Override
+                        public boolean test(String value) {
+                            return value == null;
+                        }
+                    }.test("y"));
+                }
             }
             """));
   }
 
   @Test
   @DisplayName(
-      "marks a method that may return null where a lazy factory reads it, and a step that accepts null")
+      "marks a method that may return null where a lazy factory reads it, and a step that accepts"
+          + " null")
   void marksASupplierThatMayReturnNull() {
     rewriteRun(
         java(
             """
             package app;
 
+            import com.google.common.cache.Cache;
             import org.example.store.LegacyStore;
             import org.example.store.Store;
             import org.higherkindedj.hkt.either.Either;
@@ -327,6 +410,14 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
 
             class Gateway {
                 @Nullable String exchange() {
+                    return null;
+                }
+
+                public @Nullable String header(String name) {
+                    return null;
+                }
+
+                public <T> @Nullable T attribute(String name) {
                     return null;
                 }
 
@@ -345,8 +436,20 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                     });
                 }
 
+                Try<String> headers() {
+                    return Try.of(() -> header("accept"));
+                }
+
+                VTask<String> attributes() {
+                    return VTask.of(() -> this.<String>attribute("user"));
+                }
+
                 Try<String> legacy(LegacyStore store, String query) {
                     return Try.of(() -> store.findAndReplace(query, "doc"));
+                }
+
+                Try<String> cached(Cache<String, String> cache) {
+                    return Try.of(() -> cache.getIfPresent("key"));
                 }
 
                 Try<String> current(Store store, String query) {
@@ -361,6 +464,7 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
             """
             package app;
 
+            import com.google.common.cache.Cache;
             import org.example.store.LegacyStore;
             import org.example.store.Store;
             import org.higherkindedj.hkt.either.Either;
@@ -373,12 +477,20 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                     return null;
                 }
 
+                public @Nullable String header(String name) {
+                    return null;
+                }
+
+                public <T> @Nullable T attribute(String name) {
+                    return null;
+                }
+
                 Either<String, String> accept(@Nullable String body) {
                     return body == null ? Either.left("empty") : Either.right(body);
                 }
 
                 Either<String, String> call() {
-                    return Try.of(/*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/this::exchange).toEither(e -> "failed").flatMap(/*~~(Accepts null, which a success never holds from 0.5.0, so a missing value may now fail the chain before this step: carry it as a Maybe from where it is read)~~>*/this::accept);
+                    return Try.of(/*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/this::exchange).toEither(e -> "failed").flatMap(/*~~(Accepts null, but is never handed one now, so a value that used to arrive as null may fail the chain before this step: carry it as a Maybe from the call that returns it)~~>*/this::accept);
                 }
 
                 VTask<String> later() {
@@ -388,8 +500,20 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
                     });
                 }
 
+                Try<String> headers() {
+                    return Try.of(() -> /*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/header("accept"));
+                }
+
+                VTask<String> attributes() {
+                    return VTask.of(() -> /*~~(May return null, which now fails when it runs: carry a missing value as a Maybe, or fail with an error that says why)~~>*/this.<String>attribute("user"));
+                }
+
                 Try<String> legacy(LegacyStore store, String query) {
                     return Try.of(() -> /*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/store.findAndReplace(query, "doc"));
+                }
+
+                Try<String> cached(Cache<String, String> cache) {
+                    return Try.of(() -> /*~~(May return null, which now gives a Failure: carry a missing value as a Maybe, or fail with an error that says why)~~>*/cache.getIfPresent("key"));
                 }
 
                 Try<String> current(Store store, String query) {
@@ -477,7 +601,7 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
 
             class Labels {
                 String label(Map<String, String> names) {
-                    return Try.of(() -> names.get("label")).fold(label -> /*~~(Never null from 0.5.0, so a missing value may now fail the chain before this check: carry it as a Maybe from where it is read)~~>*/label == null ? "none" : label, e -> "failed");
+                    return Try.of(() -> names.get("label")).fold(label -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/label == null ? "none" : label, e -> "failed");
                 }
             }
             """));
@@ -519,7 +643,7 @@ class DetectNullableSuccessValuesRecipeTest implements RewriteTest {
             final class Shortcuts {
                 private Shortcuts() {}
 
-                static Either<String, String> wrap(/*~~(May be null, which Either.right refuses from 0.5.0: drop @Nullable, and pass Unit.INSTANCE or a Maybe where there is no value)~~>*/@Nullable String value) {
+                static Either<String, String> wrap(/*~~(May be null, which Either.right now refuses: drop @Nullable so callers pass a value, such as Unit.INSTANCE or a Maybe, or return an error here when it is null)~~>*/@Nullable String value) {
                     return Either.right(value);
                 }
 

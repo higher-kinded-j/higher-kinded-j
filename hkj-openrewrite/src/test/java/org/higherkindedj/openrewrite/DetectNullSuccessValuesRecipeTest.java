@@ -85,7 +85,7 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                     Try<String> lookup = Try.of(() -> /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/null);
                     /*~~(Void has no value for a success to hold: use Unit)~~>*/Try<Void> work = Try.of(() -> {
                         System.out.println("working");
-                        /*~~(Returns null, which now gives a Failure: return Unit.INSTANCE for a step with nothing to return)~~>*/return null;
+                        return /*~~(Returns null, which now gives a Failure: return Unit.INSTANCE for a step with nothing to return)~~>*/null;
                     });
                 }
             }
@@ -164,7 +164,7 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                         .map(name -> name.length())
                         .map(length -> {
                             System.out.println(length);
-                            /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/return null;
+                            return /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null;
                         });
                 }
             }
@@ -294,7 +294,7 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                     VTask<String> missing = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/VTask.succeed(null);
                     VTask<Unit> work = VTask.of(() -> {
                         System.out.println("working");
-                        /*~~(Returns null, which now fails when it runs: return Unit.INSTANCE for a step with nothing to return)~~>*/return null;
+                        return /*~~(Returns null, which now fails when it runs: return Unit.INSTANCE for a step with nothing to return)~~>*/null;
                     });
                     VTask<Integer> length = task.map(name -> /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null);
                     IO<String> read = IO.delay(() -> /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null);

@@ -24,6 +24,7 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
     "package org.higherkindedj.hkt.trymonad;"
         + " import java.util.function.Function;"
         + " public interface Try<T> {"
+        + "   static <T> Try<T> of(java.util.function.Supplier<? extends T> s) { return null; }"
         + "   <U> U fold(Function<? super T, ? extends U> successMapper,"
         + "              Function<? super Throwable, ? extends U> failureMapper);"
         + "   <U> U foldFailureFirst(Function<? super Throwable, ? extends U> failureMapper,"
@@ -147,12 +148,42 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             import org.higherkindedj.hkt.either.Either;
 
             class Results {
-                static <T> Either<String, T> right(/*~~(May be null, which Either.right refuses from 0.5.0: drop @Nullable, and pass Unit.INSTANCE or a Maybe where there is no value)~~>*/@Nullable T value) {
+                static <T> Either<String, T> right(/*~~(May be null, which Either.right now refuses: drop @Nullable so callers pass a value, such as Unit.INSTANCE or a Maybe, or return an error here when it is null)~~>*/@Nullable T value) {
                     return Either.right(value);
                 }
 
                 /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> purge() {
                     return /*~~(Passes null on to Either.right, which now throws: pass Unit.INSTANCE for a step with nothing to return)~~>*/right(null);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void readsTheSuccessFunctionOfA04FoldAfterSwappingIt() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import java.util.Map;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            class Labels {
+                String label(Map<String, String> names) {
+                    return Try.of(() -> names.get("label")).fold(label -> label == null ? "none" : label, e -> e == null ? "?" : "failed");
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import java.util.Map;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            class Labels {
+                String label(Map<String, String> names) {
+                    return Try.of(() -> names.get("label")).foldFailureFirst(e -> e == null ? "?" : "failed", label -> /*~~(Never null here now, so a value that used to arrive as null may fail the chain before this check: carry it as a Maybe from the call that returns it)~~>*/label == null ? "none" : label);
                 }
             }
             """));
