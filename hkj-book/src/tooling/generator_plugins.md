@@ -308,12 +308,13 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
-import org.higherkindedj.optics.util.Traversals;
 
 @ServiceProvider(TraversableGenerator.class)
 public class NonEmptyListGenerator extends BaseTraversableGenerator {
 
     private static final String FQN = "com.example.NonEmptyList";
+    private static final ClassName TRAVERSALS =
+        ClassName.get("org.higherkindedj.optics.util", "Traversals");
 
     @Override
     public boolean supports(final TypeMirror type) {
@@ -337,7 +338,7 @@ public class NonEmptyListGenerator extends BaseTraversableGenerator {
                 "final var javaList = source.$L().toList()", componentName)
             .addStatement(
                 "final var effectOfList = $T.traverseList(javaList, f, applicative)",
-                Traversals.class)
+                TRAVERSALS)
             .addStatement(
                 "final var effectOfNonEmptyList = applicative.map(list -> com.example.NonEmptyList.of(list), effectOfList)")
             .addStatement(
@@ -362,12 +363,11 @@ module com.example.generators {
 }
 ```
 
-**3. Add javapoet and Avaje SPI to your build:**
+**3. Add hkj-processor and Avaje SPI to your build:**
 
 ```kotlin
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-processor:LATEST-VERSION")
-    implementation("com.palantir.javapoet:javapoet:0.22.0") // the javapoet release hkj-processor is built with
     compileOnly("io.avaje:avaje-spi-service:2.17")
     annotationProcessor("io.avaje:avaje-spi-service:2.17")
 }

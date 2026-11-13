@@ -5,11 +5,9 @@ package org.higherkindedj.optics.processing.generator;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.palantir.javapoet.ClassName;
-import com.palantir.javapoet.CodeBlock;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.List;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
@@ -37,9 +35,8 @@ import org.junit.jupiter.api.Test;
  * directly using proxy-based mocks to verify the defensive code is correct and to achieve full
  * coverage.
  *
- * <p>Generators that read a type argument share one reader, {@link
- * BaseTraversableGenerator#getTypeArgumentName}, so its fallbacks are asserted once against the
- * base rather than once per generator.
+ * <p>The base class's own fallbacks, for a component with no type argument to read, are tested in
+ * hkj-processor, in {@code BaseTraversableGeneratorTest}.
  */
 @DisplayName("Type extraction fallback paths")
 class TypeExtractionFallbackTest {
@@ -134,67 +131,7 @@ class TypeExtractionFallbackTest {
     return (T) Proxy.newProxyInstance(iface.getClassLoader(), new Class<?>[] {iface}, handler);
   }
 
-  // ── Concrete subclass of BaseTraversableGenerator for testing protected methods ──
-
-  private static BaseTraversableGenerator baseGenerator() {
-    return new BaseTraversableGenerator() {
-      @Override
-      public boolean supports(final TypeMirror type) {
-        return false;
-      }
-
-      @Override
-      public String generateOpticExpression() {
-        return "";
-      }
-
-      @Override
-      public Set<String> getRequiredImports() {
-        return Set.of();
-      }
-
-      @Override
-      public CodeBlock generateModifyF(
-          final RecordComponentElement component,
-          final ClassName recordClassName,
-          final List<? extends RecordComponentElement> allComponents) {
-        return CodeBlock.builder().build();
-      }
-    };
-  }
-
   // ── Tests ─────────────────────────────────────────────────────────────────
-
-  @Nested
-  @DisplayName("BaseTraversableGenerator.getTypeArgumentName")
-  class BaseTraversableGeneratorFallbacks {
-
-    @Test
-    @DisplayName("returns Object for non-DeclaredType component")
-    void returnsObjectForNonDeclaredType() {
-      var gen = baseGenerator();
-      var component = componentOf("field", nonDeclaredType());
-      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 0));
-      assertEquals(ClassName.get(Object.class), gen.getGenericTypeName(component));
-    }
-
-    @Test
-    @DisplayName("returns Object for DeclaredType with empty type arguments")
-    void returnsObjectForEmptyTypeArgs() {
-      var gen = baseGenerator();
-      var component = componentOf("field", declaredType(null, List.of()));
-      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 0));
-      assertEquals(ClassName.get(Object.class), gen.getGenericTypeName(component));
-    }
-
-    @Test
-    @DisplayName("returns Object for an index the component has no argument at")
-    void returnsObjectForIndexBeyondTypeArgs() {
-      var gen = baseGenerator();
-      var component = componentOf("field", declaredType(null, List.of(nonDeclaredType())));
-      assertEquals(ClassName.get(Object.class), gen.getTypeArgumentName(component, 1));
-    }
-  }
 
   @Nested
   @DisplayName("ArrayGenerator fallbacks")

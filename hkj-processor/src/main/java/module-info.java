@@ -40,10 +40,12 @@ module org.higherkindedj.processor {
       org.higherkindedj.optics.processing.effect.PathProcessor,
       org.higherkindedj.optics.processing.effect.PathSourceProcessor;
 
-  // It exports the SPI so the plugins module can implement it, and the shared processor
-  // helpers so that a plugin names a type the same way the generators that call it do.
+  // It exports the SPI so a generator plugin can implement it, the base class generators extend,
+  // and the shared processor helpers so that a plugin names a type the same way the generators
+  // that call it do.
   exports org.higherkindedj.optics.processing.spi;
   exports org.higherkindedj.optics.processing.util;
+  exports org.higherkindedj.optics.processing.generator;
 
   // Export Effect Path processor package
   exports org.higherkindedj.optics.processing.effect;

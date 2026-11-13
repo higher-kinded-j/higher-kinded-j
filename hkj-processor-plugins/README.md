@@ -80,7 +80,7 @@ This module ships 32 generators covering JDK collections, Higher-Kinded-J core t
 
 ```
 TraversableGenerator (SPI interface in hkj-processor)
-└── BaseTraversableGenerator (abstract base in this module)
+└── BaseTraversableGenerator (abstract base in hkj-processor)
     ├── JDK generators (basejdk/)
     ├── HKJ type generators (hkj/)
     ├── EclipseBaseSingleIterableTraversableGenerator

@@ -11,8 +11,10 @@ dependencies {
     implementation(project(":hkj-annotations"))
     implementation(project(":hkj-api"))
 
+    // A generator plugin implements the SPI, whose signatures are written in javapoet's types, so
+    // javapoet is part of this module's API.
+    api(libs.javapoet)
     // The processor's own dependencies, which will not leak into the core module
-    implementation(libs.javapoet)
     implementation(libs.autoservice.annotations)
     annotationProcessor(libs.autoservice)
 
@@ -51,11 +53,42 @@ protobuf {
     }
 }
 
+// What a generator author compiles against: this module's API and the api dependencies it brings,
+// which the published POM gives compile scope, with the Avaje SPI annotation the plugin guide adds.
+// GeneratorPluginGuideTest compiles the guide's example against these alone.
+val pluginAuthorModulePath by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_API))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+
+dependencies {
+    pluginAuthorModulePath(project(path))
+    pluginAuthorModulePath(libs.avaje.spi)
+}
+
 tasks.test {
     useJUnitPlatform()
     maxParallelForks = Runtime.getRuntime().availableProcessors()
     setForkEvery(100)
     finalizedBy(tasks.jacocoTestReport)
+
+    val modulePath: FileCollection = pluginAuthorModulePath
+    val guide = rootProject.layout.projectDirectory.file("hkj-book/src/tooling/generator_plugins.md")
+    inputs.files(modulePath).withPropertyName("pluginAuthorModulePath")
+    inputs.file(guide).withPropertyName("pluginGuide").withPathSensitivity(PathSensitivity.NONE)
+    jvmArgumentProviders.add(
+        CommandLineArgumentProvider {
+            listOf(
+                "-Dhkj.pluginAuthorModulePath=${modulePath.asPath}",
+                "-Dhkj.pluginGuide=${guide.asFile.absolutePath}",
+            )
+        }
+    )
 }
 
 tasks.jacocoTestReport {
