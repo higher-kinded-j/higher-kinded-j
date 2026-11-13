@@ -75,7 +75,7 @@ hierarchy instead of a mix of `Left`s and exceptions.
 | `withRetry(policy)` | Retries **defects only**: a `Left` is a value, never retried |
 | `withRetry(Predicate<E> retryOn, policy)` | Opt selected *transient* `Left`s into retry; on exhaustion returns the last `Left` |
 | `withCircuitBreaker(breaker)` | A `Left` never counts as a failure |
-| `withCircuitBreaker(breaker, Function<CircuitOpenException, E> onOpen)` | Open-circuit rejection arrives as a typed `Left` |
+| `withCircuitBreaker(breaker, Function<CircuitOpenException, E> onOpen)` | The breaker's rejection, open or half-open, arrives as a typed `Left` |
 | `withBulkhead(bulkhead)` / `withBulkhead(bulkhead, Function<BulkheadFullException, E> onFull)` | Same, for saturation |
 
 Opt a genuinely transient rejection into retry explicitly:
@@ -172,7 +172,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 |-------|----------|----------------|
 | CLOSED | All calls allowed; failures counted | OPEN (failures reach threshold) |
 | OPEN | All calls rejected with `CircuitOpenException` | HALF_OPEN (after openDuration expires) |
-| HALF_OPEN | One probe call allowed | CLOSED (probe succeeds) or OPEN (probe fails) |
+| HALF_OPEN | A call runs as a probe while running and successful probes are fewer than `successThreshold`; other calls rejected with `CircuitOpenException` (`status()` is `HALF_OPEN`) | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
 
 ### Configuration
 
@@ -180,7 +180,7 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 ```java
 CircuitBreakerConfig config = CircuitBreakerConfig.builder()
     .failureThreshold(5)                      // Consecutive failures before opening (default: 5)
-    .successThreshold(3)                      // Probes needed in HALF_OPEN to close (default: 1)
+    .successThreshold(3)                      // Probes needed in HALF_OPEN to close; running + successful probes never exceed it (default: 1)
     .openDuration(Duration.ofSeconds(30))     // How long circuit stays open (default: 60s)
     .callTimeout(Duration.ofSeconds(5))       // Timeout per protected call (default: 10s)
     .recordFailure(ex -> !(ex instanceof BusinessValidationException))  // Which exceptions count
