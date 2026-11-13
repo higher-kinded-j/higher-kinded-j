@@ -113,11 +113,12 @@ public final class EitherOrBothPath<L, A>
    * @param onLeft applied to the left value if this is a {@code Left}; must not be null
    * @param onRight applied to the right value if this is a {@code Right}; must not be null
    * @param onBoth applied to both values if this is a {@code Both}; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of the matching function
    * @throws NullPointerException if any function is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super L, ? extends B> onLeft,
       Function<? super A, ? extends B> onRight,
       BiFunction<? super L, ? super A, ? extends B> onBoth) {

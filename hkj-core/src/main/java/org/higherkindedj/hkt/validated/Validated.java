@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a value that is either Valid (correct) or Invalid (erroneous). This is a sealed
@@ -244,11 +245,12 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    *
    * @param invalidMapper The non-null function to apply if this is an {@link Invalid}.
    * @param validMapper The non-null function to apply if this is a {@link Valid}.
-   * @param <T> The target type to which both paths will be mapped.
+   * @param <T> The target type to which both paths will be mapped. It may be {@code @Nullable}:
+   *     name it as a type argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code invalidMapper} or {@code validMapper} is null.
    */
-  default <T> T fold(
+  default <T extends @Nullable Object> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
     Validation.function().require(invalidMapper, "invalidMapper", FOLD);

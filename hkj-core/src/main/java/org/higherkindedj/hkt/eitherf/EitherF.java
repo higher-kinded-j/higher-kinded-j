@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A sum type for composing effect algebras at the type constructor level.
@@ -89,10 +90,11 @@ public sealed interface EitherF<F extends WitnessArity<?>, G extends WitnessArit
    *
    * @param onLeft The function to apply if this is a Left (instruction from F)
    * @param onRight The function to apply if this is a Right (instruction from G)
-   * @param <B> The result type of the fold
+   * @param <B> The result type of the fold. It may be {@code @Nullable}: name it as a type
+   *     argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate function
    */
-  default <B> B fold(
+  default <B extends @Nullable Object> B fold(
       Function<? super Kind<F, A>, ? extends B> onLeft,
       Function<? super Kind<G, A>, ? extends B> onRight) {
     Validation.function().require(onLeft, "onLeft", FOLD);
