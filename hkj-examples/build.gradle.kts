@@ -44,12 +44,12 @@ dependencies {
     testImplementation(libs.bundles.jqwik)
 
     // The TraversableGenerator SPI (BaseTraversableGenerator, Cardinality) that hkj-optics'
-    // container-types page documents, which hkj-processor-plugins brings from hkj-processor. It is
-    // wired above as `annotationProcessor`, which puts it on the PROCESSOR path, not the compile
-    // classpath, so the gate could not compile a snippet that implements the SPI. javac is given an
-    // explicit -processorpath, so classpath discovery stays off. Do not narrow this to hkj-processor:
-    // the processor path's loader asks this classpath first, so the processor is loaded from here,
-    // and it finds generators only where it was loaded from.
+    // container-types page documents, which hkj-processor-plugins brings from hkj-processor.
+    // hkj-processor-plugins is wired above as `annotationProcessor`, which puts it on the PROCESSOR
+    // path, not the compile classpath, so the gate could not compile a snippet that implements the
+    // SPI. javac is given an explicit -processorpath, so classpath discovery stays off. Do not narrow
+    // this to hkj-processor: the processor path's loader asks this classpath first, so the processor
+    // is loaded from here, and it finds generators only where it was loaded from.
     testImplementation(project(":hkj-processor-plugins"))
 
     testImplementation(project(":hkj-spring:client"))

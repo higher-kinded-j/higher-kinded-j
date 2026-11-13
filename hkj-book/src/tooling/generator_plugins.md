@@ -294,6 +294,8 @@ To take over a type a built-in generator already claims, implement `supports()` 
 
 Suppose you want to add traversal support for a custom `NonEmptyList<A>` type.
 
+<!-- GeneratorPluginGuideTest, in hkj-processor, finds the code blocks of steps 1 to 3 by their bold lines: keep those lines as they are. -->
+
 **1. Create the generator class:**
 
 ```java
@@ -391,6 +393,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Map over what `f` returns as it is.** The body is written against `source`, `f` and `applicative`, and `f` is a `Function<A, Kind<F, A>>` at the focus type, so its result needs no cast. A cast to `Kind<F, A>` names the type it already has, and javac reports it under `-Xlint:cast` in every build that compiles your generated source.
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
+- **Name `Traversals` with `ClassName.get`**, as the example does: it is in hkj-core, which a generator module does not depend on, so `Traversals.class` does not compile there.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
 - **Override `getOrderedTypeArgumentIndex()`** if your container keeps its contents in an order of its own, such as a sorted set's element or a sorted map's key, and its rebuild reuses the source's comparator. A wildcard at that argument is then refused: `@GenerateTraversals` notes the component and generates no traversal, and `@GenerateFocus` rejects it where it widens the component.
 - **Widen a sorted container through `EachInstances.fromIterableRebuilding` or `mapValuesEachRebuilding`** in `generateOpticExpression()`. Their rebuild is handed the source as well, so a Focus path keeps the comparator too.

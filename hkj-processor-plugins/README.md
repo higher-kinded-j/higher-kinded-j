@@ -101,8 +101,8 @@ TraversableGenerator (SPI interface in hkj-processor)
 
 ### Key Components
 
-- **`TraversableGenerator`** (SPI) -- The interface in `hkj-processor` that all generators implement. Defines three methods: `supports(TypeMirror)`, `getFocusTypeArgumentIndex()`, and `generateModifyF(...)`.
-- **`BaseTraversableGenerator`** -- Abstract base class providing helper methods for extracting generic type names and generating record constructor arguments.
+- **`TraversableGenerator`** (SPI) -- The interface in `hkj-processor` that all generators implement. Each implements `supports(TypeMirror)` and `generateModifyF(...)`, and overrides the defaulted methods, such as `getFocusTypeArgumentIndex()` and `generateOpticExpression()`, as its container needs.
+- **`BaseTraversableGenerator`** -- The abstract base class in `hkj-processor`, providing helper methods for extracting generic type names and generating record constructor arguments.
 - **`@ServiceProvider`** -- Each concrete generator uses [Avaje SPI](https://avaje.io/spi/) to automatically generate `META-INF/services` entries and validate the `module-info.java` `provides` clause at compile time.
 
 ## Usage
