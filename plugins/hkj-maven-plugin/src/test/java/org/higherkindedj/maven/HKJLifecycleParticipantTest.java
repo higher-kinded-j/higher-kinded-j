@@ -5,6 +5,10 @@ package org.higherkindedj.maven;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("HKJLifecycleParticipant")
 class HKJLifecycleParticipantTest {
@@ -612,30 +617,146 @@ class HKJLifecycleParticipantTest {
     }
 
     @Test
-    @DisplayName("installs the skills once, into the reactor's root")
+    @DisplayName("binds the install into the reactor's root")
     void installsIntoReactorRoot() {
-      MavenProject parent = projectAt("/repo");
-      MavenProject module = projectAt("/repo/module");
+      MavenProject parent = Sessions.project(new File("/repo"));
+      MavenProject module = Sessions.project(new File("/repo/module"));
 
       assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, parent), new File("/repo")))
           .containsSame(parent);
     }
 
     @Test
-    @DisplayName("installs into the first project that asks when the root does not")
+    @DisplayName("binds the install into the first project that asks when the root does not")
     void installsIntoFirstProject_whenRootDoesNotAsk() {
-      MavenProject module = projectAt("/repo/module");
-      MavenProject other = projectAt("/repo/other");
+      MavenProject module = Sessions.project(new File("/repo/module"));
+      MavenProject other = Sessions.project(new File("/repo/other"));
 
       assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, other), new File("/repo")))
           .containsSame(module);
       assertThat(HKJLifecycleParticipant.skillsHome(List.of(), new File("/repo"))).isEmpty();
     }
 
-    private MavenProject projectAt(String dir) {
-      MavenProject project = new MavenProject();
-      project.setFile(new File(dir, "pom.xml"));
-      return project;
+    @Nested
+    @DisplayName("installed skills")
+    class InstalledSkillsReport {
+
+      private static final String RELEASE = HKJConfiguration.bundledRelease().orElseThrow();
+
+      private final List<String> warnings = new ArrayList<>();
+      private final List<String> infos = new ArrayList<>();
+
+      private void report(Path skills) {
+        HKJLifecycleParticipant.reportInstalledSkills(skills, warnings::add, infos::add);
+      }
+
+      @Test
+      @DisplayName(
+          "at the root are reported once the build has run, if a project applies the plugin")
+      void reportedAfterTheSession_whenAProjectAppliesThePlugin(@TempDir Path repo)
+          throws IOException {
+        MavenProject root = Sessions.project(repo.toFile());
+        MavenProject module = Sessions.project(repo.resolve("module").toFile());
+        Path skills = InstalledSkills.skillsIn(repo.toFile());
+        Files.createDirectories(skills.resolve("hkj-guide"));
+
+        HKJLifecycleParticipant.reportAfterSession(
+            Sessions.session(repo.toFile(), root, module), warnings::add, infos::add);
+        assertThat(infos).isEmpty();
+
+        module.getBuild().addPlugin(hkjPlugin());
+        HKJLifecycleParticipant.reportAfterSession(
+            Sessions.session(repo.toFile(), root, module), warnings::add, infos::add);
+        assertThat(infos)
+            .singleElement()
+            .asString()
+            .contains(skills + " do not say which Higher-Kinded-J release they describe");
+      }
+
+      @Test
+      @DisplayName("of another release give one warning, naming both releases and the goal")
+      void otherRelease_warns(@TempDir Path skills) throws IOException {
+        Files.createDirectory(skills.resolve("hkj-guide"));
+        Files.writeString(skills.resolve(InstalledSkills.STAMP_FILE), "version=0.0.1\n");
+
+        report(skills);
+
+        assertThat(warnings)
+            .singleElement()
+            .asString()
+            .contains("describe Higher-Kinded-J 0.0.1, but this build's HKJ plugin is " + RELEASE)
+            .contains("mvn hkj:install-skills");
+        assertThat(infos).isEmpty();
+      }
+
+      @Test
+      @DisplayName(
+          "in a module, of another release or none, are a copy the build no longer updates")
+      void inAModule_areAStrayCopy(@TempDir Path repo) throws IOException {
+        List<MavenProject> applying = new ArrayList<>();
+        for (String dir : List.of("", "app", "lib", "web", "current")) {
+          applying.add(Sessions.project(repo.resolve(dir).toFile()));
+        }
+        Path skills = InstalledSkills.skillsIn(repo.toFile());
+        Files.createDirectories(skills.resolve("hkj-guide"));
+        Files.createDirectories(repo.resolve("app/.claude/skills/hkj-guide"));
+        Files.createDirectories(repo.resolve("lib/.claude/skills/my-own-skill"));
+        Files.createDirectories(repo.resolve("web/.claude/skills/hkj-guide"));
+        Files.writeString(repo.resolve("web/.claude/skills/.hkj-skills-version"), "version=0.0.1");
+        // A copy stamped with this release is one an install keeps current, wherever it is
+        Files.createDirectories(repo.resolve("current/.claude/skills/hkj-guide"));
+        Files.writeString(
+            repo.resolve("current/.claude/skills/.hkj-skills-version"),
+            InstalledSkills.stamp(RELEASE));
+
+        HKJLifecycleParticipant.reportStrayCopies(applying, skills, RELEASE, infos::add);
+
+        assertThat(infos)
+            .hasSize(2)
+            .anySatisfy(
+                line ->
+                    assertThat(line)
+                        .contains(repo.resolve("app/.claude/skills") + " are a copy this build"))
+            .anySatisfy(
+                line ->
+                    assertThat(line)
+                        .contains(repo.resolve("web/.claude/skills") + " are a copy this build"));
+      }
+
+      @Test
+      @DisplayName("at the root, reached through a symbolic link, are not a copy in a module")
+      void atTheRoot_throughALink_areNotAStrayCopy(@TempDir Path dir) throws IOException {
+        Path repo = Files.createDirectory(dir.resolve("repo"));
+        Path link = Files.createSymbolicLink(dir.resolve("link"), repo);
+        Files.createDirectories(repo.resolve(".claude/skills/hkj-guide"));
+
+        HKJLifecycleParticipant.reportStrayCopies(
+            List.of(Sessions.project(link.toFile())),
+            InstalledSkills.skillsIn(repo.toFile()),
+            RELEASE,
+            infos::add);
+
+        assertThat(infos).isEmpty();
+      }
+
+      @Test
+      @DisplayName("without a stamp get an info line, and stamped with this release nothing")
+      void unstamped_getAnInfoLine_andCurrentNothing(@TempDir Path skills) throws IOException {
+        Files.createDirectory(skills.resolve("hkj-guide"));
+
+        report(skills);
+        assertThat(infos)
+            .singleElement()
+            .asString()
+            .contains("do not say which Higher-Kinded-J release they describe");
+
+        infos.clear();
+        Files.writeString(
+            skills.resolve(InstalledSkills.STAMP_FILE), InstalledSkills.stamp(RELEASE));
+        report(skills);
+        assertThat(warnings).isEmpty();
+        assertThat(infos).isEmpty();
+      }
     }
 
     @Test

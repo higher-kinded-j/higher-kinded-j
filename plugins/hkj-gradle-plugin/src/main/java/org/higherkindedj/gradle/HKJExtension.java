@@ -60,8 +60,10 @@ public abstract class HKJExtension {
   public abstract Property<Boolean> getSpring();
 
   /**
-   * Whether to install Claude Code skills into the project's .claude/skills/ directory. Defaults to
-   * false. When enabled, the {@code hkjInstallSkills} task runs automatically during the build.
+   * Whether to install Claude Code skills into the .claude/skills/ directory at the root of the
+   * build. Defaults to false. When enabled, the project's {@code hkjInstallSkills} runs before its
+   * {@code classes}. It writes only the files that differ, so however many projects enable it, the
+   * build holds one copy.
    *
    * @return the skills property
    */

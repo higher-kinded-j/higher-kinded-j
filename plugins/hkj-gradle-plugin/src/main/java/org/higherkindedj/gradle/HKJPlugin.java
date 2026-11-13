@@ -20,6 +20,7 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.JavaExec;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.javadoc.Javadoc;
 import org.gradle.api.tasks.testing.Test;
@@ -48,6 +49,7 @@ public class HKJPlugin implements Plugin<Project> {
 
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String EXTENSION_NAME = "hkj";
+  private static final String INSTALL_SKILLS = "hkjInstallSkills";
 
   /**
    * An argument naming the checker, with or without options: javac takes the first word after
@@ -253,7 +255,8 @@ public class HKJPlugin implements Plugin<Project> {
     return String.format("%-" + width + "s ", label);
   }
 
-  private static String readPluginVersion() {
+  /** The plugin's own release, which is also the release of the skills it bundles. */
+  static String readPluginVersion() {
     Properties props = new Properties();
     try (InputStream in = HKJPlugin.class.getResourceAsStream("/hkj-version.properties")) {
       if (in != null) {
@@ -271,16 +274,22 @@ public class HKJPlugin implements Plugin<Project> {
             + "Please set hkj.version explicitly in your build script.");
   }
 
+  /**
+   * Gives the project an {@code hkjInstallSkills} that installs into the root of the build. Every
+   * project's install writes to the same directory, and writes only what differs, so a
+   * multi-project build holds one copy however many projects install it. The build reports on that
+   * copy, and on any copy in the project's own directory, once its tasks have run.
+   */
   private void registerInstallSkillsTask(Project project, HKJExtension extension) {
-    var installTask = project.getTasks().register("hkjInstallSkills", HKJInstallSkillsTask.class);
+    TaskProvider<HKJInstallSkillsTask> install =
+        project.getTasks().register(INSTALL_SKILLS, HKJInstallSkillsTask.class);
+    SkillsReport.register(project);
 
-    // When skills = true, wire the install task into the build lifecycle
+    // When skills = true, the project's install runs before its classes
     project.afterEvaluate(
         p -> {
           if (Boolean.TRUE.equals(extension.getSkills().get())) {
-            p.getTasks()
-                .named("classes")
-                .configure(classesTask -> classesTask.dependsOn(installTask));
+            p.getTasks().named("classes").configure(classes -> classes.dependsOn(install));
           }
         });
   }

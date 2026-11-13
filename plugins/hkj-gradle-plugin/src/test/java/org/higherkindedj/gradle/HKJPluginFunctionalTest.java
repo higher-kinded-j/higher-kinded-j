@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
+import org.gradle.testkit.runner.BuildTask;
 import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,73 @@ class HKJPluginFunctionalTest {
     List<String> args = new ArrayList<>(List.of(tasks));
     args.add("--configuration-cache");
     return runner(args.toArray(String[]::new)).build();
+  }
+
+  /**
+   * Writes empty jars standing in for the published HKJ artifacts at 0.3.0, in {@code libs}.
+   * Storing a configuration cache entry resolves compileJava's classpaths, and with no sources
+   * javac never runs.
+   */
+  private void writeEmptyHkjJars() throws IOException {
+    Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
+    for (String artifact : List.of("hkj-core", "hkj-processor-plugins", "hkj-checker")) {
+      Files.createFile(libs.resolve(artifact + "-0.3.0.jar"));
+    }
+  }
+
+  private static final String ISOLATED_PROJECTS = "-Dorg.gradle.unsafe.isolated-projects=true";
+
+  /** Fails a build that uses a deprecated Gradle feature. */
+  private static final String WARNINGS_FAIL = "--warning-mode=fail";
+
+  /**
+   * Writes a build whose root applies no plugin, as in most multi-project builds, and whose {@code
+   * modules} each apply it, with {@code hkj} in their {@code hkj} block.
+   */
+  private void writeModules(String hkj, String... modules) throws IOException {
+    Files.writeString(
+        testProjectDir.resolve("settings.gradle"),
+        "rootProject.name = 'test-project'\ninclude "
+            + String.join(", ", Stream.of(modules).map(m -> "'" + m + "'").toList())
+            + "\n");
+    for (String module : modules) {
+      Files.writeString(
+          Files.createDirectories(testProjectDir.resolve(module)).resolve("build.gradle"),
+          """
+          plugins {
+              id 'java'
+              id 'io.github.higher-kinded-j.hkj'
+          }
+
+          hkj {
+              version = '0.3.0'
+              %s
+          }
+
+          repositories {
+              flatDir { dirs '../libs' }
+          }
+          """
+              .formatted(hkj));
+    }
+    writeEmptyHkjJars();
+  }
+
+  /** The outcomes of the tasks at {@code paths}, each of which the build must have run. */
+  private static List<TaskOutcome> outcomes(BuildResult result, String... paths) {
+    return Stream.of(paths)
+        .map(
+            path -> {
+              BuildTask task = result.task(path);
+              assertThat(task).as("task %s", path).isNotNull();
+              return task.getOutcome();
+            })
+        .toList();
+  }
+
+  /** The skills directory at the root of the test build, as the plugin names it. */
+  private Path rootSkills() throws IOException {
+    return testProjectDir.toRealPath().resolve(".claude").resolve("skills");
   }
 
   private static void deleteRecursively(Path dir) throws IOException {
@@ -665,8 +733,13 @@ class HKJPluginFunctionalTest {
     assertThat(output).contains("Installed");
     assertThat(output).contains("HKJ Claude Code skill files");
 
-    // Verify skill files were actually created
+    // Verify skill files were actually created, and stamped with the plugin's release
     Path skillsDir = testProjectDir.resolve(".claude/skills");
+    String release = HKJPlugin.readPluginVersion();
+    assertThat(output).contains("skill files for Higher-Kinded-J " + release);
+    assertThat(skillsDir.resolve(InstalledSkills.STAMP_FILE))
+        .content()
+        .contains("version=" + release);
     assertThat(skillsDir).isDirectory();
     assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
     assertThat(skillsDir.resolve("hkj-optics/SKILL.md")).isRegularFile();
@@ -679,7 +752,7 @@ class HKJPluginFunctionalTest {
     assertThat(skillsDir.resolve("book-authoring")).doesNotExist();
     try (var installed = Files.list(skillsDir)) {
       assertThat(installed.map(dir -> dir.getFileName().toString()))
-          .allMatch(name -> name.startsWith("hkj-"));
+          .allMatch(name -> name.startsWith("hkj-") || name.equals(InstalledSkills.STAMP_FILE));
     }
   }
 
@@ -736,14 +809,9 @@ class HKJPluginFunctionalTest {
             flatDir { dirs 'libs' }
         }
         """);
-    // Storing the entry resolves compileJava's classpaths. Empty files stand in for the published
-    // jars, since with no sources javac never runs.
-    Path libs = Files.createDirectories(testProjectDir.resolve("libs"));
-    for (String artifact : List.of("hkj-core", "hkj-processor-plugins", "hkj-checker")) {
-      Files.createFile(libs.resolve(artifact + "-0.3.0.jar"));
-    }
+    writeEmptyHkjJars();
     Path skillsDir = testProjectDir.resolve(".claude/skills");
-    String installedInto = "into " + Path.of(".claude", "skills");
+    String installedInto = "into " + rootSkills();
 
     BuildResult stored = buildWithConfigurationCache("classes");
     assertThat(stored.task(":hkjInstallSkills").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
@@ -758,6 +826,171 @@ class HKJPluginFunctionalTest {
     assertThat(reused.task(":hkjInstallSkills").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
     assertThat(reused.getOutput()).contains("Reusing configuration cache.").contains(installedInto);
     assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
+  }
+
+  @Test
+  @DisplayName("a multi-project build installs one copy, at its root, and one up to date quietly")
+  void multiProjectBuild_installsOneCopy_atItsRoot() throws IOException {
+    writeModules("skills = true", "app", "lib");
+    Path skillsDir = testProjectDir.resolve(".claude/skills");
+    // A copy an older plugin installed into one module is left as it is, with a line saying so
+    Path libCopy = testProjectDir.resolve("lib/.claude/skills/hkj-guide/SKILL.md");
+    Files.createDirectories(libCopy.getParent());
+    Files.writeString(libCopy, "old");
+
+    // Each project's install runs, and the first to run leaves the second nothing to do
+    BuildResult result = buildWithConfigurationCache("classes", WARNINGS_FAIL);
+
+    assertThat(outcomes(result, ":app:hkjInstallSkills", ":lib:hkjInstallSkills"))
+        .containsExactlyInAnyOrder(TaskOutcome.SUCCESS, TaskOutcome.UP_TO_DATE);
+    assertThat(result.getOutput())
+        .contains("Configuration cache entry stored.")
+        .containsOnlyOnce("Installed ")
+        .contains("into " + rootSkills());
+    assertThat(skillsDir.resolve("hkj-guide/SKILL.md")).isRegularFile();
+    assertThat(skillsDir.resolve(InstalledSkills.STAMP_FILE))
+        .content()
+        .contains("version=" + HKJPlugin.readPluginVersion());
+    assertThat(testProjectDir.resolve("app/.claude")).doesNotExist();
+    assertThat(libCopy).hasContent("old");
+    assertThat(testProjectDir.resolve("lib/.claude/skills").resolve(InstalledSkills.STAMP_FILE))
+        .doesNotExist();
+    String strayLine =
+        "skills in "
+            + testProjectDir.toRealPath().resolve("lib/.claude/skills")
+            + " are a copy this build no longer updates";
+    assertThat(result.getOutput()).containsOnlyOnce(strayLine);
+
+    // The next build finds the skills up to date, and says nothing about them. It reuses the
+    // configuration cache, and still names the copy in the module, once its tasks have run
+    BuildResult again = buildWithConfigurationCache("classes", WARNINGS_FAIL);
+    assertThat(outcomes(again, ":app:hkjInstallSkills", ":lib:hkjInstallSkills"))
+        .containsOnly(TaskOutcome.UP_TO_DATE);
+    assertThat(again.getOutput())
+        .contains("Reusing configuration cache.")
+        .doesNotContain("Installed ")
+        .doesNotContain("Stamped ")
+        .containsOnlyOnce(strayLine);
+
+    // Any project's install, run on its own, repairs what has changed since another one wrote it
+    Path guide = skillsDir.resolve("hkj-guide/SKILL.md");
+    String bundled = Files.readString(guide);
+    Files.writeString(guide, "edited");
+    Files.writeString(skillsDir.resolve(InstalledSkills.STAMP_FILE), "version=0.0.1\n");
+    BuildResult repaired = runner(":lib:hkjInstallSkills", WARNINGS_FAIL).build();
+    assertThat(repaired.task(":lib:hkjInstallSkills").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(repaired.getOutput()).contains("Installed 1 HKJ Claude Code skill file for");
+    assertThat(guide).hasContent(bundled);
+    assertThat(skillsDir.resolve(InstalledSkills.STAMP_FILE))
+        .content()
+        .contains("version=" + HKJPlugin.readPluginVersion());
+    assertThat(libCopy).hasContent("old");
+  }
+
+  @Test
+  @DisplayName("projects configured in isolation report unstamped skills once, and install once")
+  void isolatedProjects_reportOnce_andInstallOnce() throws IOException {
+    writeModules("", "a", "b", "c", "d");
+    Files.createDirectories(testProjectDir.resolve(".claude/skills/hkj-guide"));
+
+    assertThat(runner("help", "--parallel", ISOLATED_PROJECTS).build().getOutput())
+        .containsOnlyOnce("do not say which Higher-Kinded-J release they describe");
+
+    BuildResult install = runner("hkjInstallSkills", "--parallel", ISOLATED_PROJECTS).build();
+    assertThat(install.getOutput())
+        .containsOnlyOnce("Installed ")
+        .doesNotContain("do not say which");
+  }
+
+  @Test
+  @DisplayName(
+      "a multi-project build warns once about skills of another release, unless it installs")
+  void multiProjectBuild_warnsOnce_unlessItInstalls() throws IOException {
+    writeModules("", "app", "lib");
+    Path skillsDir = testProjectDir.resolve(".claude/skills");
+    Files.createDirectories(skillsDir.resolve("hkj-guide"));
+    Files.writeString(skillsDir.resolve(InstalledSkills.STAMP_FILE), "version=0.0.1\n");
+
+    assertThat(runner("help", WARNINGS_FAIL).build().getOutput())
+        .containsOnlyOnce("describe Higher-Kinded-J 0.0.1");
+
+    // One project's install, run on its own, brings the copy up to date, so the build says nothing
+    BuildResult install = runner(":lib:hkjInstallSkills", WARNINGS_FAIL).build();
+    assertThat(install.getOutput()).doesNotContain("describe Higher-Kinded-J 0.0.1");
+    assertThat(skillsDir.resolve(InstalledSkills.STAMP_FILE))
+        .content()
+        .contains("version=" + HKJPlugin.readPluginVersion());
+  }
+
+  @Test
+  @DisplayName(
+      "skills of another release give a warning on every build, until they are reinstalled")
+  void skillsOfAnotherRelease_warnEveryBuild_untilReinstalled() throws IOException {
+    writeBuildFile(
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+        """);
+    Path skillsDir = testProjectDir.resolve(".claude/skills");
+    Files.createDirectories(skillsDir.resolve("hkj-guide"));
+    Files.writeString(skillsDir.resolve(InstalledSkills.STAMP_FILE), "version=0.0.1\n");
+    String release = HKJPlugin.readPluginVersion();
+    String warning =
+        "The HKJ Claude Code skills in "
+            + rootSkills()
+            + " describe Higher-Kinded-J 0.0.1, but this build's HKJ plugin is "
+            + release;
+
+    // The report comes once the build's tasks have run, so a build that reuses the
+    // configuration cache gives it too
+    assertThat(buildWithConfigurationCache("help").getOutput())
+        .containsOnlyOnce(warning)
+        .contains("Run the hkjInstallSkills task to install the " + release + " skills");
+    assertThat(buildWithConfigurationCache("help").getOutput())
+        .contains("Reusing configuration cache.")
+        .containsOnlyOnce(warning);
+
+    // The build that reinstalls them says nothing about the copy it replaces, nor does the next
+    assertThat(runner("hkjInstallSkills").build().getOutput())
+        .doesNotContain("HKJ Claude Code skills in");
+    assertThat(buildWithConfigurationCache("help").getOutput())
+        .doesNotContain("HKJ Claude Code skills in");
+  }
+
+  @Test
+  @DisplayName("unstamped skills get a line suggesting a reinstall, unless the build installs them")
+  void unstampedSkills_suggestReinstall_unlessTheBuildInstalls() throws IOException {
+    String build =
+        """
+        plugins {
+            id 'java'
+            id 'io.github.higher-kinded-j.hkj'
+        }
+
+        hkj {
+            version = '0.3.0'
+            skills = %s
+        }
+
+        repositories {
+            flatDir { dirs 'libs' }
+        }
+        """;
+    writeEmptyHkjJars();
+    Files.createDirectories(testProjectDir.resolve(".claude/skills/hkj-guide"));
+
+    writeBuildFile(build.formatted(false));
+    assertThat(runner("classes").build().getOutput())
+        .containsOnlyOnce("do not say which Higher-Kinded-J release they describe")
+        .contains("Run the hkjInstallSkills task");
+
+    // A build with skills = true installs them before it compiles, so it has nothing to say
+    writeBuildFile(build.formatted(true));
+    assertThat(runner("classes").build().getOutput())
+        .contains("Installed ")
+        .doesNotContain("HKJ Claude Code skills in");
   }
 
   @Test

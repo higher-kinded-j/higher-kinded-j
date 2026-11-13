@@ -76,6 +76,14 @@ record HKJConfiguration(
         pluginVersion(BUNDLED_VERSION, Optional.empty()), true, false, false, true);
   }
 
+  /**
+   * The release this plugin was built with, which is also the release of the skills it bundles, or
+   * empty when the plugin jar does not say.
+   */
+  static Optional<String> bundledRelease() {
+    return BUNDLED_VERSION;
+  }
+
   /** Whether the configured version is the release this plugin was built with. */
   boolean usesPluginRelease() {
     return BUNDLED_VERSION.map(version::equals).orElse(false);
