@@ -113,6 +113,52 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
   }
 
   @Test
+  void marksAValueThatMayReachASuccessAsNull() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            @Target(ElementType.TYPE_USE)
+            @interface Nullable {}
+            """),
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Results {
+                static <T> Either<String, T> right(@Nullable T value) {
+                    return Either.right(value);
+                }
+
+                Either<String, Void> purge() {
+                    return right(null);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            class Results {
+                static <T> Either<String, T> right(/*~~(May be null, which Either.right refuses from 0.5.0: drop @Nullable, and pass Unit.INSTANCE or a Maybe where there is no value)~~>*/@Nullable T value) {
+                    return Either.right(value);
+                }
+
+                /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> purge() {
+                    return /*~~(Passes null on to Either.right, which now throws: pass Unit.INSTANCE for a step with nothing to return)~~>*/right(null);
+                }
+            }
+            """));
+  }
+
+  @Test
   void marksANullErrorWithoutRewritingIt() {
     rewriteRun(
         java(

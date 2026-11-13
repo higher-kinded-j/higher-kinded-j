@@ -93,10 +93,7 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
           J.MethodInvocation method, ExecutionContext ctx) {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
 
-        if (!TRY_FOLD.matches(mi) && !TRY_PATH_FOLD.matches(mi)) {
-          return mi;
-        }
-        if (takesTheFailureFirst(mi.getMethodType())) {
+        if (!isSuccessFirstFold(mi)) {
           return mi;
         }
 
@@ -162,6 +159,15 @@ public class SwapTryFoldToFoldFailureFirstRecipe extends Recipe {
         return renamed.withParameterTypes(swapped).withParameterNames(swappedNames);
       }
     };
+  }
+
+  /**
+   * Whether a call is to the success-first {@code fold} of a 0.4.x {@code Try} or {@code TryPath},
+   * rather than to the failure-first {@code fold} of 0.6.0 and later.
+   */
+  static boolean isSuccessFirstFold(J.MethodInvocation call) {
+    return (TRY_FOLD.matches(call) || TRY_PATH_FOLD.matches(call))
+        && !takesTheFailureFirst(call.getMethodType());
   }
 
   /**

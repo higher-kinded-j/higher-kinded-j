@@ -4,8 +4,9 @@
 # @PathSource capabilities with the levels they generate, and drops the Monad
 # argument that StateT no longer takes. It adds to @GenerateFocus's widenFields
 # each container a 0.4.x navigator stepped into. It also marks, without
-# rewriting, each null success or null error that 0.5.0 refuses, and each
-# container it would widen but for an element field named like a path method.
+# rewriting, each null success or null error that 0.5.0 refuses, each value
+# that may reach a success as null, and each container it would widen but for
+# an element field named like a path method.
 #
 # Run these with hkj-openrewrite 0.5.0 or later before the project moves to 0.5.0: they
 # match the 0.4.x signatures, and the StateT and widenFields rewrites compile
@@ -35,11 +36,15 @@ description: >-
   generateNavigators = true, and marks one whose elements have a field named
   like a path method, since 0.5.0 can give it no navigator. Finally marks each
   null passed to a success factory, Try.of supplier returning null, and
-  Either, Try or
-  Path typed with Void, since a Right or Success always holds a value. It
-  also marks each null given as an error, as to Either.left or raiseError,
-  each mapLeft or bimap error lambda returning null, and Either typed with a
-  Void error, since a Left always holds an error.
+  Either, Try or Path typed with Void, since a Right or Success always holds a
+  value. It marks each value that may reach a success as null: a @Nullable
+  parameter a method passes on to a success factory, and a null passed to
+  such a method; a method that may return null, returned to Try.of, a
+  deferred factory or a map; and a null check in a success step after one of
+  those, which 0.5.0 never hands a null. It also marks each null given as an
+  error, as to Either.left or raiseError, each mapLeft or bimap error lambda
+  returning null, and Either typed with a Void error, since a Left always
+  holds an error.
 tags:
   - higher-kinded-j
   - migration
@@ -53,6 +58,7 @@ recipeList:
   - org.higherkindedj.openrewrite.RemoveStateTMonadArgument
   - org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe
   - org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe
+  - org.higherkindedj.openrewrite.DetectNullableSuccessValuesRecipe
   - org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe
 
 ---

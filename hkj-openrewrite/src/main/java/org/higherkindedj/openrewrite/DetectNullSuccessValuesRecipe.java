@@ -2,14 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.openrewrite;
 
-import static org.higherkindedj.openrewrite.NullLiterals.isNullLiteral;
+import static org.higherkindedj.openrewrite.NullLiterals.markNullReturns;
 import static org.higherkindedj.openrewrite.NullLiterals.returnsNull;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
@@ -51,7 +53,13 @@ import org.openrewrite.marker.SearchResult;
  * </ul>
  *
  * <p>Where the value's type is {@code Void}, or unknown, the mark suggests {@code Unit}; where it
- * is another type, it suggests a {@code Maybe} or an error that says why the value is missing.
+ * is another type, it suggests a {@code Maybe} or an error that says why the value is missing. A
+ * lambda's mark sits on the {@code null} it returns, its body or its {@code return null}, since one
+ * on the call would print from the start of the call's chain, lines above the null.
+ *
+ * <p>{@link DetectNullableSuccessValuesRecipe} marks the values that may be null where this recipe
+ * sees none written: a {@code @Nullable} value passed on to a success, and a success step that
+ * still checks for a null.
  *
  * <h2>Why this is detection-only</h2>
  *
@@ -138,7 +146,8 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
           new MethodMatcher("org.higherkindedj.hkt.effect.Path vstreamOf(..)"),
           new MethodMatcher("org.higherkindedj.hkt.effect.StreamPath of(..)"));
 
-  private static final List<MethodMatcher> CAPTURING_FACTORIES =
+  /** The factories and {@code map}s that catch what their function throws, and so a null. */
+  static final List<MethodMatcher> CAPTURING_FACTORIES =
       List.of(
           new MethodMatcher("org.higherkindedj.hkt.trymonad.Try of(..)"),
           new MethodMatcher("org.higherkindedj.hkt.trymonad.Try attempt(..)"),
@@ -165,7 +174,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
    * The deferred factories and the {@code map} of each lazy type and lazy {@code Path}, each taking
    * the function that gives the value as its first argument.
    */
-  private static final List<MethodMatcher> DEFERRED_FACTORIES =
+  static final List<MethodMatcher> DEFERRED_FACTORIES =
       List.of(
           new MethodMatcher("org.higherkindedj.hkt.vtask.VTask of(..)"),
           new MethodMatcher("org.higherkindedj.hkt.vtask.VTask delay(..)"),
@@ -209,7 +218,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
    * {@code map} of a {@code Maybe}, an {@code Optional} or a list is not here: there a null result
    * means empty, or stays an element.
    */
-  private static final List<MethodMatcher> EAGER_MAPPERS =
+  static final List<MethodMatcher> EAGER_MAPPERS =
       List.of(
           new MethodMatcher("org.higherkindedj.hkt.either.Either map(..)", true),
           new MethodMatcher("org.higherkindedj.hkt.effect.EitherPath map(..)"),
@@ -217,7 +226,8 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
           new MethodMatcher("org.higherkindedj.hkt.effect.WriterPath map(..)"),
           new MethodMatcher("org.higherkindedj.hkt.effect.IdPath map(..)"));
 
-  private static final Set<String> SUCCESS_TYPES =
+  /** The types whose success always holds a value from 0.5.0. */
+  static final Set<String> SUCCESS_TYPES =
       Set.of(
           "org.higherkindedj.hkt.either.Either",
           "org.higherkindedj.hkt.trymonad.Try",
@@ -326,16 +336,12 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
           J.MethodInvocation method, ExecutionContext ctx) {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
         List<Expression> args = mi.getArguments();
-        if ((SUCCESS_FACTORIES.stream().anyMatch(m -> m.matches(mi))
-                && isNullLiteral(args.getLast()))
-            || (VALUE_FIRST_FACTORIES.stream().anyMatch(m -> m.matches(mi))
-                && isNullLiteral(args.getFirst()))) {
+        if (valueArguments(mi).stream().anyMatch(NullLiterals::isNullLiteral)) {
           return SearchResult.found(
-              mi, holdsVoid(mi.getMethodType()) ? NULL_VALUE : NULL_TYPED_VALUE);
-        }
-        if (ELEMENT_FACTORIES.stream().anyMatch(m -> m.matches(mi))
-            && args.stream().anyMatch(NullLiterals::isNullLiteral)) {
-          return SearchResult.found(mi, NULL_ELEMENT);
+              mi,
+              ELEMENT_FACTORIES.stream().anyMatch(m -> m.matches(mi))
+                  ? NULL_ELEMENT
+                  : holdsVoid(mi.getMethodType()) ? NULL_VALUE : NULL_TYPED_VALUE);
         }
         if (FUTURE_FACTORIES.stream().anyMatch(m -> m.matches(mi))
             && isVoidFuture(args.getFirst().getType())) {
@@ -346,27 +352,18 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
             || !returnsNull(lambda)) {
           return mi;
         }
-        boolean wantsUnit = holdsVoid(mi.getMethodType());
-        if (CAPTURING_FACTORIES.stream().anyMatch(m -> m.matches(mi))) {
-          return SearchResult.found(mi, wantsUnit ? NULL_SUPPLIER : NULL_TYPED_SUPPLIER);
-        }
-        if (DEFERRED_FACTORIES.stream().anyMatch(m -> m.matches(mi))) {
-          return SearchResult.found(mi, wantsUnit ? NULL_DEFERRED : NULL_TYPED_DEFERRED);
-        }
-        if (EAGER_MAPPERS.stream().anyMatch(m -> m.matches(mi))) {
-          return SearchResult.found(mi, wantsUnit ? NULL_EAGER : NULL_TYPED_EAGER);
-        }
-        return mi;
+        return nullReturnMessage(mi)
+            .map(
+                message ->
+                    mi.withArguments(
+                        ListUtils.mapFirst(args, first -> markNullReturns(lambda, message))))
+            .orElse(mi);
       }
 
       @Override
       public J.NewClass visitNewClass(J.NewClass newClass, ExecutionContext ctx) {
         J.NewClass nc = super.visitNewClass(newClass, ctx);
-        List<Expression> args = nc.getArguments();
-        if ((VALUE_FIRST_CONSTRUCTORS.stream().anyMatch(m -> m.matches(nc))
-                && isNullLiteral(args.getFirst()))
-            || (VALUE_LAST_CONSTRUCTORS.stream().anyMatch(m -> m.matches(nc))
-                && isNullLiteral(args.getLast()))) {
+        if (valueArguments(nc).stream().anyMatch(NullLiterals::isNullLiteral)) {
           return SearchResult.found(nc, holdsVoid(nc.getType()) ? NULL_VALUE : NULL_TYPED_VALUE);
         }
         return nc;
@@ -392,6 +389,55 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
     };
   }
 
+  /**
+   * The arguments a success or value factory takes as the value, or each element of a stream
+   * factory; none for any other call.
+   */
+  static List<Expression> valueArguments(J.MethodInvocation call) {
+    List<Expression> args = call.getArguments();
+    if (SUCCESS_FACTORIES.stream().anyMatch(m -> m.matches(call))) {
+      return List.of(args.getLast());
+    }
+    if (VALUE_FIRST_FACTORIES.stream().anyMatch(m -> m.matches(call))) {
+      return List.of(args.getFirst());
+    }
+    if (ELEMENT_FACTORIES.stream().anyMatch(m -> m.matches(call))) {
+      return args;
+    }
+    return List.of();
+  }
+
+  /** The argument a {@code StateTuple} or {@code Writer} constructor takes as the value. */
+  static List<Expression> valueArguments(J.NewClass construction) {
+    List<Expression> args = construction.getArguments();
+    if (VALUE_FIRST_CONSTRUCTORS.stream().anyMatch(m -> m.matches(construction))) {
+      return List.of(args.getFirst());
+    }
+    if (VALUE_LAST_CONSTRUCTORS.stream().anyMatch(m -> m.matches(construction))) {
+      return List.of(args.getLast());
+    }
+    return List.of();
+  }
+
+  /**
+   * What to say of a lambda given to a call that returns null, by what the call does with the null:
+   * a capturing factory gives a {@code Failure}, a deferred one fails when it runs, and an eager
+   * {@code map} throws. Empty for a call that does none of these.
+   */
+  private static Optional<String> nullReturnMessage(J.MethodInvocation call) {
+    boolean wantsUnit = holdsVoid(call.getMethodType());
+    if (CAPTURING_FACTORIES.stream().anyMatch(m -> m.matches(call))) {
+      return Optional.of(wantsUnit ? NULL_SUPPLIER : NULL_TYPED_SUPPLIER);
+    }
+    if (DEFERRED_FACTORIES.stream().anyMatch(m -> m.matches(call))) {
+      return Optional.of(wantsUnit ? NULL_DEFERRED : NULL_TYPED_DEFERRED);
+    }
+    if (EAGER_MAPPERS.stream().anyMatch(m -> m.matches(call))) {
+      return Optional.of(wantsUnit ? NULL_EAGER : NULL_TYPED_EAGER);
+    }
+    return Optional.empty();
+  }
+
   /** Whether a type is a {@code CompletableFuture<Void>}, which completes with null. */
   private static boolean isVoidFuture(JavaType type) {
     return type instanceof JavaType.Parameterized future
@@ -404,7 +450,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
    * Whether a method's result holds {@code Void} or {@code Unit}, or a type the parser could not
    * resolve, so {@code Unit} is the advice that fits.
    */
-  private static boolean holdsVoid(JavaType.Method method) {
+  static boolean holdsVoid(JavaType.Method method) {
     return method == null || holdsVoid(method.getReturnType());
   }
 

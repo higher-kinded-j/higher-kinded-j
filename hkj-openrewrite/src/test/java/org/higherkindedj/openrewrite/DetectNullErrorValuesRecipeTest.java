@@ -145,10 +145,10 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     Kind<EitherKind.Witness<String>, Integer> raised = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/monad.raiseError(null);
                     Kind<EitherKind.Witness<String>, Integer> typed = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/errors.raiseError(null);
                     Kind<OptionalKind.Witness, Integer> empty = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/optional.raiseError(null);
-                    Either<String, Integer> blanked = /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/found.mapLeft(e -> null);
-                    Either<String, String> both = /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/found.bimap(e -> {
+                    Either<String, Integer> blanked = found.mapLeft(e -> /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null);
+                    Either<String, String> both = found.bimap(e -> {
                         System.out.println(e);
-                        return null;
+                        /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/return null;
                     }, n -> "n");
                 }
             }
@@ -188,6 +188,46 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                         Runnable inner = () -> {};
                         return e;
                     });
+                }
+            }
+            """));
+  }
+
+  @Test
+  void putsALambdasMarkOnTheNullItReturnsNotOnTheStartOfItsChain() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            public class Lookups {
+                Either<Integer, String> find(Either<String, String> found) {
+                    return found
+                        .mapLeft(String::trim)
+                        .mapLeft(e -> e.length())
+                        .mapLeft(length -> {
+                            System.out.println(length);
+                            return null;
+                        });
+                }
+            }
+            """,
+            """
+            package test;
+
+            import org.higherkindedj.hkt.either.Either;
+
+            public class Lookups {
+                Either<Integer, String> find(Either<String, String> found) {
+                    return found
+                        .mapLeft(String::trim)
+                        .mapLeft(e -> e.length())
+                        .mapLeft(length -> {
+                            System.out.println(length);
+                            /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/return null;
+                        });
                 }
             }
             """));
