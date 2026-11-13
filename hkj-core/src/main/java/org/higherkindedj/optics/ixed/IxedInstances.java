@@ -106,7 +106,8 @@ public final class IxedInstances {
    * absent key.
    *
    * <p><strong>Immutability:</strong> All operations return new {@link Map} instances, leaving the
-   * original unchanged.
+   * original unchanged. An edit builds its map as {@link AtInstances#mapAt()} does: it keeps every
+   * key of the source, and throws an {@link IllegalArgumentException} for a source it cannot.
    *
    * @param <K> The key type of the map
    * @param <V> The value type of the map

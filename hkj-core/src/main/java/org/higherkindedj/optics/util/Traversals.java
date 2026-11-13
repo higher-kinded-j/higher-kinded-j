@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +38,7 @@ import org.higherkindedj.hkt.trampoline.Trampoline;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -163,6 +163,8 @@ public final class Traversals {
    * <p>If the key exists in the map, the traversal focuses on its corresponding value. If the key
    * does not exist, or maps to {@code null}, the traversal focuses on zero elements, and any
    * modification will have no effect. A modified map is a new map in the source's iteration order.
+   * The traversal keeps every key of the source, and throws an {@link IllegalArgumentException} for
+   * a source it cannot, as {@link #traverseMapValues} describes.
    *
    * @param key The key to focus on in the map.
    * @param <K> The type of the map's keys.
@@ -187,7 +189,7 @@ public final class Traversals {
         return applicative.map(
             newValue -> {
               // Copy the map in the source's iteration order, leaving the source untouched.
-              Map<K, V> newMap = new LinkedHashMap<>(source);
+              Map<K, V> newMap = MapEntries.mutableCopy(source);
               newMap.put(key, newValue);
               return newMap;
             },
@@ -456,7 +458,8 @@ public final class Traversals {
    *
    * <p>This traversal applies an effectful function to each value in the map while keeping all keys
    * unchanged. The order of traversal follows the map's iteration order, and the rebuilt map keeps
-   * that order, as {@link #traverseMapValues} describes.
+   * that order. The traversal keeps every key of the source, and throws an {@link
+   * IllegalArgumentException} for a source it cannot, as {@link #traverseMapValues} describes.
    *
    * <p>This is distinct from {@link #forMap(Object)} which focuses on a single key-value pair. This
    * traversal focuses on all values simultaneously.
@@ -503,7 +506,9 @@ public final class Traversals {
    * <p>The traversal exposes the source as a {@code java.util.Map} via {@code view}, applies the
    * effectful function to each value while keeping the keys unchanged, then hands the rebuilt JDK
    * map to {@code rebuild} to produce a fresh instance of the container type {@code M}. The rebuilt
-   * map is in the source's iteration order, as {@link #traverseMapValues} describes.
+   * map is in the source's iteration order. The traversal keeps every key of the view, and throws
+   * an {@link IllegalArgumentException} for a view it cannot, as {@link #traverseMapValues}
+   * describes.
    *
    * <p>Use this overload for map types that do <em>not</em> implement {@link Map} — for example
    * Eclipse Collections {@code ImmutableMap} or Vavr {@code io.vavr.collection.Map}. For types that
@@ -544,10 +549,12 @@ public final class Traversals {
    * <p>The traversal applies the effectful function to each value of {@code source} while keeping
    * the keys unchanged, then hands the rebuilt JDK map to {@code collector} to produce a fresh
    * instance of {@code M}. The rebuilt map is in the source's iteration order, so a collector such
-   * as {@code LinkedHashMap::new} keeps that order. The bound {@code M extends Map} keeps the
-   * helper applicable to any persistent or specialised map whose interface inherits from {@link
-   * Map}: PCollections {@code PMap} / {@code PSortedMap}, Guava {@code ImmutableMap}, Apache
-   * Commons map decorators, etc. For map types that are not {@code java.util.Map}s, use {@link
+   * as {@code LinkedHashMap::new} keeps that order. The traversal keeps every key of the source,
+   * and throws an {@link IllegalArgumentException} for a source it cannot, as {@link
+   * #traverseMapValues} describes. The bound {@code M extends Map} keeps the helper applicable to
+   * any persistent or specialised map whose interface inherits from {@link Map}: PCollections
+   * {@code PMap} / {@code PSortedMap}, Guava {@code ImmutableMap}, Apache Commons map decorators,
+   * etc. For map types that are not {@code java.util.Map}s, use {@link
    * #forMapValuesCollecting(Function, Function)}.
    *
    * <pre>{@code
@@ -585,7 +592,9 @@ public final class Traversals {
    * whatever else the source carries. A sorted map's comparator is the usual case: rebuilt from its
    * entries, the map falls back to the keys' natural order, and fails for a key that has none. Here
    * the rebuild receives the source too, so it can carry the comparator over. The keys are those of
-   * the source, unchanged, and the map handed over is in the source's iteration order.
+   * the source, unchanged, and the map handed over is in the source's iteration order. The
+   * traversal keeps every key of the source, and throws an {@link IllegalArgumentException} for a
+   * source it cannot, as {@link #traverseMapValues} describes.
    *
    * <p>The rebuild builds a new map and leaves the source as it was: it reads from the source only
    * what the entries do not carry, such as its comparator. It runs when the effect runs, which for
@@ -703,10 +712,23 @@ public final class Traversals {
    *
    * <p>Each run of the resulting effect builds its own map, an empty one when the map is empty.
    *
-   * <p>The rebuilt map is a new map in the source's iteration order. Every optic that writes a
-   * {@code Map} keeps that order, so a {@code LinkedHashMap} or {@code TreeMap} source comes back
-   * in its own order (a {@code TreeMap} does not stay a {@code TreeMap}; collect with {@link
+   * <p>The rebuilt map is a new map in the source's iteration order, with one entry for each entry
+   * of the source, under the source's own key. The map optics here and in {@link
+   * IndexedTraversals}, {@code AtInstances}, {@code FocusPaths} and {@code Setter} all build it
+   * this way, so a {@code LinkedHashMap} or {@code TreeMap} source comes back in its own order (a
+   * {@code TreeMap} does not stay a {@code TreeMap}; collect with {@link
    * #forMapValuesCollecting(Function)} to rebuild the map type).
+   *
+   * <p>An {@link java.util.IdentityHashMap} comes back an {@code IdentityHashMap}, so keys that are
+   * equal but not the same object stay apart; a subclass of one is treated as a plain {@code
+   * IdentityHashMap} copied from it, so it is visited, and comes back, in that copy's order. Any
+   * other map comes back a {@code LinkedHashMap}, which looks keys up by {@code equals}. A source
+   * holding two keys that {@code equals} cannot tell apart, such as a {@code TreeMap} whose
+   * comparator is finer than {@code equals}, would lose an entry there, so building the map, once
+   * the effects have run, throws an {@link IllegalArgumentException} naming the key, as {@code
+   * Map.copyOf} refuses such a map. Reading through the traversal never throws. Traverse an {@code
+   * IdentityHashMap} copy of such a map instead, with {@code
+   * forMapValuesCollecting(IdentityHashMap::new, rebuild)}, which keeps every entry.
    *
    * @param map The source map to traverse.
    * @param f The effectful function to apply to each value.
@@ -731,23 +753,9 @@ public final class Traversals {
     // The values are traversed as a list and the keys zipped back onto the result, which walks the
     // map once. Accumulating into the effect an entry at a time copies the map being built on every
     // entry, and that is quadratic in the size of the map.
-    final List<K> keys = new ArrayList<>(map.size());
-    final List<V> values = new ArrayList<>(map.size());
-    for (final Map.Entry<K, V> entry : map.entrySet()) {
-      keys.add(entry.getKey());
-      values.add(entry.getValue());
-    }
-
-    return applicative.map(
-        newValues -> {
-          // A LinkedHashMap keeps the source's iteration order, which a collector then sees.
-          final Map<K, W> result = LinkedHashMap.newLinkedHashMap(newValues.size());
-          for (int index = 0; index < newValues.size(); index++) {
-            result.put(keys.get(index), newValues.get(index));
-          }
-          return result;
-        },
-        traverseList(values, f, applicative));
+    final MapEntries<K, V> entries = MapEntries.of(map);
+    final Kind<F, List<W>> newValues = traverseList(entries.values(), f, applicative);
+    return applicative.map(entries::rebuild, newValues);
   }
 
   /**

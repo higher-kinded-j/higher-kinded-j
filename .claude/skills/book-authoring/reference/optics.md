@@ -42,5 +42,8 @@ the claim, since the library can change under it.
   element's effect before the applicative combines them, so `Either` shapes the answer, not the work.
 - **A map an optic writes keeps the source's iteration order.** `forMapValuesCollecting(TreeMap::new)`
   keeps a `TreeMap`'s order only for keys in natural order.
+- **A map an optic writes keeps every key of its source.** An `IdentityHashMap` comes back one;
+  any other map a `LinkedHashMap`, so a map whose keys `equals` merges throws on a write
+  (`common_data_structure_traversals.md#the-solution-formapvalues-traversal`).
 - **An output comment is a claim** when it opens with `[`, `Name(` or `Name[`, or is only a number, a
   boolean or `Nothing`, inside the anchor of an example with a `main`. Lead an explanation with words.

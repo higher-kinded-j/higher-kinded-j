@@ -4,12 +4,12 @@ package org.higherkindedj.optics.at;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -67,7 +67,12 @@ public final class AtInstances {
    * </ul>
    *
    * <p>The new map is in the source's iteration order: an updated key keeps its place, and a new
-   * key goes at the end.
+   * key goes at the end. The optic keeps every key of the source, and throws an {@link
+   * IllegalArgumentException} for a source it cannot, as {@link
+   * org.higherkindedj.optics.util.Traversals#traverseMapValues} describes. An {@link
+   * java.util.IdentityHashMap} comes back an {@code IdentityHashMap}: an updated key keeps its
+   * place, but adding or removing one may reorder the rest, and a subclass of one comes back a
+   * plain one in that map's own order.
    *
    * <p><strong>Null Value Limitation:</strong> Due to Java's {@link Optional} semantics, null map
    * values cannot be distinguished from absent keys. {@code Optional.ofNullable(null)} returns
@@ -86,7 +91,7 @@ public final class AtInstances {
         Lens.of(
             map -> Optional.ofNullable(map.get(key)),
             (map, optValue) -> {
-              Map<K, V> newMap = new LinkedHashMap<>(map);
+              Map<K, V> newMap = MapEntries.mutableCopy(map);
               if (optValue.isPresent()) {
                 newMap.put(key, optValue.get());
               } else {

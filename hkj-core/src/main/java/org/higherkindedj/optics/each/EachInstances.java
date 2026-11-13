@@ -165,7 +165,9 @@ public final class EachInstances {
    * Creates an {@link Each} instance for {@link Map} values.
    *
    * <p>The returned {@code EachIndexed} traverses all values in the map, with the corresponding key
-   * as the index in {@link EachIndexed#indexedTraversal()}.
+   * as the index in {@link EachIndexed#indexedTraversal()}. Each traversal keeps every key of the
+   * source, and throws an {@link IllegalArgumentException} for a source it cannot, as {@link
+   * Traversals#traverseMapValues} describes.
    *
    * @param <K> The key type of the map
    * @param <V> The value type of the map
@@ -542,7 +544,9 @@ public final class EachInstances {
    * a function that reconstructs the container from a {@code java.util.Map}. Companion to {@link
    * #fromIterableCollecting} for non-{@code Iterable} containers.
    *
-   * <p>The map handed to the function is in the source's iteration order.
+   * <p>The map handed to the function is in the source's iteration order. The traversal keeps every
+   * key of the source, and throws an {@link IllegalArgumentException} for a source it cannot, as
+   * {@link Traversals#traverseMapValues} describes.
    *
    * <p>The bound {@code M extends Map} keeps the helper applicable to any persistent or specialised
    * map whose interface inherits from {@link Map}: PCollections {@code PMap} / {@code PSortedMap},
@@ -583,7 +587,9 @@ public final class EachInstances {
    * whatever else the source carries. A sorted map's comparator is the usual case: rebuilt from its
    * entries, the map falls back to the keys' natural order, and fails for a key that has none. Here
    * the rebuild receives the source too, so it can carry the comparator over. The keys are those of
-   * the source, unchanged, and the map handed over is in the source's iteration order.
+   * the source, unchanged, and the map handed over is in the source's iteration order. The
+   * traversal keeps every key of the source, and throws an {@link IllegalArgumentException} for a
+   * source it cannot, as {@link Traversals#traverseMapValues} describes.
    *
    * <p>The rebuild builds a new map and leaves the source as it was, as {@link
    * Traversals#forMapValuesRebuilding} describes.

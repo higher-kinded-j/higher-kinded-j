@@ -148,6 +148,8 @@ This pattern doesn't compose and requires reconstructing the entire map.
 
 The `forMapValues()` method creates a traversal focusing on **all values** whilst preserving key structure. The map it hands back keeps the source's iteration order; a `Map.of` has no fixed order of its own, so start from a `LinkedHashMap` or `TreeMap` when order matters.
 
+It keeps every key of the source too. An `IdentityHashMap` holds keys that are equal but not the same object, and it comes back an `IdentityHashMap` with all of them. Any other map comes back a `LinkedHashMap`, which looks keys up by `equals`. A map holding two keys that `equals` cannot tell apart, such as a `TreeMap` whose comparator is finer than `equals`, would lose one there. Writing it throws `IllegalArgumentException` naming both keys, as `Map.copyOf` does, while reading it still works. To write one, traverse an `IdentityHashMap` copy of it with `forMapValuesCollecting(IdentityHashMap::new, rebuild)`, which keeps every entry. Every map optic follows this rule, from `AtInstances.mapAt` to `Setter.forMapValues`.
+
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/structures/StructuresBook.java:map_values}}
 ```
@@ -224,7 +226,7 @@ ServiceRegistry updated = Traversals.modify(
 
 ### Persistent and Third-Party Maps: `forMapValuesCollecting()`
 
-`forMapValues()` hands back a plain `java.util.Map` whatever map it was given: the source's iteration order survives, its type does not. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for collections.
+`forMapValues()` hands back a plain `java.util.Map` for any map but an `IdentityHashMap`: the source's iteration order survives, its type does not. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for collections.
 
 For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
 
@@ -479,7 +481,7 @@ Tuple2<Integer, String> updatedPair = new Tuple2<>(
 
 ~~~admonish info title="Key Takeaways"
 * **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
-* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, and the result keeps the source's iteration order, so a `TreeMap` keeps its order but not its type
+* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, an `IdentityHashMap`'s included, and the result keeps the source's iteration order, so a `TreeMap` keeps its order but not its type
 * **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering. `forMapValuesRebuilding()` hands it the source too, so a sorted map keeps its comparator
 * **`TupleTraversals.both()` updates a pair in one pass**: homogeneous pairs stop needing two separate reconstructions
 * **They are ordinary traversals**: everything from `modifyF` effects to `asFold()` queries applies unchanged

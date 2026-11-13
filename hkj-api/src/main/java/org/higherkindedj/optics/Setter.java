@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -261,7 +262,13 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
    * // doubled = {a=2, b=4}
    * }</pre>
    *
-   * <p>The modified map is a new map in the source's iteration order.
+   * <p>The modified map is a new map in the source's iteration order, with one entry for each entry
+   * of the source, under the source's own key. An {@link IdentityHashMap} comes back an {@code
+   * IdentityHashMap}, so keys that are equal but not the same object stay apart, and a subclass of
+   * one comes back a plain one in that map's own order. Any other map comes back a {@link
+   * LinkedHashMap}, which looks keys up by {@code equals}. A source holding two keys that {@code
+   * equals} cannot tell apart would lose an entry there, so it is refused with an {@link
+   * IllegalArgumentException} naming the key, as {@code Map.copyOf} refuses it.
    *
    * @param <K> The key type.
    * @param <V> The value type.
@@ -271,34 +278,22 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
     return new Setter<>() {
       @Override
       public Map<K, V> modify(Function<V, V> f, Map<K, V> source) {
-        Map<K, V> result = LinkedHashMap.newLinkedHashMap(source.size());
-        for (Map.Entry<K, V> entry : source.entrySet()) {
-          result.put(entry.getKey(), f.apply(entry.getValue()));
-        }
+        // The copy has the source's keys, so replacing its values never moves an entry.
+        Map<K, V> result = MapEntries.mutableCopy(source);
+        result.replaceAll((key, value) -> f.apply(value));
         return result;
       }
 
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
           Function<V, Kind<F, V>> f, Map<K, V> s, Applicative<F> app) {
-        // Collect all keys and effectful values
-        List<K> keys = new ArrayList<>(s.size());
-        List<Kind<F, V>> effects = new ArrayList<>(s.size());
-        for (Map.Entry<K, V> entry : s.entrySet()) {
-          keys.add(entry.getKey());
-          effects.add(f.apply(entry.getValue()));
+        // Read the entries once, apply f to each value in that order, and build the map at the end
+        MapEntries<K, V> entries = MapEntries.of(s);
+        List<Kind<F, V>> effects = new ArrayList<>(entries.values().size());
+        for (V value : entries.values()) {
+          effects.add(f.apply(value));
         }
-
-        return app.map(
-            values -> {
-              Map<K, V> resultMap = LinkedHashMap.newLinkedHashMap(keys.size());
-              Iterator<V> valIter = values.iterator();
-              for (K key : keys) {
-                resultMap.put(key, valIter.next());
-              }
-              return resultMap;
-            },
-            ConsList.sequence(effects, app));
+        return app.map(entries::rebuild, ConsList.sequence(effects, app));
       }
     };
   }
