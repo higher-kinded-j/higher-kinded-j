@@ -3,7 +3,6 @@
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -21,6 +20,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.indexed.IndexedFold;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -92,7 +92,9 @@ public final class IndexedTraversals {
    * entry's key as the index.
    *
    * <p>This traversal provides access to all map values along with their keys. A modified map is a
-   * new map in the source's iteration order.
+   * new map in the source's iteration order. The traversal keeps every key of the source, and
+   * throws an {@link IllegalArgumentException} for a source it cannot, as {@link
+   * Traversals#traverseMapValues} describes.
    *
    * <p>Example:
    *
@@ -126,27 +128,16 @@ public final class IndexedTraversals {
           return app.of(source);
         }
 
-        // Collect keys and effects separately
-        List<K> keys = new ArrayList<>(source.size());
-        List<Kind<F, V>> effects = new ArrayList<>(source.size());
-        for (Map.Entry<K, V> entry : source.entrySet()) {
-          keys.add(entry.getKey());
-          effects.add(f.apply(entry.getKey(), entry.getValue()));
+        // Read the entries once, then apply f to each key and value in that order
+        MapEntries<K, V> entries = MapEntries.of(source);
+        List<Kind<F, V>> effects = new ArrayList<>(entries.keys().size());
+        for (int i = 0; i < entries.keys().size(); i++) {
+          effects.add(f.apply(entries.keys().get(i), entries.values().get(i)));
         }
 
-        // Sequence all effects into a single Kind<F, List<V>>
+        // Sequence all effects into a single Kind<F, List<V>>, then build the final map in one step
         Kind<F, List<V>> sequencedValues = sequenceList(effects, app);
-
-        // Build the final map in one step
-        return app.map(
-            newValues -> {
-              Map<K, V> newMap = LinkedHashMap.newLinkedHashMap(keys.size());
-              for (int i = 0; i < keys.size(); i++) {
-                newMap.put(keys.get(i), newValues.get(i));
-              }
-              return newMap;
-            },
-            sequencedValues);
+        return app.map(entries::rebuild, sequencedValues);
       }
     };
   }

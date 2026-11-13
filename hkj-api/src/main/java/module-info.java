@@ -3,6 +3,7 @@
  * interfaces.
  */
 @org.jspecify.annotations.NullMarked
+@SuppressWarnings("module") // hkj-core, named by the internal export, is built after this module
 module org.higherkindedj.api {
   requires static org.jspecify;
   requires transitive org.higherkindedj.annotations;
@@ -11,4 +12,8 @@ module org.higherkindedj.api {
   exports org.higherkindedj.hkt.function;
   exports org.higherkindedj.optics;
   exports org.higherkindedj.optics.indexed;
+
+  // Shared with hkj-core so both modules build a map an optic writes by one rule; not API.
+  exports org.higherkindedj.optics.internal to
+      org.higherkindedj.core;
 }
