@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.maven.model.Build;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.logging.SystemStreamLog;
 import org.apache.maven.project.MavenProject;
@@ -72,6 +71,39 @@ class AbstractHKJMojoTest {
       }
       assertThat(goals).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("every goal in the descriptor declares the values Maven injects into its class")
+    void descriptorDeclaresInjectedValues() throws Exception {
+      String descriptor;
+      try (InputStream in =
+          AbstractHKJMojoTest.class.getResourceAsStream("/META-INF/maven/plugin.xml")) {
+        assertThat(in).isNotNull();
+        descriptor = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+      }
+
+      // A field the descriptor does not declare is never injected, and is null when the goal runs.
+      // This checks each goal's own fields; the settings it inherits are checked by the test above
+      Matcher mojo = Pattern.compile("<mojo>([\\s\\S]*?)</mojo>").matcher(descriptor);
+      while (mojo.find()) {
+        String goal = mojo.group(1);
+        Matcher implementation =
+            Pattern.compile("<implementation>([\\w.]+)</implementation>").matcher(goal);
+        assertThat(implementation.find()).isTrue();
+        for (Field field : Class.forName(implementation.group(1)).getDeclaredFields()) {
+          if (Modifier.isStatic(field.getModifiers())) {
+            continue;
+          }
+          String name = field.getName();
+          assertThat(goal)
+              .as("%s's field %s", implementation.group(1), name)
+              .contains("<name>" + name + "</name>")
+              .contains(
+                  "<%s implementation=\"%s\" default-value=\"${%s}\"/>"
+                      .formatted(name, field.getType().getName(), name));
+        }
+      }
+    }
   }
 
   @Nested
@@ -116,19 +148,15 @@ class AbstractHKJMojoTest {
     @Test
     @DisplayName("install-skills warns about a differing setting too, and still installs")
     void installSkillsWarns(@TempDir Path dir) throws Exception {
-      MavenProject project = new MavenProject();
-      project.setFile(dir.resolve("pom.xml").toFile());
-      project.setBuild(new Build());
+      MavenProject project = Sessions.project(dir.toFile());
       Plugin plugin = new Plugin();
       plugin.setGroupId("io.github.higher-kinded-j");
       plugin.setArtifactId("hkj-maven-plugin");
       project.getBuild().addPlugin(plugin);
 
-      HKJInstallSkillsMojo goal = new HKJInstallSkillsMojo();
-      goal.setLog(capturing());
-      Field projectField = HKJInstallSkillsMojo.class.getDeclaredField("project");
-      projectField.setAccessible(true);
-      projectField.set(goal, project);
+      HKJInstallSkillsMojo goal =
+          HKJInstallSkillsMojoTest.goal(
+              project, Sessions.session(dir.toFile(), project), capturing());
       Field skills = AbstractHKJMojo.class.getDeclaredField("skills");
       skills.setAccessible(true);
       skills.set(goal, Boolean.TRUE);
