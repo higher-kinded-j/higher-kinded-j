@@ -6,8 +6,7 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.CompletionException;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monad;
@@ -22,6 +21,7 @@ import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.NullMarked;
 
 /**
@@ -61,9 +61,6 @@ import org.jspecify.annotations.NullMarked;
  */
 @NullMarked
 public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
-
-  private static final ExecutorService VIRTUAL_EXECUTOR =
-      Executors.newVirtualThreadPerTaskExecutor();
 
   private final Natural<F, IOKind.Witness> interpreter;
   private final Monad<IOKind.Witness> monad;
@@ -141,8 +138,9 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
   /**
    * Interprets and executes a Free program asynchronously on a virtual thread.
    *
-   * <p>Returns a {@code CompletableFuture} that completes on a virtual thread. Uses {@code
-   * Thread.ofVirtual()} for execution, consistent with {@code VTaskPathReturnValueHandler}.
+   * <p>Returns a {@code CompletableFuture} that completes on a virtual thread, as {@link
+   * VTask#runAsync()} does: cancelling it with {@code cancel(true)} interrupts the program, and
+   * {@code cancel(false)} leaves it running.
    *
    * @param program the Free monad program to interpret and execute
    * @param <A> the result type
@@ -151,7 +149,17 @@ public final class EffectBoundary<F extends WitnessArity<TypeArity.Unary>> {
    */
   public <A> CompletableFuture<A> runAsync(Free<F, A> program) {
     Objects.requireNonNull(program, "program must not be null");
-    return CompletableFuture.supplyAsync(() -> run(program), VIRTUAL_EXECUTOR);
+    VTask<A> task =
+        () -> {
+          try {
+            return run(program);
+          } catch (CompletionException wrapped) {
+            // runAsync wraps what its task throws; passing on the cause keeps the future failing
+            // with one CompletionException, as CompletableFuture.supplyAsync's did
+            throw Objects.requireNonNullElse(wrapped.getCause(), wrapped);
+          }
+        };
+    return task.runAsync();
   }
 
   /**

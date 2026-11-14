@@ -138,9 +138,11 @@ public class CompletableFuturePathReturnValueHandler
           } catch (Exception e) {
             log.error("Failed to write timeout response", e);
           }
-          // cancel() settles the future so the (now no-op) completion callback fires; note the
-          // underlying work is NOT interrupted and may still run to completion in the background
-          // (see CompletableFuture.cancel semantics).
+          // cancel() settles the future so the (now no-op) completion callback fires. It
+          // interrupts the underlying work only when the path wraps a future that can be
+          // interrupted, as Path.future(task.runAsync()) does, withTimeout included. A map or via
+          // makes a new future, which breaks the chain, and a plain CompletableFuture's work may
+          // still run to completion in the background (see CompletableFuture.cancel semantics).
           future.cancel(true);
           // Settle the DeferredResult so Spring does not dispatch an AsyncRequestTimeoutException
           // onto the committed response.

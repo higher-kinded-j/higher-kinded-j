@@ -88,10 +88,13 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A long `FreeAp` program no longer overflows the stack, and its interpreter is handed the instructions in the order they were written** ([#1470](https://github.com/higher-kinded-j/higher-kinded-j/pull/1470)). A fold of ten thousand `map2` or `zipWith` calls threw `StackOverflowError` from `foldMap`, and so from `FreeApAnalyzer.analyseWith`, which runs through it. The interpreter was also handed the instructions in reverse order. See [Free Applicative](../monads/free_applicative.md).
 - **Every Path's `getOrElseGet` refuses a supplier that returns null** ([#1489](https://github.com/higher-kinded-j/higher-kinded-j/issues/1489)). On `MaybePath`, `EitherPath`, `ValidationPath`, `EitherOrBothPath` and `OptionalPath`, and in `Maybe.orElseGet`, a null from the supplier was handed back, though the result type is non-null. It now throws `NullPointerException`, as `TryPath.getOrElseGet` and `Either.orElseGet` already did.
 - **`OptionalContext.io` and `JavaOptionalContext.io` take a supplier that never returns null** ([#1488](https://github.com/higher-kinded-j/higher-kinded-j/issues/1488)). Under a nullness checker they took only a `Supplier<@Nullable A>`, so a `Supplier<String>` variable was refused. They now take `Supplier<? extends @Nullable A>`.
+- **Stop a `runAsync()` task by cancelling its future** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). `cancel(true)` on the future from `runAsync()` on `VTask`, `VTaskPath`, `VResultPath`, `VTaskContext` or `VStream`, or from `EffectBoundary.runAsync`, interrupts the task, as a future from an `ExecutorService` does, and `cancel(false)` leaves it running. See [Running a task](../monads/vtask_monad.md#running-a-task).
 
 ---
 
 ## Spring {#spring}
+
+- **A `VTaskPath` response timeout interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). When `hkj.virtual-threads.default-timeout-ms` runs out, the starter answers 504 and interrupts the task, without waiting for it to stop. The task used to run on after the response had gone. See [VTaskPath](../spring/spring_boot_integration.md#vtaskpath-virtual-thread-async).
 
 ---
 
@@ -194,6 +197,15 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`prepend` leaves the stream after its element alone until it is read** ([#1428](https://github.com/higher-kinded-j/higher-kinded-j/issues/1428)). `headOption()` or `take(1)` after `prepend` closed that stream, running its `onFinalize` finaliser though nothing had read it, where `VStream.of(x).concat(stream)` did not. To run a finaliser however far a run reads, attach it after `prepend`. See [`onFinalize`](../monads/vstream_resources.md#onfinalize-lightweight-cleanup).
 - **Closing a `VStream` you pulled by hand no longer closes that run** ([#1461](https://github.com/higher-kinded-j/higher-kinded-j/issues/1461)). On a `bracket`, `merge`, `fromPublisher`, `parEvalMapUnordered` or `onFinalize` stream, `close()` after a pull ended the latest run, which could be another thread's. Close the tail the pull gave you instead. To stop another thread's run, time it out or interrupt that thread. See [Pulling by hand](../monads/vstream_resources.md#pulling-by-hand).
 - **`getOrElseGet` on a Path, and `orElseGet` on a `Maybe`, throw when the supplier returns null** ([#1489](https://github.com/higher-kinded-j/higher-kinded-j/issues/1489)). They handed the null back. Code that relied on that gets `NullPointerException`, with `supplier must not return null`, or `otherSupplier` on a `Maybe`; return a value from the supplier.
+- **`cancel(true)` on a future from `runAsync()` interrupts the task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). A task that ran on after its future was cancelled is now interrupted: a sleep, a wait or a blocking socket call in it fails, and Java closes that socket. A task that catches the interrupt and carries on still runs on. The future from `EffectBoundary.runAsync` does the same.
+- **Cancelling a `CompletableFuturePath` over a `runAsync()` future interrupts the task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). That holds for `Path.future(task.runAsync())`, and for a path `withTimeout` or `completeOnTimeout` makes from it, with either flag. A `map` or `via` makes a new future, which breaks the chain. See [CompletableFuture](../monads/cf_monad.md#on-a-completablefuturepath).
+
+#### Spring {#runtime-spring}
+
+- **A `VTaskPath` request that times out interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). The 504 goes out as before. The task used to run on in the background, and is now interrupted, as [Effect Paths](#runtime-effect-paths) says.
+- **Start work that must outlive a `VTaskPath` response with its own `runAsync()`** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). Started inside the `VTaskPath` the controller returns, it keeps running when the timeout interrupts the request's task. Or raise `hkj.virtual-threads.default-timeout-ms`.
+- **A timed-out `CompletableFuturePath` request over `runAsync()` interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). When `hkj.async.default-timeout-ms` runs out, the starter cancels the path's future, which now reaches the task.
+- **`ObservableEffectBoundary.runAsync` passes a cancel through to the program, and records it** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). Cancelling its future, with either flag, interrupts the program and counts the invocation once, as an error, `CancellationException`. A cancel used to leave the program running and record nothing.
 
 ### What stops a build that compiled {#build-changes}
 

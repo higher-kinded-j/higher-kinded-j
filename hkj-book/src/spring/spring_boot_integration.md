@@ -580,6 +580,7 @@ The framework uses Spring's `DeferredResult`:
 3. Result is wrapped in `DeferredResult` with configurable timeout
 4. When complete, result is converted to HTTP 200 with JSON body
 5. On failure, returns configured error status (default: 500)
+6. If `hkj.virtual-threads.default-timeout-ms` runs out first, returns 504 and interrupts the task, without waiting for it to stop
 
 #### Structured Concurrency
 
