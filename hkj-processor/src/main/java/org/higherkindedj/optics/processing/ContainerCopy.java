@@ -72,8 +72,15 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * declared {@code @Nullable} copies to a value declared so too, and any other read to one declared
  * non-null, and an element type may be nullable ({@code E extends @Nullable Object}). Java bounds
  * no type variable by an array type, so no helper can type an array that way: an array copies
- * through the one guard {@code hkj$copyIfPresent}, which hands a {@code null} back and a present
- * array to its clone.
+ * through the one guard {@code hkj$copyOrNull}, which hands a {@code null} back and a present array
+ * to its copy, its clone or, for an array of arrays, the nested helper.
+ *
+ * <p>A helper's {@code C} is inferred from the read it is handed, so that read must be typed as
+ * exactly the container the copy was made for: a copy is never of a subtype, and the helper hands
+ * it back as {@code C}. Every read is: a record accessor, a merge source's accessor, a bean getter,
+ * which the property takes its type from, and a library call declared to return the container. The
+ * one getter that answers a subtype, a protobuf repeated string field's {@code ProtocolStringList},
+ * is read cast up to its field's type ({@link WireShape.MessageField#widened}).
  *
  * <p>Any other type has no copy: a subtype such as {@code ArrayList}, {@code TreeSet} or {@code
  * LinkedHashMap}, any other interface ({@code Deque}, {@code SortedSet}), a type variable, or an
@@ -89,7 +96,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
 
   private static final String HELPER = "hkj$copyOf";
   private static final String MAP_COPY = "hkj$mapCopy";
-  private static final String IF_PRESENT = "hkj$copyIfPresent";
+  private static final String OR_NULL = "hkj$copyOrNull";
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName COLLECTIONS = ClassName.get("java.util", "Collections");
   private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
@@ -231,7 +238,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private CodeBlock on(CodeBlock value, Set<String> taken, int depth) {
     // No helper can type an array by the array itself, so the guard hands a null one back.
     if (shape == Shape.ARRAY) {
-      return CodeBlock.of("$L($L, $L)", IF_PRESENT, value, arrayCopy(taken, depth + 1));
+      return CodeBlock.of("$L($L, $L)", OR_NULL, value, arrayCopy(taken, depth + 1));
     }
     if (inner != null) {
       return CodeBlock.of("$L($L, $L)", HELPER, value, inner.asLambda(taken, depth + 1));
@@ -304,7 +311,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
       helpers.add(mapCopyHelper(marks));
     }
     if (used.stream().anyMatch(form -> form.shape() == Shape.ARRAY)) {
-      helpers.add(ifPresentHelper(marks));
+      helpers.add(orNullHelper(marks));
     }
     return List.copyOf(helpers);
   }
@@ -392,13 +399,14 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   }
 
   /**
-   * Hands {@code made}, of the container type the helper copies, back as {@code C}, the type the
-   * call declares it as: they are one type, since no copy is made for a subtype.
+   * Hands {@code made}, of the container type the helper copies, back as {@code C}, the type of the
+   * read it was made from: they are one type, since each read is typed as exactly that container
+   * (the class javadoc says how).
    */
   private static CodeBlock handedBackAs(CodeBlock made) {
     return CodeBlock.builder()
         .add(
-            "@$T($S) // C is the container the call declares, since a subtype is never copied\n",
+            "@$T($S) // C is the copied container itself: a read typed as a subtype is cast up\n",
             SuppressWarnings.class,
             "unchecked")
         .addStatement("C copy = (C) $L", made)
@@ -688,11 +696,11 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * copy}, which is told it is present. Typed by the value it guards, so the copy is declared as
    * the read it was made from.
    */
-  private static MethodSpec ifPresentHelper(NullnessMarks marks) {
+  private static MethodSpec orNullHelper(NullnessMarks marks) {
     TypeVariableName a = marks.nullableBounded("A");
     TypeName present = marks.nonNull(TypeVariableName.get("A"));
     return helperBuilder(
-            IF_PRESENT,
+            OR_NULL,
             a,
             "Copies an array that may be null, which no helper can type by the array itself: a"
                 + " null is handed back, and a present array is copied.\n",

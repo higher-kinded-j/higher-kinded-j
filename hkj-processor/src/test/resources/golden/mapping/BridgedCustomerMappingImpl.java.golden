@@ -25,7 +25,7 @@ public final class CustomerMappingImpl implements CustomerMapping {
 
   private final ValidatedPrism<CustomerDto, Customer> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, Nickname> hkj$leaf$nickname;
+  private volatile @Nullable ValidatedPrism<String, Nickname> hkj$leaf$nickname;
 
   private CustomerMappingImpl() {
   }

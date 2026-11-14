@@ -31,18 +31,19 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
 
   private final ValidatedParse<CustomerView, Customer> hkj$adapter = ValidatedParse.of(this::parse);
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private CustomerViewMappingImpl() {
   }
 
   public Validated<NonEmptyList<FieldError>, Customer> parse(CustomerView wire) {
     Objects.requireNonNull(wire, "wire must not be null");
+    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));
     return hkj$construct(
         Validated.fields()
             .field("name", hkj$ifPresent(wire.getName(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.getEmail(), email()::parse))
-            .field("tags", hkj$allPresent(hkj$copyOf(wire.getTags())))
+            .field("tags", hkj$tags)
             .field("nickname", Validated.validNel(Optional.ofNullable(wire.getNickname())))
             .apply((name, email, tags, nickname) -> () -> new Customer(name, email, tags, nickname)),
         "not a valid Customer");
@@ -124,7 +125,7 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
     if (values == null) {
       return values;
     }
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
     return copy;
   }

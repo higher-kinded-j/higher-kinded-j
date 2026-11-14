@@ -10494,7 +10494,7 @@ public class MappingProcessor extends AbstractProcessor {
         || !NullableAnnotations.declaresNullable(componentNamed(domain, name))) {
       return false;
     }
-    NonNullSite site = nonNullWriteSite(wire, wireName);
+    NonNullSite site = nonNullWriteSite(processingEnv.getElementUtils(), wire, wireName);
     if (site == null) {
       return false;
     }
@@ -10515,11 +10515,15 @@ public class MappingProcessor extends AbstractProcessor {
             + nonNullBecause(processingEnv, site)
             + ", so build would write a null its declaration rules out, and either throw or leave"
             + " a null its type says it cannot hold.",
-        Character.toUpperCase(nullable.charAt(0))
-            + nullable.substring(1)
-            + ", since its source may be absent; or declare "
+        "As "
             + source
-            + " non-null, if every value build is given has one.");
+            + " may be absent, "
+            + nullable
+            + "; or declare "
+            + source
+            + " non-null, if every "
+            + domain.getSimpleName()
+            + " build is given has one.");
     return true;
   }
 
@@ -10577,7 +10581,7 @@ public class MappingProcessor extends AbstractProcessor {
             wireType,
             domainType,
             member.need(),
-            nonNullWriteSite(member.wire(), member.wireName()));
+            nonNullWriteSite(processingEnv.getElementUtils(), member.wire(), member.wireName()));
     String leaf =
         leafLine(
             member.spec(),
@@ -10859,7 +10863,8 @@ public class MappingProcessor extends AbstractProcessor {
                     wireBoxed,
                     domainBoxed,
                     member.need(),
-                    nonNullWriteSite(member.wire(), member.wireName()))
+                    nonNullWriteSite(
+                        processingEnv.getElementUtils(), member.wire(), member.wireName()))
                 .strip();
     return "Align the component types, or declare "
         + String.join(" and ", wrappers)
@@ -11147,7 +11152,10 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // A message field's builder is never handed the empty Optional's null: build leaves the field
     // unset instead, so what its setter declares about null does not matter.
-    NonNullSite nonNull = field.isPresent() ? null : nonNullWriteSite(wire, wireName);
+    NonNullSite nonNull =
+        field.isPresent()
+            ? null
+            : nonNullWriteSite(processingEnv.getElementUtils(), wire, wireName);
     if (present.correspondence() == null) {
       reportUnbridged(
           spec, registry, domain, wire, name, wireName, read, bridged, need, site, nonNull);
@@ -11187,10 +11195,10 @@ public class MappingProcessor extends AbstractProcessor {
    * takes, or the parameter of a bean's setter or builder setter. Null when the site may take a
    * {@code null} or says nothing either way, and for a bean that is never written.
    */
-  private static NonNullSite nonNullWriteSite(WireShape wire, String wireName) {
+  private static NonNullSite nonNullWriteSite(Elements elements, WireShape wire, String wireName) {
     return switch (wire) {
       case WireShape.RecordShape record ->
-          nonNullComponent(record.element(), componentNamed(record.element(), wireName));
+          nonNullComponent(elements, record.element(), componentNamed(record.element(), wireName));
       case WireShape.BeanShape bean -> {
         // A bean that is never written (parse-only) has no setter to hand the null to.
         if (!(writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter)) {
@@ -11215,6 +11223,19 @@ public class MappingProcessor extends AbstractProcessor {
                 + ProcessorUtils.simpleTypeName(parameter.asType())
                 + ")"
                 + BeanPropertyAnalyser.declaredOn(inherited);
+        // A writer Lombok generates takes its annotations from the field it writes, the one place
+        // they can be changed, so a fix names the field.
+        TypeElement owner =
+            role == WireShape.UnpairedAccessor.Role.BUILDER_SETTER ? bean.element() : declaredBy;
+        Optional<String> lombokField =
+            ElementFilter.fieldsIn(owner.getEnclosedElements()).stream()
+                .filter(field -> field.getSimpleName().contentEquals(wireName))
+                .filter(
+                    field ->
+                        annotatedWithAny(field, LOMBOK_FIELD_WRITERS)
+                            || annotatedWithAny(owner, LOMBOK_TYPE_WRITERS))
+                .findFirst()
+                .map(field -> "the field '" + owner.getSimpleName() + "." + wireName + "'");
         yield NullableAnnotations.nonNullReason(parameter)
             .map(
                 reason ->
@@ -11225,8 +11246,11 @@ public class MappingProcessor extends AbstractProcessor {
                             + role.label()
                             + " "
                             + method
+                            + lombokField
+                                .map(field -> ", which Lombok writes from " + field + ",")
+                                .orElse("")
                             + " is declared non-null",
-                        "the parameter of " + method,
+                        lombokField.orElse("the parameter of " + method),
                         parameter.asType(),
                         declaredBy,
                         reason))
@@ -11235,11 +11259,43 @@ public class MappingProcessor extends AbstractProcessor {
     };
   }
 
+  /** The Lombok annotations on a field that have Lombok write its setter. */
+  private static final Set<String> LOMBOK_FIELD_WRITERS = Set.of("lombok.Setter");
+
+  /** The Lombok annotations on a class that have Lombok write its setters or builder setters. */
+  private static final Set<String> LOMBOK_TYPE_WRITERS =
+      Set.of("lombok.Data", "lombok.Setter", "lombok.Builder", "lombok.experimental.SuperBuilder");
+
+  /** Whether an element carries one of the annotations named. */
+  private static boolean annotatedWithAny(Element element, Set<String> names) {
+    return element.getAnnotationMirrors().stream()
+        .anyMatch(
+            mirror ->
+                names.contains(
+                    ((TypeElement) mirror.getAnnotationType().asElement())
+                        .getQualifiedName()
+                        .toString()));
+  }
+
   /**
    * The record component a canonical constructor writes, when it is declared non-null ({@link
-   * NullableAnnotations#nonNullReason}), or null. Shared with the merge, whose target is a record.
+   * NullableAnnotations#nonNullReason}), or null. What the value is handed to is the canonical
+   * constructor's parameter, so one an explicit constructor declares nullable takes the null,
+   * whatever the component says, as a constructor that defaults it does. Shared with the merge,
+   * whose target is a record.
    */
-  static NonNullSite nonNullComponent(TypeElement record, RecordComponentElement component) {
+  static NonNullSite nonNullComponent(
+      Elements elements, TypeElement record, RecordComponentElement component) {
+    int index = record.getRecordComponents().indexOf(component);
+    boolean parameterNullable =
+        ElementFilter.constructorsIn(record.getEnclosedElements()).stream()
+            .filter(elements::isCanonicalConstructor)
+            .anyMatch(
+                constructor ->
+                    NullableAnnotations.declaresNullable(constructor.getParameters().get(index)));
+    if (parameterNullable) {
+      return null;
+    }
     String spelt = "'" + record.getSimpleName() + "." + component.getSimpleName() + "'";
     return NullableAnnotations.nonNullReason(component)
         .map(
@@ -11588,7 +11644,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror wrapper = boxed(wireType);
     ExecutableElement leaf = findLeaf(spec, name, wrapper, element);
     boolean converted = leaf != null || processingEnv.getTypeUtils().isSameType(wrapper, element);
-    NonNullSite nonNull = nonNullWriteSite(wire, wireName);
+    NonNullSite nonNull = nonNullWriteSite(processingEnv.getElementUtils(), wire, wireName);
     return "Declare '"
         + wireName
         + "' on '"
@@ -12755,7 +12811,7 @@ public class MappingProcessor extends AbstractProcessor {
    * address.street}): the located-null doctrine, the leaf vocabulary and the constructor guard
    * apply inside the group exactly as at the top level. A derived field contributes no leg.
    */
-  private List<Leg> parseLegs(WireShape wire, List<Correspondence> comps) {
+  private List<Leg> parseLegs(WireShape wire, List<Correspondence> comps, LegLocals locals) {
     List<Leg> legs = new ArrayList<>();
     for (List<Correspondence> run : runs(comps)) {
       Correspondence first = run.getFirst();
@@ -12764,7 +12820,8 @@ public class MappingProcessor extends AbstractProcessor {
         // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
         // the identity copy; the guard locates the null under the field label.
         CodeBlock leg =
-            parseLeg(wire, first, wireRead(wire, first.wireName()), guardedRead(first, wire));
+            parseLeg(
+                wire, first, wireRead(wire, first.wireName()), guardedRead(first, wire), locals);
         if (!leg.isEmpty()) {
           legs.add(new Leg(first.name(), leg, List.of()));
         }
@@ -12782,7 +12839,8 @@ public class MappingProcessor extends AbstractProcessor {
                               wire,
                               member,
                               wireRead(wire, member.wireName()),
-                              guardedRead(member, wire)))
+                              guardedRead(member, wire),
+                              locals))
                   .toList(),
               params,
               first.group().record(),
@@ -13255,32 +13313,42 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private CodeBlock parseBody(
       WireShape wire, List<Correspondence> comps, TypeElement domain, TypeName domainName) {
-    List<Leg> legs = parseLegs(wire, comps);
+    LegLocals locals = new LegLocals();
+    List<Leg> legs = parseLegs(wire, comps, locals);
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
-      return GuardedConstruction.returning(
-          GuardedConstruction.assembly(
-              code,
-              GuardedConstruction.parameterNames(
-                  legs.stream().map(Leg::name).toList(), Set.of("wire")),
-              domain,
-              domainName),
-          domainName);
+      return CodeBlock.builder()
+          .add(locals.statements())
+          .add(
+              GuardedConstruction.returning(
+                  GuardedConstruction.assembly(
+                      code,
+                      GuardedConstruction.parameterNames(
+                          legs.stream().map(Leg::name).toList(), Set.of("wire")),
+                      domain,
+                      domainName),
+                  domainName))
+          .build();
     }
     // Wider than one fields() ladder: chunked ladders, identical error semantics. A flattened
     // group's terminal declares its lambda parameters inside a chunk local's initialiser, where
     // that local and every earlier one are in scope (JLS 6.3), so the locals keep clear of them.
     Set<String> reserved = new LinkedHashSet<>(List.of("wire"));
     legs.forEach(leg -> reserved.addAll(leg.declares()));
-    return ChunkedAssembly.emit(
-        code,
-        VALIDATED,
-        NEL,
-        reserved,
-        domainName,
-        values ->
-            GuardedConstruction.thunk(
-                domainName, GuardedConstruction.canonicalArguments(domain, values)));
+    reserved.addAll(locals.names());
+    return CodeBlock.builder()
+        .add(locals.statements())
+        .add(
+            ChunkedAssembly.emit(
+                code,
+                VALIDATED,
+                NEL,
+                reserved,
+                domainName,
+                values ->
+                    GuardedConstruction.thunk(
+                        domainName, GuardedConstruction.canonicalArguments(domain, values))))
+        .build();
   }
 
   /**
@@ -13416,11 +13484,17 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
    * parse} and the projection tier's {@code patch}: the component's {@link #legValue} under its
-   * name, or nothing for a correspondence that reads no value of its own.
+   * name, bound to a local among {@code locals} ahead of the ladder where it copies a container, or
+   * nothing for a correspondence that reads no value of its own.
    */
-  private CodeBlock parseLeg(WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard) {
+  private CodeBlock parseLeg(
+      WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard, LegLocals locals) {
     CodeBlock value = legValue(c, wireRead, guard);
-    return value.isEmpty() ? value : CodeBlock.of("\n.field($S, $L)", c.name(), value);
+    if (value.isEmpty()) {
+      return value;
+    }
+    return CodeBlock.of(
+        "\n.field($S, $L)", c.name(), c.valueCopy() == null ? value : locals.bind(c.name(), value));
   }
 
   /**
@@ -13589,12 +13663,13 @@ public class MappingProcessor extends AbstractProcessor {
     // A oneof's first arm reads the component for its other arms, which read nothing of their own.
     List<Correspondence> legs = comps.stream().filter(MappingProcessor::leads).toList();
     List<CodeBlock> patchLegs = new ArrayList<>();
+    LegLocals locals = new LegLocals();
     for (Correspondence c : legs) {
       // A JSON-bound record leaves an absent component null, exactly like an unset bean
       // property, so every reference read is guarded into a located FieldError (the locked
       // null policy, the same guardedRead the full tier uses); a primitive
       // read can never be null and copies directly.
-      patchLegs.add(parseLeg(wire, c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
+      patchLegs.add(parseLeg(wire, c, wireRead(wire, c.wireName()), guardedRead(c, wire), locals));
     }
 
     // The write-back ends in the guarded constructor call either way: an invariant the domain's
@@ -13642,6 +13717,7 @@ public class MappingProcessor extends AbstractProcessor {
       // so the chunk locals keep clear of them.
       Set<String> reserved = new LinkedHashSet<>(List.of("domain", "wire"));
       unprojected.forEach(name -> reserved.add(nameFor.get(name).toString()));
+      reserved.addAll(locals.names());
       patchBody =
           ChunkedAssembly.emit(
               patchLegs,
@@ -13694,6 +13770,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addStatement(
                         "$T.requireNonNull(domain, $S)", OBJECTS, "domain must not be null")
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
+                    .addCode(locals.statements())
                     .addCode(patchBody)
                     .build());
     addMarkerStubs(implBuilder, spec);

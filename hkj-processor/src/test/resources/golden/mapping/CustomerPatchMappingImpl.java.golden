@@ -34,11 +34,11 @@ import org.jspecify.annotations.Nullable;
 public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   public static final CustomerPatchMappingImpl INSTANCE = new CustomerPatchMappingImpl();
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$phones;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$phones;
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$speedDial;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$speedDial;
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$fax;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$fax;
 
   private CustomerPatchMappingImpl() {
   }
@@ -152,7 +152,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
     if (values == null) {
       return values;
     }
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
     return copy;
   }
@@ -166,7 +166,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
       return values;
     }
     Map<@Nullable K, @Nullable V> copied = hkj$mapCopy(values);
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) (copied instanceof IdentityHashMap<?, ?> ? copied : Collections.unmodifiableMap(copied));
     return copy;
   }

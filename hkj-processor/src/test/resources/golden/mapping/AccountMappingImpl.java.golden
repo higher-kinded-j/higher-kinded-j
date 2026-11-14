@@ -31,15 +31,15 @@ public final class AccountMappingImpl implements AccountMapping {
 
   private final ValidatedPrism<AccountDto, Account> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$cc;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$cc;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$lead;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$lead;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$contacts;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$contacts;
 
-  private volatile Getter<Account, String> hkj$leaf$display;
+  private volatile @Nullable Getter<Account, String> hkj$leaf$display;
 
   private AccountMappingImpl() {
   }
@@ -51,12 +51,13 @@ public final class AccountMappingImpl implements AccountMapping {
 
   public Validated<NonEmptyList<FieldError>, Account> parse(AccountDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
+    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.tags()));
     return hkj$construct(
         Validated.fields()
             .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
-            .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
+            .field("tags", hkj$tags)
             .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
             .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
             .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
@@ -200,7 +201,7 @@ public final class AccountMappingImpl implements AccountMapping {
     if (values == null) {
       return values;
     }
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
     return copy;
   }

@@ -381,7 +381,8 @@ class LeafCacheTest {
 
     assertThatValidated(parse(impl, invoke(impl, "build", ada))).hasValue(ada);
     Assertions.assertThat(generatedSource(result.compilation(), "com.example.CustomerMappingImpl"))
-        .containsOnlyOnce("private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;")
+        .containsOnlyOnce(
+            "private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;")
         .containsOnlyOnce("public ValidatedPrism<String, EmailAddress> email() {");
   }
 

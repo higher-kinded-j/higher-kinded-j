@@ -1299,7 +1299,7 @@ class MappingProcessorUpdateTest {
           // components
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .doesNotContain("E @Nullable [] values")
+          .doesNotContain("[] values")
           .doesNotContain("Function<? super E");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);

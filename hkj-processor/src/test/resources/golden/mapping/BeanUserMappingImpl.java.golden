@@ -22,7 +22,7 @@ public final class UserMappingImpl implements UserMapping {
 
   private final ValidatedPrism<UserDto, User> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private UserMappingImpl() {
   }

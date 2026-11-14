@@ -123,6 +123,19 @@ public final class NullableAnnotations {
   }
 
   /**
+   * Whether a parameter is declared as one that may take {@code null}: an annotation on it, or on
+   * its type, reads as nullable, by the rule {@link #declaredNonNull} applies first.
+   *
+   * @param parameter the parameter, such as a canonical constructor's
+   * @return whether its declaration says it may take {@code null}
+   */
+  static boolean declaresNullable(VariableElement parameter) {
+    return Stream.of(parameter.getAnnotationMirrors(), parameter.asType().getAnnotationMirrors())
+        .<AnnotationMirror>flatMap(List::stream)
+        .anyMatch(NullableAnnotations::readsNullable);
+  }
+
+  /**
    * The annotations a record component's declaration carries, wherever javac puts them: on the
    * component, its type, its accessor and its backing field. An annotation targeting fields and
    * methods but not record components reaches the accessor only when the accessor is implicit, and

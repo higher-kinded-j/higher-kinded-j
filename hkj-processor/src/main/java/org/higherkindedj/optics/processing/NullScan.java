@@ -2,10 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.ParameterSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
@@ -546,6 +548,23 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
+  /**
+   * The {@code Optional} the guard takes, declared {@code @Nullable} like every guarded read, since
+   * a JSON binding leaves a missing {@code Optional} component {@code null}. Error Prone's {@code
+   * NullableOptional} check, which most builds run, warns at such a declaration, so it is
+   * suppressed on this parameter alone.
+   */
+  private static ParameterSpec optionalGuarded(TypeVariableName optional, NullnessMarks marks) {
+    ParameterSpec.Builder parameter = ParameterSpec.builder(marks.nullable(optional), "value");
+    if (marks.present()) {
+      parameter.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "NullableOptional")
+              .build());
+    }
+    return parameter.build();
+  }
+
   private static MethodSpec optionalHelper(NullnessMarks marks) {
     TypeVariableName e = TypeVariableName.get("E");
     TypeVariableName o =
@@ -559,7 +578,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " holds only the one value.\n",
             o,
             e)
-        .addParameter(marks.nullable(o), "value")
+        .addParameter(optionalGuarded(o, marks))
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("value"))
         .beginControlFlow("if (value.isEmpty())")

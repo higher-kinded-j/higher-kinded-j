@@ -413,7 +413,7 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
              heading="domain field 'X.y' is declared @Nullable, and build copies it to the record component 'XDto.y', which is declared non-null",
              fragment="and build copies it to",
              meaning="A same-typed component is copied as it is, so the `null` the domain may hold would be written into a site declared non-null, by an annotation or by a JSpecify `@NullMarked` scope.",
-             fix="Mark the wire component `@Nullable`, or declare the domain component non-null if every value `build` is given has one.",
+             fix="Mark the wire component `@Nullable`, on a Lombok bean its field, or declare the domain component non-null.",
              rule=("A `@Nullable` component is not copied into a non-null one", "rules.md#nullable-copy-into-non-null"),
              code="""record Reader(String name, @Nullable String nickname) {}
 
@@ -1673,6 +1673,22 @@ record Dashboard(String name, String accountId, boolean darkMode) {}
 interface DashboardAssembly {
   Validated<NonEmptyList<FieldError>, Dashboard> assemble(
       Customer customer, Account account, Settings settings);
+}"""),
+        dict(id="merge-nullable-into-non-null",
+             heading="@GenerateMerge: source component 'X.y' is declared @Nullable, and the merge copies it to the record component 'Z.y', which is declared non-null",
+             fragment="and the merge copies it to",
+             meaning="A plain merge copies each source value as it is, so the `null` the source may hold would be written into a target component declared non-null.",
+             fix="Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so a fallible merge reports the `null` as a failure.",
+             rule=("A `@Nullable` component is not copied into a non-null one", "rules.md#nullable-copy-into-non-null"),
+             code="""record Gift(String item, @Nullable String note) {}
+
+record Giver(String sender) {}
+
+record GiftTag(String item, @NonNull String note, String sender) {}
+
+@GenerateMerge
+interface GiftTagAssembly {
+  GiftTag assemble(Gift gift, Giver giver);
 }"""),
         dict(id="merge-unfilled",
              heading="@GenerateMerge: target component 'x' is not filled by any source",

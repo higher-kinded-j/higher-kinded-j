@@ -79,6 +79,7 @@ SHORT = {
     "bridges-to-a-primitive": "The bridged wire component is a primitive",
     "declared-non-null": "The bridged wire component is declared non-null",
     "nullable-copied-into-non-null": "A `@Nullable` component is copied into one declared non-null",
+    "merge-nullable-into-non-null": "A plain merge copies a `@Nullable` source into a non-null target",
     "bridged-leaf-over-whole-optional": "A bridged leaf is declared over the `Optional`",
     "redundant-on-a-bean-wire": "**Note.** A bean wire bridges without the marker",
     "mix-in-is-a-spec": "A spec extends another spec",

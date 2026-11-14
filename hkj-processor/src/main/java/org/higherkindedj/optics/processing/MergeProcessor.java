@@ -290,8 +290,9 @@ public class MergeProcessor extends AbstractProcessor {
    * target component declared non-null, and answers whether none was. A plain merge copies every
    * source value as it is, a null included, where a fallible one guards each read and reports a
    * null as a failure. It is the rule a mapping's {@code build} keeps for the same copy, in the
-   * same words; a primitive never holds a null, and a component that says nothing either way copies
-   * as before.
+   * same shape, with one more fix: a leaf on any fill makes the merge fallible, so its guard takes
+   * this read too. A primitive never holds a null, and a component that says nothing either way
+   * copies as before.
    */
   private boolean checkNoNullableIntoNonNull(
       ExecutableElement mergeMethod, TypeElement target, List<Fill> fills) {
@@ -307,8 +308,9 @@ public class MergeProcessor extends AbstractProcessor {
       if (from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)) {
         continue;
       }
+      RecordComponentElement to = componentNamed(target, fill.component());
       MappingProcessor.NonNullSite site =
-          MappingProcessor.nonNullComponent(target, componentNamed(target, fill.component()));
+          MappingProcessor.nonNullComponent(processingEnv.getElementUtils(), target, to);
       if (site == null) {
         continue;
       }
@@ -329,11 +331,21 @@ public class MergeProcessor extends AbstractProcessor {
               + MappingProcessor.nonNullBecause(processingEnv, site)
               + ", so the merge would write a null its declaration rules out, and either throw or"
               + " leave a null its type says it cannot hold.",
-          Character.toUpperCase(nullable.charAt(0))
-              + nullable.substring(1)
-              + ", since its source may be absent; or declare "
+          "As "
               + spelt
-              + " non-null, if every source the merge is given has one.");
+              + " may be absent, "
+              + nullable
+              + "; or declare "
+              + spelt
+              + " non-null, if every "
+              + source.getSimpleName()
+              + " the merge is given has one; or add "
+              + leafDeclaration(fill.component(), from.asType(), to.asType())
+              + " to the merge and return Validated<NonEmptyList<FieldError>, "
+              + target.getSimpleName()
+              + ">, so that a fallible merge reports a null "
+              + fill.component()
+              + " as a failure.");
       clean = false;
     }
     return clean;
@@ -1027,46 +1039,42 @@ public class MergeProcessor extends AbstractProcessor {
             .map(source -> source.getSimpleName().toString())
             .collect(Collectors.toUnmodifiableSet());
     if (shape.fallibleDeclared()) {
+      // A fill that copies a container is bound to a local ahead of the ladder, as a mapping's
+      // parse binds such a leg (LegLocals says why).
+      LegLocals locals = new LegLocals();
       List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
         // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
+        CodeBlock value;
         if (fill.fallible()) {
-          legs.add(
+          value =
               CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L.$L(), $L::parse))",
-                  fill.component(),
+                  "hkj$$ifPresent($L.$L(), $L::parse)",
                   fill.sourceParam(),
                   fill.component(),
-                  fill.prism()));
+                  fill.prism());
         } else if (fill.scan() != null) {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, $L)",
-                  fill.component(),
-                  fill.scan().on(fill.read(sourceNames), sourceNames)));
+          value = fill.scan().on(fill.read(sourceNames), sourceNames);
         } else if (fill.guardedRead()) {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, $T::validNel))",
-                  fill.component(),
-                  fill.read(sourceNames),
-                  VALIDATED));
+          value =
+              CodeBlock.of("hkj$$ifPresent($L, $T::validNel)", fill.read(sourceNames), VALIDATED);
         } else {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, $T.validNel($L))",
-                  fill.component(),
-                  VALIDATED,
-                  fill.read(sourceNames)));
+          value = CodeBlock.of("$T.validNel($L)", VALIDATED, fill.read(sourceNames));
         }
+        legs.add(
+            CodeBlock.of(
+                "\n.field($S, $L)",
+                fill.component(),
+                fill.copy() == null ? value : locals.bind(fill.component(), value)));
       }
+      method.addCode(locals.statements());
       // The merge method's parameters carry the spec author's names, so they are reserved
       // against the emitted lambda parameters (and, past one ladder, the chunk locals). Either
       // form ends in the guarded constructor call: an invariant the target's constructor
       // enforces refuses the merged combination at the root instead of throwing.
-      Set<String> reserved = new LinkedHashSet<>();
+      Set<String> reserved = new LinkedHashSet<>(locals.names());
       for (VariableElement source : mergeMethod.getParameters()) {
         reserved.add(source.getSimpleName().toString());
       }

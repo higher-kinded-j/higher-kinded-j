@@ -1090,7 +1090,7 @@ class ContainerCopyTest {
     assertThat(probe("sparse")).isEqualTo(List.of());
     assertThat(generated("FixturesScoresPatchMappingImpl"))
         .contains("Edit.setIfPresent(")
-        .contains("hkj$copyIfPresent(wire.getScores(), e -> e.clone())");
+        .contains("hkj$copyOrNull(wire.getScores(), e -> e.clone())");
   }
 
   @Test
@@ -1162,6 +1162,7 @@ class ContainerCopyTest {
 
                     import java.util.List;
                     import java.util.Map;
+                    import java.util.Optional;
                     import org.higherkindedj.optics.annotations.GenerateMapping;
                     import org.higherkindedj.optics.annotations.MappingSpec;
 
@@ -1170,11 +1171,11 @@ class ContainerCopyTest {
 
                       public record Shapes(
                           String name, List<List<String>> lists, Map<String, String> map,
-                          String[][] grid) {}
+                          String[][] grid, Optional<List<String>> maybe) {}
 
                       public record ShapesDto(
                           String name, List<List<String>> lists, Map<String, String> map,
-                          String[][] grid) {}
+                          String[][] grid, Optional<List<String>> maybe) {}
 
                       @GenerateMapping
                       public interface ShapesMapping extends MappingSpec<Shapes, ShapesDto> {}
@@ -1191,7 +1192,8 @@ class ContainerCopyTest {
     assertThat(generated)
         .doesNotContain("org.jspecify")
         .contains("private static <E, C extends List<E>> C hkj$copyOf(C values)")
-        .contains("private static <A> A hkj$copyIfPresent(A value, Function<A, A> copy)")
-        .contains("hkj$ifPresent(S value,");
+        .contains("private static <A> A hkj$copyOrNull(A value, Function<A, A> copy)")
+        .contains("hkj$ifPresent(S value,")
+        .containsPattern("hkj\\$presentWithin\\(\\s*O value,");
   }
 }

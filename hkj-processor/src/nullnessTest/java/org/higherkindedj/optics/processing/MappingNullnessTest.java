@@ -22,7 +22,14 @@ import org.junit.jupiter.params.provider.EnumSource;
  *
  * <p>Every container shape a copy takes is here, at the top and inside, declared nullable and
  * non-null, on every tier that copies: a record or bean wire both ways, a builder, a sparse update
- * and a merge. They share one javac run per configuration.
+ * and a merge, beside a leaf, a {@code @MapKey} leaf and a record wide enough to parse in chunks.
+ * They share one javac run per configuration, which also holds Error Prone's {@code
+ * NullableOptional} check, run by default, to the guards.
+ *
+ * <p>Each two-way pair declares the same nullness on both sides, and a nullable element type is
+ * written by {@code build} into a bean that is only written: a checker does not infer a nullable
+ * type argument through the {@code parse} ladder, and {@code asIso()} reads a wire component
+ * straight into the domain's.
  */
 @DisplayName("A nullness checker accepts a generated mapping implementation")
 @ParameterizedClass(name = "{0}")
@@ -43,7 +50,7 @@ class MappingNullnessTest {
             configuration,
             List.of(
                 new MappingProcessor(), new MergeProcessor(), new CompanionAnnotationProcessor()),
-            List.of(),
+            List.of("-Xep:NullableOptional:ERROR"),
             source(
                 "com.example.Fixtures",
                 """
@@ -54,10 +61,13 @@ class MappingNullnessTest {
                 import java.util.Map;
                 import java.util.Optional;
                 import java.util.Set;
+                import org.higherkindedj.hkt.validated.Validated;
                 import org.higherkindedj.optics.annotations.GenerateMapping;
                 import org.higherkindedj.optics.annotations.GenerateMerge;
+                import org.higherkindedj.optics.annotations.MapKey;
                 import org.higherkindedj.optics.annotations.MappingSpec;
                 import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
                 import org.jspecify.annotations.Nullable;
 
                 public final class Fixtures {
@@ -144,6 +154,67 @@ class MappingNullnessTest {
                   @GenerateMapping
                   public interface NestedMapping extends MappingSpec<Nested, NestedDto> {}
 
+                  // A leaf, and a @MapKey leaf, are each read once and kept.
+                  public record Code(String value) {}
+
+                  public record Coded(Code code, Map<Code, List<String>> byCode) {}
+
+                  public record CodedDto(String code, Map<String, List<String>> byCode) {}
+
+                  @GenerateMapping
+                  public interface CodedMapping extends MappingSpec<Coded, CodedDto> {
+                    default ValidatedPrism<String, Code> code() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+
+                    @MapKey("byCode")
+                    default ValidatedPrism<String, Code> byCodeKey() {
+                      return code();
+                    }
+                  }
+
+                  // Wider than one fields() ladder, over containers that copy at two levels.
+                  public record Wide(
+                      List<List<String>> l1,
+                      List<List<String>> l2,
+                      List<List<String>> l3,
+                      List<List<String>> l4,
+                      List<List<String>> l5,
+                      List<List<String>> l6,
+                      List<List<String>> l7,
+                      List<List<String>> l8,
+                      List<List<String>> l9,
+                      List<List<String>> l10,
+                      List<List<String>> l11,
+                      List<List<String>> l12,
+                      List<List<String>> l13,
+                      List<List<String>> l14,
+                      List<List<String>> l15,
+                      List<List<String>> l16,
+                      List<List<String>> l17) {}
+
+                  public record WideDto(
+                      List<List<String>> l1,
+                      List<List<String>> l2,
+                      List<List<String>> l3,
+                      List<List<String>> l4,
+                      List<List<String>> l5,
+                      List<List<String>> l6,
+                      List<List<String>> l7,
+                      List<List<String>> l8,
+                      List<List<String>> l9,
+                      List<List<String>> l10,
+                      List<List<String>> l11,
+                      List<List<String>> l12,
+                      List<List<String>> l13,
+                      List<List<String>> l14,
+                      List<List<String>> l15,
+                      List<List<String>> l16,
+                      List<List<String>> l17) {}
+
+                  @GenerateMapping
+                  public interface WideMapping extends MappingSpec<Wide, WideDto> {}
+
                   // Elements that may be null, written by build into a bean that is only written.
                   public record Holed(
                       List<@Nullable String> holedList,
@@ -167,7 +238,7 @@ class MappingNullnessTest {
                     private @Nullable List<String @Nullable []> holedListOfArrays;
                     private @Nullable String @Nullable [] holedArray;
                     private String @Nullable [] @Nullable [] holedGrid;
-                    private @Nullable Optional<List<@Nullable String>> holedValues;
+                    private Optional<List<@Nullable String>> holedValues = Optional.empty();
 
                     public void setHoledList(List<@Nullable String> holedList) {
                       this.holedList = holedList;

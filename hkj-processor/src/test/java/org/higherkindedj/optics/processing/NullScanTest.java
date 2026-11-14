@@ -564,7 +564,8 @@ class NullScanTest {
             "table.0.0.1: must not be null");
     Assertions.assertThat(generated("FixturesMergedAssemblyImpl"))
         .contains(
-            ".field(\"grid\", hkj$allPresent(hkj$copyOf(e.grid(), e__ -> hkj$copyOf(e__)), e__ -> hkj$allPresent(e__)))");
+            "var hkj$grid = hkj$allPresent(hkj$copyOf(e.grid(), e__ -> hkj$copyOf(e__)), e__ ->"
+                + " hkj$allPresent(e__));");
   }
 
   @Test

@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 public final class MemberDetailsMappingImpl implements MemberDetailsMapping {
   public static final MemberDetailsMappingImpl INSTANCE = new MemberDetailsMappingImpl();
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private MemberDetailsMappingImpl() {
   }

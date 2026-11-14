@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 public final class SubscriberDetailsMappingImpl implements SubscriberDetailsMapping {
   public static final SubscriberDetailsMappingImpl INSTANCE = new SubscriberDetailsMappingImpl();
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private SubscriberDetailsMappingImpl() {
   }

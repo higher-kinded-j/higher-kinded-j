@@ -35,7 +35,7 @@ public final class PetMappingImpl implements PetMapping {
 
   private final ValidatedBuild<PetModel, Pet> hkj$buildAdapter = ValidatedBuild.of(this::build);
 
-  private volatile ValidatedPrism<String, PetId> hkj$leaf$id;
+  private volatile @Nullable ValidatedPrism<String, PetId> hkj$leaf$id;
 
   private PetMappingImpl() {
   }
@@ -49,11 +49,12 @@ public final class PetMappingImpl implements PetMapping {
 
   public Validated<NonEmptyList<FieldError>, Pet> parse(PetModel wire) {
     Objects.requireNonNull(wire, "wire must not be null");
+    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));
     return hkj$construct(
         Validated.fields()
             .field("id", hkj$ifPresent(wire.getId(), id()::parse))
             .field("name", hkj$ifPresent(wire.getName(), Validated::validNel))
-            .field("tags", hkj$allPresent(hkj$copyOf(wire.getTags())))
+            .field("tags", hkj$tags)
             .field("status", Validated.validNel(Optional.ofNullable(wire.getStatus())))
             .apply((id, name, tags, status) -> () -> new Pet(id, name, tags, status)),
         "not a valid Pet");
@@ -158,7 +159,7 @@ public final class PetMappingImpl implements PetMapping {
     if (values == null) {
       return values;
     }
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
     return copy;
   }

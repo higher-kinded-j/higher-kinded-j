@@ -31,33 +31,36 @@ public final class CrewMappingImpl implements CrewMapping {
 
   private final ValidatedPrism<CrewDto, Crew> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, Email> hkj$leaf$members;
+  private volatile @Nullable ValidatedPrism<String, Email> hkj$leaf$members;
 
-  private volatile ValidatedPrism<String, Email> hkj$leaf$reserves;
+  private volatile @Nullable ValidatedPrism<String, Email> hkj$leaf$reserves;
 
-  private volatile ValidatedPrism<String, Email> hkj$leaf$noteKey;
+  private volatile @Nullable ValidatedPrism<String, Email> hkj$leaf$noteKey;
 
-  private volatile ValidatedPrism<String, Email> hkj$leaf$escalations;
+  private volatile @Nullable ValidatedPrism<String, Email> hkj$leaf$escalations;
 
-  private volatile ValidatedPrism<String, Email> hkj$leaf$escalationKey;
+  private volatile @Nullable ValidatedPrism<String, Email> hkj$leaf$escalationKey;
 
   private CrewMappingImpl() {
   }
 
   public CrewDto build(Crew domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), hkj$copyOf(domain.tags()), hkj$copyIfPresent(domain.codes(), e -> e.clone()), hkj$copyIfPresent(domain.ranks(), e -> e.clone()), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
+    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), hkj$copyOf(domain.tags()), hkj$copyOrNull(domain.codes(), e -> e.clone()), hkj$copyOrNull(domain.ranks(), e -> e.clone()), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
   }
 
   public Validated<NonEmptyList<FieldError>, Crew> parse(CrewDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
+    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.tags()));
+    var hkj$codes = hkj$allPresent(hkj$copyOrNull(wire.codes(), e -> e.clone()));
+    var hkj$ranks = hkj$ifPresent(hkj$copyOrNull(wire.ranks(), e -> e.clone()), Validated::validNel);
     return hkj$construct(
         Validated.fields()
             .field("members", hkj$ifPresent(wire.members(), members()::parseAll))
             .field("reserves", hkj$ifPresent(wire.reserves(), v -> reserves().parseAll(v, Email[]::new)))
-            .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
-            .field("codes", hkj$allPresent(hkj$copyIfPresent(wire.codes(), e -> e.clone())))
-            .field("ranks", hkj$ifPresent(hkj$copyIfPresent(wire.ranks(), e -> e.clone()), Validated::validNel))
+            .field("tags", hkj$tags)
+            .field("codes", hkj$codes)
+            .field("ranks", hkj$ranks)
             .field("notes", hkj$ifPresent(wire.notes(), noteKey()::parseKeys))
             .field("escalations", hkj$ifPresent(wire.escalations(), v -> escalationKey().parseEntries(v, escalations())))
             .apply((members, reserves, tags, codes, ranks, notes, escalations) -> () -> new Crew(members, reserves, tags, codes, ranks, notes, escalations)),
@@ -218,7 +221,7 @@ public final class CrewMappingImpl implements CrewMapping {
     if (values == null) {
       return values;
     }
-    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
     C copy = (C) Collections.unmodifiableSet(new LinkedHashSet<>(values));
     return copy;
   }
@@ -226,7 +229,7 @@ public final class CrewMappingImpl implements CrewMapping {
   /**
    * Copies an array that may be null, which no helper can type by the array itself: a null is handed back, and a present array is copied.
    */
-  private static <A extends @Nullable Object> A hkj$copyIfPresent(A value,
+  private static <A extends @Nullable Object> A hkj$copyOrNull(A value,
       Function<@NonNull A, @NonNull A> copy) {
     return value == null ? value : copy.apply(value);
   }

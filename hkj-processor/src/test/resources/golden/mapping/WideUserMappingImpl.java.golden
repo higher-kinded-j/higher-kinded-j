@@ -23,7 +23,7 @@ public final class WideUserMappingImpl implements WideUserMapping {
 
   private final ValidatedPrism<WideUserDto, WideUser> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private WideUserMappingImpl() {
   }

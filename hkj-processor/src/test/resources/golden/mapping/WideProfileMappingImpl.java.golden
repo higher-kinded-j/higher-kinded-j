@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 public final class WideProfileMappingImpl implements WideProfileMapping {
   public static final WideProfileMappingImpl INSTANCE = new WideProfileMappingImpl();
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private WideProfileMappingImpl() {
   }
