@@ -121,7 +121,10 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * a wrong value). What stays bean-only is the <em>absence</em> contract: only a bean property is
  * legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is truthful for an
  * all-primitive bean, while a lossless record mapping keeps it with the parse-iso coherence law
- * scoped to wires whose reference components are non-null and whose values the domain accepts.
+ * scoped to wires whose reference components are non-null and whose values the domain accepts. A
+ * record wire whose declaration says a component, or an element its copy scans, may be null, where
+ * the domain's says it may not, is the exception: {@code parse} refuses that null, so the mapping
+ * offers no total optic that would hand it over ({@link #lossyRead}).
  *
  * <p>Once every component has parsed, the domain's canonical constructor runs inside a {@link
  * GuardedConstruction guard}: a {@code RuntimeException} it throws (the record's own invariant)
@@ -5544,7 +5547,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
       // A write-back that can fail is no lens: it maps as the validated patch tier instead, whose
       // guarded reads scan what they copy.
-      boolean lens = totalReads(projection, projected);
+      boolean lens = totalReads(projection, projected, domain);
       if (!mapsReachably(spec, domainDeclared, projected, projection, !lens)) {
         return Optional.empty();
       }
@@ -13085,25 +13088,66 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Whether every correspondence reads totally, so the mapping can be an optic: {@code asIso()} on
    * a full mapping, {@code asLens()} on a projection. A fallible correspondence, or a guarded read
-   * on a bean wire ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code
-   * asIso()}, and a projection maps as the validated {@code patch}. On a record wire this is
-   * exactly "no fallible correspondence"; an all-primitive bean can never read null, so it keeps
-   * both optics.
+   * that can fail ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code
+   * asIso()}, and a projection maps as the validated {@code patch}. An all-primitive bean can never
+   * read null, so it keeps both optics. {@code domain} is the record the mapping builds, whose
+   * flattened members belong to their group's record instead.
    */
-  private static boolean totalReads(List<Correspondence> comps, WireShape wire) {
-    return comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
+  private boolean totalReads(List<Correspondence> comps, WireShape wire, TypeElement domain) {
+    return comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire, domain));
   }
 
   /**
-   * Whether a guarded read is partial: only on a bean wire. A bean's reference property is
-   * legitimately unset in normal use, so its guarded read can fail, and {@link #totalReads} counts
-   * it. A record wire's guard exists for hostile input (a null-carrying JSON binding), not for a
-   * representable absent state, so a lossless record mapping keeps {@code asIso()} — the parse-iso
-   * coherence law is scoped to wires whose reference components are non-null and whose values the
-   * domain accepts.
+   * Whether a guarded read is partial, so {@link #totalReads} counts it. Only an identity copy gets
+   * here, every other kind being fallible. On a bean wire every guarded read is partial: a bean's
+   * reference property is legitimately unset in normal use, so its read can fail. A record wire's
+   * guard exists for hostile input, such as a JSON binding that leaves a component null, so its
+   * read is partial only where the wire's declaration says the null is a value it holds and the
+   * domain's says it is not ({@link #declaresARuledOutNull}). Elsewhere a lossless record mapping
+   * keeps {@code asIso()}, and the parse-iso coherence law is scoped to wires whose reference
+   * components are non-null.
    */
-  private static boolean lossyRead(Correspondence c, WireShape wire) {
-    return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
+  private boolean lossyRead(Correspondence c, WireShape wire, TypeElement domain) {
+    if (!guardedRead(c, wire)) {
+      return false;
+    }
+    return !(wire instanceof WireShape.RecordShape record)
+        || declaresARuledOutNull(c, record, domain);
+  }
+
+  /**
+   * Whether a record wire declares a {@code null} that the domain component it is copied into rules
+   * out, which {@code parse} refuses with a located error, so no total optic can hand it over. That
+   * is a wire component declared nullable ({@link NullableAnnotations#declaresNullable}) copied
+   * into a domain component declared non-null ({@link #nonNullComponent}). It is also an element,
+   * at a level the copy's null scan reaches ({@link NullScan}), whose type is declared nullable,
+   * where the domain's element type at that level is declared non-null. A side that says nothing
+   * either way rules nothing out.
+   */
+  private boolean declaresARuledOutNull(
+      Correspondence c, WireShape.RecordShape wire, TypeElement domain) {
+    Types types = processingEnv.getTypeUtils();
+    TypeElement owner = c.group() == null ? domain : c.group().record();
+    RecordComponentElement from = componentNamed(wire.element(), c.wireName());
+    RecordComponentElement to = componentNamed(owner, c.name());
+    if (NullableAnnotations.declaresNullable(from) && nonNullComponent(types, owner, to) != null) {
+      return true;
+    }
+    // Each side's element types are read as its declaration writes them, level by level as the
+    // copy's scan reaches them, since the scan's own element types keep no annotation.
+    TypeMirror fromElement = from.asType();
+    TypeMirror toElement = to.asType();
+    for (NullScan level = c.scan(); level != null; level = level.inner()) {
+      fromElement = level.writtenElement(fromElement, types, processingEnv.getElementUtils());
+      toElement = level.writtenElement(toElement, types, processingEnv.getElementUtils());
+      // A raw container names no element type, so it says nothing either way.
+      if (fromElement != null
+          && NullableAnnotations.declaresNullable(fromElement)
+          && NullableAnnotations.nonNullReason(toElement, to).isPresent()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -13198,7 +13242,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
     // recomputes the derived component, an identity only for wire values already consistent.
-    boolean lossless = totalReads(comps, wire);
+    boolean lossless = totalReads(comps, wire, domain);
 
     List<EmittedMember> emitted = new ArrayList<>();
     emitted.add(EmittedMember.of("build", domainDeclared));

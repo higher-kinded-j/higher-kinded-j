@@ -450,7 +450,7 @@ Depending on what the mapping can honour:
 
 | Mapping is | You also get |
 |------------|--------------|
-| Lossless both ways | `asIso()` |
+| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element) the domain declares non-null |
 | A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, or on a bean wire any reference property (it can be unset): validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
@@ -549,8 +549,16 @@ matter: it maps build-only whatever its width, derived fields included.
   NullAway, `List<@Nullable String>` included. NullAway still reports any component of a generic
   record, a leaf lifted over such a list, an array of arrays, a leg that widens and narrows at
   once, a narrowing leg in a record of more than 16 components, and a container handed over as it
-  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet. Where only one side's elements may be null, it reports
-  `asIso()`/`asLens()` or `build` rightly: declare both sides with one nullness.
+  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet. Where only
+  the domain's elements may be null, it reports `build` rightly: declare both sides with one
+  nullness.
+- **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
+  a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
+  reaches (`List<@Nullable String>`, a map's values, an array's elements), and the domain declares
+  its own non-null, `parse` refuses the `null` and no total optic can hand it over. So a full
+  mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A side that says
+  nothing keeps the optic; map keys do not count. Call `asValidatedPrism()` or `patch`, or give the
+  pair one nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args

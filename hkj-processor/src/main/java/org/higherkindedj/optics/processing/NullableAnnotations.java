@@ -140,6 +140,33 @@ public final class NullableAnnotations {
   }
 
   /**
+   * Whether a type is declared as one that may hold {@code null}: an annotation on it reads as
+   * nullable, by the rule {@link #declaredNonNull} applies first. It reads a type that a
+   * declaration names inside its own, such as a list's element type, where only a {@code TYPE_USE}
+   * annotation can land.
+   *
+   * @param type the type, such as a container's element type
+   * @return whether it is declared as one that may hold {@code null}
+   */
+  static boolean declaresNullable(TypeMirror type) {
+    return type.getAnnotationMirrors().stream().anyMatch(NullableAnnotations::readsNullable);
+  }
+
+  /**
+   * Why a type that a declaration names inside its own, such as a list's element type, holds no
+   * {@code null}, or empty when it may hold one or says nothing either way: an annotation on it, or
+   * the {@code NullMarked} scope that {@code site}, the declaration, is in, by the rule {@link
+   * #declaredNonNull} applies.
+   *
+   * @param type the type, such as a container's element type
+   * @param site the declaration that names it, whose scope decides an unannotated type
+   * @return the reason the type is declared non-null, if it is
+   */
+  static Optional<NonNullReason> nonNullReason(TypeMirror type, Element site) {
+    return declaredNonNull(List.copyOf(type.getAnnotationMirrors()), type, site);
+  }
+
+  /**
    * The annotations a record component's declaration carries, wherever javac puts them: on the
    * component, its type, its accessor and its backing field. An annotation targeting fields and
    * methods but not record components reaches the accessor only when the accessor is implicit, and

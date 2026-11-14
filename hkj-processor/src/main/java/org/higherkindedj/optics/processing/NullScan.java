@@ -210,6 +210,42 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   }
 
   /**
+   * The type this level's elements are written as inside {@code written}, the type the level scans
+   * as a declaration writes it. The scan reads {@link #element} through capture and supertype
+   * views, which keep no type annotation, so a {@code TYPE_USE} annotation on an element type, as
+   * in {@code List<@Nullable String>}, is read here instead. That is an array's component type, or
+   * the type argument that the container class passes through as its element, as {@code
+   * ArrayList<E>} passes {@code E}. Where the class fixes its element, names none, or the type is
+   * written another way, such as a type variable or a wildcard, it is {@link #element}, which is
+   * null for a raw container.
+   *
+   * @param written the type this level scans, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's elements are written as
+   */
+  TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
+    return switch (written.getKind()) {
+      case ARRAY -> ((ArrayType) written).getComponentType();
+      case DECLARED -> passedThrough((DeclaredType) written, types, elements);
+      default -> element;
+    };
+  }
+
+  /** The argument of {@code written} its class passes through as this level's element. */
+  private TypeMirror passedThrough(DeclaredType written, Types types, Elements elements) {
+    TypeElement declaration = (TypeElement) written.asElement();
+    TypeMirror passed =
+        argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
+    int index =
+        passed instanceof TypeVariable variable
+            ? declaration.getTypeParameters().indexOf(variable.asElement())
+            : -1;
+    List<? extends TypeMirror> arguments = written.getTypeArguments();
+    return index < 0 || index >= arguments.size() ? element : arguments.get(index);
+  }
+
+  /**
    * The element types this scan's lambdas take their parameters as, level by level: javac infers
    * them, so a raw type among them is a warning the Impl member holding the scan answers for.
    */
